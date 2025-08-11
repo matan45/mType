@@ -43,32 +43,69 @@ namespace mtype::core {
 		int line;
 		int column;
 	public:
+		// Basic constructor for tokens without literal values
 		Token(TokenType t, const std::string& l, int ln, int col = 0)
 			: type(t), lexeme(l), literal(std::monostate{}), line(ln), column(col) {
 		}
 
-		Token(TokenType t, const std::string& l, int value, int ln, int col = 0)
-			: type(t), lexeme(l), literal(value), line(ln), column(col) {
+		// Static factory methods to avoid constructor ambiguity
+		static Token withIntLiteral(TokenType t, const std::string& l, int value, int ln, int col = 0) {
+			Token token(t, l, ln, col);
+			token.literal = value;
+			return token;
 		}
 
-		Token(TokenType t, const std::string& l, double value, int ln, int col = 0)
-			: type(t), lexeme(l), literal(value), line(ln), column(col) {
+		static Token withDoubleLiteral(TokenType t, const std::string& l, double value, int ln, int col = 0) {
+			Token token(t, l, ln, col);
+			token.literal = value;
+			return token;
 		}
 
-		Token(TokenType t, const std::string& l, const std::string& value, int ln, int col = 0)
-			: type(t), lexeme(l), literal(value), line(ln), column(col) {
+		static Token withStringLiteral(TokenType t, const std::string& l, const std::string& value, int ln, int col = 0) {
+			Token token(t, l, ln, col);
+			token.literal = value;
+			return token;
 		}
 
-		Token(TokenType t, const std::string& l, bool value, int ln, int col = 0)
-			: type(t), lexeme(l), literal(value), line(ln), column(col) {
+		static Token withBoolLiteral(TokenType t, const std::string& l, bool value, int ln, int col = 0) {
+			Token token(t, l, ln, col);
+			token.literal = value;
+			return token;
 		}
 
+		// Literal checking
 		bool hasLiteral() const {
 			return !std::holds_alternative<std::monostate>(literal);
 		}
 
+		// String representations
 		std::string toString() const;
 		static std::string typeToString(TokenType type);
+
+		// Getters
+		TokenType getType() const;
+		const std::string& getLexeme() const;
+		int getLine() const;
+		int getColumn() const;
+
+		// Generic literal getter
+		template<typename T>
+		bool getLiteral(T& out) const;
+
+		// Specific literal getters
+		bool getIntLiteral(int& value) const;
+		bool getDoubleLiteral(double& value) const;
+		bool getStringLiteral(std::string& value) const;
+		bool getBoolLiteral(bool& value) const;
+
+		// Type checking utilities
+		bool is(TokenType t) const;
+		bool isOneOf(std::initializer_list<TokenType> types) const;
+		bool isLiteral() const;
+		bool isKeyword() const;
+		bool isOperator() const;
+		bool isTypeKeyword() const;
+		bool isAccessModifier() const;
 	};
 
 }

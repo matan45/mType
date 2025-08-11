@@ -9,7 +9,6 @@
 class Namespace;
 namespace mtype::core {
 
-	// Environment for variable scoping
 	class Environment {
 	private:
 		std::map<std::string, Value> values;
@@ -19,7 +18,7 @@ namespace mtype::core {
 		std::weak_ptr<Namespace> owningNamespace;
 
 	public:
-		Environment(Environment* p = nullptr);
+		explicit Environment(Environment* p = nullptr);
 		Environment(Environment* p, std::shared_ptr<Namespace> ns);
 		~Environment();
 
@@ -65,6 +64,32 @@ namespace mtype::core {
 		Result<void> defineSuper(const Value& superVal);
 		Result<Value> getSuper() const;
 		bool hasSuper() const;
+
+		// Additional utility methods
+		Result<void> defineFunction(const std::string& name,
+			std::shared_ptr<mtype::MTypeFunction> func,
+			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
+
+		Result<void> defineClass(const std::string& name,
+			std::shared_ptr<mtype::MTypeClass> cls,
+			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
+
+		Result<void> defineNativeFunction(const std::string& name,
+			std::shared_ptr<mtype::MTypeNativeFunction> nativeFunc,
+			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
+
+		// Variable analysis
+		bool shadows(const std::string& name) const;
+		std::vector<std::string> getLocalVariables() const;
+
+		// Access control checking
+		Result<void> checkAccess(const std::string& name,
+			AccessModifier requiredAccess = AccessModifier::ACCESS_PUBLIC) const;
+
+		// Environment traversal
+		Environment* findEnvironment(const std::string& name);
+		const Environment* findEnvironment(const std::string& name) const;
+		Result<int> getVariableDepth(const std::string& name) const;
 	};
 
 	// Scoped environment for automatic cleanup
@@ -77,6 +102,26 @@ namespace mtype::core {
 		explicit ScopedEnvironment(Environment* p);
 		~ScopedEnvironment() = default;
 
+		// Move constructor and assignment
+		ScopedEnvironment(ScopedEnvironment&& other) noexcept
+			: parent(other.parent), env(std::move(other.env)) {
+			other.parent = nullptr;
+		}
+
+		ScopedEnvironment& operator=(ScopedEnvironment&& other) noexcept {
+			if (this != &other) {
+				parent = other.parent;
+				env = std::move(other.env);
+				other.parent = nullptr;
+			}
+			return *this;
+		}
+
+		// Delete copy constructor and assignment
+		ScopedEnvironment(const ScopedEnvironment&) = delete;
+		ScopedEnvironment& operator=(const ScopedEnvironment&) = delete;
+
+		// Access operators
 		Environment* operator->() { return env.get(); }
 		const Environment* operator->() const { return env.get(); }
 		Environment& operator*() { return *env; }
@@ -84,7 +129,37 @@ namespace mtype::core {
 
 		Environment* get() { return env.get(); }
 		const Environment* get() const { return env.get(); }
+
+		// Get parent environment
+		Environment* getParent() { return parent; }
+		const Environment* getParent() const { return parent; }
+
+		// Release ownership (for advanced use cases)
+		std::unique_ptr<Environment> release() {
+			parent = nullptr;
+			return std::move(env);
+		}
 	};
 
+	class EnvironmentGuard {
+	private:
+		Environment** currentEnv;
+		Environment* previousEnv;
 
+	public:
+		EnvironmentGuard(Environment** current, Environment* newEnv)
+			: currentEnv(current), previousEnv(*current) {
+			*currentEnv = newEnv;
+		}
+
+		~EnvironmentGuard() {
+			*currentEnv = previousEnv;
+		}
+
+		// Delete copy and move operations
+		EnvironmentGuard(const EnvironmentGuard&) = delete;
+		EnvironmentGuard& operator=(const EnvironmentGuard&) = delete;
+		EnvironmentGuard(EnvironmentGuard&&) = delete;
+		EnvironmentGuard& operator=(EnvironmentGuard&&) = delete;
+	};
 }

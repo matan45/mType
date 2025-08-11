@@ -9,10 +9,10 @@
 
 namespace mtype {
 	// Forward declarations
-	class Function;
+	class MTypeFunction;
 	class MTypeClass;
 	class MTypeInstance;
-	class NativeFunction;
+	class MTypeNativeFunction;
 	class MTypeEnum;
 
 	namespace core {
@@ -42,24 +42,24 @@ namespace mtype {
 				std::string,
 				bool,
 				std::nullptr_t,
-				std::shared_ptr<Function>,
+				std::shared_ptr<MTypeFunction>,
 				std::shared_ptr<MTypeClass>,
 				std::shared_ptr<MTypeInstance>,
-				std::shared_ptr<NativeFunction>,
+				std::shared_ptr<MTypeNativeFunction>,
 				std::shared_ptr<MTypeEnum>
 			> data;
 
 			// Constructors
 			Value();
-			Value(int i);
-			Value(double d);
-			Value(const std::string& s);
-			Value(bool b);
-			Value(std::shared_ptr<Function> f);
-			Value(std::shared_ptr<MTypeClass> c);
-			Value(std::shared_ptr<MTypeInstance> i);
-			Value(std::shared_ptr<NativeFunction> nf);
-			Value(std::shared_ptr<MTypeEnum> e);
+			explicit Value(int i);
+			explicit Value(double d);
+			explicit Value(const std::string& s);
+			explicit Value(bool b);
+			explicit Value(std::shared_ptr<MTypeFunction> f);
+			explicit Value(std::shared_ptr<MTypeClass> c);
+			explicit Value(std::shared_ptr<MTypeInstance> i);
+			explicit Value(std::shared_ptr<MTypeNativeFunction> nf);
+			explicit Value(std::shared_ptr<MTypeEnum> e);
 
 			// Static factory methods
 			static Value null();
@@ -84,7 +84,7 @@ namespace mtype {
 			Result<double> asFloat() const;
 			Result<std::string> asString() const;
 			Result<bool> asBool() const;
-			Result<std::shared_ptr<Function>> asFunction() const;
+			Result<std::shared_ptr<MTypeFunction>> asFunction() const;
 			Result<std::shared_ptr<MTypeClass>> asClass() const;
 			Result<std::shared_ptr<MTypeInstance>> asInstance() const;
 
