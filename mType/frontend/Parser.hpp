@@ -6,13 +6,13 @@
 #include <memory>
 #include <initializer_list>
 
-namespace mtype {
+namespace mtype::frontend {
 
 	// Forward declarations
 	class Interpreter;
 	using namespace core;
 	using namespace ast;
-	namespace frontend {
+	
 		class Parser {
 		private:
 			std::vector<Token> tokens;
@@ -125,5 +125,5 @@ namespace mtype {
 			// Reset parser with new tokens
 			void reset(const std::vector<Token>& t, const std::string& file = "<input>");
 		};
-	}
+	
 }

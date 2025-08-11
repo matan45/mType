@@ -9,23 +9,21 @@ namespace mtype {
 	// Forward declarations
 	class Environment;
 	class Visitor;
+
 	namespace ast {
 		// Base class for all AST nodes
 		class ASTNode {
-		protected:
+		private:
 			int line;
 			int column;
 			std::string sourceFile;
 
 		public:
-			ASTNode(int l = -1, int c = -1) : line(l), column(c) {}
+			explicit ASTNode(int l = -1, int c = -1) : line(l), column(c) {}
 			virtual ~ASTNode() = default;
 
-			// Evaluation with Result type
-			virtual core::Result<core::Value> evaluate(Environment* env) = 0;
-
-			// Visitor pattern support (optional, for tree walkers)
-			virtual void accept(Visitor* visitor) {}
+			// Visitor pattern support
+			virtual core::Value accept(Visitor* visitor) = 0;
 
 			// Location information
 			int getLine() const { return line; }
@@ -33,7 +31,7 @@ namespace mtype {
 			std::string getSourceFile() const { return sourceFile; }
 
 			void setLocation(int l, int c) { line = l; column = c; }
-			void setSourceFile(const std::string& file) { sourceFile = file; }
+			void setSourceFile(std::string_view file) { sourceFile = file; }
 
 			// Type checking (for semantic analysis)
 			virtual core::Result<core::ValueType> inferType(Environment* env) {
@@ -51,7 +49,7 @@ namespace mtype {
 		using ASTNodePtr = std::unique_ptr<ASTNode>;
 		using ASTNodeList = std::vector<ASTNodePtr>;
 
-		// Base class for visitor pattern (optional)
+		// Base class for visitor pattern
 		class Visitor {
 		public:
 			virtual ~Visitor() = default;
