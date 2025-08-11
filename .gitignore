@@ -266,7 +266,7 @@ ServiceFabricBackup/
 *.ldf
 *.ndf
 *.vcxproj
-.idea
+.idea/
 
 
 # Business Intelligence projects
