@@ -13,7 +13,7 @@ namespace mtype::core {
 		IF, ELSE, SWITCH, CASE, DEFAULT, WHILE, FOR, DO, BREAK, CONTINUE,
 		FUNCTION, RETURN, CLASS, NEW, THIS, ENUM,
 		INT, FLOAT, BOOL, STRING, VOID, EXTENDS, SUPER, CONSTRUCTOR,
-		MODULE, STATIC, NAMESPACE, USING,
+		IMPORT, STATIC, NAMESPACE, USING,
 		PUBLIC, PRIVATE, FINAL, 
 
 		// Operators
@@ -32,7 +32,7 @@ namespace mtype::core {
 	};
 
 	// DOUBLE_COLON and USING for namespace resolution
-	//TODO: need to add double forward slash and /* for comments
+	//import from other files
 
 
 	class Token {

@@ -1,0 +1,362 @@
+// A simple class with fields, constructor, and static method
+public class MyClass {
+    public int x;
+    private string name;
+    final float ratio = 0.5;
+
+    private constructor(int x, string name) {
+        super();
+        this.x = x;
+        this.name = name;
+    }
+
+    public void printInfo() {
+        print(name + ": " + x);
+    }
+
+    public static void helper(MyClass obj) {
+        print("Helper");
+    }
+}
+
+// Namespace with enum
+namespace someNameSpace {
+    enum Colors {
+        RED, GREEN, BLUE;
+    }
+}
+
+// import for other file
+import MyModule;
+
+// Base class with abstract and virtual methods
+private class Base {
+    public abstract doAbstractThing(): void;
+
+    public virtual doVirtualThing(): void {
+        print("Base: doing virtual thing");
+    }
+
+    public final doFinalThing(): void {
+        print("Base: doing final thing");
+    }
+
+    // Base constructors
+    public constructor(string name) {
+        print("Base constructor called with name: " + name);
+    }
+
+    public constructor() {
+        // default constructor
+    }
+}
+
+// Derived class overriding methods and using super calls
+public class Derived extends Base {
+    private string data;
+
+    // Constructor calling super constructor
+    public constructor(string name, string data) {
+        super(name);
+        this.data = data;
+        print("Derived constructor called with data: " + data);
+    }
+
+    // Implement abstract method (override)
+    public override doAbstractThing(): void {
+        print("Derived: implemented abstract thing with data: " + this.data);
+    }
+
+    // Override virtual method, call base version via super
+    public override doVirtualThing(): void {
+        super.doVirtualThing(); // Call Base version
+        print("Derived: extra virtual behavior");
+    }
+
+    // Static method (utility, not tied to instance)
+    public static helperFunction(): void {
+        print("Static helper called");
+    }
+
+    // Method without modifiers (METHOD_NONE)
+    public regularMethod(): void {
+        print("Just a normal method");
+    }
+}
+
+// Operators
+int a = 1;
+a = a + 2;
+a += 3;
+a = a - 1;
+a -= 1;
+a = a * 2;
+a = a / 2;
+a = a % 2;
+
+bool testEqual = (a == 1);
+bool testNotEqual = (a != 2);
+bool testLess = (a < 2);
+bool testLessEqual = (a <= 2);
+bool testGreater = (a > 0);
+bool testGreaterEqual = (a >= 1);
+bool testAnd = (true && false);
+bool testOr = (true || false);
+bool testNot = !true;
+
+// Literals
+int mainValue = 42;
+float pi = 3.14;
+string greeting = "Hello, World!";
+bool isActive = true;
+bool isDone = false;
+Derived nothing = new Derived();
+nothing.regularMethod();
+nothing= null;
+
+// Keywords
+if (isActive) {
+    while (pi < 4.0) {
+        pi += 0.01;
+        if (pi > 3.5 && pi < 3.6) {
+            break;
+        }
+    }
+} else {
+    for (int i = 0; i < 10; i++) {
+        continue;
+    }
+}
+
+switch (mainValue) {
+    case 1:
+        greeting = "One";
+        break;
+    case 42:
+        greeting = "Answer";
+        break;
+    default:
+        greeting = "Unknown";
+}
+
+do {
+    mainValue--;
+} while (mainValue > 0);
+
+function sum(int a, int b) {
+    return a + b;
+}
+
+1. Program Structure
+A program is a sequence of declarations, definitions, and statements.
+
+Top-level entities can be:
+
+Class declarations
+
+Enum declarations
+
+import and namespace declarations
+
+Function declarations
+
+Variable declarations
+
+2. Identifiers
+Start with a letter or underscore, followed by letters, digits, or underscores.
+
+Case-sensitive.
+
+Cannot match keywords.
+
+3. Keywords
+Reserved words from your TokenType list:
+
+cpp
+Copy
+Edit
+if, else, switch, case, default, while, for, do, break, continue,
+function, return, class, new, this, enum,
+int, float, bool, string, void, extends, super, constructor,
+import, static, namespace, using,
+public, private, final
+true, false, null
+4. Literals
+Integer: 42
+
+Float: 3.14
+
+String: "Hello"
+
+Boolean: true / false
+
+Null: null
+
+5. Variables
+Declared with a type followed by a name:
+
+csharp
+Copy
+Edit
+int x = 10;
+string name = "Matan";
+Initialization is optional; default values depend on type.
+
+6. Classes
+Syntax:
+
+scss
+Copy
+Edit
+[access] class ClassName [extends BaseClass] {
+    // Fields
+    [access] [final] Type name [= value];
+    
+    // Constructors
+    [access] constructor(params) [: super(args)] { ... }
+    
+    // Methods
+    [access] [modifier] name(params): ReturnType { ... }
+}
+Access Modifiers:
+
+public – visible everywhere.
+
+private – visible only inside class.
+
+
+Method Modifiers:
+
+abstract – no body; must be implemented by subclasses.
+
+virtual – has default implementation; can be overridden.
+
+override – replaces a base class method.
+
+final – cannot be overridden.
+
+static – belongs to the class, not an instance.
+
+None – standard instance method.
+
+7. Constructors
+Named constructor
+
+Can call parent constructor with super(args)
+
+Overloading allowed (multiple constructors with different parameter lists)
+
+Example:
+
+typescript
+Copy
+Edit
+public constructor(string name, int age) {
+    super(name);
+    this.age = age;
+}
+8. Enums
+Syntax:
+
+cpp
+Copy
+Edit
+enum Colors {
+    RED, GREEN, BLUE;
+}
+9. Namespaces
+
+Namespaces organize symbols inside modules.
+
+using allows importing symbols.
+
+Example:
+
+cpp
+Copy
+Edit
+
+10. Functions
+Syntax:
+
+cpp
+Copy
+Edit
+function name(params): ReturnType {
+    return value;
+}
+Can be top-level or inside classes.
+
+11. Operators
+Arithmetic:
+
+diff
+Copy
+Edit
++  -  *  /  %
++= -= *= /= %=
+++ --
+Comparison:
+
+yaml
+Copy
+Edit
+== != < <= > >=
+Logical:
+
+Copy
+Edit
+&& || !
+Assignment:
+
+Copy
+Edit
+=
+12. Statements
+If/else:
+
+arduino
+Copy
+Edit
+if (condition) { ... }
+else { ... }
+While:
+
+arduino
+Copy
+Edit
+while (condition) { ... }
+Do/while:
+
+arduino
+Copy
+Edit
+do { ... } while (condition);
+For:
+
+csharp
+Copy
+Edit
+for (init; condition; update) { ... }
+Switch:
+
+cpp
+Copy
+Edit
+switch (value) {
+    case CONST: ...; break;
+    default: ...;
+}
+Break & Continue for loop control.
+
+13. Special Keywords
+this – reference to current instance.
+
+super – reference to base class methods/constructors.
+
+new – instantiate classes.
+
+14. End of File & Newline
+Semicolons terminate statements.
+
+Newlines may separate declarations but don’t replace semicolons.

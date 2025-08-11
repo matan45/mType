@@ -58,7 +58,7 @@ namespace mtype::frontend {
 			{"static", TokenType::STATIC},
 
 			// Modules and namespaces
-			{"module", TokenType::MODULE},
+			{"import", TokenType::IMPORT},
 			{"namespace", TokenType::NAMESPACE},
 			{"using", TokenType::USING}
 		};

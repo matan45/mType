@@ -66,7 +66,7 @@ namespace mtype::core {
 		case TokenType::EXTENDS: return "EXTENDS";
 		case TokenType::SUPER: return "SUPER";
 		case TokenType::CONSTRUCTOR: return "CONSTRUCTOR";
-		case TokenType::MODULE: return "MODULE";
+		case TokenType::IMPORT: return "IMPORT";
 		case TokenType::STATIC: return "STATIC";
 		case TokenType::NAMESPACE: return "NAMESPACE";
 		case TokenType::USING: return "USING";
@@ -187,7 +187,7 @@ namespace mtype::core {
 			TokenType::FUNCTION, TokenType::RETURN, TokenType::CLASS, TokenType::NEW, TokenType::THIS,
 			TokenType::ENUM, TokenType::INT, TokenType::FLOAT, TokenType::BOOL, TokenType::STRING,
 			TokenType::VOID, TokenType::EXTENDS, TokenType::SUPER, TokenType::CONSTRUCTOR,
-			TokenType::MODULE, TokenType::STATIC, TokenType::NAMESPACE, TokenType::USING,
+			TokenType::IMPORT, TokenType::STATIC, TokenType::NAMESPACE, TokenType::USING,
 			TokenType::PUBLIC, TokenType::PRIVATE, TokenType::FINAL
 			});
 	}

@@ -872,13 +872,13 @@ namespace tests::runtime {
 
 			TestCase cases[] = {
 				{
-					"module MyModule",
-					{TokenType::MODULE, TokenType::IDENTIFIER, TokenType::END_OF_FILE},
+					"import MyModule",
+					{TokenType::IMPORT, TokenType::IDENTIFIER, TokenType::END_OF_FILE},
 					"Module declaration"
 				},
 				{
-					"module utils.helpers",
-					{TokenType::MODULE, TokenType::IDENTIFIER, TokenType::DOT,
+					"import utils.helpers",
+					{TokenType::IMPORT, TokenType::IDENTIFIER, TokenType::DOT,
 					 TokenType::IDENTIFIER, TokenType::END_OF_FILE},
 					"Module with package path"
 				}
