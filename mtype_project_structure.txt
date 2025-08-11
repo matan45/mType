@@ -1,0 +1,62 @@
+mtype/
+├── include/
+│   ├── mtype/
+│   │   ├── core/
+│   │   │   ├── result.h           # Result<T, Error> type
+│   │   │   ├── error.h            # Error types
+│   │   │   ├── token.h            # Token and TokenType
+│   │   │   ├── value.h            # Value, ValueType, arrays, enums
+│   │   │   ├── environment.h      # Environment (scoping)
+│   │   │   └── function.h         # Function, NativeFunction
+│   │   ├── ast/
+│   │   │   ├── ast_node.h         # Base ASTNode
+│   │   │   ├── expressions.h      # All expression nodes
+│   │   │   ├── statements.h       # All statement nodes
+│   │   │   └── declarations.h     # Class, function, var declarations
+│   │   ├── runtime/
+│   │   │   ├── class.h            # MTypeClass, MTypeInstance
+│   │   │   ├── module.h           # Module system
+│   │   │   └── namespace.h        # Namespace support
+│   │   ├── frontend/
+│   │   │   ├── lexer.h            # Lexer
+│   │   │   └── parser.h           # Parser
+│   │   ├── interpreter/
+│   │   │   ├── interpreter.h      # Main interpreter
+│   │   │   └── evaluator.h        # Expression evaluator
+│   │   ├── extensions/
+│   │   │   ├── builtin.h          # Built-in functions
+│   │   │   └── api.h              # C++ extension API
+│   │   └── utils/
+│   │       ├── file_collector.h   # File collection utilities
+│   │       └── project_loader.h   # Project loading
+├── src/
+│   ├── core/
+│   │   ├── token.cpp
+│   │   ├── value.cpp
+│   │   ├── environment.cpp
+│   │   └── function.cpp
+│   ├── ast/
+│   │   ├── expressions.cpp
+│   │   ├── statements.cpp
+│   │   └── declarations.cpp
+│   ├── runtime/
+│   │   ├── class.cpp
+│   │   ├── module.cpp
+│   │   └── namespace.cpp
+│   ├── frontend/
+│   │   ├── lexer.cpp
+│   │   └── parser.cpp
+│   ├── interpreter/
+│   │   ├── interpreter.cpp
+│   │   └── evaluator.cpp
+│   ├── extensions/
+│   │   └── builtin.cpp
+│   ├── utils/
+│   │   ├── file_collector.cpp
+│   │   └── project_loader.cpp
+│   └── main.cpp
+├── tests/
+│   └── ... (test files)
+├── examples/
+│   └── ... (example mType programs)
+└── Makefile
