@@ -32,7 +32,7 @@ namespace mtype::core {
 	};
 
 	// DOUBLE_COLON and USING for namespace resolution
-	//need to add double forward slash and /* for comments
+	//TODO: need to add double forward slash and /* for comments
 
 
 	class Token {
