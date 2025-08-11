@@ -209,7 +209,7 @@ g++ -std=c++17 tests/IntegrationTest.cpp mType/frontend/Lexer.cpp mType/core/Tok
 |----------|-----------|
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=` |
-| Logical | `&&`, `||`, `!` |
+| Logical | `&&`, `!`, `||` |
 | Assignment | `=`, `+=`, `-=` |
 | Increment | `++`, `--` |
 

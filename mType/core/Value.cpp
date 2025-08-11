@@ -1,8 +1,9 @@
 ﻿#include "Value.hpp"
-#include "../runtime/Function.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <cmath>
+#include "../runtime/Function.hpp"
+#include "../runtime/Klass.hpp"
 
 namespace mtype::core {
 

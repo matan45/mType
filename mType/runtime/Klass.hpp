@@ -22,5 +22,10 @@ namespace mtype::runtime
 	class MTypeKlass
 	{
 	};
+
+	class MTypeInstance
+	{
+		
+	};
 }
 

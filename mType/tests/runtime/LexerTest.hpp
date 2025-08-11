@@ -1010,7 +1010,6 @@ namespace tests::runtime {
 			}
 
 			// Private constructor
-			 // Private constructor
 			{
 				std::string input = "private constructor(string name)";
 				Lexer lexer(input);
