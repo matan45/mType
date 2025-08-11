@@ -130,10 +130,7 @@ namespace mtype::frontend {
 				advance();
 			}
 			else if (c == '\n') {
-				advance();
-				// Optionally emit NEWLINE tokens for languages that care about them
-				// addToken(TokenType::NEWLINE);
-				// break;
+				break;
 			}
 			else {
 				break;
