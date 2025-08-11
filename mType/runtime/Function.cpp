@@ -203,7 +203,7 @@ namespace mtype::runtime {
     
     std::shared_ptr<MTypeFunction> MTypeFunction::bind(std::shared_ptr<MTypeInstance> instance) {
         // Create a new function with 'this' bound to the instance
-        auto boundFunc = std::make_shared<MTypeFunction>(*this);
+        auto boundFunc = std::make_shared<MTypeFunction>(std::move(*this));
         
         // The bound function will have the instance available in its closure
         // This is typically handled by the interpreter when calling the method
@@ -335,10 +335,11 @@ namespace mtype::runtime {
         }
         
         // Execute constructor body
-        auto execResult = interpreter->execute(getBody(), callEnv);
+		//TODO: Uncomment when Interpreter::execute is implemented
+        /**auto execResult = interpreter->execute(getBody(), callEnv);
         if (execResult.isError()) {
             return Result<Value>::err(execResult.error());
-        }
+        }*/
         
         // Return the instance
         return Result<Value>::ok(Value(instance));
@@ -374,7 +375,10 @@ namespace mtype::runtime {
         }
         
         // Execute method body
-        return interpreter->execute(method->getBody(), callEnv);
+        //TODO: Uncomment when Interpreter::execute is implemented
+        //return interpreter->execute(method->getBody(), callEnv);
+		// For now, return a placeholder - actual implementation will be in Interpreter
+		return Result<Value>::err(Error::runtime("Interpreter not yet implemented"));
     }
     
     std::string MTypeBoundMethod::toString() const {

@@ -8,11 +8,14 @@
 
 namespace mtype {
 	// Forward declarations
-	class MTypeFunction;
-	class MTypeClass;
-	class MTypeInstance;
-	class MTypeNativeFunction;
-	class MTypeEnum;
+	namespace runtime {
+		class MTypeFunction;
+		class MTypeClass;
+		class MTypeInstance;
+		class MTypeNativeFunction;
+		class MTypeEnum;
+	}
+
 
 	namespace core {
 
@@ -41,11 +44,11 @@ namespace mtype {
 				std::string,
 				bool,
 				std::nullptr_t,
-				std::shared_ptr<MTypeFunction>,
-				std::shared_ptr<MTypeClass>,
-				std::shared_ptr<MTypeInstance>,
-				std::shared_ptr<MTypeNativeFunction>,
-				std::shared_ptr<MTypeEnum>
+				std::shared_ptr<runtime::MTypeFunction>,
+				std::shared_ptr<runtime::MTypeClass>,
+				std::shared_ptr<runtime::MTypeInstance>,
+				std::shared_ptr<runtime::MTypeNativeFunction>,
+				std::shared_ptr<runtime::MTypeEnum>
 			> data;
 
 			// Constructors
@@ -54,11 +57,11 @@ namespace mtype {
 			explicit Value(double d);
 			explicit Value(const std::string& s);
 			explicit Value(bool b);
-			explicit Value(std::shared_ptr<MTypeFunction> f);
-			explicit Value(std::shared_ptr<MTypeClass> c);
-			explicit Value(std::shared_ptr<MTypeInstance> i);
-			explicit Value(std::shared_ptr<MTypeNativeFunction> nf);
-			explicit Value(std::shared_ptr<MTypeEnum> e);
+			explicit Value(std::shared_ptr<runtime::MTypeFunction> f);
+			explicit Value(std::shared_ptr<runtime::MTypeClass> c);
+			explicit Value(std::shared_ptr<runtime::MTypeInstance> i);
+			explicit Value(std::shared_ptr<runtime::MTypeNativeFunction> nf);
+			explicit Value(std::shared_ptr<runtime::MTypeEnum> e);
 
 			// Static factory methods
 			static Value null();
@@ -83,9 +86,9 @@ namespace mtype {
 			Result<double> asFloat() const;
 			Result<std::string> asString() const;
 			Result<bool> asBool() const;
-			Result<std::shared_ptr<MTypeFunction>> asFunction() const;
-			Result<std::shared_ptr<MTypeClass>> asClass() const;
-			Result<std::shared_ptr<MTypeInstance>> asInstance() const;
+			Result<std::shared_ptr<runtime::MTypeFunction>> asFunction() const;
+			Result<std::shared_ptr<runtime::MTypeClass>> asClass() const;
+			Result<std::shared_ptr<runtime::MTypeInstance>> asInstance() const;
 
 			// Conversion methods
 			std::string toString() const;

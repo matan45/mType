@@ -18,15 +18,15 @@ namespace mtype::core {
 
 	Value::Value(bool b) : type(ValueType::V_BOOL), data(b) {}
 
-	Value::Value(std::shared_ptr<MTypeFunction> f) : type(ValueType::V_FUNCTION), data(f) {}
+	Value::Value(std::shared_ptr<runtime::MTypeFunction> f) : type(ValueType::V_FUNCTION), data(f) {}
 
-	Value::Value(std::shared_ptr<MTypeClass> c) : type(ValueType::V_CLASS), data(c) {}
+	Value::Value(std::shared_ptr<runtime::MTypeClass> c) : type(ValueType::V_CLASS), data(c) {}
 
-	Value::Value(std::shared_ptr<MTypeInstance> i) : type(ValueType::V_INSTANCE), data(i) {}
+	Value::Value(std::shared_ptr<runtime::MTypeInstance> i) : type(ValueType::V_INSTANCE), data(i) {}
 
-	Value::Value(std::shared_ptr<MTypeNativeFunction> nf) : type(ValueType::V_NATIVE_FUNCTION), data(nf) {}
+	Value::Value(std::shared_ptr<runtime::MTypeNativeFunction> nf) : type(ValueType::V_NATIVE_FUNCTION), data(nf) {}
 
-	Value::Value(std::shared_ptr<MTypeEnum> e) : type(ValueType::V_ENUM), data(e) {}
+	Value::Value(std::shared_ptr<runtime::MTypeEnum> e) : type(ValueType::V_ENUM), data(e) {}
 
 	// Static factory methods
 	Value Value::null() {
@@ -78,25 +78,25 @@ namespace mtype::core {
 		return Result<bool>::ok(std::get<bool>(data));
 	}
 
-	Result<std::shared_ptr<MTypeFunction>> Value::asFunction() const {
+	Result<std::shared_ptr<runtime::MTypeFunction>> Value::asFunction() const {
 		if (type != ValueType::V_FUNCTION) {
-			return Result<std::shared_ptr<MTypeFunction>>::err(Error::errorType("Expected function, got " + typeName()));
+			return Result<std::shared_ptr<runtime::MTypeFunction>>::err(Error::errorType("Expected function, got " + typeName()));
 		}
-		return Result<std::shared_ptr<MTypeFunction>>::ok(std::get<std::shared_ptr<MTypeFunction>>(data));
+		return Result<std::shared_ptr<runtime::MTypeFunction>>::ok(std::get<std::shared_ptr<runtime::MTypeFunction>>(data));
 	}
 
-	Result<std::shared_ptr<MTypeClass>> Value::asClass() const {
+	Result<std::shared_ptr<runtime::MTypeClass>> Value::asClass() const {
 		if (type != ValueType::V_CLASS) {
-			return Result<std::shared_ptr<MTypeClass>>::err(Error::errorType("Expected class, got " + typeName()));
+			return Result<std::shared_ptr<runtime::MTypeClass>>::err(Error::errorType("Expected class, got " + typeName()));
 		}
-		return Result<std::shared_ptr<MTypeClass>>::ok(std::get<std::shared_ptr<MTypeClass>>(data));
+		return Result<std::shared_ptr<runtime::MTypeClass>>::ok(std::get<std::shared_ptr<runtime::MTypeClass>>(data));
 	}
 
-	Result<std::shared_ptr<MTypeInstance>> Value::asInstance() const {
+	Result<std::shared_ptr<runtime::MTypeInstance>> Value::asInstance() const {
 		if (type != ValueType::V_INSTANCE) {
-			return Result<std::shared_ptr<MTypeInstance>>::err(Error::errorType("Expected instance, got " + typeName()));
+			return Result<std::shared_ptr<runtime::MTypeInstance>>::err(Error::errorType("Expected instance, got " + typeName()));
 		}
-		return Result<std::shared_ptr<MTypeInstance>>::ok(std::get<std::shared_ptr<MTypeInstance>>(data));
+		return Result<std::shared_ptr<runtime::MTypeInstance>>::ok(std::get<std::shared_ptr<runtime::MTypeInstance>>(data));
 	}
 
 	// Conversion methods

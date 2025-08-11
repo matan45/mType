@@ -161,7 +161,7 @@ namespace mtype {
             // Function specific methods
             std::string getName() const { return name; }
             const std::vector<FunctionParameter>& getParameters() const { return parameters; }
-            ASTNodePtr getBody() const { return body; }
+            ASTNodePtr const& getBody() const { return body; }
             std::shared_ptr<Environment> getClosure() const { return closure; }
             ValueType getReturnType() const { return returnType; }
             
@@ -190,10 +190,15 @@ namespace mtype {
             // Bind method to instance (for method calls)
             std::shared_ptr<MTypeFunction> bind(std::shared_ptr<class MTypeInstance> instance);
             
-        private:
             // Helper for creating function environment
             Result<std::shared_ptr<Environment>> createCallEnvironment(
                 const std::vector<Value>& args) const;
+
+			MTypeFunction(const MTypeFunction&) = delete;
+			MTypeFunction& operator=(const MTypeFunction&) = delete;
+
+			MTypeFunction(MTypeFunction&&) noexcept = default;
+			MTypeFunction& operator=(MTypeFunction&&) noexcept = default;
         };
         
         // Lambda function (anonymous function with capture)
@@ -251,14 +256,5 @@ namespace mtype {
         };
         
     } // namespace runtime
-    
-    // Update forward declarations in core namespace
-    namespace core {
-        using MTypeFunction = runtime::MTypeFunction;
-        using MTypeNativeFunction = runtime::MTypeNativeFunction;
-        using MTypeClass = runtime::MTypeClass;
-        using MTypeInstance = runtime::MTypeInstance;
-        using MTypeEnum = runtime::MTypeEnum;
-    }
     
 }
