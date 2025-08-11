@@ -65,19 +65,6 @@ namespace mtype::core {
 		Result<Value> getSuper() const;
 		bool hasSuper() const;
 
-		// Additional utility methods
-		Result<void> defineFunction(const std::string& name,
-			std::shared_ptr<mtype::MTypeFunction> func,
-			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
-
-		Result<void> defineClass(const std::string& name,
-			std::shared_ptr<mtype::MTypeClass> cls,
-			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
-
-		Result<void> defineNativeFunction(const std::string& name,
-			std::shared_ptr<mtype::MTypeNativeFunction> nativeFunc,
-			AccessModifier acc = AccessModifier::ACCESS_PUBLIC);
-
 		// Variable analysis
 		bool shadows(const std::string& name) const;
 		std::vector<std::string> getLocalVariables() const;

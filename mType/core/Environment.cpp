@@ -228,27 +228,6 @@ namespace mtype::core {
 		: parent(p), env(std::make_unique<Environment>(p)) {
 	}
 
-	// ScopedEnvironment destructor is default since we're using unique_ptr
-
-	// Additional utility methods for Environment
-	Result<void> Environment::defineFunction(const std::string& name,
-		std::shared_ptr<MTypeFunction> func, AccessModifier acc) {
-		Value funcValue(func);
-		return define(name, funcValue, ValueType::V_FUNCTION, acc);
-	}
-
-	Result<void> Environment::defineClass(const std::string& name,
-		std::shared_ptr<MTypeClass> cls, AccessModifier acc) {
-		Value classValue(cls);
-		return define(name, classValue, ValueType::V_CLASS, acc);
-	}
-
-	Result<void> Environment::defineNativeFunction(const std::string& name,
-		std::shared_ptr<MTypeNativeFunction> nativeFunc, AccessModifier acc) {
-		Value nativeFuncValue(nativeFunc);
-		return define(name, nativeFuncValue, ValueType::V_NATIVE_FUNCTION, acc);
-	}
-
 	// Variable shadowing check
 	bool Environment::shadows(const std::string& name) const {
 		return hasLocal(name) && parent != nullptr && parent->has(name);

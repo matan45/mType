@@ -5,9 +5,12 @@
 #include <vector>
 
 namespace mtype {
+	namespace core
+	{
+		class Environment;
+	}
 
 	// Forward declarations
-	class Environment;
 	class Visitor;
 
 	namespace ast {
@@ -34,7 +37,7 @@ namespace mtype {
 			void setSourceFile(std::string_view file) { sourceFile = file; }
 
 			// Type checking (for semantic analysis)
-			virtual core::Result<core::ValueType> inferType(Environment* env) {
+			virtual core::Result<core::ValueType> inferType(core::Environment* env) {
 				return core::Result<core::ValueType>::err(core::Error::runtime("Type inference not implemented"));
 			}
 
