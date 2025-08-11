@@ -171,11 +171,6 @@ namespace mtype::frontend {
 		tokens.emplace_back(Token::withBoolLiteral(type, text, boolValue, line, tokenColumn));
 	}
 
-	void Lexer::addToken(TokenType type, bool boolValue) {
-		std::string text = source.substr(start, current - start);
-		tokens.emplace_back(type, text, boolValue, line, column - (current - start));
-	}
-
 	// Main token scanning
 	Result<void> Lexer::scanToken() {
 		skipWhitespace();
