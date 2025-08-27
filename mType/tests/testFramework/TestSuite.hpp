@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include "TestRunner.hpp"
+#include "TestCase.hpp"
+#include "TestTypeEnum.hpp"
 
 namespace tests::testFramework
 {
@@ -18,8 +20,14 @@ namespace tests::testFramework
         virtual ~TestSuite() = default;
     
         virtual void setupTests() = 0;
+
+        void run();
+        void generateReport();
     
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
+
+    private:
+        void generateHtmlReport();
     
     }; 
 }
