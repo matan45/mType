@@ -18,7 +18,7 @@ namespace runtimeTypes::global
         std::unordered_map<std::string, std::shared_ptr<VariableDefinition>> variables;
         std::unordered_map<std::string, std::shared_ptr<FunctionDefinition>> functions;
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classes;
-        std::unordered_map<std::string, std::shared_ptr<ObjectInstance>> objects;
+        std::unordered_map<std::string, std::shared_ptr<klass::ObjectInstance>> objects;
         std::unordered_map<std::string, std::shared_ptr<NamespaceDefinition>> nestedNamespaces;
 
         // Using directives within this namespace
