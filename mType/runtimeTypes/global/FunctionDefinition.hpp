@@ -18,7 +18,7 @@ namespace runtimeTypes::global
     public:
         explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), body(nullptr) {}
         
-        FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
+        explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
             : Definition(name), returnType(retType), parameters(params), body(nullptr) {}
 
         ValueType getReturnType() const { return returnType; }
