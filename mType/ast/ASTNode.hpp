@@ -14,7 +14,7 @@ namespace ast
         SourceLocation location;
 
     public:
-        ASTNode() = default;
+        explicit ASTNode() = default;
         explicit ASTNode(const SourceLocation& loc) : location(loc) {}
         virtual ~ASTNode() = default;
 
@@ -24,8 +24,7 @@ namespace ast
         // Template version for other return types
         template <typename T>
         T accept(ASTVisitor<T>& visitor);
-
-        // Get location information
+        
         const SourceLocation& getLocation() const { return location; }
     };
 }
