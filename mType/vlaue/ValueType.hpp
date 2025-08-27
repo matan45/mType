@@ -3,10 +3,15 @@
 #include <string>
 #include <memory>
 
+namespace runtimeTypes
+{
+    class ObjectInstance;
+}
+
 namespace value
 {
     // Value types that the language supports
-    enum class ValueType
+    enum class ValueType :uint8_t
     {
         INT,
         FLOAT,
@@ -19,6 +24,6 @@ namespace value
 
     // Runtime value that can hold different types
     using Value = std::variant<int, float, bool, std::string, std::monostate,
-                               std::shared_ptr<runtime::ObjectInstance>,
+                               std::shared_ptr<runtimeTypes::ObjectInstance>,
                                nullptr_t>;
 }
