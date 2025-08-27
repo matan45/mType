@@ -150,11 +150,9 @@ namespace parser
                 // Postfix increment/decrement
                 TokenType op = parser.getCurrentToken().type;
                 parser.advanceToken();
-                //TODO fix this
-                // For now, treat as a no-op - proper implementation would need special handling
-                // In a complete implementation, you'd create a special PostfixExpNode
-                // that handles the assignment semantics
-                break; // Exit the loop for now
+                // Create a postfix operation using BinaryExpNode with the operand on the left and null on right
+                // This represents postfix operations like var++ or var--
+                expr = std::make_unique<BinaryExpNode>(std::move(expr), op, nullptr);
             } else if (parser.getCurrentToken().type == TokenType::LPAREN) {
                 // Function call
                 std::string funcName;
