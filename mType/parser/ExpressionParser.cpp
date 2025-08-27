@@ -12,6 +12,7 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
+#include "../errors/ParseException.hpp"
 
 namespace parser
 {
@@ -191,7 +192,7 @@ namespace parser
                 // Namespace scope resolution
                 parser.advanceToken();
                 if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                    throw std::runtime_error("Expected identifier after '::'");
+                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
                 }
                 
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get())) {
@@ -205,7 +206,7 @@ namespace parser
                     while (parser.getCurrentToken().type == TokenType::SCOPE) {
                         parser.advanceToken();
                         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                            throw std::runtime_error("Expected identifier after '::'");
+                            throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
                         }
                         parts.push_back(parser.getCurrentToken().stringValue);
                         parser.advanceToken();
@@ -268,7 +269,7 @@ namespace parser
                 return parser.getClassParser()->parseNewExpression();
             }
             default:
-                throw std::runtime_error("Unexpected token in primary expression");
+                throw ParseException("Unexpected token in primary expression", parser.getCurrentToken().location);
         }
     }
 
@@ -284,7 +285,7 @@ namespace parser
         parser.expectToken(TokenType::DOT);
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected member name after '.'");
+            throw ParseException("Expected member name after '.'", parser.getCurrentToken().location);
         }
         
         std::string memberName = parser.getCurrentToken().stringValue;

@@ -18,7 +18,7 @@ namespace parser
         parser.expectToken(TokenType::NAMESPACE);
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected namespace name");
+            throw ParseException("Expected namespace name", parser.getCurrentToken().location);
         }
         
         std::string namespaceName = parser.getCurrentToken().stringValue;
@@ -51,7 +51,7 @@ namespace parser
         parser.expectToken(TokenType::USING);
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected namespace or type name after 'using'");
+            throw ParseException("Expected namespace or type name after 'using'", parser.getCurrentToken().location);
         }
         
         std::vector<std::string> qualifiedName;
@@ -62,7 +62,7 @@ namespace parser
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected identifier after '::'");
+                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
             }
             
             qualifiedName.push_back(parser.getCurrentToken().stringValue);
@@ -88,7 +88,7 @@ namespace parser
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected identifier after '::'");
+                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
             }
             
             qualifiedName.push_back(parser.getCurrentToken().stringValue);
@@ -110,7 +110,7 @@ namespace parser
                 parser.advanceToken();
                 
                 if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                    throw std::runtime_error("Expected identifier after '::'");
+                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
                 }
                 
                 path.push_back(parser.getCurrentToken().stringValue);

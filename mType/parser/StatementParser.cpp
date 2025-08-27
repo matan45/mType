@@ -17,12 +17,14 @@
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../services/ImportManager.hpp"
+#include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::statements;
     using namespace ast::nodes::functions;
     using namespace token;
+    using namespace errors;
 
     std::unique_ptr<ASTNode> StatementParser::parseStatement()
     {
@@ -119,7 +121,7 @@ namespace parser
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
-            throw std::runtime_error("Expected variable name");
+            throw ParseException("Expected variable name", parser.getCurrentToken().location);
         }
 
         std::string varName = parser.getCurrentToken().stringValue;
@@ -397,7 +399,7 @@ namespace parser
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
-            throw std::runtime_error("Expected function name");
+            throw ParseException("Expected function name", parser.getCurrentToken().location);
         }
 
         std::string funcName = parser.getCurrentToken().stringValue;
@@ -431,7 +433,7 @@ namespace parser
 
         if (parser.getCurrentToken().type != TokenType::STRING_LITERAL)
         {
-            throw std::runtime_error("Expected string literal after 'import'");
+            throw ParseException("Expected string literal after 'import'", parser.getCurrentToken().location);
         }
 
         std::string filePath = parser.getCurrentToken().stringValue;
@@ -453,12 +455,12 @@ namespace parser
             }
             catch (const std::exception& e)
             {
-                throw std::runtime_error("Import error: " + std::string(e.what()));
+                throw ParseException("Import error: " + std::string(e.what()), loc);
             }
         }
         else
         {
-            throw std::runtime_error("Import statement requires ImportManager to be set on Parser");
+            throw ParseException("Import statement requires ImportManager to be set on Parser", loc);
         }
 
         return importNode;
@@ -488,7 +490,7 @@ namespace parser
             parser.advanceToken();
             return ValueType::OBJECT;
         default:
-            throw std::runtime_error("Expected type name");
+            throw ParseException("Expected type name", parser.getCurrentToken().location);
         }
     }
 
@@ -505,7 +507,7 @@ namespace parser
 
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
             {
-                throw std::runtime_error("Expected parameter name");
+                throw ParseException("Expected parameter name", parser.getCurrentToken().location);
             }
 
             std::string name = parser.getCurrentToken().stringValue;
@@ -520,7 +522,7 @@ namespace parser
 
                 if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
                 {
-                    throw std::runtime_error("Expected parameter name");
+                    throw ParseException("Expected parameter name", parser.getCurrentToken().location);
                 }
 
                 std::string paramName = parser.getCurrentToken().stringValue;
@@ -542,7 +544,7 @@ namespace parser
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
-            throw std::runtime_error("Expected function name");
+            throw ParseException("Expected function name", parser.getCurrentToken().location);
         }
 
         std::string funcName = parser.getCurrentToken().stringValue;

@@ -21,7 +21,7 @@ namespace parser
         parser.expectToken(TokenType::CLASS);
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected class name");
+            throw ParseException("Expected class name", parser.getCurrentToken().location);
         }
         
         std::string className = parser.getCurrentToken().stringValue;
@@ -72,7 +72,7 @@ namespace parser
         std::vector<std::pair<std::string, ValueType>> parameters;
         while (parser.getCurrentToken().type != TokenType::RPAREN) {
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected parameter type");
+                throw ParseException("Expected parameter type", parser.getCurrentToken().location);
             }
             
             ValueType paramType = ValueType::VOID;  
@@ -85,7 +85,7 @@ namespace parser
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected parameter name");
+                throw ParseException("Expected parameter name", parser.getCurrentToken().location);
             }
             
             std::string paramName = parser.getCurrentToken().stringValue;
@@ -120,7 +120,7 @@ namespace parser
         }
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected method name");
+            throw ParseException("Expected method name", parser.getCurrentToken().location);
         }
         
         std::string methodName = parser.getCurrentToken().stringValue;
@@ -131,7 +131,7 @@ namespace parser
         std::vector<std::pair<std::string, ValueType>> parameters;
         while (parser.getCurrentToken().type != TokenType::RPAREN) {
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected parameter type");
+                throw ParseException("Expected parameter type", parser.getCurrentToken().location);
             }
             
             ValueType paramType = ValueType::VOID;
@@ -144,7 +144,7 @@ namespace parser
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected parameter name");
+                throw ParseException("Expected parameter name", parser.getCurrentToken().location);
             }
             
             std::string paramName = parser.getCurrentToken().stringValue;
@@ -191,7 +191,7 @@ namespace parser
         }
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected field name");
+            throw ParseException("Expected field name", parser.getCurrentToken().location);
         }
         
         std::string fieldName = parser.getCurrentToken().stringValue;
@@ -214,7 +214,7 @@ namespace parser
         parser.expectToken(TokenType::NEW);
         
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw std::runtime_error("Expected class name after 'new'");
+            throw ParseException("Expected class name after 'new'", parser.getCurrentToken().location);
         }
         
         // Parse qualified class name (e.g., namespace::ClassName)
@@ -225,7 +225,7 @@ namespace parser
         while (parser.getCurrentToken().type == TokenType::SCOPE) {
             parser.advanceToken();
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw std::runtime_error("Expected identifier after '::'");
+                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
             }
             qualifiedParts.push_back(parser.getCurrentToken().stringValue);
             parser.advanceToken();
