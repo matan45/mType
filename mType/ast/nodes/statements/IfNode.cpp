@@ -1,1 +1,6 @@
-﻿#include "IfNode.h"
+﻿#include "IfNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}

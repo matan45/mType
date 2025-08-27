@@ -1,1 +1,6 @@
-﻿#include "WhileNode.h"
+﻿#include "WhileNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}

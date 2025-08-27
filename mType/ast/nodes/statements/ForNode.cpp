@@ -1,1 +1,5 @@
-﻿#include "ForNode.h"
+﻿#include "ForNode.hpp"
+namespace ast::nodes::statements
+{
+    
+}

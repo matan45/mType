@@ -1,1 +1,5 @@
-﻿#include "QualifiedNameNode.h"
+﻿#include "QualifiedNameNode.hpp"
+
+namespace ast::nodes::namespaces
+{
+}

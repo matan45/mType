@@ -1,1 +1,6 @@
-﻿#include "MemberAssignmentNode.h"
+﻿#include "MemberAssignmentNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}

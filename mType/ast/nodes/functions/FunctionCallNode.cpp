@@ -1,1 +1,6 @@
-﻿#include "FunctionCallNode.h"
+﻿#include "FunctionCallNode.hpp"
+
+namespace ast::nodes::functions
+{
+   
+}

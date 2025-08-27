@@ -1,1 +1,6 @@
-﻿#include "CaseNode.h"
+﻿#include "CaseNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}

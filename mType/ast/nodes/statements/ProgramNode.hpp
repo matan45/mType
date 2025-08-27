@@ -3,7 +3,7 @@
 
 namespace ast::nodes::statements
 {
-    class DoWhileNode : public ASTNode
+    class ProgramNode : public ASTNode
     {
     public:
     };

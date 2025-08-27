@@ -1,9 +1,9 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
 
-namespace ast::nodes::statements
+namespace ast::nodes::functions
 {
-    class DoWhileNode : public ASTNode
+    class ReturnNode : public ASTNode
     {
     public:
     };

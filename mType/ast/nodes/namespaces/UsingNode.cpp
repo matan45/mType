@@ -1,1 +1,5 @@
-﻿#include "UsingNode.h"
+﻿#include "UsingNode.hpp"
+
+namespace ast::nodes::namespaces
+{
+}

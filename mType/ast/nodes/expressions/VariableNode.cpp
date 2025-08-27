@@ -1,4 +1,4 @@
-﻿#include "VariableNode.h"
+﻿#include "VariableNode.hpp"
 
 namespace ast::nodes::expressions
 {

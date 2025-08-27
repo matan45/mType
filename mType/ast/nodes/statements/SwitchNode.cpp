@@ -1,1 +1,6 @@
-﻿#include "SwitchNode.h"
+﻿#include "SwitchNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}

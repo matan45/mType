@@ -1,4 +1,4 @@
-﻿#include "NullNode.h"
+﻿#include "NullNode.hpp"
 
 namespace ast::nodes::expressions
 {

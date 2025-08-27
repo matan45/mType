@@ -1,1 +1,5 @@
-﻿#include "BlockNode.h"
+﻿#include "BlockNode.hpp"
+
+namespace ast::nodes::statements
+{
+}

@@ -1,1 +1,6 @@
-﻿#include "ReturnNode.h"
+﻿#include "ReturnNode.hpp"
+
+namespace ast::nodes::functions
+{
+    
+}

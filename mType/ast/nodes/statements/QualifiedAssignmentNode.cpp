@@ -1,1 +1,6 @@
-﻿#include "QualifiedAssignmentNode.h"
+﻿#include "QualifiedAssignmentNode.hpp"
+
+namespace ast::nodes::statements
+{
+    
+}
