@@ -16,7 +16,7 @@ namespace lexer
         size_t pos;
         int currentLine;
         int currentColumn;
-        std::stack<char> balanceStack; // Stack for keeping track of parentheses and braces
+        std::stack<char> balanceStack;
         std::vector<std::string> lines;
 
         // List of keywords and their corresponding TokenType
@@ -68,7 +68,7 @@ namespace lexer
         void skipWhitespaceAndComments();
 
         void advance();
-        void throwError(const std::string& message);
+        [[noreturn]] void throwError(const std::string& message);
     };
 }
 
