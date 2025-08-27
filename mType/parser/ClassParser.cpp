@@ -5,18 +5,16 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
-#include <cctype>
+#include "../parser/ParserValidator.hpp"
+#include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::classes;
     using namespace token;
     using namespace value;
+    using namespace errors;
     
-    // Helper function to validate class naming convention
-    bool isValidClassName(const std::string& name) {
-        return !name.empty() && std::isupper(name[0]);
-    }
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
@@ -29,8 +27,8 @@ namespace parser
         std::string className = parser.getCurrentToken().stringValue;
         
         // Validate class naming convention
-        if (!isValidClassName(className)) {
-            throw std::runtime_error("Class name '" + className + "' must start with an uppercase letter");
+        if (!ParserValidator::isValidClassName(className)) {
+            throw ParseException("Class name '" + className + "' must start with an uppercase letter",parser.getCurrentToken().location);
         }
         
         parser.advanceToken();
@@ -235,8 +233,8 @@ namespace parser
         
         // Validate only the final class name (not namespace parts)
         std::string finalClassName = qualifiedParts.back();
-        if (!isValidClassName(finalClassName)) {
-            throw std::runtime_error("Class name '" + finalClassName + "' must start with an uppercase letter");
+        if (!ParserValidator::isValidClassName(finalClassName)) {
+            throw ParseException("Class name '" + finalClassName + "' must start with an uppercase letter", parser.getCurrentToken().location);
         }
         
         // Reconstruct full qualified name for the AST

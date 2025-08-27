@@ -11,7 +11,6 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
-#include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
 
 namespace parser
@@ -150,7 +149,7 @@ namespace parser
                 // Postfix increment/decrement
                 TokenType op = parser.getCurrentToken().type;
                 parser.advanceToken();
-                
+                //TODO fix this
                 // For now, treat as a no-op - proper implementation would need special handling
                 // In a complete implementation, you'd create a special PostfixExpNode
                 // that handles the assignment semantics

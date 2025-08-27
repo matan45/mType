@@ -7,7 +7,6 @@
 #include "NamespaceParser.hpp"
 #include "ClassParser.hpp"
 #include <memory>
-#include <string>
 
 namespace services
 {
