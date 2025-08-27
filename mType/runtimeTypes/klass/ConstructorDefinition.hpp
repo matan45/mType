@@ -24,5 +24,15 @@ namespace runtimeTypes::klass
               initializerList(nullptr) {}
         
         bool matchesArgCount(size_t argCount) const;
+        
+        // Getter methods
+        const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
+        ASTNode* getBody() const { return body; }
+        ASTNode* getInitializerList() const { return initializerList; }
+        size_t getParameterCount() const { return parameters.size(); }
+        
+        // Setter methods
+        void setBody(ASTNode* b) { body = b; }
+        void setInitializerList(ASTNode* init) { initializerList = init; }
     };
 }

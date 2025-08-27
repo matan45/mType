@@ -28,5 +28,8 @@ namespace runtimeTypes
 
         std::string getFullyQualifiedName() const;
         
+        // Getter for the name
+        const std::string& getName() const { return name; }
+        
     };
 }

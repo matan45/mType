@@ -23,7 +23,9 @@ namespace ast
 
         // Template version for other return types
         template <typename T>
-        T accept(ASTVisitor<T>& visitor);
+        T accept(ASTVisitor<T>& visitor) {
+            return static_cast<T>(accept(reinterpret_cast<ASTVisitor<Value>&>(visitor)));
+        }
         
         const SourceLocation& getLocation() const { return location; }
     };
