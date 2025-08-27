@@ -33,33 +33,20 @@ namespace parser
 
         while (currentToken.type != TokenType::END)
         {
-            try
+            auto statement = parseStatement();
+            if (statement)
             {
-                auto statement = parseStatement();
-                if (statement)
+                // Check if this is an import statement
+                if (auto importNode = dynamic_cast<nodes::statements::ImportNode*>(statement.get()))
                 {
-                    // Check if this is an import statement
-                    if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(statement.get()))
-                    {
-                        // Handle import by inlining the imported declarations
-                        handleImportStatement(importNode, program.get());
-                        // Note: We don't add the import node itself to the program
-                    }
-                    else
-                    {
-                        program->addStatement(std::move(statement));
-                    }
+                    // Handle import by inlining the imported declarations
+                    handleImportStatement(importNode, program.get());
+                    // Note: We don't add the import node itself to the program
                 }
-            }
-            catch (const std::exception& e)
-            {
-                // Handle parse errors - report error and rethrow for naming validation
-                if (std::string(e.what()).find("must start with") != std::string::npos)
+                else
                 {
-                    // This is our naming validation error - rethrow it
-                    throw;
+                    program->addStatement(std::move(statement));
                 }
-                advance(); // Skip problematic token and continue
             }
         }
 
@@ -102,8 +89,8 @@ namespace parser
         return expressionParser->parseExpression();
     }
 
-    void Parser::handleImportStatement(ast::nodes::statements::ImportNode* importNode,
-                                       ast::nodes::statements::ProgramNode* program)
+    void Parser::handleImportStatement(nodes::statements::ImportNode* importNode,
+                                       nodes::statements::ProgramNode* program)
     {
         if (!importManager)
         {

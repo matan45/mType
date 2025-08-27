@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#include <vector>
 #include "../ast/ASTNode.hpp"
 
 namespace parser
@@ -30,7 +31,7 @@ namespace parser
 
     private:
         // Helper methods
-        std::unique_ptr<ASTNode> parseArguments();
+        std::vector<std::unique_ptr<ASTNode>> parseArguments();
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
     
     };

@@ -38,8 +38,8 @@ namespace parser
         void expect(TokenType type);
         
         // Import handling
-        void handleImportStatement(ast::nodes::statements::ImportNode* importNode, 
-                                 ast::nodes::statements::ProgramNode* program);
+        void handleImportStatement(nodes::statements::ImportNode* importNode, 
+                                 nodes::statements::ProgramNode* program);
         bool isImportableDeclaration(ASTNode* node);
 
     public:
