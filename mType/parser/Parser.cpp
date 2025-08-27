@@ -53,8 +53,14 @@ namespace parser
                     }
                 }
             }
-            catch (const std::exception&) {
-                // Handle parse errors - could log or throw up
+            catch (const std::exception& e) {
+                // Handle parse errors - report error and rethrow for naming validation
+                if (std::string(e.what()).find("must start with") != std::string::npos) {
+                    // This is our naming validation error - rethrow it
+                    throw;
+                }
+                // For other parse errors, log and continue
+                std::cerr << "Parse error: " << e.what() << std::endl;
                 advance(); // Skip problematic token and continue
             }
         }

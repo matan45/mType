@@ -5,12 +5,18 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
+#include <cctype>
 
 namespace parser
 {
     using namespace ast::nodes::classes;
     using namespace token;
     using namespace value;
+    
+    // Helper function to validate class naming convention
+    bool isValidClassName(const std::string& name) {
+        return !name.empty() && std::isupper(name[0]);
+    }
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
@@ -21,6 +27,12 @@ namespace parser
         }
         
         std::string className = parser.getCurrentToken().stringValue;
+        
+        // Validate class naming convention
+        if (!isValidClassName(className)) {
+            throw std::runtime_error("Class name '" + className + "' must start with an uppercase letter");
+        }
+        
         parser.advanceToken();
         
         parser.expectToken(TokenType::LBRACE);
@@ -207,8 +219,31 @@ namespace parser
             throw std::runtime_error("Expected class name after 'new'");
         }
         
-        std::string className = parser.getCurrentToken().stringValue;
+        // Parse qualified class name (e.g., namespace::ClassName)
+        std::vector<std::string> qualifiedParts;
+        qualifiedParts.push_back(parser.getCurrentToken().stringValue);
         parser.advanceToken();
+        
+        while (parser.getCurrentToken().type == TokenType::SCOPE) {
+            parser.advanceToken();
+            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                throw std::runtime_error("Expected identifier after '::'");
+            }
+            qualifiedParts.push_back(parser.getCurrentToken().stringValue);
+            parser.advanceToken();
+        }
+        
+        // Validate only the final class name (not namespace parts)
+        std::string finalClassName = qualifiedParts.back();
+        if (!isValidClassName(finalClassName)) {
+            throw std::runtime_error("Class name '" + finalClassName + "' must start with an uppercase letter");
+        }
+        
+        // Reconstruct full qualified name for the AST
+        std::string className = qualifiedParts[0];
+        for (size_t i = 1; i < qualifiedParts.size(); ++i) {
+            className += "::" + qualifiedParts[i];
+        }
         
         parser.expectToken(TokenType::LPAREN);
         

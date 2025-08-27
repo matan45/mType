@@ -157,8 +157,18 @@ namespace parser
                 break; // Exit the loop for now
             } else if (parser.getCurrentToken().type == TokenType::LPAREN) {
                 // Function call
+                std::string funcName;
+                bool canCallFunction = false;
+                
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get())) {
-                    std::string funcName = varNode->getName();
+                    funcName = varNode->getName();
+                    canCallFunction = true;
+                } else if (auto qualNode = dynamic_cast<ast::nodes::namespaces::QualifiedNameNode*>(expr.get())) {
+                    funcName = qualNode->getFullName();
+                    canCallFunction = true;
+                }
+                
+                if (canCallFunction) {
                     expr.release(); // Release ownership since we're replacing it
                     
                     parser.advanceToken(); // Skip '('
@@ -188,15 +198,18 @@ namespace parser
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get())) {
                     std::vector<std::string> parts = {varNode->getName()};
                     
-                    while (parser.getCurrentToken().type == TokenType::IDENTIFIER) {
+                    // Add the first identifier after ::
+                    parts.push_back(parser.getCurrentToken().stringValue);
+                    parser.advanceToken();
+                    
+                    // Continue parsing if there are more :: tokens
+                    while (parser.getCurrentToken().type == TokenType::SCOPE) {
+                        parser.advanceToken();
+                        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                            throw std::runtime_error("Expected identifier after '::'");
+                        }
                         parts.push_back(parser.getCurrentToken().stringValue);
                         parser.advanceToken();
-                        
-                        if (parser.getCurrentToken().type == TokenType::SCOPE) {
-                            parser.advanceToken();
-                        } else {
-                            break;
-                        }
                     }
                     
                     expr.release(); // Release ownership since we're replacing it
@@ -252,27 +265,8 @@ namespace parser
                 return expr;
             }
             case TokenType::NEW: {
-                parser.advanceToken();
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                    throw std::runtime_error("Expected class name after 'new'");
-                }
-                
-                std::string className = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
-                
-                parser.expectToken(TokenType::LPAREN);
-                std::vector<std::unique_ptr<ASTNode>> arguments;
-                
-                if (parser.getCurrentToken().type != TokenType::RPAREN) {
-                    arguments.push_back(parseExpression());
-                    
-                    while (parser.matchToken(TokenType::COMMA)) {
-                        arguments.push_back(parseExpression());
-                    }
-                }
-                
-                parser.expectToken(TokenType::RPAREN);
-                return std::make_unique<NewNode>(className, std::move(arguments));
+                // Delegate to ClassParser for proper separation of concerns
+                return parser.getClassParser()->parseNewExpression();
             }
             default:
                 throw std::runtime_error("Unexpected token in primary expression");

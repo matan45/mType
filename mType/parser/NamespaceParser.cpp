@@ -3,11 +3,17 @@
 #include "../ast/nodes/namespaces/NamespaceNode.hpp"
 #include "../ast/nodes/namespaces/UsingNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
+#include <cctype>
 
 namespace parser
 {
     using namespace ast::nodes::namespaces;
     using namespace token;
+    
+    // Helper function to validate namespace naming convention
+    bool isValidNamespaceName(const std::string& name) {
+        return !name.empty() && std::islower(name[0]);
+    }
 
     std::unique_ptr<ASTNode> NamespaceParser::parseNamespace()
     {
@@ -18,6 +24,12 @@ namespace parser
         }
         
         std::string namespaceName = parser.getCurrentToken().stringValue;
+        
+        // Validate namespace naming convention
+        if (!isValidNamespaceName(namespaceName)) {
+            throw std::runtime_error("Namespace name '" + namespaceName + "' must start with a lowercase letter");
+        }
+        
         parser.advanceToken();
         
         parser.expectToken(TokenType::LBRACE);

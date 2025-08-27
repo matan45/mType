@@ -27,53 +27,56 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseStatement()
     {
         const Token& currentToken = parser.getCurrentToken();
-        
-        switch (currentToken.type) {
-            case TokenType::NAMESPACE:
-                return parser.getNamespaceParser()->parseNamespace();
-            case TokenType::CLASS:
-                return parser.getClassParser()->parseClass();
-            case TokenType::FUNCTION:
-                return parseFunction();
-            case TokenType::INT:
-            case TokenType::FLOAT:
-            case TokenType::BOOL:
-            case TokenType::STRING_TYPE:
-                return parseDeclaration();
-            case TokenType::FINAL:
-            case TokenType::STATIC:
-                return parseDeclaration(); // Handle modifiers in parseDeclaration
-            case TokenType::IF:
-                return parseIfStatement();
-            case TokenType::WHILE:
-                return parseWhileStatement();
-            case TokenType::DO:
-                return parseDoWhileStatement();
-            case TokenType::FOR:
-                return parseForStatement();
-            case TokenType::SWITCH:
-                return parseSwitchStatement();
-            case TokenType::BREAK:
-                return parseBreakStatement();
-            case TokenType::CONTINUE:
-                return parseContinueStatement();
-            case TokenType::RETURN:
-                return parseReturnStatement();
-            case TokenType::LBRACE:
-                return parseBlock();
-            case TokenType::IDENTIFIER:
-                return parseAssignment(); // Could be assignment or function call
-            case TokenType::SEMICOLON:
-                parser.advanceToken(); // Skip empty statement
-                return nullptr;
-            case TokenType::IMPORT:
-                return parseImport();
-            case TokenType::USING:
-                return parser.getNamespaceParser()->parseUsing();
-            case TokenType::NATIVE:
-                return parseNativeFunction();
-            default:
-                return parseExpressionStatement();
+
+        switch (currentToken.type)
+        {
+        case TokenType::NAMESPACE:
+            return parser.getNamespaceParser()->parseNamespace();
+        case TokenType::CLASS:
+            return parser.getClassParser()->parseClass();
+        case TokenType::FUNCTION:
+            return parseFunction();
+        case TokenType::INT:
+        case TokenType::FLOAT:
+        case TokenType::BOOL:
+        case TokenType::STRING_TYPE:
+            return parseDeclaration();
+        case TokenType::FINAL:
+        case TokenType::STATIC:
+            return parseDeclaration(); // Handle modifiers in parseDeclaration
+        case TokenType::IF:
+            return parseIfStatement();
+        case TokenType::WHILE:
+            return parseWhileStatement();
+        case TokenType::DO:
+            return parseDoWhileStatement();
+        case TokenType::FOR:
+            return parseForStatement();
+        case TokenType::SWITCH:
+            return parseSwitchStatement();
+        case TokenType::BREAK:
+            return parseBreakStatement();
+        case TokenType::CONTINUE:
+            return parseContinueStatement();
+        case TokenType::RETURN:
+            return parseReturnStatement();
+        case TokenType::LBRACE:
+            return parseBlock();
+        case TokenType::IDENTIFIER:
+            return parseAssignment(); // Could be assignment or function call
+        case TokenType::SEMICOLON:
+            parser.advanceToken(); // Skip empty statement
+            return nullptr;
+        case TokenType::IMPORT:
+            return parseImport();
+        case TokenType::USING:
+            return parser.getNamespaceParser()->parseUsing();
+        case TokenType::NATIVE:
+            return parseNativeFunction();
+        case TokenType::END:
+            return nullptr;
+        default:
+            return parseExpressionStatement();
         }
     }
 
@@ -81,14 +84,16 @@ namespace parser
     {
         parser.expectToken(TokenType::LBRACE);
         auto block = std::make_unique<BlockNode>();
-        
-        while (parser.getCurrentToken().type != TokenType::RBRACE && parser.getCurrentToken().type != TokenType::END) {
+
+        while (parser.getCurrentToken().type != TokenType::RBRACE && parser.getCurrentToken().type != TokenType::END)
+        {
             auto statement = parseStatement();
-            if (statement) {
+            if (statement)
+            {
                 block->addStatement(std::move(statement));
             }
         }
-        
+
         parser.expectToken(TokenType::RBRACE);
         return std::move(block);
     }
@@ -97,33 +102,37 @@ namespace parser
     {
         bool isFinal = false;
         bool isStatic = false;
-        
+
         // Handle modifiers
-        if (parser.getCurrentToken().type == TokenType::FINAL) {
+        if (parser.getCurrentToken().type == TokenType::FINAL)
+        {
             isFinal = true;
             parser.advanceToken();
         }
-        if (parser.getCurrentToken().type == TokenType::STATIC) {
+        if (parser.getCurrentToken().type == TokenType::STATIC)
+        {
             isStatic = true;
             parser.advanceToken();
         }
-        
+
         ValueType type = parseType();
-        
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+
+        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        {
             throw std::runtime_error("Expected variable name");
         }
-        
+
         std::string varName = parser.getCurrentToken().stringValue;
         parser.advanceToken();
-        
+
         std::unique_ptr<ASTNode> value = nullptr;
-        if (parser.matchToken(TokenType::ASSIGN)) {
+        if (parser.matchToken(TokenType::ASSIGN))
+        {
             value = parser.parseExpression();
         }
-        
+
         parser.expectToken(TokenType::SEMICOLON);
-        
+
         return std::make_unique<AssignmentNode>(varName, std::move(value), type, isFinal, isStatic);
     }
 
@@ -131,7 +140,7 @@ namespace parser
     {
         std::string varName = parser.getCurrentToken().stringValue;
         parser.advanceToken();
-        
+
         // Check for compound assignment operators
         TokenType opType = parser.getCurrentToken().type;
         if (opType == TokenType::ASSIGN ||
@@ -139,29 +148,40 @@ namespace parser
             opType == TokenType::MINUS_ASSIGN ||
             opType == TokenType::MULTIPLY_ASSIGN ||
             opType == TokenType::DIVIDE_ASSIGN ||
-            opType == TokenType::MODULO_ASSIGN) {
-            
+            opType == TokenType::MODULO_ASSIGN)
+        {
             parser.advanceToken();
             auto value = parser.parseExpression();
-            
+
             // For compound assignments, create a binary expression
-            if (opType != TokenType::ASSIGN) {
+            if (opType != TokenType::ASSIGN)
+            {
                 auto varNode = std::make_unique<ast::nodes::expressions::VariableNode>(varName);
                 TokenType binaryOp;
-                switch (opType) {
-                    case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
-                    case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
-                    case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
-                    case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
-                    case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
-                    default: binaryOp = TokenType::PLUS; break;
+                switch (opType)
+                {
+                case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS;
+                    break;
+                case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS;
+                    break;
+                case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY;
+                    break;
+                case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE;
+                    break;
+                case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO;
+                    break;
+                default: binaryOp = TokenType::PLUS;
+                    break;
                 }
-                value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(std::move(varNode), binaryOp, std::move(value));
+                value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
+                    std::move(varNode), binaryOp, std::move(value));
             }
-            
+
             parser.expectToken(TokenType::SEMICOLON);
             return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, false, false);
-        } else {
+        }
+        else
+        {
             // It's a function call or expression statement
             // Put the identifier back for expression parsing
             // This is a simplified approach - in a real parser you'd look ahead
@@ -175,14 +195,15 @@ namespace parser
         parser.expectToken(TokenType::LPAREN);
         auto condition = parser.parseExpression();
         parser.expectToken(TokenType::RPAREN);
-        
+
         auto thenStatement = parseStatement();
-        
+
         std::unique_ptr<ASTNode> elseStatement = nullptr;
-        if (parser.matchToken(TokenType::ELSE)) {
+        if (parser.matchToken(TokenType::ELSE))
+        {
             elseStatement = parseStatement();
         }
-        
+
         return std::make_unique<IfNode>(std::move(condition), std::move(thenStatement), std::move(elseStatement));
     }
 
@@ -192,9 +213,9 @@ namespace parser
         parser.expectToken(TokenType::LPAREN);
         auto condition = parser.parseExpression();
         parser.expectToken(TokenType::RPAREN);
-        
+
         auto body = parseStatement();
-        
+
         return std::make_unique<WhileNode>(std::move(condition), std::move(body));
     }
 
@@ -207,7 +228,7 @@ namespace parser
         auto condition = parser.parseExpression();
         parser.expectToken(TokenType::RPAREN);
         parser.expectToken(TokenType::SEMICOLON);
-        
+
         return std::make_unique<DoWhileNode>(std::move(body), std::move(condition));
     }
 
@@ -215,40 +236,48 @@ namespace parser
     {
         parser.expectToken(TokenType::FOR);
         parser.expectToken(TokenType::LPAREN);
-        
+
         // Parse initialization
         std::unique_ptr<ASTNode> init = nullptr;
-        if (parser.getCurrentToken().type != TokenType::SEMICOLON) {
-            if (parser.getCurrentToken().type == TokenType::INT || 
+        if (parser.getCurrentToken().type != TokenType::SEMICOLON)
+        {
+            if (parser.getCurrentToken().type == TokenType::INT ||
                 parser.getCurrentToken().type == TokenType::FLOAT ||
                 parser.getCurrentToken().type == TokenType::BOOL ||
-                parser.getCurrentToken().type == TokenType::STRING_TYPE) {
+                parser.getCurrentToken().type == TokenType::STRING_TYPE)
+            {
                 init = parseDeclaration();
-            } else {
+            }
+            else
+            {
                 init = parser.parseExpression();
                 parser.expectToken(TokenType::SEMICOLON);
             }
-        } else {
+        }
+        else
+        {
             parser.advanceToken(); // Skip semicolon
         }
-        
+
         // Parse condition
         std::unique_ptr<ASTNode> condition = nullptr;
-        if (parser.getCurrentToken().type != TokenType::SEMICOLON) {
+        if (parser.getCurrentToken().type != TokenType::SEMICOLON)
+        {
             condition = parser.parseExpression();
         }
         parser.expectToken(TokenType::SEMICOLON);
-        
+
         // Parse update
         std::unique_ptr<ASTNode> update = nullptr;
-        if (parser.getCurrentToken().type != TokenType::RPAREN) {
+        if (parser.getCurrentToken().type != TokenType::RPAREN)
+        {
             update = parser.parseExpression();
         }
         parser.expectToken(TokenType::RPAREN);
-        
+
         auto body = parseStatement();
-        
-        return std::make_unique<ForNode>(std::move(init), std::move(condition), 
+
+        return std::make_unique<ForNode>(std::move(init), std::move(condition),
                                          std::move(update), std::move(body));
     }
 
@@ -259,52 +288,62 @@ namespace parser
         auto expression = parser.parseExpression();
         parser.expectToken(TokenType::RPAREN);
         parser.expectToken(TokenType::LBRACE);
-        
+
         auto switchNode = std::make_unique<SwitchNode>(std::move(expression));
-        
-        while (parser.getCurrentToken().type != TokenType::RBRACE && 
-               parser.getCurrentToken().type != TokenType::END) {
-            if (parser.getCurrentToken().type == TokenType::CASE) {
+
+        while (parser.getCurrentToken().type != TokenType::RBRACE &&
+            parser.getCurrentToken().type != TokenType::END)
+        {
+            if (parser.getCurrentToken().type == TokenType::CASE)
+            {
                 parser.advanceToken();
                 auto caseValue = parser.parseExpression();
                 parser.expectToken(TokenType::COLON);
-                
+
                 auto caseNode = std::make_unique<CaseNode>(std::move(caseValue));
                 while (parser.getCurrentToken().type != TokenType::CASE &&
-                       parser.getCurrentToken().type != TokenType::DEFAULT &&
-                       parser.getCurrentToken().type != TokenType::RBRACE &&
-                       parser.getCurrentToken().type != TokenType::END) {
+                    parser.getCurrentToken().type != TokenType::DEFAULT &&
+                    parser.getCurrentToken().type != TokenType::RBRACE &&
+                    parser.getCurrentToken().type != TokenType::END)
+                {
                     auto stmt = parseStatement();
-                    if (stmt) {
+                    if (stmt)
+                    {
                         caseNode->addStatement(std::move(stmt));
                     }
                 }
-                
+
                 switchNode->addCase(std::move(caseNode));
-            } else if (parser.getCurrentToken().type == TokenType::DEFAULT) {
+            }
+            else if (parser.getCurrentToken().type == TokenType::DEFAULT)
+            {
                 parser.advanceToken();
                 parser.expectToken(TokenType::COLON);
-                
+
                 auto defaultNode = std::make_unique<DefaultCaseNode>();
                 while (parser.getCurrentToken().type != TokenType::CASE &&
-                       parser.getCurrentToken().type != TokenType::DEFAULT &&
-                       parser.getCurrentToken().type != TokenType::RBRACE &&
-                       parser.getCurrentToken().type != TokenType::END) {
+                    parser.getCurrentToken().type != TokenType::DEFAULT &&
+                    parser.getCurrentToken().type != TokenType::RBRACE &&
+                    parser.getCurrentToken().type != TokenType::END)
+                {
                     auto stmt = parseStatement();
-                    if (stmt) {
+                    if (stmt)
+                    {
                         defaultNode->addStatement(std::move(stmt));
                     }
                 }
-                
+
                 switchNode->addCase(std::move(defaultNode));
-            } else {
+            }
+            else
+            {
                 // Skip unexpected tokens
                 parser.advanceToken();
             }
         }
-        
+
         parser.expectToken(TokenType::RBRACE);
-        
+
         return std::move(switchNode);
     }
 
@@ -325,12 +364,13 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseReturnStatement()
     {
         parser.advanceToken(); // Skip 'return'
-        
+
         std::unique_ptr<ASTNode> value = nullptr;
-        if (parser.getCurrentToken().type != TokenType::SEMICOLON) {
+        if (parser.getCurrentToken().type != TokenType::SEMICOLON)
+        {
             value = parser.parseExpression();
         }
-        
+
         parser.expectToken(TokenType::SEMICOLON);
         return std::make_unique<ReturnNode>(std::move(value));
     }
@@ -345,36 +385,41 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseFunction()
     {
         bool isNative = false;
-        
+
         // Check for native keyword
-        if (parser.getCurrentToken().type == TokenType::NATIVE) {
+        if (parser.getCurrentToken().type == TokenType::NATIVE)
+        {
             isNative = true;
             parser.advanceToken();
         }
-        
+
         parser.expectToken(TokenType::FUNCTION);
-        
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+
+        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        {
             throw std::runtime_error("Expected function name");
         }
-        
+
         std::string funcName = parser.getCurrentToken().stringValue;
         parser.advanceToken();
-        
+
         auto parameters = parseParameterList();
-        
+
         parser.expectToken(TokenType::COLON);
         ValueType returnType = parseType();
-        
+
         std::unique_ptr<ASTNode> body = nullptr;
-        
-        if (isNative) {
+
+        if (isNative)
+        {
             // Native functions don't have a body
             parser.expectToken(TokenType::SEMICOLON);
-        } else {
+        }
+        else
+        {
             body = parseBlock();
         }
-        
+
         auto funcNode = std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), std::move(body));
         // Note: Would need to add isNative flag to FunctionNode
         return funcNode;
@@ -383,98 +428,110 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseImport()
     {
         parser.expectToken(TokenType::IMPORT);
-        
-        if (parser.getCurrentToken().type != TokenType::STRING_LITERAL) {
+
+        if (parser.getCurrentToken().type != TokenType::STRING_LITERAL)
+        {
             throw std::runtime_error("Expected string literal after 'import'");
         }
-        
+
         std::string filePath = parser.getCurrentToken().stringValue;
         SourceLocation loc = parser.getCurrentToken().location;
         parser.advanceToken();
-        
+
         parser.expectToken(TokenType::SEMICOLON);
-        
+
         // Create an import node and resolve it immediately if ImportManager is available
         auto importNode = std::make_unique<ImportNode>(filePath, loc);
-        
+
         // If we have an ImportManager, resolve the import immediately
-        if (parser.getImportManager()) {
-            try {
+        if (parser.getImportManager())
+        {
+            try
+            {
                 ast::ASTNode* importedAST = parser.getImportManager()->importFile(filePath);
                 importNode->setImportedAST(importedAST);
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 throw std::runtime_error("Import error: " + std::string(e.what()));
             }
-        } else {
+        }
+        else
+        {
             throw std::runtime_error("Import statement requires ImportManager to be set on Parser");
         }
-        
+
         return importNode;
     }
 
     ValueType StatementParser::parseType()
     {
-        switch (parser.getCurrentToken().type) {
-            case TokenType::INT:
-                parser.advanceToken();
-                return ValueType::INT;
-            case TokenType::FLOAT:
-                parser.advanceToken();
-                return ValueType::FLOAT;
-            case TokenType::BOOL:
-                parser.advanceToken();
-                return ValueType::BOOL;
-            case TokenType::STRING_TYPE:
-                parser.advanceToken();
-                return ValueType::STRING;
-            case TokenType::VOID:
-                parser.advanceToken();
-                return ValueType::VOID;
-            case TokenType::IDENTIFIER:
-                // Object type (class name)
-                parser.advanceToken();
-                return ValueType::OBJECT;
-            default:
-                throw std::runtime_error("Expected type name");
+        switch (parser.getCurrentToken().type)
+        {
+        case TokenType::INT:
+            parser.advanceToken();
+            return ValueType::INT;
+        case TokenType::FLOAT:
+            parser.advanceToken();
+            return ValueType::FLOAT;
+        case TokenType::BOOL:
+            parser.advanceToken();
+            return ValueType::BOOL;
+        case TokenType::STRING_TYPE:
+            parser.advanceToken();
+            return ValueType::STRING;
+        case TokenType::VOID:
+            parser.advanceToken();
+            return ValueType::VOID;
+        case TokenType::IDENTIFIER:
+            // Object type (class name)
+            parser.advanceToken();
+            return ValueType::OBJECT;
+        default:
+            throw std::runtime_error("Expected type name");
         }
     }
 
     std::vector<std::pair<std::string, ValueType>> StatementParser::parseParameterList()
     {
         std::vector<std::pair<std::string, ValueType>> parameters;
-        
+
         parser.expectToken(TokenType::LPAREN);
-        
-        if (parser.getCurrentToken().type != TokenType::RPAREN) {
+
+        if (parser.getCurrentToken().type != TokenType::RPAREN)
+        {
             // Parse first parameter
             ValueType type = parseType();
-            
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+
+            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            {
                 throw std::runtime_error("Expected parameter name");
             }
-            
+
             std::string name = parser.getCurrentToken().stringValue;
             parser.advanceToken();
-            
+
             parameters.emplace_back(name, type);
-            
+
             // Parse additional parameters
-            while (parser.matchToken(TokenType::COMMA)) {
+            while (parser.matchToken(TokenType::COMMA))
+            {
                 ValueType paramType = parseType();
-                
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                {
                     throw std::runtime_error("Expected parameter name");
                 }
-                
+
                 std::string paramName = parser.getCurrentToken().stringValue;
                 parser.advanceToken();
-                
+
                 parameters.emplace_back(paramName, paramType);
             }
         }
-        
+
         parser.expectToken(TokenType::RPAREN);
-        
+
         return parameters;
     }
 
@@ -482,21 +539,22 @@ namespace parser
     {
         parser.expectToken(TokenType::NATIVE);
         parser.expectToken(TokenType::FUNCTION);
-        
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+
+        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        {
             throw std::runtime_error("Expected function name");
         }
-        
+
         std::string funcName = parser.getCurrentToken().stringValue;
         parser.advanceToken();
-        
+
         auto parameters = parseParameterList();
-        
+
         parser.expectToken(TokenType::COLON);
         ValueType returnType = parseType();
-        
+
         parser.expectToken(TokenType::SEMICOLON);
-        
+
         // Native functions don't have a body
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), nullptr);
     }
