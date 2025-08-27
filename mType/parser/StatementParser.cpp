@@ -71,6 +71,9 @@ namespace parser
                 if (nextToken.type == TokenType::IDENTIFIER) {
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
+                } else if (nextToken.type == TokenType::SCOPE) {
+                    // Pattern: "namespace::ClassName varName" - this is a scoped type declaration
+                    return parseDeclaration();
                 } else if (nextToken.type == TokenType::ASSIGN ||
                            nextToken.type == TokenType::PLUS_ASSIGN ||
                            nextToken.type == TokenType::MINUS_ASSIGN ||
@@ -504,8 +507,20 @@ namespace parser
             parser.advanceToken();
             return ValueType::VOID;
         case TokenType::IDENTIFIER:
-            // Object type (class name)
+            // Object type (class name), handle qualified names like geometry::Point
             parser.advanceToken();
+            
+            // Handle qualified names
+            while (parser.getCurrentToken().type == TokenType::SCOPE)
+            {
+                parser.advanceToken();
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                }
+                parser.advanceToken();
+            }
+            
             return ValueType::OBJECT;
         default:
             throw ParseException("Expected type name", parser.getCurrentToken().location);

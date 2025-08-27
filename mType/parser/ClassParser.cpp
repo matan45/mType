@@ -117,6 +117,20 @@ namespace parser
             else if (currentType == TokenType::IDENTIFIER)
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                // Handle qualified names like geometry::Point
+                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                {
+                    parser.advanceToken();
+                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    {
+                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                    }
+                    typeName += "::" + parser.getCurrentToken().stringValue;
+                    parser.advanceToken();
+                }
+                
                 if (typeName == "int") paramType = ValueType::INT;
                 else if (typeName == "float") paramType = ValueType::FLOAT;
                 else if (typeName == "string") paramType = ValueType::STRING;
@@ -127,7 +141,6 @@ namespace parser
                     // Treat unknown identifier types as custom class types (OBJECT)
                     paramType = ValueType::OBJECT;
                 }
-                parser.advanceToken();
             }
             else
             {
@@ -210,6 +223,20 @@ namespace parser
             else if (currentType == TokenType::IDENTIFIER)
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                // Handle qualified names like geometry::Point
+                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                {
+                    parser.advanceToken();
+                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    {
+                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                    }
+                    typeName += "::" + parser.getCurrentToken().stringValue;
+                    parser.advanceToken();
+                }
+                
                 if (typeName == "int") paramType = ValueType::INT;
                 else if (typeName == "float") paramType = ValueType::FLOAT;
                 else if (typeName == "string") paramType = ValueType::STRING;
@@ -220,7 +247,6 @@ namespace parser
                     // Treat unknown identifier types as custom class types (OBJECT)
                     paramType = ValueType::OBJECT;
                 }
-                parser.advanceToken();
             }
             else
             {
@@ -279,6 +305,20 @@ namespace parser
             else if (returnTokenType == TokenType::IDENTIFIER)
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                // Handle qualified names like geometry::Point
+                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                {
+                    parser.advanceToken();
+                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    {
+                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                    }
+                    typeName += "::" + parser.getCurrentToken().stringValue;
+                    parser.advanceToken();
+                }
+                
                 if (typeName == "int") returnType = ValueType::INT;
                 else if (typeName == "float") returnType = ValueType::FLOAT;
                 else if (typeName == "string") returnType = ValueType::STRING;
@@ -289,7 +329,6 @@ namespace parser
                     // Treat unknown identifier types as custom class types (OBJECT)
                     returnType = ValueType::OBJECT;
                 }
-                parser.advanceToken();
             }
             else
             {
@@ -354,6 +393,20 @@ namespace parser
         {
             // Handle string as identifier for backwards compatibility
             std::string typeName = parser.getCurrentToken().stringValue;
+            parser.advanceToken();
+            
+            // Handle qualified names like geometry::Point
+            while (parser.getCurrentToken().type == TokenType::SCOPE)
+            {
+                parser.advanceToken();
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                }
+                typeName += "::" + parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+            }
+            
             if (typeName == "int") fieldType = ValueType::INT;
             else if (typeName == "float") fieldType = ValueType::FLOAT;
             else if (typeName == "string") fieldType = ValueType::STRING;
@@ -364,8 +417,6 @@ namespace parser
                 // Treat unknown identifier types as custom class types (OBJECT)
                 fieldType = ValueType::OBJECT;
             }
-
-            parser.advanceToken();
         }
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
