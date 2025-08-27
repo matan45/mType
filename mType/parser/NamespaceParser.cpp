@@ -48,7 +48,7 @@ namespace parser
         qualifiedName.push_back(parser.getCurrentToken().stringValue);
         parser.advanceToken();
         
-        while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+        while (parser.getCurrentToken().type == TokenType::SCOPE) {
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
@@ -74,7 +74,7 @@ namespace parser
         qualifiedName.push_back(parser.getCurrentToken().stringValue);
         parser.advanceToken();
         
-        while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+        while (parser.getCurrentToken().type == TokenType::SCOPE) {
             parser.advanceToken();
             
             if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
@@ -96,7 +96,7 @@ namespace parser
             path.push_back(parser.getCurrentToken().stringValue);
             parser.advanceToken();
             
-            while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+            while (parser.getCurrentToken().type == TokenType::SCOPE) {
                 parser.advanceToken();
                 
                 if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {

@@ -10,6 +10,12 @@
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../ast/nodes/statements/ImportNode.hpp"
+#include "../ast/nodes/statements/ImportedDeclarationNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/classes/ClassNode.hpp"
+#include "../ast/nodes/namespaces/NamespaceNode.hpp"
+#include <iostream>
 
 namespace parser
 {
@@ -19,7 +25,7 @@ namespace parser
     using namespace token;
 
     Parser::Parser(Lexer& lex) 
-        : lexer(lex), currentToken(lexer.getNextToken())
+        : lexer(lex), currentToken(lexer.getNextToken()), importManager(nullptr)
     {
         // Initialize subparsers with reference to main parser
         statementParser = std::make_unique<StatementParser>(*this);
@@ -37,10 +43,17 @@ namespace parser
             try {
                 auto statement = parseStatement();
                 if (statement) {
-                    program->addStatement(std::move(statement));
+                    // Check if this is an import statement
+                    if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(statement.get())) {
+                        // Handle import by inlining the imported declarations
+                        handleImportStatement(importNode, program.get());
+                        // Note: We don't add the import node itself to the program
+                    } else {
+                        program->addStatement(std::move(statement));
+                    }
                 }
             }
-            catch (const std::exception& e) {
+            catch (const std::exception&) {
                 // Handle parse errors - could log or throw up
                 advance(); // Skip problematic token and continue
             }
@@ -80,6 +93,77 @@ namespace parser
     {
         // Delegate to ExpressionParser
         return expressionParser->parseExpression();
+    }
+
+    void Parser::handleImportStatement(ast::nodes::statements::ImportNode* importNode, 
+                                     ast::nodes::statements::ProgramNode* program)
+    {
+        if (!importManager) {
+            throw std::runtime_error("ImportManager not set - cannot process import statement");
+        }
+        
+        if (!importNode->isResolved()) {
+            throw std::runtime_error("Import not resolved: " + importNode->getFilePath());
+        }
+        
+        // Get the imported AST
+        ASTNode* importedAST = importNode->getImportedAST();
+        if (!importedAST) {
+            return; // Nothing to import
+        }
+        
+        // INLINE APPROACH: Extract declarations from imported AST and add them directly
+        // Cast to ProgramNode (imported files are parsed as programs)
+        if (auto importedProgram = dynamic_cast<ProgramNode*>(importedAST)) {
+            
+            std::cout << "Processing import: " << importNode->getFilePath() << std::endl;
+            
+            // Get all statements from the imported program
+            const auto& importedStatements = importedProgram->getStatements();
+            
+            // Extract and inline importable declarations
+            for (const auto& stmt : importedStatements) {
+                if (isImportableDeclaration(stmt.get())) {
+                    // Since we can't easily clone AST nodes without implementing clone methods,
+                    // we'll use a practical approach: create ImportedDeclarationNode
+                    // that wraps the original declaration and preserves the import context
+                    
+                    auto importedDecl = std::make_unique<ImportedDeclarationNode>(
+                        stmt.get(),  // Reference to original declaration (ImportManager keeps it alive)
+                        importNode->getFilePath(),  // Source file for debugging
+                        stmt->getLocation()  // Original location
+                    );
+                    
+                    program->addStatement(std::move(importedDecl));
+                }
+            }
+            
+            std::cout << "Imported " << importedStatements.size() << " statements from " 
+                      << importNode->getFilePath() << std::endl;
+        }
+    }
+
+    bool Parser::isImportableDeclaration(ASTNode* node)
+    {
+        // Import these types of declarations:
+        // - Function definitions (including native functions)
+        // - Global variable declarations (assignments at top level)
+        // - Class definitions
+        // - Namespace definitions
+        // 
+        // Don't import:
+        // - Import statements (to avoid recursive imports)
+        // - Other statement types that aren't declarations
+        
+        // Skip import statements to avoid recursion
+        if (dynamic_cast<ImportNode*>(node) != nullptr) {
+            return false;
+        }
+        
+        return dynamic_cast<ast::nodes::functions::FunctionNode*>(node) != nullptr ||
+               dynamic_cast<ast::nodes::classes::ClassNode*>(node) != nullptr ||
+               dynamic_cast<ast::nodes::namespaces::NamespaceNode*>(node) != nullptr ||
+               dynamic_cast<AssignmentNode*>(node) != nullptr; // Global variables
     }
 
 }

@@ -9,6 +9,10 @@
 #include "../ast/nodes/expressions/NullNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/classes/NewNode.hpp"
+#include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
 
 namespace parser
 {
@@ -141,7 +145,17 @@ namespace parser
         auto expr = parsePrimary();
         
         while (true) {
-            if (parser.getCurrentToken().type == TokenType::LPAREN) {
+            if (parser.getCurrentToken().type == TokenType::INCREMENT ||
+                parser.getCurrentToken().type == TokenType::DECREMENT) {
+                // Postfix increment/decrement
+                TokenType op = parser.getCurrentToken().type;
+                parser.advanceToken();
+                
+                // For now, treat as a no-op - proper implementation would need special handling
+                // In a complete implementation, you'd create a special PostfixExpNode
+                // that handles the assignment semantics
+                break; // Exit the loop for now
+            } else if (parser.getCurrentToken().type == TokenType::LPAREN) {
                 // Function call
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get())) {
                     std::string funcName = varNode->getName();
@@ -164,6 +178,30 @@ namespace parser
             } else if (parser.getCurrentToken().type == TokenType::DOT) {
                 // Member access
                 expr = parseMemberAccess(std::move(expr));
+            } else if (parser.getCurrentToken().type == TokenType::SCOPE) {
+                // Namespace scope resolution
+                parser.advanceToken();
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                    throw std::runtime_error("Expected identifier after '::'");
+                }
+                
+                if (auto varNode = dynamic_cast<VariableNode*>(expr.get())) {
+                    std::vector<std::string> parts = {varNode->getName()};
+                    
+                    while (parser.getCurrentToken().type == TokenType::IDENTIFIER) {
+                        parts.push_back(parser.getCurrentToken().stringValue);
+                        parser.advanceToken();
+                        
+                        if (parser.getCurrentToken().type == TokenType::SCOPE) {
+                            parser.advanceToken();
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    expr.release(); // Release ownership since we're replacing it
+                    expr = std::make_unique<ast::nodes::namespaces::QualifiedNameNode>(parts);
+                }
             } else {
                 break;
             }
@@ -213,6 +251,29 @@ namespace parser
                 parser.expectToken(TokenType::RPAREN);
                 return expr;
             }
+            case TokenType::NEW: {
+                parser.advanceToken();
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                    throw std::runtime_error("Expected class name after 'new'");
+                }
+                
+                std::string className = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                parser.expectToken(TokenType::LPAREN);
+                std::vector<std::unique_ptr<ASTNode>> arguments;
+                
+                if (parser.getCurrentToken().type != TokenType::RPAREN) {
+                    arguments.push_back(parseExpression());
+                    
+                    while (parser.matchToken(TokenType::COMMA)) {
+                        arguments.push_back(parseExpression());
+                    }
+                }
+                
+                parser.expectToken(TokenType::RPAREN);
+                return std::make_unique<NewNode>(className, std::move(arguments));
+            }
             default:
                 throw std::runtime_error("Unexpected token in primary expression");
         }
@@ -236,8 +297,23 @@ namespace parser
         std::string memberName = parser.getCurrentToken().stringValue;
         parser.advanceToken();
         
-        // For now, return null - would need MemberAccessNode implementation
-        // return std::make_unique<MemberAccessNode>(std::move(object), memberName);
-        return nullptr;
+        // Check if it's a method call
+        if (parser.getCurrentToken().type == TokenType::LPAREN) {
+            parser.advanceToken();
+            std::vector<std::unique_ptr<ASTNode>> arguments;
+            
+            if (parser.getCurrentToken().type != TokenType::RPAREN) {
+                arguments.push_back(parseExpression());
+                
+                while (parser.matchToken(TokenType::COMMA)) {
+                    arguments.push_back(parseExpression());
+                }
+            }
+            
+            parser.expectToken(TokenType::RPAREN);
+            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments));
+        } else {
+            return std::make_unique<MemberAccessNode>(std::move(object), memberName);
+        }
     }
 }

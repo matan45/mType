@@ -9,6 +9,11 @@
 #include <memory>
 #include <string>
 
+namespace services
+{
+    class ImportManager;
+}
+
 namespace parser
 {
     using namespace lexer;
@@ -20,6 +25,7 @@ namespace parser
     private:
         Lexer& lexer;
         Token currentToken;
+        services::ImportManager* importManager;
         
         // Subparsers
         std::unique_ptr<StatementParser> statementParser;
@@ -31,10 +37,18 @@ namespace parser
         void advance();
         bool match(TokenType type);
         void expect(TokenType type);
+        
+        // Import handling
+        void handleImportStatement(ast::nodes::statements::ImportNode* importNode, 
+                                 ast::nodes::statements::ProgramNode* program);
+        bool isImportableDeclaration(ASTNode* node);
 
     public:
         explicit Parser(Lexer& lex);
         ~Parser() = default;
+        
+        void setImportManager(services::ImportManager* manager) { importManager = manager; }
+        services::ImportManager* getImportManager() { return importManager; }
         
         std::unique_ptr<ASTNode> parseProgram();
         std::unique_ptr<ASTNode> parseStatement();
