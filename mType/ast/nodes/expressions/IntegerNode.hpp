@@ -16,7 +16,7 @@ namespace ast::nodes::expressions
         void setValue(int val) { value = val; }
 
         Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitNumberNode(this);
+            return visitor.visitIntegerNode(this);
         }
     };
 }

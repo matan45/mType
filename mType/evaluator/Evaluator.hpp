@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "../ast/ASTVisitor.hpp"
-#include "../vlaue/ValueType.hpp"
+#include "../value/ValueType.hpp"
 
 namespace evaluator
 {

@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <utility>
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
 

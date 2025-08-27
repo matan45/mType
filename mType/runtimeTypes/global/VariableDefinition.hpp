@@ -1,5 +1,5 @@
 #pragma once
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 #include "../Definition.hpp"
 
 namespace runtimeTypes::global

@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 
 namespace environment::registry
 {

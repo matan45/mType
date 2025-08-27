@@ -1,6 +1,6 @@
 #pragma once
 #include <exception>
-#include "../vlaue/ValueType.hpp"
+#include "../value/ValueType.hpp"
 
 namespace exception
 {

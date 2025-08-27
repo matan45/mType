@@ -1,11 +1,14 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
+#include "../../../value/ValueType.hpp"
 #include <string>
 #include <vector>
 #include <memory>
 
 namespace ast::nodes::classes
 {
+    using namespace value;
+    
     class ConstructorNode : public ASTNode
     {
     private:

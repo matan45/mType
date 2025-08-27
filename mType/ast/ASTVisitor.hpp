@@ -2,45 +2,109 @@
 
 namespace ast
 {
-    // Forward declarations of all AST node types
-    class ProgramNode;
-    class BlockNode;
-    class NumberNode;
-    class StringNode;
-    class BoolNode;
-    class VariableNode;
-    class DeclarationNode;
-    class AssignmentNode;
-    class BinaryOpNode;
-    class TernaryOpNode;
-    class UnaryOpNode;
-    class IfNode;
-    class WhileNode;
-    class DoWhileNode;
-    class ForNode;
-    class BreakNode;
-    class ContinueNode;
-    class FunctionNode;
-    class FunctionCallNode;
-    class ReturnNode;
-    class SwitchNode;
-    class CaseNode;
-    class DefaultCaseNode;
-    class NativeFunctionNode;
-    class ImportNode;
-    class ClassNode;
-    class FieldNode;
-    class ConstructorNode;
-    class MethodNode;
-    class NewNode;
-    class MemberAccessNode;
-    class MethodCallNode;
-    class MemberAssignmentNode;
-    class NullNode;
-    class NamespaceNode;
-    class UsingNode;
-    class QualifiedNameNode;
-    class QualifiedAssignmentNode;
+       namespace nodes
+    {
+        namespace expressions
+        {
+            class BinaryExpNode;
+            class TernaryExpNode;
+            class UnaryExpNode;
+            class NumberNode;
+            class StringNode;
+            class BoolNode;
+            class NullNode;
+            class VariableNode;
+            class IntegerNode;
+            class FloatNode;
+        }
+        
+        namespace statements
+        {
+            class ProgramNode;
+            class BlockNode;
+            class DeclarationNode;
+            class ImportNode;
+            class NativeFunctionNode;
+            class AssignmentNode;
+            class QualifiedAssignmentNode;
+            class MemberAssignmentNode;
+            class IfNode;
+            class WhileNode;
+            class DoWhileNode;
+            class ForNode;
+            class BreakNode;
+            class ContinueNode;
+            class SwitchNode;
+            class CaseNode;
+            class DefaultCaseNode;
+        }
+        
+        namespace functions
+        {
+            class FunctionNode;
+            class FunctionCallNode;
+            class ReturnNode;
+        }
+        
+        namespace classes
+        {
+            class ClassNode;
+            class MethodNode;
+            class FieldNode;
+            class ConstructorNode;
+            class NewNode;
+            class MemberAccessNode;
+            class MethodCallNode;
+        }
+        
+        namespace namespaces
+        {
+            class NamespaceNode;
+            class UsingNode;
+            class QualifiedNameNode;
+        }
+    }
+    
+    // Type aliases for backward compatibility - these map to the refactored namespaced types
+    using ProgramNode = nodes::statements::ProgramNode;
+    using BlockNode = nodes::statements::BlockNode;
+    using StringNode = nodes::expressions::StringNode;
+    using BoolNode = nodes::expressions::BoolNode;
+    using VariableNode = nodes::expressions::VariableNode;
+    using DeclarationNode = nodes::statements::DeclarationNode;
+    using AssignmentNode = nodes::statements::AssignmentNode;
+    using BinaryOpNode = nodes::expressions::BinaryExpNode;
+    using TernaryOpNode = nodes::expressions::TernaryExpNode;
+    using UnaryOpNode = nodes::expressions::UnaryExpNode;
+    using IfNode = nodes::statements::IfNode;
+    using WhileNode = nodes::statements::WhileNode;
+    using DoWhileNode = nodes::statements::DoWhileNode;
+    using ForNode = nodes::statements::ForNode;
+    using BreakNode = nodes::statements::BreakNode;
+    using ContinueNode = nodes::statements::ContinueNode;
+    using FunctionNode = nodes::functions::FunctionNode;
+    using FunctionCallNode = nodes::functions::FunctionCallNode;
+    using ReturnNode = nodes::functions::ReturnNode;
+    using SwitchNode = nodes::statements::SwitchNode;
+    using CaseNode = nodes::statements::CaseNode;
+    using DefaultCaseNode = nodes::statements::DefaultCaseNode;
+    using NativeFunctionNode = nodes::statements::NativeFunctionNode;
+    using ImportNode = nodes::statements::ImportNode;
+    using ClassNode = nodes::classes::ClassNode;
+    using FieldNode = nodes::classes::FieldNode;
+    using ConstructorNode = nodes::classes::ConstructorNode;
+    using MethodNode = nodes::classes::MethodNode;
+    using NewNode = nodes::classes::NewNode;
+    using MemberAccessNode = nodes::classes::MemberAccessNode;
+    using MethodCallNode = nodes::classes::MethodCallNode;
+    using MemberAssignmentNode = nodes::statements::MemberAssignmentNode;
+    using NullNode = nodes::expressions::NullNode;
+    using NamespaceNode = nodes::namespaces::NamespaceNode;
+    using UsingNode = nodes::namespaces::UsingNode;
+    using QualifiedNameNode = nodes::namespaces::QualifiedNameNode;
+    using QualifiedAssignmentNode = nodes::statements::QualifiedAssignmentNode;
+    using FloatNode = nodes::expressions::FloatNode;
+    using IntegerNode = nodes::expressions::IntegerNode;
 
     // Abstract visitor interface
     template<typename T>
@@ -52,7 +116,8 @@ namespace ast
         // Visit methods for each node type
         virtual T visitProgramNode(ProgramNode* node) = 0;
         virtual T visitBlockNode(BlockNode* node) = 0;
-        virtual T visitNumberNode(NumberNode* node) = 0;
+        virtual T visitFloatNode(FloatNode* node) = 0;
+        virtual T visitIntegerNode(IntegerNode* node) = 0;
         virtual T visitStringNode(StringNode* node) = 0;
         virtual T visitBoolNode(BoolNode* node) = 0;
         virtual T visitVariableNode(VariableNode* node) = 0;

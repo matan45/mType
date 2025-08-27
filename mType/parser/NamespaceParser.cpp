@@ -1,6 +1,8 @@
 ﻿#include "NamespaceParser.hpp"
 #include "Parser.hpp"
 #include "../ast/nodes/namespaces/NamespaceNode.hpp"
+#include "../ast/nodes/namespaces/UsingNode.hpp"
+#include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
 
 namespace parser
 {
@@ -36,16 +38,76 @@ namespace parser
 
     std::unique_ptr<ASTNode> NamespaceParser::parseUsing()
     {
-        return nullptr;
+        parser.expectToken(TokenType::USING);
+        
+        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+            throw std::runtime_error("Expected namespace or type name after 'using'");
+        }
+        
+        std::vector<std::string> qualifiedName;
+        qualifiedName.push_back(parser.getCurrentToken().stringValue);
+        parser.advanceToken();
+        
+        while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+            parser.advanceToken();
+            
+            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                throw std::runtime_error("Expected identifier after '::'");
+            }
+            
+            qualifiedName.push_back(parser.getCurrentToken().stringValue);
+            parser.advanceToken();
+        }
+        
+        parser.expectToken(TokenType::SEMICOLON);
+        
+        return std::make_unique<UsingNode>(qualifiedName);
     }
 
     std::unique_ptr<ASTNode> NamespaceParser::parseQualifiedName()
     {
-        return nullptr;
+        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+            return nullptr;
+        }
+        
+        std::vector<std::string> qualifiedName;
+        qualifiedName.push_back(parser.getCurrentToken().stringValue);
+        parser.advanceToken();
+        
+        while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+            parser.advanceToken();
+            
+            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                throw std::runtime_error("Expected identifier after '::'");
+            }
+            
+            qualifiedName.push_back(parser.getCurrentToken().stringValue);
+            parser.advanceToken();
+        }
+        
+        return std::make_unique<QualifiedNameNode>(qualifiedName);
     }
 
     std::vector<std::string> NamespaceParser::parseNamespacePath()
     {
-        return std::vector<std::string>();
+        std::vector<std::string> path;
+        
+        if (parser.getCurrentToken().type == TokenType::IDENTIFIER) {
+            path.push_back(parser.getCurrentToken().stringValue);
+            parser.advanceToken();
+            
+            while (parser.getCurrentToken().type == TokenType::DOUBLE_COLON) {
+                parser.advanceToken();
+                
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
+                    throw std::runtime_error("Expected identifier after '::'");
+                }
+                
+                path.push_back(parser.getCurrentToken().stringValue);
+                parser.advanceToken();
+            }
+        }
+        
+        return path;
     }
 }

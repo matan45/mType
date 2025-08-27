@@ -2,7 +2,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 #include "ClassDefinition.hpp"
 
 namespace runtimeTypes::klass

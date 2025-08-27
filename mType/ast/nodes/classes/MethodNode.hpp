@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
-#include "../../../vlaue/ValueType.hpp"
+#include "../../../value/ValueType.hpp"
 #include <string>
 #include <vector>
 #include <memory>
