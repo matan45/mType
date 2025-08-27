@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-namespace services
+namespace parser
 {
-    class NativeRegistry
+    class ClassParser
     {
     public:
     

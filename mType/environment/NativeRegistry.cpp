@@ -1,6 +1,6 @@
 ﻿#include "NativeRegistry.hpp"
 
-namespace services
+namespace environment
 {
     
 }
