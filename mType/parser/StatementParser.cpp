@@ -65,7 +65,25 @@ namespace parser
         case TokenType::LBRACE:
             return parseBlock();
         case TokenType::IDENTIFIER:
-            return parseAssignment(); // Could be assignment or function call
+            // Check if this is a custom class type declaration, assignment, or expression statement
+            {
+                Token nextToken = parser.peekNextToken();
+                if (nextToken.type == TokenType::IDENTIFIER) {
+                    // Pattern: "ClassName varName" - this is a custom type declaration
+                    return parseDeclaration();
+                } else if (nextToken.type == TokenType::ASSIGN ||
+                           nextToken.type == TokenType::PLUS_ASSIGN ||
+                           nextToken.type == TokenType::MINUS_ASSIGN ||
+                           nextToken.type == TokenType::MULTIPLY_ASSIGN ||
+                           nextToken.type == TokenType::DIVIDE_ASSIGN ||
+                           nextToken.type == TokenType::MODULO_ASSIGN) {
+                    // Pattern: "varName =" - this is an assignment
+                    return parseAssignment();
+                } else {
+                    // Pattern: "identifier.method()" or "functionCall()" - this is an expression statement
+                    return parseExpressionStatement();
+                }
+            }
         case TokenType::SEMICOLON:
             parser.advanceToken(); // Skip empty statement
             return nullptr;

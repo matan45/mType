@@ -64,6 +64,7 @@ namespace parser
         void advanceToken() { advance(); }
         bool matchToken(TokenType type) { return match(type); }
         void expectToken(TokenType type) { expect(type); }
+        Token peekNextToken() { return lexer.peekNextToken(); }
     };
 }
 

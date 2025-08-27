@@ -29,9 +29,11 @@ namespace parser
         std::unique_ptr<ASTNode> parsePostfix();
         std::unique_ptr<ASTNode> parsePrimary();
 
+        // Argument parsing (used by other parsers)
+        std::vector<std::unique_ptr<ASTNode>> parseArguments();
+        
     private:
         // Helper methods
-        std::vector<std::unique_ptr<ASTNode>> parseArguments();
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
     
     };
