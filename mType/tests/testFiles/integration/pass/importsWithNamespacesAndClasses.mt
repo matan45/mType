@@ -1,0 +1,97 @@
+// Simplified import test (without actual import statement due to .mt format limitations)
+// This test simulates what would happen after importing math utilities
+
+namespace mathUtils {
+    final float PI = 3.14159;
+    
+    class Calculator {
+        static int operationCount = 0;
+        
+        static function add(int a, int b): int {
+            operationCount = operationCount + 1;
+            return a + b;
+        }
+        
+        static function multiply(float a, float b): float {
+            operationCount = operationCount + 1;
+            return a * b;
+        }
+        
+        static function getOperationCount(): int {
+            return operationCount;
+        }
+    }
+    
+    function circleArea(float radius): float {
+        return PI * radius * radius;
+    }
+}
+
+namespace application {
+    final string APP_NAME = "Advanced Calculator";
+    
+    class CalculationSession {
+        string sessionName;
+        int totalCalculations;
+        final int MAX_CALCULATIONS = 100;
+        
+        constructor(string name) {
+            sessionName = name;
+            totalCalculations = 0;
+        }
+        
+        function performCalculation(int a, int b): int {
+            if (totalCalculations >= MAX_CALCULATIONS) {
+                return -1; // Session limit reached
+            }
+            
+            totalCalculations = totalCalculations + 1;
+            return mathUtils::Calculator::add(a, b);
+        }
+        
+        function calculateCircleArea(float radius): float {
+            if (totalCalculations >= MAX_CALCULATIONS) {
+                return -1.0;
+            }
+            
+            totalCalculations = totalCalculations + 1;
+            return mathUtils::circleArea(radius);
+        }
+        
+        function getSessionInfo(): string {
+            return sessionName + ": " + toString(totalCalculations) + "/" + toString(MAX_CALCULATIONS);
+        }
+    }
+    
+    namespace reports {
+        function generateReport(application::CalculationSession session): string {
+            string report = "Session Report for " + session.sessionName;
+            report = report + " | Operations: " + toString(mathUtils::Calculator::getOperationCount());
+            return report;
+        }
+    }
+}
+
+// Test complex integration across namespaces
+application::CalculationSession session1 = new application::CalculationSession("UserSession1");
+application::CalculationSession session2 = new application::CalculationSession("UserSession2");
+
+int result1 = session1.performCalculation(10, 20);
+int result2 = session2.performCalculation(15, 25);
+print(result1);
+print(result2);
+
+float area1 = session1.calculateCircleArea(5.0);
+float area2 = session2.calculateCircleArea(3.0);
+print(area1);
+print(area2);
+
+print(session1.getSessionInfo());
+print(session2.getSessionInfo());
+
+string report1 = application::reports::generateReport(session1);
+string report2 = application::reports::generateReport(session2);
+print(report1);
+print(report2);
+
+print(mathUtils::Calculator::getOperationCount());
