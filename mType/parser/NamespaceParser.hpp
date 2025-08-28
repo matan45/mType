@@ -22,6 +22,9 @@ namespace parser
         
     private:
         std::vector<std::string> parseNamespacePath();
+        std::unique_ptr<ASTNode> createNestedNamespace(
+            const std::vector<std::string>& nameParts, 
+            std::vector<std::unique_ptr<ASTNode>> declarations);
     };
 }
 

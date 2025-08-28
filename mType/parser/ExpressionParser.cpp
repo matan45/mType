@@ -191,7 +191,7 @@ namespace parser
                     parser.advanceToken(); // Skip '('
                     auto arguments = parseArguments();
                     parser.expectToken(TokenType::RPAREN);
-                    expr.release(); // Release ownership since we're replacing it
+                    // No need to call release() - unique_ptr will handle cleanup automatically
                     expr = std::make_unique<FunctionCallNode>(funcName, std::move(arguments));
                 }
             }
@@ -229,7 +229,7 @@ namespace parser
                         parser.advanceToken();
                     }
 
-                    expr.release(); // Release ownership since we're replacing it
+                    // No need to call release() - unique_ptr will handle cleanup automatically
                     expr = std::make_unique<ast::nodes::namespaces::QualifiedNameNode>(parts);
                 }
             }
