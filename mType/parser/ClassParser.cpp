@@ -118,7 +118,7 @@ namespace parser
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
                 parser.advanceToken();
-                
+
                 // Handle qualified names like geometry::Point
                 while (parser.getCurrentToken().type == TokenType::SCOPE)
                 {
@@ -130,7 +130,7 @@ namespace parser
                     typeName += "::" + parser.getCurrentToken().stringValue;
                     parser.advanceToken();
                 }
-                
+
                 if (typeName == "int") paramType = ValueType::INT;
                 else if (typeName == "float") paramType = ValueType::FLOAT;
                 else if (typeName == "string") paramType = ValueType::STRING;
@@ -224,7 +224,7 @@ namespace parser
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
                 parser.advanceToken();
-                
+
                 // Handle qualified names like geometry::Point
                 while (parser.getCurrentToken().type == TokenType::SCOPE)
                 {
@@ -236,7 +236,7 @@ namespace parser
                     typeName += "::" + parser.getCurrentToken().stringValue;
                     parser.advanceToken();
                 }
-                
+
                 if (typeName == "int") paramType = ValueType::INT;
                 else if (typeName == "float") paramType = ValueType::FLOAT;
                 else if (typeName == "string") paramType = ValueType::STRING;
@@ -306,7 +306,7 @@ namespace parser
             {
                 std::string typeName = parser.getCurrentToken().stringValue;
                 parser.advanceToken();
-                
+
                 // Handle qualified names like geometry::Point
                 while (parser.getCurrentToken().type == TokenType::SCOPE)
                 {
@@ -318,7 +318,7 @@ namespace parser
                     typeName += "::" + parser.getCurrentToken().stringValue;
                     parser.advanceToken();
                 }
-                
+
                 if (typeName == "int") returnType = ValueType::INT;
                 else if (typeName == "float") returnType = ValueType::FLOAT;
                 else if (typeName == "string") returnType = ValueType::STRING;
@@ -394,7 +394,7 @@ namespace parser
             // Handle string as identifier for backwards compatibility
             std::string typeName = parser.getCurrentToken().stringValue;
             parser.advanceToken();
-            
+
             // Handle qualified names like geometry::Point
             while (parser.getCurrentToken().type == TokenType::SCOPE)
             {
@@ -406,7 +406,7 @@ namespace parser
                 typeName += "::" + parser.getCurrentToken().stringValue;
                 parser.advanceToken();
             }
-            
+
             if (typeName == "int") fieldType = ValueType::INT;
             else if (typeName == "float") fieldType = ValueType::FLOAT;
             else if (typeName == "string") fieldType = ValueType::STRING;
@@ -489,74 +489,12 @@ namespace parser
 
     bool ClassParser::isMethodOrConstructor()
     {
-        if (parser.getCurrentToken().type == TokenType::CONSTRUCTOR)
+        if (parser.getCurrentToken().type == TokenType::CONSTRUCTOR
+            || parser.getCurrentToken().type == TokenType::FUNCTION)
         {
             return true;
         }
-
-        if (parser.getCurrentToken().type == TokenType::FUNCTION)
-        {
-            return true;
-        }
-
-        // Check if current token could start a method or field
-        TokenType currentType = parser.getCurrentToken().type;
-
-        // Handle static/final modifiers
-        int tokenOffset = 0;
-        if (currentType == TokenType::STATIC || currentType == TokenType::FINAL)
-        {
-            tokenOffset++;
-            // For now, we'll use a simple heuristic since we can only peek one token ahead
-            // If we see static/final followed by a type token, assume it could be either
-            Token nextToken = parser.peekNextToken();
-            if (nextToken.type == TokenType::INT || nextToken.type == TokenType::FLOAT ||
-                nextToken.type == TokenType::BOOL || nextToken.type == TokenType::STRING_TYPE ||
-                nextToken.type == TokenType::VOID)
-            {
-                // This is a static/final field or method - we need more lookahead to determine
-                // For now, treat as field (conservative approach)
-                return false;
-            }
-        }
-
-        // Check if current token is a type that could start a method or field
-        bool couldBeTypeDeclaration = (currentType == TokenType::INT ||
-            currentType == TokenType::FLOAT ||
-            currentType == TokenType::BOOL ||
-            currentType == TokenType::STRING_TYPE ||
-            currentType == TokenType::VOID ||
-            currentType == TokenType::IDENTIFIER); // For custom types
-
-        if (!couldBeTypeDeclaration)
-        {
-            return false;
-        }
-
-        // Look ahead to distinguish between method and field
-        Token nextToken = parser.peekNextToken();
-
-        // If next token is identifier, this could be either method or field
-        // We need to implement a simple heuristic:
-        // - If it's void type, it's likely a method
-        // - If it's followed by an identifier and we can't see further, assume field for safety
-        if (currentType == TokenType::VOID)
-        {
-            return true; // void can only be a method return type
-        }
-
-        // For other types, we need better heuristics
-        // If next token is an identifier, check if the token after that gives us a clue
-        if (nextToken.type == TokenType::IDENTIFIER)
-        {
-            // This could be either "type fieldName;" or "type methodName("
-            // We can't easily peek two tokens ahead, so for now:
-            // - If we see "function", it's definitely a method 
-            // - Otherwise, assume field for safety
-            return false;
-        }
-
-        // If we can't determine conclusively, assume field for safety
+        
         return false;
     }
 }

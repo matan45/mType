@@ -1,6 +1,8 @@
 ﻿#include "StatementParser.hpp"
 #include "Parser.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
@@ -401,6 +403,54 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseExpressionStatement()
     {
         auto expr = parser.parseExpression();
+        
+        // Check if this is a member assignment (obj.field = value)
+        if (auto memberAccess = dynamic_cast<ast::nodes::classes::MemberAccessNode*>(expr.get())) {
+            TokenType opType = parser.getCurrentToken().type;
+            if (opType == TokenType::ASSIGN ||
+                opType == TokenType::PLUS_ASSIGN ||
+                opType == TokenType::MINUS_ASSIGN ||
+                opType == TokenType::MULTIPLY_ASSIGN ||
+                opType == TokenType::DIVIDE_ASSIGN ||
+                opType == TokenType::MODULO_ASSIGN) {
+                
+                parser.advanceToken(); // consume assignment operator
+                auto value = parser.parseExpression();
+                
+                // For compound assignments, create a binary expression
+                if (opType != TokenType::ASSIGN) {
+                    // For compound assignments, we use the whole member access as the left operand
+                    TokenType binaryOp;
+                    switch (opType) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
+                        default: binaryOp = TokenType::PLUS; break;
+                    }
+                    value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
+                        std::move(expr), binaryOp, std::move(value));
+                    
+                    // After moving expr, memberAccess is no longer valid, so we need to handle this differently
+                    parser.expectToken(TokenType::SEMICOLON);
+                    return value;
+                }
+                
+                parser.expectToken(TokenType::SEMICOLON);
+                
+                // Extract the object and member name for the assignment
+                auto object = memberAccess->releaseObject();
+                std::string memberName = memberAccess->getMemberName();
+                
+                return std::make_unique<ast::nodes::statements::MemberAssignmentNode>(
+                    std::move(object), 
+                    memberName, 
+                    std::move(value)
+                );
+            }
+        }
+        
         parser.expectToken(TokenType::SEMICOLON);
         return expr;
     }

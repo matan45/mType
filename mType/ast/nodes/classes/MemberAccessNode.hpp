@@ -24,6 +24,9 @@ namespace ast::nodes::classes
         void setObject(std::unique_ptr<ASTNode> obj) { object = std::move(obj); }
         void setMemberName(const std::string& member) { memberName = member; }
         void setIsStaticAccess(bool isStatic) { isStaticAccess = isStatic; }
+        
+        // Release ownership of the object node
+        std::unique_ptr<ASTNode> releaseObject() { return std::move(object); }
 
         Value accept(ASTVisitor<Value>& visitor) override {
             return visitor.visitMemberAccessNode(this);
