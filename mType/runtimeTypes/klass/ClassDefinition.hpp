@@ -60,5 +60,13 @@ namespace runtimeTypes::klass
         size_t getStaticFieldCount() const;
         size_t getStaticMethodCount() const;
         size_t getConstructorCount() const;
+        
+        // Additional compatibility methods
+        void addField(std::shared_ptr<FieldDefinition> field);
+        void addMethod(std::shared_ptr<MethodDefinition> method);
+        std::shared_ptr<FieldDefinition> getField(const std::string& fieldName) const;
+        std::shared_ptr<MethodDefinition> getMethod(const std::string& methodName) const;
+        std::shared_ptr<ConstructorDefinition> getConstructor() const;
+        std::shared_ptr<MethodDefinition> findMethod(const std::string& methodName, size_t argCount) const;
     };
 }

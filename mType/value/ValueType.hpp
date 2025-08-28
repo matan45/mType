@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 
-namespace runtimeTypes
+namespace runtimeTypes::klass
 {
     class ObjectInstance;
 }
@@ -24,6 +24,6 @@ namespace value
 
     // Runtime value that can hold different types
     using Value = std::variant<int, float, bool, std::string, std::monostate,
-                               std::shared_ptr<runtimeTypes::ObjectInstance>,
+                               std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                nullptr_t>;
 }

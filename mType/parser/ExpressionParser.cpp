@@ -1,6 +1,7 @@
 ﻿#include "ExpressionParser.hpp"
 #include "Parser.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../ast/nodes/expressions/IntegerNode.hpp"
 #include "../ast/nodes/expressions/FloatNode.hpp"
@@ -138,16 +139,17 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseUnary()
     {
-        // Handle unary operators like !, -, +
+        // Handle prefix unary operators like !, -, +, ++, --
         if (parser.getCurrentToken().type == TokenType::NOT ||
             parser.getCurrentToken().type == TokenType::MINUS ||
-            parser.getCurrentToken().type == TokenType::PLUS)
+            parser.getCurrentToken().type == TokenType::PLUS ||
+            parser.getCurrentToken().type == TokenType::INCREMENT ||
+            parser.getCurrentToken().type == TokenType::DECREMENT)
         {
             TokenType op = parser.getCurrentToken().type;
             parser.advanceToken();
             auto operand = parseUnary();
-            return std::make_unique<BinaryExpNode>(nullptr, op, std::move(operand));
-            // Unary represented as binary with null left
+            return std::make_unique<UnaryExpNode>(op, std::move(operand), ast::nodes::expressions::UnaryPosition::PREFIX);
         }
 
         return parsePostfix();
@@ -165,9 +167,8 @@ namespace parser
                 // Postfix increment/decrement
                 TokenType op = parser.getCurrentToken().type;
                 parser.advanceToken();
-                // Create a postfix operation using BinaryExpNode with the operand on the left and null on right
-                // This represents postfix operations like var++ or var--
-                expr = std::make_unique<BinaryExpNode>(std::move(expr), op, nullptr);
+                // Create a postfix operation using UnaryExpNode with POSTFIX position
+                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), ast::nodes::expressions::UnaryPosition::POSTFIX);
             }
             else if (parser.getCurrentToken().type == TokenType::LPAREN)
             {

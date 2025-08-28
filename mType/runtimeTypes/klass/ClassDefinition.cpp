@@ -115,4 +115,67 @@ namespace runtimeTypes::klass
     {
         return constructors.size();
     }
+
+    // Additional compatibility methods implementation
+    void ClassDefinition::addField(std::shared_ptr<FieldDefinition> field)
+    {
+        if (field->isStatic()) {
+            addStaticField(field->getName(), field);
+        } else {
+            addInstanceField(field->getName(), field);
+        }
+    }
+
+    void ClassDefinition::addMethod(std::shared_ptr<MethodDefinition> method)
+    {
+        if (method->isStatic()) {
+            addStaticMethod(method->getName(), method);
+        } else {
+            addInstanceMethod(method->getName(), method);
+        }
+    }
+
+    std::shared_ptr<FieldDefinition> ClassDefinition::getField(const std::string& fieldName) const
+    {
+        auto it = instanceFields.find(fieldName);
+        if (it != instanceFields.end()) {
+            return it->second;
+        }
+        
+        auto staticIt = staticFields.find(fieldName);
+        if (staticIt != staticFields.end()) {
+            return staticIt->second;
+        }
+        
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::getMethod(const std::string& methodName) const
+    {
+        auto it = instanceMethods.find(methodName);
+        if (it != instanceMethods.end()) {
+            return it->second;
+        }
+        
+        auto staticIt = staticMethods.find(methodName);
+        if (staticIt != staticMethods.end()) {
+            return staticIt->second;
+        }
+        
+        return nullptr;
+    }
+
+    std::shared_ptr<ConstructorDefinition> ClassDefinition::getConstructor() const
+    {
+        return constructors.empty() ? nullptr : constructors[0];
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findMethod(const std::string& methodName, size_t argCount) const
+    {
+        auto method = getMethod(methodName);
+        if (method && method->getParameters().size() == argCount) {
+            return method;
+        }
+        return nullptr;
+    }
 }

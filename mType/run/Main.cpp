@@ -11,6 +11,8 @@
 #include "../lexer/Lexer.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../evaluator/Evaluator.hpp"
+#include "../environment/EnvironmentBuilder.hpp"
 
 #include <vector>
 #include <memory>
@@ -24,6 +26,8 @@ using namespace tests::testFramework;
 using namespace parser;
 using namespace lexer;
 using namespace services;
+using namespace evaluator;
+using namespace environment;
 
 void printUsage(const std::string& programName) {
     std::cout << "Usage:\n";
@@ -83,6 +87,19 @@ bool parseFile(const std::string& filePath) {
             std::cout << "AST Structure:\n";
             printASTNode(ast.get());
             std::cout << "\nParsing completed successfully.\n";
+            
+            // Now evaluate the AST
+            std::cout << "\n=== EVALUATION OUTPUT ===\n";
+            try {
+                auto env = EnvironmentBuilder::createDefault();
+                Evaluator evaluator(env);
+                evaluator.evaluate(ast.get());
+                std::cout << "=== EVALUATION COMPLETED ===\n";
+            } catch (const std::exception& e) {
+                std::cerr << "Evaluation error: " << e.what() << std::endl;
+                return false;
+            }
+            
             return true;
         } else {
             std::cout << "Parsing failed: No AST generated.\n";

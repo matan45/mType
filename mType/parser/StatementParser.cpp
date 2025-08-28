@@ -272,18 +272,32 @@ namespace parser
                 parser.getCurrentToken().type == TokenType::BOOL ||
                 parser.getCurrentToken().type == TokenType::STRING_TYPE)
             {
-                init = parseDeclaration();
+                // Parse declaration inline without consuming semicolon (for loop specific)
+                ValueType type = parseType();
+                
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected variable name", parser.getCurrentToken().location);
+                }
+                
+                std::string varName = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                std::unique_ptr<ASTNode> value = nullptr;
+                if (parser.matchToken(TokenType::ASSIGN))
+                {
+                    value = parser.parseExpression();
+                }
+                
+                init = std::make_unique<AssignmentNode>(varName, std::move(value), type, false, false);
             }
             else
             {
                 init = parser.parseExpression();
-                parser.expectToken(TokenType::SEMICOLON);
             }
         }
-        else
-        {
-            parser.advanceToken(); // Skip semicolon
-        }
+        
+        parser.expectToken(TokenType::SEMICOLON);
 
         // Parse condition
         std::unique_ptr<ASTNode> condition = nullptr;
