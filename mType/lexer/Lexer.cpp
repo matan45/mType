@@ -35,8 +35,17 @@ namespace lexer
         // Numbers
         if (std::isdigit(current))
         {
-            if (pos + 1 < input.length() && input[pos + 1] == '.' && pos + 2 < input.length() && std::isdigit(
-                input[pos + 2]))
+            // Look ahead to determine if this is a float or integer
+            // Check if there's a decimal point followed by digits in the number
+            size_t lookAhead = pos;
+            while (lookAhead < input.length() && std::isdigit(input[lookAhead]))
+            {
+                lookAhead++;
+            }
+            
+            // Check if we found a decimal point followed by digits
+            if (lookAhead < input.length() && input[lookAhead] == '.' && 
+                lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
             {
                 float value = parseFloat();
                 return Token{TokenType::FLOAT_NUMBER, value, 0, "", location};

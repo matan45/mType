@@ -1,5 +1,5 @@
 #pragma once
-#include "../vlaue/ValueType.hpp"
+#include "../value/ValueType.hpp"
 #include "ASTVisitor.hpp"
 #include "../errors/SourceLocation.hpp"
 
@@ -7,7 +7,7 @@ namespace ast
 {
     using namespace errors;
     using namespace value;
-    
+
     class ASTNode
     {
     protected:
@@ -15,7 +15,11 @@ namespace ast
 
     public:
         explicit ASTNode() = default;
-        explicit ASTNode(const SourceLocation& loc) : location(loc) {}
+
+        explicit ASTNode(const SourceLocation& loc) : location(loc)
+        {
+        }
+
         virtual ~ASTNode() = default;
 
         // Accept method for visitor pattern
@@ -24,7 +28,7 @@ namespace ast
         // Template version for other return types
         template <typename T>
         T accept(ASTVisitor<T>& visitor);
-        
+
         const SourceLocation& getLocation() const { return location; }
     };
 }

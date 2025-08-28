@@ -1,5 +1,5 @@
 #pragma once
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
 

@@ -1,4 +1,4 @@
-﻿#include "NewNode.h"
+﻿#include "NewNode.hpp"
 
 namespace ast::nodes::classes
 {

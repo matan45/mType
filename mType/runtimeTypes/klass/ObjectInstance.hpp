@@ -2,7 +2,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
-#include "../../vlaue/ValueType.hpp"
+#include "../../value/ValueType.hpp"
 #include "ClassDefinition.hpp"
 
 namespace runtimeTypes::klass
@@ -27,8 +27,8 @@ namespace runtimeTypes::klass
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
         // Call method on this instance
-        Value callMethod(const std::string& methodName, 
-                        const std::vector<Value>& args,
-                        Environment& env);
+        Value callMethod(const std::string& methodName,
+                         const std::vector<Value>& args,
+                         Environment& env);
     };
 }

@@ -1,11 +1,14 @@
 ﻿#pragma once
+#include "../ast/ASTVisitor.hpp"
+#include "../value/ValueType.hpp"
 
 namespace evaluator
 {
-    class Evaluator
+    using namespace ast;
+    using namespace value;
+
+    class Evaluator : public ASTVisitor<Value>
     {
     public:
-    
     };
 }
-
