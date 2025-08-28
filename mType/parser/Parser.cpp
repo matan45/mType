@@ -160,4 +160,107 @@ namespace parser
             dynamic_cast<ast::nodes::namespaces::NamespaceNode*>(node) != nullptr ||
             dynamic_cast<AssignmentNode*>(node) != nullptr; // Global variables
     }
+
+    bool Parser::isAssignmentOperator(TokenType tokenType)
+    {
+        return tokenType == TokenType::ASSIGN ||
+               tokenType == TokenType::PLUS_ASSIGN ||
+               tokenType == TokenType::MINUS_ASSIGN ||
+               tokenType == TokenType::MULTIPLY_ASSIGN ||
+               tokenType == TokenType::DIVIDE_ASSIGN ||
+               tokenType == TokenType::MODULO_ASSIGN;
+    }
+
+    ValueType Parser::parseType()
+    {
+        TokenType currentType = getCurrentToken().type;
+
+        // Handle dedicated type tokens
+        if (currentType == TokenType::INT)
+        {
+            advanceToken();
+            return ValueType::INT;
+        }
+        else if (currentType == TokenType::FLOAT)
+        {
+            advanceToken();
+            return ValueType::FLOAT;
+        }
+        else if (currentType == TokenType::BOOL)
+        {
+            advanceToken();
+            return ValueType::BOOL;
+        }
+        else if (currentType == TokenType::STRING_TYPE)
+        {
+            advanceToken();
+            return ValueType::STRING;
+        }
+        else if (currentType == TokenType::VOID)
+        {
+            advanceToken();
+            return ValueType::VOID;
+        }
+        else if (currentType == TokenType::IDENTIFIER)
+        {
+            std::string typeName = getCurrentToken().stringValue;
+            advanceToken();
+
+            // Handle qualified names like geometry::Point
+            while (getCurrentToken().type == TokenType::SCOPE)
+            {
+                advanceToken();
+                if (getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected identifier after '::'", getCurrentToken().location);
+                }
+                typeName += "::" + getCurrentToken().stringValue;
+                advanceToken();
+            }
+
+            // Check if it's a string-based primitive type
+            if (typeName == "int") return ValueType::INT;
+            else if (typeName == "float") return ValueType::FLOAT;
+            else if (typeName == "string") return ValueType::STRING;
+            else if (typeName == "bool") return ValueType::BOOL;
+            else if (typeName == "void") return ValueType::VOID;
+            else
+            {
+                // Treat unknown identifier types as custom class types (OBJECT)
+                return ValueType::OBJECT;
+            }
+        }
+        else
+        {
+            throw ParseException("Expected type name", getCurrentToken().location);
+        }
+    }
+
+    std::vector<std::string> Parser::parseQualifiedName()
+    {
+        std::vector<std::string> qualifiedName;
+        
+        if (getCurrentToken().type != TokenType::IDENTIFIER)
+        {
+            throw ParseException("Expected identifier", getCurrentToken().location);
+        }
+        
+        qualifiedName.push_back(getCurrentToken().stringValue);
+        advanceToken();
+        
+        while (getCurrentToken().type == TokenType::SCOPE)
+        {
+            advanceToken();
+            
+            if (getCurrentToken().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected identifier after '::'", getCurrentToken().location);
+            }
+            
+            qualifiedName.push_back(getCurrentToken().stringValue);
+            advanceToken();
+        }
+        
+        return qualifiedName;
+    }
 }

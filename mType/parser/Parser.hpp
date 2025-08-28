@@ -2,6 +2,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../ast/ASTNode.hpp"
 #include "../token/TokenType.hpp"
+#include "../value/ValueType.hpp"
 #include "StatementParser.hpp"
 #include "ExpressionParser.hpp"
 #include "NamespaceParser.hpp"
@@ -65,6 +66,11 @@ namespace parser
         bool matchToken(TokenType type) { return match(type); }
         void expectToken(TokenType type) { expect(type); }
         Token peekNextToken() { return lexer.peekNextToken(); }
+        
+        // Common utility methods
+        static bool isAssignmentOperator(TokenType tokenType);
+        ValueType parseType();
+        std::vector<std::string> parseQualifiedName();
     };
 }
 

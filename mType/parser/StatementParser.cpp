@@ -82,12 +82,7 @@ namespace parser
                     } else {
                         return parseExpressionStatement();
                     }
-                } else if (nextToken.type == TokenType::ASSIGN ||
-                           nextToken.type == TokenType::PLUS_ASSIGN ||
-                           nextToken.type == TokenType::MINUS_ASSIGN ||
-                           nextToken.type == TokenType::MULTIPLY_ASSIGN ||
-                           nextToken.type == TokenType::DIVIDE_ASSIGN ||
-                           nextToken.type == TokenType::MODULO_ASSIGN) {
+                } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();
                 } else {
@@ -413,12 +408,7 @@ namespace parser
         // Check if this is a member assignment (obj.field = value)
         if (auto memberAccess = dynamic_cast<ast::nodes::classes::MemberAccessNode*>(expr.get())) {
             TokenType opType = parser.getCurrentToken().type;
-            if (opType == TokenType::ASSIGN ||
-                opType == TokenType::PLUS_ASSIGN ||
-                opType == TokenType::MINUS_ASSIGN ||
-                opType == TokenType::MULTIPLY_ASSIGN ||
-                opType == TokenType::DIVIDE_ASSIGN ||
-                opType == TokenType::MODULO_ASSIGN) {
+            if (Parser::isAssignmentOperator(opType)) {
                 
                 parser.advanceToken(); // consume assignment operator
                 auto value = parser.parseExpression();
@@ -545,42 +535,7 @@ namespace parser
 
     ValueType StatementParser::parseType()
     {
-        switch (parser.getCurrentToken().type)
-        {
-        case TokenType::INT:
-            parser.advanceToken();
-            return ValueType::INT;
-        case TokenType::FLOAT:
-            parser.advanceToken();
-            return ValueType::FLOAT;
-        case TokenType::BOOL:
-            parser.advanceToken();
-            return ValueType::BOOL;
-        case TokenType::STRING_TYPE:
-            parser.advanceToken();
-            return ValueType::STRING;
-        case TokenType::VOID:
-            parser.advanceToken();
-            return ValueType::VOID;
-        case TokenType::IDENTIFIER:
-            // Object type (class name), handle qualified names like geometry::Point
-            parser.advanceToken();
-            
-            // Handle qualified names
-            while (parser.getCurrentToken().type == TokenType::SCOPE)
-            {
-                parser.advanceToken();
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
-                {
-                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
-                }
-                parser.advanceToken();
-            }
-            
-            return ValueType::OBJECT;
-        default:
-            throw ParseException("Expected type name", parser.getCurrentToken().location);
-        }
+        return parser.parseType();
     }
 
     std::vector<std::pair<std::string, ValueType>> StatementParser::parseParameterList()
@@ -652,34 +607,15 @@ namespace parser
 
     bool StatementParser::isQualifiedDeclaration()
     {
-        // Look ahead to determine if this is a qualified type declaration or function call
-        // Pattern check: identifier::identifier identifier (declaration)
-        // vs: identifier::identifier( (function call)
-        
-        // We're currently at: identifier, next token is SCOPE
-        // We need to look ahead to see what comes after the qualified name
-        
-        // Save current position
-        size_t currentPos = 0; // We'll need to implement proper lookahead
-        
-        // For now, implement a simple heuristic:
-        // Parse the qualified name and check what follows
-        
         Token current = parser.getCurrentToken(); // Should be identifier
         Token next = parser.peekNextToken(); // Should be SCOPE
         
         if (current.type != TokenType::IDENTIFIER || next.type != TokenType::SCOPE) {
-            return false; // Shouldn't happen, but safety check
+            return false;
         }
         
-        // We need a more sophisticated lookahead mechanism
-        // For now, let's assume it's NOT a declaration (i.e., it's a function call)
-        // This will route qualified function calls to parseExpressionStatement()
-        
-        // TODO: Implement proper lookahead to distinguish between:
-        // namespace::Class varName; (declaration)
-        // namespace::function(); (function call)
-        
-        return false; // Default to treating as expression statement
+        // Default: assume it's a type declaration since they're harder to parse in expressions
+        return true;
     }
+    
 }

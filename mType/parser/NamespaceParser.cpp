@@ -73,24 +73,7 @@ namespace parser
     {
         parser.expectToken(TokenType::USING);
         
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-            throw ParseException("Expected namespace or type name after 'using'", parser.getCurrentToken().location);
-        }
-        
-        std::vector<std::string> qualifiedName;
-        qualifiedName.push_back(parser.getCurrentToken().stringValue);
-        parser.advanceToken();
-        
-        while (parser.getCurrentToken().type == TokenType::SCOPE) {
-            parser.advanceToken();
-            
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
-            }
-            
-            qualifiedName.push_back(parser.getCurrentToken().stringValue);
-            parser.advanceToken();
-        }
+        std::vector<std::string> qualifiedName = parser.parseQualifiedName();
         
         parser.expectToken(TokenType::SEMICOLON);
         
@@ -103,20 +86,7 @@ namespace parser
             return nullptr;
         }
         
-        std::vector<std::string> qualifiedName;
-        qualifiedName.push_back(parser.getCurrentToken().stringValue);
-        parser.advanceToken();
-        
-        while (parser.getCurrentToken().type == TokenType::SCOPE) {
-            parser.advanceToken();
-            
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER) {
-                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
-            }
-            
-            qualifiedName.push_back(parser.getCurrentToken().stringValue);
-            parser.advanceToken();
-        }
+        std::vector<std::string> qualifiedName = parser.parseQualifiedName();
         
         return std::make_unique<QualifiedNameNode>(qualifiedName);
     }
