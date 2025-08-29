@@ -59,7 +59,6 @@ void runTests()
 
 int main(int argc, char* argv[])
 {
-    runTests();
     if (argc == 2 && std::string(argv[1]) == "--tests") {
         runTests();
         return 0;
