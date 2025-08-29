@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <fstream>
+#include <sstream>
 #include "TestCase.hpp"
 
 namespace tests::testFramework
@@ -23,6 +25,8 @@ namespace tests::testFramework
         std::string currentSuiteName;
         TestResults results;
         std::vector<TestCase*> executedTests;
+        std::stringstream logBuffer;
+        std::ofstream logFile;
 
     public:
         explicit TestRunner(const std::string& suiteName);
@@ -33,8 +37,14 @@ namespace tests::testFramework
         
         const TestResults& getResults() const { return results; }
         const std::vector<TestCase*>& getExecutedTests() const { return executedTests; }
+        const std::string getLogContent() const { return logBuffer.str(); }
         
-        void printSummary() const;
-        void printDetailedReport() const;
+        void printSummary();
+        void printDetailedReport();
+        void saveLogToFile(const std::string& filename);
+        
+    private:
+        void log(const std::string& message);
+        void logLine(const std::string& message = "");
     };
 }

@@ -34,13 +34,32 @@ namespace tests::testFramework
         // Generate both console and HTML reports
         runner->printDetailedReport();
         generateHtmlReport();
+        
+        // Save log file
+        std::filesystem::create_directories("test_logs");
+        
+        // Generate log filename with timestamp
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        std::ostringstream oss;
+        oss << "test_logs/" << suiteName << "_"
+            << std::put_time(&tm, "%Y%m%d_%H%M%S") << ".log";
+        std::string logFilename = oss.str();
+        
+        // Replace spaces with underscores in filename
+        for (char& c : logFilename)
+        {
+            if (c == ' ') c = '_';
+        }
+        
+        runner->saveLogToFile(logFilename);
     }
 
     void TestSuite::addTestFromFile(const std::string& name, const std::string& filePath, TestType type)
     {
         // Construct the full path relative to the working directory
-        std::string fullPath = "mType/" + filePath;
-        testCases.emplace_back(name, fullPath, type);
+        //std::string fullPath = "mType/" + filePath;
+        testCases.emplace_back(name, filePath, type);
     }
 
     void TestSuite::generateHtmlReport()
