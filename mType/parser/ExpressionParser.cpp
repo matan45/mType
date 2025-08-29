@@ -15,6 +15,7 @@
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/QualifiedAssignmentNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -42,10 +43,11 @@ namespace parser
             parser.getCurrentToken().type == TokenType::DIVIDE_ASSIGN ||
             parser.getCurrentToken().type == TokenType::MODULO_ASSIGN)
         {
-            // For assignment expressions, the left side should be a variable or member access
+            // For assignment expressions, the left side should be a variable, member access, or qualified name
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
-            if (!variableNode && !memberAccessNode) {
+            auto qualifiedNameNode = dynamic_cast<ast::nodes::namespaces::QualifiedNameNode*>(expr.get());
+            if (!variableNode && !memberAccessNode && !qualifiedNameNode) {
                 throw ParseException("Invalid assignment target", parser.getCurrentToken().location);
             }
 
@@ -93,6 +95,15 @@ namespace parser
                     return std::make_unique<AssignmentNode>(variableNode->getName(), 
                                                           std::move(expandedRight), 
                                                           ValueType::VOID, "");
+                }
+            } else if (qualifiedNameNode) {
+                // Qualified assignment (e.g., namespace::variable = value)
+                if (opType == TokenType::ASSIGN) {
+                    return std::make_unique<QualifiedAssignmentNode>(qualifiedNameNode->getQualifiers(), 
+                                                                     std::move(rightExpr));
+                } else {
+                    // Compound qualified assignment - not yet supported
+                    throw ParseException("Compound assignment to qualified name not yet supported", parser.getCurrentToken().location);
                 }
             }
         }

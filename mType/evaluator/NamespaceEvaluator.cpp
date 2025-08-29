@@ -17,8 +17,11 @@ namespace evaluator
 
     Value NamespaceEvaluator::evaluateNamespaceNode(NamespaceNode* node)
     {
-        std::vector<std::string> namespacePath = {node->getNamespaceName()};
-        enterNamespace(namespacePath);
+        // Get the current namespace path and append this namespace to it
+        auto currentPath = getCurrentNamespace();
+        currentPath.push_back(node->getNamespaceName());
+        
+        enterNamespace(currentPath);
         
         Value lastValue = std::monostate{};
         
@@ -38,7 +41,19 @@ namespace evaluator
 
     Value NamespaceEvaluator::evaluateUsingNode(UsingNode* node)
     {
+        // Add to global using directives (for immediate use)
         addUsingDirective(node->getNamespacePath());
+        
+        // Also store in current namespace definition (for persistent access)
+        auto env = mainEvaluator->getEnvironment();
+        auto nsManager = env->getNamespaceManager();
+        if (nsManager) {
+            auto currentNs = nsManager->getCurrentNamespace();
+            if (currentNs) {
+                currentNs->addUsingDirective(node->getNamespacePath());
+            }
+        }
+        
         return std::monostate{};
     }
 
@@ -65,18 +80,24 @@ namespace evaluator
     {
         auto env = mainEvaluator->getEnvironment();
         
-        // Join qualified name with "::"
-        std::string fullName = "";
-        for (size_t i = 0; i < qualifiedName.size(); ++i) {
-            if (i > 0) fullName += "::";
-            fullName += qualifiedName[i];
+        // First, try to find it as a namespace variable
+        if (qualifiedName.size() >= 2) {
+            std::vector<std::string> namespacePath(qualifiedName.begin(), qualifiedName.end() - 1);
+            std::string varName = qualifiedName.back();
+            
+            auto variableManager = env->getVariableManager();
+            if (variableManager) {
+                auto varDef = variableManager->findVariableInNamespace(namespacePath, varName);
+                if (varDef) {
+                    return varDef->getValue();
+                }
+            }
         }
         
-        // Check if this is a static class field access (ClassName::fieldName)
+        // If not found as namespace variable, check if this is a static class field access (ClassName::fieldName)
         if (qualifiedName.size() == 2) {
             std::string className = qualifiedName[0];
             std::string fieldName = qualifiedName[1];
-            
             
             // Find the class definition
             auto classDef = env->findClass(className);
@@ -92,26 +113,44 @@ namespace evaluator
             }
         }
         
-        auto varDef = env->findVariable(fullName);
-        if (!varDef) {
-            throw UndefinedException("Undefined variable: " + fullName, SourceLocation{});
-        }
-        
-        return varDef->getValue();
-    }
-
-    void NamespaceEvaluator::assignQualifiedVariable(const std::vector<std::string>& qualifiedName, const Value& value)
-    {
-        auto env = mainEvaluator->getEnvironment();
-        
-        // Join qualified name with "::"
+        // Join qualified name with "::" for error message
         std::string fullName = "";
         for (size_t i = 0; i < qualifiedName.size(); ++i) {
             if (i > 0) fullName += "::";
             fullName += qualifiedName[i];
         }
         
-        // Check if this is a static class field assignment (ClassName::fieldName)
+        throw UndefinedException("Undefined variable: " + fullName, SourceLocation{});
+    }
+
+    void NamespaceEvaluator::assignQualifiedVariable(const std::vector<std::string>& qualifiedName, const Value& value)
+    {
+        auto env = mainEvaluator->getEnvironment();
+        
+        // First, try to find it as a namespace variable
+        if (qualifiedName.size() >= 2) {
+            std::vector<std::string> namespacePath(qualifiedName.begin(), qualifiedName.end() - 1);
+            std::string varName = qualifiedName.back();
+            
+            auto variableManager = env->getVariableManager();
+            if (variableManager) {
+                auto varDef = variableManager->findVariableInNamespace(namespacePath, varName);
+                if (varDef) {
+                    if (varDef->isFinal()) {
+                        std::string fullName = "";
+                        for (size_t i = 0; i < qualifiedName.size(); ++i) {
+                            if (i > 0) fullName += "::";
+                            fullName += qualifiedName[i];
+                        }
+                        throw TypeException("Cannot reassign final variable: " + fullName, SourceLocation{});
+                    }
+                    varDef->setValue(value);
+                    return;
+                }
+            }
+        }
+        
+        // If not found as namespace variable, check if this is a static class field assignment (ClassName::fieldName)
         if (qualifiedName.size() == 2) {
             std::string className = qualifiedName[0];
             std::string fieldName = qualifiedName[1];
@@ -123,6 +162,7 @@ namespace evaluator
                 auto field = classDef->getField(fieldName);
                 if (field && field->isStatic()) {
                     if (field->isFinal()) {
+                        std::string fullName = className + "::" + fieldName;
                         throw TypeException("Cannot reassign final static field: " + fullName, SourceLocation{});
                     }
                     field->setValue(value);
@@ -131,16 +171,14 @@ namespace evaluator
             }
         }
         
-        auto varDef = env->findVariable(fullName);
-        if (!varDef) {
-            throw UndefinedException("Undefined variable: " + fullName, SourceLocation{});
+        // Join qualified name with "::" for error message
+        std::string fullName = "";
+        for (size_t i = 0; i < qualifiedName.size(); ++i) {
+            if (i > 0) fullName += "::";
+            fullName += qualifiedName[i];
         }
         
-        if (varDef->isFinal()) {
-            throw TypeException("Cannot reassign final variable: " + fullName, SourceLocation{});
-        }
-        
-        varDef->setValue(value);
+        throw UndefinedException("Undefined variable: " + fullName, SourceLocation{});
     }
 
     Value NamespaceEvaluator::callQualifiedFunction(const std::vector<std::string>& qualifiedName,

@@ -158,6 +158,27 @@ namespace evaluator
                                              " to variable of type " + valueTypeToString(declaredType), node->getLocation());
                 }
                 
+                // For object types, also check class compatibility
+                if (actualType == ValueType::OBJECT && declaredType == ValueType::OBJECT) {
+                    const std::string& declaredClassName = node->getClassName();
+                    if (!declaredClassName.empty()) {
+                        // Get the actual class name of the assigned object
+                        std::string actualClassName = "";
+                        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(initialValue)) {
+                            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(initialValue);
+                            if (objInstance) {
+                                actualClassName = objInstance->getTypeName();
+                            }
+                        }
+                        
+                        // Check if classes match (exact match for now - could be extended for inheritance)
+                        if (!actualClassName.empty() && actualClassName != declaredClassName) {
+                            throw TypeException("Type mismatch: cannot assign object of type '" + actualClassName + 
+                                               "' to variable of type '" + declaredClassName + "'", node->getLocation());
+                        }
+                    }
+                }
+                
                 // For object types, also validate that the class exists
                 if (declaredType == ValueType::OBJECT) {
                     const std::string& className = node->getClassName();

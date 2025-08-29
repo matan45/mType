@@ -1,4 +1,5 @@
 ﻿#include "Environment.hpp"
+#include "../errors/AmbiguousReferenceException.hpp"
 
 namespace environment
 {
@@ -109,10 +110,20 @@ namespace environment
             scopeManager->declareVariable(varName, variable);
         }
         
-        // Only register in global VariableManager if we're in global scope
-        if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
+        // Register in VariableManager for global scope or namespace scope
+        if (variableManager)
         {
-            variableManager->declareVariable(varName, variable);
+            auto namespacePath = getCurrentNamespacePath();
+            if (!namespacePath.empty())
+            {
+                // In a namespace - register with namespace path
+                variableManager->declareVariableInNamespace(namespacePath, varName, variable);
+            }
+            else if (scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
+            {
+                // In global scope
+                variableManager->declareVariable(varName, variable);
+            }
         }
     }
 
@@ -136,6 +147,7 @@ namespace environment
     {
         if (!functionRegistry) return nullptr;
         
+        // First check current namespace
         auto namespacePath = getCurrentNamespacePath();
         if (!namespacePath.empty())
         {
@@ -145,11 +157,48 @@ namespace environment
             }
         }
         
+        // Then check using directives - detect ambiguity
+        if (namespaceManager)
+        {
+            const auto& usingDirs = namespaceManager->getUsingDirectives();
+            std::shared_ptr<FunctionDefinition> foundFunction = nullptr;
+            std::string foundInNamespace = "";
+            
+            for (const auto& usingPath : usingDirs)
+            {
+                if (auto func = functionRegistry->findFunctionInNamespace(usingPath, name))
+                {
+                    if (foundFunction) {
+                        // Found a second match - this is ambiguous
+                        std::string currentNamespace = "";
+                        for (size_t i = 0; i < usingPath.size(); ++i) {
+                            if (i > 0) currentNamespace += "::";
+                            currentNamespace += usingPath[i];
+                        }
+                        throw errors::AmbiguousReferenceException("Ambiguous function reference: '" + name + 
+                                                                 "' found in both '" + foundInNamespace + 
+                                                                 "' and '" + currentNamespace + "'");
+                    }
+                    foundFunction = func;
+                    for (size_t i = 0; i < usingPath.size(); ++i) {
+                        if (i > 0) foundInNamespace += "::";
+                        foundInNamespace += usingPath[i];
+                    }
+                }
+            }
+            
+            if (foundFunction) {
+                return foundFunction;
+            }
+        }
+        
+        // Finally check global scope
         return functionRegistry->findFunction(name);
     }
 
     std::shared_ptr<VariableDefinition> Environment::findVariable(const std::string& name) const
     {
+        // First check scope manager (for local variables)
         if (scopeManager)
         {
             if (auto var = scopeManager->findVariable(name))
@@ -158,8 +207,55 @@ namespace environment
             }
         }
         
+        // Then check variable manager with namespace context
         if (variableManager)
         {
+            // First check current namespace
+            auto namespacePath = getCurrentNamespacePath();
+            if (!namespacePath.empty())
+            {
+                if (auto var = variableManager->findVariableInNamespace(namespacePath, name))
+                {
+                    return var;
+                }
+            }
+            
+            // Then check using directives - detect ambiguity
+            if (namespaceManager)
+            {
+                const auto& usingDirs = namespaceManager->getUsingDirectives();
+                std::shared_ptr<VariableDefinition> foundVariable = nullptr;
+                std::string foundInNamespace = "";
+                
+                for (const auto& usingPath : usingDirs)
+                {
+                    if (auto var = variableManager->findVariableInNamespace(usingPath, name))
+                    {
+                        if (foundVariable) {
+                            // Found a second match - this is ambiguous
+                            std::string currentNamespace = "";
+                            for (size_t i = 0; i < usingPath.size(); ++i) {
+                                if (i > 0) currentNamespace += "::";
+                                currentNamespace += usingPath[i];
+                            }
+                            throw errors::AmbiguousReferenceException("Ambiguous variable reference: '" + name + 
+                                                                     "' found in both '" + foundInNamespace + 
+                                                                     "' and '" + currentNamespace + "'");
+                        }
+                        foundVariable = var;
+                        for (size_t i = 0; i < usingPath.size(); ++i) {
+                            if (i > 0) foundInNamespace += "::";
+                            foundInNamespace += usingPath[i];
+                        }
+                    }
+                }
+                
+                if (foundVariable) {
+                    return foundVariable;
+                }
+            }
+            
+            // Finally check global scope
             return variableManager->findVariable(name);
         }
         

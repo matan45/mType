@@ -73,6 +73,9 @@ namespace parser
     {
         parser.expectToken(TokenType::USING);
         
+        // Expect "namespace" keyword after "using"
+        parser.expectToken(TokenType::NAMESPACE);
+        
         std::vector<std::string> qualifiedName = parser.parseQualifiedName();
         
         parser.expectToken(TokenType::SEMICOLON);

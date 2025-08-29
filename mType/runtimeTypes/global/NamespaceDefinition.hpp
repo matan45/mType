@@ -35,5 +35,9 @@ namespace runtimeTypes::global
 
         // Merge another namespace (for extending namespaces)
         void merge(const NamespaceDefinition& other);
+        
+        // Using directive management
+        void addUsingDirective(const std::vector<std::string>& namespacePath);
+        const std::vector<std::vector<std::string>>& getUsingDirectives() const;
     };
 }

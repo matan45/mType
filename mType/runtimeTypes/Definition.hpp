@@ -31,5 +31,8 @@ namespace runtimeTypes
         // Getter for the name
         const std::string& getName() const { return name; }
         
+        // Getter for namespace context
+        const std::vector<std::string>& getNamespaceContext() const { return namespaceContext; }
+        
     };
 }

@@ -19,6 +19,7 @@ namespace environment::manager
         std::stack<std::shared_ptr<NamespaceDefinition>> namespaceStack;
         std::unordered_map<std::string, std::shared_ptr<NamespaceDefinition>> allNamespaces;
         std::vector<std::vector<std::string>> usingDirectives;
+        std::stack<std::vector<std::vector<std::string>>> usingDirectivesStack;
 
     public:
         explicit NamespaceManager();

@@ -245,19 +245,139 @@ namespace evaluator
             return nativeFunc(args);
         }
         
-        // Check if this is a static method call (contains ::)
+        // Check if this is a qualified call (contains ::)
         std::string functionName = node->getFunctionName();
         if (functionName.find("::") != std::string::npos) {
-            // Split class name and method name
-            size_t pos = functionName.find("::");
-            std::string className = functionName.substr(0, pos);
-            std::string methodName = functionName.substr(pos + 2);
-            
-            // Find the class definition
-            auto classDef = env->findClass(className);
-            if (!classDef) {
-                throw UndefinedException("Undefined class: " + className, node->getLocation());
+            // Parse the qualified name into parts
+            std::vector<std::string> parts;
+            size_t start = 0;
+            size_t pos = 0;
+            while ((pos = functionName.find("::", start)) != std::string::npos) {
+                parts.push_back(functionName.substr(start, pos - start));
+                start = pos + 2;
             }
+            parts.push_back(functionName.substr(start));
+            
+            // First, try to find it as a namespace function
+            if (parts.size() >= 2) {
+                std::vector<std::string> namespacePath(parts.begin(), parts.end() - 1);
+                std::string funcName = parts.back();
+                
+                auto functionRegistry = env->getFunctionRegistry();
+                auto functionDef = functionRegistry->findFunctionInNamespace(namespacePath, funcName);
+                
+                if (functionDef) {
+                    // Found a namespace function - evaluate it
+                    std::vector<Value> args;
+                    for (auto& argNode : node->getArguments()) {
+                        args.push_back(mainEvaluator->evaluate(argNode.get()));
+                    }
+                    
+                    // Check parameter count
+                    if (args.size() != functionDef->getParameterCount()) {
+                        throw ArgumentException("Function '" + functionName + "' expects " + 
+                                              std::to_string(functionDef->getParameterCount()) +
+                                              " arguments, got " + std::to_string(args.size()),
+                                              node->getLocation());
+                    }
+                    
+                    // Save the current return state
+                    bool savedReturnState = mainEvaluator->shouldReturn();
+                    
+                    // Save current namespace context and set function's namespace context
+                    auto savedNamespacePath = env->getCurrentNamespacePath();
+                    const auto& functionNamespace = functionDef->getNamespaceContext();
+                    if (!functionNamespace.empty()) {
+                        env->enterNamespace(functionNamespace);
+                        
+                        // Apply namespace's using directives
+                        auto nsManager = env->getNamespaceManager();
+                        if (nsManager) {
+                            auto currentNs = nsManager->getCurrentNamespace();
+                            if (currentNs) {
+                                const auto& nsUsingDirs = currentNs->getUsingDirectives();
+                                for (const auto& usingDir : nsUsingDirs) {
+                                    nsManager->addUsingDirective(usingDir);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Create new scope for function execution
+                    env->enterScope(functionName, ScopeType::FUNCTION);
+                    
+                    // Bind parameters to arguments
+                    const auto& parameters = functionDef->getParameters();
+                    for (size_t i = 0; i < args.size(); ++i) {
+                        auto varDef = std::make_shared<VariableDefinition>(
+                            parameters[i].first,   // parameter name
+                            parameters[i].second,  // parameter type
+                            args[i]
+                        );
+                        env->declareVariable(parameters[i].first, varDef);
+                    }
+                    
+                    // Execute function body
+                    Value result = std::monostate{};
+                    try {
+                        result = mainEvaluator->evaluate(functionDef->getBody());
+                        
+                        // Extract return value if the function returned
+                        if (mainEvaluator->shouldReturn()) {
+                            result = mainEvaluator->getReturnValue();
+                        }
+                    }
+                    catch (const exception::ReturnException& e) {
+                        // Handle return statement - this is the expected way functions return
+                        env->exitScope();
+                        // Restore namespace context
+                        if (!functionNamespace.empty()) {
+                            env->exitNamespace();
+                            if (!savedNamespacePath.empty()) {
+                                env->enterNamespace(savedNamespacePath);
+                            }
+                        }
+                        // Reset return state since this was a function return, not a program return
+                        mainEvaluator->setReturned(savedReturnState);
+                        return e.returnValue;
+                    }
+                    catch (...) {
+                        env->exitScope();
+                        // Restore namespace context
+                        if (!functionNamespace.empty()) {
+                            env->exitNamespace();
+                            if (!savedNamespacePath.empty()) {
+                                env->enterNamespace(savedNamespacePath);
+                            }
+                        }
+                        mainEvaluator->setReturned(savedReturnState);
+                        throw;
+                    }
+                    
+                    env->exitScope();
+                    // Restore namespace context
+                    if (!functionNamespace.empty()) {
+                        env->exitNamespace();
+                        if (!savedNamespacePath.empty()) {
+                            env->enterNamespace(savedNamespacePath);
+                        }
+                    }
+                    mainEvaluator->setReturned(savedReturnState);
+                    
+                    return result;
+                }
+            }
+            
+            // If not found as namespace function, try as static method (for backward compatibility)
+            if (parts.size() == 2) {
+                std::string className = parts[0];
+                std::string methodName = parts[1];
+                
+                // Find the class definition
+                auto classDef = env->findClass(className);
+                if (!classDef) {
+                    throw UndefinedException("Undefined class or namespace: " + className, node->getLocation());
+                }
             
             // Find the static method within the class
             auto method = classDef->getMethod(methodName);
@@ -331,6 +451,7 @@ namespace evaluator
             mainEvaluator->setReturned(savedReturnState);
             
             return result;
+            }
         }
         
         // Check for user-defined function
@@ -352,6 +473,25 @@ namespace evaluator
                                   "' expects " + std::to_string(funcDef->getParameters().size()) +
                                   " arguments, got " + std::to_string(args.size()),
                                   node->getLocation());
+        }
+        
+        // Save current namespace context and set function's namespace context
+        auto savedNamespacePath = env->getCurrentNamespacePath();
+        const auto& functionNamespace = funcDef->getNamespaceContext();
+        if (!functionNamespace.empty()) {
+            env->enterNamespace(functionNamespace);
+            
+            // Apply the namespace's using directives for function execution
+            auto nsManager = env->getNamespaceManager();
+            if (nsManager) {
+                auto namespaceDef = nsManager->findNamespace(functionNamespace);
+                if (namespaceDef) {
+                    const auto& usingDirectives = namespaceDef->getUsingDirectives();
+                    for (const auto& usingDir : usingDirectives) {
+                        nsManager->addUsingDirective(usingDir);
+                    }
+                }
+            }
         }
         
         // Create new scope for function execution
@@ -383,16 +523,37 @@ namespace evaluator
         catch (const exception::ReturnException& e) {
             // Handle return statement - this is the expected way functions return
             env->exitScope();
+            // Restore namespace context
+            if (!functionNamespace.empty()) {
+                env->exitNamespace();
+                if (!savedNamespacePath.empty()) {
+                    env->enterNamespace(savedNamespacePath);
+                }
+            }
             // Reset return state since this was a function return, not a program return
             mainEvaluator->setReturned(false);
             return e.returnValue;
         }
         catch (...) {
             env->exitScope();
+            // Restore namespace context
+            if (!functionNamespace.empty()) {
+                env->exitNamespace();
+                if (!savedNamespacePath.empty()) {
+                    env->enterNamespace(savedNamespacePath);
+                }
+            }
             throw;
         }
         
         env->exitScope();
+        // Restore namespace context
+        if (!functionNamespace.empty()) {
+            env->exitNamespace();
+            if (!savedNamespacePath.empty()) {
+                env->enterNamespace(savedNamespacePath);
+            }
+        }
         return result;
     }
 
