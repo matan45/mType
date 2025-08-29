@@ -33,7 +33,6 @@ print(emp1.salary); // 55000
 bool higherPaid = compareEmployees(emp2, emp1);
 print(higherPaid); // true
 
-// Note: swap won't work as expected due to pass-by-value of references
 swapEmployees(emp1, emp2);
 print(emp1.name); // Still Alice
 print(emp2.name); // Still Bob

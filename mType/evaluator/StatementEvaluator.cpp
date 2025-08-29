@@ -60,9 +60,9 @@ namespace evaluator
             for (const auto& statement : node->getStatements()) {
                 lastValue = mainEvaluator->evaluate(statement.get());
                 
-                // Only break on return if we're inside a function, or for break/continue
-                if (shouldBreakOrContinue() || 
-                    (mainEvaluator->shouldReturn() && mainEvaluator->getEnvironment()->isInFunction())) {
+                // Only break on return if we're inside a function
+                // Break/continue should only affect loop execution, not block-level statement processing
+                if (mainEvaluator->shouldReturn() && mainEvaluator->getEnvironment()->isInFunction()) {
                     break;
                 }
             }
@@ -253,6 +253,8 @@ namespace evaluator
             }
         }
         
+        // Reset break/continue flags when while loop completes
+        resetLoopFlags();
         return lastValue;
     }
 
@@ -286,6 +288,8 @@ namespace evaluator
             }
         } while (mainEvaluator->isTruthy(mainEvaluator->evaluate(node->getCondition())));
         
+        // Reset break/continue flags when do-while loop completes
+        resetLoopFlags();
         return lastValue;
     }
 
@@ -308,12 +312,7 @@ namespace evaluator
                 try {
                     lastValue = mainEvaluator->evaluate(node->getBody());
                     
-                    if (isContinuing()) {
-                        resetLoopFlags();
-                    } else if (isBreaking()) {
-                        resetLoopFlags();
-                        break;
-                    } else if (mainEvaluator->shouldReturn()) {
+                    if (mainEvaluator->shouldReturn()) {
                         break;
                     }
                     
@@ -339,6 +338,8 @@ namespace evaluator
         }
         
         env->exitScope();
+        // Reset break/continue flags when for loop completes
+        resetLoopFlags();
         return lastValue;
     }
 

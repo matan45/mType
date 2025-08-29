@@ -64,6 +64,9 @@ namespace tests::testSuite
         addTestFromFile("Type Assignment Mismatch Error",
                         errorPath + "typeAssignmentMismatch.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Assign Null To Final",
+                        errorPath + "assignNullToFinal.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Type Invalid Operation Error",
                         errorPath + "typeInvalidOperation.mt",
                         TestType::ERROR_EXPECTED);

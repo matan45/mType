@@ -35,9 +35,8 @@ namespace tests::testSuite
                         passPath + "memberAccess.mt");
         addOutputVerificationTest("Method Calls",
                         passPath + "methodCalls.mt");
-        addTestFromFile("Chained Member Access",
-                        passPath + "chainedMemberAccess.mt",
-                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Chained Member Access",
+                        passPath + "chainedMemberAccess.mt");
         addOutputVerificationTest("Member Assignment",
                         passPath + "memberAssignment.mt");
         addOutputVerificationTest("Object Creation",

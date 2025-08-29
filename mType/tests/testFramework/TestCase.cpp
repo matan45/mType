@@ -277,6 +277,41 @@ namespace tests::testFramework
         std::string normalizedOutput = normalize(output);
         std::string normalizedExpected = normalize(expectedOutput);
 
+        // Validate line count first
+        auto countNonEmptyLines = [](const std::string& str) {
+            std::stringstream ss(str);
+            std::string line;
+            int count = 0;
+            while (std::getline(ss, line)) {
+                // Count lines that have content after trimming whitespace
+                std::string trimmed = line;
+                // Remove leading and trailing whitespace
+                size_t first = trimmed.find_first_not_of(" \t\r\n");
+                if (first == std::string::npos) {
+                    continue; // Skip empty lines
+                }
+                size_t last = trimmed.find_last_not_of(" \t\r\n");
+                trimmed = trimmed.substr(first, (last - first + 1));
+                if (!trimmed.empty()) {
+                    count++;
+                }
+            }
+            return count;
+        };
+
+        int actualLines = countNonEmptyLines(normalizedOutput);
+        int expectedLines = countNonEmptyLines(normalizedExpected);
+
+        // If line counts don't match, log the discrepancy and fail
+        if (actualLines != expectedLines) {
+            std::cerr << "Line count mismatch in " << filePath << ":\n";
+            std::cerr << "  Expected: " << expectedLines << " lines\n";
+            std::cerr << "  Actual: " << actualLines << " lines\n";
+            std::cerr << "  Difference: " << (actualLines - expectedLines) << "\n";
+            return false;
+        }
+
+        // Then validate content
         return normalizedOutput == normalizedExpected;
     }
 }

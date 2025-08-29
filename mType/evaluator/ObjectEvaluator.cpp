@@ -255,7 +255,8 @@ namespace evaluator
             throw UndefinedException("Undefined field: " + memberName, SourceLocation{});
         }
         
-        return field->getValue();
+        // Return the instance's field value, not the class definition's default value
+        return object->getFieldValue(memberName);
     }
 
     void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
@@ -271,7 +272,8 @@ namespace evaluator
             throw TypeException("Cannot reassign final field: " + memberName, SourceLocation{});
         }
         
-        field->setValue(value);
+        // Set the value on the object instance, not the field definition
+        object->setField(memberName, value);
     }
 
     Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
