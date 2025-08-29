@@ -25,6 +25,7 @@ namespace tests::testFramework
         void generateReport();
     
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
+        void addOutputVerificationTest(const std::string& name, const std::string& filePath);
 
     private:
         void generateHtmlReport();

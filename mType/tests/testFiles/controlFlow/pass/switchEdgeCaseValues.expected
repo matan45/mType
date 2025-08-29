@@ -1,0 +1,25 @@
+Zero value
+Maximum 32-bit signed integer
+Minimum 32-bit signed integer
+2^10
+Negative one
+Digit zero
+Digit one
+Digit two
+Digit three
+Digit four
+Digit five
+Digit six
+Digit seven
+Digit eight
+Digit nine
+ASCII A
+Fibonacci 13
+Prime 17
+Max unsigned 8-bit
+Multiple: 100
+Negative three
+256 (0x100)
+Exactly 12345
+Overflow behavior: -2147483648
+All edge case value tests completed

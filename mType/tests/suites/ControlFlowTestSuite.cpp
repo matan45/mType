@@ -7,73 +7,73 @@ namespace tests::testSuite
     void ControlFlowTestSuite::setupTests()
     {
         // Function-related tests
-        addTestFromFile("Type Script Style Functions",
+        addOutputVerificationTest("Type Script Style Functions",
                         passPath + "typeScriptStyleFunctions.mt");
-        addTestFromFile("Complex Functions with New Syntax",
+        addOutputVerificationTest("Complex Functions with New Syntax",
                         passPath + "complexFunctionsNewSyntax.mt");
-        addTestFromFile("Void Functions",
+        addOutputVerificationTest("Void Functions",
                         passPath + "voidFunctions.mt");
-        addTestFromFile("Mixed Parameter Types",
+        addOutputVerificationTest("Mixed Parameter Types",
                         passPath + "mixedParameterTypes.mt");
-        addTestFromFile("Nested Function Calls",
+        addOutputVerificationTest("Nested Function Calls",
                         passPath + "nestedFunctionCalls.mt");
-        addTestFromFile("Recursion with New Syntax",
+        addOutputVerificationTest("Recursion with New Syntax",
                         passPath + "recursionNewSyntax.mt");
 
         // Control flow tests
-        addTestFromFile("Break Statement",
+        addOutputVerificationTest("Break Statement",
                         passPath + "breakStatement.mt");
-        addTestFromFile("Continue Statement",
+        addOutputVerificationTest("Continue Statement",
                         passPath + "continueStatement.mt");
-        addTestFromFile("Nested Loops with Break Continue",
+        addOutputVerificationTest("Nested Loops with Break Continue",
                         passPath + "nestedLoopsWithBreakContinue.mt");
-        addTestFromFile("Nested Loop Break Continue Limits",
+        addOutputVerificationTest("Nested Loop Break Continue Limits",
                         passPath + "nestedLoopBreakContinueLimits.mt");
 
         // Final variables tests
-        addTestFromFile("Final Variables",
+        addOutputVerificationTest("Final Variables",
                         passPath + "finalVariables.mt");
-        addTestFromFile("Final in Loops",
+        addOutputVerificationTest("Final in Loops",
                         passPath + "finalInLoops.mt");
-        addTestFromFile("Final in Functions",
+        addOutputVerificationTest("Final in Functions",
                         passPath + "finalInFunctions.mt");
 
         // Switch-case tests
-        addTestFromFile("Switch Case with Default",
+        addOutputVerificationTest("Switch Case with Default",
                         passPath + "switchCaseDefault.mt");
-        addTestFromFile("Switch Extreme Cases",
+        addOutputVerificationTest("Switch Extreme Cases",
                         passPath + "switchExtremeCases.mt");
-        addTestFromFile("Switch with Break Statements",
+        addOutputVerificationTest("Switch with Break Statements",
                         passPath + "switchWithBreak.mt");
-        addTestFromFile("Switch Nested in Loops",
+        addOutputVerificationTest("Switch Nested in Loops",
                         passPath + "switchNestedInLoops.mt");
-        addTestFromFile("Switch with Complex Expressions",
+        addOutputVerificationTest("Switch with Complex Expressions",
                         passPath + "switchComplexExpressions.mt");
-        addTestFromFile("Switch Edge Case Values",
+        addOutputVerificationTest("Switch Edge Case Values",
                         passPath + "switchEdgeCaseValues.mt");
 
         // Ternary operator tests
-        addTestFromFile("Ternary Operator Basic",
+        addOutputVerificationTest("Ternary Operator Basic",
                         passPath + "ternaryOperatorBasic.mt");
-        addTestFromFile("Ternary Operator Nested",
+        addOutputVerificationTest("Ternary Operator Nested",
                         passPath + "ternaryOperatorNested.mt");
-        addTestFromFile("Ternary Operator Nesting Limits",
+        addOutputVerificationTest("Ternary Operator Nesting Limits",
                         passPath + "ternaryOperatorNestingLimits.mt");
 
         // Boolean expression tests
-        addTestFromFile("Complex Boolean Expressions",
+        addOutputVerificationTest("Complex Boolean Expressions",
                         passPath + "complexBooleanExpressions.mt");
 
         // Compound assignment tests
-        addTestFromFile("Compound Assignment Operators",
+        addOutputVerificationTest("Compound Assignment Operators",
                         passPath + "compoundAssignmentOperators.mt");
 
         // Arithmetic edge case tests
-        addTestFromFile("Modulo with Negative Operands",
+        addOutputVerificationTest("Modulo with Negative Operands",
                         passPath + "moduloNegativeOperands.mt");
 
         // Recursion edge case tests
-        addTestFromFile("Mutual Recursion",
+        addOutputVerificationTest("Mutual Recursion",
                         passPath + "mutualRecursion.mt");
 
         // Error tests (expected to fail)

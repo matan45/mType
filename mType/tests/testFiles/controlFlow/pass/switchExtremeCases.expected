@@ -1,0 +1,28 @@
+Only default case
+15
+16
+17
+18
+19
+20
+First 5
+Duplicate 5 - should this work?
+Ten
+After switch without default
+After empty switch
+Negative five
+Zero
+Positive five
+Exactly one million
+Over a million
+base + 15 = 25
+Thirty
+Outer case 1
+Inner case 2
+Outer case 2
+False-like (0)
+True-like (1)
+Case 1 - falling through
+Case 2 - falling through
+Case 3 - falling through
+All extreme switch tests completed

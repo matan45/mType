@@ -24,6 +24,9 @@ namespace tests::testFramework
         std::string errorMessage;
         std::chrono::milliseconds executionTime;
         std::string output;
+        
+        // Helper methods
+        bool verifyOutputAgainstExpected() const;
 
     public:
         TestCase(const std::string& testName, const std::string& testFilePath, TestType testType = TestType::NORMAL);

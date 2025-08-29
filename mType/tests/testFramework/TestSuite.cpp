@@ -62,6 +62,11 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, type);
     }
 
+    void TestSuite::addOutputVerificationTest(const std::string& name, const std::string& filePath)
+    {
+        testCases.emplace_back(name, filePath, TestType::OUTPUT_EXPECTED);
+    }
+
     void TestSuite::generateHtmlReport()
     {
         // Create reports directory if it doesn't exist

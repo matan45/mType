@@ -1,0 +1,27 @@
+Testing mutual recursion:
+isEven(4) = true
+isOdd(4) = false
+isEven(7) = false
+isOdd(7) = true
+isEven(-6) = false
+isOdd(-3) = false
+fibA(5) = 8
+fibB(5) = 0
+fibA(6) = 0
+fibB(6) = 13
+processStringA("start", 3) = A:B:A:start
+processStringB("begin", 2) = A:B:begin
+countDownA(2) = 303
+countDownB(2) = 105
+countDownC(2) = 204
+leftPath(3, true) = 24
+rightPath(3, false) = 18
+leftPath(2, false) = 5
+rightPath(2, true) = 6
+Edge cases:
+isEven(0) = true
+isOdd(0) = false
+fibA(0) = 0
+fibB(0) = 1
+countDownA(0) = 100
+Mutual recursion tests completed successfully

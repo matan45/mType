@@ -1,0 +1,20 @@
+Case 2
+Matched case 2, continuing
+Fell through to case 3
+Case 1 - will fall through
+Fell through from case 1
+Case 3
+100
+101
+First statement in case 4
+42
+About to break from case 4
+Default case
+Second statement in default
+Case 10 - no break
+Case 2
+ShouldContinue is false
+Loop iteration 1
+Loop iteration 2
+Loop iteration 3
+All break statement tests completed

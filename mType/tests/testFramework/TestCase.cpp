@@ -99,6 +99,19 @@ namespace tests::testFramework
                     status = TestStatus::FAILED;
                     errorMessage = "Expected error but test passed";
                 }
+                else if (type == TestType::OUTPUT_EXPECTED)
+                {
+                    // Verify output against expected file
+                    if (verifyOutputAgainstExpected())
+                    {
+                        status = TestStatus::PASSED;
+                    }
+                    else
+                    {
+                        status = TestStatus::FAILED;
+                        errorMessage = "Output does not match expected result";
+                    }
+                }
                 else
                 {
                     // Normal test passed
@@ -207,10 +220,63 @@ namespace tests::testFramework
             return "NORMAL";
         case TestType::ERROR_EXPECTED:
             return "ERROR_EXPECTED";
+        case TestType::OUTPUT_EXPECTED:
+            return "OUTPUT_EXPECTED";
         case TestType::PERFORMANCE:
             return "PERFORMANCE";
         default:
             return "UNKNOWN";
         }
+    }
+
+    bool TestCase::verifyOutputAgainstExpected() const
+    {
+        // Construct expected output file path by replacing .mt with .expected
+        std::string expectedFilePath = filePath;
+        size_t pos = expectedFilePath.find_last_of('.');
+        if (pos != std::string::npos) {
+            expectedFilePath = expectedFilePath.substr(0, pos) + ".expected";
+        } else {
+            expectedFilePath += ".expected";
+        }
+
+        // Check if expected file exists
+        if (!std::filesystem::exists(expectedFilePath)) {
+            return false; // Cannot verify without expected file
+        }
+
+        // Read expected output
+        std::ifstream expectedFile(expectedFilePath);
+        if (!expectedFile.is_open()) {
+            return false;
+        }
+
+        std::string expectedOutput((std::istreambuf_iterator<char>(expectedFile)),
+                                   std::istreambuf_iterator<char>());
+        expectedFile.close();
+
+        // Normalize line endings and whitespace for comparison
+        auto normalize = [](std::string str) {
+            // Remove trailing whitespace from each line
+            std::stringstream ss(str);
+            std::string line;
+            std::string result;
+            while (std::getline(ss, line)) {
+                // Remove trailing whitespace
+                while (!line.empty() && std::isspace(line.back())) {
+                    line.pop_back();
+                }
+                if (!result.empty()) {
+                    result += "\n";
+                }
+                result += line;
+            }
+            return result;
+        };
+
+        std::string normalizedOutput = normalize(output);
+        std::string normalizedExpected = normalize(expectedOutput);
+
+        return normalizedOutput == normalizedExpected;
     }
 }
