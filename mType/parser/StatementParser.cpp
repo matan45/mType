@@ -136,7 +136,7 @@ namespace parser
             parser.advanceToken();
         }
 
-        ValueType type = parseType();
+        auto [type, className] = parser.parseTypeWithClassName();
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
@@ -154,7 +154,7 @@ namespace parser
 
         parser.expectToken(TokenType::SEMICOLON);
 
-        return std::make_unique<AssignmentNode>(varName, std::move(value), type, isFinal, isStatic);
+        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseAssignment()
@@ -199,7 +199,7 @@ namespace parser
             }
 
             parser.expectToken(TokenType::SEMICOLON);
-            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, false, false);
+            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false);
         }
         else
         {
@@ -284,7 +284,7 @@ namespace parser
                     value = parser.parseExpression();
                 }
                 
-                init = std::make_unique<AssignmentNode>(varName, std::move(value), type, false, false);
+                init = std::make_unique<AssignmentNode>(varName, std::move(value), type, "", false, false);
             }
             else
             {

@@ -70,6 +70,10 @@ namespace parser
         // Common utility methods
         static bool isAssignmentOperator(TokenType tokenType);
         ValueType parseType();
+        
+        // Type parsing with class name for objects
+        std::pair<ValueType, std::string> parseTypeWithClassName();
+        
         std::vector<std::string> parseQualifiedName();
     };
 }

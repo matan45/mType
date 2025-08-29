@@ -109,7 +109,8 @@ namespace environment
             scopeManager->declareVariable(varName, variable);
         }
         
-        if (variableManager)
+        // Only register in global VariableManager if we're in global scope
+        if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
         {
             variableManager->declareVariable(varName, variable);
         }

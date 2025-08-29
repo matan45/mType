@@ -222,6 +222,71 @@ namespace parser
             throw ParseException("Expected type name", getCurrentToken().location);
         }
     }
+    
+    std::pair<ValueType, std::string> Parser::parseTypeWithClassName()
+    {
+        TokenType currentType = getCurrentToken().type;
+
+        // Handle dedicated type tokens
+        if (currentType == TokenType::INT)
+        {
+            advanceToken();
+            return {ValueType::INT, ""};
+        }
+        else if (currentType == TokenType::FLOAT)
+        {
+            advanceToken();
+            return {ValueType::FLOAT, ""};
+        }
+        else if (currentType == TokenType::BOOL)
+        {
+            advanceToken();
+            return {ValueType::BOOL, ""};
+        }
+        else if (currentType == TokenType::STRING_TYPE)
+        {
+            advanceToken();
+            return {ValueType::STRING, ""};
+        }
+        else if (currentType == TokenType::VOID)
+        {
+            advanceToken();
+            return {ValueType::VOID, ""};
+        }
+        else if (currentType == TokenType::IDENTIFIER)
+        {
+            std::string typeName = getCurrentToken().stringValue;
+            advanceToken();
+
+            // Handle qualified names like geometry::Point
+            while (getCurrentToken().type == TokenType::SCOPE)
+            {
+                advanceToken();
+                if (getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected identifier after '::'", getCurrentToken().location);
+                }
+                typeName += "::" + getCurrentToken().stringValue;
+                advanceToken();
+            }
+
+            // Check if it's a string-based primitive type
+            if (typeName == "int") return {ValueType::INT, ""};
+            else if (typeName == "float") return {ValueType::FLOAT, ""};
+            else if (typeName == "string") return {ValueType::STRING, ""};
+            else if (typeName == "bool") return {ValueType::BOOL, ""};
+            else if (typeName == "void") return {ValueType::VOID, ""};
+            else
+            {
+                // Return OBJECT type with the actual class name
+                return {ValueType::OBJECT, typeName};
+            }
+        }
+        else
+        {
+            throw ParseException("Expected type name", getCurrentToken().location);
+        }
+    }
 
     std::vector<std::string> Parser::parseQualifiedName()
     {

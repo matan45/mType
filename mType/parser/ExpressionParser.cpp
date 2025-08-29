@@ -71,7 +71,7 @@ namespace parser
                     // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
                     return std::make_unique<AssignmentNode>(variableNode->getName(), 
                                                           std::move(rightExpr), 
-                                                          ValueType::VOID);
+                                                          ValueType::VOID, "");
                 } else {
                     // Compound assignment - we need to expand this to: var = var op right
                     std::unique_ptr<ASTNode> expandedRight;
@@ -92,7 +92,7 @@ namespace parser
 
                     return std::make_unique<AssignmentNode>(variableNode->getName(), 
                                                           std::move(expandedRight), 
-                                                          ValueType::VOID);
+                                                          ValueType::VOID, "");
                 }
             }
         }

@@ -89,6 +89,18 @@ namespace evaluator
             throw EnvironmentException("Variable '" + node->getVariableName() + "' is already defined in this scope", node->getLocation());
         }
         
+        // Also check for parameter shadowing - variables can't shadow function parameters
+        if (!env->isEvaluatingImport() && env->isInFunction()) {
+            auto currentScope = env->getScopeManager()->getCurrentScope();
+            // Walk up to find the function scope and check for parameter conflicts
+            while (currentScope && currentScope->getType() != ScopeType::FUNCTION) {
+                currentScope = currentScope->getParent();
+            }
+            if (currentScope && currentScope->hasVariableInCurrentScope(node->getVariableName())) {
+                throw EnvironmentException("Variable '" + node->getVariableName() + "' shadows function parameter", node->getLocation());
+            }
+        }
+        
         // Evaluate initial value if present
         Value initialValue = node->getInitializer() 
             ? mainEvaluator->evaluate(node->getInitializer())
@@ -120,9 +132,39 @@ namespace evaluator
                 throw EnvironmentException("Variable '" + node->getVariableName() + "' is already defined in this scope", node->getLocation());
             }
             
+            // Also check for parameter shadowing - variables can't shadow function parameters
+            if (!env->isEvaluatingImport() && env->isInFunction()) {
+                auto currentScope = env->getScopeManager()->getCurrentScope();
+                // Walk up to find the function scope and check for parameter conflicts
+                while (currentScope && currentScope->getType() != ScopeType::FUNCTION) {
+                    currentScope = currentScope->getParent();
+                }
+                if (currentScope && currentScope->hasVariableInCurrentScope(node->getVariableName())) {
+                    throw EnvironmentException("Variable '" + node->getVariableName() + "' shadows function parameter", node->getLocation());
+                }
+            }
+            
             Value initialValue;
             if (node->getValue()) {
                 initialValue = mainEvaluator->evaluate(node->getValue());
+                
+                // Type checking: verify that the initial value matches the declared type
+                ValueType actualType = getValueType(initialValue);
+                ValueType declaredType = node->getVariableType();
+                
+                // Allow null assignment to any type, but check other type mismatches
+                if (actualType != ValueType::NULL_TYPE && actualType != declaredType) {
+                    throw EnvironmentException("Type mismatch: cannot assign " + valueTypeToString(actualType) + 
+                                             " to variable of type " + valueTypeToString(declaredType), node->getLocation());
+                }
+                
+                // For object types, also validate that the class exists
+                if (declaredType == ValueType::OBJECT) {
+                    const std::string& className = node->getClassName();
+                    if (!className.empty() && !env->findClass(className)) {
+                        throw EnvironmentException("Undefined class: " + className, node->getLocation());
+                    }
+                }
             } else {
                 // Default value based on type
                 switch (node->getVariableType()) {
@@ -137,6 +179,16 @@ namespace evaluator
                         break;
                     case ValueType::STRING:
                         initialValue = Value(std::string(""));
+                        break;
+                    case ValueType::OBJECT:
+                        // For object types without initialization, validate that the class exists
+                        {
+                            const std::string& className = node->getClassName();
+                            if (!className.empty() && !env->findClass(className)) {
+                                throw EnvironmentException("Undefined class: " + className, node->getLocation());
+                            }
+                            initialValue = Value(nullptr);  // Default to null for objects
+                        }
                         break;
                     default:
                         initialValue = Value();
@@ -154,24 +206,28 @@ namespace evaluator
             return initialValue;
         } else {
             // This is a regular assignment
+            
+            // First check if this might be a field assignment on the current instance
+            // This should take precedence in constructor contexts to handle implicit field assignments
+            auto currentInstance = mainEvaluator->getCurrentInstance();
+            if (currentInstance) {
+                auto field = currentInstance->getField(node->getVariableName());
+                if (field) {
+                    // This is a field assignment
+                    if (field->isFinal()) {
+                        throw TypeException("Cannot reassign final field: " + node->getVariableName(), node->getLocation());
+                    }
+                    
+                    Value newValue = mainEvaluator->evaluate(node->getValue());
+                    currentInstance->setField(node->getVariableName(), newValue);
+                    return newValue;
+                }
+            }
+            
+            // If not a field assignment, then look for regular variable
             auto varDef = env->findVariable(node->getVariableName());
             
             if (!varDef) {
-                // Check if this might be a field assignment on the current instance
-                auto currentInstance = mainEvaluator->getCurrentInstance();
-                if (currentInstance) {
-                    auto field = currentInstance->getField(node->getVariableName());
-                    if (field) {
-                        // This is a field assignment
-                        if (field->isFinal()) {
-                            throw TypeException("Cannot reassign final field: " + node->getVariableName(), node->getLocation());
-                        }
-                        
-                        Value newValue = mainEvaluator->evaluate(node->getValue());
-                        currentInstance->setField(node->getVariableName(), newValue);
-                        return newValue;
-                    }
-                }
                 
                 // Check if this might be a static field assignment
                 // When we're in a function scope, check if we can find a class with this static field
@@ -556,9 +612,28 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateReturnNode(ReturnNode* node)
     {
+        auto env = mainEvaluator->getEnvironment();
+        
         Value returnValue = node->getReturnValue() 
             ? mainEvaluator->evaluate(node->getReturnValue())
             : std::monostate{};
+            
+        // Get current function name and check return type
+        std::string currentFunctionName = env->getFunctionScopeName();
+        if (!currentFunctionName.empty()) {
+            auto functionDef = env->findFunction(currentFunctionName);
+            if (functionDef) {
+                ValueType expectedReturnType = functionDef->getReturnType();
+                ValueType actualReturnType = getValueType(returnValue);
+                
+                // Check if return type matches (allow null returns for any type)
+                if (actualReturnType != ValueType::NULL_TYPE && actualReturnType != expectedReturnType) {
+                    throw EnvironmentException("Return type mismatch: cannot return " + 
+                                             valueTypeToString(actualReturnType) + " from function expecting " + 
+                                             valueTypeToString(expectedReturnType), node->getLocation());
+                }
+            }
+        }
         
         mainEvaluator->pushReturnValue(returnValue);
         mainEvaluator->setReturned(true);
@@ -641,5 +716,54 @@ namespace evaluator
         }
         
         return false; // Different types or unsupported comparison
+    }
+    
+    ValueType StatementEvaluator::getValueType(const Value& value)
+    {
+        if (std::holds_alternative<int>(value)) {
+            return ValueType::INT;
+        }
+        if (std::holds_alternative<float>(value)) {
+            return ValueType::FLOAT;
+        }
+        if (std::holds_alternative<bool>(value)) {
+            return ValueType::BOOL;
+        }
+        if (std::holds_alternative<std::string>(value)) {
+            return ValueType::STRING;
+        }
+        if (std::holds_alternative<nullptr_t>(value)) {
+            return ValueType::NULL_TYPE;
+        }
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
+            return ValueType::OBJECT;
+        }
+        if (std::holds_alternative<std::monostate>(value)) {
+            return ValueType::VOID;
+        }
+        
+        return ValueType::VOID; // Default fallback
+    }
+    
+    std::string StatementEvaluator::valueTypeToString(ValueType type)
+    {
+        switch (type) {
+            case ValueType::INT:
+                return "int";
+            case ValueType::FLOAT:
+                return "float";
+            case ValueType::BOOL:
+                return "bool";
+            case ValueType::STRING:
+                return "string";
+            case ValueType::VOID:
+                return "void";
+            case ValueType::OBJECT:
+                return "object";
+            case ValueType::NULL_TYPE:
+                return "null";
+            default:
+                return "unknown";
+        }
     }
 }

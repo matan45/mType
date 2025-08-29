@@ -73,5 +73,11 @@ namespace evaluator
         
         // Helper for value comparison
         bool compareValues(const Value& left, const Value& right);
+        
+        // Helper to get ValueType from a Value
+        ValueType getValueType(const Value& value);
+        
+        // Helper to convert ValueType to string for error messages
+        std::string valueTypeToString(ValueType type);
     };
 }
