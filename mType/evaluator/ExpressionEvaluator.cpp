@@ -9,6 +9,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include <sstream>
 #include <cmath>
+#include <iostream>
 
 namespace evaluator
 {
@@ -261,6 +262,8 @@ namespace evaluator
         catch (const exception::ReturnException& e) {
             // Handle return statement - this is the expected way functions return
             env->exitScope();
+            // Reset return state since this was a function return, not a program return
+            mainEvaluator->setReturned(false);
             return e.returnValue;
         }
         catch (...) {

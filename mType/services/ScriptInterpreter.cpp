@@ -1,4 +1,5 @@
 ﻿#include "ScriptInterpreter.hpp"
+#include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
@@ -6,6 +7,8 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
+#include <memory>
+#include <filesystem>
 
 namespace services
 {
@@ -24,7 +27,15 @@ namespace services
         // Parse and execute
         lexer::Lexer lexer(content, filename);
         
+        // Create and configure ImportManager
+        auto importManager = std::make_shared<ImportManager>();
+        
+        // Set base directory to the directory of the script file
+        std::filesystem::path scriptPath(filename);
+        importManager->setBaseDirectory(scriptPath.parent_path().string());
+        
         parser::Parser parser(lexer);
+        parser.setImportManager(importManager.get());
         auto ast = parser.parseProgram();
         
         environment::EnvironmentBuilder envBuilder;

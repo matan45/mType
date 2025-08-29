@@ -3,3 +3,4 @@ class TestClass {
 }
 TestClass obj;
 int x = obj.undefinedField;
+

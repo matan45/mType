@@ -5,6 +5,7 @@
 #include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../environment/manager/Scope.hpp"
 #include "../exception/BreakException.hpp"
 #include "../exception/ContinueException.hpp"
@@ -14,6 +15,7 @@
 #include "../errors/ArgumentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include <iostream>
 
 namespace evaluator
 {
@@ -392,7 +394,26 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateImportNode(ImportNode* node)
     {
-        // TODO: Implement import functionality
+        auto env = mainEvaluator->getEnvironment();
+        ASTNode* importedAST = node->getImportedAST();
+        
+        if (!importedAST) {
+            return std::monostate{};
+        }
+        
+        // If the imported AST is a ProgramNode, evaluate all its statements
+        // to register functions and variables in the current environment
+        if (auto programNode = dynamic_cast<ProgramNode*>(importedAST)) {
+            for (const auto& statement : programNode->getStatements()) {
+                // Evaluate each declaration in the imported file
+                // This will register functions, variables, etc. in the current environment
+                mainEvaluator->evaluate(statement.get());
+            }
+        } else {
+            // If it's a single statement, just evaluate it
+            mainEvaluator->evaluate(importedAST);
+        }
+        
         return std::monostate{};
     }
 
@@ -424,7 +445,6 @@ namespace evaluator
         
         mainEvaluator->pushReturnValue(returnValue);
         mainEvaluator->setReturned(true);
-        
         throw ReturnException(returnValue);
     }
 

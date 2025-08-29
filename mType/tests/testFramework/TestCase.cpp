@@ -67,6 +67,11 @@ namespace tests::testFramework
                 // Initialize lexer and parser
                 Lexer lexer(content);
                 auto importManager = std::make_shared<ImportManager>();
+                
+                // Set base directory to the directory of the test file
+                std::filesystem::path testFilePath(filePath);
+                importManager->setBaseDirectory(testFilePath.parent_path().string());
+                
                 Parser parser(lexer);
                 parser.setImportManager(importManager.get());
 

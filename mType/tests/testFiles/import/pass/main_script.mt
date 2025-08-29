@@ -1,6 +1,6 @@
-﻿        import "tests/testFiles/import/pass/math_utils.mt";
-        import "tests/testFiles/import/pass/string_utils.mt";
-        import "tests/testFiles/import/pass/math_utils.mt";  // Safe duplicate - will be ignored
+﻿        import "math_utils.mt";
+        import "string_utils.mt";
+        import "math_utils.mt";  // Safe duplicate - will be ignored
         
         native function print(int n): void;
         native function print(string s): void;

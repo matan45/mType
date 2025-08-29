@@ -41,7 +41,9 @@ namespace parser
                 {
                     // Handle import by inlining the imported declarations
                     handleImportStatement(importNode, program.get());
-                    // Note: We don't add the import node itself to the program
+                    // ALSO add the import node itself to the program so it gets evaluated
+                    // This is needed to register imported functions in the current environment
+                    program->addStatement(std::move(statement));
                 }
                 else
                 {

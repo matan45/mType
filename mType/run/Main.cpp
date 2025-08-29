@@ -35,8 +35,8 @@ void runTests()
 
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
-   /* suites.push_back(std::make_unique<ImportTestSuite>());
-    suites.push_back(std::make_unique<ClassTestSuite>());
+    suites.push_back(std::make_unique<ImportTestSuite>());
+    /*suites.push_back(std::make_unique<ClassTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
@@ -59,6 +59,7 @@ void runTests()
 
 int main(int argc, char* argv[])
 {
+    runTests();
     if (argc == 2 && std::string(argv[1]) == "--tests") {
         runTests();
         return 0;

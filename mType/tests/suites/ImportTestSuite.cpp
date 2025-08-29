@@ -9,7 +9,7 @@ namespace tests::testSuite
     {
         addTestFromFile("Import System",
                         "tests/testFiles/import/pass/main_script.mt");
-        addTestFromFile("Import System",
+        addTestFromFile("Circular Import Detection",
                         "tests/testFiles/import/error/circular_a.mt",
                         TestType::ERROR_EXPECTED);
     }
