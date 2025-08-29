@@ -29,6 +29,9 @@ namespace environment
         std::shared_ptr<ScopeManager> scopeManager;
         std::shared_ptr<NamespaceManager> namespaceManager;
         std::shared_ptr<NativeRegistry> nativeRegistry;
+        
+        // Import evaluation tracking
+        bool importEvaluationActive;
 
     public:
         explicit Environment(
@@ -77,6 +80,11 @@ namespace environment
         bool isInClass() const;
         bool isInFunction() const;
         bool isInLoop() const;
+        
+        // Import evaluation context
+        bool isEvaluatingImport() const;
+        void setImportEvaluation(bool active);
+        
         std::string getFunctionScopeName() const;
 
         std::vector<std::string> resolveQualifiedName(const std::string& name) const;

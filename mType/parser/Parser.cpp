@@ -99,12 +99,7 @@ namespace parser
             throw ParseException("ImportManager not set - cannot process import statement", importNode->getLocation());
         }
 
-        if (!importNode->isResolved())
-        {
-            throw ParseException("Import not resolved: " + importNode->getFilePath(), importNode->getLocation());
-        }
-
-        // Get the imported AST
+        // Get the imported AST (may be null if import resolution is deferred to evaluation time)
         ASTNode* importedAST = importNode->getImportedAST();
         if (!importedAST)
         {

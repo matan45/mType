@@ -37,10 +37,10 @@ void runTests()
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
     suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
+    suites.push_back(std::make_unique<ErrorTestSuite>());
     /*suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
-    suites.push_back(std::make_unique<TypeCheckingTestSuite>());
-    suites.push_back(std::make_unique<ErrorTestSuite>());*/
+    suites.push_back(std::make_unique<TypeCheckingTestSuite>());*/
 
     for (auto& suite : suites)
     {

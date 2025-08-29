@@ -285,6 +285,12 @@ namespace evaluator
             throw UndefinedException("Undefined method: " + methodName, SourceLocation{});
         }
         
+        // Check if trying to call static method through instance
+        if (method->isStatic()) {
+            throw TypeException("Cannot call static method '" + methodName + 
+                              "' through instance. Use class name instead.", SourceLocation{});
+        }
+        
         // Check parameter count
         if (args.size() != method->getParameters().size()) {
             throw ArgumentException("Method '" + methodName + 

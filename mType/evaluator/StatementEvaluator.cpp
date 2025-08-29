@@ -13,8 +13,10 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
+#include "../errors/EnvironmentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../services/ImportManager.hpp"
 #include <iostream>
 
 namespace evaluator
@@ -23,6 +25,7 @@ namespace evaluator
     using namespace exception;
     using namespace runtimeTypes::global;
     using namespace environment::manager;
+    using namespace services;
 
     StatementEvaluator::StatementEvaluator(Evaluator* evaluator)
         : mainEvaluator(evaluator), breakFlag(false), continueFlag(false)
@@ -80,6 +83,11 @@ namespace evaluator
     {
         auto env = mainEvaluator->getEnvironment();
         
+        // Check if variable already exists in current scope (but allow redefinitions during import evaluation)
+        if (!env->isEvaluatingImport() && env->getScopeManager()->hasVariableInCurrentScope(node->getVariableName())) {
+            throw EnvironmentException("Variable '" + node->getVariableName() + "' is already defined in this scope", node->getLocation());
+        }
+        
         // Evaluate initial value if present
         Value initialValue = node->getInitializer() 
             ? mainEvaluator->evaluate(node->getInitializer())
@@ -106,6 +114,11 @@ namespace evaluator
         // Check if this is a variable declaration (has a non-VOID type) or an assignment
         if (node->getVariableType() != ValueType::VOID) {
             // This is a variable declaration
+            // Check if variable already exists in current scope (but allow redefinitions during import evaluation)
+            if (!env->isEvaluatingImport() && env->getScopeManager()->hasVariableInCurrentScope(node->getVariableName())) {
+                throw EnvironmentException("Variable '" + node->getVariableName() + "' is already defined in this scope", node->getLocation());
+            }
+            
             Value initialValue;
             if (node->getValue()) {
                 initialValue = mainEvaluator->evaluate(node->getValue());
@@ -444,24 +457,67 @@ namespace evaluator
     Value StatementEvaluator::evaluateImportNode(ImportNode* node)
     {
         auto env = mainEvaluator->getEnvironment();
-        ASTNode* importedAST = node->getImportedAST();
         
-        if (!importedAST) {
+        // Check if this file has already been evaluated FIRST, before ANY processing
+        const std::string& filePath = node->getFilePath();
+        ImportManager* importMgr = static_cast<ImportManager*>(node->getImportManager());
+        
+        if (importMgr && importMgr->isEvaluated(filePath)) {
+            // File already evaluated, completely skip all processing
             return std::monostate{};
         }
         
-        // If the imported AST is a ProgramNode, evaluate all its statements
-        // to register functions and variables in the current environment
-        if (auto programNode = dynamic_cast<ProgramNode*>(importedAST)) {
-            for (const auto& statement : programNode->getStatements()) {
-                // Evaluate each declaration in the imported file
-                // This will register functions, variables, etc. in the current environment
-                mainEvaluator->evaluate(statement.get());
-            }
-        } else {
-            // If it's a single statement, just evaluate it
-            mainEvaluator->evaluate(importedAST);
+        // Set import evaluation flag IMMEDIATELY, before ANY processing including getImportedAST()
+        bool prevImportFlag = env->isEvaluatingImport();
+        env->setImportEvaluation(true);
+        
+        // Mark this file as being evaluated before evaluation to prevent recursion
+        if (importMgr) {
+            importMgr->markAsEvaluated(filePath);
         }
+        
+        // Get or load the imported AST
+        ASTNode* importedAST = node->getImportedAST();
+        
+        if (!importedAST && importMgr) {
+            // AST not cached yet, load it now with proper import context
+            try {
+                importedAST = importMgr->importFile(filePath);
+                node->setImportedAST(importedAST);
+            }
+            catch (const std::exception& e) {
+                env->setImportEvaluation(prevImportFlag);
+                throw EnvironmentException("Import error: " + std::string(e.what()), node->getLocation());
+            }
+        }
+        
+        if (!importedAST) {
+            env->setImportEvaluation(prevImportFlag);
+            return std::monostate{};
+        }
+        
+        try {
+            // If the imported AST is a ProgramNode, evaluate all its statements
+            // to register functions and variables in the current environment
+            if (auto programNode = dynamic_cast<ProgramNode*>(importedAST)) {
+                for (const auto& statement : programNode->getStatements()) {
+                    // Evaluate each declaration in the imported file
+                    // This will register functions, variables, etc. in the current environment
+                    mainEvaluator->evaluate(statement.get());
+                }
+            } else {
+                // If it's a single statement, just evaluate it
+                mainEvaluator->evaluate(importedAST);
+            }
+        }
+        catch (...) {
+            // Restore import flag before re-throwing
+            env->setImportEvaluation(prevImportFlag);
+            throw;
+        }
+        
+        // Restore import flag
+        env->setImportEvaluation(prevImportFlag);
         
         return std::monostate{};
     }

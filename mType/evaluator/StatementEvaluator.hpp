@@ -20,6 +20,8 @@
 #include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include <memory>
+#include <unordered_set>
+#include <string>
 
 namespace evaluator
 {

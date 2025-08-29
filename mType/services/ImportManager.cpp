@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 namespace services
 {
@@ -15,7 +16,7 @@ namespace services
     using namespace lexer;
     using namespace parser;
     
-    ImportManager::ImportManager() : currentDirectory(".")
+    ImportManager::ImportManager() : currentDirectory("."), baseDirectory(".")
     {
     }
     
@@ -27,6 +28,7 @@ namespace services
     void ImportManager::setBaseDirectory(const std::string& dir)
     {
         currentDirectory = dir;
+        baseDirectory = dir;  // Also set the permanent base directory
     }
     
     std::string ImportManager::resolvePath(const std::string& path)
@@ -40,6 +42,26 @@ namespace services
         
         // Normalize the path (resolve . and .. components)
         filePath = fs::canonical(filePath);
+        
+        return filePath.string();
+    }
+    
+    std::string ImportManager::resolvePathConsistently(const std::string& path)
+    {
+        fs::path filePath(path);
+        
+        // If path is relative, resolve it relative to the ORIGINAL base directory (not current directory)
+        if (filePath.is_relative()) {
+            filePath = fs::path(baseDirectory) / filePath;
+        }
+        
+        // Normalize the path (resolve . and .. components)
+        try {
+            filePath = fs::canonical(filePath);
+        } catch (const std::filesystem::filesystem_error&) {
+            // If canonical fails, at least get the absolute path
+            filePath = fs::absolute(filePath);
+        }
         
         return filePath.string();
     }
@@ -173,6 +195,7 @@ namespace services
     {
         astCache.clear();
         importedFiles.clear();
+        evaluatedFiles.clear();
         while (!importStack.empty()) {
             importStack.pop();
         }
@@ -185,6 +208,26 @@ namespace services
             return importedFiles.find(resolvedPath) != importedFiles.end();
         } catch (...) {
             return false;
+        }
+    }
+    
+    bool ImportManager::isEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            return evaluatedFiles.find(resolvedPath) != evaluatedFiles.end();
+        } catch (...) {
+            return false;
+        }
+    }
+    
+    void ImportManager::markAsEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            evaluatedFiles.insert(resolvedPath);
+        } catch (...) {
+            // Ignore errors when marking as evaluated
         }
     }
     

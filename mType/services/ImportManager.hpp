@@ -16,6 +16,9 @@ namespace services
     private:
         // Track imported files to avoid duplicates
         std::unordered_set<std::string> importedFiles;
+        
+        // Track evaluated files to avoid re-evaluation
+        std::unordered_set<std::string> evaluatedFiles;
 
         // Stack to detect circular dependencies
         std::stack<std::string> importStack;
@@ -25,6 +28,9 @@ namespace services
 
         // Current working directory for relative imports
         std::string currentDirectory;
+        
+        // Original base directory (never changes after initialization)
+        std::string baseDirectory;
 
     public:
         explicit ImportManager();
@@ -36,6 +42,9 @@ namespace services
 
         // Resolve relative and absolute paths
         std::string resolvePath(const std::string& path);
+        
+        // Resolve path consistently relative to base directory (for evaluation tracking)
+        std::string resolvePathConsistently(const std::string& path);
 
         // Check for circular dependencies
         bool wouldCauseCircularDependency(const std::string& filePath);
@@ -51,6 +60,12 @@ namespace services
 
         // Check if a file has been imported
         bool isImported(const std::string& rawPath);
+        
+        // Check if a file has been evaluated
+        bool isEvaluated(const std::string& rawPath);
+        
+        // Mark a file as evaluated
+        void markAsEvaluated(const std::string& rawPath);
 
         // Get list of imported files
         std::vector<std::string> getImportedFiles() const;

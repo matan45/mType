@@ -14,7 +14,8 @@ namespace environment
         variableManager(varMgr),
         scopeManager(scopeMgr),
         namespaceManager(nsMgr),
-        nativeRegistry(nativeReg)
+        nativeRegistry(nativeReg),
+        importEvaluationActive(false)
     {
     }
 
@@ -291,6 +292,16 @@ namespace environment
     bool Environment::isInLoop() const
     {
         return scopeManager ? scopeManager->isInLoop() : false;
+    }
+    
+    bool Environment::isEvaluatingImport() const
+    {
+        return importEvaluationActive;
+    }
+    
+    void Environment::setImportEvaluation(bool active)
+    {
+        importEvaluationActive = active;
     }
 
     std::string Environment::getFunctionScopeName() const

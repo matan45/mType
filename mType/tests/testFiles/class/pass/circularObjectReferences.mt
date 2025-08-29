@@ -70,8 +70,8 @@ selfObj.setSelf();
 
 print("Object value: " + selfObj.getValue());
 print("Self reference value: " + selfObj.getSelf().getValue());
-SelfRef temp = selfObj.getSelf();
-print("Self->Self value: " + temp.getSelf().getValue());
+SelfRef tempSelf = selfObj.getSelf();
+print("Self->Self value: " + tempSelf.getSelf().getValue());
 
 // Test 3: Complex circular chain (A -> B -> C -> A)
 print("\nTesting complex circular chain:");
@@ -182,10 +182,10 @@ childObj.setParent(parentObj);
 
 print("Parent -> Child: " + parentObj.getChild().getName());
 print("Child -> Parent: " + childObj.getParent().getName());
-Child tempChild = parentObj.getChild();
-print("Parent -> Child -> Parent: " + tempChild.getParent().getName());
-Parent tempParent = childObj.getParent();
-print("Child -> Parent -> Child: " + tempParent.getChild().getName());
+Child tempChild2 = parentObj.getChild();
+print("Parent -> Child -> Parent: " + tempChild2.getParent().getName());
+Parent tempParent2 = childObj.getParent();
+print("Child -> Parent -> Child: " + tempParent2.getChild().getName());
 
 // Test 5: Doubly linked circular structure
 print("\nTesting doubly linked circular structure:");
@@ -440,8 +440,8 @@ print("Initial state: " + mod1.getValue() + " -> " + mod2.getValue());
 mod1.increment();
 ModNode next1 = mod1.getNext();
 next1.increment();
-ModNode temp = mod1.getNext();
-ModNode next2 = temp.getNext();
+ModNode tempMod = mod1.getNext();
+ModNode next2 = tempMod.getNext();
 next2.increment();
 
 print("After modifications: " + mod1.getValue() + " -> " + mod2.getValue());

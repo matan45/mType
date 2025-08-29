@@ -518,21 +518,13 @@ namespace parser
 
         parser.expectToken(TokenType::SEMICOLON);
 
-        // Create an import node and resolve it immediately if ImportManager is available
+        // Create an import node - defer all processing to evaluation phase
         auto importNode = std::make_unique<ImportNode>(filePath, loc);
 
-        // If we have an ImportManager, resolve the import immediately
+        // Set the ImportManager reference for later use during evaluation
         if (parser.getImportManager())
         {
-            try
-            {
-                ast::ASTNode* importedAST = parser.getImportManager()->importFile(filePath);
-                importNode->setImportedAST(importedAST);
-            }
-            catch (const std::exception& e)
-            {
-                throw ParseException("Import error: " + std::string(e.what()), loc);
-            }
+            importNode->setImportManager(parser.getImportManager());
         }
         else
         {
