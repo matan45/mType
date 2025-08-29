@@ -1,6 +1,7 @@
 ﻿#include "StatementEvaluator.hpp"
 #include "Evaluator.hpp"
 #include "ExpressionEvaluator.hpp"
+#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
@@ -92,20 +93,59 @@ namespace evaluator
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)
     {
         auto env = mainEvaluator->getEnvironment();
-        auto varDef = env->findVariable(node->getVariableName());
         
-        if (!varDef) {
-            throw UndefinedException("Undefined variable: " + node->getVariableName(), node->getLocation());
+        // Check if this is a variable declaration (has a non-VOID type) or an assignment
+        if (node->getVariableType() != ValueType::VOID) {
+            // This is a variable declaration
+            Value initialValue;
+            if (node->getValue()) {
+                initialValue = mainEvaluator->evaluate(node->getValue());
+            } else {
+                // Default value based on type
+                switch (node->getVariableType()) {
+                    case ValueType::INT:
+                        initialValue = Value(0);
+                        break;
+                    case ValueType::FLOAT:
+                        initialValue = Value(0.0f);
+                        break;
+                    case ValueType::BOOL:
+                        initialValue = Value(false);
+                        break;
+                    case ValueType::STRING:
+                        initialValue = Value(std::string(""));
+                        break;
+                    default:
+                        initialValue = Value();
+                        break;
+                }
+            }
+            
+            // Create and register the variable
+            auto varDef = std::make_shared<VariableDefinition>(node->getVariableName(), 
+                                                             node->getVariableType(), 
+                                                             initialValue, 
+                                                             node->getIsFinal());
+            env->declareVariable(node->getVariableName(), varDef);
+            
+            return initialValue;
+        } else {
+            // This is a regular assignment
+            auto varDef = env->findVariable(node->getVariableName());
+            
+            if (!varDef) {
+                throw UndefinedException("Undefined variable: " + node->getVariableName(), node->getLocation());
+            }
+            
+            if (varDef->isFinal()) {
+                throw TypeException("Cannot reassign final variable: " + node->getVariableName(), node->getLocation());
+            }
+            
+            Value newValue = mainEvaluator->evaluate(node->getValue());
+            varDef->setValue(newValue);
+            
+            return newValue;
         }
-        
-        if (varDef->isFinal()) {
-            throw TypeException("Cannot reassign final variable: " + node->getVariableName(), node->getLocation());
-        }
-        
-        Value newValue = mainEvaluator->evaluate(node->getValue());
-        varDef->setValue(newValue);
-        
-        return newValue;
     }
 
     Value StatementEvaluator::evaluateQualifiedAssignmentNode(QualifiedAssignmentNode* node)
@@ -284,17 +324,24 @@ namespace evaluator
                 }
                 
                 if (matched) {
-                    for (const auto& stmt : caseNode->getStatements()) {
-                        lastValue = mainEvaluator->evaluate(stmt.get());
-                        
-                        if (isBreaking()) {
-                            resetLoopFlags();
-                            return lastValue;
+                    try {
+                        for (const auto& stmt : caseNode->getStatements()) {
+                            lastValue = mainEvaluator->evaluate(stmt.get());
+                            
+                            if (isBreaking()) {
+                                resetLoopFlags();
+                                return lastValue;
+                            }
+                            
+                            if (mainEvaluator->shouldReturn()) {
+                                return lastValue;
+                            }
                         }
-                        
-                        if (mainEvaluator->shouldReturn()) {
-                            return lastValue;
-                        }
+                    }
+                    catch (const exception::BreakException&) {
+                        // Break from switch case - stop executing and return
+                        resetLoopFlags();
+                        return lastValue;
                     }
                     
                     // Fall through to next case
@@ -308,17 +355,23 @@ namespace evaluator
         
         // Execute default case if no match
         if (!matched && defaultCase) {
-            for (const auto& stmt : defaultCase->getStatements()) {
-                lastValue = mainEvaluator->evaluate(stmt.get());
-                
-                if (isBreaking()) {
-                    resetLoopFlags();
-                    break;
+            try {
+                for (const auto& stmt : defaultCase->getStatements()) {
+                    lastValue = mainEvaluator->evaluate(stmt.get());
+                    
+                    if (isBreaking()) {
+                        resetLoopFlags();
+                        break;
+                    }
+                    
+                    if (mainEvaluator->shouldReturn()) {
+                        return lastValue;
+                    }
                 }
-                
-                if (mainEvaluator->shouldReturn()) {
-                    break;
-                }
+            }
+            catch (const exception::BreakException&) {
+                // Break from default case
+                resetLoopFlags();
             }
         }
         

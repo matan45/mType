@@ -11,23 +11,20 @@ namespace ast::nodes::statements
         std::unique_ptr<ASTNode> condition;
 
     public:
-        explicit DoWhileNode(std::unique_ptr<ASTNode> bodyNode,
-                           std::unique_ptr<ASTNode> conditionNode,
-                           const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), body(std::move(bodyNode)), condition(std::move(conditionNode)) {}
+        explicit DoWhileNode(std::unique_ptr<ASTNode> bodyStmt, std::unique_ptr<ASTNode> cond,
+                             const SourceLocation& loc = SourceLocation())
+            : ASTNode(loc), body(std::move(bodyStmt)), condition(std::move(cond))
+        {
+        }
 
         ASTNode* getBody() const { return body.get(); }
         ASTNode* getCondition() const { return condition.get(); }
 
-        void setBody(std::unique_ptr<ASTNode> bodyNode) {
-            body = std::move(bodyNode);
-        }
+        void setBody(std::unique_ptr<ASTNode> bodyStmt) { body = std::move(bodyStmt); }
+        void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
 
-        void setCondition(std::unique_ptr<ASTNode> conditionNode) {
-            condition = std::move(conditionNode);
-        }
-
-        Value accept(ASTVisitor<Value>& visitor) override {
+        Value accept(ASTVisitor<Value>& visitor) override
+        {
             return visitor.visitDoWhileNode(this);
         }
     };

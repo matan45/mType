@@ -4,6 +4,7 @@
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
+#include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include <sstream>
@@ -256,6 +257,11 @@ namespace evaluator
                 result = mainEvaluator->getReturnValue();
                 mainEvaluator->setReturned(false);
             }
+        }
+        catch (const exception::ReturnException& e) {
+            // Handle return statement - this is the expected way functions return
+            env->exitScope();
+            return e.returnValue;
         }
         catch (...) {
             env->exitScope();

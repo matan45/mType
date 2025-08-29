@@ -10,7 +10,7 @@
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
-#include "../ast/nodes/statements/DoWhileNode.h"
+#include "../ast/nodes/statements/DoWhileNode.hpp"
 #include "../ast/nodes/statements/ForNode.hpp"
 #include "../ast/nodes/statements/SwitchNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"

@@ -13,17 +13,74 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
+#include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::expressions;
     using namespace ast::nodes::functions;
+    using namespace ast::nodes::statements;
     using namespace token;
 
     std::unique_ptr<ASTNode> ExpressionParser::parseExpression()
     {
-        return parseTernary();
+        return parseAssignment();
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseAssignment()
+    {
+        auto expr = parseTernary();
+
+        // Check if this is an assignment expression
+        if (parser.getCurrentToken().type == TokenType::ASSIGN ||
+            parser.getCurrentToken().type == TokenType::PLUS_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MINUS_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MULTIPLY_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::DIVIDE_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MODULO_ASSIGN)
+        {
+            // For assignment expressions, the left side should be a variable
+            auto variableNode = dynamic_cast<VariableNode*>(expr.get());
+            if (!variableNode) {
+                throw ParseException("Invalid assignment target", parser.getCurrentToken().location);
+            }
+
+            TokenType opType = parser.getCurrentToken().type;
+            parser.advanceToken();
+            auto rightExpr = parseAssignment(); // Right associative
+
+            // Create appropriate assignment node based on operator
+            if (opType == TokenType::ASSIGN) {
+                // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
+                return std::make_unique<AssignmentNode>(variableNode->getName(), 
+                                                      std::move(rightExpr), 
+                                                      ValueType::VOID);
+            } else {
+                // Compound assignment - we need to expand this to: var = var op right
+                std::unique_ptr<ASTNode> expandedRight;
+                TokenType binaryOp;
+                
+                switch (opType) {
+                    case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
+                    case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
+                    case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
+                    case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
+                    case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
+                    default: throw ParseException("Invalid compound assignment operator", parser.getCurrentToken().location);
+                }
+
+                // Create: var op right
+                auto leftVar = std::make_unique<VariableNode>(variableNode->getName());
+                expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr));
+
+                return std::make_unique<AssignmentNode>(variableNode->getName(), 
+                                                      std::move(expandedRight), 
+                                                      ValueType::VOID);
+            }
+        }
+
+        return expr;
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseTernary()

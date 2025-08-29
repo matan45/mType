@@ -2,6 +2,7 @@
 #include "../errors/ParseException.hpp"
 #include <cctype>
 #include <stdexcept>
+#include <climits>
 
 namespace lexer
 {
@@ -275,7 +276,29 @@ namespace lexer
             advance();
         }
         std::string intStr = input.substr(start, pos - start);
-        return std::stoi(intStr);
+        
+        try {
+            return std::stoi(intStr);
+        }
+        catch (const std::out_of_range&) {
+            // Handle integer overflow - clamp to int limits
+            long long value;
+            try {
+                value = std::stoll(intStr);
+            }
+            catch (const std::out_of_range&) {
+                // If even long long overflows, return max/min int
+                return (intStr[0] == '-') ? INT_MIN : INT_MAX;
+            }
+            
+            // Clamp to int range
+            if (value > INT_MAX) return INT_MAX;
+            if (value < INT_MIN) return INT_MIN;
+            return static_cast<int>(value);
+        }
+        catch (const std::invalid_argument&) {
+            throw std::runtime_error("Invalid integer format: " + intStr);
+        }
     }
 
     std::string Lexer::parseIdentifier()

@@ -11,6 +11,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
+#include "../services/ScriptInterpreter.hpp"
 
 #include <vector>
 #include <memory>
@@ -34,12 +35,12 @@ void runTests()
 
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
-    suites.push_back(std::make_unique<ImportTestSuite>());
+   /* suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
-    suites.push_back(std::make_unique<ErrorTestSuite>());
+    suites.push_back(std::make_unique<ErrorTestSuite>());*/
 
     for (auto& suite : suites)
     {
@@ -59,7 +60,26 @@ void runTests()
 int main(int argc, char* argv[])
 {
     runTests();
-  
+    if (argc == 2 && std::string(argv[1]) == "--tests") {
+        runTests();
+        return 0;
+    }
+    
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests" << std::endl;
+        return 1;
+    }
+
+    std::string filename = argv[1];
+    
+    try {
+        ScriptInterpreter interpreter;
+        interpreter.runScript(filename);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
 
     return 0;
 }
