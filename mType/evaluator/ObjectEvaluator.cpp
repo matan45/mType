@@ -33,10 +33,16 @@ namespace evaluator
             auto fieldNode = dynamic_cast<FieldNode*>(fieldPtr.get());
             if (!fieldNode) continue;
             
+            // Evaluate initial value if present
+            Value initialValue{};
+            if (fieldNode->hasInitialValue()) {
+                initialValue = mainEvaluator->evaluate(fieldNode->getInitialValue());
+            }
+            
             auto fieldDef = std::make_shared<FieldDefinition>(
                 fieldNode->getName(),
                 fieldNode->getType(),
-                Value{}, // No initial value for now
+                initialValue,
                 fieldNode->getIsStatic(),
                 fieldNode->getIsFinal()
             );
@@ -119,38 +125,48 @@ namespace evaluator
         // Find matching constructor
         auto constructor = classDef->findConstructor(args.size());
         
-        if (constructor) {
-            // Create scope for constructor execution
-            env->enterScope(node->getClassName() + "::<constructor>", ScopeType::FUNCTION);
-            
-            // Set current instance for 'this' access
-            setCurrentInstance(instance);
-            
-            // Bind constructor parameters
-            for (size_t i = 0; i < args.size(); ++i) {
-                const auto& param = constructor->getParameters()[i];
-                auto varDef = std::make_shared<VariableDefinition>(
-                    param.first,   // parameter name
-                    param.second,  // parameter type
-                    args[i],       // argument value
-                    false          // not final
-                );
-                env->declareVariable(param.first, varDef);
+        if (!constructor) {
+            // If no constructor found, check if this is a default constructor call on a class with no constructors
+            if (args.size() == 0 && classDef->getConstructorCount() == 0) {
+                // Allow default constructor for classes with no explicit constructors
+                // No constructor execution needed - just return the instance
+                return instance;
             }
             
-            // Execute constructor body
-            try {
-                mainEvaluator->evaluate(constructor->getBody());
-            }
-            catch (...) {
-                clearCurrentInstance();
-                env->exitScope();
-                throw;
-            }
-            
+            throw UndefinedException("No matching constructor found for class " + node->getClassName() + 
+                " with " + std::to_string(args.size()) + " arguments", node->getLocation());
+        }
+        
+        // Create scope for constructor execution
+        env->enterScope(node->getClassName() + "::<constructor>", ScopeType::FUNCTION);
+        
+        // Set current instance for 'this' access
+        setCurrentInstance(instance);
+        
+        // Bind constructor parameters
+        for (size_t i = 0; i < args.size(); ++i) {
+            const auto& param = constructor->getParameters()[i];
+            auto varDef = std::make_shared<VariableDefinition>(
+                param.first,   // parameter name
+                param.second,  // parameter type
+                args[i],       // argument value
+                false          // not final
+            );
+            env->declareVariable(param.first, varDef);
+        }
+        
+        // Execute constructor body
+        try {
+            mainEvaluator->evaluate(constructor->getBody());
+        }
+        catch (...) {
             clearCurrentInstance();
             env->exitScope();
+            throw;
         }
+        
+        clearCurrentInstance();
+        env->exitScope();
         
         return instance;
     }
@@ -276,6 +292,10 @@ namespace evaluator
         }
         
         auto env = mainEvaluator->getEnvironment();
+        
+        // Save the current return state to isolate method execution
+        bool savedReturnState = mainEvaluator->shouldReturn();
+        
         env->enterScope(object->getClassDefinition()->getName() + "::" + methodName, ScopeType::FUNCTION);
         
         // Set current instance
@@ -293,6 +313,9 @@ namespace evaluator
             env->declareVariable(param.first, varDef);
         }
         
+        // Reset return state for method execution
+        mainEvaluator->setReturned(false);
+        
         // Execute method body
         Value result = std::monostate{};
         try {
@@ -300,7 +323,6 @@ namespace evaluator
             
             if (mainEvaluator->shouldReturn()) {
                 result = mainEvaluator->getReturnValue();
-                mainEvaluator->setReturned(false);
             }
         }
         catch (const exception::ReturnException& e) {
@@ -310,11 +332,17 @@ namespace evaluator
         catch (...) {
             clearCurrentInstance();
             env->exitScope();
+            // Restore return state before throwing
+            mainEvaluator->setReturned(savedReturnState);
             throw;
         }
         
         clearCurrentInstance();
         env->exitScope();
+        
+        // Restore the original return state to not affect outer context
+        mainEvaluator->setReturned(savedReturnState);
+        
         return result;
     }
 

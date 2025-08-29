@@ -3,6 +3,7 @@
 #include "../errors/UndefinedException.hpp"
 #include "../errors/TypeException.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include <iostream>
 
 namespace evaluator
 {
@@ -71,6 +72,26 @@ namespace evaluator
             fullName += qualifiedName[i];
         }
         
+        // Check if this is a static class field access (ClassName::fieldName)
+        if (qualifiedName.size() == 2) {
+            std::string className = qualifiedName[0];
+            std::string fieldName = qualifiedName[1];
+            
+            
+            // Find the class definition
+            auto classDef = env->findClass(className);
+            if (classDef) {
+                // Check if it's a static field
+                auto field = classDef->getField(fieldName);
+                if (field) {
+                    if (field->isStatic()) {
+                        auto value = field->getValue();
+                        return value;
+                    }
+                }
+            }
+        }
+        
         auto varDef = env->findVariable(fullName);
         if (!varDef) {
             throw UndefinedException("Undefined variable: " + fullName, SourceLocation{});
@@ -88,6 +109,26 @@ namespace evaluator
         for (size_t i = 0; i < qualifiedName.size(); ++i) {
             if (i > 0) fullName += "::";
             fullName += qualifiedName[i];
+        }
+        
+        // Check if this is a static class field assignment (ClassName::fieldName)
+        if (qualifiedName.size() == 2) {
+            std::string className = qualifiedName[0];
+            std::string fieldName = qualifiedName[1];
+            
+            // Find the class definition
+            auto classDef = env->findClass(className);
+            if (classDef) {
+                // Check if it's a static field
+                auto field = classDef->getField(fieldName);
+                if (field && field->isStatic()) {
+                    if (field->isFinal()) {
+                        throw TypeException("Cannot reassign final static field: " + fullName, SourceLocation{});
+                    }
+                    field->setValue(value);
+                    return;
+                }
+            }
         }
         
         auto varDef = env->findVariable(fullName);

@@ -63,11 +63,19 @@ namespace parser
             else
             {
                 // Default case - parse as field
-                // This handles regular fields, static fields, final fields
+                // This handles regular fields, static fields, final fields, and static methods
                 auto field = parseField();
                 if (field)
                 {
-                    classNode->addField(std::move(field));
+                    // Check if the parsed field is actually a method (static function)
+                    if (dynamic_cast<MethodNode*>(field.get()))
+                    {
+                        classNode->addMethod(std::move(field));
+                    }
+                    else
+                    {
+                        classNode->addField(std::move(field));
+                    }
                 }
             }
         }
@@ -381,7 +389,13 @@ namespace parser
         // Check if this is actually a method (static/final function)
         if (parser.getCurrentToken().type == TokenType::FUNCTION)
         {
-            // This is a static/final method, parse it here since we already have the modifiers
+            // Methods cannot be final - this is a syntax error
+            if (isFinal)
+            {
+                throw ParseException("Methods cannot be final", parser.getCurrentToken().location);
+            }
+            
+            // This is a static method, parse it here since we already have the modifiers
             parser.advanceToken(); // consume 'function'
             
             // Parse method name

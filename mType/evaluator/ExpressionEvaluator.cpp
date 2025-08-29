@@ -50,6 +50,15 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateVariableNode(VariableNode* node)
     {
+        // Handle 'this' keyword specifically
+        if (node->getName() == "this") {
+            auto currentInstance = mainEvaluator->getCurrentInstance();
+            if (currentInstance) {
+                return currentInstance;
+            }
+            throw UndefinedException("'this' is not available outside of instance methods", node->getLocation());
+        }
+        
         auto env = mainEvaluator->getEnvironment();
         auto varDef = env->findVariable(node->getName());
         
@@ -60,6 +69,21 @@ namespace evaluator
                 auto field = currentInstance->getField(node->getName());
                 if (field) {
                     return currentInstance->getFieldValue(node->getName());
+                }
+            }
+            
+            // Check if this might be a static field access (look in all classes)
+            // TODO: This is a simple implementation - ideally we'd track current class context
+            auto env = mainEvaluator->getEnvironment();
+            auto classRegistry = env->getClassRegistry();
+            auto allClassNames = classRegistry->getAllItemNames();
+            for (const auto& className : allClassNames) {
+                auto classDef = classRegistry->findClass(className);
+                if (classDef) {
+                    auto field = classDef->getField(node->getName());
+                    if (field && field->isStatic()) {
+                        return field->getValue();
+                    }
                 }
             }
             
@@ -219,6 +243,73 @@ namespace evaluator
             
             // Call native function
             return nativeFunc(args);
+        }
+        
+        // Check if this is a static method call (contains ::)
+        std::string functionName = node->getFunctionName();
+        if (functionName.find("::") != std::string::npos) {
+            // Split class name and method name
+            size_t pos = functionName.find("::");
+            std::string className = functionName.substr(0, pos);
+            std::string methodName = functionName.substr(pos + 2);
+            
+            // Find the class definition
+            auto classDef = env->findClass(className);
+            if (!classDef) {
+                throw UndefinedException("Undefined class: " + className, node->getLocation());
+            }
+            
+            // Find the static method within the class
+            auto method = classDef->getMethod(methodName);
+            if (!method) {
+                throw UndefinedException("Method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
+            }
+            
+            if (!method->isStatic()) {
+                throw TypeException("Cannot call non-static method '" + methodName + "' on class '" + className + "'", node->getLocation());
+            }
+            
+            // Evaluate arguments
+            std::vector<Value> args;
+            for (auto& argNode : node->getArguments()) {
+                args.push_back(mainEvaluator->evaluate(argNode.get()));
+            }
+            
+            // Check parameter count
+            if (args.size() != method->getParameters().size()) {
+                throw ArgumentException("Method '" + methodName + "' expects " + 
+                                      std::to_string(method->getParameters().size()) +
+                                      " arguments, got " + std::to_string(args.size()),
+                                      node->getLocation());
+            }
+            
+            // Create new scope for method execution
+            env->enterScope(className + "::" + methodName, ScopeType::FUNCTION);
+            
+            // Bind parameters to arguments
+            for (size_t i = 0; i < args.size(); ++i) {
+                const auto& param = method->getParameters()[i];
+                auto varDef = std::make_shared<VariableDefinition>(
+                    param.first,   // parameter name
+                    param.second,  // parameter type
+                    args[i],       // argument value
+                    false          // not final
+                );
+                env->declareVariable(param.first, varDef);
+            }
+            
+            // Execute the static method body
+            Value result;
+            try {
+                result = mainEvaluator->evaluate(method->getBody());
+            }
+            catch (const exception::ReturnException& e) {
+                // This is expected - return statement was executed
+                result = e.returnValue;
+            }
+            
+            env->exitScope();
+            return result;
         }
         
         // Check for user-defined function

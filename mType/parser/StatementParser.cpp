@@ -74,14 +74,9 @@ namespace parser
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
-                    // Pattern could be: "namespace::ClassName varName" (scoped type declaration)
-                    // OR: "namespace::function()" (qualified function call)
-                    // Need to look ahead further to determine which one
-                    if (isQualifiedDeclaration()) {
-                        return parseDeclaration();
-                    } else {
-                        return parseExpressionStatement();
-                    }
+                    // Pattern: "identifier::..." - treat as expression statement
+                    // This covers qualified function calls, qualified field access, etc.
+                    return parseExpressionStatement();
                 } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();
@@ -619,17 +614,5 @@ namespace parser
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), nullptr);
     }
 
-    bool StatementParser::isQualifiedDeclaration()
-    {
-        Token current = parser.getCurrentToken(); // Should be identifier
-        Token next = parser.peekNextToken(); // Should be SCOPE
-        
-        if (current.type != TokenType::IDENTIFIER || next.type != TokenType::SCOPE) {
-            return false;
-        }
-        
-        // Default: assume it's a type declaration since they're harder to parse in expressions
-        return true;
-    }
     
 }

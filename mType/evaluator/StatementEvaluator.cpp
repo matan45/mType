@@ -36,9 +36,14 @@ namespace evaluator
         for (const auto& statement : node->getStatements()) {
             lastValue = mainEvaluator->evaluate(statement.get());
             
-            if (mainEvaluator->shouldReturn()) {
+            // Only break on return if we're at global scope (not inside a function)
+            if (mainEvaluator->shouldReturn() && !mainEvaluator->getEnvironment()->isInFunction()) {
                 break;
             }
+            
+            // Reset return state after each program-level statement to prevent 
+            // method returns from affecting subsequent statements
+            mainEvaluator->setReturned(false);
         }
         
         return lastValue;
@@ -55,7 +60,9 @@ namespace evaluator
             for (const auto& statement : node->getStatements()) {
                 lastValue = mainEvaluator->evaluate(statement.get());
                 
-                if (mainEvaluator->shouldReturn() || shouldBreakOrContinue()) {
+                // Only break on return if we're inside a function, or for break/continue
+                if (shouldBreakOrContinue() || 
+                    (mainEvaluator->shouldReturn() && mainEvaluator->getEnvironment()->isInFunction())) {
                     break;
                 }
             }

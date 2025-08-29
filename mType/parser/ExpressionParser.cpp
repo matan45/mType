@@ -306,6 +306,24 @@ namespace parser
 
                     // No need to call release() - unique_ptr will handle cleanup automatically
                     expr = std::make_unique<ast::nodes::namespaces::QualifiedNameNode>(parts);
+                    
+                    // Check if this is a function call (e.g., MathUtils::max(10, 5))
+                    if (parser.getCurrentToken().type == TokenType::LPAREN)
+                    {
+                        // Join the parts to create the full function name
+                        std::string fullName = parts[0];
+                        for (size_t i = 1; i < parts.size(); i++)
+                        {
+                            fullName += "::" + parts[i];
+                        }
+                        
+                        // Parse as function call using the same method as normal function calls
+                        parser.advanceToken(); // consume '('
+                        auto arguments = parseArguments();
+                        parser.expectToken(TokenType::RPAREN);
+                        
+                        expr = std::make_unique<ast::nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                    }
                 }
             }
             else
