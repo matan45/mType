@@ -11,7 +11,17 @@ namespace runtimeTypes::klass
     {
         auto field = getField(fieldName);
         if (field) {
-            return field->getValue();
+            // For static fields, get value from the field definition
+            if (field->isStatic()) {
+                return field->getValue();
+            }
+            // For instance fields, get value from this instance's storage
+            auto it = fieldValues.find(fieldName);
+            if (it != fieldValues.end()) {
+                return it->second;
+            }
+            // Return default value if not set
+            return field->getValue(); // This will be the initial value from class definition
         }
         return std::monostate{};
     }
@@ -25,7 +35,13 @@ namespace runtimeTypes::klass
     {
         auto field = getField(fieldName);
         if (field) {
-            field->setValue(value);
+            // For static fields, set value in the field definition (shared across all instances)
+            if (field->isStatic()) {
+                field->setValue(value);
+            } else {
+                // For instance fields, set value in this instance's storage
+                fieldValues[fieldName] = value;
+            }
         }
     }
 

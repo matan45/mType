@@ -293,6 +293,11 @@ namespace environment
         return scopeManager ? scopeManager->isInLoop() : false;
     }
 
+    std::string Environment::getFunctionScopeName() const
+    {
+        return scopeManager ? scopeManager->getFunctionScopeName() : "";
+    }
+
     std::vector<std::string> Environment::resolveQualifiedName(const std::string& name) const
     {
         if (namespaceManager)

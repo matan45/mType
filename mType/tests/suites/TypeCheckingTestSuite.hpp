@@ -7,8 +7,8 @@ namespace tests::testSuite
     class TypeCheckingTestSuite : public testFramework::TestSuite
     {
     private:
-        inline static const std::string passPath = "tests/testFiles/typeChecking/pass/";
-        inline static const std::string errorPath = "tests/testFiles/typeChecking/error/";
+        inline static const std::string passPath = "mType/tests/testFiles/typeChecking/pass/";
+        inline static const std::string errorPath = "mType/tests/testFiles/typeChecking/error/";
 
     public:
         explicit TypeCheckingTestSuite() : TestSuite("Type Checking Test Suite")

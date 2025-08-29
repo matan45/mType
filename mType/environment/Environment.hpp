@@ -77,6 +77,7 @@ namespace environment
         bool isInClass() const;
         bool isInFunction() const;
         bool isInLoop() const;
+        std::string getFunctionScopeName() const;
 
         std::vector<std::string> resolveQualifiedName(const std::string& name) const;
     };

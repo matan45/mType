@@ -159,6 +159,31 @@ namespace evaluator
                     }
                 }
                 
+                // Check if this might be a static field assignment
+                // When we're in a function scope, check if we can find a class with this static field
+                if (env->isInFunction()) {
+                    // Get function scope name to extract class name
+                    std::string functionScope = env->getFunctionScopeName();
+                    size_t pos = functionScope.find("::");
+                    if (pos != std::string::npos) {
+                        std::string className = functionScope.substr(0, pos);
+                        auto classDef = env->findClass(className);
+                        if (classDef) {
+                            auto field = classDef->getField(node->getVariableName());
+                            if (field && field->isStatic()) {
+                                // This is a static field assignment
+                                if (field->isFinal()) {
+                                    throw TypeException("Cannot reassign final static field: " + node->getVariableName(), node->getLocation());
+                                }
+                                
+                                Value newValue = mainEvaluator->evaluate(node->getValue());
+                                field->setValue(newValue);
+                                return newValue;
+                            }
+                        }
+                    }
+                }
+                
                 throw UndefinedException("Undefined variable: " + node->getVariableName(), node->getLocation());
             }
             

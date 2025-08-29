@@ -283,8 +283,12 @@ namespace evaluator
                                       node->getLocation());
             }
             
+            // Save the current return state to isolate method execution
+            bool savedReturnState = mainEvaluator->shouldReturn();
+            
             // Create new scope for method execution
-            env->enterScope(className + "::" + methodName, ScopeType::FUNCTION);
+            std::string scopeName = className + "::" + methodName;
+            env->enterScope(scopeName, ScopeType::FUNCTION);
             
             // Bind parameters to arguments
             for (size_t i = 0; i < args.size(); ++i) {
@@ -298,17 +302,34 @@ namespace evaluator
                 env->declareVariable(param.first, varDef);
             }
             
+            // Reset return state for method execution
+            mainEvaluator->setReturned(false);
+            
             // Execute the static method body
-            Value result;
+            Value result = std::monostate{};
             try {
-                result = mainEvaluator->evaluate(method->getBody());
+                mainEvaluator->evaluate(method->getBody());
+                
+                if (mainEvaluator->shouldReturn()) {
+                    result = mainEvaluator->getReturnValue();
+                }
             }
             catch (const exception::ReturnException& e) {
                 // This is expected - return statement was executed
                 result = e.returnValue;
             }
+            catch (...) {
+                env->exitScope();
+                // Restore return state before throwing
+                mainEvaluator->setReturned(savedReturnState);
+                throw;
+            }
             
             env->exitScope();
+            
+            // Restore the original return state to not affect outer context
+            mainEvaluator->setReturned(savedReturnState);
+            
             return result;
         }
         
