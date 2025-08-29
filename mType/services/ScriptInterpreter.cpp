@@ -35,11 +35,13 @@ namespace services
         importManager->setBaseDirectory(scriptPath.parent_path().string());
         
         parser::Parser parser(lexer);
-        parser.setImportManager(importManager.get());
         auto ast = parser.parseProgram();
         
         environment::EnvironmentBuilder envBuilder;
         auto environment = envBuilder.build();
+        
+        // Set ImportManager on environment for clean architecture
+        environment->setImportManager(importManager.get());
         
         evaluator::Evaluator evaluator(environment);
         evaluator.evaluate(ast.get());

@@ -3,7 +3,6 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
-#include <stack>
 #include <memory>
 #include "../ast/ASTNode.hpp"
 
@@ -19,9 +18,6 @@ namespace services
         
         // Track evaluated files to avoid re-evaluation
         std::unordered_set<std::string> evaluatedFiles;
-
-        // Stack to detect circular dependencies
-        std::stack<std::string> importStack;
 
         // Cache parsed ASTs
         std::unordered_map<std::string, std::unique_ptr<ASTNode>> astCache;
@@ -46,14 +42,9 @@ namespace services
         // Resolve path consistently relative to base directory (for evaluation tracking)
         std::string resolvePathConsistently(const std::string& path);
 
-        // Check for circular dependencies
-        bool wouldCauseCircularDependency(const std::string& filePath);
-
-        // Get circular dependency chain for error message
-        std::string getCircularDependencyChain(const std::string& filePath);
-
-        // Import a file
-        ASTNode* importFile(const std::string& rawPath);
+        
+        // Parse and cache AST only (no evaluation) - for clean architecture
+        ASTNode* parseAndCacheAST(const std::string& rawPath);
         
         // Clear import cache (useful for REPL or hot reload)
         void clearCache();

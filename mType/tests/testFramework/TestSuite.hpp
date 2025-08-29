@@ -23,6 +23,8 @@ namespace tests::testFramework
 
         void run();
         void generateReport();
+        
+        const std::string& getName() const { return suiteName; }
     
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
         void addOutputVerificationTest(const std::string& name, const std::string& filePath);

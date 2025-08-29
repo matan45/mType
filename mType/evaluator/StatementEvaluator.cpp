@@ -1,6 +1,7 @@
 ﻿#include "StatementEvaluator.hpp"
 #include "Evaluator.hpp"
 #include "ExpressionEvaluator.hpp"
+#include "../services/ImportManager.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
@@ -457,48 +458,49 @@ namespace evaluator
     Value StatementEvaluator::evaluateImportNode(ImportNode* node)
     {
         auto env = mainEvaluator->getEnvironment();
+        const std::string& rawFilePath = node->getFilePath();
         
-        // Check if this file has already been evaluated FIRST, before ANY processing
-        const std::string& filePath = node->getFilePath();
-        ImportManager* importMgr = static_cast<ImportManager*>(node->getImportManager());
+        // Get the ImportManager from the global environment/evaluator context
+        // (since parser no longer sets it on ImportNode)
+        ImportManager* importMgr = env->getImportManager();
         
-        if (importMgr && importMgr->isEvaluated(filePath)) {
+        if (!importMgr) {
+            throw EnvironmentException("ImportManager not available in evaluation context", node->getLocation());
+        }
+        
+        // Resolve file path for consistent tracking
+        std::string filePath = importMgr->resolvePath(rawFilePath);
+        
+        // Check if this file has already been evaluated
+        if (importMgr->isEvaluated(filePath)) {
             // File already evaluated, completely skip all processing
             return std::monostate{};
         }
         
-        // Set import evaluation flag IMMEDIATELY, before ANY processing including getImportedAST()
+        // Set import evaluation flag for proper variable redefinition handling
         bool prevImportFlag = env->isEvaluatingImport();
         env->setImportEvaluation(true);
         
-        // Mark this file as being evaluated before evaluation to prevent recursion
-        if (importMgr) {
-            importMgr->markAsEvaluated(filePath);
-        }
-        
-        // Get or load the imported AST
-        ASTNode* importedAST = node->getImportedAST();
-        
-        if (!importedAST && importMgr) {
-            // AST not cached yet, load it now with proper import context
-            try {
-                importedAST = importMgr->importFile(filePath);
-                node->setImportedAST(importedAST);
-            }
-            catch (const std::exception& e) {
-                env->setImportEvaluation(prevImportFlag);
-                throw EnvironmentException("Import error: " + std::string(e.what()), node->getLocation());
-            }
-        }
-        
-        if (!importedAST) {
-            env->setImportEvaluation(prevImportFlag);
-            return std::monostate{};
-        }
-        
         try {
-            // If the imported AST is a ProgramNode, evaluate all its statements
-            // to register functions and variables in the current environment
+            // Check for circular dependency at evaluation level BEFORE adding to stack
+            if (env->wouldCauseCircularImport(filePath)) {
+                env->setImportEvaluation(prevImportFlag);
+                throw EnvironmentException("Circular import detected: " + 
+                                         env->getCircularImportChain(filePath), node->getLocation());
+            }
+            
+            // Push to evaluation import stack to track circular dependencies across evaluation phases
+            env->pushEvaluationImport(filePath);
+            
+            // Parse and cache the AST (pure parsing, no evaluation)
+            ASTNode* importedAST = importMgr->parseAndCacheAST(rawFilePath);
+            
+            if (!importedAST) {
+                env->setImportEvaluation(prevImportFlag);
+                return std::monostate{};
+            }
+            
+            // Now evaluate the imported AST in the current environment with import context
             if (auto programNode = dynamic_cast<ProgramNode*>(importedAST)) {
                 for (const auto& statement : programNode->getStatements()) {
                     // Evaluate each declaration in the imported file
@@ -506,20 +508,30 @@ namespace evaluator
                     mainEvaluator->evaluate(statement.get());
                 }
             } else {
-                // If it's a single statement, just evaluate it
+                // For any other AST node, just evaluate it directly
                 mainEvaluator->evaluate(importedAST);
             }
+            
+            // Mark this file as evaluated AFTER successful evaluation
+            importMgr->markAsEvaluated(filePath);
+            
+            // Pop from evaluation import stack and restore previous import flag
+            env->popEvaluationImport();
+            env->setImportEvaluation(prevImportFlag);
+            return std::monostate{};
+        }
+        catch (const std::exception& e) {
+            // Pop from evaluation import stack and restore previous import flag on exception
+            env->popEvaluationImport();
+            env->setImportEvaluation(prevImportFlag);
+            throw EnvironmentException("Import evaluation error: " + std::string(e.what()), node->getLocation());
         }
         catch (...) {
-            // Restore import flag before re-throwing
+            // Pop from evaluation import stack and restore previous import flag on exception
+            env->popEvaluationImport();
             env->setImportEvaluation(prevImportFlag);
             throw;
         }
-        
-        // Restore import flag
-        env->setImportEvaluation(prevImportFlag);
-        
-        return std::monostate{};
     }
 
     Value StatementEvaluator::evaluateFunctionNode(FunctionNode* node)

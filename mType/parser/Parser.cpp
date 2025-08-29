@@ -36,19 +36,9 @@ namespace parser
             auto statement = parseStatement();
             if (statement)
             {
-                // Check if this is an import statement
-                if (auto importNode = dynamic_cast<nodes::statements::ImportNode*>(statement.get()))
-                {
-                    // Handle import by inlining the imported declarations
-                    handleImportStatement(importNode, program.get());
-                    // ALSO add the import node itself to the program so it gets evaluated
-                    // This is needed to register imported functions in the current environment
-                    program->addStatement(std::move(statement));
-                }
-                else
-                {
-                    program->addStatement(std::move(statement));
-                }
+                // All statements, including import nodes, are added to the program
+                // Import processing is completely deferred to evaluation phase
+                program->addStatement(std::move(statement));
             }
         }
 

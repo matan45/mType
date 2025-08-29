@@ -518,18 +518,10 @@ namespace parser
 
         parser.expectToken(TokenType::SEMICOLON);
 
-        // Create an import node - defer all processing to evaluation phase
+        // Create a pure import node - no processing, no ImportManager dependency
         auto importNode = std::make_unique<ImportNode>(filePath, loc);
 
-        // Set the ImportManager reference for later use during evaluation
-        if (parser.getImportManager())
-        {
-            importNode->setImportManager(parser.getImportManager());
-        }
-        else
-        {
-            throw ParseException("Import statement requires ImportManager to be set on Parser", loc);
-        }
+        // No processing at parse time - completely defer to evaluation phase
 
         return importNode;
     }

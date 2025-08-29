@@ -12,6 +12,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <stack>
+
+// Forward declaration for clean architecture
+namespace services { class ImportManager; }
 
 namespace environment
 {
@@ -32,6 +36,12 @@ namespace environment
         
         // Import evaluation tracking
         bool importEvaluationActive;
+        
+        // Import manager for clean architecture  
+        services::ImportManager* importManager;
+        
+        // Evaluation-level import stack for circular dependency detection
+        std::stack<std::string> evaluationImportStack;
 
     public:
         explicit Environment(
@@ -54,6 +64,16 @@ namespace environment
         std::shared_ptr<ScopeManager> getScopeManager() const;
         std::shared_ptr<NamespaceManager> getNamespaceManager() const;
         std::shared_ptr<NativeRegistry> getNativeRegistry() const;
+        
+        // Import management
+        void setImportManager(services::ImportManager* importManager);
+        services::ImportManager* getImportManager() const;
+        
+        // Evaluation-level circular dependency detection
+        bool wouldCauseCircularImport(const std::string& filePath);
+        void pushEvaluationImport(const std::string& filePath);
+        void popEvaluationImport();
+        std::string getCircularImportChain(const std::string& filePath);
 
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);

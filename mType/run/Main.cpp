@@ -29,7 +29,56 @@ using namespace evaluator;
 using namespace environment;
 
 
-void runTests()
+std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName) {
+    if (suiteName == "control" || suiteName == "controlflow") {
+        return std::make_unique<ControlFlowTestSuite>();
+    }
+    else if (suiteName == "import" || suiteName == "imports") {
+        return std::make_unique<ImportTestSuite>();
+    }
+    else if (suiteName == "class" || suiteName == "classes") {
+        return std::make_unique<ClassTestSuite>();
+    }
+    else if (suiteName == "error" || suiteName == "errors") {
+        return std::make_unique<ErrorTestSuite>();
+    }
+    else if (suiteName == "namespace" || suiteName == "namespaces") {
+        return std::make_unique<NameSpaceTestSuite>();
+    }
+    else if (suiteName == "integration") {
+        return std::make_unique<IntegrationTestSuite>();
+    }
+    else if (suiteName == "type" || suiteName == "typechecking") {
+        return std::make_unique<TypeCheckingTestSuite>();
+    }
+    return nullptr;
+}
+
+void printAvailableTestSuites() {
+    std::cout << "Available test suites:\n";
+    std::cout << "  control      - Control Flow Test Suite\n";
+    std::cout << "  import       - Import Test Suite\n";
+    std::cout << "  class        - Class Test Suite\n";
+    std::cout << "  error        - Error Test Suite\n";
+    std::cout << "  namespace    - Namespace Test Suite\n";
+    std::cout << "  integration  - Integration Test Suite\n";
+    std::cout << "  type         - Type Checking Test Suite\n";
+}
+
+void runSpecificTestSuite(const std::string& suiteName) {
+    auto suite = createTestSuite(suiteName);
+    if (!suite) {
+        std::cout << "Unknown test suite: " << suiteName << "\n\n";
+        printAvailableTestSuites();
+        return;
+    }
+    
+    std::cout << "Running " << suite->getName() << "...\n\n";
+    suite->setupTests();
+    suite->run();
+}
+
+void runAllTests()
 {
     std::cout << "Running all test suites...\n\n";
 
@@ -38,9 +87,9 @@ void runTests()
     suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
     suites.push_back(std::make_unique<ErrorTestSuite>());
-    /*suites.push_back(std::make_unique<NameSpaceTestSuite>());
+    suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
-    suites.push_back(std::make_unique<TypeCheckingTestSuite>());*/
+    suites.push_back(std::make_unique<TypeCheckingTestSuite>());
 
     for (auto& suite : suites)
     {
@@ -60,12 +109,29 @@ void runTests()
 int main(int argc, char* argv[])
 {
     if (argc == 2 && std::string(argv[1]) == "--tests") {
-        runTests();
+        runAllTests();
+        return 0;
+    }
+    
+    if (argc == 3 && std::string(argv[1]) == "--test") {
+        std::string suiteName = argv[2];
+        runSpecificTestSuite(suiteName);
+        return 0;
+    }
+    
+    if (argc == 2 && std::string(argv[1]) == "--help") {
+        std::cout << "Usage:\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>     - Run a script file\n";
+        std::cout << "  " << argv[0] << " --tests             - Run all test suites\n";
+        std::cout << "  " << argv[0] << " --test <suite>      - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --help              - Show this help message\n\n";
+        printAvailableTestSuites();
         return 0;
     }
     
     if (argc != 2) {
-        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests" << std::endl;
+        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
+        std::cout << "Use --help for detailed usage information" << std::endl;
         return 1;
     }
 

@@ -73,7 +73,6 @@ namespace tests::testFramework
                 importManager->setBaseDirectory(testFilePath.parent_path().string());
                 
                 Parser parser(lexer);
-                parser.setImportManager(importManager.get());
 
                 // Parse the file
                 auto ast = parser.parseProgram();
@@ -85,6 +84,10 @@ namespace tests::testFramework
 
                 // Evaluate the AST
                 auto env = EnvironmentBuilder::createDefault();
+                
+                // Set ImportManager on environment for clean architecture
+                env->setImportManager(importManager.get());
+                
                 Evaluator evaluator(env);
                 evaluator.evaluate(ast.get());
 
