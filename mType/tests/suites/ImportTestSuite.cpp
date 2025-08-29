@@ -7,7 +7,7 @@ namespace tests::testSuite
 
     void ImportTestSuite::setupTests()
     {
-        addTestFromFile("Import System",
+        addOutputVerificationTest("Import System",
                         "mType/tests/testFiles/import/pass/main_script.mt");
         addTestFromFile("Circular Import Detection",
                         "mType/tests/testFiles/import/error/circular_a.mt",
