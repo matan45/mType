@@ -136,6 +136,22 @@ namespace evaluator
             auto varDef = env->findVariable(node->getVariableName());
             
             if (!varDef) {
+                // Check if this might be a field assignment on the current instance
+                auto currentInstance = mainEvaluator->getCurrentInstance();
+                if (currentInstance) {
+                    auto field = currentInstance->getField(node->getVariableName());
+                    if (field) {
+                        // This is a field assignment
+                        if (field->isFinal()) {
+                            throw TypeException("Cannot reassign final field: " + node->getVariableName(), node->getLocation());
+                        }
+                        
+                        Value newValue = mainEvaluator->evaluate(node->getValue());
+                        currentInstance->setField(node->getVariableName(), newValue);
+                        return newValue;
+                    }
+                }
+                
                 throw UndefinedException("Undefined variable: " + node->getVariableName(), node->getLocation());
             }
             

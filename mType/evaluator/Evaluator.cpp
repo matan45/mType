@@ -299,4 +299,9 @@ namespace evaluator
     {
         return nsEvaluator->evaluateQualifiedAssignmentNode(node);
     }
+    
+    std::shared_ptr<runtimeTypes::klass::ObjectInstance> Evaluator::getCurrentInstance() const
+    {
+        return objEvaluator->getCurrentInstance();
+    }
 }

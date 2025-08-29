@@ -42,27 +42,28 @@ namespace parser
 
         while (parser.getCurrentToken().type != TokenType::RBRACE && parser.getCurrentToken().type != TokenType::END)
         {
-            if (isMethodOrConstructor())
+            TokenType currentToken = parser.getCurrentToken().type;
+            
+            if (currentToken == TokenType::CONSTRUCTOR)
             {
-                if (parser.getCurrentToken().type == TokenType::CONSTRUCTOR)
+                auto constructor = parseConstructor();
+                if (constructor)
                 {
-                    auto constructor = parseConstructor();
-                    if (constructor)
-                    {
-                        classNode->addConstructor(std::move(constructor));
-                    }
+                    classNode->addConstructor(std::move(constructor));
                 }
-                else
+            }
+            else if (currentToken == TokenType::FUNCTION)
+            {
+                auto method = parseMethod();
+                if (method)
                 {
-                    auto method = parseMethod();
-                    if (method)
-                    {
-                        classNode->addMethod(std::move(method));
-                    }
+                    classNode->addMethod(std::move(method));
                 }
             }
             else
             {
+                // Default case - parse as field
+                // This handles regular fields, static fields, final fields
                 auto field = parseField();
                 if (field)
                 {
@@ -171,13 +172,31 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseMethod()
     {
-        // Handle optional function keyword for methods
-        if (parser.getCurrentToken().type == TokenType::FUNCTION)
+        bool isStatic = false;
+        bool isFinal = false;
+
+        // Handle static modifier
+        if (parser.getCurrentToken().type == TokenType::STATIC)
         {
+            isStatic = true;
             parser.advanceToken();
         }
 
-        // Parse method name first
+        // Handle final modifier
+        if (parser.getCurrentToken().type == TokenType::FINAL)
+        {
+            isFinal = true;
+            parser.advanceToken();
+        }
+
+        // Handle function keyword (required for methods)
+        if (parser.getCurrentToken().type != TokenType::FUNCTION)
+        {
+            throw ParseException("Expected 'function' keyword", parser.getCurrentToken().location);
+        }
+        parser.advanceToken();
+
+        // Parse method name
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
             throw ParseException("Expected method name", parser.getCurrentToken().location);
@@ -339,7 +358,7 @@ namespace parser
         auto body = parser.parseStatement();
 
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), false);
+                                            std::move(body), isStatic);
     }
 
     std::unique_ptr<ASTNode> ClassParser::parseField()
@@ -357,6 +376,77 @@ namespace parser
         {
             isFinal = true;
             parser.advanceToken();
+        }
+
+        // Check if this is actually a method (static/final function)
+        if (parser.getCurrentToken().type == TokenType::FUNCTION)
+        {
+            // This is a static/final method, parse it here since we already have the modifiers
+            parser.advanceToken(); // consume 'function'
+            
+            // Parse method name
+            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected method name", parser.getCurrentToken().location);
+            }
+            
+            std::string methodName = parser.getCurrentToken().stringValue;
+            parser.advanceToken();
+            
+            parser.expectToken(TokenType::LPAREN);
+            
+            // Parse parameters (simplified version of parseMethod's parameter parsing)
+            std::vector<std::pair<std::string, ValueType>> parameters;
+            while (parser.getCurrentToken().type != TokenType::RPAREN)
+            {
+                ValueType paramType = ValueType::VOID;
+                TokenType currentType = parser.getCurrentToken().type;
+                
+                // Handle parameter types
+                if (currentType == TokenType::INT) { paramType = ValueType::INT; parser.advanceToken(); }
+                else if (currentType == TokenType::FLOAT) { paramType = ValueType::FLOAT; parser.advanceToken(); }
+                else if (currentType == TokenType::BOOL) { paramType = ValueType::BOOL; parser.advanceToken(); }
+                else if (currentType == TokenType::STRING_TYPE) { paramType = ValueType::STRING; parser.advanceToken(); }
+                else if (currentType == TokenType::VOID) { paramType = ValueType::VOID; parser.advanceToken(); }
+                else if (currentType == TokenType::IDENTIFIER) { paramType = ValueType::OBJECT; parser.advanceToken(); }
+                else { throw ParseException("Expected parameter type", parser.getCurrentToken().location); }
+                
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    throw ParseException("Expected parameter name", parser.getCurrentToken().location);
+                
+                std::string paramName = parser.getCurrentToken().stringValue;
+                parameters.emplace_back(paramName, paramType);
+                parser.advanceToken();
+                
+                if (parser.getCurrentToken().type == TokenType::COMMA)
+                    parser.advanceToken();
+                else if (parser.getCurrentToken().type != TokenType::RPAREN)
+                    throw ParseException("Expected ',' or ')'", parser.getCurrentToken().location);
+            }
+            
+            parser.expectToken(TokenType::RPAREN);
+            
+            // Parse return type
+            ValueType returnType = ValueType::VOID;
+            if (parser.getCurrentToken().type == TokenType::COLON)
+            {
+                parser.advanceToken();
+                TokenType returnTokenType = parser.getCurrentToken().type;
+                if (returnTokenType == TokenType::INT) returnType = ValueType::INT;
+                else if (returnTokenType == TokenType::FLOAT) returnType = ValueType::FLOAT;
+                else if (returnTokenType == TokenType::BOOL) returnType = ValueType::BOOL;
+                else if (returnTokenType == TokenType::STRING_TYPE) returnType = ValueType::STRING;
+                else if (returnTokenType == TokenType::VOID) returnType = ValueType::VOID;
+                else if (returnTokenType == TokenType::IDENTIFIER) returnType = ValueType::OBJECT;
+                else throw ParseException("Expected return type", parser.getCurrentToken().location);
+                
+                parser.advanceToken();
+            }
+            
+            // Parse method body
+            auto body = parser.parseStatement();
+            
+            return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters), std::move(body), isStatic);
         }
 
         ValueType fieldType = ValueType::VOID;
@@ -487,14 +577,4 @@ namespace parser
         return std::make_unique<NewNode>(className, std::move(arguments));
     }
 
-    bool ClassParser::isMethodOrConstructor()
-    {
-        if (parser.getCurrentToken().type == TokenType::CONSTRUCTOR
-            || parser.getCurrentToken().type == TokenType::FUNCTION)
-        {
-            return true;
-        }
-        
-        return false;
-    }
 }

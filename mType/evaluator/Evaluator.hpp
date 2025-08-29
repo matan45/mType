@@ -85,6 +85,9 @@ namespace evaluator
         Value getReturnValue();
         void pushReturnValue(const Value& value);
         
+        // Object instance access for field resolution
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> getCurrentInstance() const;
+        
         // Helper for truthiness checking (delegates to ExpressionEvaluator)
         bool isTruthy(const Value& value);
         

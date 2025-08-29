@@ -54,6 +54,15 @@ namespace evaluator
         auto varDef = env->findVariable(node->getName());
         
         if (!varDef) {
+            // Check if this might be a field access on the current instance
+            auto currentInstance = mainEvaluator->getCurrentInstance();
+            if (currentInstance) {
+                auto field = currentInstance->getField(node->getName());
+                if (field) {
+                    return currentInstance->getFieldValue(node->getName());
+                }
+            }
+            
             throw UndefinedException("Undefined variable: " + node->getName(), node->getLocation());
         }
         

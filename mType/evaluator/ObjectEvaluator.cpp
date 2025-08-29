@@ -3,6 +3,7 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
+#include "../exception/ReturnException.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
@@ -301,6 +302,10 @@ namespace evaluator
                 result = mainEvaluator->getReturnValue();
                 mainEvaluator->setReturned(false);
             }
+        }
+        catch (const exception::ReturnException& e) {
+            // This is expected - return statement was executed
+            result = e.returnValue;
         }
         catch (...) {
             clearCurrentInstance();
