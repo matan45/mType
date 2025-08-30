@@ -1,0 +1,6 @@
+Namespace chain: Global
+Namespace chain 2: Global
+Function chain: Function
+Mixed namespace: Mixed2
+Processor chain: Ready
+Cross-namespace: storage

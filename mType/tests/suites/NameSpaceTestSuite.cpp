@@ -6,49 +6,49 @@ namespace tests::testSuite
     void NameSpaceTestSuite::setupTests()
     {
         // Basic namespace tests
-        addTestFromFile("Basic Namespace Declaration",
+        addOutputVerificationTest("Basic Namespace Declaration",
                         passPath + "basicNamespace.mt");
-        addTestFromFile("Nested Namespaces",
+        addOutputVerificationTest("Nested Namespaces",
                         passPath + "nestedNamespaces.mt");
-        addTestFromFile("Multiple Independent Namespaces",
+        addOutputVerificationTest("Multiple Independent Namespaces",
                         passPath + "multipleNamespaces.mt");
-        addTestFromFile("Qualified Function Calls",
+        addOutputVerificationTest("Qualified Function Calls",
                         passPath + "qualifiedFunctionCalls.mt");
-        addTestFromFile("Using Directives",
+        addOutputVerificationTest("Using Directives",
                         passPath + "usingDirectives.mt");
-        addTestFromFile("Namespace Variables with Different Types",
+        addOutputVerificationTest("Namespace Variables with Different Types",
                         passPath + "namespaceVariables.mt");
-        addTestFromFile("Complex Nested Namespace Structure",
+        addOutputVerificationTest("Complex Nested Namespace Structure",
                         passPath + "complexNamespaceStructure.mt");
-        addTestFromFile("Namespaces with Different Data Types",
+        addOutputVerificationTest("Namespaces with Different Data Types",
                         passPath + "namespaceWithDifferentTypes.mt");
-        addTestFromFile("Empty Namespaces",
+        addOutputVerificationTest("Empty Namespaces",
                         passPath + "emptyNamespaces.mt");
-        addTestFromFile("Deep Namespace Nesting",
+        addOutputVerificationTest("Deep Namespace Nesting",
                         passPath + "deepNesting.mt");
-        addTestFromFile("Namespaces with Control Flow",
+        addOutputVerificationTest("Namespaces with Control Flow",
                         passPath + "namespaceWithControlFlow.mt");
-        addTestFromFile("Namespace Scoping and Variable Shadowing",
+        addOutputVerificationTest("Namespace Scoping and Variable Shadowing",
                         passPath + "namespaceScoping.mt");
-        addTestFromFile("Final Variables in Namespace Declaration",
+        addOutputVerificationTest("Final Variables in Namespace Declaration",
                         passPath + "namespaceWithFinal.mt");
-        addTestFromFile("Using Directives Inside Namespaces",
+        addOutputVerificationTest("Using Directives Inside Namespaces",
                         passPath + "usingDirectivesInNamespace.mt");
         
         // Advanced using directive edge case tests
-        addTestFromFile("Using Directive Ambiguity Resolution",
+        addOutputVerificationTest("Using Directive Ambiguity Resolution",
                         passPath + "usingDirectiveAmbiguityResolution.mt");
-        addTestFromFile("Using Directive Shadowing",
+        addOutputVerificationTest("Using Directive Shadowing",
                         passPath + "usingDirectiveShadowing.mt");
-        addTestFromFile("Using Directive Nested Scopes",
+        addOutputVerificationTest("Using Directive Nested Scopes",
                         passPath + "usingDirectiveNestedScopes.mt");
-        addTestFromFile("Using Directive Order Dependency",
+        addOutputVerificationTest("Using Directive Order Dependency",
                         passPath + "usingDirectiveOrderDependency.mt");
-        addTestFromFile("Using Directive Function Overloading",
+        addOutputVerificationTest("Using Directive Function Overloading",
                         passPath + "usingDirectiveFunctionOverloading.mt");
-        addTestFromFile("Using Directive Scope Isolation",
+        addOutputVerificationTest("Using Directive Scope Isolation",
                         passPath + "usingDirectiveScopeIsolation.mt");
-        addTestFromFile("Global Scope Pollution Prevention",
+        addOutputVerificationTest("Global Scope Pollution Prevention",
                         passPath + "globalScopePollutionPrevention.mt");
 
         // Error tests (expected to fail)

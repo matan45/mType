@@ -7,15 +7,15 @@ namespace tests::testSuite
     void ErrorTestSuite::setupTests()
     {
         // Basic passing tests for error handling
-        addTestFromFile("Valid Error Reporting Code",
+        addOutputVerificationTest("Valid Error Reporting Code",
                         passPath + "basicErrorReportingValid.mt");
-        addTestFromFile("Valid Function Declaration",
+        addOutputVerificationTest("Valid Function Declaration",
                         passPath + "validFunctionDeclaration.mt");
-        addTestFromFile("Valid Class Usage",
+        addOutputVerificationTest("Valid Class Usage",
                         passPath + "validClassUsage.mt");
-        addTestFromFile("Valid Type Operations",
+        addOutputVerificationTest("Valid Type Operations",
                         passPath + "validTypeOperations.mt");
-        addTestFromFile("Valid Scope Usage",
+        addOutputVerificationTest("Valid Scope Usage",
                         passPath + "validScopeUsage.mt");
 
         // Lexer error tests (expected to fail)

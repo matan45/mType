@@ -1,0 +1,39 @@
+=== RAII Pattern Test ===
+In scope - Open handles: 2
+File1 open: true
+File2 open: true
+After explicit close - Open handles: 1
+After scope - Open handles: 1
+Operations: OPEN:config.txt | OPEN:data.txt | CLOSE:config.txt | 
+=== Resource Transfer Pattern Test ===
+Before transfer - Open handles: 1
+Transferring: transfer.txt
+After transfer - Open handles: 1
+Original filename: transfer.txt
+Transferred filename: transfer.txt
+Same object: true
+After explicit close - Open handles: 0
+Operations: OPEN:transfer.txt | CLOSE:transfer.txt | 
+=== Exception Safe Resource Test ===
+Before risky operations - Open handles: 2
+Starting risky operation on: safe.txt
+Risky operation completed successfully
+Starting risky operation on: risky.txt
+Simulating error condition
+Risky operation completed successfully
+After operations - Open handles: 2
+After explicit cleanup - Open handles: 0
+Operations: OPEN:safe.txt | OPEN:risky.txt | CLOSE:safe.txt | CLOSE:risky.txt | 
+=== Resource Pool Pattern Test ===
+Pool created - Open handles: 3
+Acquired resource: pool_resource_1.txt
+Acquired resource: pool_resource_1.txt
+After releasing one resource - Active: 2
+After pool cleanup - Open handles: 0
+Operations: OPEN:pool_resource_1.txt | OPEN:pool_resource_2.txt | OPEN:pool_resource_3.txt | CLOSE:pool_resource_1.txt | CLOSE:pool_resource_2.txt | CLOSE:pool_resource_3.txt | 
+=== Nested Resource Cleanup Test ===
+Deepest level - Open handles: 4
+Middle level - Open handles: 3
+Outer level - Open handles: 3
+After nested processing - Open handles: 2
+Operations: OPEN:outer.txt | OPEN:inner1.txt | OPEN:inner2.txt | OPEN:inner3.txt | CLOSE:inner2.txt | CLOSE:outer.txt |

@@ -1,0 +1,35 @@
+=== Rapid Object Creation/Destruction Test ===
+Iteration 0: Current count = 1
+Iteration 10: Current count = 11
+Iteration 20: Current count = 21
+Iteration 30: Current count = 31
+Iteration 40: Current count = 41
+Iteration 50: Current count = 51
+Iteration 60: Current count = 61
+Iteration 70: Current count = 71
+Iteration 80: Current count = 81
+Iteration 90: Current count = 91
+After rapid creation: Max count = 100, Current count = 100
+=== Object Array Lifecycle Test ===
+Created 3 objects: 3
+After reassignments: 3
+After new creation: 4
+=== Function Parameter Lifecycle Test ===
+Before function call: 1
+Processed object 1 in phase: Processing
+After function call: 1
+Processed object 2 in phase: Processing
+After temporary object: 2
+=== Recursive Object Creation Test ===
+Starting recursive creation...
+Max objects during recursion: 10
+Objects after recursion: 10
+=== Object Sharing Scenario Test ===
+After sharing: 1
+Shared object phase: Shared
+After modification through ref1:
+  shared.phase: Modified
+  ref2.phase: Modified
+  ref3.phase: Modified
+After clearing references: 1
+Original object still accessible: Modified

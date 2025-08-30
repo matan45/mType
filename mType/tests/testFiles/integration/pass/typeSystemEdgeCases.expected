@@ -1,0 +1,4 @@
+42 | 3.140000 | test | true | Mixed: 45.139999
+Int match | Float compare | String match | Bool true
+Both positive
+String or bool condition met

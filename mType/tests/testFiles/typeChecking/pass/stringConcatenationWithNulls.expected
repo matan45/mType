@@ -1,0 +1,27 @@
+Testing direct null concatenation:
+"Hello " + toString(null) = Hello null
+toString(null) + " World" = null World
+Complex null concatenation: Object: null (end)
+Conditional null: Selected object: null
+Ternary null check: Value: null
+Multiple nulls: null and null
+Function chain with null: Function result: null
+Null concatenation in loops:
+Item 0: unknown
+Item 1: null
+Item 2: unknown
+Accumulated string: Start null Middle null End
+Method with null: Processed: null
+Method combining null and valid: null combined with unknown
+Nested concatenation: Outer: Inner: null with nested:50
+Mixed types with null: Mixed: 42, null, true, 3.140000
+Safe null handling: Object is null: null
+Switch-like null processing:
+Type: null object - null
+Type: valid object - switch:123
+Static method with null: [null]
+Static method with prefix and null: PREFIX:null
+Null array concatenation: Array: null
+Container with null inner: Container test: Container holding: null
+Null container object: Null container: null
+String concatenation with null objects test completed successfully

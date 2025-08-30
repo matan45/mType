@@ -1,0 +1,15 @@
+=== Circular Reference Cleanup Test ===
+Before cleanup: Allocated: 30, Released: 0
+After explicit cleanup: Allocated: 30, Released: 30
+Circular references broken
+=== Nested Object Cleanup Test ===
+Inner scope resources: Inner1: 50 units, Inner2: 25 units
+Back to outer scope: Outer: 100 units
+Final resource stats: Allocated: 175, Released: 150
+=== Object Reassignment Cleanup Test ===
+Original manager: Original: 75 units
+After reassignment: Replacement: 150 units
+After null assignment - Stats: Allocated: 225, Released: 0
+=== Exception Safe Cleanup Test ===
+Before potential exception: Allocated: 500, Released: 0
+After exception handling: Allocated: 500, Released: 500
