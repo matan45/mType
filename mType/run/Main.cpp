@@ -6,6 +6,7 @@
 #include "../tests/suites/NameSpaceTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
+#include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -51,6 +52,9 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName) {
     else if (suiteName == "type" || suiteName == "typechecking") {
         return std::make_unique<TypeCheckingTestSuite>();
     }
+    else if (suiteName == "native") {
+        return std::make_unique<NativeTest>();
+    }
     return nullptr;
 }
 
@@ -63,6 +67,7 @@ void printAvailableTestSuites() {
     std::cout << "  namespace    - Namespace Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
+    std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName) {
@@ -75,6 +80,16 @@ void runSpecificTestSuite(const std::string& suiteName) {
     
     std::cout << "Running " << suite->getName() << "...\n\n";
     suite->setupTests();
+    
+    // Special handling for NativeTest since it has a custom run method
+    if (suiteName == "native") {
+        auto nativeTest = dynamic_cast<NativeTest*>(suite.get());
+        if (nativeTest) {
+            nativeTest->run();  // Call the custom run method
+            return;
+        }
+    }
+    
     suite->run();
 }
 
@@ -90,6 +105,7 @@ void runAllTests()
     suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
+    suites.push_back(std::make_unique<NativeTest>());
 
     for (auto& suite : suites)
     {

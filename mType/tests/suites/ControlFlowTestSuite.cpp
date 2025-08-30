@@ -27,8 +27,8 @@ namespace tests::testSuite
                         passPath + "continueStatement.mt");
         addOutputVerificationTest("Nested Loops with Break Continue",
                         passPath + "nestedLoopsWithBreakContinue.mt");
-        /*addOutputVerificationTest("Nested Loop Break Continue Limits",
-                        passPath + "nestedLoopBreakContinueLimits.mt");*/
+        addTestFromFile("Nested Loop Break Continue Limits",
+                        passPath + "nestedLoopBreakContinueLimits.mt");
 
         // Final variables tests
         addOutputVerificationTest("Final Variables",

@@ -822,7 +822,8 @@ namespace evaluator
         
         return false; // Different types or unsupported comparison
     }
-    
+
+    //TODO move it
     ValueType StatementEvaluator::getValueType(const Value& value)
     {
         if (std::holds_alternative<int>(value)) {
