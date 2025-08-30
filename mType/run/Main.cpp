@@ -10,7 +10,6 @@
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
-#include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
 
@@ -30,35 +29,41 @@ using namespace evaluator;
 using namespace environment;
 
 
-std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName) {
-    if (suiteName == "control" || suiteName == "controlflow") {
+std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
+{
+    if (suiteName == "control" || suiteName == "controlflow")
+    {
         return std::make_unique<ControlFlowTestSuite>();
     }
-    else if (suiteName == "import" || suiteName == "imports") {
+    else if (suiteName == "import" || suiteName == "imports")
+    {
         return std::make_unique<ImportTestSuite>();
     }
-    else if (suiteName == "class" || suiteName == "classes") {
+    else if (suiteName == "class" || suiteName == "classes")
+    {
         return std::make_unique<ClassTestSuite>();
     }
-    else if (suiteName == "error" || suiteName == "errors") {
+    else if (suiteName == "error" || suiteName == "errors")
+    {
         return std::make_unique<ErrorTestSuite>();
     }
-    else if (suiteName == "namespace" || suiteName == "namespaces") {
+    else if (suiteName == "namespace" || suiteName == "namespaces")
+    {
         return std::make_unique<NameSpaceTestSuite>();
     }
-    else if (suiteName == "integration") {
+    else if (suiteName == "integration")
+    {
         return std::make_unique<IntegrationTestSuite>();
     }
-    else if (suiteName == "type" || suiteName == "typechecking") {
+    else if (suiteName == "type" || suiteName == "typechecking")
+    {
         return std::make_unique<TypeCheckingTestSuite>();
-    }
-    else if (suiteName == "native") {
-        return std::make_unique<NativeTest>();
     }
     return nullptr;
 }
 
-void printAvailableTestSuites() {
+void printAvailableTestSuites()
+{
     std::cout << "Available test suites:\n";
     std::cout << "  control      - Control Flow Test Suite\n";
     std::cout << "  import       - Import Test Suite\n";
@@ -70,26 +75,30 @@ void printAvailableTestSuites() {
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
-void runSpecificTestSuite(const std::string& suiteName) {
+void runSpecificTestSuite(const std::string& suiteName)
+{
+    // Handle native test separately since it doesn't inherit from TestSuite
+    if (suiteName == "native")
+    {
+        std::cout << "Running Native C++ Integration Test Suite...\n\n";
+        auto nativeTest = std::make_unique<NativeTest>();
+        nativeTest->setupTests();
+        nativeTest->runCustomTests();
+        return;
+    }
+    
     auto suite = createTestSuite(suiteName);
-    if (!suite) {
+    if (!suite)
+    {
         std::cout << "Unknown test suite: " << suiteName << "\n\n";
         printAvailableTestSuites();
         return;
     }
-    
+
     std::cout << "Running " << suite->getName() << "...\n\n";
     suite->setupTests();
-    
-    // Special handling for NativeTest since it has a custom run method
-    if (suiteName == "native") {
-        auto nativeTest = dynamic_cast<NativeTest*>(suite.get());
-        if (nativeTest) {
-            nativeTest->run();  // Call the custom run method
-            return;
-        }
-    }
-    
+
+
     suite->run();
 }
 
@@ -105,15 +114,19 @@ void runAllTests()
     suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
-    suites.push_back(std::make_unique<NativeTest>());
 
     for (auto& suite : suites)
     {
-        suite->setupTests();  // Initialize test cases
-        suite->run();         // Run tests and generate reports
-        
+        suite->setupTests(); // Initialize test cases
+        suite->run(); // Run tests and generate reports
     }
     
+    // Run native tests separately
+    std::cout << "\nRunning Native C++ Integration Test Suite...\n";
+    auto nativeTest = std::make_unique<NativeTest>();
+    nativeTest->setupTests();
+    nativeTest->runCustomTests();
+
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;
     std::cout << "ALL TEST SUITES COMPLETED" << std::endl;
@@ -124,18 +137,21 @@ void runAllTests()
 
 int main(int argc, char* argv[])
 {
-    if (argc == 2 && std::string(argv[1]) == "--tests") {
+    if (argc == 2 && std::string(argv[1]) == "--tests")
+    {
         runAllTests();
         return 0;
     }
-    
-    if (argc == 3 && std::string(argv[1]) == "--test") {
+
+    if (argc == 3 && std::string(argv[1]) == "--test")
+    {
         std::string suiteName = argv[2];
         runSpecificTestSuite(suiteName);
         return 0;
     }
-    
-    if (argc == 2 && std::string(argv[1]) == "--help") {
+
+    if (argc == 2 && std::string(argv[1]) == "--help")
+    {
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>     - Run a script file\n";
         std::cout << "  " << argv[0] << " --tests             - Run all test suites\n";
@@ -144,20 +160,23 @@ int main(int argc, char* argv[])
         printAvailableTestSuites();
         return 0;
     }
-    
-    if (argc != 2) {
+
+    if (argc != 2)
+    {
         std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
         std::cout << "Use --help for detailed usage information" << std::endl;
         return 1;
     }
 
     std::string filename = argv[1];
-    
-    try {
+
+    try
+    {
         ScriptInterpreter interpreter;
         interpreter.runScript(filename);
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }

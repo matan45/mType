@@ -27,6 +27,8 @@ namespace tests::testSuite
                         passPath + "recursiveNamespaceClassInteractions.mt");
         addTestFromFile("Concurrent Namespace and Class Modifications",
                         passPath + "concurrentNamespaceAndClassModifications.mt");
+        addTestFromFile("Return Types with Namespaces",
+                        passPath + "returnWithNamespace.mt");
         
         // Edge Cases and Potential Bugs tests
         addTestFromFile("Circular Namespace References",

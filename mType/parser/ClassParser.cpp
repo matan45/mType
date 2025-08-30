@@ -446,15 +446,63 @@ namespace parser
             {
                 parser.advanceToken();
                 TokenType returnTokenType = parser.getCurrentToken().type;
-                if (returnTokenType == TokenType::INT) returnType = ValueType::INT;
-                else if (returnTokenType == TokenType::FLOAT) returnType = ValueType::FLOAT;
-                else if (returnTokenType == TokenType::BOOL) returnType = ValueType::BOOL;
-                else if (returnTokenType == TokenType::STRING_TYPE) returnType = ValueType::STRING;
-                else if (returnTokenType == TokenType::VOID) returnType = ValueType::VOID;
-                else if (returnTokenType == TokenType::IDENTIFIER) returnType = ValueType::OBJECT;
-                else throw ParseException("Expected return type", parser.getCurrentToken().location);
-                
-                parser.advanceToken();
+                if (returnTokenType == TokenType::INT)
+                {
+                    returnType = ValueType::INT;
+                    parser.advanceToken();
+                }
+                else if (returnTokenType == TokenType::FLOAT)
+                {
+                    returnType = ValueType::FLOAT;
+                    parser.advanceToken();
+                }
+                else if (returnTokenType == TokenType::BOOL)
+                {
+                    returnType = ValueType::BOOL;
+                    parser.advanceToken();
+                }
+                else if (returnTokenType == TokenType::STRING_TYPE)
+                {
+                    returnType = ValueType::STRING;
+                    parser.advanceToken();
+                }
+                else if (returnTokenType == TokenType::VOID)
+                {
+                    returnType = ValueType::VOID;
+                    parser.advanceToken();
+                }
+                else if (returnTokenType == TokenType::IDENTIFIER)
+                {
+                    std::string typeName = parser.getCurrentToken().stringValue;
+                    parser.advanceToken();
+
+                    // Handle qualified names like geometry::Point
+                    while (parser.getCurrentToken().type == TokenType::SCOPE)
+                    {
+                        parser.advanceToken();
+                        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                        {
+                            throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                        }
+                        typeName += "::" + parser.getCurrentToken().stringValue;
+                        parser.advanceToken();
+                    }
+
+                    if (typeName == "int") returnType = ValueType::INT;
+                    else if (typeName == "float") returnType = ValueType::FLOAT;
+                    else if (typeName == "string") returnType = ValueType::STRING;
+                    else if (typeName == "bool") returnType = ValueType::BOOL;
+                    else if (typeName == "void") returnType = ValueType::VOID;
+                    else
+                    {
+                        // Treat unknown identifier types as custom class types (OBJECT)
+                        returnType = ValueType::OBJECT;
+                    }
+                }
+                else
+                {
+                    throw ParseException("Expected return type after ':'", parser.getCurrentToken().location);
+                }
             }
             
             // Parse method body
