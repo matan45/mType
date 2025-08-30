@@ -61,6 +61,10 @@ namespace tests::testSuite
                         errorPath + "runtimeNullPointerDereference.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Missing new Operator For Object Creation",
+                        errorPath + "missingNew.mt",
+                        TestType::ERROR_EXPECTED);
+
         // Type error tests (expected to fail)
         addTestFromFile("Type Assignment Mismatch Error",
                         errorPath + "typeAssignmentMismatch.mt",
