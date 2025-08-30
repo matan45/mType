@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <utility>
+#include <memory>
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
@@ -17,7 +18,7 @@ namespace runtimeTypes::klass
         ValueType returnType;
         std::vector<std::pair<std::string, ValueType>> parameters;
         std::vector<std::pair<std::string, Value>> arguments;
-        ASTNode* body;
+        std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
         bool isFinalMethod;
 
@@ -25,7 +26,7 @@ namespace runtimeTypes::klass
         explicit MethodDefinition(const std::string& n, ValueType rt,
                          const std::vector<std::pair<std::string, ValueType>>& params,
                          const std::vector<std::pair<std::string, Value>>&args,
-                         ASTNode* b, bool s, bool f)
+                         std::shared_ptr<ASTNode> b, bool s, bool f)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
               isFinalMethod(f)
         {
@@ -39,8 +40,8 @@ namespace runtimeTypes::klass
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
         void setParameters(const std::vector<std::pair<std::string, ValueType>>& params) { parameters = params; }
         
-        ASTNode* getBody() const { return body; }
-        void setBody(ASTNode* b) { body = b; }
+        ASTNode* getBody() const { return body.get(); }
+        void setBody(std::shared_ptr<ASTNode> b) { body = b; }
         
         bool isStatic() const { return isStaticMethod; }
         void setStatic(bool s) { isStaticMethod = s; }

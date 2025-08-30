@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <memory>
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
@@ -15,11 +16,11 @@ namespace runtimeTypes::klass
     {
     private:
         std::vector<std::pair<std::string, ValueType>> parameters;
-        ASTNode* body;
-        ASTNode* initializerList;  // For member initialization
+        std::shared_ptr<ASTNode> body;
+        std::shared_ptr<ASTNode> initializerList;  // For member initialization
       public:
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ValueType>>& params, 
-                             ASTNode* b)
+                             std::shared_ptr<ASTNode> b)
             : Definition("constructor"), parameters(params), body(b),
               initializerList(nullptr) {}
         
@@ -27,12 +28,12 @@ namespace runtimeTypes::klass
         
         // Getter methods
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
-        ASTNode* getBody() const { return body; }
-        ASTNode* getInitializerList() const { return initializerList; }
+        ASTNode* getBody() const { return body.get(); }
+        ASTNode* getInitializerList() const { return initializerList.get(); }
         size_t getParameterCount() const { return parameters.size(); }
         
         // Setter methods
-        void setBody(ASTNode* b) { body = b; }
-        void setInitializerList(ASTNode* init) { initializerList = init; }
+        void setBody(std::shared_ptr<ASTNode> b) { body = b; }
+        void setInitializerList(std::shared_ptr<ASTNode> init) { initializerList = init; }
     };
 }

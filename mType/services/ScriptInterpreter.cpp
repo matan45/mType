@@ -490,37 +490,74 @@ namespace services
             throw std::runtime_error("Static method not found: " + classDef->getName() + "::" + methodName);
         }
         
+        // Enter the namespace context for proper evaluation
+        auto classNamespace = classDef->getNamespaceContext();
+        bool enteredNamespace = false;
+        if (!classNamespace.empty()) {
+            environment->enterNamespace(classNamespace);
+            enteredNamespace = true;
+        }
+        
         // Set up method scope
         environment->enterScope(classDef->getName() + "::" + methodName, environment::ScopeType::FUNCTION);
         
-        // Bind parameters
-        auto params = method->getParameters();
-        if (params.size() != args.size()) {
-            environment->exitScope();
-            throw std::runtime_error("Method parameter count mismatch for " + classDef->getName() + "::" + methodName);
-        }
-        
-        for (size_t i = 0; i < params.size(); ++i) {
-            auto paramVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                params[i].first, params[i].second, false, false);
-            paramVar->setValue(args[i]);
-            environment->declareVariable(params[i].first, paramVar);
-        }
-        
-        // Execute method body
-        value::Value result = std::monostate{}; // void
-        if (method->getBody()) {
-            result = evaluator->evaluate(method->getBody());
-            
-            // Check if there was a return value
-            if (evaluator->shouldReturn()) {
-                result = evaluator->getReturnValue();
-                evaluator->setReturned(false); // Reset return state
+        try {
+            // Bind parameters
+            auto params = method->getParameters();
+            if (params.size() != args.size()) {
+                throw std::runtime_error("Method parameter count mismatch for " + classDef->getName() + "::" + methodName);
             }
+            
+            for (size_t i = 0; i < params.size(); ++i) {
+                auto paramVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    params[i].first, params[i].second, false, false);
+                paramVar->setValue(args[i]);
+                environment->declareVariable(params[i].first, paramVar);
+            }
+            
+            // Execute method body
+            value::Value result = std::monostate{}; // void
+            if (method->getBody()) {
+                // Save the current return state to isolate method execution
+                bool savedReturnState = evaluator->shouldReturn();
+                
+                try {
+                    result = evaluator->evaluate(method->getBody());
+                    
+                    // Check if there was a return value
+                    if (evaluator->shouldReturn()) {
+                        result = evaluator->getReturnValue();
+                    }
+                    
+                    // Restore the previous return state
+                    evaluator->setReturned(savedReturnState);
+                    
+                } catch (const std::exception& evalException) {
+                    // Restore return state even on exception
+                    evaluator->setReturned(savedReturnState);
+                    throw;
+                } catch (...) {
+                    // Restore return state even on exception
+                    evaluator->setReturned(savedReturnState);
+                    throw;
+                }
+            }
+            
+            // Clean up and return
+            environment->exitScope();
+            if (enteredNamespace) {
+                environment->exitNamespace();
+            }
+            return result;
         }
-        
-        environment->exitScope();
-        return result;
+        catch (...) {
+            // Clean up on exception
+            environment->exitScope();
+            if (enteredNamespace) {
+                environment->exitNamespace();
+            }
+            throw;
+        }
     }
     
     // Native function object creation helpers

@@ -26,7 +26,9 @@ namespace evaluator
         if (!node) {
             return std::monostate{};
         }
-        return node->accept(*this);
+        
+        Value result = node->accept(*this);
+        return result;
     }
 
     Value Evaluator::getReturnValue()

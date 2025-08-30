@@ -55,12 +55,15 @@ namespace evaluator
             auto methodNode = dynamic_cast<MethodNode*>(methodPtr.get());
             if (!methodNode) continue;
             
+            // Transfer ownership of AST body from MethodNode to MethodDefinition via shared_ptr
+            auto bodyPtr = std::shared_ptr<ASTNode>(methodNode->releaseBody());
+            
             auto methodDef = std::make_shared<MethodDefinition>(
                 methodNode->getName(),
                 methodNode->getReturnType(),
                 methodNode->getParameters(),
                 std::vector<std::pair<std::string, Value>>{}, // empty arguments
-                methodNode->getBody(),
+                bodyPtr,
                 methodNode->getIsStatic(),
                 false // not final
             );
@@ -73,9 +76,12 @@ namespace evaluator
             auto constructorNode = dynamic_cast<ConstructorNode*>(constructorPtr.get());
             if (!constructorNode) continue;
             
+            // Transfer ownership of AST body from ConstructorNode to ConstructorDefinition via shared_ptr
+            auto bodyPtr = std::shared_ptr<ASTNode>(constructorNode->releaseBody());
+            
             auto ctorDef = std::make_shared<ConstructorDefinition>(
                 constructorNode->getParameters(),
-                constructorNode->getBody()
+                bodyPtr
             );
             
             classDef->addConstructor(ctorDef);
@@ -85,8 +91,20 @@ namespace evaluator
         auto namespacePath = env->getCurrentNamespacePath();
         classDef->setNamespaceContext(namespacePath);
         
-        // Register class
-        env->registerClass(node->getClassName(), classDef);
+        // Register class using explicit namespace path to ensure consistency
+        if (namespacePath.empty()) {
+            // Register in global scope
+            auto classRegistry = env->getClassRegistry();
+            if (classRegistry) {
+                classRegistry->registerClass(node->getClassName(), classDef);
+            }
+        } else {
+            // Register in namespace
+            auto classRegistry = env->getClassRegistry();
+            if (classRegistry) {
+                classRegistry->registerClassInNamespace(namespacePath, node->getClassName(), classDef);
+            }
+        }
         
         return std::monostate{};
     }
