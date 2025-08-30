@@ -152,10 +152,13 @@ namespace evaluator
                 ValueType actualType = getValueType(initialValue);
                 ValueType declaredType = node->getVariableType();
                 
-                // Allow null assignment to any type, but check other type mismatches
+                // Allow null assignment to any type, and int to float conversion
                 if (actualType != ValueType::NULL_TYPE && actualType != declaredType) {
-                    throw EnvironmentException("Type mismatch: cannot assign " + valueTypeToString(actualType) + 
-                                             " to variable of type " + valueTypeToString(declaredType), node->getLocation());
+                    // Allow int to float conversion
+                    if (!(actualType == ValueType::INT && declaredType == ValueType::FLOAT)) {
+                        throw EnvironmentException("Type mismatch: cannot assign " + valueTypeToString(actualType) + 
+                                                 " to variable of type " + valueTypeToString(declaredType), node->getLocation());
+                    }
                 }
                 
                 // For object types, also check class compatibility
@@ -325,6 +328,45 @@ namespace evaluator
             }
             
             Value newValue = mainEvaluator->evaluate(node->getValue());
+            
+            // Type checking: verify that the new value matches the variable's declared type
+            ValueType actualType = getValueType(newValue);
+            ValueType declaredType = varDef->getType();
+            
+            // Allow null assignment to any type, and int to float conversion
+            if (actualType != ValueType::NULL_TYPE && actualType != declaredType) {
+                // Allow int to float conversion
+                if (!(actualType == ValueType::INT && declaredType == ValueType::FLOAT)) {
+                    throw TypeException("Type mismatch: cannot assign " + valueTypeToString(actualType) + 
+                                       " to variable of type " + valueTypeToString(declaredType), node->getLocation());
+                }
+            }
+            
+            // For object types, also check class compatibility
+            if (actualType == ValueType::OBJECT && declaredType == ValueType::OBJECT) {
+                // Get the current object instance from the variable (what it's currently storing)
+                Value currentValue = varDef->getValue();
+                
+                if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue) &&
+                    std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(currentValue)) {
+                    
+                    auto newObjInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
+                    auto currentObjInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(currentValue);
+                    
+                    if (newObjInstance && currentObjInstance) {
+                        std::string actualClassName = newObjInstance->getClassDefinition()->getFullyQualifiedName();
+                        std::string declaredClassName = currentObjInstance->getClassDefinition()->getFullyQualifiedName();
+                        
+                        // Check if classes match (exact match for now - could be extended for inheritance)
+                        if (actualClassName != declaredClassName) {
+                            throw TypeException("Type mismatch: cannot assign object of type '" + actualClassName + 
+                                               "' to variable of type '" + declaredClassName + "'", node->getLocation());
+                        }
+                    }
+                }
+                // If either is null, allow the assignment (null can be assigned to any object type)
+            }
+            
             varDef->setValue(newValue);
             
             return newValue;
@@ -807,7 +849,7 @@ namespace evaluator
         
         return ValueType::VOID; // Default fallback
     }
-    
+    //TODO move it
     std::string StatementEvaluator::valueTypeToString(ValueType type)
     {
         switch (type) {

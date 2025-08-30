@@ -107,5 +107,8 @@ namespace evaluator
         // Helper to call method directly on an instance
         Value callMethodOnInstance(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance, 
                                    const std::string& methodName, const std::vector<Value>& args);
+        
+        // Getter for StatementEvaluator to access helper functions
+        StatementEvaluator* getStatementEvaluator() const;
     };
 }

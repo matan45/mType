@@ -1,5 +1,6 @@
 ﻿#include "ObjectEvaluator.hpp"
 #include "Evaluator.hpp"
+#include "StatementEvaluator.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
@@ -163,6 +164,28 @@ namespace evaluator
         // Bind constructor parameters
         for (size_t i = 0; i < args.size(); ++i) {
             const auto& param = constructor->getParameters()[i];
+            
+            // Type checking: verify argument type matches parameter type
+            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
+            ValueType parameterType = param.second;
+            
+            // Type checking with specific rules
+            if (actualType != parameterType) {
+                // Allow int to float conversion
+                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
+                    // This is allowed
+                }
+                // Allow null assignment only to object types
+                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
+                    // This is allowed
+                }
+                else {
+                    throw errors::TypeException("Type mismatch in constructor for class '" + classDef->getName() + "': parameter '" + 
+                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
+                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), node->getLocation());
+                }
+            }
+            
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,   // parameter name
                 param.second,  // parameter type
@@ -361,6 +384,28 @@ namespace evaluator
         // Bind parameters
         for (size_t i = 0; i < args.size(); ++i) {
             const auto& param = method->getParameters()[i];
+            
+            // Type checking: verify argument type matches parameter type
+            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
+            ValueType parameterType = param.second;
+            
+            // Type checking with specific rules
+            if (actualType != parameterType) {
+                // Allow int to float conversion
+                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
+                    // This is allowed
+                }
+                // Allow null assignment only to object types
+                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
+                    // This is allowed
+                }
+                else {
+                    throw errors::TypeException("Type mismatch in method '" + methodName + "' of class '" + object->getClassDefinition()->getName() + "': parameter '" + 
+                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
+                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), SourceLocation{});
+                }
+            }
+            
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,   // parameter name
                 param.second,  // parameter type

@@ -310,4 +310,9 @@ namespace evaluator
     {
         return objEvaluator->callMethod(instance, methodName, args);
     }
+    
+    StatementEvaluator* Evaluator::getStatementEvaluator() const
+    {
+        return stmtEvaluator.get();
+    }
 }

@@ -1,6 +1,7 @@
 ﻿#include "ClassRegistry.hpp"
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 namespace environment::registry
 {
@@ -121,6 +122,7 @@ namespace environment::registry
             nsPath = oss.str();
         }
         
+        
         auto nsIt = namespacedClasses.find(nsPath);
         if (nsIt != namespacedClasses.end())
         {
@@ -128,6 +130,45 @@ namespace environment::registry
             if (classIt != nsIt->second.end())
             {
                 return classIt->second;
+            }
+        }
+        
+        // Enhanced fallback: try to find the class across all registered namespaced classes  
+        // This helps when there are namespace resolution issues due to using directives
+        if (!namespacePath.empty())
+        {
+            // First try exact match
+            for (const auto& [registeredNsPath, classMap] : namespacedClasses)
+            {
+                if (registeredNsPath == nsPath)
+                {
+                    auto classIt = classMap.find(className);
+                    if (classIt != classMap.end())
+                    {
+                        return classIt->second;
+                    }
+                }
+            }
+            
+            // If no exact match, try to find classes that end with our target namespace
+            // This handles cases where class was registered under "storage::processing" 
+            // but we're looking for "processing"
+            for (const auto& [registeredNsPath, classMap] : namespacedClasses)
+            {
+                if (registeredNsPath != nsPath && registeredNsPath.length() > nsPath.length())
+                {
+                    // Check if registered path ends with "::" + our target namespace
+                    std::string suffix = "::" + nsPath;
+                    if (registeredNsPath.length() >= suffix.length() &&
+                        registeredNsPath.substr(registeredNsPath.length() - suffix.length()) == suffix)
+                    {
+                        auto classIt = classMap.find(className);
+                        if (classIt != classMap.end())
+                        {
+                            return classIt->second;
+                        }
+                    }
+                }
             }
         }
         

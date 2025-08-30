@@ -8,7 +8,7 @@ string empty = "";
 string notEmpty = "content";
 
 // Test empty string initialization
-print("Empty string length: " + toString(strlen(empty)));
+print("Empty string length: " + toString(str::length(empty)));
 print("Empty string is empty: " + toString(empty == ""));
 print("Empty string is not null: " + toString(empty != null));
 
@@ -16,7 +16,7 @@ print("Empty string is not null: " + toString(empty != null));
 print("\nTesting empty string concatenation:");
 
 string result1 = empty + empty;
-print("Empty + Empty = '" + result1 + "' (length: " + toString(strlen(result1)) + ")");
+print("Empty + Empty = '" + result1 + "' (length: " + toString(str::length(result1)) + ")");
 
 string result2 = empty + notEmpty;
 print("Empty + NotEmpty = '" + result2 + "'");
@@ -35,7 +35,7 @@ print("\nTesting compound assignment with empty strings:");
 
 string accumulated = "";
 accumulated += "";
-print("After += empty: '" + accumulated + "' (length: " + toString(strlen(accumulated)) + ")");
+print("After += empty: '" + accumulated + "' (length: " + toString(str::length(accumulated)) + ")");
 
 accumulated += "first";
 print("After += 'first': '" + accumulated + "'");
@@ -101,15 +101,15 @@ for (int i = 0; i < 3; i++) {
 }
 print("Loop result with empty: '" + loopResult + "'");
 
-// Test 7: Empty string with strlen function
-print("\nTesting strlen function with various strings:");
+// Test 7: Empty string with str::length function
+print("\nTesting str::length function with various strings:");
 
-print("strlen(''): " + toString(strlen("")));
-print("strlen('a'): " + toString(strlen("a")));
-print("strlen('hello'): " + toString(strlen("hello")));
-print("strlen(' '): " + toString(strlen(" ")));
-print("strlen('\\t'): " + toString(strlen("\t")));
-print("strlen('\\n'): " + toString(strlen("\n")));
+print("str::length(''): " + toString(str::length("")));
+print("str::length('a'): " + toString(str::length("a")));
+print("str::length('hello'): " + toString(str::length("hello")));
+print("str::length(' '): " + toString(str::length(" ")));
+print("str::length('\\t'): " + toString(str::length("\t")));
+print("str::length('\\n'): " + toString(str::length("\n")));
 
 // Test 8: Empty string in conditional expressions
 print("\nTesting empty strings in conditional expressions:");
@@ -118,7 +118,7 @@ string conditionalResult = empty == "" ? "was empty" : "not empty";
 print("Ternary with empty: " + conditionalResult);
 
 string value = "";
-string conditionalResult2 = strlen(value) == 0 ? "zero length" : "has content";
+string conditionalResult2 = str::length(value) == 0 ? "zero length" : "has content";
 print("Length check: " + conditionalResult2);
 
 // Test 9: Empty string with whitespace variations
@@ -211,7 +211,7 @@ print("\nTesting empty string with special characters:");
 
 string beforeSpecial = "";
 string afterSpecial = beforeSpecial + "x";  // Add a regular character
-print("Empty + 'x' length: " + toString(strlen(afterSpecial)));
+print("Empty + 'x' length: " + toString(str::length(afterSpecial)));
 
 string escapeEmpty = "";
 string withEscape = escapeEmpty + "\\";
@@ -255,7 +255,7 @@ function processEmptyVariations(string s): string {
         return "exactly empty";
     } else if (s == " ") {
         return "single space";
-    } else if (strlen(s) == 0) {
+    } else if (str::length(s) == 0) {
         return "zero length";  // Should never reach here after first check
     } else {
         return "has content: " + s;
