@@ -68,60 +68,12 @@ namespace tests::testSuite
         std::cout << "=== Native Test Suite ===" << std::endl;
         
         try {
-            // Load and execute the native example script 
-            std::cout << "Loading native example script..." << std::endl;
+            // Load and execute the native example script from file
+            std::cout << "Loading native example script from mType/tests/testFiles/native/nativeExample.mt..." << std::endl;
             
-            // Create a simple test script content directly
-            std::string scriptContent = R"(
-                namespace graphics {
-                    class Point {
-                        float x;
-                        float y;
-                        
-                        constructor(float px, float py) {
-                            x = px;
-                            y = py;
-                        }
-                        
-                        function getCoordinates(): string {
-                            return "Point coordinates work";
-                        }
-                        
-                        static function createOrigin(): graphics::Point {
-                            return new graphics::Point(0.0, 0.0);
-                        }
-                    }
-                }
-
-                namespace math {
-                    class Vector {
-                        float x;
-                        float y;
-                        float z;
-                        
-                        constructor(float vx, float vy, float vz) {
-                            x = vx;
-                            y = vy;
-                            z = vz;
-                        }
-                        
-                        function magnitude(): float {
-                            return 0.0;
-                        }
-                        
-                        static function zero(): math::Vector {
-                            return new math::Vector(0.0, 0.0, 0.0);
-                        }
-                    }
-                }
-
-                class University {
-                    static string universityName = "Tech University";
-                }
-            )";
-            
-            interpreter->runScriptContent(scriptContent);
-            std::cout << "Script loaded successfully." << std::endl;
+            // Use the actual nativeExample.mt file
+            interpreter->runScript("mType/tests/testFiles/native/nativeExample.mt");
+            std::cout << "Script loaded successfully from nativeExample.mt." << std::endl;
         }
         catch (const std::exception& e) {
             std::cout << "✗ Failed to load script: " << e.what() << std::endl;
@@ -230,8 +182,57 @@ namespace tests::testSuite
         
         std::cout << "Test 3 completed, moving to Test 4..." << std::endl;
         
-        // Test 4: Summary of fixes
-        std::cout << "\nTest 4: Namespace Operations Summary" << std::endl;
+        // Test 4: Additional functionality from nativeExample.mt
+        std::cout << "\nTest 4: Additional nativeExample.mt functionality" << std::endl;
+        try {
+            // Test MathUtils static methods
+            std::cout << "Step 4a: Testing MathUtils static methods..." << std::endl;
+            
+            try {
+                Value square25 = interpreter->callStaticMethod("MathUtils", "square", {5});
+                std::cout << "✓ MathUtils::square(5) = " << std::get<int>(square25) << std::endl;
+            }
+            catch (const exception::ReturnException& returnEx) {
+                if (std::holds_alternative<int>(returnEx.returnValue)) {
+                    int result = std::get<int>(returnEx.returnValue);
+                    std::cout << "✓ MathUtils::square(5) = " << result << std::endl;
+                }
+            }
+            
+            try {
+                Value opCount = interpreter->callStaticMethod("MathUtils", "getOperationCount", {});
+                std::cout << "✓ Operation count: " << std::get<int>(opCount) << std::endl;
+            }
+            catch (const exception::ReturnException& returnEx) {
+                if (std::holds_alternative<int>(returnEx.returnValue)) {
+                    int count = std::get<int>(returnEx.returnValue);
+                    std::cout << "✓ Operation count: " << count << std::endl;
+                }
+            }
+            
+            // Test StringUtils
+            std::cout << "Step 4b: Testing StringUtils static methods..." << std::endl;
+            try {
+                Value reversed = interpreter->callStaticMethod("StringUtils", "reverse", {std::string("hello")});
+                std::cout << "✓ StringUtils::reverse(\"hello\") = " << std::get<std::string>(reversed) << std::endl;
+            }
+            catch (const exception::ReturnException& returnEx) {
+                if (std::holds_alternative<std::string>(returnEx.returnValue)) {
+                    std::string result = std::get<std::string>(returnEx.returnValue);
+                    std::cout << "✓ StringUtils::reverse(\"hello\") = " << result << std::endl;
+                }
+            }
+            
+            std::cout << "✓ Additional nativeExample.mt functionality works!" << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cout << "✗ Exception in additional functionality test: " << e.what() << std::endl;
+        }
+        
+        std::cout << "Test 4 completed, moving to Test 5..." << std::endl;
+        
+        // Test 5: Summary of fixes
+        std::cout << "\nTest 5: Namespace Operations Summary" << std::endl;
         std::cout << "✅ FIXES IMPLEMENTED:" << std::endl;
         std::cout << "   - Fixed namespace class registration in ObjectEvaluator::evaluateClassNode()" << std::endl;
         std::cout << "   - Classes in namespace blocks now properly registered in namespacedClasses map" << std::endl;
