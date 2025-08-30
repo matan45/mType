@@ -131,6 +131,23 @@ namespace environment
     {
         if (!classRegistry) return nullptr;
         
+        // Check if this is a qualified name (contains ::)
+        if (name.find("::") != std::string::npos)
+        {
+            // Parse qualified name and use findQualifiedItem
+            std::vector<std::string> qualifiedParts;
+            size_t start = 0;
+            size_t pos = 0;
+            while ((pos = name.find("::", start)) != std::string::npos) {
+                qualifiedParts.push_back(name.substr(start, pos - start));
+                start = pos + 2;
+            }
+            qualifiedParts.push_back(name.substr(start));
+            
+            return classRegistry->findQualifiedItem(qualifiedParts);
+        }
+        
+        // Handle simple class name - first check current namespace
         auto namespacePath = getCurrentNamespacePath();
         if (!namespacePath.empty())
         {
@@ -140,6 +157,42 @@ namespace environment
             }
         }
         
+        // Then check using directives
+        if (namespaceManager)
+        {
+            const auto& usingDirs = namespaceManager->getUsingDirectives();
+            std::shared_ptr<ClassDefinition> foundClass = nullptr;
+            std::string foundInNamespace = "";
+            
+            for (const auto& usingPath : usingDirs)
+            {
+                if (auto cls = classRegistry->findClassInNamespace(usingPath, name))
+                {
+                    if (foundClass) {
+                        // Found a second match - this is ambiguous
+                        std::string currentNamespace = "";
+                        for (const auto& part : usingPath) {
+                            if (!currentNamespace.empty()) currentNamespace += "::";
+                            currentNamespace += part;
+                        }
+                        throw std::runtime_error("Ambiguous class reference: " + name + 
+                            " found in both " + foundInNamespace + " and " + currentNamespace);
+                    }
+                    foundClass = cls;
+                    foundInNamespace = "";
+                    for (const auto& part : usingPath) {
+                        if (!foundInNamespace.empty()) foundInNamespace += "::";
+                        foundInNamespace += part;
+                    }
+                }
+            }
+            
+            if (foundClass) {
+                return foundClass;
+            }
+        }
+        
+        // Finally check global scope
         return classRegistry->findClass(name);
     }
 

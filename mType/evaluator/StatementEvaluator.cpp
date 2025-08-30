@@ -167,14 +167,27 @@ namespace evaluator
                         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(initialValue)) {
                             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(initialValue);
                             if (objInstance) {
-                                actualClassName = objInstance->getTypeName();
+                                // Get the class definition and use its fully qualified name
+                                auto classDef = objInstance->getClassDefinition();
+                                if (classDef) {
+                                    actualClassName = classDef->getFullyQualifiedName();
+                                } else {
+                                    actualClassName = objInstance->getTypeName(); // fallback
+                                }
                             }
                         }
                         
+                        // Resolve declared class name to fully qualified name for comparison
+                        std::string resolvedDeclaredClassName = declaredClassName;
+                        auto declaredClassDef = env->findClass(declaredClassName);
+                        if (declaredClassDef) {
+                            resolvedDeclaredClassName = declaredClassDef->getFullyQualifiedName();
+                        }
+                        
                         // Check if classes match (exact match for now - could be extended for inheritance)
-                        if (!actualClassName.empty() && actualClassName != declaredClassName) {
+                        if (!actualClassName.empty() && actualClassName != resolvedDeclaredClassName) {
                             throw TypeException("Type mismatch: cannot assign object of type '" + actualClassName + 
-                                               "' to variable of type '" + declaredClassName + "'", node->getLocation());
+                                               "' to variable of type '" + resolvedDeclaredClassName + "'", node->getLocation());
                         }
                     }
                 }
@@ -236,7 +249,12 @@ namespace evaluator
                 if (field) {
                     // This is a field assignment
                     if (field->isFinal()) {
-                        throw TypeException("Cannot reassign final field: " + node->getVariableName(), node->getLocation());
+                        // Check if we're in constructor context - final fields can be assigned in constructors
+                        auto env = mainEvaluator->getEnvironment();
+                        auto constructorContextVar = env->findVariable("__in_constructor__");
+                        if (!constructorContextVar || !std::get<bool>(constructorContextVar->getValue())) {
+                            throw TypeException("Cannot reassign final field: " + node->getVariableName(), node->getLocation());
+                        }
                     }
                     
                     Value newValue = mainEvaluator->evaluate(node->getValue());
@@ -253,11 +271,35 @@ namespace evaluator
                 // Check if this might be a static field assignment
                 // When we're in a function scope, check if we can find a class with this static field
                 if (env->isInFunction()) {
-                    // Get function scope name to extract class name
+                    // First try to use the __current_class_name__ variable if available
+                    auto currentClassVar = env->findVariable("__current_class_name__");
+                    if (currentClassVar) {
+                        auto currentClassValue = currentClassVar->getValue();
+                        if (std::holds_alternative<std::string>(currentClassValue)) {
+                            std::string className = std::get<std::string>(currentClassValue);
+                            auto classDef = env->findClass(className);
+                            if (classDef) {
+                                auto field = classDef->getField(node->getVariableName());
+                                if (field && field->isStatic()) {
+                                    // This is a static field assignment
+                                    if (field->isFinal()) {
+                                        throw TypeException("Cannot reassign final static field: " + node->getVariableName(), node->getLocation());
+                                    }
+                                    
+                                    Value newValue = mainEvaluator->evaluate(node->getValue());
+                                    field->setValue(newValue);
+                                    return newValue;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback: Get function scope name to extract class name
                     std::string functionScope = env->getFunctionScopeName();
-                    size_t pos = functionScope.find("::");
-                    if (pos != std::string::npos) {
-                        std::string className = functionScope.substr(0, pos);
+                    size_t pos = functionScope.find_last_of("::");
+                    if (pos != std::string::npos && pos > 1) {
+                        // Extract everything before the last :: (which should be the method name)
+                        std::string className = functionScope.substr(0, pos - 1);
                         auto classDef = env->findClass(className);
                         if (classDef) {
                             auto field = classDef->getField(node->getVariableName());

@@ -88,16 +88,35 @@ namespace evaluator
             auto variableManager = env->getVariableManager();
             if (variableManager) {
                 auto varDef = variableManager->findVariableInNamespace(namespacePath, varName);
+                
+                // If not found with absolute path, try relative to current namespace
+                if (!varDef) {
+                    auto currentNamespacePath = env->getCurrentNamespacePath();
+                    if (!currentNamespacePath.empty()) {
+                        std::vector<std::string> relativeNamespacePath = currentNamespacePath;
+                        relativeNamespacePath.insert(relativeNamespacePath.end(), namespacePath.begin(), namespacePath.end());
+                        varDef = variableManager->findVariableInNamespace(relativeNamespacePath, varName);
+                    }
+                }
+                
                 if (varDef) {
                     return varDef->getValue();
                 }
             }
         }
         
-        // If not found as namespace variable, check if this is a static class field access (ClassName::fieldName)
-        if (qualifiedName.size() == 2) {
-            std::string className = qualifiedName[0];
-            std::string fieldName = qualifiedName[1];
+        // If not found as namespace variable, check if this is a static class field access
+        // This handles both simple (ClassName::fieldName) and qualified (namespace::ClassName::fieldName)
+        if (qualifiedName.size() >= 2) {
+            std::string fieldName = qualifiedName.back();
+            std::vector<std::string> classNameParts(qualifiedName.begin(), qualifiedName.end() - 1);
+            
+            // Join the class name parts with "::" to form qualified class name
+            std::string className = "";
+            for (size_t i = 0; i < classNameParts.size(); ++i) {
+                if (i > 0) className += "::";
+                className += classNameParts[i];
+            }
             
             // Find the class definition
             auto classDef = env->findClass(className);

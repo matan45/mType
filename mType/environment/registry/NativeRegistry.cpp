@@ -126,5 +126,21 @@ namespace environment::registry
                 }
             }, args[0]);
         });
+
+        // Add str namespace functions - register with qualified names
+        registerNativeFunction("str::length", [](const std::vector<Value>& args) -> Value {
+            if (args.size() != 1) {
+                throw std::runtime_error("str::length expects exactly 1 argument");
+            }
+            
+            return std::visit([](const auto& value) -> Value {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+                    return static_cast<int>(value.length());
+                }
+                else {
+                    throw std::runtime_error("str::length can only be called on strings");
+                }
+            }, args[0]);
+        });
     }
 }

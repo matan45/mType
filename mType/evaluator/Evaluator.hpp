@@ -103,5 +103,9 @@ namespace evaluator
         Value evaluateObjectMemberAssignment(MemberAssignmentNode* node);
         Value evaluateQualifiedNameAccess(QualifiedNameNode* node);
         Value evaluateQualifiedAssignment(QualifiedAssignmentNode* node);
+        
+        // Helper to call method directly on an instance
+        Value callMethodOnInstance(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance, 
+                                   const std::string& methodName, const std::vector<Value>& args);
     };
 }

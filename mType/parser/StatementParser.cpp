@@ -74,9 +74,35 @@ namespace parser
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
-                    // Pattern: "identifier::..." - treat as expression statement
-                    // This covers qualified function calls, qualified field access, etc.
-                    return parseExpressionStatement();
+                    // Pattern: "identifier::..." - could be qualified type or static method/field
+                    // We need to look ahead through the qualified name to see what follows
+                    
+                    // Count how many tokens we need to look ahead
+                    int lookAhead = 2; // Start at 2 (next is ::)
+                    while (true) {
+                        Token tok = parser.peekToken(lookAhead);
+                        if (tok.type == TokenType::IDENTIFIER) {
+                            lookAhead++;
+                            Token nextTok = parser.peekToken(lookAhead);
+                            if (nextTok.type == TokenType::SCOPE) {
+                                lookAhead++; // Continue through the qualified name
+                            } else {
+                                // End of qualified name, check what follows
+                                if (nextTok.type == TokenType::IDENTIFIER) {
+                                    // Pattern: Namespace::Class varName - this is a declaration
+                                    return parseDeclaration();
+                                } else {
+                                    // Pattern: Class::method() or Class::field - this is an expression
+                                    return parseExpressionStatement();
+                                }
+                            }
+                        } else {
+                            // Unexpected token in qualified name
+                            break;
+                        }
+                    }
+                    // Default to declaration if we can't determine
+                    return parseDeclaration();
                 } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();
@@ -140,6 +166,13 @@ namespace parser
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
+            // Special case: if we see a parenthesis after a qualified name,
+            // it's likely a static method call that was mistakenly routed here
+            if (parser.getCurrentToken().type == TokenType::LPAREN && !className.empty() && className.find("::") != std::string::npos) {
+                // This looks like a static method call (e.g., Class::method())
+                // We can't easily backtrack, so we'll throw a specific error
+                throw ParseException("Static method calls should be expressions, not declarations", parser.getCurrentToken().location);
+            }
             throw ParseException("Expected variable name", parser.getCurrentToken().location);
         }
 
@@ -598,5 +631,4 @@ namespace parser
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), nullptr);
     }
 
-    
 }

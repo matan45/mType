@@ -80,6 +80,10 @@ namespace evaluator
             classDef->addConstructor(ctorDef);
         }
         
+        // Set namespace context on the class definition
+        auto namespacePath = env->getCurrentNamespacePath();
+        classDef->setNamespaceContext(namespacePath);
+        
         // Register class
         env->registerClass(node->getClassName(), classDef);
         
@@ -137,11 +141,24 @@ namespace evaluator
                 " with " + std::to_string(args.size()) + " arguments", node->getLocation());
         }
         
+        // Save current namespace context and enter the class's namespace
+        auto savedNamespacePath = env->getCurrentNamespacePath();
+        auto classNamespace = classDef->getNamespaceContext();
+        if (!classNamespace.empty()) {
+            env->enterNamespace(classNamespace);
+        }
+        
         // Create scope for constructor execution
         env->enterScope(node->getClassName() + "::<constructor>", ScopeType::FUNCTION);
         
-        // Set current instance for 'this' access
+        // Save the current instance (if any) and set new instance for 'this' access
+        auto savedCurrentInstance = getCurrentInstance();
         setCurrentInstance(instance);
+        
+        // Mark that we're in constructor context for final field assignment
+        auto constructorContextVar = std::make_shared<VariableDefinition>(
+            "__in_constructor__", ValueType::BOOL, Value(true), true);
+        env->declareVariable("__in_constructor__", constructorContextVar);
         
         // Bind constructor parameters
         for (size_t i = 0; i < args.size(); ++i) {
@@ -160,13 +177,37 @@ namespace evaluator
             mainEvaluator->evaluate(constructor->getBody());
         }
         catch (...) {
-            clearCurrentInstance();
+            // Restore the saved current instance
+            setCurrentInstance(savedCurrentInstance);
             env->exitScope();
+            
+            // Restore namespace context
+            if (!classNamespace.empty()) {
+                env->exitNamespace();
+                if (!savedNamespacePath.empty()) {
+                    env->enterNamespace(savedNamespacePath);
+                }
+            }
+            
             throw;
         }
         
-        clearCurrentInstance();
+        // Restore the saved current instance
+        setCurrentInstance(savedCurrentInstance);
         env->exitScope();
+        
+        // Restore namespace context
+        if (!classNamespace.empty()) {
+            env->exitNamespace();
+            if (!savedNamespacePath.empty()) {
+                env->enterNamespace(savedNamespacePath);
+            } else {
+                // Ensure we're in global namespace - fix for scope stack imbalance
+                while (!env->getCurrentNamespacePath().empty()) {
+                    env->exitNamespace();
+                }
+            }
+        }
         
         return instance;
     }
@@ -304,9 +345,17 @@ namespace evaluator
         // Save the current return state to isolate method execution
         bool savedReturnState = mainEvaluator->shouldReturn();
         
+        // Save current namespace context and enter the class's namespace
+        auto savedNamespacePath = env->getCurrentNamespacePath();
+        auto classNamespace = object->getClassDefinition()->getNamespaceContext();
+        if (!classNamespace.empty()) {
+            env->enterNamespace(classNamespace);
+        }
+        
         env->enterScope(object->getClassDefinition()->getName() + "::" + methodName, ScopeType::FUNCTION);
         
-        // Set current instance
+        // Save previous instance and set current instance
+        auto savedInstance = getCurrentInstance();
         setCurrentInstance(object);
         
         // Bind parameters
@@ -338,15 +387,37 @@ namespace evaluator
             result = e.returnValue;
         }
         catch (...) {
-            clearCurrentInstance();
+            setCurrentInstance(savedInstance);
             env->exitScope();
+            
+            // Restore namespace context
+            if (!classNamespace.empty()) {
+                env->exitNamespace();
+                if (!savedNamespacePath.empty()) {
+                    env->enterNamespace(savedNamespacePath);
+                }
+            }
+            
             // Restore return state before throwing
             mainEvaluator->setReturned(savedReturnState);
             throw;
         }
         
-        clearCurrentInstance();
+        setCurrentInstance(savedInstance);
         env->exitScope();
+        
+        // Restore namespace context
+        if (!classNamespace.empty()) {
+            env->exitNamespace();
+            if (!savedNamespacePath.empty()) {
+                env->enterNamespace(savedNamespacePath);
+            } else {
+                // Ensure we're in global namespace - fix for scope stack imbalance
+                while (!env->getCurrentNamespacePath().empty()) {
+                    env->exitNamespace();
+                }
+            }
+        }
         
         // Restore the original return state to not affect outer context
         mainEvaluator->setReturned(savedReturnState);

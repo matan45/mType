@@ -60,6 +60,8 @@ namespace evaluator
         }
         
         auto env = mainEvaluator->getEnvironment();
+        
+        
         auto varDef = env->findVariable(node->getName());
         
         if (!varDef) {
@@ -72,12 +74,41 @@ namespace evaluator
                 }
             }
             
-            // Check if this might be a static field access (look in all classes)
-            // TODO: This is a simple implementation - ideally we'd track current class context
+            // Check if this might be a static field access
+            // First check if we're in a static method by looking for the current class name
             auto env = mainEvaluator->getEnvironment();
             auto classRegistry = env->getClassRegistry();
+            
+            // Check if we have a current class name stored (from static method execution)
+            auto currentClassVar = env->findVariable("__current_class_name__");
+            if (currentClassVar) {
+                auto currentClassValue = currentClassVar->getValue();
+                if (std::holds_alternative<std::string>(currentClassValue)) {
+                    std::string className = std::get<std::string>(currentClassValue);
+                    auto classDef = env->findClass(className);
+                    if (classDef) {
+                        auto field = classDef->getField(node->getName());
+                        if (field && field->isStatic()) {
+                            return field->getValue();
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: search all classes (for backward compatibility)
             auto allClassNames = classRegistry->getAllItemNames();
+            std::string currentClassName;
+            if (currentClassVar) {
+                auto currentClassValue = currentClassVar->getValue();
+                if (std::holds_alternative<std::string>(currentClassValue)) {
+                    currentClassName = std::get<std::string>(currentClassValue);
+                }
+            }
+            
             for (const auto& className : allClassNames) {
+                // Skip if we already checked this class above
+                if (!currentClassName.empty() && className == currentClassName) continue;
+                
                 auto classDef = classRegistry->findClass(className);
                 if (classDef) {
                     auto field = classDef->getField(node->getName());
@@ -266,6 +297,16 @@ namespace evaluator
                 auto functionRegistry = env->getFunctionRegistry();
                 auto functionDef = functionRegistry->findFunctionInNamespace(namespacePath, funcName);
                 
+                // If not found with absolute path, try relative to current namespace
+                if (!functionDef) {
+                    auto currentNamespacePath = env->getCurrentNamespacePath();
+                    if (!currentNamespacePath.empty()) {
+                        std::vector<std::string> relativeNamespacePath = currentNamespacePath;
+                        relativeNamespacePath.insert(relativeNamespacePath.end(), namespacePath.begin(), namespacePath.end());
+                        functionDef = functionRegistry->findFunctionInNamespace(relativeNamespacePath, funcName);
+                    }
+                }
+                
                 if (functionDef) {
                     // Found a namespace function - evaluate it
                     std::vector<Value> args;
@@ -335,6 +376,11 @@ namespace evaluator
                             env->exitNamespace();
                             if (!savedNamespacePath.empty()) {
                                 env->enterNamespace(savedNamespacePath);
+                            } else {
+                                // Ensure we're in global namespace - fix for scope stack imbalance
+                                while (!env->getCurrentNamespacePath().empty()) {
+                                    env->exitNamespace();
+                                }
                             }
                         }
                         // Reset return state since this was a function return, not a program return
@@ -348,6 +394,11 @@ namespace evaluator
                             env->exitNamespace();
                             if (!savedNamespacePath.empty()) {
                                 env->enterNamespace(savedNamespacePath);
+                            } else {
+                                // Ensure we're in global namespace - fix for scope stack imbalance
+                                while (!env->getCurrentNamespacePath().empty()) {
+                                    env->exitNamespace();
+                                }
                             }
                         }
                         mainEvaluator->setReturned(savedReturnState);
@@ -360,6 +411,11 @@ namespace evaluator
                         env->exitNamespace();
                         if (!savedNamespacePath.empty()) {
                             env->enterNamespace(savedNamespacePath);
+                        } else {
+                            // Ensure we're in global namespace - fix for scope stack imbalance
+                            while (!env->getCurrentNamespacePath().empty()) {
+                                env->exitNamespace();
+                            }
                         }
                     }
                     mainEvaluator->setReturned(savedReturnState);
@@ -368,10 +424,19 @@ namespace evaluator
                 }
             }
             
-            // If not found as namespace function, try as static method (for backward compatibility)
-            if (parts.size() == 2) {
-                std::string className = parts[0];
-                std::string methodName = parts[1];
+            // If not found as namespace function, try as static method
+            if (parts.size() >= 2) {
+                // For qualified static method calls: namespace::ClassName::methodName
+                // The last part is method name, everything else is the qualified class name
+                std::string methodName = parts.back();
+                std::vector<std::string> classNameParts(parts.begin(), parts.end() - 1);
+                
+                // Join the class name parts with "::" to form qualified class name
+                std::string className = "";
+                for (size_t i = 0; i < classNameParts.size(); ++i) {
+                    if (i > 0) className += "::";
+                    className += classNameParts[i];
+                }
                 
                 // Find the class definition
                 auto classDef = env->findClass(className);
@@ -406,9 +471,27 @@ namespace evaluator
             // Save the current return state to isolate method execution
             bool savedReturnState = mainEvaluator->shouldReturn();
             
+            // Save current namespace context and enter the class's namespace
+            auto savedNamespacePath = env->getCurrentNamespacePath();
+            auto classNamespace = classDef->getNamespaceContext();
+            if (!classNamespace.empty()) {
+                env->enterNamespace(classNamespace);
+            }
+            
             // Create new scope for method execution
             std::string scopeName = className + "::" + methodName;
             env->enterScope(scopeName, ScopeType::FUNCTION);
+            
+            // Store the current class name in a scope variable for static field access
+            // Since we've entered the namespace context, we need to store the unqualified class name
+            std::string unqualifiedClassName = className;
+            if (className.find("::") != std::string::npos) {
+                // Extract the last part (the actual class name without namespace)
+                unqualifiedClassName = className.substr(className.find_last_of("::") + 1);
+            }
+            auto currentClassVar = std::make_shared<VariableDefinition>(
+                "__current_class_name__", ValueType::STRING, Value(unqualifiedClassName), true);
+            env->declareVariable("__current_class_name__", currentClassVar);
             
             // Bind parameters to arguments
             for (size_t i = 0; i < args.size(); ++i) {
@@ -440,6 +523,20 @@ namespace evaluator
             }
             catch (...) {
                 env->exitScope();
+                
+                // Restore namespace context
+                if (!classNamespace.empty()) {
+                    env->exitNamespace();
+                    if (!savedNamespacePath.empty()) {
+                        env->enterNamespace(savedNamespacePath);
+                    } else {
+                        // Ensure we're in global namespace - fix for scope stack imbalance
+                        while (!env->getCurrentNamespacePath().empty()) {
+                            env->exitNamespace();
+                        }
+                    }
+                }
+                
                 // Restore return state before throwing
                 mainEvaluator->setReturned(savedReturnState);
                 throw;
@@ -447,10 +544,33 @@ namespace evaluator
             
             env->exitScope();
             
+            // Restore namespace context
+            if (!classNamespace.empty()) {
+                env->exitNamespace();
+                if (!savedNamespacePath.empty()) {
+                    env->enterNamespace(savedNamespacePath);
+                }
+            }
+            
             // Restore the original return state to not affect outer context
             mainEvaluator->setReturned(savedReturnState);
             
             return result;
+            }
+        }
+        
+        // First check if we're in a method context and this could be a method call
+        auto currentInstance = mainEvaluator->getCurrentInstance();
+        if (currentInstance) {
+            auto method = currentInstance->getClassDefinition()->getMethod(node->getFunctionName());
+            if (method && !method->isStatic()) {
+                // This is a method call on the current instance (recursive or other method call)
+                std::vector<Value> args;
+                for (auto& argNode : node->getArguments()) {
+                    args.push_back(mainEvaluator->evaluate(argNode.get()));
+                }
+                
+                return mainEvaluator->callMethodOnInstance(currentInstance, node->getFunctionName(), args);
             }
         }
         
@@ -528,6 +648,11 @@ namespace evaluator
                 env->exitNamespace();
                 if (!savedNamespacePath.empty()) {
                     env->enterNamespace(savedNamespacePath);
+                } else {
+                    // Ensure we're in global namespace - fix for scope stack imbalance
+                    while (!env->getCurrentNamespacePath().empty()) {
+                        env->exitNamespace();
+                    }
                 }
             }
             // Reset return state since this was a function return, not a program return
@@ -541,6 +666,11 @@ namespace evaluator
                 env->exitNamespace();
                 if (!savedNamespacePath.empty()) {
                     env->enterNamespace(savedNamespacePath);
+                } else {
+                    // Ensure we're in global namespace - fix for scope stack imbalance
+                    while (!env->getCurrentNamespacePath().empty()) {
+                        env->exitNamespace();
+                    }
                 }
             }
             throw;
@@ -552,6 +682,11 @@ namespace evaluator
             env->exitNamespace();
             if (!savedNamespacePath.empty()) {
                 env->enterNamespace(savedNamespacePath);
+            } else {
+                // Ensure we're in global namespace - fix for scope stack imbalance
+                while (!env->getCurrentNamespacePath().empty()) {
+                    env->exitNamespace();
+                }
             }
         }
         return result;

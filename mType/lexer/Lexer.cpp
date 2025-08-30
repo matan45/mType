@@ -221,12 +221,24 @@ namespace lexer
 
     Token Lexer::peekNextToken()
     {
+        return peekToken(1);
+    }
+    
+    Token Lexer::peekToken(int n)
+    {
+        if (n <= 0) {
+            throw std::runtime_error("peekToken: n must be positive");
+        }
+        
         size_t savedPos = pos;
         int savedLine = currentLine;
         int savedColumn = currentColumn;
         std::stack<char> savedStack = balanceStack;
 
-        Token token = getNextToken();
+        Token token;
+        for (int i = 0; i < n; ++i) {
+            token = getNextToken();
+        }
 
         pos = savedPos;
         currentLine = savedLine;

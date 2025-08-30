@@ -39,7 +39,6 @@ namespace parser
         // Helper methods
         ValueType parseType();
         std::vector<std::pair<std::string, ValueType>> parseParameterList();
-        bool isQualifiedDeclaration();
     };
 }
 

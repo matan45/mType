@@ -304,4 +304,10 @@ namespace evaluator
     {
         return objEvaluator->getCurrentInstance();
     }
+    
+    Value Evaluator::callMethodOnInstance(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance, 
+                                          const std::string& methodName, const std::vector<Value>& args)
+    {
+        return objEvaluator->callMethod(instance, methodName, args);
+    }
 }
