@@ -6,135 +6,180 @@
 #include "../tests/suites/NameSpaceTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
+#include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
-#include "../services/ImportManager.hpp"
-#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../environment/EnvironmentBuilder.hpp"
+#include "../services/ScriptInterpreter.hpp"
 
 #include <vector>
 #include <memory>
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <filesystem>
+
 
 using namespace tests::testSuite;
 using namespace tests::testFramework;
 using namespace parser;
 using namespace lexer;
 using namespace services;
+using namespace evaluator;
+using namespace environment;
 
-void printUsage(const std::string& programName) {
-    std::cout << "Usage:\n";
-    std::cout << "  " << programName << " [file.mt]  - Parse and test a specific .mt file\n";
-    std::cout << "  " << programName << " --tests    - Run all test suites\n";
-    std::cout << "  " << programName << "            - Run all test suites (default)\n";
-}
 
-void printASTNode(ast::ASTNode* node, int depth = 0) {
-    if (!node) return;
-    
-    std::string indent(depth * 2, ' ');
-    std::cout << indent << "- " << typeid(*node).name() << std::endl;
-    
-    // For program nodes, print their statements
-    if (auto program = dynamic_cast<ast::nodes::statements::ProgramNode*>(node)) {
-        for (const auto& stmt : program->getStatements()) {
-            printASTNode(stmt.get(), depth + 1);
-        }
+std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
+{
+    if (suiteName == "control" || suiteName == "controlflow")
+    {
+        return std::make_unique<ControlFlowTestSuite>();
     }
-}
-
-bool parseFile(const std::string& filePath) {
-    try {
-        // Check if file exists
-        if (!std::filesystem::exists(filePath)) {
-            std::cerr << "Error: File '" << filePath << "' does not exist.\n";
-            return false;
-        }
-        
-        // Read file content
-        std::ifstream file(filePath);
-        if (!file.is_open()) {
-            std::cerr << "Error: Could not open file '" << filePath << "'.\n";
-            return false;
-        }
-        
-        std::string content((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
-        file.close();
-        
-        std::cout << "Parsing file: " << filePath << std::endl;
-        std::cout << "File content:\n" << content << std::endl;
-        std::cout << "================================\n\n";
-        
-        // Initialize lexer and parser
-        Lexer lexer(content);
-        auto importManager = std::make_shared<ImportManager>();
-        Parser parser(lexer);
-        parser.setImportManager(importManager.get());
-        
-        // Parse the file
-        auto ast = parser.parseProgram();
-        
-        if (ast) {
-            std::cout << "Parsing successful!\n";
-            std::cout << "AST Structure:\n";
-            printASTNode(ast.get());
-            std::cout << "\nParsing completed successfully.\n";
-            return true;
-        } else {
-            std::cout << "Parsing failed: No AST generated.\n";
-            return false;
-        }
-        
-    } catch (const std::exception& e) {
-        std::cerr << "Error parsing file: " << e.what() << std::endl;
-        return false;
+    else if (suiteName == "import" || suiteName == "imports")
+    {
+        return std::make_unique<ImportTestSuite>();
     }
+    else if (suiteName == "class" || suiteName == "classes")
+    {
+        return std::make_unique<ClassTestSuite>();
+    }
+    else if (suiteName == "error" || suiteName == "errors")
+    {
+        return std::make_unique<ErrorTestSuite>();
+    }
+    else if (suiteName == "namespace" || suiteName == "namespaces")
+    {
+        return std::make_unique<NameSpaceTestSuite>();
+    }
+    else if (suiteName == "integration")
+    {
+        return std::make_unique<IntegrationTestSuite>();
+    }
+    else if (suiteName == "type" || suiteName == "typechecking")
+    {
+        return std::make_unique<TypeCheckingTestSuite>();
+    }
+    return nullptr;
 }
 
-void runTests() {
+void printAvailableTestSuites()
+{
+    std::cout << "Available test suites:\n";
+    std::cout << "  control      - Control Flow Test Suite\n";
+    std::cout << "  import       - Import Test Suite\n";
+    std::cout << "  class        - Class Test Suite\n";
+    std::cout << "  error        - Error Test Suite\n";
+    std::cout << "  namespace    - Namespace Test Suite\n";
+    std::cout << "  integration  - Integration Test Suite\n";
+    std::cout << "  type         - Type Checking Test Suite\n";
+    std::cout << "  native       - Native C++ Integration Test Suite\n";
+}
+
+void runSpecificTestSuite(const std::string& suiteName)
+{
+    // Handle native test separately since it doesn't inherit from TestSuite
+    if (suiteName == "native")
+    {
+        std::cout << "Running Native C++ Integration Test Suite...\n\n";
+        auto nativeTest = std::make_unique<NativeTest>();
+        nativeTest->setupTests();
+        nativeTest->runCustomTests();
+        return;
+    }
+    
+    auto suite = createTestSuite(suiteName);
+    if (!suite)
+    {
+        std::cout << "Unknown test suite: " << suiteName << "\n\n";
+        printAvailableTestSuites();
+        return;
+    }
+
+    std::cout << "Running " << suite->getName() << "...\n\n";
+    suite->setupTests();
+
+
+    suite->run();
+}
+
+void runAllTests()
+{
     std::cout << "Running all test suites...\n\n";
-    
+
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
     suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
-    suites.push_back(std::make_unique<IntegrationTestSuite>());
-    suites.push_back(std::make_unique<NameSpaceTestSuite>());
-    suites.push_back(std::make_unique<TypeCheckingTestSuite>());
     suites.push_back(std::make_unique<ErrorTestSuite>());
+    suites.push_back(std::make_unique<NameSpaceTestSuite>());
+    suites.push_back(std::make_unique<IntegrationTestSuite>());
+    suites.push_back(std::make_unique<TypeCheckingTestSuite>());
 
     for (auto& suite : suites)
     {
-        suite->run();
+        suite->setupTests(); // Initialize test cases
+        suite->run(); // Run tests and generate reports
     }
+    
+    // Run native tests separately
+    std::cout << "\nRunning Native C++ Integration Test Suite...\n";
+    auto nativeTest = std::make_unique<NativeTest>();
+    nativeTest->setupTests();
+    nativeTest->runCustomTests();
+
+    // Print final summary
+    std::cout << "\n" << std::string(80, '=') << std::endl;
+    std::cout << "ALL TEST SUITES COMPLETED" << std::endl;
+    std::cout << "Reports generated in test_reports/ directory" << std::endl;
+    std::cout << std::string(80, '=') << std::endl;
 }
+
 
 int main(int argc, char* argv[])
 {
-    if (argc == 1) {
-        // No arguments - run tests
-        runTests();
-    } else if (argc == 2) {
-        std::string arg = argv[1];
-        if (arg == "--tests") {
-            runTests();
-        } else if (arg == "--help" || arg == "-h") {
-            printUsage(argv[0]);
-        } else {
-            // Assume it's a file path
-            if (!parseFile(arg)) {
-                return 1;
-            }
-        }
-    } else {
-        std::cerr << "Error: Invalid number of arguments.\n";
-        printUsage(argv[0]);
+    if (argc == 2 && std::string(argv[1]) == "--tests")
+    {
+        runAllTests();
+        return 0;
+    }
+
+    if (argc == 3 && std::string(argv[1]) == "--test")
+    {
+        std::string suiteName = argv[2];
+        runSpecificTestSuite(suiteName);
+        return 0;
+    }
+
+    if (argc == 2 && std::string(argv[1]) == "--help")
+    {
+        std::cout << "Usage:\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>     - Run a script file\n";
+        std::cout << "  " << argv[0] << " --tests             - Run all test suites\n";
+        std::cout << "  " << argv[0] << " --test <suite>      - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --help              - Show this help message\n\n";
+        printAvailableTestSuites();
+        return 0;
+    }
+
+    if (argc != 2)
+    {
+        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
+        std::cout << "Use --help for detailed usage information" << std::endl;
         return 1;
     }
-    
+
+    std::string filename = argv[1];
+
+    try
+    {
+        ScriptInterpreter interpreter;
+        interpreter.runScript(filename);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }

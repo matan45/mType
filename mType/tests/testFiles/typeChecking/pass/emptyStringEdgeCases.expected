@@ -1,0 +1,94 @@
+Testing basic empty string operations:
+Empty string length: 0
+Empty string is empty: true
+Empty string is not null: true
+
+Testing empty string concatenation:
+Empty + Empty = '' (length: 0)
+Empty + NotEmpty = 'content'
+NotEmpty + Empty = 'content'
+Empty + Literal = 'literal'
+Literal + Empty = 'literal'
+
+Testing compound assignment with empty strings:
+After += empty: '' (length: 0)
+After += 'first': 'first'
+After += empty again: 'first'
+After += 'second': 'firstsecond'
+
+Testing empty string comparisons:
+empty == '' : true
+empty == ' ' : false
+empty == null : false
+empty != '' : false
+empty != ' ' : true
+empty != null : true
+
+Testing empty strings in functions:
+Input was empty
+Input: not empty
+concatenate('', ''): ''
+concatenate('a', ''): 'a'
+concatenate('', 'b'): 'b'
+
+Testing empty strings with loops:
+Loop result with empty: '02'
+
+Testing str::length function with various strings:
+str::length(''): 0
+str::length('a'): 1
+str::length('hello'): 5
+str::length(' '): 1
+str::length('\t'): 1
+str::length('\n'): 1
+
+Testing empty strings in conditional expressions:
+Ternary with empty: was empty
+Length check: zero length
+
+Testing whitespace edge cases:
+Space == empty: false
+Tab == empty: false
+Newline == empty: false
+MultiSpace == empty: false
+Mixed whitespace == empty: false
+
+Testing empty strings in classes:
+Default container value: ''
+Default container isEmpty: true
+After appending empty: ''
+Still isEmpty: true
+After appending content: ''
+Now isEmpty: true
+Container with empty string: isEmpty = true
+
+Testing method chaining with empty strings:
+Chain with empty strings: 'helloworld'
+
+Testing empty string with special characters:
+Empty + 'x' length: 1
+Empty + backslash: '\'
+
+Testing empty strings in nested functions:
+Nested empty: inner-empty
+Nested non-empty: inner-value
+
+Testing empty string with number conversions:
+Empty + toString(0): '0'
+toString(42) + empty: '42'
+
+Testing empty string in switch-like logic:
+exactly empty
+single space
+has content: text
+
+Testing empty string references:
+ref1 == ref2: true
+ref1 == ref3: true
+ref2 == ref3: true
+After modifying ref1:
+ref1: 'modified'
+ref2: ''
+ref3: ''
+
+Empty string edge cases test completed successfully

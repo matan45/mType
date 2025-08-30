@@ -48,7 +48,7 @@ namespace testSuite {
         int totalResults = 0;
         
         for (int test = 0; test < NUM_TESTS; test++) {
-            Configuration config = Configuration();
+            Configuration config = new Configuration();
             int simResult = config.runSimulation();
             int whileResult = config.processWithWhile();
             

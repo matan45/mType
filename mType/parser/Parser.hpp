@@ -66,10 +66,15 @@ namespace parser
         bool matchToken(TokenType type) { return match(type); }
         void expectToken(TokenType type) { expect(type); }
         Token peekNextToken() { return lexer.peekNextToken(); }
+        Token peekToken(int n) { return lexer.peekToken(n); }
         
         // Common utility methods
         static bool isAssignmentOperator(TokenType tokenType);
         ValueType parseType();
+        
+        // Type parsing with class name for objects
+        std::pair<ValueType, std::string> parseTypeWithClassName();
+        
         std::vector<std::string> parseQualifiedName();
     };
 }

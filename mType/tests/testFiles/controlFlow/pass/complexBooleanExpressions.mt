@@ -77,6 +77,10 @@ print("Test 7: Comparison operations");
 int x = 10;
 int y = 5;
 int z = 10;
+x++;
+++x;
+y--;
+--y;
 
 bool comp1 = x > y && y < z;  // true
 print(comp1);  // true

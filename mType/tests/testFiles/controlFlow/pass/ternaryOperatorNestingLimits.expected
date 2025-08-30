@@ -1,0 +1,25 @@
+Test 1: Deep nesting (5 levels)
+30
+Test 2: Extreme nesting (7 levels)
+37
+Test 3: Mixed data types in deep nesting
+big_num_pi
+Test 4: Computational ternary chains
+30
+Test 5: Boolean logic in extreme nesting
+true
+Test 6: String manipulation in deep nesting
+test_three_match
+Test 7: Extreme arithmetic nesting
+24
+Test 8: Conditional chains with different operators
+15
+Test 9: Maximum nesting depth stress test
+555
+Test 10: Ternary with function calls
+1000
+Test 11: Edge cases with boundary values
+100
+Test 12: Performance stress with repetitive patterns
+666
+All ternary operator nesting limit tests completed

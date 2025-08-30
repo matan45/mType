@@ -22,6 +22,7 @@ namespace ast::nodes::classes
 
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
         ASTNode* getBody() const;
+        std::unique_ptr<ASTNode> releaseBody();
 
         void setParameters(std::vector<std::pair<std::string, ValueType>> params);
         void setBody(std::unique_ptr<ASTNode> constructorBody);

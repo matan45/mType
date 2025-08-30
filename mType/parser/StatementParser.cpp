@@ -10,7 +10,7 @@
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
-#include "../ast/nodes/statements/DoWhileNode.h"
+#include "../ast/nodes/statements/DoWhileNode.hpp"
 #include "../ast/nodes/statements/ForNode.hpp"
 #include "../ast/nodes/statements/SwitchNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
@@ -74,14 +74,35 @@ namespace parser
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
-                    // Pattern could be: "namespace::ClassName varName" (scoped type declaration)
-                    // OR: "namespace::function()" (qualified function call)
-                    // Need to look ahead further to determine which one
-                    if (isQualifiedDeclaration()) {
-                        return parseDeclaration();
-                    } else {
-                        return parseExpressionStatement();
+                    // Pattern: "identifier::..." - could be qualified type or static method/field
+                    // We need to look ahead through the qualified name to see what follows
+                    
+                    // Count how many tokens we need to look ahead
+                    int lookAhead = 2; // Start at 2 (next is ::)
+                    while (true) {
+                        Token tok = parser.peekToken(lookAhead);
+                        if (tok.type == TokenType::IDENTIFIER) {
+                            lookAhead++;
+                            Token nextTok = parser.peekToken(lookAhead);
+                            if (nextTok.type == TokenType::SCOPE) {
+                                lookAhead++; // Continue through the qualified name
+                            } else {
+                                // End of qualified name, check what follows
+                                if (nextTok.type == TokenType::IDENTIFIER) {
+                                    // Pattern: Namespace::Class varName - this is a declaration
+                                    return parseDeclaration();
+                                } else {
+                                    // Pattern: Class::method() or Class::field - this is an expression
+                                    return parseExpressionStatement();
+                                }
+                            }
+                        } else {
+                            // Unexpected token in qualified name
+                            break;
+                        }
                     }
+                    // Default to declaration if we can't determine
+                    return parseDeclaration();
                 } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();
@@ -141,10 +162,17 @@ namespace parser
             parser.advanceToken();
         }
 
-        ValueType type = parseType();
+        auto [type, className] = parser.parseTypeWithClassName();
 
         if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
         {
+            // Special case: if we see a parenthesis after a qualified name,
+            // it's likely a static method call that was mistakenly routed here
+            if (parser.getCurrentToken().type == TokenType::LPAREN && !className.empty() && className.find("::") != std::string::npos) {
+                // This looks like a static method call (e.g., Class::method())
+                // We can't easily backtrack, so we'll throw a specific error
+                throw ParseException("Static method calls should be expressions, not declarations", parser.getCurrentToken().location);
+            }
             throw ParseException("Expected variable name", parser.getCurrentToken().location);
         }
 
@@ -159,7 +187,7 @@ namespace parser
 
         parser.expectToken(TokenType::SEMICOLON);
 
-        return std::make_unique<AssignmentNode>(varName, std::move(value), type, isFinal, isStatic);
+        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseAssignment()
@@ -204,7 +232,7 @@ namespace parser
             }
 
             parser.expectToken(TokenType::SEMICOLON);
-            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, false, false);
+            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false);
         }
         else
         {
@@ -272,18 +300,32 @@ namespace parser
                 parser.getCurrentToken().type == TokenType::BOOL ||
                 parser.getCurrentToken().type == TokenType::STRING_TYPE)
             {
-                init = parseDeclaration();
+                // Parse declaration inline without consuming semicolon (for loop specific)
+                ValueType type = parseType();
+                
+                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected variable name", parser.getCurrentToken().location);
+                }
+                
+                std::string varName = parser.getCurrentToken().stringValue;
+                parser.advanceToken();
+                
+                std::unique_ptr<ASTNode> value = nullptr;
+                if (parser.matchToken(TokenType::ASSIGN))
+                {
+                    value = parser.parseExpression();
+                }
+                
+                init = std::make_unique<AssignmentNode>(varName, std::move(value), type, "", false, false);
             }
             else
             {
                 init = parser.parseExpression();
-                parser.expectToken(TokenType::SEMICOLON);
             }
         }
-        else
-        {
-            parser.advanceToken(); // Skip semicolon
-        }
+        
+        parser.expectToken(TokenType::SEMICOLON);
 
         // Parse condition
         std::unique_ptr<ASTNode> condition = nullptr;
@@ -509,26 +551,10 @@ namespace parser
 
         parser.expectToken(TokenType::SEMICOLON);
 
-        // Create an import node and resolve it immediately if ImportManager is available
+        // Create a pure import node - no processing, no ImportManager dependency
         auto importNode = std::make_unique<ImportNode>(filePath, loc);
 
-        // If we have an ImportManager, resolve the import immediately
-        if (parser.getImportManager())
-        {
-            try
-            {
-                ast::ASTNode* importedAST = parser.getImportManager()->importFile(filePath);
-                importNode->setImportedAST(importedAST);
-            }
-            catch (const std::exception& e)
-            {
-                throw ParseException("Import error: " + std::string(e.what()), loc);
-            }
-        }
-        else
-        {
-            throw ParseException("Import statement requires ImportManager to be set on Parser", loc);
-        }
+        // No processing at parse time - completely defer to evaluation phase
 
         return importNode;
     }
@@ -605,17 +631,4 @@ namespace parser
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), nullptr);
     }
 
-    bool StatementParser::isQualifiedDeclaration()
-    {
-        Token current = parser.getCurrentToken(); // Should be identifier
-        Token next = parser.peekNextToken(); // Should be SCOPE
-        
-        if (current.type != TokenType::IDENTIFIER || next.type != TokenType::SCOPE) {
-            return false;
-        }
-        
-        // Default: assume it's a type declaration since they're harder to parse in expressions
-        return true;
-    }
-    
 }

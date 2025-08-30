@@ -1,0 +1,41 @@
+Test 1: Null propagation in arithmetic expressions
+Safe arithmetic result: 42
+Nested null arithmetic result: 57
+Test 2: Null propagation in ternary chains
+Ternary chain result: valid high: valid(42)
+Deep ternary result: 2
+Test 3: Null propagation in function calls
+Safe value 1: 42
+Safe value 2: -1
+Safe name 1: valid
+Safe name 2: null
+Test 4: Null propagation in loops
+Item 0: first(10) (valid)
+Item 1: null (invalid)
+Item 2: third(30) (valid)
+Test 5: Null propagation in mixed data types
+Mixed result: positive: valid(42)
+Test 6: Null propagation with mathematical operations
+Sum with one null: 42
+Sum with both null: 0
+Product with one null: 42
+Product with both null: 1
+Test 7: Null propagation in string operations
+Result: valid has value 42
+Result: no data available
+Test 8: Null propagation in nested conditionals
+Nested 1: valid(42) > twenty(20)
+Nested 2: null vs twenty(20)
+Nested 3: valid(42) vs null
+Nested 4: null vs null
+Test 9: Complex null propagation chains
+Chain 1: 84
+Chain 2: -1
+Chain 3: 150
+Chain 4: 0
+Test 10: Null propagation with boundary conditions
+Valid boundary: positive
+Zero boundary: zero
+Negative boundary: negative
+Null boundary: null
+Null propagation through complex expressions test completed successfully

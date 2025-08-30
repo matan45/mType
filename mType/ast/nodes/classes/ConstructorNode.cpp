@@ -20,6 +20,11 @@ namespace ast::nodes::classes
         return body.get();
     }
 
+    std::unique_ptr<ASTNode> ConstructorNode::releaseBody()
+    {
+        return std::move(body);
+    }
+
     void ConstructorNode::setParameters(std::vector<std::pair<std::string, ValueType>> params)
     {
         parameters = std::move(params);

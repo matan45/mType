@@ -4,11 +4,11 @@
 #include <string>
 #include "../../value/ValueType.hpp"
 #include "ClassDefinition.hpp"
+#include "FieldDefinition.hpp"
 
 namespace runtimeTypes::klass
 {
     using namespace value;
-    class Environment; // Forward declaration
     class ObjectInstance : public std::enable_shared_from_this<ObjectInstance>
     {
     private:
@@ -21,14 +21,15 @@ namespace runtimeTypes::klass
         {
         }
 
-        Value getField(const std::string& fieldName) const;
+        std::shared_ptr<FieldDefinition> getField(const std::string& fieldName) const;
+        Value getFieldValue(const std::string& fieldName) const;
+        std::shared_ptr<ClassDefinition> getClassDefinition() const;
         void setField(const std::string& fieldName, const Value& value);
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
         // Call method on this instance
         Value callMethod(const std::string& methodName,
-                         const std::vector<Value>& args,
-                         Environment& env);
+                         const std::vector<Value>& args);
     };
 }

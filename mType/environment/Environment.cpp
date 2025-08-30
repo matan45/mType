@@ -1,4 +1,5 @@
 ﻿#include "Environment.hpp"
+#include "../errors/AmbiguousReferenceException.hpp"
 
 namespace environment
 {
@@ -14,7 +15,9 @@ namespace environment
         variableManager(varMgr),
         scopeManager(scopeMgr),
         namespaceManager(nsMgr),
-        nativeRegistry(nativeReg)
+        nativeRegistry(nativeReg),
+        importEvaluationActive(false),
+        importManager(nullptr)
     {
     }
 
@@ -107,9 +110,20 @@ namespace environment
             scopeManager->declareVariable(varName, variable);
         }
         
+        // Register in VariableManager for global scope or namespace scope
         if (variableManager)
         {
-            variableManager->declareVariable(varName, variable);
+            auto namespacePath = getCurrentNamespacePath();
+            if (!namespacePath.empty())
+            {
+                // In a namespace - register with namespace path
+                variableManager->declareVariableInNamespace(namespacePath, varName, variable);
+            }
+            else if (scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
+            {
+                // In global scope
+                variableManager->declareVariable(varName, variable);
+            }
         }
     }
 
@@ -117,6 +131,23 @@ namespace environment
     {
         if (!classRegistry) return nullptr;
         
+        // Check if this is a qualified name (contains ::)
+        if (name.find("::") != std::string::npos)
+        {
+            // Parse qualified name and use findQualifiedItem
+            std::vector<std::string> qualifiedParts;
+            size_t start = 0;
+            size_t pos = 0;
+            while ((pos = name.find("::", start)) != std::string::npos) {
+                qualifiedParts.push_back(name.substr(start, pos - start));
+                start = pos + 2;
+            }
+            qualifiedParts.push_back(name.substr(start));
+            
+            return classRegistry->findQualifiedItem(qualifiedParts);
+        }
+        
+        // Handle simple class name - first check current namespace
         auto namespacePath = getCurrentNamespacePath();
         if (!namespacePath.empty())
         {
@@ -126,6 +157,42 @@ namespace environment
             }
         }
         
+        // Then check using directives
+        if (namespaceManager)
+        {
+            const auto& usingDirs = namespaceManager->getUsingDirectives();
+            std::shared_ptr<ClassDefinition> foundClass = nullptr;
+            std::string foundInNamespace = "";
+            
+            for (const auto& usingPath : usingDirs)
+            {
+                if (auto cls = classRegistry->findClassInNamespace(usingPath, name))
+                {
+                    if (foundClass) {
+                        // Found a second match - this is ambiguous
+                        std::string currentNamespace = "";
+                        for (const auto& part : usingPath) {
+                            if (!currentNamespace.empty()) currentNamespace += "::";
+                            currentNamespace += part;
+                        }
+                        throw std::runtime_error("Ambiguous class reference: " + name + 
+                            " found in both " + foundInNamespace + " and " + currentNamespace);
+                    }
+                    foundClass = cls;
+                    foundInNamespace = "";
+                    for (const auto& part : usingPath) {
+                        if (!foundInNamespace.empty()) foundInNamespace += "::";
+                        foundInNamespace += part;
+                    }
+                }
+            }
+            
+            if (foundClass) {
+                return foundClass;
+            }
+        }
+        
+        // Finally check global scope
         return classRegistry->findClass(name);
     }
 
@@ -133,6 +200,7 @@ namespace environment
     {
         if (!functionRegistry) return nullptr;
         
+        // First check current namespace
         auto namespacePath = getCurrentNamespacePath();
         if (!namespacePath.empty())
         {
@@ -142,11 +210,48 @@ namespace environment
             }
         }
         
+        // Then check using directives - detect ambiguity
+        if (namespaceManager)
+        {
+            const auto& usingDirs = namespaceManager->getUsingDirectives();
+            std::shared_ptr<FunctionDefinition> foundFunction = nullptr;
+            std::string foundInNamespace = "";
+            
+            for (const auto& usingPath : usingDirs)
+            {
+                if (auto func = functionRegistry->findFunctionInNamespace(usingPath, name))
+                {
+                    if (foundFunction) {
+                        // Found a second match - this is ambiguous
+                        std::string currentNamespace = "";
+                        for (size_t i = 0; i < usingPath.size(); ++i) {
+                            if (i > 0) currentNamespace += "::";
+                            currentNamespace += usingPath[i];
+                        }
+                        throw errors::AmbiguousReferenceException("Ambiguous function reference: '" + name + 
+                                                                 "' found in both '" + foundInNamespace + 
+                                                                 "' and '" + currentNamespace + "'");
+                    }
+                    foundFunction = func;
+                    for (size_t i = 0; i < usingPath.size(); ++i) {
+                        if (i > 0) foundInNamespace += "::";
+                        foundInNamespace += usingPath[i];
+                    }
+                }
+            }
+            
+            if (foundFunction) {
+                return foundFunction;
+            }
+        }
+        
+        // Finally check global scope
         return functionRegistry->findFunction(name);
     }
 
     std::shared_ptr<VariableDefinition> Environment::findVariable(const std::string& name) const
     {
+        // First check scope manager (for local variables)
         if (scopeManager)
         {
             if (auto var = scopeManager->findVariable(name))
@@ -155,8 +260,55 @@ namespace environment
             }
         }
         
+        // Then check variable manager with namespace context
         if (variableManager)
         {
+            // First check current namespace
+            auto namespacePath = getCurrentNamespacePath();
+            if (!namespacePath.empty())
+            {
+                if (auto var = variableManager->findVariableInNamespace(namespacePath, name))
+                {
+                    return var;
+                }
+            }
+            
+            // Then check using directives - detect ambiguity
+            if (namespaceManager)
+            {
+                const auto& usingDirs = namespaceManager->getUsingDirectives();
+                std::shared_ptr<VariableDefinition> foundVariable = nullptr;
+                std::string foundInNamespace = "";
+                
+                for (const auto& usingPath : usingDirs)
+                {
+                    if (auto var = variableManager->findVariableInNamespace(usingPath, name))
+                    {
+                        if (foundVariable) {
+                            // Found a second match - this is ambiguous
+                            std::string currentNamespace = "";
+                            for (size_t i = 0; i < usingPath.size(); ++i) {
+                                if (i > 0) currentNamespace += "::";
+                                currentNamespace += usingPath[i];
+                            }
+                            throw errors::AmbiguousReferenceException("Ambiguous variable reference: '" + name + 
+                                                                     "' found in both '" + foundInNamespace + 
+                                                                     "' and '" + currentNamespace + "'");
+                        }
+                        foundVariable = var;
+                        for (size_t i = 0; i < usingPath.size(); ++i) {
+                            if (i > 0) foundInNamespace += "::";
+                            foundInNamespace += usingPath[i];
+                        }
+                    }
+                }
+                
+                if (foundVariable) {
+                    return foundVariable;
+                }
+            }
+            
+            // Finally check global scope
             return variableManager->findVariable(name);
         }
         
@@ -292,6 +444,21 @@ namespace environment
     {
         return scopeManager ? scopeManager->isInLoop() : false;
     }
+    
+    bool Environment::isEvaluatingImport() const
+    {
+        return importEvaluationActive;
+    }
+    
+    void Environment::setImportEvaluation(bool active)
+    {
+        importEvaluationActive = active;
+    }
+
+    std::string Environment::getFunctionScopeName() const
+    {
+        return scopeManager ? scopeManager->getFunctionScopeName() : "";
+    }
 
     std::vector<std::string> Environment::resolveQualifiedName(const std::string& name) const
     {
@@ -300,5 +467,56 @@ namespace environment
             return namespaceManager->resolveQualifiedName(name);
         }
         return {name};
+    }
+    
+    void Environment::setImportManager(services::ImportManager* mgr)
+    {
+        importManager = mgr;
+    }
+    
+    services::ImportManager* Environment::getImportManager() const
+    {
+        return importManager;
+    }
+    
+    bool Environment::wouldCauseCircularImport(const std::string& filePath)
+    {
+        // Check if this file is already in the evaluation import stack
+        std::stack<std::string> tempStack = evaluationImportStack;
+        while (!tempStack.empty()) {
+            if (tempStack.top() == filePath) {
+                return true;
+            }
+            tempStack.pop();
+        }
+        return false;
+    }
+    
+    void Environment::pushEvaluationImport(const std::string& filePath)
+    {
+        evaluationImportStack.push(filePath);
+    }
+    
+    void Environment::popEvaluationImport()
+    {
+        if (!evaluationImportStack.empty()) {
+            evaluationImportStack.pop();
+        }
+    }
+    
+    std::string Environment::getCircularImportChain(const std::string& filePath)
+    {
+        std::string chain = filePath;
+        std::stack<std::string> tempStack = evaluationImportStack;
+        
+        while (!tempStack.empty()) {
+            chain = tempStack.top() + " -> " + chain;
+            if (tempStack.top() == filePath) {
+                break; // Found the cycle
+            }
+            tempStack.pop();
+        }
+        
+        return chain;
     }
 }

@@ -1,0 +1,5 @@
+ERROR: Negative value not supported
+ERROR: Value exceeds maximum safe limit
+ERROR: Division by zero
+ERROR: Unknown operation
+OK: Valid combination

@@ -1,4 +1,4 @@
-﻿import "tests/testFiles/import/error/circular_b.mt";
+﻿import "circular_b.mt";
         function funcA(): int {
             return 1;
         }

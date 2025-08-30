@@ -11,11 +11,11 @@ namespace runtimeTypes::global
     private:
         ValueType type;
         Value value;
-        bool isFinal;
+        bool isFinalVariable;
 
     public:
         explicit VariableDefinition(const std::string& n, ValueType t, const Value& v = {}, bool final = false)
-            : Definition(n), type(t), value(v), isFinal(final)
+            : Definition(n), type(t), value(v), isFinalVariable(final)
         {
         }
 
@@ -28,6 +28,7 @@ namespace runtimeTypes::global
         void setValue(const Value& v);
         
         bool getIsFinal() const;
+        bool isFinal() const;
         
         void setIsFinal(bool f);
 

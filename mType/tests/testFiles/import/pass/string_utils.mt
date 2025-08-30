@@ -1,4 +1,4 @@
-﻿import "tests/testFiles/import/pass/math_utils.mt";
+﻿import "math_utils.mt";
         
         function processNumber(int n): int {
             // Use function from imported file

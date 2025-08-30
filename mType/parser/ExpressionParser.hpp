@@ -18,6 +18,7 @@ namespace parser
         
         // Expression parsing methods (precedence climbing)
         std::unique_ptr<ASTNode> parseExpression();
+        std::unique_ptr<ASTNode> parseAssignment();
         std::unique_ptr<ASTNode> parseTernary();
         std::unique_ptr<ASTNode> parseLogicalOr();
         std::unique_ptr<ASTNode> parseLogicalAnd();

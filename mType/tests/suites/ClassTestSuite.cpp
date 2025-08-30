@@ -7,63 +7,63 @@ namespace tests::testSuite
     void ClassTestSuite::setupTests()
     {
         // Basic class functionality tests
-        addTestFromFile("Basic Class Definition",
+        addOutputVerificationTest("Basic Class Definition",
                         passPath + "basicClassDefinition.mt");
-        addTestFromFile("Class with Data Members",
+        addOutputVerificationTest("Class with Data Members",
                         passPath + "classWithDataMembers.mt");
-        addTestFromFile("Class with Methods",
+        addOutputVerificationTest("Class with Methods",
                         passPath + "classWithMethods.mt");
-        addTestFromFile("Multiple Constructors",
+        addOutputVerificationTest("Multiple Constructors",
                         passPath + "multipleConstructors.mt");
-        addTestFromFile("Default Constructor",
+        addOutputVerificationTest("Default Constructor",
                         passPath + "defaultConstructor.mt");
-        addTestFromFile("Constructor with Parameters",
+        addOutputVerificationTest("Constructor with Parameters",
                         passPath + "constructorWithParameters.mt");
 
         // Static members and methods tests
-        addTestFromFile("Static Data Members",
+        addOutputVerificationTest("Static Data Members",
                         passPath + "staticDataMembers.mt");
-        addTestFromFile("Static Methods",
+        addOutputVerificationTest("Static Methods",
                         passPath + "staticMethods.mt");
-        addTestFromFile("Static Final Members",
+        addOutputVerificationTest("Static Final Members",
                         passPath + "staticFinalMembers.mt");
-        addTestFromFile("Mixed Static and Instance",
+        addOutputVerificationTest("Mixed Static and Instance",
                         passPath + "mixedStaticAndInstance.mt");
 
         // Member access and object lifecycle tests
-        addTestFromFile("Member Access",
+        addOutputVerificationTest("Member Access",
                         passPath + "memberAccess.mt");
-        addTestFromFile("Method Calls",
+        addOutputVerificationTest("Method Calls",
                         passPath + "methodCalls.mt");
-        addTestFromFile("Chained Member Access",
+        addOutputVerificationTest("Chained Member Access",
                         passPath + "chainedMemberAccess.mt");
-        addTestFromFile("Member Assignment",
+        addOutputVerificationTest("Member Assignment",
                         passPath + "memberAssignment.mt");
-        addTestFromFile("Object Creation",
+        addOutputVerificationTest("Object Creation",
                         passPath + "objectCreation.mt");
-        addTestFromFile("Null Handling",
+        addOutputVerificationTest("Null Handling",
                         passPath + "nullHandling.mt");
-        addTestFromFile("Object Assignment",
+        addOutputVerificationTest("Object Assignment",
                         passPath + "objectAssignment.mt");
-        addTestFromFile("Multiple Objects",
+        addOutputVerificationTest("Multiple Objects",
                         passPath + "multipleObjects.mt");
 
         // Complex scenarios tests
-        addTestFromFile("Class with All Features",
+        addOutputVerificationTest("Class with All Features",
                         passPath + "classWithAllFeatures.mt");
-        addTestFromFile("Class in Functions",
+        addOutputVerificationTest("Class in Functions",
                         passPath + "classInFunctions.mt");
-        addTestFromFile("Class as Parameter",
+        addOutputVerificationTest("Class as Parameter",
                         passPath + "classAsParameter.mt");
-        addTestFromFile("Class as Return Type",
+        addOutputVerificationTest("Class as Return Type",
                         passPath + "classAsReturnType.mt");
-        addTestFromFile("Returning This and Method Chaining",
+        addOutputVerificationTest("Returning This and Method Chaining",
                         passPath + "returningThisAndChaining.mt");
-        addTestFromFile("Complex Example",
+        addOutputVerificationTest("Complex Example",
                         passPath + "complexExample.mt");
 
         // Object reference edge case tests
-        addTestFromFile("Circular Object References",
+        addOutputVerificationTest("Circular Object References",
                         passPath + "circularObjectReferences.mt");
 
         // Error tests (expected to fail)

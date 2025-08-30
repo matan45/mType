@@ -1,6 +1,7 @@
 ﻿#include "ExpressionParser.hpp"
 #include "Parser.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../ast/nodes/expressions/IntegerNode.hpp"
 #include "../ast/nodes/expressions/FloatNode.hpp"
@@ -11,18 +12,103 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
+#include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/QualifiedAssignmentNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::expressions;
     using namespace ast::nodes::functions;
+    using namespace ast::nodes::statements;
+    using namespace ast::nodes::classes;
     using namespace token;
 
     std::unique_ptr<ASTNode> ExpressionParser::parseExpression()
     {
-        return parseTernary();
+        return parseAssignment();
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseAssignment()
+    {
+        auto expr = parseTernary();
+
+        // Check if this is an assignment expression
+        if (parser.getCurrentToken().type == TokenType::ASSIGN ||
+            parser.getCurrentToken().type == TokenType::PLUS_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MINUS_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MULTIPLY_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::DIVIDE_ASSIGN ||
+            parser.getCurrentToken().type == TokenType::MODULO_ASSIGN)
+        {
+            // For assignment expressions, the left side should be a variable, member access, or qualified name
+            auto variableNode = dynamic_cast<VariableNode*>(expr.get());
+            auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
+            auto qualifiedNameNode = dynamic_cast<ast::nodes::namespaces::QualifiedNameNode*>(expr.get());
+            if (!variableNode && !memberAccessNode && !qualifiedNameNode) {
+                throw ParseException("Invalid assignment target", parser.getCurrentToken().location);
+            }
+
+            TokenType opType = parser.getCurrentToken().type;
+            parser.advanceToken();
+            auto rightExpr = parseAssignment(); // Right associative
+
+            // Create appropriate assignment node based on target type and operator
+            if (memberAccessNode) {
+                // Member assignment (e.g., car.year = 2023)
+                if (opType == TokenType::ASSIGN) {
+                    return std::make_unique<MemberAssignmentNode>(
+                        memberAccessNode->releaseObject(),
+                        memberAccessNode->getMemberName(),
+                        std::move(rightExpr));
+                } else {
+                    // Compound member assignment - not fully implemented yet
+                    throw ParseException("Compound assignment to member not yet supported", parser.getCurrentToken().location);
+                }
+            } else if (variableNode) {
+                // Variable assignment
+                if (opType == TokenType::ASSIGN) {
+                    // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
+                    return std::make_unique<AssignmentNode>(variableNode->getName(), 
+                                                          std::move(rightExpr), 
+                                                          ValueType::VOID, "");
+                } else {
+                    // Compound assignment - we need to expand this to: var = var op right
+                    std::unique_ptr<ASTNode> expandedRight;
+                    TokenType binaryOp;
+                    
+                    switch (opType) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
+                        default: throw ParseException("Invalid compound assignment operator", parser.getCurrentToken().location);
+                    }
+
+                    // Create: var op right
+                    auto leftVar = std::make_unique<VariableNode>(variableNode->getName());
+                    expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr));
+
+                    return std::make_unique<AssignmentNode>(variableNode->getName(), 
+                                                          std::move(expandedRight), 
+                                                          ValueType::VOID, "");
+                }
+            } else if (qualifiedNameNode) {
+                // Qualified assignment (e.g., namespace::variable = value)
+                if (opType == TokenType::ASSIGN) {
+                    return std::make_unique<QualifiedAssignmentNode>(qualifiedNameNode->getQualifiers(), 
+                                                                     std::move(rightExpr));
+                } else {
+                    // Compound qualified assignment - not yet supported
+                    throw ParseException("Compound assignment to qualified name not yet supported", parser.getCurrentToken().location);
+                }
+            }
+        }
+
+        return expr;
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseTernary()
@@ -138,16 +224,17 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseUnary()
     {
-        // Handle unary operators like !, -, +
+        // Handle prefix unary operators like !, -, +, ++, --
         if (parser.getCurrentToken().type == TokenType::NOT ||
             parser.getCurrentToken().type == TokenType::MINUS ||
-            parser.getCurrentToken().type == TokenType::PLUS)
+            parser.getCurrentToken().type == TokenType::PLUS ||
+            parser.getCurrentToken().type == TokenType::INCREMENT ||
+            parser.getCurrentToken().type == TokenType::DECREMENT)
         {
             TokenType op = parser.getCurrentToken().type;
             parser.advanceToken();
             auto operand = parseUnary();
-            return std::make_unique<BinaryExpNode>(nullptr, op, std::move(operand));
-            // Unary represented as binary with null left
+            return std::make_unique<UnaryExpNode>(op, std::move(operand), ast::nodes::expressions::UnaryPosition::PREFIX);
         }
 
         return parsePostfix();
@@ -165,9 +252,8 @@ namespace parser
                 // Postfix increment/decrement
                 TokenType op = parser.getCurrentToken().type;
                 parser.advanceToken();
-                // Create a postfix operation using BinaryExpNode with the operand on the left and null on right
-                // This represents postfix operations like var++ or var--
-                expr = std::make_unique<BinaryExpNode>(std::move(expr), op, nullptr);
+                // Create a postfix operation using UnaryExpNode with POSTFIX position
+                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), ast::nodes::expressions::UnaryPosition::POSTFIX);
             }
             else if (parser.getCurrentToken().type == TokenType::LPAREN)
             {
@@ -231,6 +317,24 @@ namespace parser
 
                     // No need to call release() - unique_ptr will handle cleanup automatically
                     expr = std::make_unique<ast::nodes::namespaces::QualifiedNameNode>(parts);
+                    
+                    // Check if this is a function call (e.g., MathUtils::max(10, 5))
+                    if (parser.getCurrentToken().type == TokenType::LPAREN)
+                    {
+                        // Join the parts to create the full function name
+                        std::string fullName = parts[0];
+                        for (size_t i = 1; i < parts.size(); i++)
+                        {
+                            fullName += "::" + parts[i];
+                        }
+                        
+                        // Parse as function call using the same method as normal function calls
+                        parser.advanceToken(); // consume '('
+                        auto arguments = parseArguments();
+                        parser.expectToken(TokenType::RPAREN);
+                        
+                        expr = std::make_unique<ast::nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                    }
                 }
             }
             else

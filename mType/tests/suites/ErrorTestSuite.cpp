@@ -7,15 +7,15 @@ namespace tests::testSuite
     void ErrorTestSuite::setupTests()
     {
         // Basic passing tests for error handling
-        addTestFromFile("Valid Error Reporting Code",
+        addOutputVerificationTest("Valid Error Reporting Code",
                         passPath + "basicErrorReportingValid.mt");
-        addTestFromFile("Valid Function Declaration",
+        addOutputVerificationTest("Valid Function Declaration",
                         passPath + "validFunctionDeclaration.mt");
-        addTestFromFile("Valid Class Usage",
+        addOutputVerificationTest("Valid Class Usage",
                         passPath + "validClassUsage.mt");
-        addTestFromFile("Valid Type Operations",
+        addOutputVerificationTest("Valid Type Operations",
                         passPath + "validTypeOperations.mt");
-        addTestFromFile("Valid Scope Usage",
+        addOutputVerificationTest("Valid Scope Usage",
                         passPath + "validScopeUsage.mt");
 
         // Lexer error tests (expected to fail)
@@ -47,7 +47,8 @@ namespace tests::testSuite
                         errorPath + "semanticUndefinedVariable.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Semantic Variable Redefinition Error",
-                        errorPath + "semanticVariableRedefinition.mt");
+                        errorPath + "semanticVariableRedefinition.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Semantic Wrong Parameter Count Error",
                         errorPath + "semanticWrongParameterCount.mt",
                         TestType::ERROR_EXPECTED);
@@ -60,9 +61,16 @@ namespace tests::testSuite
                         errorPath + "runtimeNullPointerDereference.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Missing new Operator For Object Creation",
+                        errorPath + "missingNew.mt",
+                        TestType::ERROR_EXPECTED);
+
         // Type error tests (expected to fail)
         addTestFromFile("Type Assignment Mismatch Error",
                         errorPath + "typeAssignmentMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Assign Null To Final",
+                        errorPath + "assignNullToFinal.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Type Invalid Operation Error",
                         errorPath + "typeInvalidOperation.mt",

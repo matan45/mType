@@ -22,7 +22,6 @@ namespace parser
         std::unique_ptr<ASTNode> parseNewExpression();
         
     private:
-        bool isMethodOrConstructor();
     
     };
 }

@@ -3,3 +3,5 @@ function test(int x): int {
     int x = 20;
     return x;
 }
+
+test(5);

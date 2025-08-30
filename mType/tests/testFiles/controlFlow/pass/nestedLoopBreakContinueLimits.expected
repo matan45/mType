@@ -1,0 +1,392 @@
+             4-level nested loops with break
+     Level 1: 1
+       Level 2: 1
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+       Level 2: 2
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+       Level 2: 3
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+     Continuing level 1
+     Level 1: 2
+       Level 2: 1
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+       Level 2: 2
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+       Level 2: 3
+         Level 3: 1
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 2
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+         Level 3: 3
+           Level 4: 1
+           Breaking level 4 at d=2
+         Continuing level 3
+       Continuing level 2
+     Continuing level 1
+     Test 2: Multiple breaks at different levels
+     Outer i=1
+       Inner j=1
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+       Inner j=2
+         Deepest k=1
+         Breaking deepest at k=2, j=2
+       Inner j=3
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+       Inner j=4
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+     Outer i=2
+       Inner j=1
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+       Inner j=2
+         Deepest k=1
+         Breaking deepest at k=2, j=2
+       Breaking inner at i=2, j=3
+     Outer i=3
+       Inner j=1
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+       Inner j=2
+         Deepest k=1
+         Breaking deepest at k=2, j=2
+       Inner j=3
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+       Inner j=4
+         Deepest k=1
+         Deepest k=2
+         Deepest k=3
+     Test 3: 4-level nested loops with continue
+     Nested: x=1 y=1 z=1 w=1
+     Nested: x=1 y=1 z=1 w=3
+     Nested: x=1 y=1 z=1 w=4
+     Nested: x=1 y=1 z=2 w=1
+     Nested: x=1 y=1 z=2 w=4
+     Nested: x=1 y=1 z=3 w=1
+     Nested: x=1 y=1 z=3 w=3
+     Nested: x=1 y=1 z=3 w=4
+     Nested: x=1 y=2 z=1 w=1
+     Nested: x=1 y=2 z=1 w=3
+     Nested: x=1 y=2 z=1 w=4
+     Nested: x=1 y=2 z=2 w=1
+     Nested: x=1 y=2 z=2 w=4
+     Nested: x=1 y=2 z=3 w=1
+     Nested: x=1 y=2 z=3 w=3
+     Nested: x=1 y=2 z=3 w=4
+     Nested: x=1 y=3 z=1 w=1
+     Nested: x=1 y=3 z=1 w=3
+     Nested: x=1 y=3 z=1 w=4
+     Nested: x=1 y=3 z=2 w=1
+     Nested: x=1 y=3 z=2 w=4
+     Nested: x=1 y=3 z=3 w=1
+     Nested: x=1 y=3 z=3 w=3
+     Nested: x=1 y=3 z=3 w=4
+     Nested: x=2 y=1 z=1 w=1
+     Nested: x=2 y=1 z=1 w=3
+     Nested: x=2 y=1 z=1 w=4
+     Nested: x=2 y=1 z=2 w=1
+     Nested: x=2 y=1 z=2 w=4
+     Nested: x=2 y=1 z=3 w=1
+     Nested: x=2 y=1 z=3 w=3
+     Nested: x=2 y=1 z=3 w=4
+     Nested: x=2 y=2 z=1 w=1
+     Nested: x=2 y=2 z=1 w=3
+     Nested: x=2 y=2 z=1 w=4
+     Nested: x=2 y=2 z=2 w=1
+     Nested: x=2 y=2 z=2 w=4
+     Nested: x=2 y=2 z=3 w=1
+     Nested: x=2 y=2 z=3 w=3
+     Nested: x=2 y=2 z=3 w=4
+     Nested: x=2 y=3 z=1 w=1
+     Nested: x=2 y=3 z=1 w=3
+     Nested: x=2 y=3 z=1 w=4
+     Nested: x=2 y=3 z=2 w=1
+     Nested: x=2 y=3 z=2 w=4
+     Nested: x=2 y=3 z=3 w=1
+     Nested: x=2 y=3 z=3 w=3
+     Nested: x=2 y=3 z=3 w=4
+     Test 4: Mixed loop types with breaks
+     For loop: 1
+       While loop: 1
+         Deep for: 1
+         Breaking for at deep=2
+       While loop: 2
+         Deep for: 1
+         Breaking for at deep=2
+       While loop: 3
+         Deep for: 1
+         Breaking for at deep=2
+       While loop: 4
+         Deep for: 1
+         Breaking for at deep=2
+     For loop: 2
+       While loop: 1
+         Deep for: 1
+         Breaking for at deep=2
+       While loop: 2
+         Deep for: 1
+         Breaking for at deep=2
+       Breaking while at inner=3, outer=2
+     Test 5: Maximum nesting depth (5 levels)
+     5-Deep: 11111
+     5-Deep: 11112
+     5-Deep: 11121
+     5-Deep: 11122
+     5-Deep: 11211
+     5-Deep: 11212
+     5-Deep: 11221
+     5-Deep: 11222
+     5-Deep: 12111
+     5-Deep: 12112
+     5-Deep: 12121
+     5-Deep: 12122
+     5-Deep: 12211
+     5-Deep: 12212
+     5-Deep: 12221
+     5-Deep: 12222
+     5-Deep: 21111
+     5-Deep: 21112
+     5-Deep: 21121
+     5-Deep: 21122
+     5-Deep: 21211
+     Deep break condition met
+     5-Deep: 21221
+     5-Deep: 21222
+     5-Deep: 22111
+     5-Deep: 22112
+     5-Deep: 22121
+     5-Deep: 22122
+     5-Deep: 22211
+     5-Deep: 22212
+     5-Deep: 22221
+     5-Deep: 22222
+     Test 6: Complex continue patterns
+     Continue pattern: p=1 q=1 r=1
+     Continue pattern: p=1 q=1 r=2
+     Continue pattern: p=1 q=1 r=3
+     Continue pattern: p=1 q=3 r=1
+     Continue pattern: p=1 q=3 r=2
+     Continue pattern: p=1 q=3 r=3
+     Continue pattern: p=2 q=1 r=1
+     Continue pattern: p=2 q=1 r=3
+     Continue pattern: p=2 q=3 r=1
+     Continue pattern: p=2 q=3 r=3
+     Continue pattern: p=3 q=1 r=1
+     Continue pattern: p=3 q=1 r=2
+     Continue pattern: p=3 q=1 r=3
+     Continue pattern: p=3 q=3 r=1
+     Continue pattern: p=3 q=3 r=2
+     Test 7: Mixed break and continue
+       Mixed: m=1 n=2 o=1
+       Mixed: m=1 n=2 o=3
+       Mixed: m=1 n=2 o=4
+       Mixed: m=1 n=3 o=1
+       Mixed: m=1 n=3 o=3
+       Mixed: m=1 n=3 o=4
+       Breaking at n=4 for m=1
+       Mixed: m=2 n=2 o=1
+       Mixed: m=2 n=2 o=3
+       Mixed: m=2 n=2 o=4
+       Mixed: m=2 n=3 o=1
+       Mixed: m=2 n=3 o=3
+       Mixed: m=2 n=3 o=4
+       Breaking at n=4 for m=2
+       Mixed: m=3 n=2 o=1
+       Mixed: m=3 n=2 o=3
+       Mixed: m=3 n=3 o=1
+       Mixed: m=3 n=3 o=3
+       Breaking at n=4 for m=3
+     Test 8: Extreme nesting with alternating controls
+     Extreme: 1112
+     Extreme: 1114
+     Extreme: 1122
+     Extreme: 1124
+     Extreme: 1312
+     Extreme: 1314
+     Extreme: 1322
+     Extreme: 1324
+     Extreme: 2112
+     Extreme: 2114
+     Extreme: 2122
+     Extreme: 2124
+     Extreme: 2212
+     Extreme: 2214
+     Extreme: 2222
+     Extreme: 2224
+     Extreme: 2312
+     Extreme: 2314
+     Extreme: 2322
+     Extreme: 2324
+     Test 9: Conditional break/continue chains
+       Chain result: 111
+       Chain result: 112
+       Chain result: 113
+       Chain result: 121
+       Chain result: 122
+       Chain result: 123
+       Continuing chain1=1 chain2=3
+       Chain result: 141
+       Chain result: 142
+       Chain result: 211
+       Chain result: 212
+       Chain result: 213
+       Chain result: 221
+       Chain result: 222
+       Chain result: 223
+       Chain result: 231
+       Chain result: 232
+       Breaking chain1=2 chain2=4
+       Chain result: 311
+       Chain result: 312
+       Chain result: 313
+       Chain result: 321
+       Chain result: 322
+       Chain result: 331
+     Test 10: Performance stress test
+     Stress limit reached at 101
+     Stress limit reached at 102
+     Stress limit reached at 103
+     Stress limit reached at 104
+     Stress limit reached at 105
+     Stress limit reached at 106
+     Stress limit reached at 107
+     Stress limit reached at 108
+     Stress limit reached at 109
+     Stress limit reached at 110
+     Stress limit reached at 111
+     Stress limit reached at 112
+     Stress limit reached at 113
+     Stress limit reached at 114
+     Stress limit reached at 115
+     Stress limit reached at 116
+     Stress limit reached at 117
+     Stress limit reached at 118
+     Stress limit reached at 119
+     Stress limit reached at 120
+     Stress limit reached at 121
+     Stress limit reached at 122
+     Stress limit reached at 123
+     Stress limit reached at 124
+     Stress limit reached at 125
+     Total stress iterations: 125
+     Test 11: Immediate break/continue
+     Should not reach here often: 2,2
+     Should not reach here often: 2,3
+     Should not reach here often: 2,4
+     Should not reach here often: 2,5
+     Should not reach here often: 4,2
+     Should not reach here often: 4,3
+     Should not reach here often: 4,4
+     Should not reach here often: 4,5
+     Test 12: Multiple nested while loops
+     While level 1: 1
+       While deep: w1=1 w2=1 w3=1
+       While deep: w1=1 w2=1 w3=3
+       While deep: w1=1 w2=3 w3=1
+       While deep: w1=1 w2=3 w3=3
+       While deep: w1=1 w2=4 w3=1
+       While deep: w1=1 w2=4 w3=3
+     While level 1: 2
+       While deep: w1=2 w2=1 w3=1
+       While deep: w1=2 w2=1 w3=3
+       Breaking w2 at 3 when w1=2
+     While level 1: 3
+       While deep: w1=3 w2=1 w3=1
+       While deep: w1=3 w2=1 w3=3
+       While deep: w1=3 w2=3 w3=1
+       While deep: w1=3 w2=3 w3=3
+       While deep: w1=3 w2=4 w3=1
+       While deep: w1=3 w2=4 w3=3
+     Test 13: Multiple nested do-while loops
+     Do-while level 1: 1
+       Do-while deep: w1=1 w2=1 w3=1
+       Do-while deep: w1=1 w2=1 w3=3
+       Do-while deep: w1=1 w2=3 w3=1
+       Do-while deep: w1=1 w2=3 w3=3
+       Do-while deep: w1=1 w2=4 w3=1
+       Do-while deep: w1=1 w2=4 w3=3
+     Do-while level 1: 2
+       Do-while deep: w1=2 w2=1 w3=1
+       Do-while deep: w1=2 w2=1 w3=3
+       Breaking w2 at 3 when w1=2
+     Do-while level 1: 3
+       Do-while deep: w1=3 w2=1 w3=1
+       Do-while deep: w1=3 w2=1 w3=3
+       Do-while deep: w1=3 w2=3 w3=1
+       Do-while deep: w1=3 w2=3 w3=3
+       Do-while deep: w1=3 w2=4 w3=1
+       Do-while deep: w1=3 w2=4 w3=3
+     All nested loop break/continue limit tests completed

@@ -1,0 +1,4 @@
+In inner scope: Object1, Object2, Object3
+Back in outer scope: Object1
+Final destruction log: Created: Object1 | Created: Object2 | Created: Object3 | 
+Sequential destruction log: Created: A | Created: B | Created: C | Created: A-New | Created: C-New |

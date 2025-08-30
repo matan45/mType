@@ -57,6 +57,7 @@ namespace lexer
 
         Token getNextToken();
         Token peekNextToken();
+        Token peekToken(int n); // Peek n tokens ahead (1 = next token, 2 = token after next, etc.)
     private:
         void splitIntoLines();
         

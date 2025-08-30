@@ -1,4 +1,5 @@
 ﻿#include "ScopeManager.hpp"
+#include <iostream>
 
 namespace environment::manager
 {
@@ -177,6 +178,19 @@ namespace environment::manager
             scope = scope->getParent();
         }
         return false;
+    }
+
+    std::string ScopeManager::getFunctionScopeName() const
+    {
+        if (!currentScope) return "";
+        
+        auto scope = currentScope;
+        while (scope)
+        {
+            if (scope->getType() == ScopeType::FUNCTION) return scope->getName();
+            scope = scope->getParent();
+        }
+        return "";
     }
 
     void ScopeManager::pushScope(std::shared_ptr<Scope> scope)

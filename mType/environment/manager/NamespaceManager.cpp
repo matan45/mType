@@ -87,6 +87,9 @@ namespace environment::manager
         auto ns = findOrCreateNamespace(namespacePath);
         if (ns)
         {
+            // Save current using directives before entering new namespace
+            usingDirectivesStack.push(usingDirectives);
+            
             namespaceStack.push(currentNamespace);
             currentNamespace = ns;
         }
@@ -98,6 +101,13 @@ namespace environment::manager
         {
             currentNamespace = namespaceStack.top();
             namespaceStack.pop();
+            
+            // Restore previous using directives when exiting namespace
+            if (!usingDirectivesStack.empty())
+            {
+                usingDirectives = usingDirectivesStack.top();
+                usingDirectivesStack.pop();
+            }
         }
         else
         {

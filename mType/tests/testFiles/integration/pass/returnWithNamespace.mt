@@ -1,4 +1,3 @@
-// Graphics namespace with classes
 namespace graphics {
     class Point {
         float x;
@@ -40,25 +39,4 @@ namespace graphics {
     }
 }
 
-// Math namespace with utility classes
-namespace math {
-    class Vector {
-        float x;
-        float y;
-        float z;
-        
-        constructor(float vx, float vy, float vz) {
-            x = vx;
-            y = vy;
-            z = vz;
-        }
-        
-        function magnitude(): float {
-            return sqrt(x * x + y * y + z * z);
-        }
-        
-        static function zero(): math::Vector {
-            return new math::Vector(0.0, 0.0, 0.0);
-        }
-    }
-}
+graphics::Point pt = graphics::Point::createOrigin();

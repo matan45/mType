@@ -281,4 +281,35 @@ while (w1 <= 3) {
     w1 = w1 + 1;
 }
 
+print("Test 13: Multiple nested do-while loops");
+w1 = 1;
+do {
+    print("Do-while level 1: " + w1);
+    int w2 = 1;
+    do {
+        if (w2 == 3 && w1 == 2) {
+            print("  Breaking w2 at 3 when w1=2");
+            break;
+        }
+        if (w2 == 2) {
+            w2 = w2 + 1;
+            continue;
+        }
+        
+        int w3 = 1;
+        do {
+            if (w3 == 2) {
+                w3 = w3 + 1;
+                continue;
+            }
+            print("  Do-while deep: w1=" + w1 + " w2=" + w2 + " w3=" + w3);
+            w3 = w3 + 1;
+        } while (w3 <= 3);
+        
+        w2 = w2 + 1;
+    } while (w2 <= 4);
+    
+    w1 = w1 + 1;
+} while (w1 <= 3);
+
 print("All nested loop break/continue limit tests completed");

@@ -24,12 +24,17 @@ namespace runtimeTypes::global
 
     bool VariableDefinition::getIsFinal() const
     {
-        return isFinal;
+        return isFinalVariable;
+    }
+
+    bool VariableDefinition::isFinal() const
+    {
+        return isFinalVariable;
     }
 
     void VariableDefinition::setIsFinal(bool f)
     {
-        isFinal = f;
+        isFinalVariable = f;
     }
 
     VariableDefinition* VariableDefinition::inNamespace(const std::vector<std::string>& context)

@@ -36,17 +36,9 @@ namespace parser
             auto statement = parseStatement();
             if (statement)
             {
-                // Check if this is an import statement
-                if (auto importNode = dynamic_cast<nodes::statements::ImportNode*>(statement.get()))
-                {
-                    // Handle import by inlining the imported declarations
-                    handleImportStatement(importNode, program.get());
-                    // Note: We don't add the import node itself to the program
-                }
-                else
-                {
-                    program->addStatement(std::move(statement));
-                }
+                // All statements, including import nodes, are added to the program
+                // Import processing is completely deferred to evaluation phase
+                program->addStatement(std::move(statement));
             }
         }
 
@@ -97,12 +89,7 @@ namespace parser
             throw ParseException("ImportManager not set - cannot process import statement", importNode->getLocation());
         }
 
-        if (!importNode->isResolved())
-        {
-            throw ParseException("Import not resolved: " + importNode->getFilePath(), importNode->getLocation());
-        }
-
-        // Get the imported AST
+        // Get the imported AST (may be null if import resolution is deferred to evaluation time)
         ASTNode* importedAST = importNode->getImportedAST();
         if (!importedAST)
         {
@@ -228,6 +215,71 @@ namespace parser
             {
                 // Treat unknown identifier types as custom class types (OBJECT)
                 return ValueType::OBJECT;
+            }
+        }
+        else
+        {
+            throw ParseException("Expected type name", getCurrentToken().location);
+        }
+    }
+    
+    std::pair<ValueType, std::string> Parser::parseTypeWithClassName()
+    {
+        TokenType currentType = getCurrentToken().type;
+
+        // Handle dedicated type tokens
+        if (currentType == TokenType::INT)
+        {
+            advanceToken();
+            return {ValueType::INT, ""};
+        }
+        else if (currentType == TokenType::FLOAT)
+        {
+            advanceToken();
+            return {ValueType::FLOAT, ""};
+        }
+        else if (currentType == TokenType::BOOL)
+        {
+            advanceToken();
+            return {ValueType::BOOL, ""};
+        }
+        else if (currentType == TokenType::STRING_TYPE)
+        {
+            advanceToken();
+            return {ValueType::STRING, ""};
+        }
+        else if (currentType == TokenType::VOID)
+        {
+            advanceToken();
+            return {ValueType::VOID, ""};
+        }
+        else if (currentType == TokenType::IDENTIFIER)
+        {
+            std::string typeName = getCurrentToken().stringValue;
+            advanceToken();
+
+            // Handle qualified names like geometry::Point
+            while (getCurrentToken().type == TokenType::SCOPE)
+            {
+                advanceToken();
+                if (getCurrentToken().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected identifier after '::'", getCurrentToken().location);
+                }
+                typeName += "::" + getCurrentToken().stringValue;
+                advanceToken();
+            }
+
+            // Check if it's a string-based primitive type
+            if (typeName == "int") return {ValueType::INT, ""};
+            else if (typeName == "float") return {ValueType::FLOAT, ""};
+            else if (typeName == "string") return {ValueType::STRING, ""};
+            else if (typeName == "bool") return {ValueType::BOOL, ""};
+            else if (typeName == "void") return {ValueType::VOID, ""};
+            else
+            {
+                // Return OBJECT type with the actual class name
+                return {ValueType::OBJECT, typeName};
             }
         }
         else

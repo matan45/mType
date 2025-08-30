@@ -1,0 +1,52 @@
+=== Loop Object Creation Test ===
+Loop 0: Total: 1, Current: 1, Peak: 1
+Loop 10: Total: 11, Current: 11, Peak: 11
+Loop 20: Total: 21, Current: 21, Peak: 21
+Loop 30: Total: 31, Current: 31, Peak: 31
+Loop 40: Total: 41, Current: 41, Peak: 41
+After loop: Total: 50, Current: 50, Peak: 50
+=== Conditional Object Creation Test ===
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+Created even object: LoopObject0
+Created odd object: LoopObject0
+After conditional creation: Total: 20, Current: 20, Peak: 20
+=== Nested Function Calls Test ===
+Batch processing result length: 240
+After batch processing: Total: 10, Current: 10, Peak: 10
+=== Object Return From Function Test ===
+After creating returned objects: Total: 3, Current: 3, Peak: 3
+Objects: LoopObject0, LoopObject0, LoopObject0
+After reassignment: Total: 4, Current: 4, Peak: 4
+=== Complex Object Graph Test ===
+After container creation: Total: 4, Current: 4, Peak: 4
+Container1: Container1: [Container2, Container2]
+Container2: Container2: [Container2, Container2]
+After swapping: Container1: [Container2, Container2]
+After replacement: Total: 6, Current: 6, Peak: 6
+=== Memory Pressure Scenario Test ===
+Starting batch 1/4
+After batch 1: Total: 25, Current: 25, Peak: 25
+Starting batch 2/4
+After batch 2: Total: 50, Current: 50, Peak: 50
+Starting batch 3/4
+After batch 3: Total: 75, Current: 75, Peak: 75
+Starting batch 4/4
+After batch 4: Total: 100, Current: 100, Peak: 100
+Final memory pressure test stats: Total: 100, Current: 100, Peak: 100

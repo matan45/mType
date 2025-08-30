@@ -1,0 +1,58 @@
+Testing simple circular reference:
+NodeA -> B
+NodeB -> A
+NodeA -> NodeB -> A
+NodeB -> NodeA -> B
+
+Testing self-reference:
+Object value: SelfReference
+Self reference value: SelfReference
+Self->Self value: SelfReference
+
+Testing complex circular chain:
+Chain traversal:
+First -> Second
+Second -> Third
+Third -> First
+Step 0: First (data=1)
+Step 1: Second (data=2)
+Step 2: Third (data=3)
+Step 3: First (data=1)
+Step 4: Second (data=2)
+Step 5: Third (data=3)
+
+Testing parent-child circular reference:
+Parent -> Child: ChildObject
+Child -> Parent: ParentObject
+Parent -> Child -> Parent: ParentObject
+Child -> Parent -> Child: ChildObject
+
+Testing doubly linked circular structure:
+Doubly linked circular traversal:
+Node1 -> next: Node2, prev: Node3
+Node2 -> next: Node3, prev: Node1
+Node3 -> next: Node1, prev: Node2
+
+Testing graph-like circular references:
+Graph structure:
+G1 -> G2, G3
+G2 -> G3, G1
+G3 -> G1, G2
+
+Testing circular reference with null breaking:
+Before breaking: Break2 -> Break1
+After breaking: Break2
+Circular reference successfully broken
+
+Testing multiple circular references:
+Multi1 refs: Multi2, Multi1, Multi2
+Multi2 refs: Multi1, Multi2, Multi1
+
+Testing indirect circular references:
+Indirect reference: Indirect1 -> partner's partner: Indirect1
+
+Testing circular reference with modification:
+Initial state: Mod1(0) -> Mod2(0)
+After modifications: Mod1(2) -> Mod2(1)
+
+Circular object references test completed successfully

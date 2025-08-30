@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 namespace services
 {
@@ -15,7 +16,7 @@ namespace services
     using namespace lexer;
     using namespace parser;
     
-    ImportManager::ImportManager() : currentDirectory(".")
+    ImportManager::ImportManager() : currentDirectory("."), baseDirectory(".")
     {
     }
     
@@ -27,6 +28,7 @@ namespace services
     void ImportManager::setBaseDirectory(const std::string& dir)
     {
         currentDirectory = dir;
+        baseDirectory = dir;  // Also set the permanent base directory
     }
     
     std::string ImportManager::resolvePath(const std::string& path)
@@ -44,82 +46,16 @@ namespace services
         return filePath.string();
     }
     
-    bool ImportManager::wouldCauseCircularDependency(const std::string& filePath)
+    ASTNode* ImportManager::parseAndCacheAST(const std::string& rawPath)
     {
-        std::string resolvedPath = resolvePath(filePath);
+        std::string resolvedPath = resolvePath(rawPath);
         
-        // Check if this file is already in the import stack
-        std::stack<std::string> tempStack = importStack;
-        while (!tempStack.empty()) {
-            if (tempStack.top() == resolvedPath) {
-                return true;
-            }
-            tempStack.pop();
+        // Check if already cached
+        auto it = astCache.find(resolvedPath);
+        if (it != astCache.end()) {
+            return it->second.get();
         }
         
-        return false;
-    }
-    
-    std::string ImportManager::getCircularDependencyChain(const std::string& filePath)
-    {
-        std::string resolvedPath = resolvePath(filePath);
-        std::vector<std::string> chain;
-        
-        std::stack<std::string> tempStack = importStack;
-        bool foundCycle = false;
-        
-        while (!tempStack.empty()) {
-            std::string current = tempStack.top();
-            tempStack.pop();
-            chain.push_back(current);
-            
-            if (current == resolvedPath) {
-                foundCycle = true;
-                break;
-            }
-        }
-        
-        if (!foundCycle) {
-            return "";
-        }
-        
-        // Reverse to get proper order
-        std::reverse(chain.begin(), chain.end());
-        
-        // Build the dependency chain string
-        std::stringstream ss;
-        for (size_t i = 0; i < chain.size(); ++i) {
-            ss << chain[i];
-            if (i < chain.size() - 1) {
-                ss << " -> ";
-            }
-        }
-        ss << " -> " << resolvedPath;
-        
-        return ss.str();
-    }
-    
-    ASTNode* ImportManager::importFile(const std::string& rawPath)
-    {
-        std::string resolvedPath;
-        
-        try {
-            resolvedPath = resolvePath(rawPath);
-        } catch (const std::filesystem::filesystem_error&) {
-            throw errors::FileException("Cannot resolve import path: " + rawPath);
-        }
-        
-        // Check if already imported (return cached AST)
-        auto cacheIt = astCache.find(resolvedPath);
-        if (cacheIt != astCache.end()) {
-            return cacheIt->second.get();
-        }
-        
-        // Check for circular dependency
-        if (wouldCauseCircularDependency(resolvedPath)) {
-            std::string chain = getCircularDependencyChain(resolvedPath);
-            throw errors::ImportException("Circular dependency detected: " + chain);
-        }
         
         // Read the file
         std::ifstream file(resolvedPath);
@@ -132,50 +68,49 @@ namespace services
         std::string fileContent = buffer.str();
         file.close();
         
-        // Push current file onto import stack
-        importStack.push(resolvedPath);
+        // Parse the imported file (NO evaluation, NO environment interaction)
+        Lexer lexer(fileContent, resolvedPath);
+        Parser parser(lexer);
         
-        try {
-            // Save current directory and switch to imported file's directory
-            std::string savedDir = currentDirectory;
-            fs::path importedFilePath(resolvedPath);
-            currentDirectory = importedFilePath.parent_path().string();
-            
-            // Parse the imported file
-            Lexer lexer(fileContent, resolvedPath);
-            Parser parser(lexer);
-            
-            // Set the ImportManager in the parser so nested imports work
-            parser.setImportManager(this);
-            
-            std::unique_ptr<ASTNode> ast = parser.parseProgram();
-            
-            // Restore previous directory
-            currentDirectory = savedDir;
-            
-            // Pop from import stack
-            importStack.pop();
-            
-            // Cache the AST
-            astCache[resolvedPath] = std::move(ast);
-            importedFiles.insert(resolvedPath);
-            
-            return astCache[resolvedPath].get();
-        }
-        catch (const std::exception& e) {
-            // Make sure to pop the stack and restore directory even on error
-            importStack.pop();
-            throw errors::ImportException("Error parsing imported file " + resolvedPath + ": " + e.what());
-        }
+        // Pure parsing only - no ImportManager dependency
+        // If the nested file has imports, they will be handled during evaluation phase
+        std::unique_ptr<ASTNode> ast = parser.parseProgram();
+        
+        // Cache the AST
+        ASTNode* astPtr = ast.get();
+        astCache[resolvedPath] = std::move(ast);
+        importedFiles.insert(resolvedPath);
+        
+        return astPtr;
     }
+    
+    std::string ImportManager::resolvePathConsistently(const std::string& path)
+    {
+        fs::path filePath(path);
+        
+        // If path is relative, resolve it relative to the ORIGINAL base directory (not current directory)
+        if (filePath.is_relative()) {
+            filePath = fs::path(baseDirectory) / filePath;
+        }
+        
+        // Normalize the path (resolve . and .. components)
+        try {
+            filePath = fs::canonical(filePath);
+        } catch (const std::filesystem::filesystem_error&) {
+            // If canonical fails, at least get the absolute path
+            filePath = fs::absolute(filePath);
+        }
+        
+        return filePath.string();
+    }
+    
+    
     
     void ImportManager::clearCache()
     {
         astCache.clear();
         importedFiles.clear();
-        while (!importStack.empty()) {
-            importStack.pop();
-        }
+        evaluatedFiles.clear();
     }
     
     bool ImportManager::isImported(const std::string& rawPath)
@@ -185,6 +120,26 @@ namespace services
             return importedFiles.find(resolvedPath) != importedFiles.end();
         } catch (...) {
             return false;
+        }
+    }
+    
+    bool ImportManager::isEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            return evaluatedFiles.find(resolvedPath) != evaluatedFiles.end();
+        } catch (...) {
+            return false;
+        }
+    }
+    
+    void ImportManager::markAsEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            evaluatedFiles.insert(resolvedPath);
+        } catch (...) {
+            // Ignore errors when marking as evaluated
         }
     }
     

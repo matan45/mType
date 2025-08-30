@@ -1,0 +1,10 @@
+Original: Toyota (2020)
+Returned this: Toyota (2020)
+After chaining: Chevrolet (2022)
+Built string: Hello World123
+Complex chain result: Count: 42 items
+After clear and reuse: New Content
+Config URL: https://example.com:443
+Original after chain: Updated (2023)
+Chained result: Updated (2023)
+Nested chain URL: http://api.server.com:9000

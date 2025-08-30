@@ -46,6 +46,7 @@ namespace environment::manager
         bool isInClass() const;
         bool isInFunction() const;
         bool isInLoop() const;
+        std::string getFunctionScopeName() const;
         
         void pushScope(std::shared_ptr<Scope> scope);
         std::shared_ptr<Scope> popScope();

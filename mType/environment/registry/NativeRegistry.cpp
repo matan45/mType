@@ -71,6 +71,7 @@ namespace environment::registry
                         std::cout << "null";
                 }, arg);
             }
+            std::cout << std::endl;
             return std::monostate{};
         });
 
@@ -94,6 +95,52 @@ namespace environment::registry
             }
             std::cout << std::endl;
             return std::monostate{};
+        });
+
+        registerNativeFunction("toString", [](const std::vector<Value>& args) -> Value {
+            if (args.size() != 1) {
+                throw std::runtime_error("toString expects exactly 1 argument");
+            }
+            
+            return std::visit([](const auto& value) -> Value {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+                    return value; // Already a string
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>) {
+                    return std::to_string(value);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>) {
+                    return std::to_string(value);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>) {
+                    return value ? std::string("true") : std::string("false");
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>) {
+                    return std::string("void");
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>) {
+                    return std::string("null");
+                }
+                else {
+                    return std::string("unknown");
+                }
+            }, args[0]);
+        });
+
+        // Add str namespace functions - register with qualified names
+        registerNativeFunction("str::length", [](const std::vector<Value>& args) -> Value {
+            if (args.size() != 1) {
+                throw std::runtime_error("str::length expects exactly 1 argument");
+            }
+            
+            return std::visit([](const auto& value) -> Value {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+                    return static_cast<int>(value.length());
+                }
+                else {
+                    throw std::runtime_error("str::length can only be called on strings");
+                }
+            }, args[0]);
         });
     }
 }

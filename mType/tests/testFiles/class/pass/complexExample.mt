@@ -87,7 +87,3 @@ newBase.display();  // 5
 
 // Access static variable of SomeClass
 print(SomeClass::instances);  // 1
-
-// This line should be removed to prevent error:
-// final Base base3 = new Base(10, "First");
-// base3 = null; // Error: Cannot assign to final variable

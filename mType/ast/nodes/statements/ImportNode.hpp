@@ -12,14 +12,15 @@ namespace ast::nodes::statements
         std::string filePath;
         ASTNode* importedAST; // Reference to cached AST in ImportManager
         std::vector<std::unique_ptr<ASTNode>> importedDeclarations; // Extracted declarations
+        void* importManager; // Reference to ImportManager (as void* to avoid circular dependency)
 
     public:
         explicit ImportNode(const std::string& path, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), filePath(path), importedAST(nullptr) {}
+            : ASTNode(loc), filePath(path), importedAST(nullptr), importManager(nullptr) {}
 
         explicit ImportNode(const std::string& path, ASTNode* ast,
                           const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), filePath(path), importedAST(ast) {}
+            : ASTNode(loc), filePath(path), importedAST(ast), importManager(nullptr) {}
 
         const std::string& getFilePath() const { return filePath; }
         ASTNode* getImportedAST() const { return importedAST; }
@@ -33,6 +34,10 @@ namespace ast::nodes::statements
 
         // Check if this import was successfully resolved
         bool isResolved() const { return importedAST != nullptr; }
+        
+        // Get/Set ImportManager reference
+        void* getImportManager() const { return importManager; }
+        void setImportManager(void* manager) { importManager = manager; }
 
         Value accept(ASTVisitor<Value>& visitor) override {
             return visitor.visitImportNode(this);

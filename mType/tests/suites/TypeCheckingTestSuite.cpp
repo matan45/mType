@@ -7,69 +7,69 @@ namespace tests::testSuite
     void TypeCheckingTestSuite::setupTests()
     {
         // Object assignment tests
-        addTestFromFile("Same Type Assignment",
+        addOutputVerificationTest("Same Type Assignment",
                         passPath + "sameTypeAssignment.mt");
-        addTestFromFile("Null Assignment",
+        addOutputVerificationTest("Null Assignment",
                         passPath + "nullAssignment.mt");
-        addTestFromFile("Multiple Assignments",
+        addOutputVerificationTest("Multiple Assignments",
                         passPath + "multipleAssignments.mt");
-        addTestFromFile("Complex Type Checking",
+        addOutputVerificationTest("Complex Type Checking",
                         passPath + "complexTypeChecking.mt");
-        addTestFromFile("Declaration Type Checking",
+        addOutputVerificationTest("Declaration Type Checking",
                         passPath + "declarationTypeChecking.mt");
-        addTestFromFile("Declaration Type Checking Mixed",
+        addOutputVerificationTest("Declaration Type Checking Mixed",
                         passPath + "declarationTypeCheckingMixed.mt");
-        addTestFromFile("Chained Object Assignments",
+        addOutputVerificationTest("Chained Object Assignments",
                         passPath + "chainedObjectAssignments.mt");
-        addTestFromFile("Complex Reassignment Chains",
+        addOutputVerificationTest("Complex Reassignment Chains",
                         passPath + "complexReassignmentChains.mt");
-        addTestFromFile("Namespace Reassignment Chains",
+        addOutputVerificationTest("Namespace Reassignment Chains",
                         passPath + "namespaceReassignmentChains.mt");
 
         // Function parameter tests
-        addTestFromFile("Function Parameter Primitive Types",
+        addOutputVerificationTest("Function Parameter Primitive Types",
                         passPath + "functionParameterPrimitiveTypes.mt");
-        addTestFromFile("Function Parameter Object Types",
+        addOutputVerificationTest("Function Parameter Object Types",
                         passPath + "functionParameterObjectTypes.mt");
-        addTestFromFile("Function Parameter Null Values",
+        addOutputVerificationTest("Function Parameter Null Values",
                         passPath + "functionParameterNullValues.mt");
-        addTestFromFile("Function Parameter Float Conversion",
+        addOutputVerificationTest("Function Parameter Float Conversion",
                         passPath + "functionParameterFloatConversion.mt");
-        addTestFromFile("Method Parameter Type Checking",
+        addOutputVerificationTest("Method Parameter Type Checking",
                         passPath + "methodParameterTypeChecking.mt");
-        addTestFromFile("Constructor Parameter Type Checking",
+        addOutputVerificationTest("Constructor Parameter Type Checking",
                         passPath + "constructorParameterTypeChecking.mt");
-        addTestFromFile("Function Parameter With Namespaces",
+        addOutputVerificationTest("Function Parameter With Namespaces",
                         passPath + "functionParameterWithNamespaces.mt");
 
         // Function return type tests
-        addTestFromFile("Function Return Type Matching",
+        addOutputVerificationTest("Function Return Type Matching",
                         passPath + "functionReturnTypeMatching.mt");
-        addTestFromFile("Namespace Return Types",
+        addOutputVerificationTest("Namespace Return Types",
                         passPath + "namespaceReturnTypes.mt");
-        addTestFromFile("Namespace Return Types Nested",
+        addOutputVerificationTest("Namespace Return Types Nested",
                         passPath + "namespaceReturnTypesNested.mt");
-        addTestFromFile("Namespace Return Types With Class",
+        addOutputVerificationTest("Namespace Return Types With Class",
                         passPath + "namespaceReturnTypesWithClass.mt");
-        addTestFromFile("Object Return Types",
+        addOutputVerificationTest("Object Return Types",
                         passPath + "objectReturnTypes.mt");
-        addTestFromFile("Object Return Types Function Returning Object",
+        addOutputVerificationTest("Object Return Types Function Returning Object",
                         passPath + "objectReturnTypesFunctionReturningObject.mt");
-        addTestFromFile("Object Return Types Static Methods",
+        addOutputVerificationTest("Object Return Types Static Methods",
                         passPath + "objectReturnTypesStaticMethods.mt");
-        addTestFromFile("Object Return Types Nested Objects",
+        addOutputVerificationTest("Object Return Types Nested Objects",
                         passPath + "objectReturnTypesNestedObjects.mt");
-        addTestFromFile("Object Return Types Namespace Returning Object",
+        addOutputVerificationTest("Object Return Types Namespace Returning Object",
                         passPath + "objectReturnTypesNamespaceReturningObject.mt");
 
         // String handling edge case tests
-        addTestFromFile("String Concatenation with Null Objects",
+        addOutputVerificationTest("String Concatenation with Null Objects",
                         passPath + "stringConcatenationWithNulls.mt");
-        addTestFromFile("Empty String Edge Cases",
+        addOutputVerificationTest("Empty String Edge Cases",
                         passPath + "emptyStringEdgeCases.mt");
 
         // Null propagation tests
-        addTestFromFile("Null Propagation Complex Expressions",
+        addOutputVerificationTest("Null Propagation Complex Expressions",
                         passPath + "nullPropagationComplexExpressions.mt");
 
         // Error tests (expected to fail)

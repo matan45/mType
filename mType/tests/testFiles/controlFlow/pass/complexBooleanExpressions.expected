@@ -1,0 +1,77 @@
+Test 1: Basic logical operators
+false
+true
+false
+Test 2: Complex AND chains
+true
+false
+false
+Test 3: Complex OR chains
+false
+true
+true
+Test 4: Mixed AND/OR precedence
+true
+true
+false
+Test 5: Parentheses override precedence
+false
+true
+true
+Test 6: Negation with complex expressions
+true
+true
+false
+true
+Test 7: Comparison operations
+true
+false
+true
+Test 8: Boolean with arithmetic
+true
+false
+false
+Test 9: Short-circuit evaluation
+false
+true
+Test 10: Complex nested expressions
+true
+false
+true
+Test 11: Boolean functions
+true
+false
+true
+Test 12: Boolean in control flow
+4
+Test 13: Boolean with strings
+true
+Test 14: Complex ternary expressions
+true
+in range
+Test 15: Boolean with floats
+true
+true
+Test 16: Extreme complexity
+true
+Test 17: Method chaining simulation
+true
+true
+Test 18: Boolean with loops
+true
+true
+Test 19: Multiple data types
+true
+Test 20: Edge cases with zero/negative
+true
+true
+true
+Zero comparison tests
+true
+Test 21: Array-like operations simulation
+true
+true
+Test 22: Mathematical functions
+true
+true
+All complex boolean expression tests completed
