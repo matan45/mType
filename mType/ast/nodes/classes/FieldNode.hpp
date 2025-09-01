@@ -29,7 +29,7 @@ namespace ast::nodes::classes
 
         const std::string& getName() const { return name; }
         ValueType getType() const { return type; }
-        ASTNode* getInitialValue() const { return initialValue.get(); }
+        std::unique_ptr<ASTNode> getInitialValue() const { return initialValue; }
         bool getIsStatic() const { return isStatic; }
         bool getIsFinal() const { return isFinal; }
 

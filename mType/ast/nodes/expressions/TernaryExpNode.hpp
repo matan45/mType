@@ -16,9 +16,9 @@ namespace ast::nodes::expressions
                        const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), condition(std::move(cond)), trueExpression(std::move(trueExpr)), falseExpression(std::move(falseExpr)) {}
 
-        ASTNode* getCondition() const { return condition.get(); }
-        ASTNode* getTrueExpression() const { return trueExpression.get(); }
-        ASTNode* getFalseExpression() const { return falseExpression.get(); }
+        std::unique_ptr<ASTNode> getCondition() const { return condition.get(); }
+        std::unique_ptr<ASTNode> getTrueExpression() const { return trueExpression.get(); }
+        std::unique_ptr<ASTNode> getFalseExpression() const { return falseExpression.get(); }
 
         void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
         void setTrueExpression(std::unique_ptr<ASTNode> trueExpr) { trueExpression = std::move(trueExpr); }

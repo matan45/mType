@@ -6,14 +6,6 @@ namespace environment::manager
     Scope::Scope(const std::string& scopeName, ScopeType scopeType, std::shared_ptr<Scope> parentScope)
         : name(scopeName), type(scopeType), parent(parentScope)
     {
-        if (parent)
-        {
-            namespacePath = parent->getNamespacePath();
-            if (type == ScopeType::NAMESPACE)
-            {
-                namespacePath.push_back(scopeName);
-            }
-        }
     }
 
     const std::string& Scope::getName() const

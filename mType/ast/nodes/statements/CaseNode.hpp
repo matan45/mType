@@ -15,7 +15,7 @@ namespace ast::nodes::statements
         explicit CaseNode(std::unique_ptr<ASTNode> caseValue, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), value(std::move(caseValue)) {}
 
-        ASTNode* getValue() const { return value.get(); }
+        std::unique_ptr<ASTNode> getValue() const { return value.get(); }
         const std::vector<std::unique_ptr<ASTNode>>& getStatements() const { return statements; }
 
         void setValue(std::unique_ptr<ASTNode> caseValue) { value = std::move(caseValue); }

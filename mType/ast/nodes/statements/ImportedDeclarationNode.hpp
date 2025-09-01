@@ -9,15 +9,15 @@ namespace ast::nodes::statements
     class ImportedDeclarationNode : public ASTNode
     {
     private:
-        ASTNode* originalDeclaration;  // Reference to the original declaration (owned by ImportManager)
+        std::unique_ptr<ASTNode> originalDeclaration;  // Reference to the original declaration (owned by ImportManager)
         std::string sourceFile;        // File where this declaration came from
         
     public:
-        explicit ImportedDeclarationNode(ASTNode* decl, const std::string& file, 
+        explicit ImportedDeclarationNode(std::unique_ptr<ASTNode> decl, const std::string& file, 
                                        const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), originalDeclaration(decl), sourceFile(file) {}
+            : ASTNode(loc), originalDeclaration(std::move(decl)), sourceFile(file) {}
             
-        ASTNode* getOriginalDeclaration() const { return originalDeclaration; }
+        std::unique_ptr<ASTNode> getOriginalDeclaration() const { return originalDeclaration; }
         const std::string& getSourceFile() const { return sourceFile; }
         
         // Delegate visitor pattern to the original declaration

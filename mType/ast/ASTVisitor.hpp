@@ -56,13 +56,6 @@ namespace ast
             class MemberAccessNode;
             class MethodCallNode;
         }
-        
-        namespace namespaces
-        {
-            class NamespaceNode;
-            class UsingNode;
-            class QualifiedNameNode;
-        }
     }
     
     // Type aliases for backward compatibility - these map to the refactored namespaced types
@@ -99,10 +92,6 @@ namespace ast
     using MethodCallNode = nodes::classes::MethodCallNode;
     using MemberAssignmentNode = nodes::statements::MemberAssignmentNode;
     using NullNode = nodes::expressions::NullNode;
-    using NamespaceNode = nodes::namespaces::NamespaceNode;
-    using UsingNode = nodes::namespaces::UsingNode;
-    using QualifiedNameNode = nodes::namespaces::QualifiedNameNode;
-    using QualifiedAssignmentNode = nodes::statements::QualifiedAssignmentNode;
     using FloatNode = nodes::expressions::FloatNode;
     using IntegerNode = nodes::expressions::IntegerNode;
 
@@ -149,9 +138,5 @@ namespace ast
         virtual T visitConstructorNode(ConstructorNode* node) = 0;
         virtual T visitFieldNode(FieldNode* node) = 0;
         virtual T visitClassNode(ClassNode* node) = 0;
-        virtual T visitNamespaceNode(NamespaceNode* node) = 0;
-        virtual T visitUsingNode(UsingNode* node) = 0;
-        virtual T visitQualifiedNameNode(QualifiedNameNode* node) = 0;
-        virtual T visitQualifiedAssignmentNode(QualifiedAssignmentNode* node) = 0;
     };
 }

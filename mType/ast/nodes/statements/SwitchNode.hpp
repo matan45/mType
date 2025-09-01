@@ -15,7 +15,7 @@ namespace ast::nodes::statements
         explicit SwitchNode(std::unique_ptr<ASTNode> expr, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), expression(std::move(expr)) {}
 
-        ASTNode* getExpression() const { return expression.get(); }
+        std::unique_ptr<ASTNode> getExpression() const { return expression.get(); }
         const std::vector<std::unique_ptr<ASTNode>>& getCases() const { return cases; }
 
         void setExpression(std::unique_ptr<ASTNode> expr) { expression = std::move(expr); }

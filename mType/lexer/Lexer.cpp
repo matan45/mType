@@ -6,9 +6,11 @@
 
 namespace lexer
 {
-    Lexer::Lexer(const std::string& input, const std::string& fname)
-        : input(input), filename(fname), pos(0), currentLine(1), currentColumn(1)
+    Lexer::Lexer(const std::string& filePath)
+        : filename(filePath), pos(0), currentLine(1), currentColumn(1)
     {
+        //TODO read code from file path
+        //input(input), 
         // Skip UTF-8 BOM if present
         if (input.length() >= 3 &&
             static_cast<unsigned char>(input[0]) == 0xEF &&
@@ -221,33 +223,14 @@ namespace lexer
 
     Token Lexer::peekNextToken()
     {
-        return peekToken(1);
-    }
-    
-    Token Lexer::peekToken(int n)
-    {
-        if (n <= 0) {
-            throw std::runtime_error("peekToken: n must be positive");
-        }
-        
         size_t savedPos = pos;
-        int savedLine = currentLine;
-        int savedColumn = currentColumn;
         std::stack<char> savedStack = balanceStack;
-
-        Token token;
-        for (int i = 0; i < n; ++i) {
-            token = getNextToken();
-        }
-
+        Token token = getNextToken();
         pos = savedPos;
-        currentLine = savedLine;
-        currentColumn = savedColumn;
         balanceStack = savedStack;
-
         return token;
     }
-
+    
     void Lexer::splitIntoLines()
     {
         std::string line;

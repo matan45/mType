@@ -16,9 +16,9 @@ namespace ast::nodes::statements
                std::unique_ptr<ASTNode> elseStmt = nullptr, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), condition(std::move(cond)), thenStatement(std::move(thenStmt)), elseStatement(std::move(elseStmt)) {}
 
-        ASTNode* getCondition() const { return condition.get(); }
-        ASTNode* getThenStatement() const { return thenStatement.get(); }
-        ASTNode* getElseStatement() const { return elseStatement.get(); }
+        std::unique_ptr<ASTNode> getCondition() const { return condition.get(); }
+        std::unique_ptr<ASTNode> getThenStatement() const { return thenStatement.get(); }
+        std::unique_ptr<ASTNode> getElseStatement() const { return elseStatement.get(); }
 
         void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
         void setThenStatement(std::unique_ptr<ASTNode> thenStmt) { thenStatement = std::move(thenStmt); }

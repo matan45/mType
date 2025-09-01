@@ -8,6 +8,9 @@
         // Use imported functions
         int sum = add(10, 20);
         print(sum);
+		
+		Book book1 = new Book("1984", "Orwell", 328);
+		print(book1.getInfo());
         
         int product = multiply(5, 6);
         print(product);
@@ -18,3 +21,4 @@
         // Use imported variables
         print(MATH_CONSTANT);
         print(GREETING);
+		print(Book::TEST);

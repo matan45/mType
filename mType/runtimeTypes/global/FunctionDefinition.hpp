@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"

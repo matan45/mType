@@ -15,12 +15,7 @@ namespace ast::nodes::classes
         return parameters;
     }
 
-    ASTNode* ConstructorNode::getBody() const
-    {
-        return body.get();
-    }
-
-    std::unique_ptr<ASTNode> ConstructorNode::releaseBody()
+    std::unique_ptr<ASTNode> ConstructorNode::getBody() const
     {
         return std::move(body);
     }
