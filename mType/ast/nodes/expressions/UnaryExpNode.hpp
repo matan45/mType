@@ -26,7 +26,7 @@ namespace ast::nodes::expressions
             : ASTNode(loc), operator_(op), operand(std::move(operand_)), position(pos) {}
 
         TokenType getOperator() const { return operator_; }
-        ASTNode* getOperand() const { return operand.get(); }
+        std::unique_ptr<ASTNode> getOperand() const { return operand.get(); }
         UnaryPosition getPosition() const { return position; }
 
         void setOperand(std::unique_ptr<ASTNode> operand_) {

@@ -34,8 +34,6 @@ namespace parser
 
         switch (currentToken.type)
         {
-        case TokenType::NAMESPACE:
-            return parser.getNamespaceParser()->parseNamespace();
         case TokenType::CLASS:
             return parser.getClassParser()->parseClass();
         case TokenType::FUNCTION:
@@ -78,23 +76,18 @@ namespace parser
                     // We need to look ahead through the qualified name to see what follows
                     
                     // Count how many tokens we need to look ahead
-                    int lookAhead = 2; // Start at 2 (next is ::)
                     while (true) {
-                        Token tok = parser.peekToken(lookAhead);
+                        Token tok = parser.peekNextToken();
                         if (tok.type == TokenType::IDENTIFIER) {
-                            lookAhead++;
-                            Token nextTok = parser.peekToken(lookAhead);
+                            
+                            Token nextTok = parser.peekNextToken();
                             if (nextTok.type == TokenType::SCOPE) {
-                                lookAhead++; // Continue through the qualified name
                             } else {
                                 // End of qualified name, check what follows
                                 if (nextTok.type == TokenType::IDENTIFIER) {
                                     // Pattern: Namespace::Class varName - this is a declaration
-                                    return parseDeclaration();
-                                } else {
-                                    // Pattern: Class::method() or Class::field - this is an expression
                                     return parseExpressionStatement();
-                                }
+                                } 
                             }
                         } else {
                             // Unexpected token in qualified name
@@ -116,8 +109,6 @@ namespace parser
             return nullptr;
         case TokenType::IMPORT:
             return parseImport();
-        case TokenType::USING:
-            return parser.getNamespaceParser()->parseUsing();
         case TokenType::NATIVE:
             return parseNativeFunction();
         case TokenType::END:

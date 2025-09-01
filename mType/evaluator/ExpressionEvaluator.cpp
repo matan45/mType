@@ -2,16 +2,24 @@
 #include "Evaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "../errors/TypeException.hpp"
-#include <iostream>
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include <sstream>
+#include "../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../ast/nodes/expressions/TernaryExpNode.hpp"
+#include "../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../ast/nodes/expressions/VariableNode.hpp"
+#include "../ast/nodes/expressions/IntegerNode.hpp"
+#include "../ast/nodes/expressions/FloatNode.hpp"
+#include "../ast/nodes/expressions/StringNode.hpp"
+#include "../ast/nodes/expressions/BoolNode.hpp"
+#include "../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/classes/MethodCallNode.hpp"
 #include <cmath>
-#include <iostream>
 
 namespace evaluator
 {

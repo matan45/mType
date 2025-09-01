@@ -67,6 +67,9 @@ namespace lexer
 
         void advance();
         [[noreturn]] void throwError(const std::string& message);
+
+        //TODO move to utils
+        std::string readFromFile(const std::string& filePath);
     };
 }
 

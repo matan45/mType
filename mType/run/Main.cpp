@@ -3,7 +3,6 @@
 #include "../tests/suites/ClassTestSuite.hpp"
 #include "../tests/suites/ImportTestSuite.hpp"
 #include "../tests/suites/IntegrationTestSuite.hpp"
-#include "../tests/suites/NameSpaceTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
@@ -46,10 +45,6 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     else if (suiteName == "error" || suiteName == "errors")
     {
         return std::make_unique<ErrorTestSuite>();
-    }
-    else if (suiteName == "namespace" || suiteName == "namespaces")
-    {
-        return std::make_unique<NameSpaceTestSuite>();
     }
     else if (suiteName == "integration")
     {
@@ -111,7 +106,6 @@ void runAllTests()
     suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
     suites.push_back(std::make_unique<ErrorTestSuite>());
-    suites.push_back(std::make_unique<NameSpaceTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
 

@@ -2,10 +2,6 @@
 #include "ExpressionEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
-#include "NamespaceEvaluator.hpp"
-#include "../exception/ReturnException.hpp"
-#include "../exception/BreakException.hpp"
-#include "../exception/ContinueException.hpp"
 #include <iostream>
 
 namespace evaluator
@@ -16,7 +12,6 @@ namespace evaluator
         exprEvaluator = std::make_unique<ExpressionEvaluator>(this);
         stmtEvaluator = std::make_unique<StatementEvaluator>(this);
         objEvaluator = std::make_unique<ObjectEvaluator>(this);
-        nsEvaluator = std::make_unique<NamespaceEvaluator>(this);
     }
 
     Evaluator::~Evaluator() = default;
@@ -98,11 +93,7 @@ namespace evaluator
     {
         return stmtEvaluator->evaluateAssignmentNode(node);
     }
-
-    Value Evaluator::visitQualifiedAssignmentNode(QualifiedAssignmentNode* node)
-    {
-        return nsEvaluator->evaluateQualifiedAssignmentNode(node);
-    }
+    
 
     Value Evaluator::visitMemberAssignmentNode(MemberAssignmentNode* node)
     {
@@ -234,22 +225,6 @@ namespace evaluator
         return objEvaluator->evaluateMethodCallNode(node);
     }
 
-    // Namespace nodes
-    Value Evaluator::visitNamespaceNode(NamespaceNode* node)
-    {
-        return nsEvaluator->evaluateNamespaceNode(node);
-    }
-
-    Value Evaluator::visitUsingNode(UsingNode* node)
-    {
-        return nsEvaluator->evaluateUsingNode(node);
-    }
-
-    Value Evaluator::visitQualifiedNameNode(QualifiedNameNode* node)
-    {
-        return nsEvaluator->evaluateQualifiedNameNode(node);
-    }
-
     // Helper method implementations
     bool Evaluator::isTruthy(const Value& value)
     {
@@ -291,23 +266,13 @@ namespace evaluator
     {
         return objEvaluator->evaluateMemberAssignmentNode(node);
     }
-
-    Value Evaluator::evaluateQualifiedNameAccess(QualifiedNameNode* node)
-    {
-        return nsEvaluator->evaluateQualifiedNameNode(node);
-    }
-
-    Value Evaluator::evaluateQualifiedAssignment(QualifiedAssignmentNode* node)
-    {
-        return nsEvaluator->evaluateQualifiedAssignmentNode(node);
-    }
     
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> Evaluator::getCurrentInstance() const
+    std::shared_ptr<ObjectInstance> Evaluator::getCurrentInstance() const
     {
         return objEvaluator->getCurrentInstance();
     }
     
-    Value Evaluator::callMethodOnInstance(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance, 
+    Value Evaluator::callMethodOnInstance(std::shared_ptr<ObjectInstance> instance, 
                                           const std::string& methodName, const std::vector<Value>& args)
     {
         return objEvaluator->callMethod(instance, methodName, args);

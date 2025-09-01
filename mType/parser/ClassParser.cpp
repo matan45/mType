@@ -181,19 +181,11 @@ namespace parser
     std::unique_ptr<ASTNode> ClassParser::parseMethod()
     {
         bool isStatic = false;
-        bool isFinal = false;
 
         // Handle static modifier
         if (parser.getCurrentToken().type == TokenType::STATIC)
         {
             isStatic = true;
-            parser.advanceToken();
-        }
-
-        // Handle final modifier
-        if (parser.getCurrentToken().type == TokenType::FINAL)
-        {
-            isFinal = true;
             parser.advanceToken();
         }
 

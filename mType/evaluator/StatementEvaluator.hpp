@@ -1,26 +1,6 @@
 ﻿#pragma once
 #include "../value/ValueType.hpp"
-#include "../ast/nodes/statements/ProgramNode.hpp"
-#include "../ast/nodes/statements/BlockNode.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
-#include "../ast/nodes/statements/AssignmentNode.hpp"
-#include "../ast/nodes/statements/QualifiedAssignmentNode.hpp"
-#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
-#include "../ast/nodes/statements/IfNode.hpp"
-#include "../ast/nodes/statements/WhileNode.hpp"
-#include "../ast/nodes/statements/DoWhileNode.hpp"
-#include "../ast/nodes/statements/ForNode.hpp"
-#include "../ast/nodes/statements/BreakNode.hpp"
-#include "../ast/nodes/statements/ContinueNode.hpp"
-#include "../ast/nodes/statements/SwitchNode.hpp"
-#include "../ast/nodes/statements/CaseNode.hpp"
-#include "../ast/nodes/statements/DefaultCaseNode.hpp"
-#include "../ast/nodes/statements/ImportNode.hpp"
-#include "../ast/nodes/statements/NativeFunctionNode.hpp"
-#include "../ast/nodes/functions/FunctionNode.hpp"
-#include "../ast/nodes/functions/ReturnNode.hpp"
-#include <memory>
-#include <unordered_set>
+#include "../ast/NodeClassesDeclaration.hpp"
 #include <string>
 
 namespace evaluator

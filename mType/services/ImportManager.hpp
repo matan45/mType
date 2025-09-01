@@ -21,9 +21,6 @@ namespace services
 
         // Cache parsed ASTs
         std::unordered_map<std::string, std::unique_ptr<ASTNode>> astCache;
-
-        // Current working directory for relative imports
-        std::string currentDirectory;
         
         // Original base directory (never changes after initialization)
         std::string baseDirectory;

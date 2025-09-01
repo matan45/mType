@@ -13,9 +13,7 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
-#include "../ast/nodes/namespaces/QualifiedNameNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
-#include "../ast/nodes/statements/QualifiedAssignmentNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -46,8 +44,7 @@ namespace parser
             // For assignment expressions, the left side should be a variable, member access, or qualified name
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
-            auto qualifiedNameNode = dynamic_cast<ast::nodes::namespaces::QualifiedNameNode*>(expr.get());
-            if (!variableNode && !memberAccessNode && !qualifiedNameNode) {
+            if (!variableNode && !memberAccessNode) {
                 throw ParseException("Invalid assignment target", parser.getCurrentToken().location);
             }
 
@@ -96,16 +93,7 @@ namespace parser
                                                           std::move(expandedRight), 
                                                           ValueType::VOID, "");
                 }
-            } else if (qualifiedNameNode) {
-                // Qualified assignment (e.g., namespace::variable = value)
-                if (opType == TokenType::ASSIGN) {
-                    return std::make_unique<QualifiedAssignmentNode>(qualifiedNameNode->getQualifiers(), 
-                                                                     std::move(rightExpr));
-                } else {
-                    // Compound qualified assignment - not yet supported
-                    throw ParseException("Compound assignment to qualified name not yet supported", parser.getCurrentToken().location);
-                }
-            }
+            } 
         }
 
         return expr;
@@ -266,11 +254,6 @@ namespace parser
                     funcName = varNode->getName();
                     canCallFunction = true;
                 }
-                else if (auto qualNode = dynamic_cast<ast::nodes::namespaces::QualifiedNameNode*>(expr.get()))
-                {
-                    funcName = qualNode->getFullName();
-                    canCallFunction = true;
-                }
 
                 if (canCallFunction)
                 {
@@ -314,9 +297,6 @@ namespace parser
                         parts.push_back(parser.getCurrentToken().stringValue);
                         parser.advanceToken();
                     }
-
-                    // No need to call release() - unique_ptr will handle cleanup automatically
-                    expr = std::make_unique<ast::nodes::namespaces::QualifiedNameNode>(parts);
                     
                     // Check if this is a function call (e.g., MathUtils::max(10, 5))
                     if (parser.getCurrentToken().type == TokenType::LPAREN)
@@ -333,7 +313,7 @@ namespace parser
                         auto arguments = parseArguments();
                         parser.expectToken(TokenType::RPAREN);
                         
-                        expr = std::make_unique<ast::nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                        expr = std::make_unique<nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
                     }
                 }
             }
