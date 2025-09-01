@@ -19,10 +19,10 @@ namespace ast::nodes::statements
             : ASTNode(loc), initialization(std::move(init)), condition(std::move(cond)),
               update(std::move(upd)), body(std::move(bodyStmt)) {}
 
-        std::unique_ptr<ASTNode> getInitialization() const { return initialization.get(); }
-        std::unique_ptr<ASTNode> getCondition() const { return condition.get(); }
-        std::unique_ptr<ASTNode> getUpdate() const { return update.get(); }
-        std::unique_ptr<ASTNode> getBody() const { return body.get(); }
+        ASTNode* getInitialization() const { return initialization.get(); }
+        ASTNode* getCondition() const { return condition.get(); }
+        ASTNode* getUpdate() const { return update.get(); }
+        ASTNode* getBody() const { return body.get(); }
 
         void setInitialization(std::unique_ptr<ASTNode> init) { initialization = std::move(init); }
         void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }

@@ -53,7 +53,7 @@ namespace services
         
         // Parse the imported file (NO evaluation, NO environment interaction)
         Lexer lexer(resolvedPath);
-        Parser parser(lexer);
+        Parser parser(lexer, nullptr);  // Pass nullptr for ImportManager since we don't handle nested imports during parsing
         
         // Pure parsing only - no ImportManager dependency
         // If the nested file has imports, they will be handled during evaluation phase

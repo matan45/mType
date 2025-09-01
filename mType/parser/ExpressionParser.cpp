@@ -1,5 +1,6 @@
 ﻿#include "ExpressionParser.hpp"
 #include "Parser.hpp"
+#include "../services/ImportManager.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
@@ -314,6 +315,19 @@ namespace parser
                         parser.expectToken(TokenType::RPAREN);
                         
                         expr = std::make_unique<nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                    }
+                    else
+                    {
+                        // This is a qualified variable access (e.g., TestClass::myField)
+                        // Join the parts to create the full variable name
+                        std::string fullName = parts[0];
+                        for (size_t i = 1; i < parts.size(); i++)
+                        {
+                            fullName += "::" + parts[i];
+                        }
+                        
+                        // Create a VariableNode with the qualified name
+                        expr = std::make_unique<nodes::expressions::VariableNode>(fullName);
                     }
                 }
             }

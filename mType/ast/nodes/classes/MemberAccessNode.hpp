@@ -17,7 +17,7 @@ namespace ast::nodes::classes
                          bool isStatic = false, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), object(std::move(obj)), memberName(member), isStaticAccess(isStatic) {}
 
-        std::unique_ptr<ASTNode> getObject() const { return object; }
+        ASTNode* getObject() const { return object.get(); }
         const std::string& getMemberName() const { return memberName; }
         bool getIsStaticAccess() const { return isStaticAccess; }
 

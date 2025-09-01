@@ -81,6 +81,8 @@ namespace evaluator
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
         // Getter for StatementEvaluator to access helper functions
         StatementEvaluator* getStatementEvaluator() const;
+        // Getter for ObjectEvaluator to access static method/field functionality
+        ObjectEvaluator* getObjectEvaluator() const;
 
         //TODO move them to utils?
         // Helper for truthiness checking (delegates to ExpressionEvaluator)

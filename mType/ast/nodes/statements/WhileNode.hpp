@@ -14,8 +14,8 @@ namespace ast::nodes::statements
         explicit WhileNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> bodyStmt, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), condition(std::move(cond)), body(std::move(bodyStmt)) {}
 
-        std::unique_ptr<ASTNode> getCondition() const { return condition.get(); }
-        std::unique_ptr<ASTNode> getBody() const { return body.get(); }
+        ASTNode* getCondition() const { return condition.get(); }
+        ASTNode* getBody() const { return body.get(); }
 
         void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
         void setBody(std::unique_ptr<ASTNode> bodyStmt) { body = std::move(bodyStmt); }

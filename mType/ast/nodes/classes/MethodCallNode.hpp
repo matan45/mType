@@ -23,7 +23,7 @@ namespace ast::nodes::classes
         {
         }
 
-        std::unique_ptr<ASTNode> getObject() const { return object; }
+        ASTNode* getObject() const { return object.get(); }
         const std::string& getMethodName() const { return methodName; }
         const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
         bool getIsStaticCall() const { return isStaticCall; }

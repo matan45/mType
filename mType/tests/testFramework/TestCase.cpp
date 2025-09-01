@@ -42,21 +42,6 @@ namespace tests::testFramework
                 return;
             }
 
-            // Read file content
-            std::ifstream file(filePath);
-            if (!file.is_open())
-            {
-                status = TestStatus::ERROR;
-                errorMessage = "Could not open test file: " + filePath;
-                auto endTime = std::chrono::high_resolution_clock::now();
-                executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-                return;
-            }
-
-            std::string content((std::istreambuf_iterator<char>(file)),
-                                std::istreambuf_iterator<char>());
-            file.close();
-
             // Redirect stdout to capture output
             std::stringstream outputBuffer;
             std::streambuf* oldCout = std::cout.rdbuf();
@@ -64,15 +49,16 @@ namespace tests::testFramework
 
             try
             {
-                // Initialize lexer and parser
-                Lexer lexer(content);
-                auto importManager = std::make_shared<ImportManager>();
+                // Initialize lexer and parser - let lexer read the file
+                Lexer lexer(filePath);
+                auto importManager = std::make_unique<ImportManager>();
+                ImportManager* importManagerPtr = importManager.get();
                 
                 // Set base directory to the directory of the test file
                 std::filesystem::path testFilePath(filePath);
-                importManager->setBaseDirectory(testFilePath.parent_path().string());
+                importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
                 
-                Parser parser(lexer);
+                Parser parser(lexer, std::move(importManager));
 
                 // Parse the file
                 auto ast = parser.parseProgram();
@@ -86,7 +72,7 @@ namespace tests::testFramework
                 auto env = EnvironmentBuilder::createDefault();
                 
                 // Set ImportManager on environment for clean architecture
-                env->setImportManager(importManager.get());
+                env->setImportManager(importManagerPtr);
                 
                 Evaluator evaluator(env);
                 evaluator.evaluate(ast.get());

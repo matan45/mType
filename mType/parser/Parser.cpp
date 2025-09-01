@@ -1,4 +1,5 @@
 ﻿#include "Parser.hpp"
+#include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/expressions/StringNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
@@ -104,20 +105,19 @@ namespace parser
             // Extract and inline importable declarations
             for (const auto& stmt : importedStatements)
             {
+                // TODO: Import functionality temporarily disabled during namespace removal
+                // Will re-implement import processing in evaluation phase
+                /*
                 if (isImportableDeclaration(stmt.get()))
                 {
-                    // Since we can't easily clone AST nodes without implementing clone methods,
-                    // we'll use a practical approach: create ImportedDeclarationNode
-                    // that wraps the original declaration and preserves the import context
-
                     auto importedDecl = std::make_unique<ImportedDeclarationNode>(
-                        stmt.get(), // Reference to original declaration (ImportManager keeps it alive)
-                        importNode->getFilePath(), // Source file for debugging
-                        stmt->getLocation() // Original location
+                        stmt.get(), 
+                        importNode->getFilePath(),
+                        stmt->getLocation() 
                     );
-
                     program->addStatement(std::move(importedDecl));
                 }
+                */
             }
         }
     }
@@ -142,7 +142,6 @@ namespace parser
 
         return dynamic_cast<ast::nodes::functions::FunctionNode*>(node) != nullptr ||
             dynamic_cast<ast::nodes::classes::ClassNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::namespaces::NamespaceNode*>(node) != nullptr ||
             dynamic_cast<AssignmentNode*>(node) != nullptr; // Global variables
     }
 
@@ -286,31 +285,4 @@ namespace parser
         }
     }
 
-    std::vector<std::string> Parser::parseQualifiedName()
-    {
-        std::vector<std::string> qualifiedName;
-
-        if (getCurrentToken().type != TokenType::IDENTIFIER)
-        {
-            throw ParseException("Expected identifier", getCurrentToken().location);
-        }
-
-        qualifiedName.push_back(getCurrentToken().stringValue);
-        advanceToken();
-
-        while (getCurrentToken().type == TokenType::SCOPE)
-        {
-            advanceToken();
-
-            if (getCurrentToken().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected identifier after '::'", getCurrentToken().location);
-            }
-
-            qualifiedName.push_back(getCurrentToken().stringValue);
-            advanceToken();
-        }
-
-        return qualifiedName;
-    }
 }

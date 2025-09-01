@@ -21,7 +21,7 @@ namespace ast::nodes::classes
                         const SourceLocation& loc = SourceLocation());
 
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
-        std::unique_ptr<ASTNode> getBody() const;
+        ASTNode* getBody() const;
 
         void setParameters(std::vector<std::pair<std::string, ValueType>> params);
         void setBody(std::unique_ptr<ASTNode> constructorBody);

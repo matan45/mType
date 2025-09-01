@@ -12,7 +12,7 @@ namespace ast::nodes::functions
     public:
         explicit ReturnNode(std::unique_ptr<ASTNode> value = nullptr, const SourceLocation& loc = SourceLocation());
 
-        std::unique_ptr<ASTNode> getReturnValue() const;
+        ASTNode* getReturnValue() const;
         void setReturnValue(std::unique_ptr<ASTNode> value);
 
         bool hasReturnValue() const;

@@ -15,9 +15,9 @@ namespace ast::nodes::classes
         return parameters;
     }
 
-    std::unique_ptr<ASTNode> ConstructorNode::getBody() const
+    ASTNode* ConstructorNode::getBody() const
     {
-        return std::move(body);
+        return body.get();
     }
 
     void ConstructorNode::setParameters(std::vector<std::pair<std::string, ValueType>> params)

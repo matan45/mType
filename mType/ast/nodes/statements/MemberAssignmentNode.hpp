@@ -17,9 +17,9 @@ namespace ast::nodes::statements
                              const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), object(std::move(obj)), memberName(member), value(std::move(val)) {}
 
-        std::unique_ptr<ASTNode> getObject() const { return object.get(); }
+        ASTNode* getObject() const { return object.get(); }
         const std::string& getMemberName() const { return memberName; }
-        std::unique_ptr<ASTNode> getValue() const { return value.get(); }
+        ASTNode* getValue() const { return value.get(); }
 
         void setObject(std::unique_ptr<ASTNode> obj) { object = std::move(obj); }
         void setMemberName(const std::string& member) { memberName = member; }

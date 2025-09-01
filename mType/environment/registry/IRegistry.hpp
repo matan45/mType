@@ -14,7 +14,6 @@ namespace environment::registry
         
         virtual void registerItem(const std::string& name, std::shared_ptr<T> item) = 0;
         virtual std::shared_ptr<T> findItem(const std::string& name) const = 0;
-        virtual std::shared_ptr<T> findQualifiedItem(const std::vector<std::string>& qualifiedName) const = 0;
         virtual bool hasItem(const std::string& name) const = 0;
         virtual void removeItem(const std::string& name) = 0;
         virtual std::vector<std::string> getAllItemNames() const = 0;

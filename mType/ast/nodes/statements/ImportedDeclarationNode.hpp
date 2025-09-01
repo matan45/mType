@@ -17,7 +17,7 @@ namespace ast::nodes::statements
                                        const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), originalDeclaration(std::move(decl)), sourceFile(file) {}
             
-        std::unique_ptr<ASTNode> getOriginalDeclaration() const { return originalDeclaration; }
+        ASTNode* getOriginalDeclaration() const { return originalDeclaration.get(); }
         const std::string& getSourceFile() const { return sourceFile; }
         
         // Delegate visitor pattern to the original declaration

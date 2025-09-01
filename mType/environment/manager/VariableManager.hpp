@@ -23,6 +23,13 @@ namespace environment::manager
         std::string getComponentName() const override;
         void cleanup() override;
         
+        // Scope management methods (no-op since namespaces removed)
+        void enterScope(const std::string& scopeName = "") override;
+        void exitScope() override;
+        std::string getCurrentScopeName() const override;
+        std::vector<std::string> getScopeHierarchy() const override;
+        size_t getScopeDepth() const override;
+        
         void declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable);
         std::shared_ptr<VariableDefinition> findVariable(const std::string& varName) const;
         bool hasVariable(const std::string& varName) const;

@@ -1,5 +1,6 @@
 ﻿        import "math_utils.mt";
         import "string_utils.mt";
+		import "book_utils.mt";
         import "math_utils.mt";  // Safe duplicate - will be ignored
         
         native function print(int n): void;
@@ -10,8 +11,9 @@
         print(sum);
 		
 		Book book1 = new Book("1984", "Orwell", 328);
-		print(book1.getInfo());
-        
+        print(book1.getInfo());
+		print(Book::TEST);
+		
         int product = multiply(5, 6);
         print(product);
         
@@ -21,4 +23,3 @@
         // Use imported variables
         print(MATH_CONSTANT);
         print(GREETING);
-		print(Book::TEST);

@@ -26,7 +26,6 @@ namespace ast
             class ImportNode;
             class NativeFunctionNode;
             class AssignmentNode;
-            class QualifiedAssignmentNode;
             class MemberAssignmentNode;
             class IfNode;
             class WhileNode;

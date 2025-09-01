@@ -35,13 +35,13 @@ namespace tests::testSuite
                 y = std::get<float>(args[1]);
             }
             
-            // Create Point object directly from C++ - find the graphics::Point class and instantiate it
+            // Create Point object directly from C++ - find the Point class and instantiate it
             auto env = interpreter->getEnvironment();
             auto classRegistry = env->getClassRegistry();
-            auto pointClass = classRegistry->findClassInNamespace({"graphics"}, "Point");
+            auto pointClass = classRegistry->findClass("Point");
             
             if (!pointClass) {
-                throw std::runtime_error("graphics::Point class not found for createPoint native function");
+                throw std::runtime_error("Point class not found for createPoint native function");
             }
             
             // Create ObjectInstance directly and call constructor
@@ -128,17 +128,17 @@ namespace tests::testSuite
             auto env = interpreter->getEnvironment();
             auto classRegistry = env->getClassRegistry();
             
-            // Test that namespaced classes are properly registered
-            auto mathVector = classRegistry->findClassInNamespace({"math"}, "Vector");
-            auto graphicsPoint = classRegistry->findClassInNamespace({"graphics"}, "Point");
+            // Test that classes are properly registered
+            auto mathVector = classRegistry->findClass("Vector");
+            auto graphicsPoint = classRegistry->findClass("Point");
             
             if (mathVector && graphicsPoint) {
-                std::cout << "✓ Successfully found math::Vector class!" << std::endl;
-                std::cout << "✓ Successfully found graphics::Point class!" << std::endl;
+                std::cout << "✓ Successfully found Vector class!" << std::endl;
+                std::cout << "✓ Successfully found Point class!" << std::endl;
                 
                 // Now test the problematic API call with debugging
-                std::cout << "Step 3b: Testing callQualifiedStaticMethod API..." << std::endl;
-                std::cout << "Attempting to call math::Vector::zero() via C++ API..." << std::endl;
+                std::cout << "Step 3b: Testing callStaticMethod API..." << std::endl;
+                std::cout << "Attempting to call Vector::zero() via C++ API..." << std::endl;
                 std::cout << "Class found: " << (mathVector ? "YES" : "NO") << std::endl;
                 std::cout << "Class name: " << mathVector->getName() << std::endl;
                 
@@ -155,8 +155,8 @@ namespace tests::testSuite
                 // Test the API call that previously caused segfaults
                 try {
                     std::vector<value::Value> emptyArgs;
-                    std::cout << "About to call math::Vector::zero() via C++ API..." << std::endl;
-                    value::Value result = interpreter->callQualifiedStaticMethod({"math"}, "Vector", "zero", emptyArgs);
+                    std::cout << "About to call Vector::zero() via C++ API..." << std::endl;
+                    value::Value result = interpreter->callStaticMethod("Vector", "zero", emptyArgs);
                     std::cout << "✓ API call completed without segfault!" << std::endl;
                 }
                 catch (const exception::ReturnException& returnEx) {
@@ -248,7 +248,7 @@ namespace tests::testSuite
         std::cout << "   ✅ Return Types with Namespaces: WORKS" << std::endl;
         
         std::cout << "\n📝 FIXES COMPLETED:" << std::endl;
-        std::cout << "   ✅ FIXED: ScriptInterpreter::callQualifiedStaticMethod() segfault for complex methods" << std::endl;
+        std::cout << "   ✅ FIXED: ScriptInterpreter::callStaticMethod() segfault for complex methods" << std::endl;
         std::cout << "   ✅ FIXED: AST node lifetime management in MethodDefinition and ConstructorDefinition" << std::endl;
         std::cout << "   ✅ FIXED: Changed from raw ASTNode* pointers to std::shared_ptr<ASTNode> for proper ownership" << std::endl;
         std::cout << "   ✅ FIXED: Memory corruption when calling methods containing 'new NamespacedClass()' expressions" << std::endl;

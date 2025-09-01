@@ -31,17 +31,19 @@ namespace services
         lexer::Lexer lexer(filename);
 
         // Create and configure ImportManager
-        auto importManager = std::make_shared<ImportManager>();
+        auto importManager = std::make_unique<ImportManager>();
 
         // Set base directory to the directory of the script file
         std::filesystem::path scriptPath(filename);
         importManager->setBaseDirectory(scriptPath.parent_path().string());
 
-        parser::Parser parser(lexer, importManager);
+        // Keep a raw pointer for later use before moving to Parser
+        ImportManager* importManagerPtr = importManager.get();
+        parser::Parser parser(lexer, std::move(importManager));
         auto ast = parser.parseProgram();
 
         // Set ImportManager on environment for clean architecture
-        environment->setImportManager(importManager.get());
+        environment->setImportManager(importManagerPtr);
 
         evaluator->evaluate(ast.get());
     }
@@ -260,6 +262,8 @@ namespace services
     Value ScriptInterpreter::createObjectForReturn(const std::string& className,
         const std::vector<Value>& constructorArgs)
     {
+        // TODO: Implement object creation
+        return std::monostate{};
     }
 
     // Helper method implementations

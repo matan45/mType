@@ -8,13 +8,11 @@ namespace environment
         std::shared_ptr<FunctionRegistry> functionReg,
         std::shared_ptr<VariableManager> varMgr,
         std::shared_ptr<ScopeManager> scopeMgr,
-        std::shared_ptr<NamespaceManager> nsMgr,
         std::shared_ptr<NativeRegistry> nativeReg
     ) : classRegistry(classReg),
         functionRegistry(functionReg),
         variableManager(varMgr),
         scopeManager(scopeMgr),
-        namespaceManager(nsMgr),
         nativeRegistry(nativeReg),
         importEvaluationActive(false),
         importManager(nullptr)
@@ -27,7 +25,6 @@ namespace environment
         if (functionRegistry) functionRegistry->initialize();
         if (variableManager) variableManager->initialize();
         if (scopeManager) scopeManager->initialize();
-        if (namespaceManager) namespaceManager->initialize();
         if (nativeRegistry) nativeRegistry->initialize();
     }
 
@@ -37,7 +34,6 @@ namespace environment
         if (functionRegistry) functionRegistry->cleanup();
         if (variableManager) variableManager->cleanup();
         if (scopeManager) scopeManager->cleanup();
-        if (namespaceManager) namespaceManager->cleanup();
         if (nativeRegistry) nativeRegistry->cleanup();
     }
 
@@ -61,10 +57,6 @@ namespace environment
         return scopeManager;
     }
 
-    std::shared_ptr<NamespaceManager> Environment::getNamespaceManager() const
-    {
-        return namespaceManager;
-    }
 
     std::shared_ptr<NativeRegistry> Environment::getNativeRegistry() const
     {
@@ -75,15 +67,7 @@ namespace environment
     {
         if (classRegistry)
         {
-            auto namespacePath = getCurrentNamespacePath();
-            if (namespacePath.empty())
-            {
-                classRegistry->registerClass(name, classDefinition);
-            }
-            else
-            {
-                classRegistry->registerClassInNamespace(namespacePath, name, classDefinition);
-            }
+            classRegistry->registerClass(name, classDefinition);
         }
     }
 
@@ -91,15 +75,7 @@ namespace environment
     {
         if (functionRegistry)
         {
-            auto namespacePath = getCurrentNamespacePath();
-            if (namespacePath.empty())
-            {
-                functionRegistry->registerFunction(name, functionDefinition);
-            }
-            else
-            {
-                functionRegistry->registerFunctionInNamespace(namespacePath, name, functionDefinition);
-            }
+            functionRegistry->registerFunction(name, functionDefinition);
         }
     }
 
@@ -110,142 +86,22 @@ namespace environment
             scopeManager->declareVariable(varName, variable);
         }
         
-        // Register in VariableManager for global scope or namespace scope
-        if (variableManager)
+        // Register in VariableManager for global scope
+        if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
         {
-            auto namespacePath = getCurrentNamespacePath();
-            if (!namespacePath.empty())
-            {
-                // In a namespace - register with namespace path
-                variableManager->declareVariableInNamespace(namespacePath, varName, variable);
-            }
-            else if (scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
-            {
-                // In global scope
-                variableManager->declareVariable(varName, variable);
-            }
+            variableManager->declareVariable(varName, variable);
         }
     }
 
     std::shared_ptr<ClassDefinition> Environment::findClass(const std::string& name) const
     {
         if (!classRegistry) return nullptr;
-        
-        // Check if this is a qualified name (contains ::)
-        if (name.find("::") != std::string::npos)
-        {
-            // Parse qualified name and use findQualifiedItem
-            std::vector<std::string> qualifiedParts;
-            size_t start = 0;
-            size_t pos = 0;
-            while ((pos = name.find("::", start)) != std::string::npos) {
-                qualifiedParts.push_back(name.substr(start, pos - start));
-                start = pos + 2;
-            }
-            qualifiedParts.push_back(name.substr(start));
-            
-            return classRegistry->findQualifiedItem(qualifiedParts);
-        }
-        
-        // Handle simple class name - first check current namespace
-        auto namespacePath = getCurrentNamespacePath();
-        if (!namespacePath.empty())
-        {
-            if (auto cls = classRegistry->findClassInNamespace(namespacePath, name))
-            {
-                return cls;
-            }
-        }
-        
-        // Then check using directives
-        if (namespaceManager)
-        {
-            const auto& usingDirs = namespaceManager->getUsingDirectives();
-            std::shared_ptr<ClassDefinition> foundClass = nullptr;
-            std::string foundInNamespace = "";
-            
-            for (const auto& usingPath : usingDirs)
-            {
-                if (auto cls = classRegistry->findClassInNamespace(usingPath, name))
-                {
-                    if (foundClass) {
-                        // Found a second match - this is ambiguous
-                        std::string currentNamespace = "";
-                        for (const auto& part : usingPath) {
-                            if (!currentNamespace.empty()) currentNamespace += "::";
-                            currentNamespace += part;
-                        }
-                        throw std::runtime_error("Ambiguous class reference: " + name + 
-                            " found in both " + foundInNamespace + " and " + currentNamespace);
-                    }
-                    foundClass = cls;
-                    foundInNamespace = "";
-                    for (const auto& part : usingPath) {
-                        if (!foundInNamespace.empty()) foundInNamespace += "::";
-                        foundInNamespace += part;
-                    }
-                }
-            }
-            
-            if (foundClass) {
-                return foundClass;
-            }
-        }
-        
-        // Finally check global scope
         return classRegistry->findClass(name);
     }
 
     std::shared_ptr<FunctionDefinition> Environment::findFunction(const std::string& name) const
     {
         if (!functionRegistry) return nullptr;
-        
-        // First check current namespace
-        auto namespacePath = getCurrentNamespacePath();
-        if (!namespacePath.empty())
-        {
-            if (auto func = functionRegistry->findFunctionInNamespace(namespacePath, name))
-            {
-                return func;
-            }
-        }
-        
-        // Then check using directives - detect ambiguity
-        if (namespaceManager)
-        {
-            const auto& usingDirs = namespaceManager->getUsingDirectives();
-            std::shared_ptr<FunctionDefinition> foundFunction = nullptr;
-            std::string foundInNamespace = "";
-            
-            for (const auto& usingPath : usingDirs)
-            {
-                if (auto func = functionRegistry->findFunctionInNamespace(usingPath, name))
-                {
-                    if (foundFunction) {
-                        // Found a second match - this is ambiguous
-                        std::string currentNamespace = "";
-                        for (size_t i = 0; i < usingPath.size(); ++i) {
-                            if (i > 0) currentNamespace += "::";
-                            currentNamespace += usingPath[i];
-                        }
-                        throw errors::AmbiguousReferenceException("Ambiguous function reference: '" + name + 
-                                                                 "' found in both '" + foundInNamespace + 
-                                                                 "' and '" + currentNamespace + "'");
-                    }
-                    foundFunction = func;
-                    for (size_t i = 0; i < usingPath.size(); ++i) {
-                        if (i > 0) foundInNamespace += "::";
-                        foundInNamespace += usingPath[i];
-                    }
-                }
-            }
-            
-            if (foundFunction) {
-                return foundFunction;
-            }
-        }
-        
-        // Finally check global scope
         return functionRegistry->findFunction(name);
     }
 
@@ -260,55 +116,9 @@ namespace environment
             }
         }
         
-        // Then check variable manager with namespace context
+        // Then check global scope variables
         if (variableManager)
         {
-            // First check current namespace
-            auto namespacePath = getCurrentNamespacePath();
-            if (!namespacePath.empty())
-            {
-                if (auto var = variableManager->findVariableInNamespace(namespacePath, name))
-                {
-                    return var;
-                }
-            }
-            
-            // Then check using directives - detect ambiguity
-            if (namespaceManager)
-            {
-                const auto& usingDirs = namespaceManager->getUsingDirectives();
-                std::shared_ptr<VariableDefinition> foundVariable = nullptr;
-                std::string foundInNamespace = "";
-                
-                for (const auto& usingPath : usingDirs)
-                {
-                    if (auto var = variableManager->findVariableInNamespace(usingPath, name))
-                    {
-                        if (foundVariable) {
-                            // Found a second match - this is ambiguous
-                            std::string currentNamespace = "";
-                            for (size_t i = 0; i < usingPath.size(); ++i) {
-                                if (i > 0) currentNamespace += "::";
-                                currentNamespace += usingPath[i];
-                            }
-                            throw errors::AmbiguousReferenceException("Ambiguous variable reference: '" + name + 
-                                                                     "' found in both '" + foundInNamespace + 
-                                                                     "' and '" + currentNamespace + "'");
-                        }
-                        foundVariable = var;
-                        for (size_t i = 0; i < usingPath.size(); ++i) {
-                            if (i > 0) foundInNamespace += "::";
-                            foundInNamespace += usingPath[i];
-                        }
-                    }
-                }
-                
-                if (foundVariable) {
-                    return foundVariable;
-                }
-            }
-            
-            // Finally check global scope
             return variableManager->findVariable(name);
         }
         
@@ -321,63 +131,14 @@ namespace environment
         {
             scopeManager->enterScope(scopeName, scopeType);
         }
-        
-        if (scopeType == ScopeType::NAMESPACE && namespaceManager)
-        {
-            auto currentPath = getCurrentNamespacePath();
-            currentPath.push_back(scopeName);
-            namespaceManager->enterNamespace(currentPath);
-        }
     }
 
     void Environment::exitScope()
     {
-        bool wasNamespace = false;
-        if (scopeManager && scopeManager->getCurrentScope())
-        {
-            wasNamespace = scopeManager->getCurrentScope()->getType() == ScopeType::NAMESPACE;
-            scopeManager->exitScope();
-        }
-        
-        if (wasNamespace && namespaceManager)
-        {
-            namespaceManager->exitNamespace();
-        }
-    }
-
-    void Environment::enterNamespace(const std::vector<std::string>& namespacePath)
-    {
-        if (namespaceManager)
-        {
-            namespaceManager->enterNamespace(namespacePath);
-        }
-        
-        if (scopeManager && !namespacePath.empty())
-        {
-            scopeManager->enterScope(namespacePath.back(), ScopeType::NAMESPACE);
-        }
-    }
-
-    void Environment::exitNamespace()
-    {
-        if (namespaceManager)
-        {
-            namespaceManager->exitNamespace();
-        }
-        
         if (scopeManager)
         {
             scopeManager->exitScope();
         }
-    }
-
-    std::vector<std::string> Environment::getCurrentNamespacePath() const
-    {
-        if (namespaceManager)
-        {
-            return namespaceManager->getCurrentNamespacePath();
-        }
-        return {};
     }
 
     std::string Environment::getCurrentScopeName() const
@@ -405,29 +166,6 @@ namespace environment
             return scopeManager->getScopeDepth();
         }
         return 0;
-    }
-
-    void Environment::addUsingDirective(const std::vector<std::string>& namespacePath)
-    {
-        if (namespaceManager)
-        {
-            namespaceManager->addUsingDirective(namespacePath);
-        }
-    }
-
-    const std::vector<std::vector<std::string>>& Environment::getUsingDirectives() const
-    {
-        static const std::vector<std::vector<std::string>> empty;
-        if (namespaceManager)
-        {
-            return namespaceManager->getUsingDirectives();
-        }
-        return empty;
-    }
-
-    bool Environment::isInNamespace() const
-    {
-        return scopeManager ? scopeManager->isInNamespace() : false;
     }
 
     bool Environment::isInClass() const
@@ -460,15 +198,6 @@ namespace environment
         return scopeManager ? scopeManager->getFunctionScopeName() : "";
     }
 
-    std::vector<std::string> Environment::resolveQualifiedName(const std::string& name) const
-    {
-        if (namespaceManager)
-        {
-            return namespaceManager->resolveQualifiedName(name);
-        }
-        return {name};
-    }
-    
     void Environment::setImportManager(services::ImportManager* mgr)
     {
         importManager = mgr;

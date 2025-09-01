@@ -27,7 +27,6 @@ namespace evaluator
         Value evaluateBlockNode(BlockNode* node);
         Value evaluateDeclarationNode(DeclarationNode* node);
         Value evaluateAssignmentNode(AssignmentNode* node);
-        Value evaluateQualifiedAssignmentNode(QualifiedAssignmentNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
         Value evaluateIfNode(IfNode* node);
         Value evaluateWhileNode(WhileNode* node);

@@ -61,5 +61,33 @@ namespace environment::manager
     {
         globalVariables.erase(varName);
     }
+
+    void VariableManager::enterScope(const std::string& scopeName)
+    {
+        // No-op since we don't support namespaces anymore
+    }
+
+    void VariableManager::exitScope()
+    {
+        // No-op since we don't support namespaces anymore
+    }
+
+    std::string VariableManager::getCurrentScopeName() const
+    {
+        // Return empty string since we don't support namespaces anymore
+        return "";
+    }
+
+    std::vector<std::string> VariableManager::getScopeHierarchy() const
+    {
+        // Return empty vector since we don't support namespaces anymore
+        return {};
+    }
+
+    size_t VariableManager::getScopeDepth() const
+    {
+        // Return 0 since we don't support namespaces anymore
+        return 0;
+    }
     
 }

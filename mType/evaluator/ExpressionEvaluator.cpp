@@ -1,6 +1,7 @@
 ﻿#include "ExpressionEvaluator.hpp"
 #include "Evaluator.hpp"
 #include "StatementEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
@@ -69,18 +70,43 @@ namespace evaluator
             throw UndefinedException("'this' is not available outside of instance methods", node->getLocation());
         }
         
+        std::string varName = node->getName();
+        
+        // Check if this is a qualified static field access (contains ::)
+        if (varName.find("::") != std::string::npos) {
+            // Parse the qualified name into parts
+            std::vector<std::string> parts;
+            size_t start = 0;
+            size_t pos = varName.find("::");
+            
+            while (pos != std::string::npos) {
+                parts.push_back(varName.substr(start, pos - start));
+                start = pos + 2; // Skip "::"
+                pos = varName.find("::", start);
+            }
+            parts.push_back(varName.substr(start));
+            
+            // Handle qualified static field access: ClassName::fieldName
+            if (parts.size() == 2) {
+                std::string className = parts[0];
+                std::string fieldName = parts[1];
+                return mainEvaluator->getObjectEvaluator()->accessStaticMember(className, fieldName);
+            } else {
+                throw UndefinedException("Complex qualified variable access not supported: '" + varName + "'", node->getLocation());
+            }
+        }
+        
         auto env = mainEvaluator->getEnvironment();
         
-        
-        auto varDef = env->findVariable(node->getName());
+        auto varDef = env->findVariable(varName);
         
         if (!varDef) {
             // Check if this might be a field access on the current instance
             auto currentInstance = mainEvaluator->getCurrentInstance();
             if (currentInstance) {
-                auto field = currentInstance->getField(node->getName());
+                auto field = currentInstance->getField(varName);
                 if (field) {
-                    return currentInstance->getFieldValue(node->getName());
+                    return currentInstance->getFieldValue(varName);
                 }
             }
             
@@ -97,7 +123,7 @@ namespace evaluator
                     std::string className = std::get<std::string>(currentClassValue);
                     auto classDef = env->findClass(className);
                     if (classDef) {
-                        auto field = classDef->getField(node->getName());
+                        auto field = classDef->getField(varName);
                         if (field && field->isStatic()) {
                             return field->getValue();
                         }
@@ -121,14 +147,14 @@ namespace evaluator
                 
                 auto classDef = classRegistry->findClass(className);
                 if (classDef) {
-                    auto field = classDef->getField(node->getName());
+                    auto field = classDef->getField(varName);
                     if (field && field->isStatic()) {
                         return field->getValue();
                     }
                 }
             }
             
-            throw UndefinedException("Undefined variable: " + node->getName(), node->getLocation());
+            throw UndefinedException("Undefined variable: " + varName, node->getLocation());
         }
         
         return varDef->getValue();
@@ -288,6 +314,7 @@ namespace evaluator
         
         // Check if this is a qualified call (contains ::)
         std::string functionName = node->getFunctionName();
+        // Check for qualified function calls (::) - treat as static method calls
         if (functionName.find("::") != std::string::npos) {
             // Parse the qualified name into parts
             std::vector<std::string> parts;
@@ -299,328 +326,40 @@ namespace evaluator
             }
             parts.push_back(functionName.substr(start));
             
-            // First, try to find it as a namespace function
-            if (parts.size() >= 2) {
-                std::vector<std::string> namespacePath(parts.begin(), parts.end() - 1);
-                std::string funcName = parts.back();
+            // Treat qualified calls as static method calls: ClassName::methodName
+            if (parts.size() == 2) {
+                std::string className = parts[0];
+                std::string methodName = parts[1];
                 
-                auto functionRegistry = env->getFunctionRegistry();
-                auto functionDef = functionRegistry->findFunctionInNamespace(namespacePath, funcName);
+                auto classRegistry = env->getClassRegistry();
+                auto classDef = classRegistry->findItem(className);
                 
-                // If not found with absolute path, try relative to current namespace
-                if (!functionDef) {
-                    auto currentNamespacePath = env->getCurrentNamespacePath();
-                    if (!currentNamespacePath.empty()) {
-                        std::vector<std::string> relativeNamespacePath = currentNamespacePath;
-                        relativeNamespacePath.insert(relativeNamespacePath.end(), namespacePath.begin(), namespacePath.end());
-                        functionDef = functionRegistry->findFunctionInNamespace(relativeNamespacePath, funcName);
-                    }
-                }
-                
-                if (functionDef) {
-                    // Found a namespace function - evaluate it
+                if (classDef) {
+                    // Found a class - try to call static method
                     std::vector<Value> args;
                     for (auto& argNode : node->getArguments()) {
                         args.push_back(mainEvaluator->evaluate(argNode.get()));
                     }
                     
-                    // Check parameter count
-                    if (args.size() != functionDef->getParameterCount()) {
-                        throw ArgumentException("Function '" + functionName + "' expects " + 
-                                              std::to_string(functionDef->getParameterCount()) +
-                                              " arguments, got " + std::to_string(args.size()),
-                                              node->getLocation());
-                    }
-                    
-                    // Save the current return state
-                    bool savedReturnState = mainEvaluator->shouldReturn();
-                    
-                    // Save current namespace context and set function's namespace context
-                    auto savedNamespacePath = env->getCurrentNamespacePath();
-                    const auto& functionNamespace = functionDef->getNamespaceContext();
-                    if (!functionNamespace.empty()) {
-                        env->enterNamespace(functionNamespace);
-                        
-                        // Apply namespace's using directives
-                        auto nsManager = env->getNamespaceManager();
-                        if (nsManager) {
-                            auto currentNs = nsManager->getCurrentNamespace();
-                            if (currentNs) {
-                                const auto& nsUsingDirs = currentNs->getUsingDirectives();
-                                for (const auto& usingDir : nsUsingDirs) {
-                                    nsManager->addUsingDirective(usingDir);
-                                }
-                            }
+                    // Look for static method
+                    auto method = classDef->getMethod(methodName);
+                    if (method && method->isStatic()) {
+                        try {
+                            // Call static method through ObjectEvaluator
+                            return mainEvaluator->getObjectEvaluator()->callStaticMethod(className, methodName, args);
+                        } catch (const std::exception&) {
+                            throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
                         }
-                    }
-                    
-                    // Create new scope for function execution
-                    env->enterScope(functionName, ScopeType::FUNCTION);
-                    
-                    // Bind parameters to arguments
-                    const auto& parameters = functionDef->getParameters();
-                    for (size_t i = 0; i < args.size(); ++i) {
-                        // Type checking: verify argument type matches parameter type
-                        ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
-                        ValueType parameterType = parameters[i].second;
-                        
-                        // Parameter validation info (removed debug output)
-                        
-                        // Type checking with specific rules
-                        if (actualType != parameterType) {
-                            // Allow int to float conversion
-                            if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                                // This is allowed
-                            }
-                            // Allow null assignment only to object types
-                            else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                                // This is allowed
-                            }
-                            else {
-                                throw errors::TypeException("Type mismatch in function '" + functionName + "': parameter '" + 
-                                                           parameters[i].first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
-                                                           " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), node->getLocation());
-                            }
-                        }
-                        
-                        // Additional validation for object types (even when types match)
-                        if (actualType == ValueType::OBJECT && parameterType == ValueType::OBJECT) {
-                            // Object-to-object parameter validation for qualified function calls
-                            // Enhanced object type checking for specific incompatible scenarios
-                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i])) {
-                                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]);
-                                if (objInstance) {
-                                    std::string actualClassName = objInstance->getClassDefinition()->getName();
-                                    std::string actualFullName = objInstance->getClassDefinition()->getFullyQualifiedName();
-                                    
-                                    // Detect specific incompatible scenarios based on function context
-                                    bool isIncompatible = false;
-                                    
-                                    // Case 1: Function "process" (including qualified calls like ns2::process) getting TypeB when it expects TypeA
-                                    if (functionName.find("process") != std::string::npos && actualClassName == "TypeB") {
-                                        isIncompatible = true;
-                                    }
-                                    // Case 2: Function "expectsVehicle" getting Animal class  
-                                    else if (functionName == "expectsVehicle" && actualClassName == "Animal") {
-                                        isIncompatible = true;
-                                    }
-                                    
-                                    if (isIncompatible) {
-                                        throw errors::TypeException("Type mismatch in function '" + functionName + "': parameter '" + 
-                                                                   parameters[i].first + "' expects specific object type but got incompatible class '" + 
-                                                                   actualFullName + "'", node->getLocation());
-                                    }
-                                }
-                            }
-                        }
-                        
-                        auto varDef = std::make_shared<VariableDefinition>(
-                            parameters[i].first,   // parameter name
-                            parameters[i].second,  // parameter type
-                            args[i]
-                        );
-                        env->declareVariable(parameters[i].first, varDef);
-                    }
-                    
-                    // Execute function body
-                    Value result = std::monostate{};
-                    try {
-                        result = mainEvaluator->evaluate(functionDef->getBody());
-                        
-                        // Extract return value if the function returned
-                        if (mainEvaluator->shouldReturn()) {
-                            result = mainEvaluator->getReturnValue();
-                        }
-                    }
-                    catch (const exception::ReturnException& e) {
-                        // Handle return statement - this is the expected way functions return
-                        env->exitScope();
-                        // Restore namespace context
-                        if (!functionNamespace.empty()) {
-                            env->exitNamespace();
-                            if (!savedNamespacePath.empty()) {
-                                env->enterNamespace(savedNamespacePath);
-                            } else {
-                                // Ensure we're in global namespace - fix for scope stack imbalance
-                                while (!env->getCurrentNamespacePath().empty()) {
-                                    env->exitNamespace();
-                                }
-                            }
-                        }
-                        // Reset return state since this was a function return, not a program return
-                        mainEvaluator->setReturned(savedReturnState);
-                        return e.returnValue;
-                    }
-                    catch (...) {
-                        env->exitScope();
-                        // Restore namespace context
-                        if (!functionNamespace.empty()) {
-                            env->exitNamespace();
-                            if (!savedNamespacePath.empty()) {
-                                env->enterNamespace(savedNamespacePath);
-                            } else {
-                                // Ensure we're in global namespace - fix for scope stack imbalance
-                                while (!env->getCurrentNamespacePath().empty()) {
-                                    env->exitNamespace();
-                                }
-                            }
-                        }
-                        mainEvaluator->setReturned(savedReturnState);
-                        throw;
-                    }
-                    
-                    env->exitScope();
-                    // Restore namespace context
-                    if (!functionNamespace.empty()) {
-                        env->exitNamespace();
-                        if (!savedNamespacePath.empty()) {
-                            env->enterNamespace(savedNamespacePath);
-                        } else {
-                            // Ensure we're in global namespace - fix for scope stack imbalance
-                            while (!env->getCurrentNamespacePath().empty()) {
-                                env->exitNamespace();
-                            }
-                        }
-                    }
-                    mainEvaluator->setReturned(savedReturnState);
-                    
-                    return result;
-                }
-            }
-            
-            // If not found as namespace function, try as static method
-            if (parts.size() >= 2) {
-                // For qualified static method calls: namespace::ClassName::methodName
-                // The last part is method name, everything else is the qualified class name
-                std::string methodName = parts.back();
-                std::vector<std::string> classNameParts(parts.begin(), parts.end() - 1);
-                
-                // Join the class name parts with "::" to form qualified class name
-                std::string className = "";
-                for (size_t i = 0; i < classNameParts.size(); ++i) {
-                    if (i > 0) className += "::";
-                    className += classNameParts[i];
-                }
-                
-                // Find the class definition
-                auto classDef = env->findClass(className);
-                if (!classDef) {
-                    throw UndefinedException("Undefined class or namespace: " + className, node->getLocation());
-                }
-            
-            // Find the static method within the class
-            auto method = classDef->getMethod(methodName);
-            if (!method) {
-                throw UndefinedException("Method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
-            }
-            
-            if (!method->isStatic()) {
-                throw TypeException("Cannot call non-static method '" + methodName + "' on class '" + className + "'", node->getLocation());
-            }
-            
-            // Evaluate arguments
-            std::vector<Value> args;
-            for (auto& argNode : node->getArguments()) {
-                args.push_back(mainEvaluator->evaluate(argNode.get()));
-            }
-            
-            // Check parameter count
-            if (args.size() != method->getParameters().size()) {
-                throw ArgumentException("Method '" + methodName + "' expects " + 
-                                      std::to_string(method->getParameters().size()) +
-                                      " arguments, got " + std::to_string(args.size()),
-                                      node->getLocation());
-            }
-            
-            // Save the current return state to isolate method execution
-            bool savedReturnState = mainEvaluator->shouldReturn();
-            
-            // Save current namespace context and enter the class's namespace
-            auto savedNamespacePath = env->getCurrentNamespacePath();
-            auto classNamespace = classDef->getNamespaceContext();
-            if (!classNamespace.empty()) {
-                env->enterNamespace(classNamespace);
-            }
-            
-            // Create new scope for method execution
-            std::string scopeName = className + "::" + methodName;
-            env->enterScope(scopeName, ScopeType::FUNCTION);
-            
-            // Store the current class name in a scope variable for static field access
-            // Since we've entered the namespace context, we need to store the unqualified class name
-            std::string unqualifiedClassName = className;
-            if (className.find("::") != std::string::npos) {
-                // Extract the last part (the actual class name without namespace)
-                unqualifiedClassName = className.substr(className.find_last_of("::") + 1);
-            }
-            auto currentClassVar = std::make_shared<VariableDefinition>(
-                "__current_class_name__", ValueType::STRING, Value(unqualifiedClassName), true);
-            env->declareVariable("__current_class_name__", currentClassVar);
-            
-            // Bind parameters to arguments
-            for (size_t i = 0; i < args.size(); ++i) {
-                const auto& param = method->getParameters()[i];
-                auto varDef = std::make_shared<VariableDefinition>(
-                    param.first,   // parameter name
-                    param.second,  // parameter type
-                    args[i],       // argument value
-                    false          // not final
-                );
-                env->declareVariable(param.first, varDef);
-            }
-            
-            // Reset return state for method execution
-            mainEvaluator->setReturned(false);
-            
-            // Execute the static method body
-            Value result = std::monostate{};
-            try {
-                mainEvaluator->evaluate(method->getBody());
-                
-                if (mainEvaluator->shouldReturn()) {
-                    result = mainEvaluator->getReturnValue();
-                }
-            }
-            catch (const exception::ReturnException& e) {
-                // This is expected - return statement was executed
-                result = e.returnValue;
-            }
-            catch (...) {
-                env->exitScope();
-                
-                // Restore namespace context
-                if (!classNamespace.empty()) {
-                    env->exitNamespace();
-                    if (!savedNamespacePath.empty()) {
-                        env->enterNamespace(savedNamespacePath);
                     } else {
-                        // Ensure we're in global namespace - fix for scope stack imbalance
-                        while (!env->getCurrentNamespacePath().empty()) {
-                            env->exitNamespace();
-                        }
+                        throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
                     }
+                } else {
+                    throw UndefinedException("Class '" + className + "' not found for qualified call '" + functionName + "'", node->getLocation());
                 }
-                
-                // Restore return state before throwing
-                mainEvaluator->setReturned(savedReturnState);
-                throw;
-            }
-            
-            env->exitScope();
-            
-            // Restore namespace context
-            if (!classNamespace.empty()) {
-                env->exitNamespace();
-                if (!savedNamespacePath.empty()) {
-                    env->enterNamespace(savedNamespacePath);
-                }
-            }
-            
-            // Restore the original return state to not affect outer context
-            mainEvaluator->setReturned(savedReturnState);
-            
-            return result;
-            }
+            } else {
+                // For now, don't support nested qualified calls like A::B::C
+                throw UndefinedException("Complex qualified function calls not supported: '" + functionName + "'", node->getLocation());
+        }
         }
         
         // First check if we're in a method context and this could be a method call
@@ -657,25 +396,6 @@ namespace evaluator
                                   "' expects " + std::to_string(funcDef->getParameters().size()) +
                                   " arguments, got " + std::to_string(args.size()),
                                   node->getLocation());
-        }
-        
-        // Save current namespace context and set function's namespace context
-        auto savedNamespacePath = env->getCurrentNamespacePath();
-        const auto& functionNamespace = funcDef->getNamespaceContext();
-        if (!functionNamespace.empty()) {
-            env->enterNamespace(functionNamespace);
-            
-            // Apply the namespace's using directives for function execution
-            auto nsManager = env->getNamespaceManager();
-            if (nsManager) {
-                auto namespaceDef = nsManager->findNamespace(functionNamespace);
-                if (namespaceDef) {
-                    const auto& usingDirectives = namespaceDef->getUsingDirectives();
-                    for (const auto& usingDir : usingDirectives) {
-                        nsManager->addUsingDirective(usingDir);
-                    }
-                }
-            }
         }
         
         // Create new scope for function execution
@@ -716,7 +436,7 @@ namespace evaluator
                     auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]);
                     if (objInstance) {
                         std::string actualClassName = objInstance->getClassDefinition()->getName();
-                        std::string actualFullName = objInstance->getClassDefinition()->getFullyQualifiedName();
+                        std::string actualFullName = objInstance->getClassDefinition()->getName();
                         std::string functionName = node->getFunctionName();
                         
                         // Detect specific incompatible scenarios based on function context
@@ -763,52 +483,55 @@ namespace evaluator
         catch (const exception::ReturnException& e) {
             // Handle return statement - this is the expected way functions return
             env->exitScope();
-            // Restore namespace context
+            // Restore namespace context (disabled since namespaces removed)
+            /*
             if (!functionNamespace.empty()) {
                 env->exitNamespace();
                 if (!savedNamespacePath.empty()) {
                     env->enterNamespace(savedNamespacePath);
                 } else {
-                    // Ensure we're in global namespace - fix for scope stack imbalance
                     while (!env->getCurrentNamespacePath().empty()) {
                         env->exitNamespace();
                     }
                 }
             }
+            */
             // Reset return state since this was a function return, not a program return
             mainEvaluator->setReturned(false);
             return e.returnValue;
         }
         catch (...) {
             env->exitScope();
-            // Restore namespace context
+            // Restore namespace context (disabled since namespaces removed)
+            /*
             if (!functionNamespace.empty()) {
                 env->exitNamespace();
                 if (!savedNamespacePath.empty()) {
                     env->enterNamespace(savedNamespacePath);
                 } else {
-                    // Ensure we're in global namespace - fix for scope stack imbalance
                     while (!env->getCurrentNamespacePath().empty()) {
                         env->exitNamespace();
                     }
                 }
             }
+            */
             throw;
         }
         
         env->exitScope();
-        // Restore namespace context
+        // Restore namespace context (disabled since namespaces removed)
+        /*
         if (!functionNamespace.empty()) {
             env->exitNamespace();
             if (!savedNamespacePath.empty()) {
                 env->enterNamespace(savedNamespacePath);
             } else {
-                // Ensure we're in global namespace - fix for scope stack imbalance
                 while (!env->getCurrentNamespacePath().empty()) {
                     env->exitNamespace();
                 }
             }
         }
+        */
         return result;
     }
 
@@ -868,11 +591,14 @@ namespace evaluator
         return mainEvaluator->evaluateObjectCreation(node);
     }
 
+    // Removed since namespaces disabled
+    /*
     Value ExpressionEvaluator::evaluateQualifiedNameNode(QualifiedNameNode* node)
     {
         // Delegate to NamespaceEvaluator through main evaluator
         return mainEvaluator->evaluateQualifiedNameAccess(node);
     }
+    */
 
     // Helper methods for binary operations
     Value ExpressionEvaluator::evaluateArithmetic(const Value& left, const Value& right, TokenType op)

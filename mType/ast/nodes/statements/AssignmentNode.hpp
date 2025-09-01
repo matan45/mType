@@ -30,7 +30,7 @@ namespace ast::nodes::statements
         }
 
         const std::string& getVariableName() const { return variableName; }
-        std::unique_ptr<ASTNode> getValue() const { return value.get(); }
+        ASTNode* getValue() const { return value.get(); }
         ValueType getVariableType() const { return variableType; }
         const std::string& getClassName() const { return className; }
         bool getIsFinal() const { return isFinal; }

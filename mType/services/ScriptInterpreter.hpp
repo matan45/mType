@@ -74,7 +74,7 @@ namespace services
         
         // Access to environment and evaluator for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
-        std::shared_ptr<evaluator::Evaluator> getEvaluator() const { return evaluator; }
+        evaluator::Evaluator* getEvaluator() const { return evaluator.get(); }
     };
 }
 

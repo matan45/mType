@@ -49,10 +49,7 @@ namespace environment::manager
     void Scope::declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable)
     {
         variables[varName] = variable;
-        if (variable)
-        {
-            variable->setNamespaceContext(namespacePath);
-        }
+        // Namespace context removed
     }
 
     std::shared_ptr<VariableDefinition> Scope::findVariable(const std::string& varName) const
@@ -103,15 +100,7 @@ namespace environment::manager
         return variables.size();
     }
 
-    void Scope::setNamespacePath(const std::vector<std::string>& path)
-    {
-        namespacePath = path;
-    }
-
-    const std::vector<std::string>& Scope::getNamespacePath() const
-    {
-        return namespacePath;
-    }
+    // Namespace methods removed
 
     std::shared_ptr<Scope> Scope::findScope(const std::string& scopeName) const
     {

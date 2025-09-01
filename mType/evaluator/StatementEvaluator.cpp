@@ -3,6 +3,7 @@
 #include "ExpressionEvaluator.hpp"
 #include "../services/ImportManager.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
@@ -180,7 +181,7 @@ namespace evaluator
                                 // Get the class definition and use its fully qualified name
                                 auto classDef = objInstance->getClassDefinition();
                                 if (classDef) {
-                                    actualClassName = classDef->getFullyQualifiedName();
+                                    actualClassName = classDef->getName();
                                 } else {
                                     actualClassName = objInstance->getTypeName(); // fallback
                                 }
@@ -191,7 +192,7 @@ namespace evaluator
                         std::string resolvedDeclaredClassName = declaredClassName;
                         auto declaredClassDef = env->findClass(declaredClassName);
                         if (declaredClassDef) {
-                            resolvedDeclaredClassName = declaredClassDef->getFullyQualifiedName();
+                            resolvedDeclaredClassName = declaredClassDef->getName();
                         }
                         
                         // Check if classes match (exact match for now - could be extended for inheritance)
@@ -361,8 +362,8 @@ namespace evaluator
                     auto currentObjInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(currentValue);
                     
                     if (newObjInstance && currentObjInstance) {
-                        std::string actualClassName = newObjInstance->getClassDefinition()->getFullyQualifiedName();
-                        std::string declaredClassName = currentObjInstance->getClassDefinition()->getFullyQualifiedName();
+                        std::string actualClassName = newObjInstance->getClassDefinition()->getName();
+                        std::string declaredClassName = currentObjInstance->getClassDefinition()->getName();
                         
                         // Check if classes match (exact match for now - could be extended for inheritance)
                         if (actualClassName != declaredClassName) {
@@ -380,11 +381,6 @@ namespace evaluator
         }
     }
 
-    Value StatementEvaluator::evaluateQualifiedAssignmentNode(QualifiedAssignmentNode* node)
-    {
-        // Delegate to NamespaceEvaluator through main evaluator
-        return mainEvaluator->evaluateQualifiedAssignment(node);
-    }
 
     Value StatementEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
     {

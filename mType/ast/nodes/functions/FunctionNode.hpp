@@ -30,7 +30,7 @@ namespace ast::nodes::functions
         const std::string& getName() const { return name; }
         ValueType getReturnType() const { return returnType; }
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
-        std::unique_ptr<ASTNode> getBody() const { return body.get(); }
+        ASTNode* getBody() const { return body.get(); }
 
         void setName(const std::string& funcName) { name = funcName; }
         void setReturnType(ValueType retType) { returnType = retType; }

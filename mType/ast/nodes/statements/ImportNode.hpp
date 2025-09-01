@@ -10,7 +10,7 @@ namespace ast::nodes::statements
     {
     private:
         std::string filePath;
-        std::unique_ptr<ASTNode> importedAST; // Reference to cached AST in ImportManager
+        ASTNode* importedAST; // Non-owning reference to cached AST in ImportManager
         std::vector<std::unique_ptr<ASTNode>> importedDeclarations; // Extracted declarations
         void* importManager; // Reference to ImportManager (as void* to avoid circular dependency)
 
@@ -23,7 +23,7 @@ namespace ast::nodes::statements
             : ASTNode(loc), filePath(path), importedAST(ast), importManager(nullptr) {}
 
         const std::string& getFilePath() const { return filePath; }
-        std::unique_ptr<ASTNode> getImportedAST() const { return importedAST; }
+        ASTNode* getImportedAST() const { return importedAST; }
         const std::vector<std::unique_ptr<ASTNode>>& getImportedDeclarations() const { return importedDeclarations; }
 
         void setFilePath(const std::string& path) { filePath = path; }

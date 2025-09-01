@@ -282,4 +282,9 @@ namespace evaluator
     {
         return stmtEvaluator.get();
     }
+
+    ObjectEvaluator* Evaluator::getObjectEvaluator() const
+    {
+        return objEvaluator.get();
+    }
 }

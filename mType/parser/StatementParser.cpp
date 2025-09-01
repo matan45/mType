@@ -10,6 +10,7 @@
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/statements/DoWhileNode.hpp"
 #include "../ast/nodes/statements/ForNode.hpp"
 #include "../ast/nodes/statements/SwitchNode.hpp"
@@ -160,9 +161,21 @@ namespace parser
             // Special case: if we see a parenthesis after a qualified name,
             // it's likely a static method call that was mistakenly routed here
             if (parser.getCurrentToken().type == TokenType::LPAREN && !className.empty() && className.find("::") != std::string::npos) {
-                // This looks like a static method call (e.g., Class::method())
-                // We can't easily backtrack, so we'll throw a specific error
-                throw ParseException("Static method calls should be expressions, not declarations", parser.getCurrentToken().location);
+                // This is actually a static method call (e.g., Class::method())
+                // Parse it as an expression statement instead of a declaration
+                
+                // Reset the parser position and parse as expression
+                // We need to backtrack and reparse this as an expression
+                // The className contains the full qualified name like "BankAccount::setInterestRate"
+                
+                // Parse arguments
+                parser.advanceToken(); // consume '('
+                auto arguments = parser.getExpressionParser()->parseArguments();
+                parser.expectToken(TokenType::RPAREN);
+                parser.expectToken(TokenType::SEMICOLON);
+                
+                // Create a FunctionCallNode with the qualified name
+                return std::make_unique<ast::nodes::functions::FunctionCallNode>(className, std::move(arguments));
             }
             throw ParseException("Expected variable name", parser.getCurrentToken().location);
         }
