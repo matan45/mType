@@ -4,6 +4,8 @@
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
+#include "../exception/ReturnException.hpp"
+#include <iostream>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
@@ -262,8 +264,8 @@ namespace services
     Value ScriptInterpreter::createObjectForReturn(const std::string& className,
         const std::vector<Value>& constructorArgs)
     {
-        // TODO: Implement object creation
-        return std::monostate{};
+        // Use the existing createObject method - it already handles object creation properly
+        return createObject(className, constructorArgs);
     }
 
     // Helper method implementations
@@ -293,7 +295,7 @@ namespace services
         Value result = std::monostate{}; // void
         if (funcDef->getBody())
         {
-            result = evaluator->evaluate(funcDef->getBody());
+            result = evaluator->evaluate(funcDef->getBody().get());
 
             // Check if there was a return value
             if (evaluator->shouldReturn())
@@ -311,17 +313,21 @@ namespace services
                                                 const std::string& methodName,
                                                 const std::vector<Value>& args)
     {
+        std::cout << "[DEBUG] invokeStaticMethod called: " << classDef->getName() << "::" << methodName << std::endl;
+        
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
             throw std::runtime_error("Static method not found: " + classDef->getName() + "::" + methodName);
         }
 
+        std::cout << "[DEBUG] Method found, entering scope..." << std::endl;
         // Set up method scope
         environment->enterScope(classDef->getName() + "::" + methodName, environment::ScopeType::FUNCTION);
 
         try
         {
+            std::cout << "[DEBUG] Binding parameters..." << std::endl;
             // Bind parameters
             auto params = method->getParameters();
             if (params.size() != args.size())
@@ -338,47 +344,59 @@ namespace services
                 environment->declareVariable(params[i].first, paramVar);
             }
 
+            std::cout << "[DEBUG] Starting method execution..." << std::endl;
             // Execute method body
             Value result = std::monostate{}; // void
             if (method->getBody())
             {
-                // Save the current return state to isolate method execution
-                bool savedReturnState = evaluator->shouldReturn();
-
+                std::cout << "[DEBUG] Method has body, evaluating..." << std::endl;
+                std::cout << "[DEBUG] Method body AST type: " << typeid(*method->getBody()).name() << std::endl;
+                
+                // Create a fresh evaluator instance for API calls to avoid reentrancy issues
+                std::cout << "[DEBUG] Creating fresh evaluator for API call..." << std::endl;
+                auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
+                
                 try
                 {
-                    result = evaluator->evaluate(method->getBody());
+                    std::cout << "[DEBUG] About to call apiEvaluator->evaluate()..." << std::endl;
+                    result = apiEvaluator->evaluate(method->getBody());
+                    std::cout << "[DEBUG] apiEvaluator->evaluate() completed" << std::endl;
 
                     // Check if there was a return value
-                    if (evaluator->shouldReturn())
+                    if (apiEvaluator->shouldReturn())
                     {
-                        result = evaluator->getReturnValue();
+                        std::cout << "[DEBUG] Getting return value..." << std::endl;
+                        result = apiEvaluator->getReturnValue();
                     }
-
-                    // Restore the previous return state
-                    evaluator->setReturned(savedReturnState);
+                }
+                catch (const exception::ReturnException& returnEx)
+                {
+                    std::cout << "[DEBUG] Caught ReturnException" << std::endl;
+                    // Handle explicit return statements - this is the normal case for static methods with return values
+                    result = returnEx.returnValue;
                 }
                 catch (const std::exception& evalException)
                 {
-                    // Restore return state even on exception
-                    evaluator->setReturned(savedReturnState);
+                    std::cout << "[DEBUG] Exception during API evaluation: " << evalException.what() << std::endl;
                     throw;
                 }
                 catch (...)
                 {
-                    // Restore return state even on exception
-                    evaluator->setReturned(savedReturnState);
+                    std::cout << "[DEBUG] Unknown exception during API evaluation" << std::endl;
                     throw;
                 }
             }
 
+            std::cout << "[DEBUG] Method execution completed, cleaning up..." << std::endl;
             // Clean up and return
             environment->exitScope();
 
+            std::cout << "[DEBUG] Returning result from invokeStaticMethod" << std::endl;
             return result;
         }
         catch (...)
         {
+            std::cout << "[DEBUG] Exception in invokeStaticMethod, cleaning up..." << std::endl;
             // Clean up on exception
             environment->exitScope();
             throw;

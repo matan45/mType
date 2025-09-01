@@ -63,6 +63,10 @@
         static function zero(): Vector {
             return new Vector(0.0, 0.0, 0.0);
         }
+        
+        static function simpleTest(): int {
+            return 42;
+        }
     }
 
 

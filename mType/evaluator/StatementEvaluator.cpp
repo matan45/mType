@@ -1,6 +1,7 @@
 ﻿#include "StatementEvaluator.hpp"
 #include "Evaluator.hpp"
 #include "ExpressionEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
 #include "../services/ImportManager.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -251,6 +252,19 @@ namespace evaluator
             return initialValue;
         } else {
             // This is a regular assignment
+            
+            // First check if this is a qualified static field assignment (Class::field = value)
+            std::string varName = node->getVariableName();
+            if (varName.find("::") != std::string::npos) {
+                size_t pos = varName.find("::");
+                std::string className = varName.substr(0, pos);
+                std::string fieldName = varName.substr(pos + 2);
+                
+                // Use ObjectEvaluator to handle static field assignment
+                Value newValue = mainEvaluator->evaluate(node->getValue());
+                mainEvaluator->getObjectEvaluator()->assignStaticMember(className, fieldName, newValue);
+                return newValue;
+            }
             
             // First check if this might be a field assignment on the current instance
             // This should take precedence in constructor contexts to handle implicit field assignments
@@ -709,8 +723,8 @@ namespace evaluator
             node->getParameters()
         );
         
-        // Set the function body
-        funcDef->setBody(node->getBody());
+        // Set the function body using safe smart pointer transfer
+        funcDef->setBody(node->releaseBody());
         
         // Register function
         env->registerFunction(node->getName(), funcDef);

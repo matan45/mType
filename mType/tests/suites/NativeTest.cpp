@@ -152,7 +152,18 @@ namespace tests::testSuite
                 
                 std::cout << "Testing C++ API with AST debugging..." << std::endl;
                 
-                // Test the API call that previously caused segfaults
+                // Test with a simpler method first
+                try {
+                    std::vector<value::Value> emptyArgs;
+                    std::cout << "Testing simpler method first..." << std::endl;
+                    value::Value simpleResult = interpreter->callStaticMethod("Vector", "simpleTest", emptyArgs);
+                    std::cout << "✓ Simple method call works: " << std::get<int>(simpleResult) << std::endl;
+                }
+                catch (const std::exception& e) {
+                    std::cout << "✗ Simple method failed: " << e.what() << std::endl;
+                }
+                
+                // Now test the problematic object-returning method
                 try {
                     std::vector<value::Value> emptyArgs;
                     std::cout << "About to call Vector::zero() via C++ API..." << std::endl;

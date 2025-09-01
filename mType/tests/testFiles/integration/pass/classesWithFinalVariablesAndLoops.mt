@@ -41,7 +41,7 @@ class Configuration {
     }
 }
 
-namespace testSuite {
+
     final int NUM_TESTS = 5;
     
     function runBatchTests(): int {
@@ -65,10 +65,10 @@ namespace testSuite {
         
         return totalResults;
     }
-}
+
 
 // Execute complex test
-int result = testSuite::runBatchTests();
+int result = runBatchTests();
 print(result);
 print(Configuration::totalConfigs);
 

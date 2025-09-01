@@ -73,30 +73,9 @@ namespace parser
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
-                    // Pattern: "identifier::..." - could be qualified type or static method/field
-                    // We need to look ahead through the qualified name to see what follows
-                    
-                    // Count how many tokens we need to look ahead
-                    while (true) {
-                        Token tok = parser.peekNextToken();
-                        if (tok.type == TokenType::IDENTIFIER) {
-                            
-                            Token nextTok = parser.peekNextToken();
-                            if (nextTok.type == TokenType::SCOPE) {
-                            } else {
-                                // End of qualified name, check what follows
-                                if (nextTok.type == TokenType::IDENTIFIER) {
-                                    // Pattern: Namespace::Class varName - this is a declaration
-                                    return parseExpressionStatement();
-                                } 
-                            }
-                        } else {
-                            // Unexpected token in qualified name
-                            break;
-                        }
-                    }
-                    // Default to declaration if we can't determine
-                    return parseDeclaration();
+                    // Pattern: "identifier::..." - this is always an expression (qualified call/assignment/access)
+                    // Static method calls, static field access, static field assignment, etc.
+                    return parseExpressionStatement();
                 } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();

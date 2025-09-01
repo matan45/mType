@@ -1,9 +1,8 @@
 // Test final variables across different scopes
-namespace constants {
-    final int MAX_LEVEL = 100;
-    final string GAME_NAME = "TestGame";
-    
-    class Settings {
+final int MAX_LEVEL = 100;
+final string GAME_NAME = "TestGame";
+
+class Settings {
         final int DEFAULT_VOLUME = 75;
         static final string VERSION = "1.0.0";
 
@@ -22,26 +21,23 @@ namespace constants {
         static function getDefaultVolume(): int {
             return 75; // Can't access instance final from static
         }
-    }
+}
+
+final float DEFAULT_PITCH = 1.0;
+
+class AudioManager {
+    final int CHANNELS = 32;
     
-    namespace audio {
-        final float DEFAULT_PITCH = 1.0;
-        
-        class AudioManager {
-            final int CHANNELS = 32;
-            
-            function configure(): string {
-                return "Audio: " + toString(CHANNELS) + " channels, pitch: " + toString(DEFAULT_PITCH);
-            }
-        }
+    function configure(): string {
+        return "Audio: " + toString(CHANNELS) + " channels, pitch: " + toString(DEFAULT_PITCH);
     }
 }
 
 // Test final variable access across scopes
-constants::Settings settings = new constants::Settings();
-constants::audio::AudioManager audio2 = new constants::audio::AudioManager();
+Settings settings = new Settings();
+AudioManager audio2 = new AudioManager();
 
 print(settings.getMaxLevel());
 print(settings.getGameInfo());
-print(constants::Settings::getDefaultVolume());
+print(Settings::getDefaultVolume());
 print(audio2.configure());

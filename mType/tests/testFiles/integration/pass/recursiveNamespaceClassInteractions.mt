@@ -1,5 +1,5 @@
 // Test recursive patterns with namespace and class interactions
-namespace recursive {
+
     class Node {
         int value;
         string name;
@@ -15,7 +15,7 @@ namespace recursive {
             }
             
             // Create child node
-            recursive::Node child = new recursive::Node(value + 1, name + "_child");
+            Node child = new Node(value + 1, name + "_child");
             return value + child.processNode(depth - 1);
         }
         
@@ -24,9 +24,9 @@ namespace recursive {
         }
     }
     
-    namespace tree {
+
         function buildTree(int levels): int {
-            recursive::Node root = new recursive::Node(1, "root");
+            Node root = new Node(1, "root");
             return root.processNode(levels);
         }
         
@@ -34,23 +34,23 @@ namespace recursive {
             int total = 0;
             
             for (int i = 0; i < 3; i++) {
-                recursive::Node node = new recursive::Node(i * 10, "node" + toString(i));
+                Node node = new Node(i * 10, "node" + toString(i));
                 total = total + node.processNode(2);
             }
             
             return total;
         }
-    }
-}
+    
+
 
 // Test recursive interactions
-int treeResult = recursive::tree::buildTree(3);
-int multiNodeResult = recursive::tree::processMultipleNodes();
+int treeResult = buildTree(3);
+int multiNodeResult = processMultipleNodes();
 
 print(treeResult);
 print(multiNodeResult);
 
 // Test direct recursive calls
-recursive::Node testNode = new recursive::Node(5, "test");
+Node testNode = new Node(5, "test");
 int directResult = testNode.processNode(4);
 print(directResult);

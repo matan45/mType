@@ -107,7 +107,7 @@ void runAllTests()
     suites.push_back(std::make_unique<ImportTestSuite>());
     suites.push_back(std::make_unique<ClassTestSuite>());
     suites.push_back(std::make_unique<ErrorTestSuite>());
-    //suites.push_back(std::make_unique<IntegrationTestSuite>());
+    suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
 
     for (auto& suite : suites)

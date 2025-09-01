@@ -1,8 +1,7 @@
-namespace gameLogic {
-    final int MAX_HEALTH = 100;
-    final int MAX_LEVEL = 50;
-    
-    class Player {
+final int MAX_HEALTH = 100;
+final int MAX_LEVEL = 50;
+
+class Player {
         int health;
         int level;
         string name;
@@ -45,11 +44,10 @@ namespace gameLogic {
                 return "Healthy";
             }
         }
-    }
-    
-    namespace combat {
-        function simulateBattle(gameLogic::Player player1, gameLogic::Player player2): string {
-            final int MAX_ROUNDS = 10;
+}
+
+function simulateBattle(Player player1, Player player2): string {
+    final int MAX_ROUNDS = 10;
             
             for (int round = 0; round < MAX_ROUNDS; round++) {
                 // Player 1 attacks Player 2
@@ -79,43 +77,39 @@ namespace gameLogic {
             } else {
                 return "Draw";
             }
-        }
-    }
-    
-    namespace tournament {
-        function runTournament(): string {
-            final int NUM_PLAYERS = 4;
+}
+
+function runTournament(): string {
+    final int NUM_PLAYERS = 4;
             string results = "";
             
-            // Create players
-            gameLogic::Player player1 = new gameLogic::Player("Warrior");
-            gameLogic::Player player2 = new gameLogic::Player("Mage");
-            gameLogic::Player player3 = new gameLogic::Player("Archer");
-            gameLogic::Player player4 = new gameLogic::Player("Rogue");
+    // Create players
+    Player player1 = new Player("Warrior");
+    Player player2 = new Player("Mage");
+    Player player3 = new Player("Archer");
+    Player player4 = new Player("Rogue");
             
             // Simulate matches with complex control flow
             for (int match = 0; match < 2; match++) {
                 if (match == 0) {
-                    string result1 = gameLogic::combat::simulateBattle(player1, player2);
-                    string result2 = gameLogic::combat::simulateBattle(player3, player4);
+                string result1 = simulateBattle(player1, player2);
+                string result2 = simulateBattle(player3, player4);
                     results = results + "Semi 1: " + result1 + " | Semi 2: " + result2;
                 } else {
-                    // Final match - determine finalists based on health
-                    gameLogic::Player finalist1 = player1.health > player2.health ? player1 : player2;
-                    gameLogic::Player finalist2 = player3.health > player4.health ? player3 : player4;
-                    
-                    string finalResult = gameLogic::combat::simulateBattle(finalist1, finalist2);
+                // Final match - determine finalists based on health
+                Player finalist1 = player1.health > player2.health ? player1 : player2;
+                Player finalist2 = player3.health > player4.health ? player3 : player4;
+                
+                string finalResult = simulateBattle(finalist1, finalist2);
                     results = results + " | Final: " + finalResult;
                 }
             }
             
             return results;
-        }
-    }
 }
 
 // Execute complex control flow integration
-gameLogic::Player testPlayer = new gameLogic::Player("TestHero");
+Player testPlayer = new Player("TestHero");
 print(testPlayer.getStatus());
 
 bool alive = testPlayer.takeDamage(30);
@@ -127,6 +121,6 @@ print(leveled);
 print(testPlayer.getStatus());
 
 // Run complex tournament simulation
-string tournamentResult = gameLogic::tournament::runTournament();
+string tournamentResult = runTournament();
 print(tournamentResult);
-print(gameLogic::Player::playerCount);
+print(Player::playerCount);

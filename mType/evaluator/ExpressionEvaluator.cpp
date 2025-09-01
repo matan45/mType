@@ -472,7 +472,7 @@ namespace evaluator
         // Execute function body
         Value result = std::monostate{};
         try {
-            mainEvaluator->evaluate(funcDef->getBody());
+            mainEvaluator->evaluate(funcDef->getBody().get());
             
             // Get return value if function returned
             if (mainEvaluator->shouldReturn()) {

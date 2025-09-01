@@ -62,8 +62,8 @@ namespace evaluator
             auto methodNode = dynamic_cast<MethodNode*>(methodPtr.get());
             if (!methodNode) continue;
             
-            // Get reference to AST body from MethodNode (ownership remains with MethodNode)
-            auto bodyPtr = std::shared_ptr<ASTNode>(methodNode->getBody(), [](ASTNode*){});
+            // Transfer ownership of the method body from unique_ptr to shared_ptr
+            auto bodyPtr = methodNode->releaseBody();
             
             auto methodDef = std::make_shared<MethodDefinition>(
                 methodNode->getName(),
@@ -82,8 +82,8 @@ namespace evaluator
             auto constructorNode = dynamic_cast<ConstructorNode*>(constructorPtr.get());
             if (!constructorNode) continue;
             
-            // Get reference to AST body from ConstructorNode (ownership remains with ConstructorNode)
-            auto bodyPtr = std::shared_ptr<ASTNode>(constructorNode->getBody(), [](ASTNode*){});
+            // Transfer ownership of the constructor body from unique_ptr to shared_ptr
+            auto bodyPtr = constructorNode->releaseBody();
             
             auto ctorDef = std::make_shared<ConstructorDefinition>(
                 constructorNode->getParameters(),
