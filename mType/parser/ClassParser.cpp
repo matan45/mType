@@ -1,5 +1,6 @@
 ﻿#include "ClassParser.hpp"
 #include "TypeParser.hpp"
+#include "ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
@@ -90,89 +91,8 @@ namespace parser
     {
         tokenStream.expect(TokenType::CONSTRUCTOR);
 
-        tokenStream.expect(TokenType::LPAREN);
-
-        std::vector<std::pair<std::string, ValueType>> parameters;
-        while (tokenStream.current().type != TokenType::RPAREN)
-        {
-            ValueType paramType = ValueType::VOID;
-            TokenType currentType = tokenStream.current().type;
-
-            // Handle both dedicated type tokens and identifier-based types
-            if (currentType == TokenType::INT)
-            {
-                paramType = ValueType::INT;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::FLOAT)
-            {
-                paramType = ValueType::FLOAT;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::BOOL)
-            {
-                paramType = ValueType::BOOL;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::STRING_TYPE)
-            {
-                paramType = ValueType::STRING;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::VOID)
-            {
-                paramType = ValueType::VOID;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::IDENTIFIER)
-            {
-                std::string typeName = tokenStream.current().stringValue;
-                tokenStream.advance();
-
-                // Handle qualified names like geometry::Point
-                while (tokenStream.current().type == TokenType::SCOPE)
-                {
-                    tokenStream.advance();
-                    if (tokenStream.current().type != TokenType::IDENTIFIER)
-                    {
-                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                    }
-                    typeName += "::" + tokenStream.current().stringValue;
-                    tokenStream.advance();
-                }
-
-                if (typeName == "int") paramType = ValueType::INT;
-                else if (typeName == "float") paramType = ValueType::FLOAT;
-                else if (typeName == "string") paramType = ValueType::STRING;
-                else if (typeName == "bool") paramType = ValueType::BOOL;
-                else if (typeName == "void") paramType = ValueType::VOID;
-                else
-                {
-                    // Treat unknown identifier types as custom class types (OBJECT)
-                    paramType = ValueType::OBJECT;
-                }
-            }
-            else
-            {
-                throw ParseException("Expected parameter type", tokenStream.current().location);
-            }
-
-            if (tokenStream.current().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected parameter name", tokenStream.current().location);
-            }
-
-            std::string paramName = tokenStream.current().stringValue;
-            parameters.push_back({paramName, paramType});
-            tokenStream.advance();
-
-            if (tokenStream.current().type == TokenType::COMMA)
-            {
-                tokenStream.advance();
-            }
-        }
-
-        tokenStream.expect(TokenType::RPAREN);
+        // Parse parameter list using centralized utility
+        auto parameters = ParserUtils::parseParameterList(tokenStream, true);
 
         auto body = context.parseStatement();
 
@@ -206,89 +126,8 @@ namespace parser
         std::string methodName = tokenStream.current().stringValue;
         tokenStream.advance();
 
-        tokenStream.expect(TokenType::LPAREN);
-
-        std::vector<std::pair<std::string, ValueType>> parameters;
-        while (tokenStream.current().type != TokenType::RPAREN)
-        {
-            ValueType paramType = ValueType::VOID;
-            TokenType currentType = tokenStream.current().type;
-
-            // Handle both dedicated type tokens and identifier-based types
-            if (currentType == TokenType::INT)
-            {
-                paramType = ValueType::INT;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::FLOAT)
-            {
-                paramType = ValueType::FLOAT;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::BOOL)
-            {
-                paramType = ValueType::BOOL;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::STRING_TYPE)
-            {
-                paramType = ValueType::STRING;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::VOID)
-            {
-                paramType = ValueType::VOID;
-                tokenStream.advance();
-            }
-            else if (currentType == TokenType::IDENTIFIER)
-            {
-                std::string typeName = tokenStream.current().stringValue;
-                tokenStream.advance();
-
-                // Handle qualified names like geometry::Point
-                while (tokenStream.current().type == TokenType::SCOPE)
-                {
-                    tokenStream.advance();
-                    if (tokenStream.current().type != TokenType::IDENTIFIER)
-                    {
-                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                    }
-                    typeName += "::" + tokenStream.current().stringValue;
-                    tokenStream.advance();
-                }
-
-                if (typeName == "int") paramType = ValueType::INT;
-                else if (typeName == "float") paramType = ValueType::FLOAT;
-                else if (typeName == "string") paramType = ValueType::STRING;
-                else if (typeName == "bool") paramType = ValueType::BOOL;
-                else if (typeName == "void") paramType = ValueType::VOID;
-                else
-                {
-                    // Treat unknown identifier types as custom class types (OBJECT)
-                    paramType = ValueType::OBJECT;
-                }
-            }
-            else
-            {
-                throw ParseException("Expected parameter type", tokenStream.current().location);
-            }
-
-            if (tokenStream.current().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected parameter name", tokenStream.current().location);
-            }
-
-            std::string paramName = tokenStream.current().stringValue;
-            parameters.push_back({paramName, paramType});
-            tokenStream.advance();
-
-            if (tokenStream.current().type == TokenType::COMMA)
-            {
-                tokenStream.advance();
-            }
-        }
-
-        tokenStream.expect(TokenType::RPAREN);
+        // Parse parameter list using centralized utility
+        auto parameters = ParserUtils::parseParameterList(tokenStream, true);
 
         // Parse return type after the parameters (mType syntax: function name(params): returnType)
         ValueType returnType = ValueType::VOID;
@@ -400,38 +239,8 @@ namespace parser
             std::string methodName = tokenStream.current().stringValue;
             tokenStream.advance();
             
-            tokenStream.expect(TokenType::LPAREN);
-            
-            // Parse parameters (simplified version of parseMethod's parameter parsing)
-            std::vector<std::pair<std::string, ValueType>> parameters;
-            while (tokenStream.current().type != TokenType::RPAREN)
-            {
-                ValueType paramType = ValueType::VOID;
-                TokenType currentType = tokenStream.current().type;
-                
-                // Handle parameter types
-                if (currentType == TokenType::INT) { paramType = ValueType::INT; tokenStream.advance(); }
-                else if (currentType == TokenType::FLOAT) { paramType = ValueType::FLOAT; tokenStream.advance(); }
-                else if (currentType == TokenType::BOOL) { paramType = ValueType::BOOL; tokenStream.advance(); }
-                else if (currentType == TokenType::STRING_TYPE) { paramType = ValueType::STRING; tokenStream.advance(); }
-                else if (currentType == TokenType::VOID) { paramType = ValueType::VOID; tokenStream.advance(); }
-                else if (currentType == TokenType::IDENTIFIER) { paramType = ValueType::OBJECT; tokenStream.advance(); }
-                else { throw ParseException("Expected parameter type", tokenStream.current().location); }
-                
-                if (tokenStream.current().type != TokenType::IDENTIFIER)
-                    throw ParseException("Expected parameter name", tokenStream.current().location);
-                
-                std::string paramName = tokenStream.current().stringValue;
-                parameters.emplace_back(paramName, paramType);
-                tokenStream.advance();
-                
-                if (tokenStream.current().type == TokenType::COMMA)
-                    tokenStream.advance();
-                else if (tokenStream.current().type != TokenType::RPAREN)
-                    throw ParseException("Expected ',' or ')'", tokenStream.current().location);
-            }
-            
-            tokenStream.expect(TokenType::RPAREN);
+            // Parse parameter list using centralized utility
+            auto parameters = ParserUtils::parseParameterList(tokenStream, true);
             
             // Parse return type
             ValueType returnType = ValueType::VOID;

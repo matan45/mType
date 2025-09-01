@@ -34,6 +34,16 @@ namespace parser
         std::unique_ptr<StatementParser> statementParser;
         std::unique_ptr<ExpressionParser> expressionParser;
         std::unique_ptr<ClassParser> classParser;
+        
+        // Helper for atomic initialization
+        struct ParserComponents {
+            std::unique_ptr<TokenStream> tokenStream;
+            std::unique_ptr<StatementParser> statementParser;
+            std::unique_ptr<ExpressionParser> expressionParser;
+            std::unique_ptr<ClassParser> classParser;
+            std::unique_ptr<ParseContext> context;
+        };
+        static ParserComponents createComponents(Lexer& lex);
 
     public:
         explicit Parser(Lexer& lex, std::unique_ptr<services::ImportManager> manager);

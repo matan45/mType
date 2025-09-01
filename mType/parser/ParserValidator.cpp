@@ -3,12 +3,12 @@
 
 namespace parser
 {
-    bool ParserValidator::isValidClassName(const std::string& name)
+    bool ParserValidator::isValidClassName(std::string_view name)
     {
         return !name.empty() && std::isupper(name[0]);
     }
 
-    bool ParserValidator::isValidNamespaceName(const std::string& name)
+    bool ParserValidator::isValidNamespaceName(std::string_view name)
     {
         return !name.empty() && std::islower(name[0]);
     }

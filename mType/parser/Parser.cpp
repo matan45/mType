@@ -18,24 +18,46 @@ namespace parser
     using namespace token;
     using namespace errors;
 
+    // Static helper for atomic initialization
+    Parser::ParserComponents Parser::createComponents(Lexer& lex)
+    {
+        ParserComponents components;
+        
+        // Step 1: Create TokenStream (no dependencies)
+        components.tokenStream = std::make_unique<TokenStream>(lex);
+        
+        // Step 2: Create ParseContext with immediate initialization
+        // Note: We'll update the parsers after they're created
+        components.context = std::make_unique<ParseContext>();
+        
+        // Step 3: Create parsers with references to context and tokenStream
+        components.statementParser = std::make_unique<StatementParser>(*components.tokenStream, *components.context);
+        components.expressionParser = std::make_unique<ExpressionParser>(*components.tokenStream, *components.context);
+        components.classParser = std::make_unique<ClassParser>(*components.tokenStream, *components.context);
+        
+        // Step 4: Atomically set all parser references in context
+        components.context->setStatementParser(*components.statementParser);
+        components.context->setExpressionParser(*components.expressionParser);
+        components.context->setClassParser(*components.classParser);
+        components.context->setTokenStream(*components.tokenStream);
+        
+        return components;
+    }
+
     Parser::Parser(Lexer& lex, std::unique_ptr<services::ImportManager> manager)
         : importManager(std::move(manager))
     {
-        // Initialize new architecture components
-        tokenStream = std::make_unique<TokenStream>(lex);
+        // Atomic initialization using factory method
+        auto components = createComponents(lex);
         
-        // Initialize context first with nullptr (will be set later)
-        context = std::make_unique<ParseContext>(nullptr, nullptr, nullptr, tokenStream.get());
+        // Move all components into member variables atomically
+        tokenStream = std::move(components.tokenStream);
+        context = std::move(components.context);
+        statementParser = std::move(components.statementParser);
+        expressionParser = std::move(components.expressionParser);
+        classParser = std::move(components.classParser);
         
-        // Initialize subparsers with new constructor signatures
-        statementParser = std::make_unique<StatementParser>(*tokenStream, *context);
-        expressionParser = std::make_unique<ExpressionParser>(*tokenStream, *context);
-        classParser = std::make_unique<ClassParser>(*tokenStream, *context);
-        
-        // Set subparser references in context
-        context->setStatementParser(statementParser.get());
-        context->setExpressionParser(expressionParser.get());
-        context->setClassParser(classParser.get());
+        // All components are now fully initialized and consistent
     }
 
     std::unique_ptr<ASTNode> Parser::parseProgram()

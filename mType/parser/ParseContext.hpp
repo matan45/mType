@@ -1,6 +1,8 @@
 #pragma once
 #include "../ast/ASTNode.hpp"
 #include <memory>
+#include <optional>
+#include <functional>
 
 namespace parser
 {
@@ -12,17 +14,22 @@ namespace parser
     using namespace ast;
 
     /// @brief Enables inter-parser communication without circular dependencies
-    /// Provides clean interface for parser delegation
+    /// Provides clean interface for parser delegation with memory-safe references
     class ParseContext
     {
     private:
-        StatementParser* statementParser;
-        ExpressionParser* expressionParser;
-        ClassParser* classParser;
-        TokenStream* tokenStream;
+        std::optional<std::reference_wrapper<StatementParser>> statementParser;
+        std::optional<std::reference_wrapper<ExpressionParser>> expressionParser;
+        std::optional<std::reference_wrapper<ClassParser>> classParser;
+        std::optional<std::reference_wrapper<TokenStream>> tokenStream;
 
     public:
-        ParseContext(StatementParser* stmt, ExpressionParser* expr, ClassParser* cls, TokenStream* stream);
+        /// @brief Default constructor for delayed initialization
+        ParseContext() = default;
+        
+        /// @brief Constructor with immediate initialization
+        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, TokenStream& stream);
+        
         ~ParseContext() = default;
 
         /// @brief Parse a statement using StatementParser
@@ -37,10 +44,10 @@ namespace parser
         /// @brief Parse a new expression using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
         
-        // Setters for delayed initialization
-        void setStatementParser(StatementParser* parser) { statementParser = parser; }
-        void setExpressionParser(ExpressionParser* parser) { expressionParser = parser; }
-        void setClassParser(ClassParser* parser) { classParser = parser; }
-        void setTokenStream(TokenStream* stream) { tokenStream = stream; }
+        // Setters for delayed initialization with memory-safe references
+        void setStatementParser(StatementParser& parser) { statementParser = std::ref(parser); }
+        void setExpressionParser(ExpressionParser& parser) { expressionParser = std::ref(parser); }
+        void setClassParser(ClassParser& parser) { classParser = std::ref(parser); }
+        void setTokenStream(TokenStream& stream) { tokenStream = std::ref(stream); }
     };
 }

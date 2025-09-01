@@ -1,5 +1,6 @@
 ﻿#include "ExpressionParser.hpp"
 #include "TypeParser.hpp"
+#include "ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
@@ -88,21 +89,7 @@ namespace parser
                     std::unique_ptr<ASTNode> expandedRight;
                     TokenType binaryOp;
 
-                    switch (opType)
-                    {
-                    case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS;
-                        break;
-                    case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS;
-                        break;
-                    case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY;
-                        break;
-                    case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE;
-                        break;
-                    case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO;
-                        break;
-                    default: throw ParseException("Invalid compound assignment operator",
-                                                  tokenStream.current().location);
-                    }
+                    binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
                     // Create: var op right
                     auto leftVar = std::make_unique<VariableNode>(variableNode->getName());
@@ -135,98 +122,56 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLogicalOr()
     {
-        auto left = parseLogicalAnd();
-
-        while (tokenStream.current().type == TokenType::OR)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseLogicalAnd();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseLogicalAnd(); },
+            {TokenType::OR}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLogicalAnd()
     {
-        auto left = parseEquality();
-
-        while (tokenStream.current().type == TokenType::AND)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseEquality();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseEquality(); },
+            {TokenType::AND}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseEquality()
     {
-        auto left = parseComparison();
-
-        while (tokenStream.current().type == TokenType::EQUALS || tokenStream.current().type ==
-            TokenType::NOT_EQUALS)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseComparison();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseComparison(); },
+            {TokenType::EQUALS, TokenType::NOT_EQUALS}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseComparison()
     {
-        auto left = parseAdditive();
-
-        while (tokenStream.current().type == TokenType::LESS || tokenStream.current().type ==
-            TokenType::LESS_EQUALS ||
-            tokenStream.current().type == TokenType::GREATER || tokenStream.current().type ==
-            TokenType::GREATER_EQUALS)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseAdditive();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseAdditive(); },
+            {TokenType::LESS, TokenType::LESS_EQUALS, TokenType::GREATER, TokenType::GREATER_EQUALS}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseAdditive()
     {
-        auto left = parseMultiplicative();
-
-        while (tokenStream.current().type == TokenType::PLUS || tokenStream.current().type == TokenType::MINUS)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseMultiplicative();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseMultiplicative(); },
+            {TokenType::PLUS, TokenType::MINUS}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseMultiplicative()
     {
-        auto left = parseUnary();
-
-        while (tokenStream.current().type == TokenType::MULTIPLY || tokenStream.current().type ==
-            TokenType::DIVIDE ||
-            tokenStream.current().type == TokenType::MODULO)
-        {
-            TokenType op = tokenStream.current().type;
-            tokenStream.advance();
-            auto right = parseUnary();
-            left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
-        }
-
-        return left;
+        return ParserUtils::parseBinaryOperators(
+            tokenStream,
+            [this]() { return parseUnary(); },
+            {TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseUnary()
@@ -300,33 +245,14 @@ namespace parser
 
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
                 {
-                    std::vector<std::string> parts = {varNode->getName()};
-
-                    // Add the first identifier after ::
-                    parts.push_back(tokenStream.current().stringValue);
-                    tokenStream.advance();
-
-                    // Continue parsing if there are more :: tokens
-                    while (tokenStream.current().type == TokenType::SCOPE)
-                    {
-                        tokenStream.advance();
-                        if (tokenStream.current().type != TokenType::IDENTIFIER)
-                        {
-                            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                        }
-                        parts.push_back(tokenStream.current().stringValue);
-                        tokenStream.advance();
-                    }
+                    // Use centralized qualified identifier chain parsing
+                    auto parts = ParserUtils::parseQualifiedIdentifierChain(tokenStream, varNode->getName());
 
                     // Check if this is a function call (e.g., MathUtils::max(10, 5))
                     if (tokenStream.current().type == TokenType::LPAREN)
                     {
-                        // Join the parts to create the full function name
-                        std::string fullName = parts[0];
-                        for (size_t i = 1; i < parts.size(); i++)
-                        {
-                            fullName += "::" + parts[i];
-                        }
+                        // Efficiently build the full function name
+                        std::string fullName = ParserUtils::buildQualifiedName(parts);
 
                         // Parse as function call using the same method as normal function calls
                         tokenStream.advance(); // consume '('
@@ -338,12 +264,8 @@ namespace parser
                     else
                     {
                         // This is a qualified variable access (e.g., TestClass::myField)
-                        // Join the parts to create the full variable name
-                        std::string fullName = parts[0];
-                        for (size_t i = 1; i < parts.size(); i++)
-                        {
-                            fullName += "::" + parts[i];
-                        }
+                        // Efficiently build the full variable name
+                        std::string fullName = ParserUtils::buildQualifiedName(parts);
 
                         // Create a VariableNode with the qualified name
                         expr = std::make_unique<nodes::expressions::VariableNode>(fullName);

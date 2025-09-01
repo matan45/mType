@@ -1,5 +1,6 @@
 ﻿#include "StatementParser.hpp"
 #include "TypeParser.hpp"
+#include "ParserUtils.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -553,45 +554,8 @@ namespace parser
 
     std::vector<std::pair<std::string, ValueType>> StatementParser::parseParameterList()
     {
-        std::vector<std::pair<std::string, ValueType>> parameters;
-
-        tokenStream.expect(TokenType::LPAREN);
-
-        if (tokenStream.current().type != TokenType::RPAREN)
-        {
-            // Parse first parameter
-            ValueType type = TypeParser::parseType(tokenStream);
-
-            if (tokenStream.current().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected parameter name", tokenStream.current().location);
-            }
-
-            std::string name = tokenStream.current().stringValue;
-            tokenStream.advance();
-
-            parameters.emplace_back(name, type);
-
-            // Parse additional parameters
-            while (tokenStream.match(TokenType::COMMA))
-            {
-                ValueType paramType = TypeParser::parseType(tokenStream);
-
-                if (tokenStream.current().type != TokenType::IDENTIFIER)
-                {
-                    throw ParseException("Expected parameter name", tokenStream.current().location);
-                }
-
-                std::string paramName = tokenStream.current().stringValue;
-                tokenStream.advance();
-
-                parameters.emplace_back(paramName, paramType);
-            }
-        }
-
-        tokenStream.expect(TokenType::RPAREN);
-
-        return parameters;
+        // Delegate to centralized utility
+        return ParserUtils::parseParameterList(tokenStream, true);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseNativeFunction()

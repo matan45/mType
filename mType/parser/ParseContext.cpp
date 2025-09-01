@@ -9,48 +9,51 @@ namespace parser
 {
     using namespace errors;
 
-    ParseContext::ParseContext(StatementParser* stmt, ExpressionParser* expr, ClassParser* cls, TokenStream* stream)
-        : statementParser(stmt), expressionParser(expr), classParser(cls), tokenStream(stream)
+    ParseContext::ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, TokenStream& stream)
+        : statementParser(std::ref(stmt)), 
+          expressionParser(std::ref(expr)), 
+          classParser(std::ref(cls)), 
+          tokenStream(std::ref(stream))
     {
     }
 
     std::unique_ptr<ASTNode> ParseContext::parseStatement()
     {
-        if (!statementParser)
+        if (!statementParser.has_value())
         {
-            auto location = tokenStream ? tokenStream->location() : errors::SourceLocation{};
+            auto location = tokenStream.has_value() ? tokenStream->get().location() : errors::SourceLocation{};
             throw ParseException("StatementParser not initialized", location);
         }
-        return statementParser->parseStatement();
+        return statementParser->get().parseStatement();
     }
 
     std::unique_ptr<ASTNode> ParseContext::parseExpression()
     {
-        if (!expressionParser)
+        if (!expressionParser.has_value())
         {
-            auto location = tokenStream ? tokenStream->location() : errors::SourceLocation{};
+            auto location = tokenStream.has_value() ? tokenStream->get().location() : errors::SourceLocation{};
             throw ParseException("ExpressionParser not initialized", location);
         }
-        return expressionParser->parseExpression();
+        return expressionParser->get().parseExpression();
     }
 
     std::unique_ptr<ASTNode> ParseContext::parseClass()
     {
-        if (!classParser)
+        if (!classParser.has_value())
         {
-            auto location = tokenStream ? tokenStream->location() : errors::SourceLocation{};
+            auto location = tokenStream.has_value() ? tokenStream->get().location() : errors::SourceLocation{};
             throw ParseException("ClassParser not initialized", location);
         }
-        return classParser->parseClass();
+        return classParser->get().parseClass();
     }
 
     std::unique_ptr<ASTNode> ParseContext::parseNewExpression()
     {
-        if (!classParser)
+        if (!classParser.has_value())
         {
-            auto location = tokenStream ? tokenStream->location() : errors::SourceLocation{};
+            auto location = tokenStream.has_value() ? tokenStream->get().location() : errors::SourceLocation{};
             throw ParseException("ClassParser not initialized", location);
         }
-        return classParser->parseNewExpression();
+        return classParser->get().parseNewExpression();
     }
 }
