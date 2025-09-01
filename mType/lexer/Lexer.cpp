@@ -2,28 +2,57 @@
 #include <cctype>
 #include <stdexcept>
 #include <climits>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
+#include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
-#include "../errors/FileException.hpp"
 
 namespace lexer
 {
-    Lexer::Lexer(const std::string& filePath)
-        : filename(filePath), pos(0), currentLine(1), currentColumn(1)
-    {
-        input = readFromFile(filePath);
-        // Skip UTF-8 BOM if present
-        if (input.length() >= 3 &&
-            static_cast<unsigned char>(input[0]) == 0xEF &&
-            static_cast<unsigned char>(input[1]) == 0xBB &&
-            static_cast<unsigned char>(input[2]) == 0xBF)
-        {
-            pos = 3;
-        }
+    // Static operator lookup table definitions
+    const std::array<Lexer::OperatorInfo, 14> Lexer::TWO_CHAR_OPERATORS = {{
+        {"++", TokenType::INCREMENT, 2},
+        {"--", TokenType::DECREMENT, 2},
+        {"==", TokenType::EQUALS, 2},
+        {"!=", TokenType::NOT_EQUALS, 2},
+        {"<=", TokenType::LESS_EQUALS, 2},
+        {">=", TokenType::GREATER_EQUALS, 2},
+        {"&&", TokenType::AND, 2},
+        {"||", TokenType::OR, 2},
+        {"+=", TokenType::PLUS_ASSIGN, 2},
+        {"-=", TokenType::MINUS_ASSIGN, 2},
+        {"*=", TokenType::MULTIPLY_ASSIGN, 2},
+        {"/=", TokenType::DIVIDE_ASSIGN, 2},
+        {"%=", TokenType::MODULO_ASSIGN, 2},
+        {"::", TokenType::SCOPE, 2}
+    }};
 
-        splitIntoLines();
+    const std::array<Lexer::OperatorInfo, 18> Lexer::SINGLE_CHAR_OPERATORS = {{
+        {"+", TokenType::PLUS, 1},
+        {"-", TokenType::MINUS, 1},
+        {"*", TokenType::MULTIPLY, 1},
+        {"/", TokenType::DIVIDE, 1},
+        {"%", TokenType::MODULO, 1},
+        {"=", TokenType::ASSIGN, 1},
+        {"(", TokenType::LPAREN, 1},
+        {")", TokenType::RPAREN, 1},
+        {"{", TokenType::LBRACE, 1},
+        {"}", TokenType::RBRACE, 1},
+        {",", TokenType::COMMA, 1},
+        {";", TokenType::SEMICOLON, 1},
+        {":", TokenType::COLON, 1},
+        {"?", TokenType::QUESTION, 1},
+        {"!", TokenType::NOT, 1},
+        {"<", TokenType::LESS, 1},
+        {">", TokenType::GREATER, 1},
+        {".", TokenType::DOT, 1}
+    }};
+
+    Lexer::Lexer(const std::string& filePath, std::unique_ptr<FileReader> reader)
+        : pos(0), fileReader(std::move(reader)),
+          locationTracker(std::make_unique<SourceLocationTracker>(filePath)),
+          bracketBalancer(std::make_unique<BracketBalancer>())
+    {
+        input = fileReader->readFile(filePath);
+        locationTracker->splitIntoLines(input);
     }
 
     Token Lexer::getNextToken()
@@ -32,11 +61,11 @@ namespace lexer
 
         if (pos >= input.length())
         {
-            return Token{TokenType::END, 0.0f, 0, "", errors::SourceLocation(filename, currentLine, currentColumn)};
+            return TokenFactory::createEndToken(locationTracker->getCurrentLocation());
         }
 
         char current = input[pos];
-        errors::SourceLocation location(filename, currentLine, currentColumn);
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
 
         // Numbers
         if (std::isdigit(current))
@@ -54,206 +83,85 @@ namespace lexer
                 lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
             {
                 float value = parseFloat();
-                return Token{TokenType::FLOAT_NUMBER, value, 0, "", location};
+                return TokenFactory::createFloatToken(value, location);
             }
             else
             {
                 int value = parseInteger();
-                return Token{TokenType::INT_NUMBER, 0.0f, value, "", location};
+                return TokenFactory::createIntegerToken(value, location);
             }
         }
 
         // Identifiers and keywords
         if (std::isalpha(current) || current == '_')
         {
-            std::string identifier = parseIdentifier();
-            auto keywordIt = keywords.find(identifier);
-            if (keywordIt != keywords.end())
+            std::string_view identifier = parseIdentifier();
+            TokenType tokenType = findKeywordType(identifier);
+            
+            if (tokenType == TokenType::IDENTIFIER)
             {
-                return Token{keywordIt->second, 0.0f, 0, identifier, location};
+                return TokenFactory::createIdentifierToken(identifier, location);
             }
-            return Token{TokenType::IDENTIFIER, 0.0f, 0, identifier, location};
+            else
+            {
+                return TokenFactory::createKeywordToken(tokenType, identifier, location);
+            }
         }
 
         // String literals
         if (current == '"')
         {
             std::string value = parseStringLiteral();
-            return Token{TokenType::STRING_LITERAL, 0.0f, 0, value, location};
+            return TokenFactory::createStringToken(value, location);
         }
 
-        // Two-character operators
-        if (pos + 1 < input.length())
+        // Try to parse operators using lookup tables
+        Token operatorToken = tryParseOperator();
+        if (operatorToken.type != TokenType::END) // Check if a valid operator was found
         {
-            std::string twoChar = input.substr(pos, 2);
-            if (twoChar == "++")
-            {
-                advance();
-                advance();
-                return Token{TokenType::INCREMENT, 0.0f, 0, "++", location};
-            }
-            if (twoChar == "--")
-            {
-                advance();
-                advance();
-                return Token{TokenType::DECREMENT, 0.0f, 0, "--", location};
-            }
-            if (twoChar == "==")
-            {
-                advance();
-                advance();
-                return Token{TokenType::EQUALS, 0.0f, 0, "==", location};
-            }
-            if (twoChar == "!=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::NOT_EQUALS, 0.0f, 0, "!=", location};
-            }
-            if (twoChar == "<=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::LESS_EQUALS, 0.0f, 0, "<=", location};
-            }
-            if (twoChar == ">=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::GREATER_EQUALS, 0.0f, 0, ">=", location};
-            }
-            if (twoChar == "&&")
-            {
-                advance();
-                advance();
-                return Token{TokenType::AND, 0.0f, 0, "&&", location};
-            }
-            if (twoChar == "||")
-            {
-                advance();
-                advance();
-                return Token{TokenType::OR, 0.0f, 0, "||", location};
-            }
-            if (twoChar == "+=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::PLUS_ASSIGN, 0.0f, 0, "+=", location};
-            }
-            if (twoChar == "-=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::MINUS_ASSIGN, 0.0f, 0, "-=", location};
-            }
-            if (twoChar == "*=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::MULTIPLY_ASSIGN, 0.0f, 0, "*=", location};
-            }
-            if (twoChar == "/=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::DIVIDE_ASSIGN, 0.0f, 0, "/=", location};
-            }
-            if (twoChar == "%=")
-            {
-                advance();
-                advance();
-                return Token{TokenType::MODULO_ASSIGN, 0.0f, 0, "%=", location};
-            }
-            if (twoChar == "::")
-            {
-                advance();
-                advance();
-                return Token{TokenType::SCOPE, 0.0f, 0, "::", location};
-            }
+            return operatorToken;
         }
 
-        // Single character operators and punctuation
-        switch (current)
-        {
-        case '+': advance();
-            return Token{TokenType::PLUS, 0.0f, 0, "+", location};
-        case '-': advance();
-            return Token{TokenType::MINUS, 0.0f, 0, "-", location};
-        case '*': advance();
-            return Token{TokenType::MULTIPLY, 0.0f, 0, "*", location};
-        case '/': advance();
-            return Token{TokenType::DIVIDE, 0.0f, 0, "/", location};
-        case '%': advance();
-            return Token{TokenType::MODULO, 0.0f, 0, "%", location};
-        case '=': advance();
-            return Token{TokenType::ASSIGN, 0.0f, 0, "=", location};
-        case '(': advance();
-            balanceStack.push('(');
-            return Token{TokenType::LPAREN, 0.0f, 0, "(", location};
-        case ')':
-            if (!balanceStack.empty() && balanceStack.top() == '(') balanceStack.pop();
-            else throwError("Unmatched closing parenthesis");
-            advance();
-            return Token{TokenType::RPAREN, 0.0f, 0, ")", location};
-        case '{': advance();
-            balanceStack.push('{');
-            return Token{TokenType::LBRACE, 0.0f, 0, "{", location};
-        case '}':
-            if (!balanceStack.empty() && balanceStack.top() == '{') balanceStack.pop();
-            else throwError("Unmatched closing brace");
-            advance();
-            return Token{TokenType::RBRACE, 0.0f, 0, "}", location};
-        case ',': advance();
-            return Token{TokenType::COMMA, 0.0f, 0, ",", location};
-        case ';': advance();
-            return Token{TokenType::SEMICOLON, 0.0f, 0, ";", location};
-        case ':': advance();
-            return Token{TokenType::COLON, 0.0f, 0, ":", location};
-        case '?': advance();
-            return Token{TokenType::QUESTION, 0.0f, 0, "?", location};
-        case '!': advance();
-            return Token{TokenType::NOT, 0.0f, 0, "!", location};
-        case '<': advance();
-            return Token{TokenType::LESS, 0.0f, 0, "<", location};
-        case '>': advance();
-            return Token{TokenType::GREATER, 0.0f, 0, ">", location};
-        case '.': advance();
-            return Token{TokenType::DOT, 0.0f, 0, ".", location};
-        default:
-            throwError("Unexpected character: " + std::string(1, current));
-        }
+        // If no operator was found, handle unexpected character
+        throwError("Unexpected character: " + std::string(1, current));
     }
 
     Token Lexer::peekNextToken()
     {
+        // Save current state
         size_t savedPos = pos;
-        std::stack<char> savedStack = balanceStack;
+        int savedLine = locationTracker->getCurrentLine();
+        int savedColumn = locationTracker->getCurrentColumn();
+        std::stack<char> savedBalanceStack = bracketBalancer->copyStack();
+
+        // Get the next token
         Token token = getNextToken();
+
+        // Restore state
         pos = savedPos;
-        balanceStack = savedStack;
+        locationTracker->setPosition(savedLine, savedColumn);
+        
+        // Restore balance stack
+        bracketBalancer->clear();
+        std::stack<char> tempStack = savedBalanceStack;
+        std::vector<char> stackContents;
+        
+        // Extract all elements from the stack
+        while (!tempStack.empty())
+        {
+            stackContents.push_back(tempStack.top());
+            tempStack.pop();
+        }
+        
+        // Push them back in reverse order to restore original stack
+        for (auto it = stackContents.rbegin(); it != stackContents.rend(); ++it)
+        {
+            bracketBalancer->pushOpening(*it);
+        }
+
         return token;
     }
 
-    void Lexer::splitIntoLines()
-    {
-        std::string line;
-        for (size_t i = 0; i < input.length(); ++i)
-        {
-            if (input[i] == '\n')
-            {
-                lines.push_back(line);
-                line.clear();
-            }
-            else if (input[i] != '\r')
-            {
-                line += input[i];
-            }
-        }
-        if (!line.empty())
-        {
-            lines.push_back(line);
-        }
-    }
 
     float Lexer::parseFloat()
     {
@@ -262,8 +170,8 @@ namespace lexer
         {
             advance();
         }
-        std::string floatStr = input.substr(start, pos - start);
-        return std::stof(floatStr);
+        std::string_view floatView(input.data() + start, pos - start);
+        return std::stof(std::string(floatView)); // std::stof requires std::string
     }
 
     int Lexer::parseInteger()
@@ -273,15 +181,16 @@ namespace lexer
         {
             advance();
         }
-        std::string intStr = input.substr(start, pos - start);
+        std::string_view intView(input.data() + start, pos - start);
 
         try
         {
-            return std::stoi(intStr);
+            return std::stoi(std::string(intView));
         }
         catch (const std::out_of_range&)
         {
             // Handle integer overflow - clamp to int limits
+            std::string intStr(intView); // Convert to string for error handling
             long long value;
             try
             {
@@ -290,7 +199,7 @@ namespace lexer
             catch (const std::out_of_range&)
             {
                 // If even long long overflows, return max/min int
-                return (intStr[0] == '-') ? INT_MIN : INT_MAX;
+                return (intView[0] == '-') ? INT_MIN : INT_MAX;
             }
 
             // Clamp to int range
@@ -300,61 +209,82 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw std::runtime_error("Invalid integer format: " + intStr);
+            throw std::runtime_error("Invalid integer format: " + std::string(intView));
         }
     }
 
-    std::string Lexer::parseIdentifier()
+    std::string_view Lexer::parseIdentifier()
     {
         size_t start = pos;
         while (pos < input.length() && (std::isalnum(input[pos]) || input[pos] == '_'))
         {
             advance();
         }
-        return input.substr(start, pos - start);
+        return std::string_view(input.data() + start, pos - start);
     }
 
     std::string Lexer::parseStringLiteral()
     {
         advance(); // Skip opening quote
-        std::string result;
-
-        while (pos < input.length() && input[pos] != '"')
+        size_t start = pos;
+        
+        // First pass: find end and check if we have escape sequences
+        bool hasEscapes = false;
+        size_t end = pos;
+        while (end < input.length() && input[end] != '"')
         {
-            if (input[pos] == '\\' && pos + 1 < input.length())
+            if (input[end] == '\\')
             {
-                advance(); // Skip backslash
-                switch (input[pos])
-                {
-                case 'n': result += '\n';
-                    break;
-                case 't': result += '\t';
-                    break;
-                case 'r': result += '\r';
-                    break;
-                case '\\': result += '\\';
-                    break;
-                case '"': result += '"';
-                    break;
-                default:
-                    result += '\\';
-                    result += input[pos];
-                    break;
-                }
+                hasEscapes = true;
+                if (end + 1 < input.length()) end++; // Skip escaped character
             }
-            else
-            {
-                result += input[pos];
-            }
-            advance();
+            end++;
         }
-
-        if (pos >= input.length())
+        
+        if (end >= input.length())
         {
             throwError("Unterminated string literal");
         }
-
-        advance(); // Skip closing quote
+        
+        std::string result;
+        if (!hasEscapes)
+        {
+            // Optimization: no escapes, use string_view for direct copy
+            std::string_view literalView(input.data() + start, end - start);
+            result = std::string(literalView);
+            pos = end + 1; // Skip closing quote
+        }
+        else
+        {
+            // Handle escape sequences (original logic)
+            result.reserve(end - start); // Pre-allocate approximate size
+            while (pos < input.length() && input[pos] != '"')
+            {
+                if (input[pos] == '\\' && pos + 1 < input.length())
+                {
+                    advance(); // Skip backslash
+                    switch (input[pos])
+                    {
+                    case 'n': result += '\n'; break;
+                    case 't': result += '\t'; break;
+                    case 'r': result += '\r'; break;
+                    case '\\': result += '\\'; break;
+                    case '"': result += '"'; break;
+                    default:
+                        result += '\\';
+                        result += input[pos];
+                        break;
+                    }
+                }
+                else
+                {
+                    result += input[pos];
+                }
+                advance();
+            }
+            advance(); // Skip closing quote
+        }
+        
         return result;
     }
 
@@ -406,37 +336,83 @@ namespace lexer
     {
         if (pos < input.length())
         {
-            if (input[pos] == '\n')
-            {
-                currentLine++;
-                currentColumn = 1;
-            }
-            else
-            {
-                currentColumn++;
-            }
+            locationTracker->advance(input[pos]);
             pos++;
         }
     }
 
     void Lexer::throwError(const std::string& message)
     {
-        throw errors::ParseException(message, errors::SourceLocation(filename, currentLine, currentColumn));
+        throw errors::ParseException(message, locationTracker->getCurrentLocation());
     }
 
-    std::string Lexer::readFromFile(const std::string& filePath)
+    Token Lexer::tryParseOperator()
     {
-        // Read the file
-        std::ifstream file(filePath);
-        if (!file.is_open())
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
+        
+        // Try two-character operators first
+        if (pos + 1 < input.length())
         {
-            throw errors::FileException("Cannot open file: " + filePath);
+            std::string_view twoChar(input.data() + pos, 2);
+            for (const auto& op : TWO_CHAR_OPERATORS)
+            {
+                if (twoChar == op.symbol)
+                {
+                    advanceMultiple(op.length);
+                    return TokenFactory::createOperatorToken(op.type, op.symbol, location);
+                }
+            }
         }
 
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string fileContent = buffer.str();
-        file.close();
-        return fileContent;
+        // Try single-character operators
+        if (pos < input.length())
+        {
+            std::string_view singleChar(input.data() + pos, 1);
+            for (const auto& op : SINGLE_CHAR_OPERATORS)
+            {
+                if (singleChar == op.symbol)
+                {
+                    // Handle bracket balancing logic
+                    char current = input[pos];
+                    if (bracketBalancer->isOpeningBracket(current))
+                    {
+                        bracketBalancer->pushOpening(current);
+                    }
+                    else if (bracketBalancer->isClosingBracket(current))
+                    {
+                        bracketBalancer->validateClosing(current, location);
+                    }
+
+                    advanceMultiple(op.length);
+                    return TokenFactory::createOperatorToken(op.type, op.symbol, location);
+                }
+            }
+        }
+
+        // No operator found
+        return TokenFactory::createEndToken(location); // Invalid token as sentinel
     }
+
+
+    void Lexer::advanceMultiple(size_t count)
+    {
+        for (size_t i = 0; i < count && pos < input.length(); ++i)
+        {
+            advance();
+        }
+    }
+
+    TokenType Lexer::findKeywordType(std::string_view identifier) const
+    {
+        // Use map lookup for all keywords to ensure correctness
+        // The optimization can be added later if needed, but correctness first
+        auto keywordIt = keywords.find(std::string(identifier));
+        if (keywordIt != keywords.end()) 
+        {
+            return keywordIt->second;
+        }
+        
+        return TokenType::IDENTIFIER; // Not a keyword
+    }
+
 }

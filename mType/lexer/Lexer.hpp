@@ -1,9 +1,14 @@
 ﻿#pragma once
 #include <string>
 #include <unordered_map>
-#include <stack>
+#include <memory>
+#include <array>
+#include <string_view>
 #include "../token/TokenType.hpp"
 #include "../token/Token.hpp"
+#include "../services/FileReader.hpp"
+#include "SourceLocationTracker.hpp"
+#include "BracketBalancer.hpp"
 
 namespace lexer
 {
@@ -12,12 +17,27 @@ namespace lexer
     {
     private:
         std::string input;
-        std::string filename;
         size_t pos;
-        int currentLine;
-        int currentColumn;
-        std::stack<char> balanceStack;
-        std::vector<std::string> lines;
+        std::unique_ptr<FileReader> fileReader;
+        
+        // Separated concerns
+        std::unique_ptr<SourceLocationTracker> locationTracker;
+        std::unique_ptr<BracketBalancer> bracketBalancer;
+
+        // Operator information structure
+        struct OperatorInfo
+        {
+            std::string_view symbol;
+            TokenType type;
+            size_t length;
+            
+            constexpr OperatorInfo(std::string_view sym, TokenType t, size_t len) 
+                : symbol(sym), type(t), length(len) {}
+        };
+
+        // Operator lookup table declarations
+        static const std::array<OperatorInfo, 14> TWO_CHAR_OPERATORS;
+        static const std::array<OperatorInfo, 18> SINGLE_CHAR_OPERATORS;
 
         // List of keywords and their corresponding TokenType
         std::unordered_map<std::string, TokenType> keywords = {
@@ -51,25 +71,35 @@ namespace lexer
         };
 
     public:
-        explicit Lexer(const std::string& filePath = "<unknown>");
+        explicit Lexer(const std::string& filePath = "<unknown>", 
+                      std::unique_ptr<FileReader> reader = std::make_unique<FileReader>());
+        
+        // Non-copyable but movable
+        Lexer(const Lexer&) = delete;
+        Lexer& operator=(const Lexer&) = delete;
+        Lexer(Lexer&&) = default;
+        Lexer& operator=(Lexer&&) = default;
 
         Token getNextToken();
         Token peekNextToken();
     private:
-        void splitIntoLines();
-        
+        // Core parsing methods
         float parseFloat();
         int parseInteger();
-        std::string parseIdentifier();
+        std::string_view parseIdentifier();
         std::string parseStringLiteral();
-
         void skipWhitespaceAndComments();
-
+        
+        // Movement and positioning
         void advance();
+        void advanceMultiple(size_t count);
+        
+        // Token creation helpers
+        Token tryParseOperator();
+        TokenType findKeywordType(std::string_view identifier) const;
+        
+        // Error handling
         [[noreturn]] void throwError(const std::string& message);
-
-        //TODO move to utils
-        std::string readFromFile(const std::string& filePath);
     };
 }
 
