@@ -1,5 +1,5 @@
 ﻿#include "ClassParser.hpp"
-#include "Parser.hpp"
+#include "TypeParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
@@ -19,31 +19,31 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
-        parser.expectToken(TokenType::CLASS);
+        tokenStream.expect(TokenType::CLASS);
 
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
-            throw ParseException("Expected class name", parser.getCurrentToken().location);
+            throw ParseException("Expected class name", tokenStream.current().location);
         }
 
-        std::string className = parser.getCurrentToken().stringValue;
+        std::string className = tokenStream.current().stringValue;
 
         // Validate class naming convention
         if (!ParserValidator::isValidClassName(className))
         {
             throw ParseException("Class name '" + className + "' must start with an uppercase letter",
-                                 parser.getCurrentToken().location);
+                                 tokenStream.current().location);
         }
 
-        parser.advanceToken();
+        tokenStream.advance();
 
-        parser.expectToken(TokenType::LBRACE);
+        tokenStream.expect(TokenType::LBRACE);
 
         auto classNode = std::make_unique<ClassNode>(className);
 
-        while (parser.getCurrentToken().type != TokenType::RBRACE && parser.getCurrentToken().type != TokenType::END)
+        while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {
-            TokenType currentToken = parser.getCurrentToken().type;
+            TokenType currentToken = tokenStream.current().type;
             
             if (currentToken == TokenType::CONSTRUCTOR)
             {
@@ -81,64 +81,64 @@ namespace parser
             }
         }
 
-        parser.expectToken(TokenType::RBRACE);
+        tokenStream.expect(TokenType::RBRACE);
 
         return std::move(classNode);
     }
 
     std::unique_ptr<ASTNode> ClassParser::parseConstructor()
     {
-        parser.expectToken(TokenType::CONSTRUCTOR);
+        tokenStream.expect(TokenType::CONSTRUCTOR);
 
-        parser.expectToken(TokenType::LPAREN);
+        tokenStream.expect(TokenType::LPAREN);
 
         std::vector<std::pair<std::string, ValueType>> parameters;
-        while (parser.getCurrentToken().type != TokenType::RPAREN)
+        while (tokenStream.current().type != TokenType::RPAREN)
         {
             ValueType paramType = ValueType::VOID;
-            TokenType currentType = parser.getCurrentToken().type;
+            TokenType currentType = tokenStream.current().type;
 
             // Handle both dedicated type tokens and identifier-based types
             if (currentType == TokenType::INT)
             {
                 paramType = ValueType::INT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::FLOAT)
             {
                 paramType = ValueType::FLOAT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::BOOL)
             {
                 paramType = ValueType::BOOL;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::STRING_TYPE)
             {
                 paramType = ValueType::STRING;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::VOID)
             {
                 paramType = ValueType::VOID;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::IDENTIFIER)
             {
-                std::string typeName = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                std::string typeName = tokenStream.current().stringValue;
+                tokenStream.advance();
 
                 // Handle qualified names like geometry::Point
-                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                while (tokenStream.current().type == TokenType::SCOPE)
                 {
-                    parser.advanceToken();
-                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    tokenStream.advance();
+                    if (tokenStream.current().type != TokenType::IDENTIFIER)
                     {
-                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                     }
-                    typeName += "::" + parser.getCurrentToken().stringValue;
-                    parser.advanceToken();
+                    typeName += "::" + tokenStream.current().stringValue;
+                    tokenStream.advance();
                 }
 
                 if (typeName == "int") paramType = ValueType::INT;
@@ -154,27 +154,27 @@ namespace parser
             }
             else
             {
-                throw ParseException("Expected parameter type", parser.getCurrentToken().location);
+                throw ParseException("Expected parameter type", tokenStream.current().location);
             }
 
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
-                throw ParseException("Expected parameter name", parser.getCurrentToken().location);
+                throw ParseException("Expected parameter name", tokenStream.current().location);
             }
 
-            std::string paramName = parser.getCurrentToken().stringValue;
+            std::string paramName = tokenStream.current().stringValue;
             parameters.push_back({paramName, paramType});
-            parser.advanceToken();
+            tokenStream.advance();
 
-            if (parser.getCurrentToken().type == TokenType::COMMA)
+            if (tokenStream.current().type == TokenType::COMMA)
             {
-                parser.advanceToken();
+                tokenStream.advance();
             }
         }
 
-        parser.expectToken(TokenType::RPAREN);
+        tokenStream.expect(TokenType::RPAREN);
 
-        auto body = parser.parseStatement();
+        auto body = context.parseStatement();
 
         return std::make_unique<ConstructorNode>(std::move(parameters), std::move(body));
     }
@@ -184,77 +184,77 @@ namespace parser
         bool isStatic = false;
 
         // Handle static modifier
-        if (parser.getCurrentToken().type == TokenType::STATIC)
+        if (tokenStream.current().type == TokenType::STATIC)
         {
             isStatic = true;
-            parser.advanceToken();
+            tokenStream.advance();
         }
 
         // Handle function keyword (required for methods)
-        if (parser.getCurrentToken().type != TokenType::FUNCTION)
+        if (tokenStream.current().type != TokenType::FUNCTION)
         {
-            throw ParseException("Expected 'function' keyword", parser.getCurrentToken().location);
+            throw ParseException("Expected 'function' keyword", tokenStream.current().location);
         }
-        parser.advanceToken();
+        tokenStream.advance();
 
         // Parse method name
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
-            throw ParseException("Expected method name", parser.getCurrentToken().location);
+            throw ParseException("Expected method name", tokenStream.current().location);
         }
 
-        std::string methodName = parser.getCurrentToken().stringValue;
-        parser.advanceToken();
+        std::string methodName = tokenStream.current().stringValue;
+        tokenStream.advance();
 
-        parser.expectToken(TokenType::LPAREN);
+        tokenStream.expect(TokenType::LPAREN);
 
         std::vector<std::pair<std::string, ValueType>> parameters;
-        while (parser.getCurrentToken().type != TokenType::RPAREN)
+        while (tokenStream.current().type != TokenType::RPAREN)
         {
             ValueType paramType = ValueType::VOID;
-            TokenType currentType = parser.getCurrentToken().type;
+            TokenType currentType = tokenStream.current().type;
 
             // Handle both dedicated type tokens and identifier-based types
             if (currentType == TokenType::INT)
             {
                 paramType = ValueType::INT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::FLOAT)
             {
                 paramType = ValueType::FLOAT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::BOOL)
             {
                 paramType = ValueType::BOOL;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::STRING_TYPE)
             {
                 paramType = ValueType::STRING;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::VOID)
             {
                 paramType = ValueType::VOID;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (currentType == TokenType::IDENTIFIER)
             {
-                std::string typeName = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                std::string typeName = tokenStream.current().stringValue;
+                tokenStream.advance();
 
                 // Handle qualified names like geometry::Point
-                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                while (tokenStream.current().type == TokenType::SCOPE)
                 {
-                    parser.advanceToken();
-                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    tokenStream.advance();
+                    if (tokenStream.current().type != TokenType::IDENTIFIER)
                     {
-                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                     }
-                    typeName += "::" + parser.getCurrentToken().stringValue;
-                    parser.advanceToken();
+                    typeName += "::" + tokenStream.current().stringValue;
+                    tokenStream.advance();
                 }
 
                 if (typeName == "int") paramType = ValueType::INT;
@@ -270,73 +270,73 @@ namespace parser
             }
             else
             {
-                throw ParseException("Expected parameter type", parser.getCurrentToken().location);
+                throw ParseException("Expected parameter type", tokenStream.current().location);
             }
 
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
-                throw ParseException("Expected parameter name", parser.getCurrentToken().location);
+                throw ParseException("Expected parameter name", tokenStream.current().location);
             }
 
-            std::string paramName = parser.getCurrentToken().stringValue;
+            std::string paramName = tokenStream.current().stringValue;
             parameters.push_back({paramName, paramType});
-            parser.advanceToken();
+            tokenStream.advance();
 
-            if (parser.getCurrentToken().type == TokenType::COMMA)
+            if (tokenStream.current().type == TokenType::COMMA)
             {
-                parser.advanceToken();
+                tokenStream.advance();
             }
         }
 
-        parser.expectToken(TokenType::RPAREN);
+        tokenStream.expect(TokenType::RPAREN);
 
         // Parse return type after the parameters (mType syntax: function name(params): returnType)
         ValueType returnType = ValueType::VOID;
-        if (parser.getCurrentToken().type == TokenType::COLON)
+        if (tokenStream.current().type == TokenType::COLON)
         {
-            parser.advanceToken();
+            tokenStream.advance();
 
-            TokenType returnTokenType = parser.getCurrentToken().type;
+            TokenType returnTokenType = tokenStream.current().type;
             if (returnTokenType == TokenType::INT)
             {
                 returnType = ValueType::INT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (returnTokenType == TokenType::FLOAT)
             {
                 returnType = ValueType::FLOAT;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (returnTokenType == TokenType::BOOL)
             {
                 returnType = ValueType::BOOL;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (returnTokenType == TokenType::STRING_TYPE)
             {
                 returnType = ValueType::STRING;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (returnTokenType == TokenType::VOID)
             {
                 returnType = ValueType::VOID;
-                parser.advanceToken();
+                tokenStream.advance();
             }
             else if (returnTokenType == TokenType::IDENTIFIER)
             {
-                std::string typeName = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                std::string typeName = tokenStream.current().stringValue;
+                tokenStream.advance();
 
                 // Handle qualified names like geometry::Point
-                while (parser.getCurrentToken().type == TokenType::SCOPE)
+                while (tokenStream.current().type == TokenType::SCOPE)
                 {
-                    parser.advanceToken();
-                    if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                    tokenStream.advance();
+                    if (tokenStream.current().type != TokenType::IDENTIFIER)
                     {
-                        throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                     }
-                    typeName += "::" + parser.getCurrentToken().stringValue;
-                    parser.advanceToken();
+                    typeName += "::" + tokenStream.current().stringValue;
+                    tokenStream.advance();
                 }
 
                 if (typeName == "int") returnType = ValueType::INT;
@@ -352,11 +352,11 @@ namespace parser
             }
             else
             {
-                throw ParseException("Expected return type after ':'", parser.getCurrentToken().location);
+                throw ParseException("Expected return type after ':'", tokenStream.current().location);
             }
         }
 
-        auto body = parser.parseStatement();
+        auto body = context.parseStatement();
 
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
                                             std::move(body), isStatic);
@@ -367,118 +367,118 @@ namespace parser
         bool isStatic = false;
         bool isFinal = false;
 
-        if (parser.getCurrentToken().type == TokenType::STATIC)
+        if (tokenStream.current().type == TokenType::STATIC)
         {
             isStatic = true;
-            parser.advanceToken();
+            tokenStream.advance();
         }
 
-        if (parser.getCurrentToken().type == TokenType::FINAL)
+        if (tokenStream.current().type == TokenType::FINAL)
         {
             isFinal = true;
-            parser.advanceToken();
+            tokenStream.advance();
         }
 
         // Check if this is actually a method (static/final function)
-        if (parser.getCurrentToken().type == TokenType::FUNCTION)
+        if (tokenStream.current().type == TokenType::FUNCTION)
         {
             // Methods cannot be final - this is a syntax error
             if (isFinal)
             {
-                throw ParseException("Methods cannot be final", parser.getCurrentToken().location);
+                throw ParseException("Methods cannot be final", tokenStream.current().location);
             }
             
             // This is a static method, parse it here since we already have the modifiers
-            parser.advanceToken(); // consume 'function'
+            tokenStream.advance(); // consume 'function'
             
             // Parse method name
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
-                throw ParseException("Expected method name", parser.getCurrentToken().location);
+                throw ParseException("Expected method name", tokenStream.current().location);
             }
             
-            std::string methodName = parser.getCurrentToken().stringValue;
-            parser.advanceToken();
+            std::string methodName = tokenStream.current().stringValue;
+            tokenStream.advance();
             
-            parser.expectToken(TokenType::LPAREN);
+            tokenStream.expect(TokenType::LPAREN);
             
             // Parse parameters (simplified version of parseMethod's parameter parsing)
             std::vector<std::pair<std::string, ValueType>> parameters;
-            while (parser.getCurrentToken().type != TokenType::RPAREN)
+            while (tokenStream.current().type != TokenType::RPAREN)
             {
                 ValueType paramType = ValueType::VOID;
-                TokenType currentType = parser.getCurrentToken().type;
+                TokenType currentType = tokenStream.current().type;
                 
                 // Handle parameter types
-                if (currentType == TokenType::INT) { paramType = ValueType::INT; parser.advanceToken(); }
-                else if (currentType == TokenType::FLOAT) { paramType = ValueType::FLOAT; parser.advanceToken(); }
-                else if (currentType == TokenType::BOOL) { paramType = ValueType::BOOL; parser.advanceToken(); }
-                else if (currentType == TokenType::STRING_TYPE) { paramType = ValueType::STRING; parser.advanceToken(); }
-                else if (currentType == TokenType::VOID) { paramType = ValueType::VOID; parser.advanceToken(); }
-                else if (currentType == TokenType::IDENTIFIER) { paramType = ValueType::OBJECT; parser.advanceToken(); }
-                else { throw ParseException("Expected parameter type", parser.getCurrentToken().location); }
+                if (currentType == TokenType::INT) { paramType = ValueType::INT; tokenStream.advance(); }
+                else if (currentType == TokenType::FLOAT) { paramType = ValueType::FLOAT; tokenStream.advance(); }
+                else if (currentType == TokenType::BOOL) { paramType = ValueType::BOOL; tokenStream.advance(); }
+                else if (currentType == TokenType::STRING_TYPE) { paramType = ValueType::STRING; tokenStream.advance(); }
+                else if (currentType == TokenType::VOID) { paramType = ValueType::VOID; tokenStream.advance(); }
+                else if (currentType == TokenType::IDENTIFIER) { paramType = ValueType::OBJECT; tokenStream.advance(); }
+                else { throw ParseException("Expected parameter type", tokenStream.current().location); }
                 
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
-                    throw ParseException("Expected parameter name", parser.getCurrentToken().location);
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
+                    throw ParseException("Expected parameter name", tokenStream.current().location);
                 
-                std::string paramName = parser.getCurrentToken().stringValue;
+                std::string paramName = tokenStream.current().stringValue;
                 parameters.emplace_back(paramName, paramType);
-                parser.advanceToken();
+                tokenStream.advance();
                 
-                if (parser.getCurrentToken().type == TokenType::COMMA)
-                    parser.advanceToken();
-                else if (parser.getCurrentToken().type != TokenType::RPAREN)
-                    throw ParseException("Expected ',' or ')'", parser.getCurrentToken().location);
+                if (tokenStream.current().type == TokenType::COMMA)
+                    tokenStream.advance();
+                else if (tokenStream.current().type != TokenType::RPAREN)
+                    throw ParseException("Expected ',' or ')'", tokenStream.current().location);
             }
             
-            parser.expectToken(TokenType::RPAREN);
+            tokenStream.expect(TokenType::RPAREN);
             
             // Parse return type
             ValueType returnType = ValueType::VOID;
-            if (parser.getCurrentToken().type == TokenType::COLON)
+            if (tokenStream.current().type == TokenType::COLON)
             {
-                parser.advanceToken();
-                TokenType returnTokenType = parser.getCurrentToken().type;
+                tokenStream.advance();
+                TokenType returnTokenType = tokenStream.current().type;
                 if (returnTokenType == TokenType::INT)
                 {
                     returnType = ValueType::INT;
-                    parser.advanceToken();
+                    tokenStream.advance();
                 }
                 else if (returnTokenType == TokenType::FLOAT)
                 {
                     returnType = ValueType::FLOAT;
-                    parser.advanceToken();
+                    tokenStream.advance();
                 }
                 else if (returnTokenType == TokenType::BOOL)
                 {
                     returnType = ValueType::BOOL;
-                    parser.advanceToken();
+                    tokenStream.advance();
                 }
                 else if (returnTokenType == TokenType::STRING_TYPE)
                 {
                     returnType = ValueType::STRING;
-                    parser.advanceToken();
+                    tokenStream.advance();
                 }
                 else if (returnTokenType == TokenType::VOID)
                 {
                     returnType = ValueType::VOID;
-                    parser.advanceToken();
+                    tokenStream.advance();
                 }
                 else if (returnTokenType == TokenType::IDENTIFIER)
                 {
-                    std::string typeName = parser.getCurrentToken().stringValue;
-                    parser.advanceToken();
+                    std::string typeName = tokenStream.current().stringValue;
+                    tokenStream.advance();
 
                     // Handle qualified names like geometry::Point
-                    while (parser.getCurrentToken().type == TokenType::SCOPE)
+                    while (tokenStream.current().type == TokenType::SCOPE)
                     {
-                        parser.advanceToken();
-                        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                        tokenStream.advance();
+                        if (tokenStream.current().type != TokenType::IDENTIFIER)
                         {
-                            throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                         }
-                        typeName += "::" + parser.getCurrentToken().stringValue;
-                        parser.advanceToken();
+                        typeName += "::" + tokenStream.current().stringValue;
+                        tokenStream.advance();
                     }
 
                     if (typeName == "int") returnType = ValueType::INT;
@@ -494,12 +494,12 @@ namespace parser
                 }
                 else
                 {
-                    throw ParseException("Expected return type after ':'", parser.getCurrentToken().location);
+                    throw ParseException("Expected return type after ':'", tokenStream.current().location);
                 }
             }
             
             // Parse method body
-            auto body = parser.parseStatement();
+            auto body = context.parseStatement();
             
             return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters), std::move(body), isStatic);
         }
@@ -507,49 +507,49 @@ namespace parser
         ValueType fieldType = ValueType::VOID;
 
         // Handle both dedicated type tokens and identifier-based types
-        TokenType currentType = parser.getCurrentToken().type;
+        TokenType currentType = tokenStream.current().type;
 
         if (currentType == TokenType::INT)
         {
             fieldType = ValueType::INT;
-            parser.advanceToken();
+            tokenStream.advance();
         }
         else if (currentType == TokenType::FLOAT)
         {
             fieldType = ValueType::FLOAT;
-            parser.advanceToken();
+            tokenStream.advance();
         }
         else if (currentType == TokenType::BOOL)
         {
             fieldType = ValueType::BOOL;
-            parser.advanceToken();
+            tokenStream.advance();
         }
         else if (currentType == TokenType::STRING_TYPE)
         {
             fieldType = ValueType::STRING;
-            parser.advanceToken();
+            tokenStream.advance();
         }
         else if (currentType == TokenType::VOID)
         {
             fieldType = ValueType::VOID;
-            parser.advanceToken();
+            tokenStream.advance();
         }
         else if (currentType == TokenType::IDENTIFIER)
         {
             // Handle string as identifier for backwards compatibility
-            std::string typeName = parser.getCurrentToken().stringValue;
-            parser.advanceToken();
+            std::string typeName = tokenStream.current().stringValue;
+            tokenStream.advance();
 
             // Handle qualified names like geometry::Point
-            while (parser.getCurrentToken().type == TokenType::SCOPE)
+            while (tokenStream.current().type == TokenType::SCOPE)
             {
-                parser.advanceToken();
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                tokenStream.advance();
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
                 {
-                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                    throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                 }
-                typeName += "::" + parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                typeName += "::" + tokenStream.current().stringValue;
+                tokenStream.advance();
             }
 
             if (typeName == "int") fieldType = ValueType::INT;
@@ -564,22 +564,22 @@ namespace parser
             }
         }
 
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
-            throw ParseException("Expected field name", parser.getCurrentToken().location);
+            throw ParseException("Expected field name", tokenStream.current().location);
         }
 
-        std::string fieldName = parser.getCurrentToken().stringValue;
-        parser.advanceToken();
+        std::string fieldName = tokenStream.current().stringValue;
+        tokenStream.advance();
 
         std::unique_ptr<ASTNode> initialValue = nullptr;
-        if (parser.getCurrentToken().type == TokenType::ASSIGN)
+        if (tokenStream.current().type == TokenType::ASSIGN)
         {
-            parser.advanceToken();
-            initialValue = parser.parseExpression();
+            tokenStream.advance();
+            initialValue = context.parseExpression();
         }
 
-        parser.expectToken(TokenType::SEMICOLON);
+        tokenStream.expect(TokenType::SEMICOLON);
 
         return std::make_unique<FieldNode>(fieldName, fieldType, std::move(initialValue),
                                            isStatic, isFinal);
@@ -587,27 +587,27 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseNewExpression()
     {
-        parser.expectToken(TokenType::NEW);
+        tokenStream.expect(TokenType::NEW);
 
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
-            throw ParseException("Expected class name after 'new'", parser.getCurrentToken().location);
+            throw ParseException("Expected class name after 'new'", tokenStream.current().location);
         }
 
         // Parse qualified class name (e.g., namespace::ClassName)
         std::vector<std::string> qualifiedParts;
-        qualifiedParts.push_back(parser.getCurrentToken().stringValue);
-        parser.advanceToken();
+        qualifiedParts.push_back(tokenStream.current().stringValue);
+        tokenStream.advance();
 
-        while (parser.getCurrentToken().type == TokenType::SCOPE)
+        while (tokenStream.current().type == TokenType::SCOPE)
         {
-            parser.advanceToken();
-            if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+            tokenStream.advance();
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
-                throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                throw ParseException("Expected identifier after '::'", tokenStream.current().location);
             }
-            qualifiedParts.push_back(parser.getCurrentToken().stringValue);
-            parser.advanceToken();
+            qualifiedParts.push_back(tokenStream.current().stringValue);
+            tokenStream.advance();
         }
 
         // Validate only the final class name (not namespace parts)
@@ -615,7 +615,7 @@ namespace parser
         if (!ParserValidator::isValidClassName(finalClassName))
         {
             throw ParseException("Class name '" + finalClassName + "' must start with an uppercase letter",
-                                 parser.getCurrentToken().location);
+                                 tokenStream.current().location);
         }
 
         // Reconstruct full qualified name for the AST
@@ -625,9 +625,17 @@ namespace parser
             className += "::" + qualifiedParts[i];
         }
 
-        parser.expectToken(TokenType::LPAREN);
-        auto arguments = parser.getExpressionParser()->parseArguments();
-        parser.expectToken(TokenType::RPAREN);
+        tokenStream.expect(TokenType::LPAREN);
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+        if (!tokenStream.check(TokenType::RPAREN))
+        {
+            arguments.push_back(context.parseExpression());
+            while (tokenStream.match(TokenType::COMMA))
+            {
+                arguments.push_back(context.parseExpression());
+            }
+        }
+        tokenStream.expect(TokenType::RPAREN);
 
         return std::make_unique<NewNode>(className, std::move(arguments));
     }

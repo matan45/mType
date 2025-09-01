@@ -1,5 +1,5 @@
 ﻿#include "ExpressionParser.hpp"
-#include "Parser.hpp"
+#include "TypeParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
@@ -35,66 +35,84 @@ namespace parser
         auto expr = parseTernary();
 
         // Check if this is an assignment expression
-        if (parser.getCurrentToken().type == TokenType::ASSIGN ||
-            parser.getCurrentToken().type == TokenType::PLUS_ASSIGN ||
-            parser.getCurrentToken().type == TokenType::MINUS_ASSIGN ||
-            parser.getCurrentToken().type == TokenType::MULTIPLY_ASSIGN ||
-            parser.getCurrentToken().type == TokenType::DIVIDE_ASSIGN ||
-            parser.getCurrentToken().type == TokenType::MODULO_ASSIGN)
+        if (tokenStream.current().type == TokenType::ASSIGN ||
+            tokenStream.current().type == TokenType::PLUS_ASSIGN ||
+            tokenStream.current().type == TokenType::MINUS_ASSIGN ||
+            tokenStream.current().type == TokenType::MULTIPLY_ASSIGN ||
+            tokenStream.current().type == TokenType::DIVIDE_ASSIGN ||
+            tokenStream.current().type == TokenType::MODULO_ASSIGN)
         {
             // For assignment expressions, the left side should be a variable, member access, or qualified name
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
-            if (!variableNode && !memberAccessNode) {
-                throw ParseException("Invalid assignment target", parser.getCurrentToken().location);
+            if (!variableNode && !memberAccessNode)
+            {
+                throw ParseException("Invalid assignment target", tokenStream.current().location);
             }
 
-            TokenType opType = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType opType = tokenStream.current().type;
+            tokenStream.advance();
             auto rightExpr = parseAssignment(); // Right associative
 
             // Create appropriate assignment node based on target type and operator
-            if (memberAccessNode) {
+            if (memberAccessNode)
+            {
                 // Member assignment (e.g., car.year = 2023)
-                if (opType == TokenType::ASSIGN) {
+                if (opType == TokenType::ASSIGN)
+                {
                     return std::make_unique<MemberAssignmentNode>(
                         memberAccessNode->releaseObject(),
                         memberAccessNode->getMemberName(),
                         std::move(rightExpr));
-                } else {
-                    // Compound member assignment - not fully implemented yet
-                    throw ParseException("Compound assignment to member not yet supported", parser.getCurrentToken().location);
                 }
-            } else if (variableNode) {
+                else
+                {
+                    // Compound member assignment - not fully implemented yet
+                    throw ParseException("Compound assignment to member not yet supported",
+                                         tokenStream.current().location);
+                }
+            }
+            else if (variableNode)
+            {
                 // Variable assignment
-                if (opType == TokenType::ASSIGN) {
+                if (opType == TokenType::ASSIGN)
+                {
                     // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
-                    return std::make_unique<AssignmentNode>(variableNode->getName(), 
-                                                          std::move(rightExpr), 
-                                                          ValueType::VOID, "");
-                } else {
+                    return std::make_unique<AssignmentNode>(variableNode->getName(),
+                                                            std::move(rightExpr),
+                                                            ValueType::VOID, "");
+                }
+                else
+                {
                     // Compound assignment - we need to expand this to: var = var op right
                     std::unique_ptr<ASTNode> expandedRight;
                     TokenType binaryOp;
-                    
-                    switch (opType) {
-                        case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
-                        case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
-                        case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
-                        case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
-                        case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
-                        default: throw ParseException("Invalid compound assignment operator", parser.getCurrentToken().location);
+
+                    switch (opType)
+                    {
+                    case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS;
+                        break;
+                    case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS;
+                        break;
+                    case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY;
+                        break;
+                    case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE;
+                        break;
+                    case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO;
+                        break;
+                    default: throw ParseException("Invalid compound assignment operator",
+                                                  tokenStream.current().location);
                     }
 
                     // Create: var op right
                     auto leftVar = std::make_unique<VariableNode>(variableNode->getName());
                     expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr));
 
-                    return std::make_unique<AssignmentNode>(variableNode->getName(), 
-                                                          std::move(expandedRight), 
-                                                          ValueType::VOID, "");
+                    return std::make_unique<AssignmentNode>(variableNode->getName(),
+                                                            std::move(expandedRight),
+                                                            ValueType::VOID, "");
                 }
-            } 
+            }
         }
 
         return expr;
@@ -104,10 +122,10 @@ namespace parser
     {
         auto expr = parseLogicalOr();
 
-        if (parser.matchToken(TokenType::QUESTION))
+        if (tokenStream.match(TokenType::QUESTION))
         {
             auto trueExpr = parseExpression();
-            parser.expectToken(TokenType::COLON);
+            tokenStream.expect(TokenType::COLON);
             auto falseExpr = parseExpression();
             return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr));
         }
@@ -119,10 +137,10 @@ namespace parser
     {
         auto left = parseLogicalAnd();
 
-        while (parser.getCurrentToken().type == TokenType::OR)
+        while (tokenStream.current().type == TokenType::OR)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseLogicalAnd();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -134,10 +152,10 @@ namespace parser
     {
         auto left = parseEquality();
 
-        while (parser.getCurrentToken().type == TokenType::AND)
+        while (tokenStream.current().type == TokenType::AND)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseEquality();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -149,11 +167,11 @@ namespace parser
     {
         auto left = parseComparison();
 
-        while (parser.getCurrentToken().type == TokenType::EQUALS || parser.getCurrentToken().type ==
+        while (tokenStream.current().type == TokenType::EQUALS || tokenStream.current().type ==
             TokenType::NOT_EQUALS)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseComparison();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -165,13 +183,13 @@ namespace parser
     {
         auto left = parseAdditive();
 
-        while (parser.getCurrentToken().type == TokenType::LESS || parser.getCurrentToken().type ==
+        while (tokenStream.current().type == TokenType::LESS || tokenStream.current().type ==
             TokenType::LESS_EQUALS ||
-            parser.getCurrentToken().type == TokenType::GREATER || parser.getCurrentToken().type ==
+            tokenStream.current().type == TokenType::GREATER || tokenStream.current().type ==
             TokenType::GREATER_EQUALS)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseAdditive();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -183,10 +201,10 @@ namespace parser
     {
         auto left = parseMultiplicative();
 
-        while (parser.getCurrentToken().type == TokenType::PLUS || parser.getCurrentToken().type == TokenType::MINUS)
+        while (tokenStream.current().type == TokenType::PLUS || tokenStream.current().type == TokenType::MINUS)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseMultiplicative();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -198,12 +216,12 @@ namespace parser
     {
         auto left = parseUnary();
 
-        while (parser.getCurrentToken().type == TokenType::MULTIPLY || parser.getCurrentToken().type ==
+        while (tokenStream.current().type == TokenType::MULTIPLY || tokenStream.current().type ==
             TokenType::DIVIDE ||
-            parser.getCurrentToken().type == TokenType::MODULO)
+            tokenStream.current().type == TokenType::MODULO)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto right = parseUnary();
             left = std::make_unique<BinaryExpNode>(std::move(left), op, std::move(right));
         }
@@ -214,16 +232,17 @@ namespace parser
     std::unique_ptr<ASTNode> ExpressionParser::parseUnary()
     {
         // Handle prefix unary operators like !, -, +, ++, --
-        if (parser.getCurrentToken().type == TokenType::NOT ||
-            parser.getCurrentToken().type == TokenType::MINUS ||
-            parser.getCurrentToken().type == TokenType::PLUS ||
-            parser.getCurrentToken().type == TokenType::INCREMENT ||
-            parser.getCurrentToken().type == TokenType::DECREMENT)
+        if (tokenStream.current().type == TokenType::NOT ||
+            tokenStream.current().type == TokenType::MINUS ||
+            tokenStream.current().type == TokenType::PLUS ||
+            tokenStream.current().type == TokenType::INCREMENT ||
+            tokenStream.current().type == TokenType::DECREMENT)
         {
-            TokenType op = parser.getCurrentToken().type;
-            parser.advanceToken();
+            TokenType op = tokenStream.current().type;
+            tokenStream.advance();
             auto operand = parseUnary();
-            return std::make_unique<UnaryExpNode>(op, std::move(operand), ast::nodes::expressions::UnaryPosition::PREFIX);
+            return std::make_unique<UnaryExpNode>(op, std::move(operand),
+                                                  ast::nodes::expressions::UnaryPosition::PREFIX);
         }
 
         return parsePostfix();
@@ -235,16 +254,17 @@ namespace parser
 
         while (true)
         {
-            if (parser.getCurrentToken().type == TokenType::INCREMENT ||
-                parser.getCurrentToken().type == TokenType::DECREMENT)
+            if (tokenStream.current().type == TokenType::INCREMENT ||
+                tokenStream.current().type == TokenType::DECREMENT)
             {
                 // Postfix increment/decrement
-                TokenType op = parser.getCurrentToken().type;
-                parser.advanceToken();
+                TokenType op = tokenStream.current().type;
+                tokenStream.advance();
                 // Create a postfix operation using UnaryExpNode with POSTFIX position
-                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), ast::nodes::expressions::UnaryPosition::POSTFIX);
+                expr = std::make_unique<UnaryExpNode>(op, std::move(expr),
+                                                      ast::nodes::expressions::UnaryPosition::POSTFIX);
             }
-            else if (parser.getCurrentToken().type == TokenType::LPAREN)
+            else if (tokenStream.current().type == TokenType::LPAREN)
             {
                 // Function call
                 std::string funcName;
@@ -258,25 +278,24 @@ namespace parser
 
                 if (canCallFunction)
                 {
-                    parser.advanceToken(); // Skip '('
+                    tokenStream.advance(); // Skip '('
                     auto arguments = parseArguments();
-                    parser.expectToken(TokenType::RPAREN);
+                    tokenStream.expect(TokenType::RPAREN);
                     // No need to call release() - unique_ptr will handle cleanup automatically
                     expr = std::make_unique<FunctionCallNode>(funcName, std::move(arguments));
                 }
             }
-            else if (parser.getCurrentToken().type == TokenType::DOT)
+            else if (tokenStream.current().type == TokenType::DOT)
             {
                 // Member access
                 expr = parseMemberAccess(std::move(expr));
             }
-            else if (parser.getCurrentToken().type == TokenType::SCOPE)
+            else if (tokenStream.current().type == TokenType::SCOPE)
             {
-                // Namespace scope resolution
-                parser.advanceToken();
-                if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                tokenStream.advance();
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
                 {
-                    throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                    throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                 }
 
                 if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
@@ -284,23 +303,23 @@ namespace parser
                     std::vector<std::string> parts = {varNode->getName()};
 
                     // Add the first identifier after ::
-                    parts.push_back(parser.getCurrentToken().stringValue);
-                    parser.advanceToken();
+                    parts.push_back(tokenStream.current().stringValue);
+                    tokenStream.advance();
 
                     // Continue parsing if there are more :: tokens
-                    while (parser.getCurrentToken().type == TokenType::SCOPE)
+                    while (tokenStream.current().type == TokenType::SCOPE)
                     {
-                        parser.advanceToken();
-                        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+                        tokenStream.advance();
+                        if (tokenStream.current().type != TokenType::IDENTIFIER)
                         {
-                            throw ParseException("Expected identifier after '::'", parser.getCurrentToken().location);
+                            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
                         }
-                        parts.push_back(parser.getCurrentToken().stringValue);
-                        parser.advanceToken();
+                        parts.push_back(tokenStream.current().stringValue);
+                        tokenStream.advance();
                     }
-                    
+
                     // Check if this is a function call (e.g., MathUtils::max(10, 5))
-                    if (parser.getCurrentToken().type == TokenType::LPAREN)
+                    if (tokenStream.current().type == TokenType::LPAREN)
                     {
                         // Join the parts to create the full function name
                         std::string fullName = parts[0];
@@ -308,12 +327,12 @@ namespace parser
                         {
                             fullName += "::" + parts[i];
                         }
-                        
+
                         // Parse as function call using the same method as normal function calls
-                        parser.advanceToken(); // consume '('
+                        tokenStream.advance(); // consume '('
                         auto arguments = parseArguments();
-                        parser.expectToken(TokenType::RPAREN);
-                        
+                        tokenStream.expect(TokenType::RPAREN);
+
                         expr = std::make_unique<nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
                     }
                     else
@@ -325,7 +344,7 @@ namespace parser
                         {
                             fullName += "::" + parts[i];
                         }
-                        
+
                         // Create a VariableNode with the qualified name
                         expr = std::make_unique<nodes::expressions::VariableNode>(fullName);
                     }
@@ -342,61 +361,61 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parsePrimary()
     {
-        switch (parser.getCurrentToken().type)
+        switch (tokenStream.current().type)
         {
         case TokenType::INT_NUMBER:
             {
-                int value = parser.getCurrentToken().intValue;
-                parser.advanceToken();
+                int value = tokenStream.current().intValue;
+                tokenStream.advance();
                 return std::make_unique<IntegerNode>(value);
             }
         case TokenType::FLOAT_NUMBER:
             {
-                float value = parser.getCurrentToken().floatValue;
-                parser.advanceToken();
+                float value = tokenStream.current().floatValue;
+                tokenStream.advance();
                 return std::make_unique<FloatNode>(value);
             }
         case TokenType::STRING_LITERAL:
             {
-                std::string value = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                std::string value = tokenStream.current().stringValue;
+                tokenStream.advance();
                 return std::make_unique<StringNode>(value);
             }
         case TokenType::TRUE:
             {
-                parser.advanceToken();
+                tokenStream.advance();
                 return std::make_unique<BoolNode>(true);
             }
         case TokenType::FALSE:
             {
-                parser.advanceToken();
+                tokenStream.advance();
                 return std::make_unique<BoolNode>(false);
             }
         case TokenType::NULL_LITERAL:
             {
-                parser.advanceToken();
+                tokenStream.advance();
                 return std::make_unique<NullNode>();
             }
         case TokenType::IDENTIFIER:
             {
-                std::string name = parser.getCurrentToken().stringValue;
-                parser.advanceToken();
+                std::string name = tokenStream.current().stringValue;
+                tokenStream.advance();
                 return std::make_unique<VariableNode>(name);
             }
         case TokenType::LPAREN:
             {
-                parser.advanceToken();
+                tokenStream.advance();
                 auto expr = parseExpression();
-                parser.expectToken(TokenType::RPAREN);
+                tokenStream.expect(TokenType::RPAREN);
                 return expr;
             }
         case TokenType::NEW:
             {
                 // Delegate to ClassParser for proper separation of concerns
-                return parser.getClassParser()->parseNewExpression();
+                return context.parseNewExpression();
             }
         default:
-            throw ParseException("Unexpected token in primary expression", parser.getCurrentToken().location);
+            throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
         }
     }
 
@@ -404,11 +423,11 @@ namespace parser
     {
         std::vector<std::unique_ptr<ASTNode>> arguments;
 
-        if (parser.getCurrentToken().type != TokenType::RPAREN)
+        if (tokenStream.current().type != TokenType::RPAREN)
         {
             arguments.push_back(parseExpression());
 
-            while (parser.matchToken(TokenType::COMMA))
+            while (tokenStream.match(TokenType::COMMA))
             {
                 arguments.push_back(parseExpression());
             }
@@ -419,22 +438,22 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object)
     {
-        parser.expectToken(TokenType::DOT);
+        tokenStream.expect(TokenType::DOT);
 
-        if (parser.getCurrentToken().type != TokenType::IDENTIFIER)
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
-            throw ParseException("Expected member name after '.'", parser.getCurrentToken().location);
+            throw ParseException("Expected member name after '.'", tokenStream.current().location);
         }
 
-        std::string memberName = parser.getCurrentToken().stringValue;
-        parser.advanceToken();
+        std::string memberName = tokenStream.current().stringValue;
+        tokenStream.advance();
 
         // Check if it's a method call
-        if (parser.getCurrentToken().type == TokenType::LPAREN)
+        if (tokenStream.current().type == TokenType::LPAREN)
         {
-            parser.advanceToken();
+            tokenStream.advance();
             auto arguments = parseArguments();
-            parser.expectToken(TokenType::RPAREN);
+            tokenStream.expect(TokenType::RPAREN);
             return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments));
         }
         else
