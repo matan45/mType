@@ -1,5 +1,5 @@
 // Stress test with many class instances
-namespace stressTest {
+
     class Worker {
         int id;
         string task;
@@ -32,9 +32,9 @@ namespace stressTest {
         
         return totalWork;
     }
-}
+
 
 // Run stress test
-int totalWork = stressTest::createManyWorkers();
+int totalWork = createManyWorkers();
 print(totalWork);
-print(stressTest::Worker::getTotalWorkers());
+print(Worker::getTotalWorkers());

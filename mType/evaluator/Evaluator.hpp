@@ -2,9 +2,7 @@
 #include "../ast/ASTVisitor.hpp"
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
-#include "../ast/nodes/expressions/UnaryExpNode.hpp"
-#include "../ast/nodes/statements/NativeFunctionNode.hpp"
+#include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <stack>
 
@@ -17,23 +15,21 @@ namespace evaluator
     class ExpressionEvaluator;
     class StatementEvaluator;
     class ObjectEvaluator;
-    class NamespaceEvaluator;
 
     class Evaluator : public ASTVisitor<Value>
     {
     private:
-        std::shared_ptr<environment::Environment> env;
+        std::shared_ptr<Environment> env;
         std::unique_ptr<ExpressionEvaluator> exprEvaluator;
         std::unique_ptr<StatementEvaluator> stmtEvaluator;
         std::unique_ptr<ObjectEvaluator> objEvaluator;
-        std::unique_ptr<NamespaceEvaluator> nsEvaluator;
         
         std::stack<Value> returnStack;
         bool hasReturned;
         
     public:
-        explicit Evaluator(std::shared_ptr<environment::Environment> environment);
-        ~Evaluator();
+        explicit Evaluator(std::shared_ptr<Environment> environment);
+        ~Evaluator() override;
 
         Value evaluate(ASTNode* node);
         
@@ -73,42 +69,36 @@ namespace evaluator
         Value visitConstructorNode(ConstructorNode* node) override;
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
-        Value visitNamespaceNode(NamespaceNode* node) override;
-        Value visitUsingNode(UsingNode* node) override;
-        Value visitQualifiedNameNode(QualifiedNameNode* node) override;
-        Value visitQualifiedAssignmentNode(QualifiedAssignmentNode* node) override;
         
         // Helper methods
-        std::shared_ptr<environment::Environment> getEnvironment() const { return env; }
+        std::shared_ptr<Environment> getEnvironment() const { return env; }
         bool shouldReturn() const { return hasReturned; }
         void setReturned(bool returned) { hasReturned = returned; }
         Value getReturnValue();
         void pushReturnValue(const Value& value);
         
         // Object instance access for field resolution
-        std::shared_ptr<runtimeTypes::klass::ObjectInstance> getCurrentInstance() const;
-        
+        std::shared_ptr<ObjectInstance> getCurrentInstance() const;
+        // Getter for StatementEvaluator to access helper functions
+        StatementEvaluator* getStatementEvaluator() const;
+        // Getter for ObjectEvaluator to access static method/field functionality
+        ObjectEvaluator* getObjectEvaluator() const;
+
+        //TODO move them to utils?
         // Helper for truthiness checking (delegates to ExpressionEvaluator)
         bool isTruthy(const Value& value);
-        
         // Helper for type conversion (delegates to ExpressionEvaluator)  
         std::string toString(const Value& value);
         float toFloat(const Value& value);
         int toInt(const Value& value);
-        
         // Helpers for cross-evaluator delegation
         Value evaluateObjectMethodCall(MethodCallNode* node);
         Value evaluateObjectCreation(NewNode* node);
         Value evaluateObjectMemberAccess(MemberAccessNode* node);
         Value evaluateObjectMemberAssignment(MemberAssignmentNode* node);
-        Value evaluateQualifiedNameAccess(QualifiedNameNode* node);
-        Value evaluateQualifiedAssignment(QualifiedAssignmentNode* node);
-        
         // Helper to call method directly on an instance
-        Value callMethodOnInstance(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance, 
+        Value callMethodOnInstance(std::shared_ptr<ObjectInstance> instance, 
                                    const std::string& methodName, const std::vector<Value>& args);
         
-        // Getter for StatementEvaluator to access helper functions
-        StatementEvaluator* getStatementEvaluator() const;
     };
 }

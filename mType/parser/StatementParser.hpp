@@ -36,6 +36,7 @@ namespace parser
         std::unique_ptr<ASTNode> parseNativeFunction();
         
     private:
+        //TODO move to utils
         // Helper methods
         ValueType parseType();
         std::vector<std::pair<std::string, ValueType>> parseParameterList();

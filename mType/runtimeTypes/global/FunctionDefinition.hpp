@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+#include <memory>
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
@@ -13,7 +15,7 @@ namespace runtimeTypes::global
     private:
         ValueType returnType;
         std::vector<std::pair<std::string, ValueType>> parameters;
-        ASTNode* body;
+        std::shared_ptr<ASTNode> body;
         
     public:
         explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), body(nullptr) {}
@@ -29,7 +31,7 @@ namespace runtimeTypes::global
         
         size_t getParameterCount() const { return parameters.size(); }
         
-        ASTNode* getBody() const { return body; }
-        void setBody(ASTNode* bodyNode) { body = bodyNode; }
+        std::shared_ptr<ASTNode> getBody() const { return body; }
+        void setBody(std::shared_ptr<ASTNode> bodyNode) { body = bodyNode; }
     };
 }

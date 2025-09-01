@@ -30,12 +30,6 @@ namespace environment
         return *this;
     }
 
-    EnvironmentBuilder& EnvironmentBuilder::withNamespaceManager(std::shared_ptr<NamespaceManager> manager)
-    {
-        namespaceManager = manager;
-        return *this;
-    }
-
     EnvironmentBuilder& EnvironmentBuilder::withNativeRegistry(std::shared_ptr<NativeRegistry> registry)
     {
         nativeRegistry = registry;
@@ -52,8 +46,6 @@ namespace environment
             variableManager = std::make_shared<VariableManager>();
         if (!scopeManager)
             scopeManager = std::make_shared<ScopeManager>();
-        if (!namespaceManager)
-            namespaceManager = std::make_shared<NamespaceManager>();
         if (!nativeRegistry)
             nativeRegistry = std::make_shared<NativeRegistry>();
         
@@ -69,7 +61,6 @@ namespace environment
             functionRegistry,
             variableManager,
             scopeManager,
-            namespaceManager,
             nativeRegistry
         );
         

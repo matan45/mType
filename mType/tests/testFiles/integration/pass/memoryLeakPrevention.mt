@@ -1,6 +1,5 @@
 // Test memory leak prevention in various scenarios
-namespace memoryLeakTest {
-    class LeakDetector {
+class LeakDetector {
         string name;
         static int totalAllocations = 0;
         static int peakAllocations = 0;
@@ -193,12 +192,11 @@ namespace memoryLeakTest {
         
         print("Final memory pressure test stats: " + LeakDetector::getAllocationStats());
     }
-}
 
 // Run all memory leak prevention tests
-memoryLeakTest::testLoopObjectCreation();
-memoryLeakTest::testConditionalObjectCreation();
-memoryLeakTest::testNestedFunctionCalls();
-memoryLeakTest::testObjectReturnFromFunction();
-memoryLeakTest::testComplexObjectGraph();
-memoryLeakTest::testMemoryPressureScenario();
+testLoopObjectCreation();
+testConditionalObjectCreation();
+testNestedFunctionCalls();
+testObjectReturnFromFunction();
+testComplexObjectGraph();
+testMemoryPressureScenario();

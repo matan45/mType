@@ -1,24 +1,33 @@
 ﻿#include "StatementEvaluator.hpp"
 #include "Evaluator.hpp"
 #include "ExpressionEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
 #include "../services/ImportManager.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
+#include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/IfNode.hpp"
+#include "../ast/nodes/statements/WhileNode.hpp"
+#include "../ast/nodes/statements/DoWhileNode.hpp"
+#include "../ast/nodes/statements/ForNode.hpp"
+#include "../ast/nodes/statements/SwitchNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
-#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/ImportNode.hpp"
+#include "../ast/nodes/statements/NativeFunctionNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../environment/manager/Scope.hpp"
 #include "../exception/BreakException.hpp"
 #include "../exception/ContinueException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/ArgumentException.hpp"
 #include "../errors/EnvironmentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
-#include "../services/ImportManager.hpp"
-#include <iostream>
 
 namespace evaluator
 {
@@ -173,7 +182,7 @@ namespace evaluator
                                 // Get the class definition and use its fully qualified name
                                 auto classDef = objInstance->getClassDefinition();
                                 if (classDef) {
-                                    actualClassName = classDef->getFullyQualifiedName();
+                                    actualClassName = classDef->getName();
                                 } else {
                                     actualClassName = objInstance->getTypeName(); // fallback
                                 }
@@ -184,7 +193,7 @@ namespace evaluator
                         std::string resolvedDeclaredClassName = declaredClassName;
                         auto declaredClassDef = env->findClass(declaredClassName);
                         if (declaredClassDef) {
-                            resolvedDeclaredClassName = declaredClassDef->getFullyQualifiedName();
+                            resolvedDeclaredClassName = declaredClassDef->getName();
                         }
                         
                         // Check if classes match (exact match for now - could be extended for inheritance)
@@ -243,6 +252,19 @@ namespace evaluator
             return initialValue;
         } else {
             // This is a regular assignment
+            
+            // First check if this is a qualified static field assignment (Class::field = value)
+            std::string varName = node->getVariableName();
+            if (varName.find("::") != std::string::npos) {
+                size_t pos = varName.find("::");
+                std::string className = varName.substr(0, pos);
+                std::string fieldName = varName.substr(pos + 2);
+                
+                // Use ObjectEvaluator to handle static field assignment
+                Value newValue = mainEvaluator->evaluate(node->getValue());
+                mainEvaluator->getObjectEvaluator()->assignStaticMember(className, fieldName, newValue);
+                return newValue;
+            }
             
             // First check if this might be a field assignment on the current instance
             // This should take precedence in constructor contexts to handle implicit field assignments
@@ -354,8 +376,8 @@ namespace evaluator
                     auto currentObjInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(currentValue);
                     
                     if (newObjInstance && currentObjInstance) {
-                        std::string actualClassName = newObjInstance->getClassDefinition()->getFullyQualifiedName();
-                        std::string declaredClassName = currentObjInstance->getClassDefinition()->getFullyQualifiedName();
+                        std::string actualClassName = newObjInstance->getClassDefinition()->getName();
+                        std::string declaredClassName = currentObjInstance->getClassDefinition()->getName();
                         
                         // Check if classes match (exact match for now - could be extended for inheritance)
                         if (actualClassName != declaredClassName) {
@@ -373,11 +395,6 @@ namespace evaluator
         }
     }
 
-    Value StatementEvaluator::evaluateQualifiedAssignmentNode(QualifiedAssignmentNode* node)
-    {
-        // Delegate to NamespaceEvaluator through main evaluator
-        return mainEvaluator->evaluateQualifiedAssignment(node);
-    }
 
     Value StatementEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
     {
@@ -706,8 +723,8 @@ namespace evaluator
             node->getParameters()
         );
         
-        // Set the function body
-        funcDef->setBody(node->getBody());
+        // Set the function body using safe smart pointer transfer
+        funcDef->setBody(node->releaseBody());
         
         // Register function
         env->registerFunction(node->getName(), funcDef);

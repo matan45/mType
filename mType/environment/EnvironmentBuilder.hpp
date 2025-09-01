@@ -5,7 +5,6 @@
 #include "registry/NativeRegistry.hpp"
 #include "manager/VariableManager.hpp"
 #include "manager/ScopeManager.hpp"
-#include "manager/NamespaceManager.hpp"
 #include <memory>
 
 namespace environment
@@ -17,7 +16,6 @@ namespace environment
         std::shared_ptr<FunctionRegistry> functionRegistry;
         std::shared_ptr<VariableManager> variableManager;
         std::shared_ptr<ScopeManager> scopeManager;
-        std::shared_ptr<NamespaceManager> namespaceManager;
         std::shared_ptr<NativeRegistry> nativeRegistry;
 
     public:
@@ -27,7 +25,6 @@ namespace environment
         EnvironmentBuilder& withFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
         EnvironmentBuilder& withVariableManager(std::shared_ptr<VariableManager> manager);
         EnvironmentBuilder& withScopeManager(std::shared_ptr<ScopeManager> manager);
-        EnvironmentBuilder& withNamespaceManager(std::shared_ptr<NamespaceManager> manager);
         EnvironmentBuilder& withNativeRegistry(std::shared_ptr<NativeRegistry> registry);
         
         EnvironmentBuilder& withDefaults();

@@ -1,5 +1,5 @@
-// Graphics namespace with classes
-namespace graphics {
+
+
     class Point {
         float x;
         float y;
@@ -17,8 +17,8 @@ namespace graphics {
             return "(" + toString(x) + ", " + toString(y) + ")";
         }
         
-        static function createOrigin(): graphics::Point {
-            return new graphics::Point(0.0, 0.0);
+        static function createOrigin(): Point {
+            return new Point(0.0, 0.0);
         }
     }
     
@@ -27,21 +27,20 @@ namespace graphics {
         static final string category = "2D Shape";
         
         static function getShapeCount(): int {
-            return graphics::Shape::shapeCount;
+            return Shape::shapeCount;
         }
         
         static function incrementShapeCount(): void {
-            graphics::Shape::shapeCount = graphics::Shape::shapeCount + 1;
+            Shape::shapeCount = Shape::shapeCount + 1;
         }
         
         static function getCategory(): string {
-            return graphics::Shape::category;
+            return Shape::category;
         }
     }
-}
 
-// Math namespace with utility classes
-namespace math {
+
+
     class Vector {
         float x;
         float y;
@@ -61,11 +60,15 @@ namespace math {
             
         }
         
-        static function zero(): math::Vector {
-            return new math::Vector(0.0, 0.0, 0.0);
+        static function zero(): Vector {
+            return new Vector(0.0, 0.0, 0.0);
+        }
+        
+        static function simpleTest(): int {
+            return 42;
         }
     }
-}
+
 
 // Class with different field types
 class Student {
@@ -149,4 +152,4 @@ class StringUtils {
 }
 
 
-graphics::Point pt = createPoint(4,5);//native c++ create Pint object
+Point pt = createPoint(4,5);//native c++ create Pint object

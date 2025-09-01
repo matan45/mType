@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../services/ScriptInterpreter.hpp"
-#include <iostream>
 #include <memory>
 
 namespace tests::testSuite

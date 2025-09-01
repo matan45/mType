@@ -20,15 +20,14 @@ namespace runtimeTypes::klass
         std::vector<std::pair<std::string, Value>> arguments;
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
-        bool isFinalMethod;
 
     public:
         explicit MethodDefinition(const std::string& n, ValueType rt,
                          const std::vector<std::pair<std::string, ValueType>>& params,
                          const std::vector<std::pair<std::string, Value>>&args,
-                         std::shared_ptr<ASTNode> b, bool s, bool f)
-            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              isFinalMethod(f)
+                         std::shared_ptr<ASTNode> b, bool s)
+            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s)
+             
         {
         }
 
@@ -45,8 +44,5 @@ namespace runtimeTypes::klass
         
         bool isStatic() const { return isStaticMethod; }
         void setStatic(bool s) { isStaticMethod = s; }
-        
-        bool isFinal() const { return isFinalMethod; }
-        void setFinal(bool f) { isFinalMethod = f; }
     };
 }

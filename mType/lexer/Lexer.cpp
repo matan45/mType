@@ -1,14 +1,19 @@
 ﻿#include "Lexer.hpp"
-#include "../errors/ParseException.hpp"
 #include <cctype>
 #include <stdexcept>
 #include <climits>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include "../errors/ParseException.hpp"
+#include "../errors/FileException.hpp"
 
 namespace lexer
 {
-    Lexer::Lexer(const std::string& input, const std::string& fname)
-        : input(input), filename(fname), pos(0), currentLine(1), currentColumn(1)
+    Lexer::Lexer(const std::string& filePath)
+        : filename(filePath), pos(0), currentLine(1), currentColumn(1)
     {
+        input = readFromFile(filePath);
         // Skip UTF-8 BOM if present
         if (input.length() >= 3 &&
             static_cast<unsigned char>(input[0]) == 0xEF &&
@@ -43,9 +48,9 @@ namespace lexer
             {
                 lookAhead++;
             }
-            
+
             // Check if we found a decimal point followed by digits
-            if (lookAhead < input.length() && input[lookAhead] == '.' && 
+            if (lookAhead < input.length() && input[lookAhead] == '.' &&
                 lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
             {
                 float value = parseFloat();
@@ -221,30 +226,11 @@ namespace lexer
 
     Token Lexer::peekNextToken()
     {
-        return peekToken(1);
-    }
-    
-    Token Lexer::peekToken(int n)
-    {
-        if (n <= 0) {
-            throw std::runtime_error("peekToken: n must be positive");
-        }
-        
         size_t savedPos = pos;
-        int savedLine = currentLine;
-        int savedColumn = currentColumn;
         std::stack<char> savedStack = balanceStack;
-
-        Token token;
-        for (int i = 0; i < n; ++i) {
-            token = getNextToken();
-        }
-
+        Token token = getNextToken();
         pos = savedPos;
-        currentLine = savedLine;
-        currentColumn = savedColumn;
         balanceStack = savedStack;
-
         return token;
     }
 
@@ -288,27 +274,32 @@ namespace lexer
             advance();
         }
         std::string intStr = input.substr(start, pos - start);
-        
-        try {
+
+        try
+        {
             return std::stoi(intStr);
         }
-        catch (const std::out_of_range&) {
+        catch (const std::out_of_range&)
+        {
             // Handle integer overflow - clamp to int limits
             long long value;
-            try {
+            try
+            {
                 value = std::stoll(intStr);
             }
-            catch (const std::out_of_range&) {
+            catch (const std::out_of_range&)
+            {
                 // If even long long overflows, return max/min int
                 return (intStr[0] == '-') ? INT_MIN : INT_MAX;
             }
-            
+
             // Clamp to int range
             if (value > INT_MAX) return INT_MAX;
             if (value < INT_MIN) return INT_MIN;
             return static_cast<int>(value);
         }
-        catch (const std::invalid_argument&) {
+        catch (const std::invalid_argument&)
+        {
             throw std::runtime_error("Invalid integer format: " + intStr);
         }
     }
@@ -431,5 +422,21 @@ namespace lexer
     void Lexer::throwError(const std::string& message)
     {
         throw errors::ParseException(message, errors::SourceLocation(filename, currentLine, currentColumn));
+    }
+
+    std::string Lexer::readFromFile(const std::string& filePath)
+    {
+        // Read the file
+        std::ifstream file(filePath);
+        if (!file.is_open())
+        {
+            throw errors::FileException("Cannot open file: " + filePath);
+        }
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::string fileContent = buffer.str();
+        file.close();
+        return fileContent;
     }
 }

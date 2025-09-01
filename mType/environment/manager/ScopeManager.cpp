@@ -125,19 +125,13 @@ namespace environment::manager
 
     std::vector<std::string> ScopeManager::getCurrentNamespacePath() const
     {
-        return currentScope ? currentScope->getNamespacePath() : std::vector<std::string>{};
+        // Namespace support removed - return empty vector
+        return std::vector<std::string>{};
     }
 
     bool ScopeManager::isInNamespace() const
     {
-        if (!currentScope) return false;
-        
-        auto scope = currentScope;
-        while (scope)
-        {
-            if (scope->getType() == ScopeType::NAMESPACE) return true;
-            scope = scope->getParent();
-        }
+        // Namespace support removed - always return false
         return false;
     }
 

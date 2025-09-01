@@ -1,5 +1,5 @@
 // Test type system edge cases
-namespace typeTests {
+
     class TypeContainer {
         int intValue;
         float floatValue;
@@ -51,10 +51,10 @@ namespace typeTests {
             return result;
         }
     }
-}
+
 
 // Test type system edge cases
-typeTests::TypeContainer container = new typeTests::TypeContainer();
+TypeContainer container = new TypeContainer();
 print(container.typeConversions());
 print(container.compareTypes());
 

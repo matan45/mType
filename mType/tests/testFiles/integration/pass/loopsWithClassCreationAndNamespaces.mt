@@ -1,6 +1,5 @@
 // Test loops with dynamic class creation in namespaces
-namespace factory {
-    class Worker {
+class Worker {
         int workerId;
         string task;
         static int totalWorkers = 0;
@@ -18,62 +17,57 @@ namespace factory {
         static function getTotalWorkers(): int {
             return totalWorkers;
         }
-    }
+}
+
+function createWorkerBatch(int count): int {
+    int totalOutput = 0;
     
-    namespace production {
-        function createWorkerBatch(int count): int {
-            int totalOutput = 0;
-            
-            for (int i = 0; i < count; i++) {
-                factory::Worker worker = new factory::Worker(i + 1, "Task" + toString(i));
-                int output = worker.work();
-                totalOutput = totalOutput + output;
-                
-                // Nested loop for processing
-                for (int j = 0; j < 3; j++) {
-                    if (output > 50 && j == 1) {
-                        totalOutput = totalOutput + 5; // Bonus
-                        break;
-                    }
-                }
+    for (int i = 0; i < count; i++) {
+        Worker worker = new Worker(i + 1, "Task" + toString(i));
+        int output = worker.work();
+        totalOutput = totalOutput + output;
+        
+        // Nested loop for processing
+        for (int j = 0; j < 3; j++) {
+            if (output > 50 && j == 1) {
+                totalOutput = totalOutput + 5; // Bonus
+                break;
             }
-            
-            return totalOutput;
         }
     }
+    
+    return totalOutput;
 }
 
 // Test loop-based class creation
-int batchOutput1 = factory::production::createWorkerBatch(5);
-int batchOutput2 = factory::production::createWorkerBatch(3);
+int batchOutput1 = createWorkerBatch(5);
+int batchOutput2 = createWorkerBatch(3);
 
 print(batchOutput1);
 print(batchOutput2);
-print(factory::Worker::getTotalWorkers());
+print(Worker::getTotalWorkers());
 
 // Test nested loops with namespace access
-namespace testLoop {
-    final int ITERATIONS = 4;
+final int ITERATIONS = 4;
+
+function nestedLoopTest(): int {
+    int result = 0;
     
-    function nestedLoopTest(): int {
-        int result = 0;
+    for (int i = 0; i < ITERATIONS; i++) {
+        Worker worker = new Worker(i + 100, "NestedTask");
         
-        for (int i = 0; i < ITERATIONS; i++) {
-            factory::Worker worker = new factory::Worker(i + 100, "NestedTask");
+        for (int j = 0; j < 2; j++) {
+            result = result + worker.work();
             
-            for (int j = 0; j < 2; j++) {
-                result = result + worker.work();
-                
-                if (result > 500) {
-                    break;
-                }
+            if (result > 500) {
+                break;
             }
         }
-        
-        return result;
     }
+    
+    return result;
 }
 
-int nestedResult = testLoop::nestedLoopTest();
+int nestedResult = nestedLoopTest();
 print(nestedResult);
-print(factory::Worker::getTotalWorkers());
+print(Worker::getTotalWorkers());

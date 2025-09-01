@@ -1,5 +1,5 @@
 // Complex control flow performance test
-namespace complexFlow {
+
     function complexAlgorithm(int n): int {
         int result = 0;
         
@@ -32,11 +32,11 @@ namespace complexFlow {
         
         return result;
     }
-}
+
 
 // Test complex control flow
-int result1 = complexFlow::complexAlgorithm(10);
-int result2 = complexFlow::complexAlgorithm(15);
+int result1 = complexAlgorithm(10);
+int result2 = complexAlgorithm(15);
 
 print(result1);
 print(result2);

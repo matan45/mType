@@ -34,6 +34,7 @@ namespace parser
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
         
     private:
+        //TODO move to utils
         // Helper methods
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
     

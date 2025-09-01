@@ -1,5 +1,6 @@
 ﻿#include "ClassParser.hpp"
 #include "Parser.hpp"
+#include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
@@ -181,19 +182,11 @@ namespace parser
     std::unique_ptr<ASTNode> ClassParser::parseMethod()
     {
         bool isStatic = false;
-        bool isFinal = false;
 
         // Handle static modifier
         if (parser.getCurrentToken().type == TokenType::STATIC)
         {
             isStatic = true;
-            parser.advanceToken();
-        }
-
-        // Handle final modifier
-        if (parser.getCurrentToken().type == TokenType::FINAL)
-        {
-            isFinal = true;
             parser.advanceToken();
         }
 

@@ -12,8 +12,7 @@ namespace ast::nodes::statements
 
     public:
         explicit BlockNode(const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc) {}
-
+                   : ASTNode(loc){}
         explicit BlockNode(std::vector<std::unique_ptr<ASTNode>> stmts, const SourceLocation& loc = SourceLocation())
             : ASTNode(loc), statements(std::move(stmts)) {}
 

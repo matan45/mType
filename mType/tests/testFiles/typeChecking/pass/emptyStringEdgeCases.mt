@@ -221,17 +221,10 @@ print("Empty + backslash: '" + withEscape + "'");
 print("\nTesting empty strings in nested functions:");
 
 function outer(string s): string {
-    function inner(string innerS): string {
-        if (innerS == "") {
-            return "inner-empty";
-        }
-        return "inner-" + innerS;
-    }
-    
     if (s == "") {
-        return inner("");
+        return "inner-empty";
     }
-    return inner(s);
+    return "inner-" + s;
 }
 
 print("Nested empty: " + outer(""));

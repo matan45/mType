@@ -1,48 +1,46 @@
 // Test corrupted state scenarios
-namespace stateTest {
-    class StateMachine {
-        string state;
-        int stateValue;
-        final string INITIAL_STATE = "INIT";
-        
-        constructor() {
-            state = INITIAL_STATE;
-            stateValue = 0;
+class StateMachine {
+    string state;
+    int stateValue;
+    final string INITIAL_STATE = "INIT";
+    
+    constructor() {
+        state = INITIAL_STATE;
+        stateValue = 0;
+    }
+    
+    function transition(string newState): bool {
+        if (state == "CORRUPTED") {
+            return false; // Can't transition from corrupted state
         }
         
-        function transition(string newState): bool {
-            if (state == "CORRUPTED") {
-                return false; // Can't transition from corrupted state
-            }
-            
-            if (newState == "CORRUPTED") {
-                state = "CORRUPTED";
-                stateValue = -1;
-                return true;
-            }
-            
-            state = newState;
-            stateValue = stateValue + 1;
+        if (newState == "CORRUPTED") {
+            state = "CORRUPTED";
+            stateValue = -1;
             return true;
         }
         
-        function recover(): bool {
-            if (state == "CORRUPTED") {
-                state = INITIAL_STATE;
-                stateValue = 0;
-                return true;
-            }
-            return false;
+        state = newState;
+        stateValue = stateValue + 1;
+        return true;
+    }
+    
+    function recover(): bool {
+        if (state == "CORRUPTED") {
+            state = INITIAL_STATE;
+            stateValue = 0;
+            return true;
         }
-        
-        function getState(): string {
-            return state + ":" + toString(stateValue);
-        }
+        return false;
+    }
+    
+    function getState(): string {
+        return state + ":" + toString(stateValue);
     }
 }
 
 // Test state corruption and recovery
-stateTest::StateMachine machine = new stateTest::StateMachine();
+StateMachine machine = new StateMachine();
 print(machine.getState());
 
 bool success1 = machine.transition("RUNNING");

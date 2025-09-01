@@ -10,7 +10,7 @@ namespace ast::nodes::statements
     {
     private:
         std::string filePath;
-        ASTNode* importedAST; // Reference to cached AST in ImportManager
+        ASTNode* importedAST; // Non-owning reference to cached AST in ImportManager
         std::vector<std::unique_ptr<ASTNode>> importedDeclarations; // Extracted declarations
         void* importManager; // Reference to ImportManager (as void* to avoid circular dependency)
 

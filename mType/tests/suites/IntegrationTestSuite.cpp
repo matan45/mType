@@ -53,9 +53,6 @@ namespace tests::testSuite
                         passPath + "memoryLeakPrevention.mt");
         addOutputVerificationTest("Resource Cleanup Patterns",
                         passPath + "resourceCleanupPatterns.mt");
-        addTestFromFile("Exception Handling Across Features",
-                        errorPath + "exceptionHandlingAcrossFeatures.mt",
-                        TestType::ERROR_EXPECTED);
         addOutputVerificationTest("Type System Edge Cases",
                         passPath + "typeSystemEdgeCases.mt");
         

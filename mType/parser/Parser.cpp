@@ -1,4 +1,5 @@
 ﻿#include "Parser.hpp"
+#include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/expressions/StringNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
@@ -6,7 +7,6 @@
 #include "../ast/nodes/statements/ImportedDeclarationNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
-#include "../ast/nodes/namespaces/NamespaceNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -17,13 +17,12 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    Parser::Parser(Lexer& lex)
-        : lexer(lex), currentToken(lexer.getNextToken()), importManager(nullptr)
+    Parser::Parser(Lexer& lex, std::unique_ptr<services::ImportManager> manager)
+        : lexer(lex), currentToken(lexer.getNextToken()), importManager(std::move(manager))
     {
         // Initialize subparsers with reference to main parser
         statementParser = std::make_unique<StatementParser>(*this);
         expressionParser = std::make_unique<ExpressionParser>(*this);
-        namespaceParser = std::make_unique<NamespaceParser>(*this);
         classParser = std::make_unique<ClassParser>(*this);
     }
 
@@ -106,20 +105,19 @@ namespace parser
             // Extract and inline importable declarations
             for (const auto& stmt : importedStatements)
             {
+                // TODO: Import functionality temporarily disabled during namespace removal
+                // Will re-implement import processing in evaluation phase
+                /*
                 if (isImportableDeclaration(stmt.get()))
                 {
-                    // Since we can't easily clone AST nodes without implementing clone methods,
-                    // we'll use a practical approach: create ImportedDeclarationNode
-                    // that wraps the original declaration and preserves the import context
-
                     auto importedDecl = std::make_unique<ImportedDeclarationNode>(
-                        stmt.get(), // Reference to original declaration (ImportManager keeps it alive)
-                        importNode->getFilePath(), // Source file for debugging
-                        stmt->getLocation() // Original location
+                        stmt.get(), 
+                        importNode->getFilePath(),
+                        stmt->getLocation() 
                     );
-
                     program->addStatement(std::move(importedDecl));
                 }
+                */
             }
         }
     }
@@ -144,18 +142,17 @@ namespace parser
 
         return dynamic_cast<ast::nodes::functions::FunctionNode*>(node) != nullptr ||
             dynamic_cast<ast::nodes::classes::ClassNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::namespaces::NamespaceNode*>(node) != nullptr ||
             dynamic_cast<AssignmentNode*>(node) != nullptr; // Global variables
     }
 
     bool Parser::isAssignmentOperator(TokenType tokenType)
     {
         return tokenType == TokenType::ASSIGN ||
-               tokenType == TokenType::PLUS_ASSIGN ||
-               tokenType == TokenType::MINUS_ASSIGN ||
-               tokenType == TokenType::MULTIPLY_ASSIGN ||
-               tokenType == TokenType::DIVIDE_ASSIGN ||
-               tokenType == TokenType::MODULO_ASSIGN;
+            tokenType == TokenType::PLUS_ASSIGN ||
+            tokenType == TokenType::MINUS_ASSIGN ||
+            tokenType == TokenType::MULTIPLY_ASSIGN ||
+            tokenType == TokenType::DIVIDE_ASSIGN ||
+            tokenType == TokenType::MODULO_ASSIGN;
     }
 
     ValueType Parser::parseType()
@@ -222,7 +219,7 @@ namespace parser
             throw ParseException("Expected type name", getCurrentToken().location);
         }
     }
-    
+
     std::pair<ValueType, std::string> Parser::parseTypeWithClassName()
     {
         TokenType currentType = getCurrentToken().type;
@@ -288,31 +285,4 @@ namespace parser
         }
     }
 
-    std::vector<std::string> Parser::parseQualifiedName()
-    {
-        std::vector<std::string> qualifiedName;
-        
-        if (getCurrentToken().type != TokenType::IDENTIFIER)
-        {
-            throw ParseException("Expected identifier", getCurrentToken().location);
-        }
-        
-        qualifiedName.push_back(getCurrentToken().stringValue);
-        advanceToken();
-        
-        while (getCurrentToken().type == TokenType::SCOPE)
-        {
-            advanceToken();
-            
-            if (getCurrentToken().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected identifier after '::'", getCurrentToken().location);
-            }
-            
-            qualifiedName.push_back(getCurrentToken().stringValue);
-            advanceToken();
-        }
-        
-        return qualifiedName;
-    }
 }

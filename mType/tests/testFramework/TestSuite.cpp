@@ -57,8 +57,6 @@ namespace tests::testFramework
 
     void TestSuite::addTestFromFile(const std::string& name, const std::string& filePath, TestType type)
     {
-        // Construct the full path relative to the working directory
-        //std::string fullPath = "mType/" + filePath;
         testCases.emplace_back(name, filePath, type);
     }
 

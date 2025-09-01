@@ -44,8 +44,6 @@ namespace lexer
             {"true", TokenType::TRUE},
             {"native", TokenType::NATIVE},
             {"import", TokenType::IMPORT},
-            {"namespace", TokenType::NAMESPACE},
-            {"using", TokenType::USING},
             {"false", TokenType::FALSE},
             {"switch", TokenType::SWITCH},
             {"case", TokenType::CASE},
@@ -53,11 +51,10 @@ namespace lexer
         };
 
     public:
-        explicit Lexer(const std::string& input, const std::string& fname = "<unknown>");
+        explicit Lexer(const std::string& filePath = "<unknown>");
 
         Token getNextToken();
         Token peekNextToken();
-        Token peekToken(int n); // Peek n tokens ahead (1 = next token, 2 = token after next, etc.)
     private:
         void splitIntoLines();
         
@@ -70,6 +67,9 @@ namespace lexer
 
         void advance();
         [[noreturn]] void throwError(const std::string& message);
+
+        //TODO move to utils
+        std::string readFromFile(const std::string& filePath);
     };
 }
 

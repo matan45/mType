@@ -10,6 +10,7 @@
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/statements/DoWhileNode.hpp"
 #include "../ast/nodes/statements/ForNode.hpp"
 #include "../ast/nodes/statements/SwitchNode.hpp"
@@ -34,8 +35,6 @@ namespace parser
 
         switch (currentToken.type)
         {
-        case TokenType::NAMESPACE:
-            return parser.getNamespaceParser()->parseNamespace();
         case TokenType::CLASS:
             return parser.getClassParser()->parseClass();
         case TokenType::FUNCTION:
@@ -74,35 +73,9 @@ namespace parser
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
-                    // Pattern: "identifier::..." - could be qualified type or static method/field
-                    // We need to look ahead through the qualified name to see what follows
-                    
-                    // Count how many tokens we need to look ahead
-                    int lookAhead = 2; // Start at 2 (next is ::)
-                    while (true) {
-                        Token tok = parser.peekToken(lookAhead);
-                        if (tok.type == TokenType::IDENTIFIER) {
-                            lookAhead++;
-                            Token nextTok = parser.peekToken(lookAhead);
-                            if (nextTok.type == TokenType::SCOPE) {
-                                lookAhead++; // Continue through the qualified name
-                            } else {
-                                // End of qualified name, check what follows
-                                if (nextTok.type == TokenType::IDENTIFIER) {
-                                    // Pattern: Namespace::Class varName - this is a declaration
-                                    return parseDeclaration();
-                                } else {
-                                    // Pattern: Class::method() or Class::field - this is an expression
-                                    return parseExpressionStatement();
-                                }
-                            }
-                        } else {
-                            // Unexpected token in qualified name
-                            break;
-                        }
-                    }
-                    // Default to declaration if we can't determine
-                    return parseDeclaration();
+                    // Pattern: "identifier::..." - this is always an expression (qualified call/assignment/access)
+                    // Static method calls, static field access, static field assignment, etc.
+                    return parseExpressionStatement();
                 } else if (Parser::isAssignmentOperator(nextToken.type)) {
                     // Pattern: "varName =" - this is an assignment
                     return parseAssignment();
@@ -116,8 +89,6 @@ namespace parser
             return nullptr;
         case TokenType::IMPORT:
             return parseImport();
-        case TokenType::USING:
-            return parser.getNamespaceParser()->parseUsing();
         case TokenType::NATIVE:
             return parseNativeFunction();
         case TokenType::END:
@@ -169,9 +140,21 @@ namespace parser
             // Special case: if we see a parenthesis after a qualified name,
             // it's likely a static method call that was mistakenly routed here
             if (parser.getCurrentToken().type == TokenType::LPAREN && !className.empty() && className.find("::") != std::string::npos) {
-                // This looks like a static method call (e.g., Class::method())
-                // We can't easily backtrack, so we'll throw a specific error
-                throw ParseException("Static method calls should be expressions, not declarations", parser.getCurrentToken().location);
+                // This is actually a static method call (e.g., Class::method())
+                // Parse it as an expression statement instead of a declaration
+                
+                // Reset the parser position and parse as expression
+                // We need to backtrack and reparse this as an expression
+                // The className contains the full qualified name like "BankAccount::setInterestRate"
+                
+                // Parse arguments
+                parser.advanceToken(); // consume '('
+                auto arguments = parser.getExpressionParser()->parseArguments();
+                parser.expectToken(TokenType::RPAREN);
+                parser.expectToken(TokenType::SEMICOLON);
+                
+                // Create a FunctionCallNode with the qualified name
+                return std::make_unique<ast::nodes::functions::FunctionCallNode>(className, std::move(arguments));
             }
             throw ParseException("Expected variable name", parser.getCurrentToken().location);
         }

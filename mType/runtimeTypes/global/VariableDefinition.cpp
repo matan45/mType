@@ -36,16 +36,4 @@ namespace runtimeTypes::global
     {
         isFinalVariable = f;
     }
-
-    VariableDefinition* VariableDefinition::inNamespace(const std::vector<std::string>& context)
-    {
-        setNamespaceContext(context);
-        return this;
-    }
-
-    VariableDefinition* VariableDefinition::inNamespace(const std::string& ns)
-    {
-        addNamespaceLevel(ns);
-        return this;
-    }
 }

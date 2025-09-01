@@ -32,7 +32,10 @@ namespace ast::nodes::classes
         ValueType getReturnType() const { return returnType; }
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
         ASTNode* getBody() const { return body.get(); }
-        std::unique_ptr<ASTNode> releaseBody() { return std::move(body); }
+        const std::unique_ptr<ASTNode>& getBodyPtr() const { return body; }
+        std::shared_ptr<ASTNode> releaseBody() { 
+            return std::shared_ptr<ASTNode>(body.release()); 
+        }
         bool getIsStatic() const { return isStatic; }
 
         void setName(const std::string& methodName) { name = methodName; }

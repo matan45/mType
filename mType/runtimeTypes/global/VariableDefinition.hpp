@@ -31,9 +31,6 @@ namespace runtimeTypes::global
         bool isFinal() const;
         
         void setIsFinal(bool f);
-
-        VariableDefinition* inNamespace(const std::vector<std::string>& context);
-        VariableDefinition* inNamespace(const std::string& ns);
         
     };
 }

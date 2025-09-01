@@ -37,8 +37,6 @@ namespace  token
         STATIC, // static keyword
         CONSTRUCTOR, // constructor keyword
         NATIVE, // Add this for native function declarations
-        NAMESPACE, // namespace keyword
-        USING, // using keyword
         SCOPE, // :: scope resolution operator
         SWITCH, CASE, DEFAULT, // Switch-case keywords
         END // End of input

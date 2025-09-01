@@ -1,13 +1,8 @@
 #include "ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
-#include "../errors/ImportException.hpp"
-#include "../errors/FileException.hpp"
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <algorithm>
-#include <iostream>
 
 namespace services
 {
@@ -16,7 +11,7 @@ namespace services
     using namespace lexer;
     using namespace parser;
     
-    ImportManager::ImportManager() : currentDirectory("."), baseDirectory(".")
+    ImportManager::ImportManager() : baseDirectory(".")
     {
     }
     
@@ -27,8 +22,7 @@ namespace services
     
     void ImportManager::setBaseDirectory(const std::string& dir)
     {
-        currentDirectory = dir;
-        baseDirectory = dir;  // Also set the permanent base directory
+        baseDirectory = dir; 
     }
     
     std::string ImportManager::resolvePath(const std::string& path)
@@ -37,7 +31,7 @@ namespace services
         
         // If path is relative, resolve it relative to current directory
         if (filePath.is_relative()) {
-            filePath = fs::path(currentDirectory) / filePath;
+            filePath = fs::path(baseDirectory) / filePath;
         }
         
         // Normalize the path (resolve . and .. components)
@@ -57,20 +51,9 @@ namespace services
         }
         
         
-        // Read the file
-        std::ifstream file(resolvedPath);
-        if (!file.is_open()) {
-            throw errors::FileException("Cannot open file: " + resolvedPath);
-        }
-        
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string fileContent = buffer.str();
-        file.close();
-        
         // Parse the imported file (NO evaluation, NO environment interaction)
-        Lexer lexer(fileContent, resolvedPath);
-        Parser parser(lexer);
+        Lexer lexer(resolvedPath);
+        Parser parser(lexer, nullptr);  // Pass nullptr for ImportManager since we don't handle nested imports during parsing
         
         // Pure parsing only - no ImportManager dependency
         // If the nested file has imports, they will be handled during evaluation phase

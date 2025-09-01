@@ -6,39 +6,39 @@ Loop 30: Total: 31, Current: 31, Peak: 31
 Loop 40: Total: 41, Current: 41, Peak: 41
 After loop: Total: 50, Current: 50, Peak: 50
 === Conditional Object Creation Test ===
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
-Created even object: LoopObject0
-Created odd object: LoopObject0
+Created even object: Even0
+Created odd object: Odd1
+Created even object: Even2
+Created odd object: Odd3
+Created even object: Even4
+Created odd object: Odd5
+Created even object: Even6
+Created odd object: Odd7
+Created even object: Even8
+Created odd object: Odd9
+Created even object: Even10
+Created odd object: Odd11
+Created even object: Even12
+Created odd object: Odd13
+Created even object: Even14
+Created odd object: Odd15
+Created even object: Even16
+Created odd object: Odd17
+Created even object: Even18
+Created odd object: Odd19
 After conditional creation: Total: 20, Current: 20, Peak: 20
 === Nested Function Calls Test ===
-Batch processing result length: 240
+Batch processing result length: 250
 After batch processing: Total: 10, Current: 10, Peak: 10
 === Object Return From Function Test ===
 After creating returned objects: Total: 3, Current: 3, Peak: 3
-Objects: LoopObject0, LoopObject0, LoopObject0
+Objects: Returned1, Returned2, Returned3
 After reassignment: Total: 4, Current: 4, Peak: 4
 === Complex Object Graph Test ===
 After container creation: Total: 4, Current: 4, Peak: 4
-Container1: Container1: [Container2, Container2]
-Container2: Container2: [Container2, Container2]
-After swapping: Container1: [Container2, Container2]
+Container1: Container1: [Container1_Item1, Container1_Item2]
+Container2: Container2: [Container2_Item1, Container2_Item2]
+After swapping: Container1: [Container1_Item2, Container1_Item1]
 After replacement: Total: 6, Current: 6, Peak: 6
 === Memory Pressure Scenario Test ===
 Starting batch 1/4

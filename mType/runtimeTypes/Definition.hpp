@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <vector>
 
 namespace runtimeTypes
 {
@@ -8,31 +7,15 @@ namespace runtimeTypes
     {
     private:
         std::string name;
-        std::vector<std::string> namespaceContext;
 
     public:
-        explicit Definition(const std::string& n = "") : name(n)
-        {
-        }
+        explicit Definition(const std::string& n = ""); 
 
         virtual ~Definition() = default;
-
-        // Set namespace context
-        void setNamespaceContext(const std::vector<std::string>& context);
-
-        // Add to existing namespace context
-        void addNamespaceLevel(const std::string& ns);
-        
-        // Check if in namespace
-        bool isInNamespace(const std::vector<std::string>& ns) const;
-
-        std::string getFullyQualifiedName() const;
         
         // Getter for the name
         const std::string& getName() const { return name; }
         
-        // Getter for namespace context
-        const std::vector<std::string>& getNamespaceContext() const { return namespaceContext; }
         
     };
 }

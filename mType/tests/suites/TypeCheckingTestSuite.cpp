@@ -23,8 +23,6 @@ namespace tests::testSuite
                         passPath + "chainedObjectAssignments.mt");
         addOutputVerificationTest("Complex Reassignment Chains",
                         passPath + "complexReassignmentChains.mt");
-        addOutputVerificationTest("Namespace Reassignment Chains",
-                        passPath + "namespaceReassignmentChains.mt");
 
         // Function parameter tests
         addOutputVerificationTest("Function Parameter Primitive Types",
@@ -39,18 +37,10 @@ namespace tests::testSuite
                         passPath + "methodParameterTypeChecking.mt");
         addOutputVerificationTest("Constructor Parameter Type Checking",
                         passPath + "constructorParameterTypeChecking.mt");
-        addOutputVerificationTest("Function Parameter With Namespaces",
-                        passPath + "functionParameterWithNamespaces.mt");
 
         // Function return type tests
         addOutputVerificationTest("Function Return Type Matching",
                         passPath + "functionReturnTypeMatching.mt");
-        addOutputVerificationTest("Namespace Return Types",
-                        passPath + "namespaceReturnTypes.mt");
-        addOutputVerificationTest("Namespace Return Types Nested",
-                        passPath + "namespaceReturnTypesNested.mt");
-        addOutputVerificationTest("Namespace Return Types With Class",
-                        passPath + "namespaceReturnTypesWithClass.mt");
         addOutputVerificationTest("Object Return Types",
                         passPath + "objectReturnTypes.mt");
         addOutputVerificationTest("Object Return Types Function Returning Object",
@@ -59,8 +49,6 @@ namespace tests::testSuite
                         passPath + "objectReturnTypesStaticMethods.mt");
         addOutputVerificationTest("Object Return Types Nested Objects",
                         passPath + "objectReturnTypesNestedObjects.mt");
-        addOutputVerificationTest("Object Return Types Namespace Returning Object",
-                        passPath + "objectReturnTypesNamespaceReturningObject.mt");
 
         // String handling edge case tests
         addOutputVerificationTest("String Concatenation with Null Objects",
@@ -106,9 +94,6 @@ namespace tests::testSuite
         addTestFromFile("Constructor Parameter Type Checking Wrong Order",
                         errorPath + "constructorParameterTypeCheckingWrongOrder.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Function Parameter With Namespaces Type Mismatch",
-                        errorPath + "functionParameterWithNamespacesTypeMismatch.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Function Return Type Mismatch String To Bool",
                         errorPath + "functionReturnTypeMismatchStringToBool.mt",
                         TestType::ERROR_EXPECTED);
@@ -123,12 +108,6 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Function Return Type Mismatch Method Int To String",
                         errorPath + "functionReturnTypeMismatchMethodIntToString.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Namespace Return Types Mismatch",
-                        errorPath + "namespaceReturnTypesMismatch.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Namespace Return Types Wrong Class",
-                        errorPath + "namespaceReturnTypesWrongClass.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Object Return Types Method Mismatch",
                         errorPath + "objectReturnTypesMethodMismatch.mt",

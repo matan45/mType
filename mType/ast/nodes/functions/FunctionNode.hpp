@@ -31,6 +31,9 @@ namespace ast::nodes::functions
         ValueType getReturnType() const { return returnType; }
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
         ASTNode* getBody() const { return body.get(); }
+        std::shared_ptr<ASTNode> releaseBody() { 
+            return std::shared_ptr<ASTNode>(body.release()); 
+        }
 
         void setName(const std::string& funcName) { name = funcName; }
         void setReturnType(ValueType retType) { returnType = retType; }
