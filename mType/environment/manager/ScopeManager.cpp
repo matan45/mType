@@ -123,18 +123,6 @@ namespace environment::manager
         return globalScope ? globalScope->findScope(scopeName) : nullptr;
     }
 
-    std::vector<std::string> ScopeManager::getCurrentNamespacePath() const
-    {
-        // Namespace support removed - return empty vector
-        return std::vector<std::string>{};
-    }
-
-    bool ScopeManager::isInNamespace() const
-    {
-        // Namespace support removed - always return false
-        return false;
-    }
-
     bool ScopeManager::isInClass() const
     {
         if (!currentScope) return false;
