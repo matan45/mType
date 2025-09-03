@@ -23,29 +23,23 @@ namespace ast::nodes::statements
                                 ValueType type = ValueType::VOID,
                                 const std::string& clsName = "",
                                 bool isFinalVar = false, bool isStaticVar = false,
-                                const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), variableName(varName), value(std::move(val)), variableType(type),
-              className(clsName), isFinal(isFinalVar), isStatic(isStaticVar)
-        {
-        }
+                                const SourceLocation& loc = SourceLocation());
 
-        const std::string& getVariableName() const { return variableName; }
-        ASTNode* getValue() const { return value.get(); }
-        ValueType getVariableType() const { return variableType; }
-        const std::string& getClassName() const { return className; }
-        bool getIsFinal() const { return isFinal; }
-        bool getIsStatic() const { return isStatic; }
+        const std::string& getVariableName() const;
+        ASTNode* getValue() const;
+        ValueType getVariableType() const;
+        const std::string& getClassName() const;
+        bool getIsFinal() const;
+        bool getIsStatic() const;
 
-        void setVariableName(const std::string& varName) { variableName = varName; }
-        void setValue(std::unique_ptr<ASTNode> val) { value = std::move(val); }
-        void setVariableType(ValueType type) { variableType = type; }
-        void setClassName(const std::string& clsName) { className = clsName; }
-        void setIsFinal(bool isFinalVar) { isFinal = isFinalVar; }
-        void setIsStatic(bool isStaticVar) { isStatic = isStaticVar; }
+        void setVariableName(const std::string& varName);
+        void setValue(std::unique_ptr<ASTNode> val);
+        void setVariableType(ValueType type);
+        void setClassName(const std::string& clsName);
+        void setIsFinal(bool isFinalVar);
+        void setIsStatic(bool isStaticVar);
 
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitAssignmentNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
+        
     };
 }

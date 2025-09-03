@@ -2,4 +2,17 @@
 
 namespace ast::nodes::expressions
 {
+    IntegerNode::IntegerNode(int val, const SourceLocation& loc)
+    : ASTNode(loc), value(val) {}
+
+    int IntegerNode::getValue() const
+    { return value; }
+
+    void IntegerNode::setValue(int val)
+    { value = val; }
+
+    Value IntegerNode::accept(ASTVisitor<Value>& visitor)
+    {
+        return visitor.visitIntegerNode(this);
+    }
 }

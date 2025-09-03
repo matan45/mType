@@ -2,7 +2,6 @@
 #include <memory>
 #include <vector>
 #include "../ast/ASTNode.hpp"
-#include "../token/Token.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
 

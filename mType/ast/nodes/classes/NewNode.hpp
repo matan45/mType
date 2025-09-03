@@ -14,23 +14,18 @@ namespace ast::nodes::classes
 
     public:
         explicit NewNode(const std::string& clsName, std::vector<std::unique_ptr<ASTNode>> args,
-                const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), className(clsName), arguments(std::move(args))
-        {
-        }
+                const SourceLocation& loc = SourceLocation());
 
-        const std::string& getClassName() const { return className; }
-        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
+        const std::string& getClassName() const;
+        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
 
-        void setClassName(const std::string& clsName) { className = clsName; }
-        void setArguments(std::vector<std::unique_ptr<ASTNode>> args) { arguments = std::move(args); }
+        void setClassName(const std::string& clsName);
+        void setArguments(std::vector<std::unique_ptr<ASTNode>> args);
 
-        void addArgument(std::unique_ptr<ASTNode> arg) { arguments.push_back(std::move(arg)); }
-        size_t getArgumentCount() const { return arguments.size(); }
+        void addArgument(std::unique_ptr<ASTNode> arg);
+        size_t getArgumentCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitNewNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
+       
     };
 }

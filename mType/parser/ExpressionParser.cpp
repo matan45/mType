@@ -62,7 +62,7 @@ namespace parser
                 if (opType == TokenType::ASSIGN)
                 {
                     return std::make_unique<MemberAssignmentNode>(
-                        memberAccessNode->releaseObject(),
+                        memberAccessNode->transferObjectOwnership(),
                         memberAccessNode->getMemberName(),
                         std::move(rightExpr));
                 }

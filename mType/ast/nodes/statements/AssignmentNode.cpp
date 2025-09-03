@@ -2,5 +2,51 @@
 
 namespace ast::nodes::statements
 {
+    AssignmentNode::AssignmentNode(const std::string& varName, std::unique_ptr<ASTNode> val, ValueType type,
+        const std::string& clsName, bool isFinalVar, bool isStaticVar, const SourceLocation& loc)
+    : ASTNode(loc), variableName(varName), value(std::move(val)), variableType(type),
+           className(clsName), isFinal(isFinalVar), isStatic(isStaticVar)
+    {
+    }
 
+    const std::string& AssignmentNode::getVariableName() const
+    { return variableName; }
+
+    ASTNode* AssignmentNode::getValue() const
+    { return value.get(); }
+
+    ValueType AssignmentNode::getVariableType() const
+    { return variableType; }
+
+    const std::string& AssignmentNode::getClassName() const
+    { return className; }
+
+    bool AssignmentNode::getIsFinal() const
+    { return isFinal; }
+
+    bool AssignmentNode::getIsStatic() const
+    { return isStatic; }
+
+    void AssignmentNode::setVariableName(const std::string& varName)
+    { variableName = varName; }
+
+    void AssignmentNode::setValue(std::unique_ptr<ASTNode> val)
+    { value = std::move(val); }
+
+    void AssignmentNode::setVariableType(ValueType type)
+    { variableType = type; }
+
+    void AssignmentNode::setClassName(const std::string& clsName)
+    { className = clsName; }
+
+    void AssignmentNode::setIsFinal(bool isFinalVar)
+    { isFinal = isFinalVar; }
+
+    void AssignmentNode::setIsStatic(bool isStaticVar)
+    { isStatic = isStaticVar; }
+
+    Value AssignmentNode::accept(ASTVisitor<Value>& visitor)
+    {
+        return visitor.visitAssignmentNode(this);
+    }
 }

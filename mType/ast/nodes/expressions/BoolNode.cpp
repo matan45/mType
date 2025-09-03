@@ -2,4 +2,23 @@
 
 namespace ast::nodes::expressions
 {
+    BoolNode::BoolNode(bool val, const SourceLocation& loc)
+        : ASTNode(loc), value(val)
+    {
+    }
+
+    bool BoolNode::getValue() const
+    {
+        return value;
+    }
+
+    void BoolNode::setValue(bool val)
+    {
+        value = val;
+    }
+
+    Value BoolNode::accept(ASTVisitor<Value>& visitor)
+    {
+        return visitor.visitBoolNode(this);
+    }
 }

@@ -20,7 +20,6 @@
 #include "../ast/nodes/expressions/VariableNode.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
-#include "../services/ImportManager.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -470,7 +469,7 @@ namespace parser
                 tokenStream.expect(TokenType::SEMICOLON);
                 
                 // Extract the object and member name for the assignment
-                auto object = memberAccess->releaseObject();
+                auto object = memberAccess->transferObjectOwnership();
                 std::string memberName = memberAccess->getMemberName();
                 
                 return std::make_unique<ast::nodes::statements::MemberAssignmentNode>(
@@ -578,8 +577,8 @@ namespace parser
 
         tokenStream.expect(TokenType::SEMICOLON);
 
-        // Native functions don't have a body
-        return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), nullptr);
+        // Native functions don't have a body - explicitly use unique_ptr nullptr
+        return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), std::unique_ptr<ASTNode>(nullptr));
     }
 
 }

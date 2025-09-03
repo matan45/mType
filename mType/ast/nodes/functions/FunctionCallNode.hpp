@@ -14,20 +14,17 @@ namespace ast::nodes::functions
 
     public:
         explicit FunctionCallNode(const std::string& funcName, std::vector<std::unique_ptr<ASTNode>> args,
-                         const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), functionName(funcName), arguments(std::move(args)) {}
+                         const SourceLocation& loc = SourceLocation());
 
-        const std::string& getFunctionName() const { return functionName; }
-        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
+        const std::string& getFunctionName() const;
+        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
 
-        void setFunctionName(const std::string& funcName) { functionName = funcName; }
-        void setArguments(std::vector<std::unique_ptr<ASTNode>> args) { arguments = std::move(args); }
+        void setFunctionName(const std::string& funcName);
+        void setArguments(std::vector<std::unique_ptr<ASTNode>> args);
 
-        void addArgument(std::unique_ptr<ASTNode> arg) { arguments.push_back(std::move(arg)); }
-        size_t getArgumentCount() const { return arguments.size(); }
+        void addArgument(std::unique_ptr<ASTNode> arg);
+        size_t getArgumentCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitFunctionCallNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

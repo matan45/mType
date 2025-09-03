@@ -10,14 +10,11 @@ namespace ast::nodes::expressions
         std::string name;
 
     public:
-        explicit VariableNode(const std::string& varName, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), name(varName) {}
+        explicit VariableNode(const std::string& varName, const SourceLocation& loc = SourceLocation());
 
-        const std::string& getName() const { return name; }
-        void setName(const std::string& varName) { name = varName; }
+        const std::string& getName() const;
+        void setName(const std::string& varName);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitVariableNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

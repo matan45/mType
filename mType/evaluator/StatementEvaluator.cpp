@@ -723,8 +723,8 @@ namespace evaluator
             node->getParameters()
         );
         
-        // Set the function body using safe smart pointer transfer
-        funcDef->setBody(node->releaseBody());
+        // Set the function body using shared_ptr
+        funcDef->setBody(node->getBody());
         
         // Register function
         env->registerFunction(node->getName(), funcDef);

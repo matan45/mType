@@ -9,14 +9,11 @@ namespace ast::nodes::expressions
         float value;
 
     public:
-        explicit FloatNode(float val, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), value(val) {}
+        explicit FloatNode(float val, const SourceLocation& loc = SourceLocation());
 
-        float getValue() const { return value; }
-        void setValue(float val) { value = val; }
+        float getValue() const;
+        void setValue(float val);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitFloatNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

@@ -6,11 +6,8 @@ namespace ast::nodes::statements
     class ContinueNode : public ASTNode
     {
     public:
-        explicit ContinueNode(const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc) {}
+        explicit ContinueNode(const SourceLocation& loc = SourceLocation());
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitContinueNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

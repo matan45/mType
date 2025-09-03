@@ -2,7 +2,6 @@
 #include "../lexer/Lexer.hpp"
 #include "../ast/ASTNode.hpp"
 #include "../token/TokenType.hpp"
-#include "../value/ValueType.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
 #include "StatementParser.hpp"

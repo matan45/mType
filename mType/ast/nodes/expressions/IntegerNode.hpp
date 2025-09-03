@@ -9,14 +9,11 @@ namespace ast::nodes::expressions
         int value;
 
     public:
-        explicit IntegerNode(int val, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), value(val) {}
+        explicit IntegerNode(int val, const SourceLocation& loc = SourceLocation());
 
-        int getValue() const { return value; }
-        void setValue(int val) { value = val; }
+        int getValue() const;
+        void setValue(int val);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitIntegerNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

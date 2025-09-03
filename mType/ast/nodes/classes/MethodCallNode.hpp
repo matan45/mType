@@ -16,29 +16,22 @@ namespace ast::nodes::classes
 
     public:
         explicit MethodCallNode(std::unique_ptr<ASTNode> obj, const std::string& method,
-                       std::vector<std::unique_ptr<ASTNode>> args, bool isStatic = false,
-                       const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), object(std::move(obj)), methodName(method),
-              arguments(std::move(args)), isStaticCall(isStatic)
-        {
-        }
+                                std::vector<std::unique_ptr<ASTNode>> args, bool isStatic = false,
+                                const SourceLocation& loc = SourceLocation());
 
-        ASTNode* getObject() const { return object.get(); }
-        const std::string& getMethodName() const { return methodName; }
-        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
-        bool getIsStaticCall() const { return isStaticCall; }
+        ASTNode* getObject() const;
+        const std::string& getMethodName() const;
+        const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
+        bool getIsStaticCall() const;
 
-        void setObject(std::unique_ptr<ASTNode> obj) { object = std::move(obj); }
-        void setMethodName(const std::string& method) { methodName = method; }
-        void setArguments(std::vector<std::unique_ptr<ASTNode>> args) { arguments = std::move(args); }
-        void setIsStaticCall(bool isStatic) { isStaticCall = isStatic; }
+        void setObject(std::unique_ptr<ASTNode> obj);
+        void setMethodName(const std::string& method);
+        void setArguments(std::vector<std::unique_ptr<ASTNode>> args);
+        void setIsStaticCall(bool isStatic);
 
-        void addArgument(std::unique_ptr<ASTNode> arg) { arguments.push_back(std::move(arg)); }
-        size_t getArgumentCount() const { return arguments.size(); }
+        void addArgument(std::unique_ptr<ASTNode> arg);
+        size_t getArgumentCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitMethodCallNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

@@ -6,11 +6,8 @@ namespace ast::nodes::statements
     class BreakNode : public ASTNode
     {
     public:
-        explicit BreakNode(const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc) {}
+        explicit BreakNode(const SourceLocation& loc = SourceLocation());
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitBreakNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

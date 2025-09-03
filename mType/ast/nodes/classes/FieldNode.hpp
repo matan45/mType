@@ -21,29 +21,22 @@ namespace ast::nodes::classes
         explicit FieldNode(const std::string& fieldName, ValueType fieldType,
                   std::unique_ptr<ASTNode> initValue = nullptr,
                   bool isStaticField = false, bool isFinalField = false,
-                  const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), name(fieldName), type(fieldType), initialValue(std::move(initValue)),
-              isStatic(isStaticField), isFinal(isFinalField)
-        {
-        }
+                  const SourceLocation& loc = SourceLocation());
 
-        const std::string& getName() const { return name; }
-        ValueType getType() const { return type; }
-        ASTNode* getInitialValue() const { return initialValue.get(); }
-        bool getIsStatic() const { return isStatic; }
-        bool getIsFinal() const { return isFinal; }
+        const std::string& getName() const;
+        ValueType getType() const;
+        ASTNode* getInitialValue() const;
+        bool getIsStatic() const;
+        bool getIsFinal() const;
 
-        void setName(const std::string& fieldName) { name = fieldName; }
-        void setType(ValueType fieldType) { type = fieldType; }
-        void setInitialValue(std::unique_ptr<ASTNode> initValue) { initialValue = std::move(initValue); }
-        void setIsStatic(bool isStaticField) { isStatic = isStaticField; }
-        void setIsFinal(bool isFinalField) { isFinal = isFinalField; }
+        void setName(const std::string& fieldName);
+        void setType(ValueType fieldType);
+        void setInitialValue(std::unique_ptr<ASTNode> initValue);
+        void setIsStatic(bool isStaticField);
+        void setIsFinal(bool isFinalField);
 
-        bool hasInitialValue() const { return initialValue != nullptr; }
+        bool hasInitialValue() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitFieldNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }
