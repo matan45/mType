@@ -1,34 +1,44 @@
-﻿#pragma once
+#pragma once
 #include "../ast/ASTVisitor.hpp"
+#include "base/EvaluationContext.hpp"
+#include "base/IEvaluator.hpp"
+#include "ExpressionEvaluator.hpp"
+#include "StatementEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
 #include "../value/ValueType.hpp"
-#include "../environment/Environment.hpp"
-#include "../ast/NodeClassesDeclaration.hpp"
-#include "EvaluatorCoordinator.hpp"
 #include <memory>
-#include <stack>
 
 namespace evaluator
 {
+    using namespace base;
     using namespace ast;
     using namespace value;
-    using namespace environment;
-
+    
     /**
-     * @brief Compatibility wrapper around the new EvaluatorCoordinator
-     * Maintains the original API for existing code while using the refactored architecture internally
+     * @brief Coordinator class that orchestrates evaluation across specialized evaluators
+     * Following the Coordinator Pattern and SOLID principles:
+     * - Single Responsibility: Coordinates evaluation, doesn't do evaluation itself
+     * - Open/Closed: New evaluators can be added without modifying existing code
+     * - Liskov Substitution: Can substitute any IEvaluator implementations
+     * - Interface Segregation: Uses specific interfaces for each evaluator type
+     * - Dependency Inversion: Depends on abstractions, not concrete classes
      */
-    class Evaluator : public ASTVisitor<Value>
+    class EvaluatorCoordinator : public ASTVisitor<Value>
     {
     private:
-        std::unique_ptr<EvaluatorCoordinator> coordinator;
+        std::shared_ptr<EvaluationContext> context;
+        std::unique_ptr<ExpressionEvaluator> exprEvaluator;
+        std::unique_ptr<StatementEvaluator> stmtEvaluator;
+        std::unique_ptr<ObjectEvaluator> objEvaluator;
         
     public:
-        explicit Evaluator(std::shared_ptr<Environment> environment);
-        ~Evaluator() override;
-
+        explicit EvaluatorCoordinator(std::shared_ptr<Environment> environment);
+        ~EvaluatorCoordinator() override = default;
+        
+        // Main evaluation entry point
         Value evaluate(ASTNode* node);
         
-        // Visitor methods for all node types
+        // ASTVisitor interface implementation (delegates to appropriate evaluator)
         Value visitProgramNode(ProgramNode* node) override;
         Value visitBlockNode(BlockNode* node) override;
         Value visitFloatNode(FloatNode* node) override;
@@ -65,29 +75,30 @@ namespace evaluator
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
         
-        // Compatibility methods - delegate to coordinator
-        std::shared_ptr<Environment> getEnvironment() const;
+        // Context and evaluator access methods
+        std::shared_ptr<EvaluationContext> getContext() const { return context; }
+        IExpressionEvaluator* getExpressionEvaluator() const { return exprEvaluator.get(); }
+        IStatementEvaluator* getStatementEvaluator() const { return stmtEvaluator.get(); }
+        IObjectEvaluator* getObjectEvaluator() const { return objEvaluator.get(); }
+        
+        // Helper methods for cross-evaluator operations (maintained for compatibility)
+        bool isTruthy(const Value& value) const;
+        std::string toString(const Value& value) const;
+        float toFloat(const Value& value) const;
+        int toInt(const Value& value) const;
+        
+        // State management (maintained for compatibility)
         bool shouldReturn() const;
         void setReturned(bool returned);
         Value getReturnValue();
         void pushReturnValue(const Value& value);
-        
-        // Object instance access
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
         
-        // Type conversion helpers
-        bool isTruthy(const Value& value);
-        std::string toString(const Value& value);
-        float toFloat(const Value& value);
-        int toInt(const Value& value);
+    private:
+        // Setup cross-evaluator dependencies
+        void setupEvaluatorDependencies();
         
-        // Cross-evaluator helpers
-        Value evaluateObjectMethodCall(MethodCallNode* node);
-        Value evaluateObjectCreation(NewNode* node);
-        Value evaluateObjectMemberAccess(MemberAccessNode* node);
-        Value evaluateObjectMemberAssignment(MemberAssignmentNode* node);
-        Value callMethodOnInstance(std::shared_ptr<ObjectInstance> instance, 
-                                   const std::string& methodName, const std::vector<Value>& args);
-        
+        // Route evaluation to appropriate evaluator
+        Value routeEvaluation(ASTNode* node);
     };
 }

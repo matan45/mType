@@ -27,15 +27,15 @@
         static final string category = "2D Shape";
         
         static function getShapeCount(): int {
-            return Shape::shapeCount;
+            return shapeCount;
         }
         
         static function incrementShapeCount(): void {
-            Shape::shapeCount = Shape::shapeCount + 1;
+            shapeCount = shapeCount + 1;
         }
         
         static function getCategory(): string {
-            return Shape::category;
+            return category;
         }
     }
 
@@ -103,11 +103,11 @@ class University {
     static final int maxCapacity = 10000;
     
     static function incrementStudents(): void {
-        University::totalStudents = University::totalStudents + 1;
+        totalStudents = totalStudents + 1;
     }
     
     static function getInfo(): string {
-        return University::universityName + " - Students: " + toString(University::totalStudents) + "/" + toString(University::maxCapacity);
+        return universityName + " - Students: " + toString(totalStudents) + "/" + toString(maxCapacity);
     }
 }
 
@@ -117,21 +117,21 @@ class MathUtils {
     static int operationCount = 0;
     
     static function square(int x): int {
-        MathUtils::operationCount = MathUtils::operationCount + 1;
+        operationCount = operationCount + 1;
         return x * x;
     }
     
     static function circleArea(float radius): float {
-        MathUtils::operationCount = MathUtils::operationCount + 1;
-        return MathUtils::PI * radius * radius;
+        operationCount = operationCount + 1;
+        return PI * radius * radius;
     }
     
     static function getOperationCount(): int {
-        return MathUtils::operationCount;
+        return operationCount;
     }
     
     static function resetCount(): void {
-        MathUtils::operationCount = 0;
+        operationCount = 0;
     }
 }
 

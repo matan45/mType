@@ -18,6 +18,9 @@ namespace services
         
         // Track evaluated files to avoid re-evaluation
         std::unordered_set<std::string> evaluatedFiles;
+        
+        // Track files currently being evaluated for circular import detection
+        std::unordered_set<std::string> beingEvaluated;
 
         // Cache parsed ASTs
         std::unordered_map<std::string, std::unique_ptr<ASTNode>> astCache;
@@ -54,6 +57,15 @@ namespace services
         
         // Mark a file as evaluated
         void markAsEvaluated(const std::string& rawPath);
+        
+        // Check if a file is currently being evaluated (for circular import detection)
+        bool isBeingEvaluated(const std::string& rawPath);
+        
+        // Mark a file as currently being evaluated
+        void markAsBeingEvaluated(const std::string& rawPath);
+        
+        // Mark a file as no longer being evaluated
+        void unmarkAsBeingEvaluated(const std::string& rawPath);
 
         // Get list of imported files
         std::vector<std::string> getImportedFiles() const;

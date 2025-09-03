@@ -1,7 +1,5 @@
 ﻿#include "ExpressionEvaluator.hpp"
-#include "Evaluator.hpp"
-#include "StatementEvaluator.hpp"
-#include "ObjectEvaluator.hpp"
+#include "base/IEvaluator.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
@@ -20,6 +18,8 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/AssignmentNode.hpp"
 #include <cmath>
 
 namespace evaluator
@@ -29,9 +29,124 @@ namespace evaluator
     using namespace runtimeTypes::global;
     using namespace runtimeTypes::klass;
 
-    ExpressionEvaluator::ExpressionEvaluator(Evaluator* evaluator)
-        : mainEvaluator(evaluator)
+    ExpressionEvaluator::ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx)
+        : context(ctx), stmtEvaluator(nullptr), objEvaluator(nullptr)
     {
+    }
+    
+    Value ExpressionEvaluator::evaluate(ASTNode* node)
+    {
+        if (!node || !canHandle(node)) {
+            return std::monostate{};
+        }
+        
+        // Dispatch to appropriate evaluation method based on node type
+        if (auto intNode = dynamic_cast<IntegerNode*>(node)) {
+            return evaluateIntegerNode(intNode);
+        }
+        if (auto floatNode = dynamic_cast<FloatNode*>(node)) {
+            return evaluateFloatNode(floatNode);
+        }
+        if (auto stringNode = dynamic_cast<StringNode*>(node)) {
+            return evaluateStringNode(stringNode);
+        }
+        if (auto boolNode = dynamic_cast<BoolNode*>(node)) {
+            return evaluateBoolNode(boolNode);
+        }
+        if (auto nullNode = dynamic_cast<NullNode*>(node)) {
+            return evaluateNullNode(nullNode);
+        }
+        if (auto varNode = dynamic_cast<VariableNode*>(node)) {
+            return evaluateVariableNode(varNode);
+        }
+        if (auto binNode = dynamic_cast<BinaryExpNode*>(node)) {
+            return evaluateBinaryExpNode(binNode);
+        }
+        if (auto ternNode = dynamic_cast<TernaryExpNode*>(node)) {
+            return evaluateTernaryExpNode(ternNode);
+        }
+        if (auto unaryNode = dynamic_cast<UnaryExpNode*>(node)) {
+            return evaluateUnaryExpNode(unaryNode);
+        }
+        if (auto funcCallNode = dynamic_cast<FunctionCallNode*>(node)) {
+            return evaluateFunctionCallNode(funcCallNode);
+        }
+        if (auto newNode = dynamic_cast<NewNode*>(node)) {
+            return evaluateNewNode(newNode);
+        }
+        if (auto methodCallNode = dynamic_cast<MethodCallNode*>(node)) {
+            return evaluateMethodCallNode(methodCallNode);
+        }
+        if (auto memberAccessNode = dynamic_cast<MemberAccessNode*>(node)) {
+            return evaluateMemberAccessNode(memberAccessNode);
+        }
+        if (auto assignNode = dynamic_cast<AssignmentNode*>(node)) {
+            return evaluateAssignmentExpression(assignNode);
+        }
+        if (auto memberAssignNode = dynamic_cast<MemberAssignmentNode*>(node)) {
+            // Delegate member assignment to ObjectEvaluator
+            if (objEvaluator) {
+                return objEvaluator->evaluate(memberAssignNode);
+            } else {
+                throw UndefinedException("Object evaluator not available for member assignment", node->getLocation());
+            }
+        }
+        
+        return std::monostate{};
+    }
+    
+    bool ExpressionEvaluator::canHandle(ASTNode* node) const
+    {
+        return isExpressionNode(node);
+    }
+    
+    bool ExpressionEvaluator::isTruthy(const Value& value) const
+    {
+        return ValueConverter::isTruthy(value);
+    }
+    
+    std::string ExpressionEvaluator::toString(const Value& value) const
+    {
+        return ValueConverter::toString(value);
+    }
+    
+    float ExpressionEvaluator::toFloat(const Value& value) const
+    {
+        return ValueConverter::toFloat(value);
+    }
+    
+    int ExpressionEvaluator::toInt(const Value& value) const
+    {
+        return ValueConverter::toInt(value);
+    }
+    
+    void ExpressionEvaluator::setStatementEvaluator(IStatementEvaluator* evaluator)
+    {
+        stmtEvaluator = evaluator;
+    }
+    
+    void ExpressionEvaluator::setObjectEvaluator(IObjectEvaluator* evaluator)
+    {
+        objEvaluator = evaluator;
+    }
+    
+    bool ExpressionEvaluator::isExpressionNode(ASTNode* node) const
+    {
+        return dynamic_cast<IntegerNode*>(node) ||
+               dynamic_cast<FloatNode*>(node) ||
+               dynamic_cast<StringNode*>(node) ||
+               dynamic_cast<BoolNode*>(node) ||
+               dynamic_cast<NullNode*>(node) ||
+               dynamic_cast<VariableNode*>(node) ||
+               dynamic_cast<BinaryExpNode*>(node) ||
+               dynamic_cast<TernaryExpNode*>(node) ||
+               dynamic_cast<UnaryExpNode*>(node) ||
+               dynamic_cast<FunctionCallNode*>(node) ||
+               dynamic_cast<NewNode*>(node) ||
+               dynamic_cast<MethodCallNode*>(node) ||
+               dynamic_cast<MemberAccessNode*>(node) ||
+               dynamic_cast<AssignmentNode*>(node) ||
+               dynamic_cast<MemberAssignmentNode*>(node);
     }
 
     Value ExpressionEvaluator::evaluateIntegerNode(IntegerNode* node)
@@ -63,7 +178,7 @@ namespace evaluator
     {
         // Handle 'this' keyword specifically
         if (node->getName() == "this") {
-            auto currentInstance = mainEvaluator->getCurrentInstance();
+            auto currentInstance = context->getCurrentInstance();
             if (currentInstance) {
                 return currentInstance;
             }
@@ -90,19 +205,24 @@ namespace evaluator
             if (parts.size() == 2) {
                 std::string className = parts[0];
                 std::string fieldName = parts[1];
-                return mainEvaluator->getObjectEvaluator()->accessStaticMember(className, fieldName);
+                // Delegate static member access to object evaluator
+                if (objEvaluator) {
+                    return objEvaluator->accessStaticMember(className, fieldName);
+                } else {
+                    throw UndefinedException("Object evaluator not available for static member access", node->getLocation());
+                }
             } else {
                 throw UndefinedException("Complex qualified variable access not supported: '" + varName + "'", node->getLocation());
             }
         }
         
-        auto env = mainEvaluator->getEnvironment();
+        auto env = context->getEnvironment();
         
         auto varDef = env->findVariable(varName);
         
         if (!varDef) {
             // Check if this might be a field access on the current instance
-            auto currentInstance = mainEvaluator->getCurrentInstance();
+            auto currentInstance = context->getCurrentInstance();
             if (currentInstance) {
                 auto field = currentInstance->getField(varName);
                 if (field) {
@@ -112,7 +232,7 @@ namespace evaluator
             
             // Check if this might be a static field access
             // First check if we're in a static method by looking for the current class name
-            auto env = mainEvaluator->getEnvironment();
+            // Note: env is already defined above
             auto classRegistry = env->getClassRegistry();
             
             // Check if we have a current class name stored (from static method execution)
@@ -162,7 +282,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateBinaryExpNode(BinaryExpNode* node)
     {
-        Value left = mainEvaluator->evaluate(node->getLeft());
+        Value left = evaluate(node->getLeft());
         TokenType op = node->getOperator();
         
         // Handle short-circuit evaluation for logical operators
@@ -170,18 +290,18 @@ namespace evaluator
             if (!isTruthy(left)) {
                 return false;
             }
-            Value right = mainEvaluator->evaluate(node->getRight());
+            Value right = evaluate(node->getRight());
             return isTruthy(right);
         }
         else if (op == TokenType::OR) {
             if (isTruthy(left)) {
                 return true;
             }
-            Value right = mainEvaluator->evaluate(node->getRight());
+            Value right = evaluate(node->getRight());
             return isTruthy(right);
         }
         
-        Value right = mainEvaluator->evaluate(node->getRight());
+        Value right = evaluate(node->getRight());
         
         // Handle different operator categories
         switch (op) {
@@ -207,12 +327,12 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateTernaryExpNode(TernaryExpNode* node)
     {
-        Value condition = mainEvaluator->evaluate(node->getCondition());
+        Value condition = evaluate(node->getCondition());
         
         if (isTruthy(condition)) {
-            return mainEvaluator->evaluate(node->getTrueExpression());
+            return evaluate(node->getTrueExpression());
         } else {
-            return mainEvaluator->evaluate(node->getFalseExpression());
+            return evaluate(node->getFalseExpression());
         }
     }
 
@@ -228,7 +348,7 @@ namespace evaluator
                 throw TypeException("Increment/decrement operators can only be applied to variables", node->getLocation());
             }
             
-            auto env = mainEvaluator->getEnvironment();
+            auto env = context->getEnvironment();
             auto varDef = env->findVariable(varNode->getName());
             if (!varDef) {
                 throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
@@ -267,7 +387,7 @@ namespace evaluator
         }
         
         // Handle other unary operators (evaluate operand first)
-        Value operand = mainEvaluator->evaluate(node->getOperand());
+        Value operand = evaluate(node->getOperand());
         
         switch (op) {
             case TokenType::MINUS:
@@ -295,7 +415,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateFunctionCallNode(FunctionCallNode* node)
     {
-        auto env = mainEvaluator->getEnvironment();
+        auto env = context->getEnvironment();
         
         // First check if it's a native function
         auto nativeRegistry = env->getNativeRegistry();
@@ -305,7 +425,7 @@ namespace evaluator
             // Evaluate arguments
             std::vector<Value> args;
             for (auto& argNode : node->getArguments()) {
-                args.push_back(mainEvaluator->evaluate(argNode.get()));
+                args.push_back(evaluate(argNode.get()));
             }
             
             // Call native function
@@ -338,17 +458,17 @@ namespace evaluator
                     // Found a class - try to call static method
                     std::vector<Value> args;
                     for (auto& argNode : node->getArguments()) {
-                        args.push_back(mainEvaluator->evaluate(argNode.get()));
+                        args.push_back(evaluate(argNode.get()));
                     }
                     
                     // Look for static method
                     auto method = classDef->getMethod(methodName);
                     if (method && method->isStatic()) {
-                        try {
-                            // Call static method through ObjectEvaluator
-                            return mainEvaluator->getObjectEvaluator()->callStaticMethod(className, methodName, args);
-                        } catch (const std::exception&) {
-                            throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
+                        // Call static method through ObjectEvaluator
+                        if (objEvaluator) {
+                            return objEvaluator->callStaticMethod(className, methodName, args);
+                        } else {
+                            throw UndefinedException("Object evaluator not available for static method call", node->getLocation());
                         }
                     } else {
                         throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'", node->getLocation());
@@ -363,17 +483,21 @@ namespace evaluator
         }
         
         // First check if we're in a method context and this could be a method call
-        auto currentInstance = mainEvaluator->getCurrentInstance();
+        auto currentInstance = context->getCurrentInstance();
         if (currentInstance) {
             auto method = currentInstance->getClassDefinition()->getMethod(node->getFunctionName());
             if (method && !method->isStatic()) {
                 // This is a method call on the current instance (recursive or other method call)
                 std::vector<Value> args;
                 for (auto& argNode : node->getArguments()) {
-                    args.push_back(mainEvaluator->evaluate(argNode.get()));
+                    args.push_back(evaluate(argNode.get()));
                 }
                 
-                return mainEvaluator->callMethodOnInstance(currentInstance, node->getFunctionName(), args);
+                if (objEvaluator) {
+                    return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args);
+                } else {
+                    throw UndefinedException("Object evaluator not available for method call", node->getLocation());
+                }
             }
         }
         
@@ -387,7 +511,7 @@ namespace evaluator
         // Evaluate arguments
         std::vector<Value> args;
         for (auto& argNode : node->getArguments()) {
-            args.push_back(mainEvaluator->evaluate(argNode.get()));
+            args.push_back(evaluate(argNode.get()));
         }
         
         // Check parameter count
@@ -406,7 +530,7 @@ namespace evaluator
             const auto& param = funcDef->getParameters()[i];
             
             // Type checking: verify argument type matches parameter type
-            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
+            ValueType actualType = ValueConverter::getValueType(args[i]);
             ValueType parameterType = param.second;
             
             // Parameter validation info for regular function calls
@@ -423,8 +547,8 @@ namespace evaluator
                 }
                 else {
                     throw errors::TypeException("Type mismatch in function '" + node->getFunctionName() + "': parameter '" + 
-                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
-                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), node->getLocation());
+                                               param.first + "' expects " + ValueConverter::valueTypeToString(parameterType) + 
+                                               " but got " + ValueConverter::valueTypeToString(actualType), node->getLocation());
                 }
             }
             
@@ -472,12 +596,19 @@ namespace evaluator
         // Execute function body
         Value result = std::monostate{};
         try {
-            mainEvaluator->evaluate(funcDef->getBody().get());
-            
-            // Get return value if function returned
-            if (mainEvaluator->shouldReturn()) {
-                result = mainEvaluator->getReturnValue();
-                mainEvaluator->setReturned(false);
+            if (stmtEvaluator) {
+                stmtEvaluator->evaluate(funcDef->getBody().get());
+                
+                // Get return value if function returned
+                if (context->shouldReturn()) {
+                    result = context->getReturnValue();
+                    context->setReturned(false);
+                    
+                    // Validate return type matches function's declared return type
+                    validateFunctionReturnType(funcDef->getReturnType(), result, node->getFunctionName(), node->getLocation());
+                }
+            } else {
+                throw UndefinedException("Statement evaluator not available for function execution", node->getLocation());
             }
         }
         catch (const exception::ReturnException& e) {
@@ -497,7 +628,11 @@ namespace evaluator
             }
             */
             // Reset return state since this was a function return, not a program return
-            mainEvaluator->setReturned(false);
+            context->setReturned(false);
+            
+            // Validate return type matches function's declared return type
+            validateFunctionReturnType(funcDef->getReturnType(), e.returnValue, node->getFunctionName(), node->getLocation());
+            
             return e.returnValue;
         }
         catch (...) {
@@ -537,7 +672,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
     {
-        Value objectValue = mainEvaluator->evaluate(node->getObject());
+        Value objectValue = evaluate(node->getObject());
         
         // Check if object is null
         if (std::holds_alternative<nullptr_t>(objectValue)) {
@@ -556,12 +691,12 @@ namespace evaluator
             throw UndefinedException("Undefined field: " + node->getMemberName(), node->getLocation());
         }
         
-        return field->getValue();
+        return object->getFieldValue(node->getMemberName());
     }
 
     Value ExpressionEvaluator::evaluateMethodCallNode(MethodCallNode* node)
     {
-        Value objectValue = mainEvaluator->evaluate(node->getObject());
+        Value objectValue = evaluate(node->getObject());
         
         // Check if object is null
         if (std::holds_alternative<nullptr_t>(objectValue)) {
@@ -578,17 +713,25 @@ namespace evaluator
         // Evaluate arguments
         std::vector<Value> args;
         for (auto& argNode : node->getArguments()) {
-            args.push_back(mainEvaluator->evaluate(argNode.get()));
+            args.push_back(evaluate(argNode.get()));
         }
         
-        // Delegate to ObjectEvaluator through main evaluator
-        return mainEvaluator->evaluateObjectMethodCall(node);
+        // Delegate to ObjectEvaluator
+        if (objEvaluator) {
+            return objEvaluator->callMethod(object, node->getMethodName(), args);
+        } else {
+            throw UndefinedException("Object evaluator not available for method call", node->getLocation());
+        }
     }
 
     Value ExpressionEvaluator::evaluateNewNode(NewNode* node)
     {
-        // Delegate to ObjectEvaluator through main evaluator
-        return mainEvaluator->evaluateObjectCreation(node);
+        // Delegate to ObjectEvaluator
+        if (objEvaluator) {
+            return objEvaluator->evaluate(node);
+        } else {
+            throw UndefinedException("Object evaluator not available for object creation", node->getLocation());
+        }
     }
 
     // Removed since namespaces disabled
@@ -596,7 +739,7 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateQualifiedNameNode(QualifiedNameNode* node)
     {
         // Delegate to NamespaceEvaluator through main evaluator
-        return mainEvaluator->evaluateQualifiedNameAccess(node);
+        return // TODO: Need to delegate to appropriate evaluatorQualifiedNameAccess(node);
     }
     */
 
@@ -757,80 +900,40 @@ namespace evaluator
         throw TypeException("Invalid string operator", SourceLocation{});
     }
 
-    // Type coercion helpers
-    bool ExpressionEvaluator::isTruthy(const Value& value)
+    Value ExpressionEvaluator::evaluateAssignmentExpression(AssignmentNode* node)
     {
-        if (std::holds_alternative<bool>(value)) {
-            return std::get<bool>(value);
+        // Delegate assignment to the statement evaluator since it handles the actual assignment logic
+        if (!stmtEvaluator) {
+            throw TypeException("Statement evaluator not available for assignment expression");
         }
-        if (std::holds_alternative<nullptr_t>(value)) {
-            return false;
+        
+        // The statement evaluator's evaluateAssignmentNode already returns the assigned value
+        return stmtEvaluator->evaluate(node);
+    }
+    
+    void ExpressionEvaluator::validateFunctionReturnType(ValueType expectedType, const Value& returnValue, 
+                                                        const std::string& functionName, 
+                                                        const SourceLocation& location)
+    {
+        ValueType actualType = ValueConverter::getValueType(returnValue);
+        
+        // Allow null return for object types
+        if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT) {
+            return;
         }
-        if (std::holds_alternative<int>(value)) {
-            return std::get<int>(value) != 0;
+        
+        // Allow void returns (monostate) for void functions
+        if (actualType == ValueType::VOID && expectedType == ValueType::VOID) {
+            return;
         }
-        if (std::holds_alternative<float>(value)) {
-            return std::get<float>(value) != 0.0f;
+        
+        // Check for type mismatch
+        if (actualType != expectedType) {
+            throw TypeException("Return type mismatch in function '" + functionName + "': expected " + 
+                              ValueConverter::valueTypeToString(expectedType) + 
+                              " but got " + ValueConverter::valueTypeToString(actualType), 
+                              location);
         }
-        if (std::holds_alternative<std::string>(value)) {
-            return !std::get<std::string>(value).empty();
-        }
-        if (std::holds_alternative<std::monostate>(value)) {
-            return false;
-        }
-        // Object instances are truthy if not null
-        return true;
     }
 
-    float ExpressionEvaluator::toFloat(const Value& value)
-    {
-        if (std::holds_alternative<float>(value)) {
-            return std::get<float>(value);
-        }
-        if (std::holds_alternative<int>(value)) {
-            return static_cast<float>(std::get<int>(value));
-        }
-        if (std::holds_alternative<bool>(value)) {
-            return std::get<bool>(value) ? 1.0f : 0.0f;
-        }
-        throw TypeException("Cannot convert to float", SourceLocation{});
-    }
-
-    int ExpressionEvaluator::toInt(const Value& value)
-    {
-        if (std::holds_alternative<int>(value)) {
-            return std::get<int>(value);
-        }
-        if (std::holds_alternative<float>(value)) {
-            return static_cast<int>(std::get<float>(value));
-        }
-        if (std::holds_alternative<bool>(value)) {
-            return std::get<bool>(value) ? 1 : 0;
-        }
-        throw TypeException("Cannot convert to int", SourceLocation{});
-    }
-
-    std::string ExpressionEvaluator::toString(const Value& value)
-    {
-        if (std::holds_alternative<std::string>(value)) {
-            return std::get<std::string>(value);
-        }
-        if (std::holds_alternative<int>(value)) {
-            return std::to_string(std::get<int>(value));
-        }
-        if (std::holds_alternative<float>(value)) {
-            return std::to_string(std::get<float>(value));
-        }
-        if (std::holds_alternative<bool>(value)) {
-            return std::get<bool>(value) ? "true" : "false";
-        }
-        if (std::holds_alternative<nullptr_t>(value)) {
-            return "null";
-        }
-        if (std::holds_alternative<std::monostate>(value)) {
-            return "";
-        }
-        // For objects, return a string representation
-        return "[object]";
-    }
 }

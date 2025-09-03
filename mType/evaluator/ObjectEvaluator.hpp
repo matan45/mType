@@ -1,27 +1,49 @@
-﻿#pragma once
-#include "../value/ValueType.hpp"
+#pragma once
+#include "base/IEvaluator.hpp"
+#include "base/EvaluationContext.hpp"
+#include "managers/InstanceManager.hpp"
+#include "utils/ValueConverter.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
 
 namespace evaluator
 {
+    using namespace base;
+    using namespace managers;
+    using namespace utils;
     using namespace value;
     using namespace ast::nodes::classes;
     using namespace ast::nodes::statements;
     using namespace runtimeTypes::klass;
     
-    class Evaluator;
-    
-    class ObjectEvaluator
+    /**
+     * @brief Refactored Object Evaluator following SOLID principles
+     * - Single Responsibility: Only handles object-oriented features
+     * - Open/Closed: Extensible through composition
+     * - Liskov Substitution: Implements IObjectEvaluator interface
+     * - Interface Segregation: Uses specialized interfaces
+     * - Dependency Inversion: Depends on abstractions
+     */
+    class ObjectEvaluator : public IObjectEvaluator
     {
     private:
-        Evaluator* mainEvaluator;
-        std::shared_ptr<ObjectInstance> currentInstance;
+        std::shared_ptr<EvaluationContext> context;
+        std::unique_ptr<InstanceManager> instanceManager;
+        
+        // Forward declarations for circular dependency resolution
+        class IExpressionEvaluator* exprEvaluator;
+        class IStatementEvaluator* stmtEvaluator;
         
     public:
-        explicit ObjectEvaluator(Evaluator* evaluator);
-        ~ObjectEvaluator() = default;
+        explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
+        ~ObjectEvaluator() override = default;
+        
+        // IEvaluator interface implementation
+        Value evaluate(ASTNode* node) override;
+        bool canHandle(ASTNode* node) const override;
+        
+        // IObjectEvaluator interface implementation
         
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
@@ -32,20 +54,15 @@ namespace evaluator
         Value evaluateMemberAccessNode(MemberAccessNode* node);
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
-
-        // Current instance management (for 'this' keyword)
-        void setCurrentInstance(std::shared_ptr<ObjectInstance> instance);
-        std::shared_ptr<ObjectInstance> getCurrentInstance() const;
-        void clearCurrentInstance();
         
-        // Static member handling
+        // Static member operations
         Value accessStaticMember(const std::string& className, const std::string& memberName);
         void assignStaticMember(const std::string& className, const std::string& memberName,
                                const Value& value);
         Value callStaticMethod(const std::string& className, const std::string& methodName,
                               const std::vector<Value>& args);
         
-        // Helper methods
+        // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
                                                       const std::vector<Value>& constructorArgs);
         Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
@@ -54,6 +71,14 @@ namespace evaluator
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                         const std::vector<Value>& args);
         
-       
+        // Dependency injection for cross-evaluator communication
+        void setExpressionEvaluator(IExpressionEvaluator* evaluator);
+        void setStatementEvaluator(IStatementEvaluator* evaluator);
+        
+    private:
+        // Helper methods
+        bool isObjectNode(ASTNode* node) const;
+        void registerClass(std::shared_ptr<ClassDefinition> classDef);
+        std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
     };
 }

@@ -1,10 +1,11 @@
-﻿#include "ObjectEvaluator.hpp"
-#include "Evaluator.hpp"
-#include "StatementEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
+#include "base/IEvaluator.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ArgumentException.hpp"
 #include "../exception/ReturnException.hpp"
+#include "../environment/manager/Scope.hpp"
+#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
@@ -23,15 +24,79 @@ namespace evaluator
 {
     using namespace errors;
     using namespace runtimeTypes::klass;
-
-    ObjectEvaluator::ObjectEvaluator(Evaluator* evaluator)
-        : mainEvaluator(evaluator), currentInstance(nullptr)
+    
+    ObjectEvaluator::ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx)
+        : context(ctx), instanceManager(std::make_unique<InstanceManager>()),
+          exprEvaluator(nullptr), stmtEvaluator(nullptr)
     {
     }
-
+    
+    Value ObjectEvaluator::evaluate(ASTNode* node)
+    {
+        if (!node || !canHandle(node)) {
+            return std::monostate{};
+        }
+        
+        // Dispatch to appropriate evaluation method based on node type
+        if (auto classNode = dynamic_cast<ClassNode*>(node)) {
+            return evaluateClassNode(classNode);
+        }
+        if (auto methodNode = dynamic_cast<MethodNode*>(node)) {
+            return evaluateMethodNode(methodNode);
+        }
+        if (auto fieldNode = dynamic_cast<FieldNode*>(node)) {
+            return evaluateFieldNode(fieldNode);
+        }
+        if (auto ctorNode = dynamic_cast<ConstructorNode*>(node)) {
+            return evaluateConstructorNode(ctorNode);
+        }
+        if (auto newNode = dynamic_cast<NewNode*>(node)) {
+            return evaluateNewNode(newNode);
+        }
+        if (auto memberAccessNode = dynamic_cast<MemberAccessNode*>(node)) {
+            return evaluateMemberAccessNode(memberAccessNode);
+        }
+        if (auto methodCallNode = dynamic_cast<MethodCallNode*>(node)) {
+            return evaluateMethodCallNode(methodCallNode);
+        }
+        if (auto memberAssignNode = dynamic_cast<MemberAssignmentNode*>(node)) {
+            return evaluateMemberAssignmentNode(memberAssignNode);
+        }
+        
+        return std::monostate{};
+    }
+    
+    bool ObjectEvaluator::canHandle(ASTNode* node) const
+    {
+        return isObjectNode(node);
+    }
+    
+    
+    void ObjectEvaluator::setExpressionEvaluator(IExpressionEvaluator* evaluator)
+    {
+        exprEvaluator = evaluator;
+    }
+    
+    void ObjectEvaluator::setStatementEvaluator(IStatementEvaluator* evaluator)
+    {
+        stmtEvaluator = evaluator;
+    }
+    
+    bool ObjectEvaluator::isObjectNode(ASTNode* node) const
+    {
+        return dynamic_cast<ClassNode*>(node) ||
+               dynamic_cast<MethodNode*>(node) ||
+               dynamic_cast<FieldNode*>(node) ||
+               dynamic_cast<ConstructorNode*>(node) ||
+               dynamic_cast<NewNode*>(node) ||
+               dynamic_cast<MemberAccessNode*>(node) ||
+               dynamic_cast<MethodCallNode*>(node) ||
+               dynamic_cast<MemberAssignmentNode*>(node);
+    }
+    
     Value ObjectEvaluator::evaluateClassNode(ClassNode* node)
     {
-        auto env = mainEvaluator->getEnvironment();
+        auto env = context->getEnvironment();
         
         // Create class definition
         auto classDef = std::make_shared<ClassDefinition>(node->getClassName());
@@ -43,8 +108,8 @@ namespace evaluator
             
             // Evaluate initial value if present
             Value initialValue{};
-            if (fieldNode->hasInitialValue()) {
-                initialValue = mainEvaluator->evaluate(fieldNode->getInitialValue());
+            if (fieldNode->hasInitialValue() && exprEvaluator) {
+                initialValue = exprEvaluator->evaluate(fieldNode->getInitialValue());
             }
             
             auto fieldDef = std::make_shared<FieldDefinition>(
@@ -93,519 +158,452 @@ namespace evaluator
             classDef->addConstructor(ctorDef);
         }
         
-        // Namespace context disabled - register class globally
-        // auto namespacePath = env->getCurrentNamespacePath();
-        // classDef->setNamespaceContext(namespacePath);
-        
-        // Register class in global scope (namespace support removed)
-        auto classRegistry = env->getClassRegistry();
-        if (classRegistry) {
-            classRegistry->registerItem(node->getClassName(), classDef);
-        }
+        // Register class
+        registerClass(classDef);
         
         return std::monostate{};
     }
-
-    Value ObjectEvaluator::evaluateMethodNode(MethodNode* node)
+    
+    void ObjectEvaluator::registerClass(std::shared_ptr<ClassDefinition> classDef)
     {
-        // Methods are evaluated as part of class evaluation
-        return std::monostate{};
+        auto env = context->getEnvironment();
+        env->registerClass(classDef->getName(), classDef);
     }
-
-    Value ObjectEvaluator::evaluateFieldNode(FieldNode* node)
-    {
-        // Fields are evaluated as part of class evaluation
-        return std::monostate{};
-    }
-
-    Value ObjectEvaluator::evaluateConstructorNode(ConstructorNode* node)
-    {
-        // Constructors are evaluated as part of class evaluation
-        return std::monostate{};
-    }
-
+    
     Value ObjectEvaluator::evaluateNewNode(NewNode* node)
     {
-        auto env = mainEvaluator->getEnvironment();
+        std::vector<Value> args;
+        if (exprEvaluator) {
+            args = evaluateArgumentList(node->getArguments());
+        }
+        
+        auto instance = createInstance(node->getClassName(), args);
+        
+        // Execute constructor if it exists
+        auto env = context->getEnvironment();
         auto classDef = env->findClass(node->getClassName());
-        
-        if (!classDef) {
-            throw UndefinedException("Undefined class: " + node->getClassName(), node->getLocation());
-        }
-        
-        // Create new instance
-        auto instance = std::make_shared<ObjectInstance>(classDef);
-        
-        // Evaluate constructor arguments
-        std::vector<Value> args;
-        for (const auto& argNode : node->getArguments()) {
-            args.push_back(mainEvaluator->evaluate(argNode.get()));
-        }
-        
-        // Find matching constructor
-        auto constructor = classDef->findConstructor(args.size());
-        
-        if (!constructor) {
-            // If no constructor found, check if this is a default constructor call on a class with no constructors
-            if (args.size() == 0 && classDef->getConstructorCount() == 0) {
-                // Allow default constructor for classes with no explicit constructors
-                // No constructor execution needed - just return the instance
-                return instance;
-            }
-            
-            throw UndefinedException("No matching constructor found for class " + node->getClassName() + 
-                " with " + std::to_string(args.size()) + " arguments", node->getLocation());
-        }
-        
-        // Create scope for constructor execution
-        env->enterScope(node->getClassName() + "::<constructor>", ScopeType::FUNCTION);
-        
-        // Save the current instance (if any) and set new instance for 'this' access
-        auto savedCurrentInstance = getCurrentInstance();
-        setCurrentInstance(instance);
-        
-        // Mark that we're in constructor context for final field assignment
-        auto constructorContextVar = std::make_shared<VariableDefinition>(
-            "__in_constructor__", ValueType::BOOL, Value(true), true);
-        env->declareVariable("__in_constructor__", constructorContextVar);
-        
-        // Store current class name for static field access during constructor execution
-        auto classNameVar = std::make_shared<VariableDefinition>(
-            "__current_class_name__", ValueType::STRING, Value(node->getClassName()), true);
-        env->declareVariable("__current_class_name__", classNameVar);
-        
-        // Bind constructor parameters
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto& param = constructor->getParameters()[i];
-            
-            // Type checking: verify argument type matches parameter type
-            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
-            ValueType parameterType = param.second;
-            
-            // Type checking with specific rules
-            if (actualType != parameterType) {
-                // Allow int to float conversion
-                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                    // This is allowed
+        if (classDef && !classDef->getConstructors().empty()) {
+            auto constructor = classDef->findConstructor(args.size());
+            if (constructor && constructor->getBody()) {
+                // Set the current instance for constructor execution
+                auto prevInstance = context->getCurrentInstance();
+                context->setCurrentInstance(instance);
+                
+                // Create new scope for constructor
+                env->enterScope("constructor", environment::manager::ScopeType::FUNCTION);
+                
+                try {
+                    // Bind constructor parameters with proper validation
+                    const auto& params = constructor->getParameters();
+                    
+                    // Check parameter count
+                    if (args.size() != params.size()) {
+                        throw errors::ArgumentException("Constructor for class '" + node->getClassName() + 
+                                                      "' expects " + std::to_string(params.size()) +
+                                                      " arguments, got " + std::to_string(args.size()));
+                    }
+                    
+                    // Bind and validate each parameter
+                    for (size_t i = 0; i < params.size(); ++i) {
+                        const auto& param = params[i];
+                        const Value& arg = args[i];
+                        
+                        // Type checking: verify argument type matches parameter type
+                        ValueType actualType = utils::ValueConverter::getValueType(arg);
+                        ValueType parameterType = param.second;
+                        
+                        // Validate type compatibility (same logic as function/method calls)
+                        if (actualType != parameterType) {
+                            // Check for valid implicit conversions (e.g., int to float)
+                            bool isValidConversion = false;
+                            if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
+                                isValidConversion = true;
+                            }
+                            // Allow null assignment to object types
+                            if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
+                                isValidConversion = true;
+                            }
+                            
+                            if (!isValidConversion) {
+                                throw errors::TypeException("Type mismatch in constructor for class '" + node->getClassName() + 
+                                                           "': parameter '" + param.first + "' expects " + 
+                                                           utils::ValueConverter::valueTypeToString(parameterType) + 
+                                                           " but got " + utils::ValueConverter::valueTypeToString(actualType));
+                            }
+                        }
+                        
+                        auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                            param.first, param.second, arg, false
+                        );
+                        env->declareVariable(param.first, varDef);
+                    }
+                    
+                    // Execute constructor body
+                    if (stmtEvaluator) {
+                        auto bodyPtr = constructor->getBody();
+                        if (bodyPtr) {
+                            stmtEvaluator->evaluate(bodyPtr);
+                        }
+                    }
                 }
-                // Allow null assignment only to object types
-                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                    // This is allowed
+                catch (...) {
+                    env->exitScope();
+                    context->setCurrentInstance(prevInstance);
+                    throw;
                 }
-                else {
-                    throw errors::TypeException("Type mismatch in constructor for class '" + classDef->getName() + "': parameter '" + 
-                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
-                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), node->getLocation());
-                }
-            }
-            
-            auto varDef = std::make_shared<VariableDefinition>(
-                param.first,   // parameter name
-                param.second,  // parameter type
-                args[i],       // argument value
-                false          // not final
-            );
-            env->declareVariable(param.first, varDef);
-        }
-        
-        // Execute constructor body
-        try {
-            mainEvaluator->evaluate(constructor->getBody());
-        }
-        catch (...) {
-            // Restore the saved current instance
-            setCurrentInstance(savedCurrentInstance);
-            env->exitScope();
-            
-            throw;
-        }
-        
-        // Restore the saved current instance
-        setCurrentInstance(savedCurrentInstance);
-        env->exitScope();
-        
-        
-        return instance;
-    }
-
-    Value ObjectEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
-    {
-        Value objectValue = mainEvaluator->evaluate(node->getObject());
-        
-        if (std::holds_alternative<nullptr_t>(objectValue)) {
-            throw TypeException("Cannot access member of null object", node->getLocation());
-        }
-        
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
-            throw TypeException("Cannot access member of non-object value", node->getLocation());
-        }
-        
-        auto object = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-        return accessMember(object, node->getMemberName());
-    }
-
-    Value ObjectEvaluator::evaluateMethodCallNode(MethodCallNode* node)
-    {
-        Value objectValue = mainEvaluator->evaluate(node->getObject());
-        
-        if (std::holds_alternative<nullptr_t>(objectValue)) {
-            throw TypeException("Cannot call method on null object", node->getLocation());
-        }
-        
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
-            throw TypeException("Cannot call method on non-object value", node->getLocation());
-        }
-        
-        auto object = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-        
-        // Evaluate arguments
-        std::vector<Value> args;
-        for (const auto& argNode : node->getArguments()) {
-            args.push_back(mainEvaluator->evaluate(argNode.get()));
-        }
-        
-        return callMethod(object, node->getMethodName(), args);
-    }
-
-    Value ObjectEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
-    {
-        Value objectValue = mainEvaluator->evaluate(node->getObject());
-        
-        if (std::holds_alternative<nullptr_t>(objectValue)) {
-            throw TypeException("Cannot assign member of null object", node->getLocation());
-        }
-        
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
-            throw TypeException("Cannot assign member of non-object value", node->getLocation());
-        }
-        
-        auto object = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-        Value newValue = mainEvaluator->evaluate(node->getValue());
-        
-        assignMember(object, node->getMemberName(), newValue);
-        return newValue;
-    }
-
-    // Helper methods
-    std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstance(const std::string& className,
-                                                                    const std::vector<Value>& constructorArgs)
-    {
-        auto env = mainEvaluator->getEnvironment();
-        auto classDef = env->findClass(className);
-        
-        if (!classDef) {
-            throw UndefinedException("Undefined class: " + className, SourceLocation{});
-        }
-        
-        auto instance = std::make_shared<ObjectInstance>(classDef);
-        
-        // TODO: Execute constructor with args
-        
-        return instance;
-    }
-
-    Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName)
-    {
-        auto field = object->getField(memberName);
-        
-        if (!field) {
-            throw UndefinedException("Undefined field: " + memberName, SourceLocation{});
-        }
-        
-        // Return the instance's field value, not the class definition's default value
-        return object->getFieldValue(memberName);
-    }
-
-    void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                                       const Value& value)
-    {
-        auto field = object->getField(memberName);
-        
-        if (!field) {
-            throw UndefinedException("Undefined field: " + memberName, SourceLocation{});
-        }
-        
-        if (field->isFinal()) {
-            throw TypeException("Cannot reassign final field: " + memberName, SourceLocation{});
-        }
-        
-        // Set the value on the object instance, not the field definition
-        object->setField(memberName, value);
-    }
-
-    Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                                      const std::vector<Value>& args)
-    {
-        auto method = object->getClassDefinition()->getMethod(methodName);
-        
-        if (!method) {
-            throw UndefinedException("Undefined method: " + methodName, SourceLocation{});
-        }
-        
-        // Check if trying to call static method through instance
-        if (method->isStatic()) {
-            throw TypeException("Cannot call static method '" + methodName + 
-                              "' through instance. Use class name instead.", SourceLocation{});
-        }
-        
-        // Check parameter count
-        if (args.size() != method->getParameters().size()) {
-            throw ArgumentException("Method '" + methodName + 
-                                  "' expects " + std::to_string(method->getParameters().size()) +
-                                  " arguments, got " + std::to_string(args.size()),
-                                  SourceLocation{});
-        }
-        
-        auto env = mainEvaluator->getEnvironment();
-        
-        // Save the current return state to isolate method execution
-        bool savedReturnState = mainEvaluator->shouldReturn();
-        
-        
-        
-        env->enterScope(object->getClassDefinition()->getName() + "::" + methodName, ScopeType::FUNCTION);
-        
-        // Save previous instance and set current instance
-        auto savedInstance = getCurrentInstance();
-        setCurrentInstance(object);
-        
-        // Bind parameters
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto& param = method->getParameters()[i];
-            
-            // Type checking: verify argument type matches parameter type
-            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
-            ValueType parameterType = param.second;
-            
-            // Type checking with specific rules
-            if (actualType != parameterType) {
-                // Allow int to float conversion
-                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                    // This is allowed
-                }
-                // Allow null assignment only to object types
-                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                    // This is allowed
-                }
-                else {
-                    throw errors::TypeException("Type mismatch in method '" + methodName + "' of class '" + object->getClassDefinition()->getName() + "': parameter '" + 
-                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
-                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), SourceLocation{});
-                }
-            }
-            
-            auto varDef = std::make_shared<VariableDefinition>(
-                param.first,   // parameter name
-                param.second,  // parameter type
-                args[i],       // argument value
-                false          // not final
-            );
-            env->declareVariable(param.first, varDef);
-        }
-        
-        // Reset return state for method execution
-        mainEvaluator->setReturned(false);
-        
-        // Execute method body
-        Value result = std::monostate{};
-        try {
-            mainEvaluator->evaluate(method->getBody());
-            
-            if (mainEvaluator->shouldReturn()) {
-                result = mainEvaluator->getReturnValue();
+                
+                env->exitScope();
+                context->setCurrentInstance(prevInstance);
             }
         }
-        catch (const exception::ReturnException& e) {
-            // This is expected - return statement was executed
-            result = e.returnValue;
-        }
-        catch (...) {
-            setCurrentInstance(savedInstance);
-            env->exitScope();
-            
-            
-            
-            // Restore return state before throwing
-            mainEvaluator->setReturned(savedReturnState);
-            throw;
-        }
         
-        setCurrentInstance(savedInstance);
-        env->exitScope();
+        // Explicitly convert to Value type
+        Value result = Value(instance);
         
-        // Restore the original return state to not affect outer context
-        mainEvaluator->setReturned(savedReturnState);
+        // Debug: Check what type we're actually returning
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result)) {
+            // Good - we have an object
+        } else if (std::holds_alternative<std::monostate>(result)) {
+            // Bad - we have void
+            throw TypeException("Object creation returned void instead of instance");
+        } else {
+            throw TypeException("Object creation returned unexpected type");
+        }
         
         return result;
     }
-
-    void ObjectEvaluator::setCurrentInstance(std::shared_ptr<ObjectInstance> instance)
+    
+    std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstance(
+        const std::string& className,
+        const std::vector<Value>& constructorArgs)
     {
-        currentInstance = instance;
+        auto env = context->getEnvironment();
+        return instanceManager->createInstance(className, constructorArgs, env);
     }
-
-    std::shared_ptr<ObjectInstance> ObjectEvaluator::getCurrentInstance() const
+    
+    Value ObjectEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
     {
-        return currentInstance;
-    }
-
-    void ObjectEvaluator::clearCurrentInstance()
-    {
-        currentInstance = nullptr;
-    }
-
-    Value ObjectEvaluator::accessStaticMember(const std::string& className, const std::string& memberName)
-    {
-        auto env = mainEvaluator->getEnvironment();
-        auto classDef = env->findClass(className);
+        if (!exprEvaluator) {
+            throw TypeException("Expression evaluator not available for member access");
+        }
         
+        // Evaluate the object expression
+        Value objectValue = exprEvaluator->evaluate(node->getObject());
+        
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
+            auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+            return accessMember(instance, node->getMemberName());
+        } else {
+            throw TypeException("Cannot access member '" + node->getMemberName() + 
+                              "' on non-object value");
+        }
+    }
+    
+    Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object, 
+                                                 const std::string& memberName)
+    {
+        auto env = context->getEnvironment();
+        return instanceManager->accessMember(object, memberName);
+    }
+    
+    Value ObjectEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
+    {
+        if (!exprEvaluator) {
+            throw TypeException("Expression evaluator not available for member assignment");
+        }
+        
+        // Evaluate the object expression
+        Value objectValue = exprEvaluator->evaluate(node->getObject());
+        
+        // Evaluate the new value
+        Value newValue = exprEvaluator->evaluate(node->getValue());
+        
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
+            auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+            assignMember(instance, node->getMemberName(), newValue);
+            return newValue;
+        } else {
+            throw TypeException("Cannot assign to member '" + node->getMemberName() + 
+                              "' on non-object value");
+        }
+    }
+    
+    void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object, 
+                                                const std::string& memberName, 
+                                                const Value& value)
+    {
+        instanceManager->assignMember(object, memberName, value);
+    }
+    
+    Value ObjectEvaluator::evaluateMethodCallNode(MethodCallNode* node)
+    {
+        if (!exprEvaluator) {
+            throw TypeException("Expression evaluator not available for method call");
+        }
+        
+        // Evaluate the object expression - delegate to expression evaluator for variables, but handle NewNode ourselves
+        Value objectValue;
+        if (dynamic_cast<NewNode*>(node->getObject())) {
+            // Handle NewNode directly since ExpressionEvaluator would delegate back to us anyway
+            objectValue = evaluate(node->getObject());
+        } else {
+            // Delegate to expression evaluator for other nodes (like VariableNode)
+            objectValue = exprEvaluator->evaluate(node->getObject());
+        }
+        
+        // Evaluate arguments
+        std::vector<Value> args = evaluateArgumentList(node->getArguments());
+        
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue)) {
+            auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+            return callMethod(instance, node->getMethodName(), args);
+        } else {
+            throw TypeException("Cannot call method '" + node->getMethodName() + 
+                              "' on non-object value");
+        }
+    }
+    
+    Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object, 
+                                               const std::string& methodName,
+                                               const std::vector<Value>& args)
+    {
+        auto env = context->getEnvironment();
+        
+        // Get the class definition from the object
+        auto classDef = object->getClassDefinition();
         if (!classDef) {
-            throw UndefinedException("Class '" + className + "' not found", SourceLocation{});
+            throw UndefinedException("Object has no class definition");
         }
         
-        // Find the static field
-        auto field = classDef->getField(memberName);
-        if (!field) {
-            throw UndefinedException("Field '" + memberName + "' not found in class '" + className + "'", SourceLocation{});
-        }
-        
-        if (!field->isStatic()) {
-            throw TypeException("Field '" + memberName + "' in class '" + className + "' is not static", SourceLocation{});
-        }
-        
-        return field->getValue();
-    }
-
-    void ObjectEvaluator::assignStaticMember(const std::string& className, const std::string& memberName,
-                                            const Value& value)
-    {
-        auto env = mainEvaluator->getEnvironment();
-        auto classDef = env->findClass(className);
-        
-        if (!classDef) {
-            throw UndefinedException("Class '" + className + "' not found", SourceLocation{});
-        }
-        
-        // Find the static field
-        auto field = classDef->getField(memberName);
-        if (!field) {
-            throw UndefinedException("Field '" + memberName + "' not found in class '" + className + "'", SourceLocation{});
-        }
-        
-        if (!field->isStatic()) {
-            throw TypeException("Field '" + memberName + "' in class '" + className + "' is not static", SourceLocation{});
-        }
-        
-        if (field->isFinal()) {
-            throw TypeException("Cannot reassign final static field: " + className + "::" + memberName, SourceLocation{});
-        }
-        
-        // Update the field value (static fields are stored in the class definition)
-        field->setValue(value);
-    }
-
-    Value ObjectEvaluator::callStaticMethod(const std::string& className, const std::string& methodName,
-                                           const std::vector<Value>& args)
-    {
-        auto env = mainEvaluator->getEnvironment();
-        auto classDef = env->findClass(className);
-        
-        if (!classDef) {
-            throw UndefinedException("Class '" + className + "' not found", SourceLocation{});
-        }
-        
-        // Find the static method
-        auto method = classDef->getMethod(methodName);
+        // Find the method
+        auto method = classDef->findMethod(methodName, args.size());
         if (!method) {
-            throw UndefinedException("Method '" + methodName + "' not found in class '" + className + "'", SourceLocation{});
+            throw UndefinedException("Method '" + methodName + "' not found in class '" + 
+                                   classDef->getName() + "'");
+        }
+        
+        // Check if trying to call static method on instance
+        if (method->isStatic()) {
+            throw TypeException("Cannot call static method '" + methodName + 
+                              "' on instance of class '" + classDef->getName() + 
+                              "'. Use class name instead.");
+        }
+        
+        // Set current instance context
+        auto prevInstance = context->getCurrentInstance();
+        context->setCurrentInstance(object);
+        
+        // Create new scope for method
+        env->enterScope(methodName, environment::manager::ScopeType::FUNCTION);
+        
+        try {
+            // Bind method parameters with proper validation
+            const auto& params = method->getParameters();
+            
+            // Check parameter count
+            if (args.size() != params.size()) {
+                throw errors::ArgumentException("Method '" + methodName + 
+                                              "' expects " + std::to_string(params.size()) +
+                                              " arguments, got " + std::to_string(args.size()));
+            }
+            
+            // Bind and validate each parameter
+            for (size_t i = 0; i < params.size(); ++i) {
+                const auto& param = params[i];
+                const Value& arg = args[i];
+                
+                // Type checking: verify argument type matches parameter type
+                ValueType actualType = utils::ValueConverter::getValueType(arg);
+                ValueType parameterType = param.second;
+                
+                // Validate type compatibility (same logic as function calls)
+                if (actualType != parameterType) {
+                    // Check for valid implicit conversions (e.g., int to float)
+                    bool isValidConversion = false;
+                    if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
+                        isValidConversion = true;
+                    }
+                    // Allow null assignment to object types
+                    if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
+                        isValidConversion = true;
+                    }
+                    
+                    if (!isValidConversion) {
+                        throw errors::TypeException("Type mismatch in method '" + methodName + "': parameter '" + 
+                                                   param.first + "' expects " + utils::ValueConverter::valueTypeToString(parameterType) + 
+                                                   " but got " + utils::ValueConverter::valueTypeToString(actualType));
+                    }
+                }
+                
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    param.first, param.second, arg, false
+                );
+                env->declareVariable(param.first, varDef);
+            }
+            
+            // Store current class name for static field access from instance methods
+            auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "__current_class_name__", ValueType::STRING, classDef->getName(), false
+            );
+            env->declareVariable("__current_class_name__", classNameVar);
+            
+            // Execute method body
+            Value result = std::monostate{}; // void default
+            if (method->getBody() && stmtEvaluator) {
+                stmtEvaluator->evaluate(method->getBody());
+            }
+            
+            // Get return value if method returned
+            if (context->shouldReturn()) {
+                result = context->getReturnValue();
+                context->setReturned(false);
+            }
+            
+            env->exitScope();
+            context->setCurrentInstance(prevInstance);
+            return result;
+            
+        } catch (const exception::ReturnException& e) {
+            // Handle return exception - extract return value
+            env->exitScope();
+            context->setCurrentInstance(prevInstance);
+            context->setReturned(false); // Reset return state after handling exception
+            return e.returnValue;
+        } catch (...) {
+            env->exitScope();
+            context->setCurrentInstance(prevInstance);
+            throw;
+        }
+    }
+    
+    std::vector<Value> ObjectEvaluator::evaluateArgumentList(
+        const std::vector<std::unique_ptr<ASTNode>>& args)
+    {
+        std::vector<Value> values;
+        values.reserve(args.size());
+        
+        if (exprEvaluator) {
+            for (const auto& arg : args) {
+                values.push_back(exprEvaluator->evaluate(arg.get()));
+            }
+        }
+        
+        return values;
+    }
+    
+    // Static member operations (delegating to instance manager)
+    Value ObjectEvaluator::accessStaticMember(const std::string& className, 
+                                                        const std::string& memberName)
+    {
+        auto env = context->getEnvironment();
+        return instanceManager->accessStaticMember(className, memberName, env);
+    }
+    
+    void ObjectEvaluator::assignStaticMember(const std::string& className, 
+                                                      const std::string& memberName,
+                                                      const Value& value)
+    {
+        auto env = context->getEnvironment();
+        instanceManager->assignStaticMember(className, memberName, value, env);
+    }
+    
+    Value ObjectEvaluator::callStaticMethod(const std::string& className, 
+                                                     const std::string& methodName,
+                                                     const std::vector<Value>& args)
+    {
+        auto env = context->getEnvironment();
+        
+        // Find the class and method
+        auto classDef = env->findClass(className);
+        if (!classDef) {
+            throw UndefinedException("Class '" + className + "' not found");
+        }
+        
+        // Try to find method with exact argument count first
+        auto method = classDef->findMethod(methodName, args.size());
+        
+        // If not found, try without argument count matching as a fallback
+        if (!method) {
+            method = classDef->getMethod(methodName);
+        }
+        
+        // Check if method exists and is static
+        if (!method) {
+            throw UndefinedException("Method '" + methodName + "' not found in class '" + className + "'");
         }
         
         if (!method->isStatic()) {
-            throw TypeException("Method '" + methodName + "' in class '" + className + "' is not static", SourceLocation{});
+            throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
         }
         
-        // Check parameter count
-        if (args.size() != method->getParameters().size()) {
-            throw ArgumentException("Static method '" + className + "::" + methodName + 
-                                  "' expects " + std::to_string(method->getParameters().size()) +
-                                  " arguments, got " + std::to_string(args.size()),
-                                  SourceLocation{});
+        // Verify argument count matches if we found a method
+        if (method->getParameters().size() != args.size()) {
+            throw UndefinedException("Static method '" + methodName + "' in class '" + className + 
+                                   "' expects " + std::to_string(method->getParameters().size()) + 
+                                   " arguments, but " + std::to_string(args.size()) + " provided");
         }
         
-        // Create scope for static method execution
-        env->enterScope(className + "::" + methodName, ScopeType::FUNCTION);
+        // Create new scope for static method execution
+        env->enterScope(methodName, environment::manager::ScopeType::FUNCTION);
         
-        // Save the current return state to isolate method execution
-        bool savedReturnState = mainEvaluator->shouldReturn();
-        
-        // Store current class name for static field access
-        auto classNameVar = std::make_shared<VariableDefinition>(
-            "__current_class_name__", ValueType::STRING, Value(className), true);
-        env->declareVariable("__current_class_name__", classNameVar);
-        
-        // Bind parameters
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto& param = method->getParameters()[i];
-            
-            // Type checking: verify argument type matches parameter type
-            ValueType actualType = mainEvaluator->getStatementEvaluator()->getValueType(args[i]);
-            ValueType parameterType = param.second;
-            
-            // Type checking with specific rules
-            if (actualType != parameterType) {
-                // Allow int to float conversion
-                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                    // This is allowed
-                }
-                // Allow null assignment only to object types
-                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                    // This is allowed
-                }
-                else {
-                    throw errors::TypeException("Type mismatch in static method '" + className + "::" + methodName + "': parameter '" + 
-                                               param.first + "' expects " + mainEvaluator->getStatementEvaluator()->valueTypeToString(parameterType) + 
-                                               " but got " + mainEvaluator->getStatementEvaluator()->valueTypeToString(actualType), SourceLocation{});
-                }
-            }
-            
-            auto varDef = std::make_shared<VariableDefinition>(
-                param.first,   // parameter name
-                param.second,  // parameter type
-                args[i],       // argument value
-                false          // not final
-            );
-            env->declareVariable(param.first, varDef);
-        }
-        
-        // Reset return state for method execution
-        mainEvaluator->setReturned(false);
-        
-        // Execute static method body
-        Value result = std::monostate{};
         try {
-            mainEvaluator->evaluate(method->getBody());
-            
-            if (mainEvaluator->shouldReturn()) {
-                result = mainEvaluator->getReturnValue();
+            // Bind method parameters
+            const auto& params = method->getParameters();
+            for (size_t i = 0; i < params.size() && i < args.size(); ++i) {
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    params[i].first, params[i].second, args[i], false
+                );
+                env->declareVariable(params[i].first, varDef);
             }
-        }
-        catch (const exception::ReturnException& e) {
-            // This is expected - return statement was executed
-            result = e.returnValue;
-        }
-        catch (...) {
-            env->exitScope();
             
-            // Restore return state before throwing
-            mainEvaluator->setReturned(savedReturnState);
+            // Store current class name for static field access
+            auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "__current_class_name__", ValueType::STRING, className, false
+            );
+            env->declareVariable("__current_class_name__", classNameVar);
+            
+            // Execute method body (no instance context for static methods)
+            Value result = std::monostate{}; // void default
+            if (method->getBody() && stmtEvaluator) {
+                stmtEvaluator->evaluate(method->getBody());
+            }
+            
+            // Get return value if method returned
+            if (context->shouldReturn()) {
+                result = context->getReturnValue();
+                context->setReturned(false);
+            }
+            
+            env->exitScope();
+            return result;
+            
+        } catch (const exception::ReturnException& e) {
+            // Handle return exception - extract return value
+            env->exitScope();
+            context->setReturned(false); // Reset return state after handling exception
+            return e.returnValue;
+        } catch (...) {
+            env->exitScope();
             throw;
         }
-        
-        env->exitScope();
-        
-        // Restore the original return state to not affect outer context
-        mainEvaluator->setReturned(savedReturnState);
-        
-        return result;
+    }
+    
+    // Placeholder implementations for complex methods
+    Value ObjectEvaluator::evaluateMethodNode(MethodNode* node)
+    {
+        // TODO: Implement method definition evaluation
+        throw TypeException("Method definition evaluation not implemented in refactored version");
+    }
+    
+    Value ObjectEvaluator::evaluateFieldNode(FieldNode* node)
+    {
+        // TODO: Implement field definition evaluation
+        throw TypeException("Field definition evaluation not implemented in refactored version");
+    }
+    
+    Value ObjectEvaluator::evaluateConstructorNode(ConstructorNode* node)
+    {
+        // TODO: Implement constructor definition evaluation
+        throw TypeException("Constructor definition evaluation not implemented in refactored version");
     }
 }

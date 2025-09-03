@@ -1,290 +1,275 @@
-﻿#include "Evaluator.hpp"
-#include "ExpressionEvaluator.hpp"
-#include "StatementEvaluator.hpp"
-#include "ObjectEvaluator.hpp"
-#include <iostream>
+#include "Evaluator.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
 
 namespace evaluator
 {
+    using namespace runtimeTypes::klass;
+    
     Evaluator::Evaluator(std::shared_ptr<Environment> environment)
-        : env(environment), hasReturned(false)
     {
-        exprEvaluator = std::make_unique<ExpressionEvaluator>(this);
-        stmtEvaluator = std::make_unique<StatementEvaluator>(this);
-        objEvaluator = std::make_unique<ObjectEvaluator>(this);
+        coordinator = std::make_unique<EvaluatorCoordinator>(environment);
     }
 
     Evaluator::~Evaluator() = default;
 
     Value Evaluator::evaluate(ASTNode* node)
     {
-        if (!node) {
-            return std::monostate{};
-        }
-        
-        Value result = node->accept(*this);
-        return result;
+        return coordinator->evaluate(node);
     }
 
-    Value Evaluator::getReturnValue()
-    {
-        if (!returnStack.empty()) {
-            Value val = returnStack.top();
-            returnStack.pop();
-            return val;
-        }
-        return std::monostate{};
-    }
-
-    void Evaluator::pushReturnValue(const Value& value)
-    {
-        returnStack.push(value);
-    }
-
-    // Program and block nodes
+    // ASTVisitor interface implementation - delegate to coordinator
     Value Evaluator::visitProgramNode(ProgramNode* node)
     {
-        return stmtEvaluator->evaluateProgramNode(node);
+        return coordinator->visitProgramNode(node);
     }
 
     Value Evaluator::visitBlockNode(BlockNode* node)
     {
-        return stmtEvaluator->evaluateBlockNode(node);
+        return coordinator->visitBlockNode(node);
     }
 
-    // Literal nodes
     Value Evaluator::visitFloatNode(FloatNode* node)
     {
-        return exprEvaluator->evaluateFloatNode(node);
+        return coordinator->visitFloatNode(node);
     }
 
     Value Evaluator::visitIntegerNode(IntegerNode* node)
     {
-        return exprEvaluator->evaluateIntegerNode(node);
+        return coordinator->visitIntegerNode(node);
     }
 
     Value Evaluator::visitStringNode(StringNode* node)
     {
-        return exprEvaluator->evaluateStringNode(node);
+        return coordinator->visitStringNode(node);
     }
 
     Value Evaluator::visitBoolNode(BoolNode* node)
     {
-        return exprEvaluator->evaluateBoolNode(node);
+        return coordinator->visitBoolNode(node);
     }
 
-    Value Evaluator::visitNullNode(NullNode* node)
-    {
-        return exprEvaluator->evaluateNullNode(node);
-    }
-
-    // Variable and assignment nodes
     Value Evaluator::visitVariableNode(VariableNode* node)
     {
-        return exprEvaluator->evaluateVariableNode(node);
+        return coordinator->visitVariableNode(node);
     }
 
     Value Evaluator::visitDeclarationNode(DeclarationNode* node)
     {
-        return stmtEvaluator->evaluateDeclarationNode(node);
+        return coordinator->visitDeclarationNode(node);
     }
 
     Value Evaluator::visitAssignmentNode(AssignmentNode* node)
     {
-        return stmtEvaluator->evaluateAssignmentNode(node);
-    }
-    
-
-    Value Evaluator::visitMemberAssignmentNode(MemberAssignmentNode* node)
-    {
-        return objEvaluator->evaluateMemberAssignmentNode(node);
+        return coordinator->visitAssignmentNode(node);
     }
 
-    // Expression nodes
     Value Evaluator::visitBinaryOpNode(BinaryOpNode* node)
     {
-        return exprEvaluator->evaluateBinaryExpNode(node);
+        return coordinator->visitBinaryOpNode(node);
     }
 
     Value Evaluator::visitTernaryOpNode(TernaryOpNode* node)
     {
-        return exprEvaluator->evaluateTernaryExpNode(node);
+        return coordinator->visitTernaryOpNode(node);
     }
 
     Value Evaluator::visitUnaryOpNode(UnaryOpNode* node)
     {
-        return exprEvaluator->evaluateUnaryExpNode(node);
+        return coordinator->visitUnaryOpNode(node);
     }
 
-    // Control flow nodes
     Value Evaluator::visitIfNode(IfNode* node)
     {
-        return stmtEvaluator->evaluateIfNode(node);
+        return coordinator->visitIfNode(node);
     }
 
     Value Evaluator::visitWhileNode(WhileNode* node)
     {
-        return stmtEvaluator->evaluateWhileNode(node);
+        return coordinator->visitWhileNode(node);
     }
 
     Value Evaluator::visitDoWhileNode(DoWhileNode* node)
     {
-        return stmtEvaluator->evaluateDoWhileNode(node);
+        return coordinator->visitDoWhileNode(node);
     }
 
     Value Evaluator::visitForNode(ForNode* node)
     {
-        return stmtEvaluator->evaluateForNode(node);
+        return coordinator->visitForNode(node);
     }
 
     Value Evaluator::visitBreakNode(BreakNode* node)
     {
-        return stmtEvaluator->evaluateBreakNode(node);
+        return coordinator->visitBreakNode(node);
     }
 
     Value Evaluator::visitContinueNode(ContinueNode* node)
     {
-        return stmtEvaluator->evaluateContinueNode(node);
+        return coordinator->visitContinueNode(node);
     }
 
-    Value Evaluator::visitSwitchNode(SwitchNode* node)
-    {
-        return stmtEvaluator->evaluateSwitchNode(node);
-    }
-
-    Value Evaluator::visitCaseNode(CaseNode* node)
-    {
-        return stmtEvaluator->evaluateCaseNode(node);
-    }
-
-    Value Evaluator::visitDefaultCaseNode(DefaultCaseNode* node)
-    {
-        return stmtEvaluator->evaluateDefaultCaseNode(node);
-    }
-
-    // Function nodes
     Value Evaluator::visitFunctionNode(FunctionNode* node)
     {
-        return stmtEvaluator->evaluateFunctionNode(node);
+        return coordinator->visitFunctionNode(node);
     }
 
     Value Evaluator::visitFunctionCallNode(FunctionCallNode* node)
     {
-        return exprEvaluator->evaluateFunctionCallNode(node);
+        return coordinator->visitFunctionCallNode(node);
     }
 
     Value Evaluator::visitReturnNode(ReturnNode* node)
     {
-        return stmtEvaluator->evaluateReturnNode(node);
+        return coordinator->visitReturnNode(node);
+    }
+
+    Value Evaluator::visitSwitchNode(SwitchNode* node)
+    {
+        return coordinator->visitSwitchNode(node);
+    }
+
+    Value Evaluator::visitCaseNode(CaseNode* node)
+    {
+        return coordinator->visitCaseNode(node);
+    }
+
+    Value Evaluator::visitImportNode(ImportNode* node)
+    {
+        return coordinator->visitImportNode(node);
+    }
+
+    Value Evaluator::visitDefaultCaseNode(DefaultCaseNode* node)
+    {
+        return coordinator->visitDefaultCaseNode(node);
     }
 
     Value Evaluator::visitNativeFunctionNode(NativeFunctionNode* node)
     {
-        return stmtEvaluator->evaluateNativeFunctionNode(node);
+        return coordinator->visitNativeFunctionNode(node);
     }
 
-    // Import nodes
-    Value Evaluator::visitImportNode(ImportNode* node)
+    Value Evaluator::visitNullNode(NullNode* node)
     {
-        return stmtEvaluator->evaluateImportNode(node);
+        return coordinator->visitNullNode(node);
     }
 
-    // Class nodes
-    Value Evaluator::visitClassNode(ClassNode* node)
+    Value Evaluator::visitMemberAssignmentNode(MemberAssignmentNode* node)
     {
-        return objEvaluator->evaluateClassNode(node);
-    }
-
-    Value Evaluator::visitMethodNode(MethodNode* node)
-    {
-        return objEvaluator->evaluateMethodNode(node);
-    }
-
-    Value Evaluator::visitFieldNode(FieldNode* node)
-    {
-        return objEvaluator->evaluateFieldNode(node);
-    }
-
-    Value Evaluator::visitConstructorNode(ConstructorNode* node)
-    {
-        return objEvaluator->evaluateConstructorNode(node);
-    }
-
-    Value Evaluator::visitNewNode(NewNode* node)
-    {
-        return objEvaluator->evaluateNewNode(node);
-    }
-
-    Value Evaluator::visitMemberAccessNode(MemberAccessNode* node)
-    {
-        return objEvaluator->evaluateMemberAccessNode(node);
+        return coordinator->visitMemberAssignmentNode(node);
     }
 
     Value Evaluator::visitMethodCallNode(MethodCallNode* node)
     {
-        return objEvaluator->evaluateMethodCallNode(node);
+        return coordinator->visitMethodCallNode(node);
     }
 
-    // Helper method implementations
+    Value Evaluator::visitMemberAccessNode(MemberAccessNode* node)
+    {
+        return coordinator->visitMemberAccessNode(node);
+    }
+
+    Value Evaluator::visitNewNode(NewNode* node)
+    {
+        return coordinator->visitNewNode(node);
+    }
+
+    Value Evaluator::visitMethodNode(MethodNode* node)
+    {
+        return coordinator->visitMethodNode(node);
+    }
+
+    Value Evaluator::visitConstructorNode(ConstructorNode* node)
+    {
+        return coordinator->visitConstructorNode(node);
+    }
+
+    Value Evaluator::visitFieldNode(FieldNode* node)
+    {
+        return coordinator->visitFieldNode(node);
+    }
+
+    Value Evaluator::visitClassNode(ClassNode* node)
+    {
+        return coordinator->visitClassNode(node);
+    }
+
+    // Helper method implementations - delegate to coordinator
+    std::shared_ptr<Environment> Evaluator::getEnvironment() const
+    {
+        return coordinator->getContext()->getEnvironment();
+    }
+
+    bool Evaluator::shouldReturn() const
+    {
+        return coordinator->shouldReturn();
+    }
+
+    void Evaluator::setReturned(bool returned)
+    {
+        coordinator->setReturned(returned);
+    }
+
+    Value Evaluator::getReturnValue()
+    {
+        return coordinator->getReturnValue();
+    }
+
+    void Evaluator::pushReturnValue(const Value& value)
+    {
+        coordinator->pushReturnValue(value);
+    }
+
+    std::shared_ptr<ObjectInstance> Evaluator::getCurrentInstance() const
+    {
+        return coordinator->getCurrentInstance();
+    }
+
     bool Evaluator::isTruthy(const Value& value)
     {
-        return exprEvaluator->isTruthy(value);
+        return coordinator->isTruthy(value);
     }
 
     std::string Evaluator::toString(const Value& value)
     {
-        return exprEvaluator->toString(value);
+        return coordinator->toString(value);
     }
 
     float Evaluator::toFloat(const Value& value)
     {
-        return exprEvaluator->toFloat(value);
+        return coordinator->toFloat(value);
     }
 
     int Evaluator::toInt(const Value& value)
     {
-        return exprEvaluator->toInt(value);
+        return coordinator->toInt(value);
     }
 
-    // Cross-evaluator delegation helpers
     Value Evaluator::evaluateObjectMethodCall(MethodCallNode* node)
     {
-        return objEvaluator->evaluateMethodCallNode(node);
+        return coordinator->visitMethodCallNode(node);
     }
 
     Value Evaluator::evaluateObjectCreation(NewNode* node)
     {
-        return objEvaluator->evaluateNewNode(node);
+        return coordinator->visitNewNode(node);
     }
 
     Value Evaluator::evaluateObjectMemberAccess(MemberAccessNode* node)
     {
-        return objEvaluator->evaluateMemberAccessNode(node);
+        return coordinator->visitMemberAccessNode(node);
     }
 
     Value Evaluator::evaluateObjectMemberAssignment(MemberAssignmentNode* node)
     {
-        return objEvaluator->evaluateMemberAssignmentNode(node);
+        return coordinator->visitMemberAssignmentNode(node);
     }
-    
-    std::shared_ptr<ObjectInstance> Evaluator::getCurrentInstance() const
-    {
-        return objEvaluator->getCurrentInstance();
-    }
-    
+
     Value Evaluator::callMethodOnInstance(std::shared_ptr<ObjectInstance> instance, 
                                           const std::string& methodName, const std::vector<Value>& args)
     {
+        // This would need to be implemented in the object evaluator
+        auto objEvaluator = coordinator->getObjectEvaluator();
         return objEvaluator->callMethod(instance, methodName, args);
     }
-    
-    StatementEvaluator* Evaluator::getStatementEvaluator() const
-    {
-        return stmtEvaluator.get();
-    }
 
-    ObjectEvaluator* Evaluator::getObjectEvaluator() const
-    {
-        return objEvaluator.get();
-    }
 }
