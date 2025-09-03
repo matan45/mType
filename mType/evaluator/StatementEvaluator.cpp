@@ -1,5 +1,4 @@
 #include "StatementEvaluator.hpp"
-#include "base/IEvaluator.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -26,6 +25,8 @@
 #include "../errors/EnvironmentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
+#include "ExpressionEvaluator.hpp"
+#include "ObjectEvaluator.hpp"
 
 namespace evaluator
 {
@@ -139,12 +140,12 @@ namespace evaluator
         flowManager->resetLoopFlags();
     }
     
-    void StatementEvaluator::setExpressionEvaluator(IExpressionEvaluator* evaluator)
+    void StatementEvaluator::setExpressionEvaluator(ExpressionEvaluator* evaluator)
     {
         exprEvaluator = evaluator;
     }
     
-    void StatementEvaluator::setObjectEvaluator(IObjectEvaluator* evaluator)
+    void StatementEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
     {
         objEvaluator = evaluator;
     }

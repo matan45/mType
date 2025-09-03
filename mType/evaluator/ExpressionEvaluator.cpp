@@ -1,5 +1,4 @@
 ﻿#include "ExpressionEvaluator.hpp"
-#include "base/IEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
@@ -22,6 +21,8 @@
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
+#include "ObjectEvaluator.hpp"
+#include "StatementEvaluator.hpp"
 #include <cmath>
 
 namespace evaluator
@@ -122,12 +123,12 @@ namespace evaluator
         return ValueConverter::toInt(value);
     }
     
-    void ExpressionEvaluator::setStatementEvaluator(IStatementEvaluator* evaluator)
+    void ExpressionEvaluator::setStatementEvaluator(StatementEvaluator* evaluator)
     {
         stmtEvaluator = evaluator;
     }
     
-    void ExpressionEvaluator::setObjectEvaluator(IObjectEvaluator* evaluator)
+    void ExpressionEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
     {
         objEvaluator = evaluator;
     }

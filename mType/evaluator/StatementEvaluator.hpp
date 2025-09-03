@@ -1,5 +1,4 @@
 #pragma once
-#include "base/IEvaluator.hpp"
 #include "base/EvaluationContext.hpp"
 #include "managers/ControlFlowManager.hpp"
 #include "utils/ValueConverter.hpp"
@@ -16,7 +15,7 @@ namespace evaluator
     using namespace value;
     using namespace ast::nodes::statements;
     using namespace ast::nodes::functions;
-    
+
     /**
      * @brief Refactored Statement Evaluator following SOLID principles
      * - Single Responsibility: Only handles statement evaluation
@@ -25,33 +24,33 @@ namespace evaluator
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions
      */
-    class StatementEvaluator : public IStatementEvaluator
+    class StatementEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<ControlFlowManager> flowManager;
-        
+
         // Forward declarations for circular dependency resolution
-        class IExpressionEvaluator* exprEvaluator;
-        class IObjectEvaluator* objEvaluator;
-        
+        class ExpressionEvaluator* exprEvaluator;
+        class ObjectEvaluator* objEvaluator;
+
         // Helper method for import evaluation
         void evaluateRecursively(ASTNode* node);
-        
+
     public:
         explicit StatementEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~StatementEvaluator() override = default;
-        
+        ~StatementEvaluator() = default;
+
         // IEvaluator interface implementation
-        Value evaluate(ASTNode* node) override;
-        bool canHandle(ASTNode* node) const override;
-        
+        Value evaluate(ASTNode* node);
+        bool canHandle(ASTNode* node) const;
+
         // IStatementEvaluator interface implementation
-        bool shouldBreakOrContinue() const override;
-        void handleBreak() override;
-        void handleContinue() override;
-        void resetLoopFlags() override;
-        
+        bool shouldBreakOrContinue() const;
+        void handleBreak();
+        void handleContinue();
+        void resetLoopFlags();
+
         // Statement evaluation methods
         Value evaluateProgramNode(ProgramNode* node);
         Value evaluateBlockNode(BlockNode* node);
@@ -70,30 +69,30 @@ namespace evaluator
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
         Value evaluateNativeFunctionNode(NativeFunctionNode* node);
-        
+
         // Dependency injection for cross-evaluator communication
-        void setExpressionEvaluator(IExpressionEvaluator* evaluator);
-        void setObjectEvaluator(IObjectEvaluator* evaluator);
-        
+        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+        void setObjectEvaluator(ObjectEvaluator* evaluator);
+
     private:
         // Helper methods
         bool isStatementNode(ASTNode* node) const;
         Value executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements);
         void validateVariableDeclaration(DeclarationNode* node);
         void validateAssignmentAsDeclaration(AssignmentNode* node);
-        void validateTypeAssignment(ValueType expectedType, const Value& value, 
-                                  const std::string& variableName, 
-                                  const SourceLocation& location);
-        void validateTypeAssignment(ValueType expectedType, const Value& value, 
-                                  const std::string& variableName, 
-                                  const SourceLocation& location,
-                                  const std::string& expectedClassName);
+        void validateTypeAssignment(ValueType expectedType, const Value& value,
+                                    const std::string& variableName,
+                                    const SourceLocation& location);
+        void validateTypeAssignment(ValueType expectedType, const Value& value,
+                                    const std::string& variableName,
+                                    const SourceLocation& location,
+                                    const std::string& expectedClassName);
         void validateClassExists(const std::string& className, const SourceLocation& location);
         bool isValidTypeConversion(ValueType from, ValueType to);
-        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName, 
-                                           const SourceLocation& location);
-        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName, 
-                                           const SourceLocation& location, 
-                                           const std::string& expectedClassName);
+        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
+                                             const SourceLocation& location);
+        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
+                                             const SourceLocation& location,
+                                             const std::string& expectedClassName);
     };
 }

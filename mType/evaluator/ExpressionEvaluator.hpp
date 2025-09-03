@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "base/IEvaluator.hpp"
 #include "base/EvaluationContext.hpp"
 #include "utils/ValueConverter.hpp"
 #include "../token/TokenType.hpp"
@@ -18,7 +17,7 @@ namespace evaluator
     using namespace ast::nodes::classes;
     using namespace ast::nodes::statements;
     using namespace token;
-    
+
     /**
      * @brief Refactored Expression Evaluator following SOLID principles
      * - Single Responsibility: Only handles expression evaluation
@@ -27,29 +26,29 @@ namespace evaluator
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions (EvaluationContext)
      */
-    class ExpressionEvaluator : public IExpressionEvaluator
+    class ExpressionEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
-        
+
         // Forward declarations for circular dependency resolution
-        class IStatementEvaluator* stmtEvaluator;
-        class IObjectEvaluator* objEvaluator;
-        
+        class StatementEvaluator* stmtEvaluator;
+        class ObjectEvaluator* objEvaluator;
+
     public:
         explicit ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx);
         ~ExpressionEvaluator() = default;
-        
+
         // Main interface methods
         Value evaluate(ASTNode* node);
         bool canHandle(ASTNode* node) const;
-        
+
         // Type conversion methods
         bool isTruthy(const Value& value) const;
         std::string toString(const Value& value) const;
         float toFloat(const Value& value) const;
         int toInt(const Value& value) const;
-        
+
         // Expression evaluation methods (now private implementation details)
         Value evaluateIntegerNode(IntegerNode* node);
         Value evaluateFloatNode(FloatNode* node);
@@ -65,24 +64,24 @@ namespace evaluator
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateNewNode(NewNode* node);
         Value evaluateAssignmentExpression(AssignmentNode* node);
-        
+
         // Dependency injection for cross-evaluator communication
-        void setStatementEvaluator(IStatementEvaluator* evaluator);
-        void setObjectEvaluator(IObjectEvaluator* evaluator);
-        
+        void setStatementEvaluator(StatementEvaluator* evaluator);
+        void setObjectEvaluator(ObjectEvaluator* evaluator);
+
     private:
         // Helper methods for binary operations
         Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
         Value evaluateComparison(const Value& left, const Value& right, TokenType op);
         Value evaluateLogical(const Value& left, const Value& right, TokenType op);
         Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
-        
+
         // Node type checking
         bool isExpressionNode(ASTNode* node) const;
-        
+
         // Function return type validation
-        void validateFunctionReturnType(ValueType expectedType, const Value& returnValue, 
-                                       const std::string& functionName, 
-                                       const SourceLocation& location);
+        void validateFunctionReturnType(ValueType expectedType, const Value& returnValue,
+                                        const std::string& functionName,
+                                        const SourceLocation& location);
     };
 }

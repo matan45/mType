@@ -1,5 +1,4 @@
 #pragma once
-#include "base/IEvaluator.hpp"
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
 #include "utils/ValueConverter.hpp"
@@ -25,23 +24,23 @@ namespace evaluator
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions
      */
-    class ObjectEvaluator : public IObjectEvaluator
+    class ObjectEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;
 
         // Forward declarations for circular dependency resolution
-        class IExpressionEvaluator* exprEvaluator;
-        class IStatementEvaluator* stmtEvaluator;
+        class ExpressionEvaluator* exprEvaluator;
+        class StatementEvaluator* stmtEvaluator;
 
     public:
         explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ObjectEvaluator() override = default;
+        ~ObjectEvaluator() = default;
 
         // IEvaluator interface implementation
-        Value evaluate(ASTNode* node) override;
-        bool canHandle(ASTNode* node) const override;
+        Value evaluate(ASTNode* node);
+        bool canHandle(ASTNode* node) const;
 
         // IObjectEvaluator interface implementation
 
@@ -56,11 +55,11 @@ namespace evaluator
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
 
         // Static member operations
-        Value accessStaticMember(const std::string& className, const std::string& memberName) override;
+        Value accessStaticMember(const std::string& className, const std::string& memberName);
         void assignStaticMember(const std::string& className, const std::string& memberName,
                                 const Value& value);
         Value callStaticMethod(const std::string& className, const std::string& methodName,
-                               const std::vector<Value>& args) override;
+                               const std::vector<Value>& args);
 
         // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
@@ -69,11 +68,11 @@ namespace evaluator
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
                           const Value& value);
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                         const std::vector<Value>& args) override;
+                         const std::vector<Value>& args);
 
         // Dependency injection for cross-evaluator communication
-        void setExpressionEvaluator(IExpressionEvaluator* evaluator);
-        void setStatementEvaluator(IStatementEvaluator* evaluator);
+        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+        void setStatementEvaluator(StatementEvaluator* evaluator);
 
     private:
         // Helper methods

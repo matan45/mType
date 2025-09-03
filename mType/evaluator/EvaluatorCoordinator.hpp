@@ -1,7 +1,6 @@
 #pragma once
 #include "../ast/ASTVisitor.hpp"
 #include "base/EvaluationContext.hpp"
-#include "base/IEvaluator.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
@@ -77,9 +76,9 @@ namespace evaluator
         
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }
-        IExpressionEvaluator* getExpressionEvaluator() const { return exprEvaluator.get(); }
-        IStatementEvaluator* getStatementEvaluator() const { return stmtEvaluator.get(); }
-        IObjectEvaluator* getObjectEvaluator() const { return objEvaluator.get(); }
+        ExpressionEvaluator* getExpressionEvaluator() const { return exprEvaluator.get(); }
+        StatementEvaluator* getStatementEvaluator() const { return stmtEvaluator.get(); }
+        ObjectEvaluator* getObjectEvaluator() const { return objEvaluator.get(); }
         
         // Helper methods for cross-evaluator operations (maintained for compatibility)
         bool isTruthy(const Value& value) const;
