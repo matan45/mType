@@ -5,7 +5,6 @@
 #include "utils/ValueConverter.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/statements/BreakNode.hpp"
-#include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../errors/SourceLocation.hpp"
 #include <memory>
 

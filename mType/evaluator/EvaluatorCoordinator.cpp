@@ -1,6 +1,5 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include <iostream>
 
 namespace evaluator
 {
@@ -44,14 +43,6 @@ namespace evaluator
     
     Value EvaluatorCoordinator::routeEvaluation(ASTNode* node)
     {
-        // Debug for MethodCallNode routing
-        if (dynamic_cast<MethodCallNode*>(node)) {
-            std::cout << "[DEBUG] MethodCallNode routing:" << std::endl;
-            std::cout << "  - Statement can handle: " << stmtEvaluator->canHandle(node) << std::endl;
-            std::cout << "  - Object can handle: " << objEvaluator->canHandle(node) << std::endl;
-            std::cout << "  - Expression can handle: " << exprEvaluator->canHandle(node) << std::endl;
-        }
-        
         // Route to appropriate specialized evaluator based on node type
         // Priority order: Statements first (to handle declarations properly),
         // then Objects (to handle class operations), then Expressions

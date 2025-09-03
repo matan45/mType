@@ -5,7 +5,6 @@
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "EvaluatorCoordinator.hpp"
 #include <memory>
-#include <stack>
 
 namespace evaluator
 {

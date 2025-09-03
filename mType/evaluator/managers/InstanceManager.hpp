@@ -1,6 +1,5 @@
 #pragma once
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>

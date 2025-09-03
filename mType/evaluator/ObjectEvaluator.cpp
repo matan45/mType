@@ -1,8 +1,9 @@
 #include "ObjectEvaluator.hpp"
 #include "base/IEvaluator.hpp"
+#include "utils/ParameterBinder.hpp"
+#include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/ArgumentException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../environment/manager/Scope.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -189,70 +190,33 @@ namespace evaluator
                 auto prevInstance = context->getCurrentInstance();
                 context->setCurrentInstance(instance);
                 
-                // Create new scope for constructor
-                env->enterScope("constructor", environment::manager::ScopeType::FUNCTION);
-                
-                try {
-                    // Bind constructor parameters with proper validation
-                    const auto& params = constructor->getParameters();
+                // Use ScopeGuard for automatic scope management
+                {
+                    utils::ScopeGuard scope(env, "constructor", environment::manager::ScopeType::FUNCTION);
                     
-                    // Check parameter count
-                    if (args.size() != params.size()) {
-                        throw errors::ArgumentException("Constructor for class '" + node->getClassName() + 
-                                                      "' expects " + std::to_string(params.size()) +
-                                                      " arguments, got " + std::to_string(args.size()));
-                    }
-                    
-                    // Bind and validate each parameter
-                    for (size_t i = 0; i < params.size(); ++i) {
-                        const auto& param = params[i];
-                        const Value& arg = args[i];
-                        
-                        // Type checking: verify argument type matches parameter type
-                        ValueType actualType = utils::ValueConverter::getValueType(arg);
-                        ValueType parameterType = param.second;
-                        
-                        // Validate type compatibility (same logic as function/method calls)
-                        if (actualType != parameterType) {
-                            // Check for valid implicit conversions (e.g., int to float)
-                            bool isValidConversion = false;
-                            if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                                isValidConversion = true;
-                            }
-                            // Allow null assignment to object types
-                            if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                                isValidConversion = true;
-                            }
-                            
-                            if (!isValidConversion) {
-                                throw errors::TypeException("Type mismatch in constructor for class '" + node->getClassName() + 
-                                                           "': parameter '" + param.first + "' expects " + 
-                                                           utils::ValueConverter::valueTypeToString(parameterType) + 
-                                                           " but got " + utils::ValueConverter::valueTypeToString(actualType));
-                            }
-                        }
-                        
-                        auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                            param.first, param.second, arg, false
+                    try {
+                        // Use ParameterBinder utility to eliminate duplication
+                        utils::ParameterBinder::bindAndValidateParameters(
+                            constructor->getParameters(),
+                            args,
+                            "constructor for class '" + node->getClassName() + "'",
+                            env
                         );
-                        env->declareVariable(param.first, varDef);
-                    }
-                    
-                    // Execute constructor body
-                    if (stmtEvaluator) {
-                        auto bodyPtr = constructor->getBody();
-                        if (bodyPtr) {
-                            stmtEvaluator->evaluate(bodyPtr);
+                        
+                        // Execute constructor body
+                        if (stmtEvaluator) {
+                            auto bodyPtr = constructor->getBody();
+                            if (bodyPtr) {
+                                stmtEvaluator->evaluate(bodyPtr);
+                            }
                         }
                     }
+                    catch (...) {
+                        context->setCurrentInstance(prevInstance);
+                        throw;
+                    }
+                    // Scope automatically exits via RAII
                 }
-                catch (...) {
-                    env->exitScope();
-                    context->setCurrentInstance(prevInstance);
-                    throw;
-                }
-                
-                env->exitScope();
                 context->setCurrentInstance(prevInstance);
             }
         }
@@ -393,53 +357,18 @@ namespace evaluator
         auto prevInstance = context->getCurrentInstance();
         context->setCurrentInstance(object);
         
-        // Create new scope for method
-        env->enterScope(methodName, environment::manager::ScopeType::FUNCTION);
+        // Use ScopeGuard and ParameterBinder utilities
+        {
+            utils::ScopeGuard scope(env, methodName, environment::manager::ScopeType::FUNCTION);
         
-        try {
-            // Bind method parameters with proper validation
-            const auto& params = method->getParameters();
-            
-            // Check parameter count
-            if (args.size() != params.size()) {
-                throw errors::ArgumentException("Method '" + methodName + 
-                                              "' expects " + std::to_string(params.size()) +
-                                              " arguments, got " + std::to_string(args.size()));
-            }
-            
-            // Bind and validate each parameter
-            for (size_t i = 0; i < params.size(); ++i) {
-                const auto& param = params[i];
-                const Value& arg = args[i];
-                
-                // Type checking: verify argument type matches parameter type
-                ValueType actualType = utils::ValueConverter::getValueType(arg);
-                ValueType parameterType = param.second;
-                
-                // Validate type compatibility (same logic as function calls)
-                if (actualType != parameterType) {
-                    // Check for valid implicit conversions (e.g., int to float)
-                    bool isValidConversion = false;
-                    if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                        isValidConversion = true;
-                    }
-                    // Allow null assignment to object types
-                    if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                        isValidConversion = true;
-                    }
-                    
-                    if (!isValidConversion) {
-                        throw errors::TypeException("Type mismatch in method '" + methodName + "': parameter '" + 
-                                                   param.first + "' expects " + utils::ValueConverter::valueTypeToString(parameterType) + 
-                                                   " but got " + utils::ValueConverter::valueTypeToString(actualType));
-                    }
-                }
-                
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    param.first, param.second, arg, false
+            try {
+                // Use ParameterBinder utility instead of manual parameter binding
+                utils::ParameterBinder::bindAndValidateParameters(
+                    method->getParameters(),
+                    args,
+                    "method '" + methodName + "'",
+                    env
                 );
-                env->declareVariable(param.first, varDef);
-            }
             
             // Store current class name for static field access from instance methods
             auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
@@ -459,20 +388,19 @@ namespace evaluator
                 context->setReturned(false);
             }
             
-            env->exitScope();
-            context->setCurrentInstance(prevInstance);
-            return result;
-            
-        } catch (const exception::ReturnException& e) {
-            // Handle return exception - extract return value
-            env->exitScope();
-            context->setCurrentInstance(prevInstance);
-            context->setReturned(false); // Reset return state after handling exception
-            return e.returnValue;
-        } catch (...) {
-            env->exitScope();
-            context->setCurrentInstance(prevInstance);
-            throw;
+                context->setCurrentInstance(prevInstance);
+                return result;
+                
+            } catch (const exception::ReturnException& e) {
+                // Handle return exception - extract return value
+                context->setCurrentInstance(prevInstance);
+                context->setReturned(false); // Reset return state after handling exception
+                return e.returnValue;
+            } catch (...) {
+                context->setCurrentInstance(prevInstance);
+                throw;
+            }
+            // Scope automatically exits via RAII
         }
     }
     
@@ -536,55 +464,47 @@ namespace evaluator
             throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
         }
         
-        // Verify argument count matches if we found a method
-        if (method->getParameters().size() != args.size()) {
-            throw UndefinedException("Static method '" + methodName + "' in class '" + className + 
-                                   "' expects " + std::to_string(method->getParameters().size()) + 
-                                   " arguments, but " + std::to_string(args.size()) + " provided");
-        }
-        
-        // Create new scope for static method execution
-        env->enterScope(methodName, environment::manager::ScopeType::FUNCTION);
-        
-        try {
-            // Bind method parameters
-            const auto& params = method->getParameters();
-            for (size_t i = 0; i < params.size() && i < args.size(); ++i) {
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    params[i].first, params[i].second, args[i], false
+        // Use ScopeGuard and ParameterBinder utilities
+        {
+            utils::ScopeGuard scope(env, methodName, environment::manager::ScopeType::FUNCTION);
+            
+            try {
+                // Use ParameterBinder utility for consistent parameter validation and binding
+                utils::ParameterBinder::bindAndValidateParameters(
+                    method->getParameters(),
+                    args,
+                    "static method '" + className + "::" + methodName + "'",
+                    env
                 );
-                env->declareVariable(params[i].first, varDef);
+                
+                // Store current class name for static field access
+                auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    "__current_class_name__", ValueType::STRING, className, false
+                );
+                env->declareVariable("__current_class_name__", classNameVar);
+                
+                // Execute method body (no instance context for static methods)
+                Value result = std::monostate{}; // void default
+                if (method->getBody() && stmtEvaluator) {
+                    stmtEvaluator->evaluate(method->getBody());
+                }
+                
+                // Get return value if method returned
+                if (context->shouldReturn()) {
+                    result = context->getReturnValue();
+                    context->setReturned(false);
+                }
+                
+                return result;
+                
+            } catch (const exception::ReturnException& e) {
+                // Handle return exception - extract return value
+                context->setReturned(false); // Reset return state after handling exception
+                return e.returnValue;
+            } catch (...) {
+                throw;
             }
-            
-            // Store current class name for static field access
-            auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "__current_class_name__", ValueType::STRING, className, false
-            );
-            env->declareVariable("__current_class_name__", classNameVar);
-            
-            // Execute method body (no instance context for static methods)
-            Value result = std::monostate{}; // void default
-            if (method->getBody() && stmtEvaluator) {
-                stmtEvaluator->evaluate(method->getBody());
-            }
-            
-            // Get return value if method returned
-            if (context->shouldReturn()) {
-                result = context->getReturnValue();
-                context->setReturned(false);
-            }
-            
-            env->exitScope();
-            return result;
-            
-        } catch (const exception::ReturnException& e) {
-            // Handle return exception - extract return value
-            env->exitScope();
-            context->setReturned(false); // Reset return state after handling exception
-            return e.returnValue;
-        } catch (...) {
-            env->exitScope();
-            throw;
+            // Scope automatically exits via RAII
         }
     }
     

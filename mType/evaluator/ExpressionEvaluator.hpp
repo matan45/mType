@@ -5,9 +5,6 @@
 #include "../token/TokenType.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
-#include "../ast/nodes/classes/MemberAccessNode.hpp"
-#include "../ast/nodes/classes/MethodCallNode.hpp"
-#include "../ast/nodes/classes/NewNode.hpp"
 #include "../errors/SourceLocation.hpp"
 #include <memory>
 

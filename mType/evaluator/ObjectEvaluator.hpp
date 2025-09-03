@@ -16,7 +16,7 @@ namespace evaluator
     using namespace ast::nodes::classes;
     using namespace ast::nodes::statements;
     using namespace runtimeTypes::klass;
-    
+
     /**
      * @brief Refactored Object Evaluator following SOLID principles
      * - Single Responsibility: Only handles object-oriented features
@@ -30,21 +30,21 @@ namespace evaluator
     private:
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;
-        
+
         // Forward declarations for circular dependency resolution
         class IExpressionEvaluator* exprEvaluator;
         class IStatementEvaluator* stmtEvaluator;
-        
+
     public:
         explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
         ~ObjectEvaluator() override = default;
-        
+
         // IEvaluator interface implementation
         Value evaluate(ASTNode* node) override;
         bool canHandle(ASTNode* node) const override;
-        
+
         // IObjectEvaluator interface implementation
-        
+
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
         Value evaluateMethodNode(MethodNode* node);
@@ -54,27 +54,27 @@ namespace evaluator
         Value evaluateMemberAccessNode(MemberAccessNode* node);
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
-        
+
         // Static member operations
-        Value accessStaticMember(const std::string& className, const std::string& memberName);
+        Value accessStaticMember(const std::string& className, const std::string& memberName) override;
         void assignStaticMember(const std::string& className, const std::string& memberName,
-                               const Value& value);
+                                const Value& value);
         Value callStaticMethod(const std::string& className, const std::string& methodName,
-                              const std::vector<Value>& args);
-        
+                               const std::vector<Value>& args) override;
+
         // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
-                                                      const std::vector<Value>& constructorArgs);
+                                                       const std::vector<Value>& constructorArgs);
         Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
-        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName, 
-                         const Value& value);
+        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const Value& value);
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                        const std::vector<Value>& args);
-        
+                         const std::vector<Value>& args) override;
+
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(IExpressionEvaluator* evaluator);
         void setStatementEvaluator(IStatementEvaluator* evaluator);
-        
+
     private:
         // Helper methods
         bool isObjectNode(ASTNode* node) const;

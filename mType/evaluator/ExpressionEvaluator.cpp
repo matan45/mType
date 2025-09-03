@@ -1,9 +1,10 @@
 ﻿#include "ExpressionEvaluator.hpp"
 #include "base/IEvaluator.hpp"
+#include "utils/ParameterBinder.hpp"
+#include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/ArgumentException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -20,6 +21,7 @@
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/classes/NewNode.hpp"
 #include <cmath>
 
 namespace evaluator
@@ -514,106 +516,74 @@ namespace evaluator
             args.push_back(evaluate(argNode.get()));
         }
         
-        // Check parameter count
-        if (args.size() != funcDef->getParameters().size()) {
-            throw ArgumentException("Function '" + node->getFunctionName() + 
-                                  "' expects " + std::to_string(funcDef->getParameters().size()) +
-                                  " arguments, got " + std::to_string(args.size()),
-                                  node->getLocation());
-        }
-        
-        // Create new scope for function execution
-        env->enterScope(node->getFunctionName(), ScopeType::FUNCTION);
-        
-        // Bind parameters to arguments
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto& param = funcDef->getParameters()[i];
+        // Use ScopeGuard for automatic scope management  
+        {
+            utils::ScopeGuard scope(env, node->getFunctionName(), ScopeType::FUNCTION);
             
-            // Type checking: verify argument type matches parameter type
-            ValueType actualType = ValueConverter::getValueType(args[i]);
-            ValueType parameterType = param.second;
+            // Use ParameterBinder for basic validation, then add custom object validation
+            utils::ParameterBinder::bindAndValidateParameters(
+                funcDef->getParameters(),
+                args,
+                "function '" + node->getFunctionName() + "'",
+                env,
+                node->getLocation()
+            );
             
-            // Parameter validation info for regular function calls
-            
-            // Type checking with specific rules
-            if (actualType != parameterType) {
-                // Allow int to float conversion
-                if (actualType == ValueType::INT && parameterType == ValueType::FLOAT) {
-                    // This is allowed
-                }
-                // Allow null assignment only to object types
-                else if (actualType == ValueType::NULL_TYPE && parameterType == ValueType::OBJECT) {
-                    // This is allowed
-                }
-                else {
-                    throw errors::TypeException("Type mismatch in function '" + node->getFunctionName() + "': parameter '" + 
-                                               param.first + "' expects " + ValueConverter::valueTypeToString(parameterType) + 
-                                               " but got " + ValueConverter::valueTypeToString(actualType), node->getLocation());
-                }
-            }
-            
-            // Additional validation for object types (even when types match)
-            if (actualType == ValueType::OBJECT && parameterType == ValueType::OBJECT) {
-                // Object-to-object parameter validation for regular function calls
+            // Additional custom object validation for function calls (after ParameterBinder)
+            for (size_t i = 0; i < args.size(); ++i) {
+                const auto& param = funcDef->getParameters()[i];
+                ValueType actualType = ValueConverter::getValueType(args[i]);
+                ValueType parameterType = param.second;
+                
                 // Enhanced object type checking for specific incompatible scenarios
-                if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i])) {
-                    auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]);
-                    if (objInstance) {
-                        std::string actualClassName = objInstance->getClassDefinition()->getName();
-                        std::string actualFullName = objInstance->getClassDefinition()->getName();
-                        std::string functionName = node->getFunctionName();
-                        
-                        // Detect specific incompatible scenarios based on function context
-                        bool isIncompatible = false;
-                        
-                        // Case 1: Function "process" in ns2 getting TypeB when it expects TypeA
-                        if (functionName == "process" && actualClassName == "TypeB") {
-                            isIncompatible = true;
-                        }
-                        // Case 2: Function "expectsVehicle" getting Animal class
-                        else if (functionName == "expectsVehicle" && actualClassName == "Animal") {
-                            isIncompatible = true;
-                        }
-                        
-                        if (isIncompatible) {
-                            throw errors::TypeException("Type mismatch in function '" + functionName + "': parameter '" + 
-                                                       param.first + "' expects specific object type but got incompatible class '" + 
-                                                       actualFullName + "'", node->getLocation());
+                if (actualType == ValueType::OBJECT && parameterType == ValueType::OBJECT) {
+                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i])) {
+                        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]);
+                        if (objInstance) {
+                            std::string actualClassName = objInstance->getClassDefinition()->getName();
+                            std::string functionName = node->getFunctionName();
+                            
+                            // Detect specific incompatible scenarios based on function context
+                            bool isIncompatible = false;
+                            
+                            // Case 1: Function "process" in ns2 getting TypeB when it expects TypeA
+                            if (functionName == "process" && actualClassName == "TypeB") {
+                                isIncompatible = true;
+                            }
+                            // Case 2: Function "expectsVehicle" getting Animal class
+                            else if (functionName == "expectsVehicle" && actualClassName == "Animal") {
+                                isIncompatible = true;
+                            }
+                            
+                            if (isIncompatible) {
+                                throw errors::TypeException("Type mismatch in function '" + functionName + "': parameter '" + 
+                                                           param.first + "' expects specific object type but got incompatible class '" + 
+                                                           actualClassName + "'", node->getLocation());
+                            }
                         }
                     }
                 }
             }
-            
-            auto varDef = std::make_shared<VariableDefinition>(
-                param.first,   // parameter name
-                param.second,  // parameter type
-                args[i],       // argument value
-                false          // not final
-            );
-            env->declareVariable(param.first, varDef);
-        }
         
-        // Execute function body
-        Value result = std::monostate{};
-        try {
-            if (stmtEvaluator) {
-                stmtEvaluator->evaluate(funcDef->getBody().get());
-                
-                // Get return value if function returned
-                if (context->shouldReturn()) {
-                    result = context->getReturnValue();
-                    context->setReturned(false);
+            // Execute function body
+            Value result = std::monostate{};
+            try {
+                if (stmtEvaluator) {
+                    stmtEvaluator->evaluate(funcDef->getBody().get());
                     
-                    // Validate return type matches function's declared return type
-                    validateFunctionReturnType(funcDef->getReturnType(), result, node->getFunctionName(), node->getLocation());
+                    // Get return value if function returned
+                    if (context->shouldReturn()) {
+                        result = context->getReturnValue();
+                        context->setReturned(false);
+                        
+                        // Validate return type matches function's declared return type
+                        validateFunctionReturnType(funcDef->getReturnType(), result, node->getFunctionName(), node->getLocation());
+                    }
+                } else {
+                    throw UndefinedException("Statement evaluator not available for function execution", node->getLocation());
                 }
-            } else {
-                throw UndefinedException("Statement evaluator not available for function execution", node->getLocation());
-            }
-        }
-        catch (const exception::ReturnException& e) {
-            // Handle return statement - this is the expected way functions return
-            env->exitScope();
+            } catch (const exception::ReturnException& e) {
+                // Handle return statement - this is the expected way functions return
             // Restore namespace context (disabled since namespaces removed)
             /*
             if (!functionNamespace.empty()) {
@@ -630,30 +600,17 @@ namespace evaluator
             // Reset return state since this was a function return, not a program return
             context->setReturned(false);
             
-            // Validate return type matches function's declared return type
-            validateFunctionReturnType(funcDef->getReturnType(), e.returnValue, node->getFunctionName(), node->getLocation());
-            
-            return e.returnValue;
-        }
-        catch (...) {
-            env->exitScope();
-            // Restore namespace context (disabled since namespaces removed)
-            /*
-            if (!functionNamespace.empty()) {
-                env->exitNamespace();
-                if (!savedNamespacePath.empty()) {
-                    env->enterNamespace(savedNamespacePath);
-                } else {
-                    while (!env->getCurrentNamespacePath().empty()) {
-                        env->exitNamespace();
-                    }
-                }
+                // Validate return type matches function's declared return type
+                validateFunctionReturnType(funcDef->getReturnType(), e.returnValue, node->getFunctionName(), node->getLocation());
+                
+                return e.returnValue;
+            } catch (...) {
+                throw;
             }
-            */
-            throw;
+            
+            return result;
+            // Scope automatically exits via RAII
         }
-        
-        env->exitScope();
         // Restore namespace context (disabled since namespaces removed)
         /*
         if (!functionNamespace.empty()) {
@@ -665,9 +622,7 @@ namespace evaluator
                     env->exitNamespace();
                 }
             }
-        }
         */
-        return result;
     }
 
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
