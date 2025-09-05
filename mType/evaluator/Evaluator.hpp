@@ -3,8 +3,8 @@
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
+#include "EvaluatorCoordinator.hpp"
 #include <memory>
-#include <stack>
 
 namespace evaluator
 {
@@ -12,20 +12,14 @@ namespace evaluator
     using namespace value;
     using namespace environment;
 
-    class ExpressionEvaluator;
-    class StatementEvaluator;
-    class ObjectEvaluator;
-
+    /**
+     * @brief Compatibility wrapper around the new EvaluatorCoordinator
+     * Maintains the original API for existing code while using the refactored architecture internally
+     */
     class Evaluator : public ASTVisitor<Value>
     {
     private:
-        std::shared_ptr<Environment> env;
-        std::unique_ptr<ExpressionEvaluator> exprEvaluator;
-        std::unique_ptr<StatementEvaluator> stmtEvaluator;
-        std::unique_ptr<ObjectEvaluator> objEvaluator;
-        
-        std::stack<Value> returnStack;
-        bool hasReturned;
+        std::unique_ptr<EvaluatorCoordinator> coordinator;
         
     public:
         explicit Evaluator(std::shared_ptr<Environment> environment);
@@ -70,33 +64,27 @@ namespace evaluator
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
         
-        // Helper methods
-        std::shared_ptr<Environment> getEnvironment() const { return env; }
-        bool shouldReturn() const { return hasReturned; }
-        void setReturned(bool returned) { hasReturned = returned; }
+        // Compatibility methods - delegate to coordinator
+        std::shared_ptr<Environment> getEnvironment() const;
+        bool shouldReturn() const;
+        void setReturned(bool returned);
         Value getReturnValue();
         void pushReturnValue(const Value& value);
         
-        // Object instance access for field resolution
+        // Object instance access
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
-        // Getter for StatementEvaluator to access helper functions
-        StatementEvaluator* getStatementEvaluator() const;
-        // Getter for ObjectEvaluator to access static method/field functionality
-        ObjectEvaluator* getObjectEvaluator() const;
-
-        //TODO move them to utils?
-        // Helper for truthiness checking (delegates to ExpressionEvaluator)
+        
+        // Type conversion helpers
         bool isTruthy(const Value& value);
-        // Helper for type conversion (delegates to ExpressionEvaluator)  
         std::string toString(const Value& value);
         float toFloat(const Value& value);
         int toInt(const Value& value);
-        // Helpers for cross-evaluator delegation
+        
+        // Cross-evaluator helpers
         Value evaluateObjectMethodCall(MethodCallNode* node);
         Value evaluateObjectCreation(NewNode* node);
         Value evaluateObjectMemberAccess(MemberAccessNode* node);
         Value evaluateObjectMemberAssignment(MemberAssignmentNode* node);
-        // Helper to call method directly on an instance
         Value callMethodOnInstance(std::shared_ptr<ObjectInstance> instance, 
                                    const std::string& methodName, const std::vector<Value>& args);
         

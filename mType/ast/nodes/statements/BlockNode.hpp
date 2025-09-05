@@ -13,23 +13,16 @@ namespace ast::nodes::statements
     public:
         explicit BlockNode(const SourceLocation& loc = SourceLocation())
                    : ASTNode(loc){}
-        explicit BlockNode(std::vector<std::unique_ptr<ASTNode>> stmts, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), statements(std::move(stmts)) {}
+        explicit BlockNode(std::vector<std::unique_ptr<ASTNode>> stmts, const SourceLocation& loc = SourceLocation());
 
-        const std::vector<std::unique_ptr<ASTNode>>& getStatements() const { return statements; }
+        const std::vector<std::unique_ptr<ASTNode>>& getStatements() const;
         
-        void addStatement(std::unique_ptr<ASTNode> statement) {
-            statements.push_back(std::move(statement));
-        }
+        void addStatement(std::unique_ptr<ASTNode> statement);
 
-        void setStatements(std::vector<std::unique_ptr<ASTNode>> stmts) {
-            statements = std::move(stmts);
-        }
+        void setStatements(std::vector<std::unique_ptr<ASTNode>> stmts);
 
-        size_t getStatementCount() const { return statements.size(); }
+        size_t getStatementCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitBlockNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

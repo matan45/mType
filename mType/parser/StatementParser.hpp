@@ -2,20 +2,22 @@
 #include <memory>
 #include <vector>
 #include "../ast/ASTNode.hpp"
-#include "../token/Token.hpp"
+#include "TokenStream.hpp"
+#include "ParseContext.hpp"
 
 namespace parser
 {
-    class Parser;
+    class ParseContext;
     using namespace ast;
     
     class StatementParser
     {
     private:
-        Parser& parser;
+        TokenStream& tokenStream;
+        ParseContext& context;
         
     public:
-        explicit StatementParser(Parser& p) : parser(p) {}
+        explicit StatementParser(TokenStream& stream, ParseContext& ctx) : tokenStream(stream), context(ctx) {}
         
         // Statement parsing methods
         std::unique_ptr<ASTNode> parseStatement();
@@ -36,9 +38,7 @@ namespace parser
         std::unique_ptr<ASTNode> parseNativeFunction();
         
     private:
-        //TODO move to utils
         // Helper methods
-        ValueType parseType();
         std::vector<std::pair<std::string, ValueType>> parseParameterList();
     };
 }

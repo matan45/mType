@@ -22,26 +22,19 @@ namespace ast::nodes::expressions
 
     public:
         explicit UnaryExpNode(TokenType op, std::unique_ptr<ASTNode> operand_, UnaryPosition pos = UnaryPosition::PREFIX,
-                             const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), operator_(op), operand(std::move(operand_)), position(pos) {}
+                             const SourceLocation& loc = SourceLocation());
 
-        TokenType getOperator() const { return operator_; }
-        ASTNode* getOperand() const { return operand.get(); }
-        UnaryPosition getPosition() const { return position; }
+        TokenType getOperator() const;
+        ASTNode* getOperand() const;
+        UnaryPosition getPosition() const;
 
-        void setOperand(std::unique_ptr<ASTNode> operand_) {
-            operand = std::move(operand_);
-        }
+        void setOperand(std::unique_ptr<ASTNode> operand_); 
 
-        void setPosition(UnaryPosition pos) {
-            position = pos;
-        }
+        void setPosition(UnaryPosition pos); 
 
-        bool isPrefix() const { return position == UnaryPosition::PREFIX; }
-        bool isPostfix() const { return position == UnaryPosition::POSTFIX; }
+        bool isPrefix() const;
+        bool isPostfix() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitUnaryOpNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

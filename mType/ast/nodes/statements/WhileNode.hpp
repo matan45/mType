@@ -11,17 +11,14 @@ namespace ast::nodes::statements
         std::unique_ptr<ASTNode> body;
 
     public:
-        explicit WhileNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> bodyStmt, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), condition(std::move(cond)), body(std::move(bodyStmt)) {}
+        explicit WhileNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> bodyStmt, const SourceLocation& loc = SourceLocation());
 
-        ASTNode* getCondition() const { return condition.get(); }
-        ASTNode* getBody() const { return body.get(); }
+        ASTNode* getCondition() const;
+        ASTNode* getBody() const;
 
-        void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
-        void setBody(std::unique_ptr<ASTNode> bodyStmt) { body = std::move(bodyStmt); }
+        void setCondition(std::unique_ptr<ASTNode> cond);
+        void setBody(std::unique_ptr<ASTNode> bodyStmt);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitWhileNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

@@ -12,10 +12,16 @@ namespace runtimeTypes::global
         ValueType type;
         Value value;
         bool isFinalVariable;
+        std::string className; // For object types, stores the expected class name
 
     public:
         explicit VariableDefinition(const std::string& n, ValueType t, const Value& v = {}, bool final = false)
-            : Definition(n), type(t), value(v), isFinalVariable(final)
+            : Definition(n), type(t), value(v), isFinalVariable(final), className("")
+        {
+        }
+        
+        explicit VariableDefinition(const std::string& n, ValueType t, const Value& v, bool final, const std::string& clsName)
+            : Definition(n), type(t), value(v), isFinalVariable(final), className(clsName)
         {
         }
 
@@ -31,6 +37,9 @@ namespace runtimeTypes::global
         bool isFinal() const;
         
         void setIsFinal(bool f);
+        
+        const std::string& getClassName() const;
+        void setClassName(const std::string& clsName);
         
     };
 }

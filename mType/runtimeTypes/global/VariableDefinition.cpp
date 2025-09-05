@@ -36,4 +36,14 @@ namespace runtimeTypes::global
     {
         isFinalVariable = f;
     }
+    
+    const std::string& VariableDefinition::getClassName() const
+    {
+        return className;
+    }
+    
+    void VariableDefinition::setClassName(const std::string& clsName)
+    {
+        className = clsName;
+    }
 }

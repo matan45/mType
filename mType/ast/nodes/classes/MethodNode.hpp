@@ -15,40 +15,42 @@ namespace ast::nodes::classes
         std::string name;
         ValueType returnType;
         std::vector<std::pair<std::string, ValueType>> parameters;
-        std::unique_ptr<ASTNode> body;
+        std::shared_ptr<ASTNode> body;
         bool isStatic;
 
     public:
+        // Constructor accepting shared_ptr
+        explicit MethodNode(const std::string& methodName, ValueType retType,
+                   std::vector<std::pair<std::string, ValueType>> params,
+                   std::shared_ptr<ASTNode> methodBody, bool isStaticMethod = false,
+                   const SourceLocation& loc = SourceLocation());
+        
+        // Constructor accepting unique_ptr for backward compatibility
         explicit MethodNode(const std::string& methodName, ValueType retType,
                    std::vector<std::pair<std::string, ValueType>> params,
                    std::unique_ptr<ASTNode> methodBody, bool isStaticMethod = false,
-                   const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), name(methodName), returnType(retType), parameters(std::move(params)),
-              body(std::move(methodBody)), isStatic(isStaticMethod)
-        {
-        }
+                   const SourceLocation& loc = SourceLocation());
 
-        const std::string& getName() const { return name; }
-        ValueType getReturnType() const { return returnType; }
-        const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
-        ASTNode* getBody() const { return body.get(); }
-        const std::unique_ptr<ASTNode>& getBodyPtr() const { return body; }
-        std::shared_ptr<ASTNode> releaseBody() { 
-            return std::shared_ptr<ASTNode>(body.release()); 
-        }
-        bool getIsStatic() const { return isStatic; }
+        const std::string& getName() const;
+        ValueType getReturnType() const;
+        const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
+        
+        // Safe getter - returns shared_ptr
+        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
+        
+        // For code that just needs to read
+        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
+        
+        bool getIsStatic() const;
 
-        void setName(const std::string& methodName) { name = methodName; }
-        void setReturnType(ValueType retType) { returnType = retType; }
-        void setParameters(std::vector<std::pair<std::string, ValueType>> params) { parameters = std::move(params); }
-        void setBody(std::unique_ptr<ASTNode> methodBody) { body = std::move(methodBody); }
-        void setIsStatic(bool isStaticMethod) { isStatic = isStaticMethod; }
+        void setName(const std::string& methodName);
+        void setReturnType(ValueType retType);
+        void setParameters(std::vector<std::pair<std::string, ValueType>> params);
+        void setBody(std::shared_ptr<ASTNode> methodBody);
+        void setIsStatic(bool isStaticMethod);
 
-        size_t getParameterCount() const { return parameters.size(); }
+        size_t getParameterCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitMethodNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

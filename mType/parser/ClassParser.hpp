@@ -1,18 +1,21 @@
 ﻿#pragma once
 #include <memory>
 #include "../ast/ASTNode.hpp"
+#include "TokenStream.hpp"
+#include "ParseContext.hpp"
 
 namespace parser
 {
-    class Parser;
+    class ParseContext;
     using namespace ast;
     class ClassParser
     {
     private:
-        Parser& parser;
+        TokenStream& tokenStream;
+        ParseContext& context;
         
     public:
-        explicit ClassParser(Parser& p) : parser(p) {}
+        explicit ClassParser(TokenStream& stream, ParseContext& ctx) : tokenStream(stream), context(ctx) {}
         
         // Class parsing methods
         std::unique_ptr<ASTNode> parseClass();

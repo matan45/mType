@@ -49,7 +49,6 @@ namespace environment::manager
     void Scope::declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable)
     {
         variables[varName] = variable;
-        // Namespace context removed
     }
 
     std::shared_ptr<VariableDefinition> Scope::findVariable(const std::string& varName) const

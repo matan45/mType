@@ -94,6 +94,7 @@ namespace services
         astCache.clear();
         importedFiles.clear();
         evaluatedFiles.clear();
+        beingEvaluated.clear();
     }
     
     bool ImportManager::isImported(const std::string& rawPath)
@@ -123,6 +124,36 @@ namespace services
             evaluatedFiles.insert(resolvedPath);
         } catch (...) {
             // Ignore errors when marking as evaluated
+        }
+    }
+    
+    bool ImportManager::isBeingEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            return beingEvaluated.find(resolvedPath) != beingEvaluated.end();
+        } catch (...) {
+            return false;
+        }
+    }
+    
+    void ImportManager::markAsBeingEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            beingEvaluated.insert(resolvedPath);
+        } catch (...) {
+            // Ignore errors
+        }
+    }
+    
+    void ImportManager::unmarkAsBeingEvaluated(const std::string& rawPath)
+    {
+        try {
+            std::string resolvedPath = resolvePathConsistently(rawPath);
+            beingEvaluated.erase(resolvedPath);
+        } catch (...) {
+            // Ignore errors
         }
     }
     

@@ -15,22 +15,18 @@ namespace ast::nodes::statements
     public:
         explicit ForNode(std::unique_ptr<ASTNode> init, std::unique_ptr<ASTNode> cond, 
                 std::unique_ptr<ASTNode> upd, std::unique_ptr<ASTNode> bodyStmt,
-                const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), initialization(std::move(init)), condition(std::move(cond)),
-              update(std::move(upd)), body(std::move(bodyStmt)) {}
+                const SourceLocation& loc = SourceLocation());
 
-        ASTNode* getInitialization() const { return initialization.get(); }
-        ASTNode* getCondition() const { return condition.get(); }
-        ASTNode* getUpdate() const { return update.get(); }
-        ASTNode* getBody() const { return body.get(); }
+        ASTNode* getInitialization() const;
+        ASTNode* getCondition() const;
+        ASTNode* getUpdate() const;
+        ASTNode* getBody() const;
 
-        void setInitialization(std::unique_ptr<ASTNode> init) { initialization = std::move(init); }
-        void setCondition(std::unique_ptr<ASTNode> cond) { condition = std::move(cond); }
-        void setUpdate(std::unique_ptr<ASTNode> upd) { update = std::move(upd); }
-        void setBody(std::unique_ptr<ASTNode> bodyStmt) { body = std::move(bodyStmt); }
+        void setInitialization(std::unique_ptr<ASTNode> init);
+        void setCondition(std::unique_ptr<ASTNode> cond);
+        void setUpdate(std::unique_ptr<ASTNode> upd);
+        void setBody(std::unique_ptr<ASTNode> bodyStmt);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitForNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

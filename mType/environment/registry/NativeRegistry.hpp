@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "../IEnvironmentComponent.hpp"
 #include <functional>
 #include <unordered_map>
 #include <string>
@@ -12,18 +11,18 @@ namespace environment::registry
     
     using NativeFunction = std::function<Value(const std::vector<Value>&)>;
 
-    class NativeRegistry : public IEnvironmentComponent
+    class NativeRegistry
     {
     private:
         std::unordered_map<std::string, NativeFunction> nativeFunctions;
 
     public:
-        NativeRegistry() = default;
-        ~NativeRegistry() override = default;
+        explicit NativeRegistry() = default;
+        ~NativeRegistry() = default;
 
-        void initialize() override;
-        void cleanup() override;
-        std::string getComponentName() const override;
+        void initialize();
+        void cleanup();
+        std::string getComponentName() const;
 
         void registerNativeFunction(const std::string& name, NativeFunction function);
         NativeFunction findNativeFunction(const std::string& name) const;

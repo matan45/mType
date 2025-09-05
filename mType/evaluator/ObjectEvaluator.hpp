@@ -1,28 +1,49 @@
-﻿#pragma once
-#include "../value/ValueType.hpp"
+#pragma once
+#include "base/EvaluationContext.hpp"
+#include "managers/InstanceManager.hpp"
+#include "utils/ValueConverter.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
 
 namespace evaluator
 {
+    using namespace base;
+    using namespace managers;
+    using namespace utils;
     using namespace value;
     using namespace ast::nodes::classes;
     using namespace ast::nodes::statements;
     using namespace runtimeTypes::klass;
-    
-    class Evaluator;
-    
+
+    /**
+     * @brief Refactored Object Evaluator following SOLID principles
+     * - Single Responsibility: Only handles object-oriented features
+     * - Open/Closed: Extensible through composition
+     * - Liskov Substitution: Implements IObjectEvaluator interface
+     * - Interface Segregation: Uses specialized interfaces
+     * - Dependency Inversion: Depends on abstractions
+     */
     class ObjectEvaluator
     {
     private:
-        Evaluator* mainEvaluator;
-        std::shared_ptr<ObjectInstance> currentInstance;
-        
+        std::shared_ptr<EvaluationContext> context;
+        std::unique_ptr<InstanceManager> instanceManager;
+
+        // Forward declarations for circular dependency resolution
+        class ExpressionEvaluator* exprEvaluator;
+        class StatementEvaluator* stmtEvaluator;
+
     public:
-        explicit ObjectEvaluator(Evaluator* evaluator);
+        explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
         ~ObjectEvaluator() = default;
-        
+
+        // IEvaluator interface implementation
+        Value evaluate(ASTNode* node);
+        bool canHandle(ASTNode* node) const;
+
+        // IObjectEvaluator interface implementation
+
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
         Value evaluateMethodNode(MethodNode* node);
@@ -33,27 +54,30 @@ namespace evaluator
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
 
-        // Current instance management (for 'this' keyword)
-        void setCurrentInstance(std::shared_ptr<ObjectInstance> instance);
-        std::shared_ptr<ObjectInstance> getCurrentInstance() const;
-        void clearCurrentInstance();
-        
-        // Static member handling
+        // Static member operations
         Value accessStaticMember(const std::string& className, const std::string& memberName);
         void assignStaticMember(const std::string& className, const std::string& memberName,
-                               const Value& value);
+                                const Value& value);
         Value callStaticMethod(const std::string& className, const std::string& methodName,
-                              const std::vector<Value>& args);
-        
-        // Helper methods
+                               const std::vector<Value>& args);
+
+        // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
-                                                      const std::vector<Value>& constructorArgs);
+                                                       const std::vector<Value>& constructorArgs);
         Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
-        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName, 
-                         const Value& value);
+        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const Value& value);
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                        const std::vector<Value>& args);
-        
-       
+                         const std::vector<Value>& args);
+
+        // Dependency injection for cross-evaluator communication
+        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+        void setStatementEvaluator(StatementEvaluator* evaluator);
+
+    private:
+        // Helper methods
+        bool isObjectNode(ASTNode* node) const;
+        void registerClass(std::shared_ptr<ClassDefinition> classDef);
+        std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
     };
 }

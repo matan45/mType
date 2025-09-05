@@ -11,18 +11,15 @@ namespace ast::nodes::statements
         std::vector<std::unique_ptr<ASTNode>> statements;
 
     public:
-        explicit DefaultCaseNode(const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc) {}
+        explicit DefaultCaseNode(const SourceLocation& loc = SourceLocation());
 
-        const std::vector<std::unique_ptr<ASTNode>>& getStatements() const { return statements; }
+        const std::vector<std::unique_ptr<ASTNode>>& getStatements() const;
         
-        void addStatement(std::unique_ptr<ASTNode> statement) { statements.push_back(std::move(statement)); }
+        void addStatement(std::unique_ptr<ASTNode> statement);
 
-        size_t getStatementCount() const { return statements.size(); }
+        size_t getStatementCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitDefaultCaseNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }
 

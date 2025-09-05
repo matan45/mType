@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "IManager.hpp"
 #include "Scope.hpp"
 #include <stack>
 #include <memory>
@@ -8,7 +7,7 @@
 
 namespace environment::manager
 {
-    class ScopeManager : public IManager
+    class ScopeManager
     {
     private:
         std::shared_ptr<Scope> globalScope;
@@ -16,18 +15,18 @@ namespace environment::manager
         std::stack<std::shared_ptr<Scope>> scopeStack;
 
     public:
-        ScopeManager();
-        ~ScopeManager() override = default;
+       explicit  ScopeManager();
+        ~ScopeManager() = default;
 
-        void enterScope(const std::string& scopeName = "") override;
-        void exitScope() override;
-        std::string getCurrentScopeName() const override;
-        std::vector<std::string> getScopeHierarchy() const override;
-        size_t getScopeDepth() const override;
+        void enterScope(const std::string& scopeName = "");
+        void exitScope();
+        std::string getCurrentScopeName() const;
+        std::vector<std::string> getScopeHierarchy() const;
+        size_t getScopeDepth() const;
         
-        std::string getComponentName() const override;
-        void initialize() override;
-        void cleanup() override;
+        std::string getComponentName() const;
+        void initialize();
+        void cleanup();
         
         void enterScope(const std::string& scopeName, ScopeType scopeType);
         std::shared_ptr<Scope> getCurrentScope() const;
@@ -40,9 +39,7 @@ namespace environment::manager
         bool hasVariableInCurrentScope(const std::string& varName) const;
         
         std::shared_ptr<Scope> findScope(const std::string& scopeName) const;
-        std::vector<std::string> getCurrentNamespacePath() const;
         
-        bool isInNamespace() const;
         bool isInClass() const;
         bool isInFunction() const;
         bool isInLoop() const;

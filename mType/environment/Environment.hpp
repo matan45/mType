@@ -14,7 +14,10 @@
 #include <stack>
 
 // Forward declaration for clean architecture
-namespace services { class ImportManager; }
+namespace services
+{
+    class ImportManager;
+}
 
 namespace environment
 {
@@ -31,13 +34,13 @@ namespace environment
         std::shared_ptr<VariableManager> variableManager;
         std::shared_ptr<ScopeManager> scopeManager;
         std::shared_ptr<NativeRegistry> nativeRegistry;
-        
+
         // Import evaluation tracking
         bool importEvaluationActive;
-        
+
         // Import manager for clean architecture  
         services::ImportManager* importManager;
-        
+
         // Evaluation-level import stack for circular dependency detection
         std::stack<std::string> evaluationImportStack;
 
@@ -49,7 +52,7 @@ namespace environment
             std::shared_ptr<ScopeManager> scopeMgr,
             std::shared_ptr<NativeRegistry> nativeReg
         );
-        
+
         ~Environment() = default;
 
         void initialize();
@@ -60,11 +63,11 @@ namespace environment
         std::shared_ptr<VariableManager> getVariableManager() const;
         std::shared_ptr<ScopeManager> getScopeManager() const;
         std::shared_ptr<NativeRegistry> getNativeRegistry() const;
-        
+
         // Import management
         void setImportManager(services::ImportManager* importManager);
         services::ImportManager* getImportManager() const;
-        
+
         // Evaluation-level circular dependency detection
         bool wouldCauseCircularImport(const std::string& filePath);
         void pushEvaluationImport(const std::string& filePath);
@@ -81,23 +84,19 @@ namespace environment
 
         void enterScope(const std::string& scopeName = "", ScopeType scopeType = ScopeType::BLOCK);
         void exitScope();
-        
+
         std::string getCurrentScopeName() const;
         std::vector<std::string> getScopeHierarchy() const;
         size_t getScopeDepth() const;
-        
-        const std::vector<std::vector<std::string>>& getUsingDirectives() const;
-        
+
         bool isInClass() const;
         bool isInFunction() const;
         bool isInLoop() const;
-        
+
         // Import evaluation context
         bool isEvaluatingImport() const;
         void setImportEvaluation(bool active);
-        
+
         std::string getFunctionScopeName() const;
-        
     };
 }
-

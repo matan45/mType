@@ -65,7 +65,6 @@ void printAvailableTestSuites()
     std::cout << "  import       - Import Test Suite\n";
     std::cout << "  class        - Class Test Suite\n";
     std::cout << "  error        - Error Test Suite\n";
-    std::cout << "  namespace    - Namespace Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";

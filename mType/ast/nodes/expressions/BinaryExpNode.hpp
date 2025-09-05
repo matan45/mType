@@ -16,19 +16,16 @@ namespace ast::nodes::expressions
 
     public:
         explicit BinaryExpNode(std::unique_ptr<ASTNode> leftNode, TokenType op, std::unique_ptr<ASTNode> rightNode, 
-                      const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), left(std::move(leftNode)), right(std::move(rightNode)), operator_(op) {}
+                      const SourceLocation& loc = SourceLocation());
 
-        ASTNode* getLeft() const { return left.get(); }
-        ASTNode* getRight() const { return right.get(); }
-        TokenType getOperator() const { return operator_; }
+        ASTNode* getLeft() const;
+        ASTNode* getRight() const;
+        TokenType getOperator() const;
 
-        void setLeft(std::unique_ptr<ASTNode> leftNode) { left = std::move(leftNode); }
-        void setRight(std::unique_ptr<ASTNode> rightNode) { right = std::move(rightNode); }
-        void setOperator(TokenType op) { operator_ = op; }
+        void setLeft(std::unique_ptr<ASTNode> leftNode);
+        void setRight(std::unique_ptr<ASTNode> rightNode);
+        void setOperator(TokenType op);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitBinaryOpNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override; 
     };
 }

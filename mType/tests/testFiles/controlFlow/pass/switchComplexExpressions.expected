@@ -3,7 +3,7 @@ x / y = 4
 Remainder 2
 Function returned 42
 Complex expression = 14
-Unexpected boolean value
+condition1 is true
 Assignment result = 7
 assignment_test is now: 7
 Ternary result: true case

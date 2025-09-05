@@ -5,24 +5,33 @@ Only default case
 18
 19
 20
+Default in many cases
 First 5
 Duplicate 5 - should this work?
 Ten
+Default for duplicates
 After switch without default
 After empty switch
 Negative five
 Zero
 Positive five
+Default for negative test
 Exactly one million
 Over a million
+Default for large numbers
 base + 15 = 25
 Thirty
+Default for expression cases
 Outer case 1
 Inner case 2
+Inner default
 Outer case 2
+Outer default
 False-like (0)
 True-like (1)
+Neither 0 nor 1
 Case 1 - falling through
 Case 2 - falling through
 Case 3 - falling through
+Default - end of cascade
 All extreme switch tests completed

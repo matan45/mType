@@ -9,14 +9,11 @@ namespace ast::nodes::expressions
         bool value;
 
     public:
-        explicit BoolNode(bool val, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), value(val) {}
+        explicit BoolNode(bool val, const SourceLocation& loc = SourceLocation());
 
-        bool getValue() const { return value; }
-        void setValue(bool val) { value = val; }
+        bool getValue() const;
+        void setValue(bool val);
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitBoolNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

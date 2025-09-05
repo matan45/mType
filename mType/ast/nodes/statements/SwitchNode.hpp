@@ -12,19 +12,16 @@ namespace ast::nodes::statements
         std::vector<std::unique_ptr<ASTNode>> cases; // CaseNode and DefaultCaseNode
 
     public:
-        explicit SwitchNode(std::unique_ptr<ASTNode> expr, const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), expression(std::move(expr)) {}
+        explicit SwitchNode(std::unique_ptr<ASTNode> expr, const SourceLocation& loc = SourceLocation());
 
-        ASTNode* getExpression() const { return expression.get(); }
-        const std::vector<std::unique_ptr<ASTNode>>& getCases() const { return cases; }
+        ASTNode* getExpression() const;
+        const std::vector<std::unique_ptr<ASTNode>>& getCases() const;
 
-        void setExpression(std::unique_ptr<ASTNode> expr) { expression = std::move(expr); }
-        void addCase(std::unique_ptr<ASTNode> caseNode) { cases.push_back(std::move(caseNode)); }
+        void setExpression(std::unique_ptr<ASTNode> expr);
+        void addCase(std::unique_ptr<ASTNode> caseNode);
         
-        size_t getCaseCount() const { return cases.size(); }
+        size_t getCaseCount() const;
 
-        Value accept(ASTVisitor<Value>& visitor) override {
-            return visitor.visitSwitchNode(this);
-        }
+        Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

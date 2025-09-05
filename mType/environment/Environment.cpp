@@ -21,17 +21,12 @@ namespace environment
 
     void Environment::initialize()
     {
-        if (classRegistry) classRegistry->initialize();
-        if (functionRegistry) functionRegistry->initialize();
-        if (variableManager) variableManager->initialize();
         if (scopeManager) scopeManager->initialize();
         if (nativeRegistry) nativeRegistry->initialize();
     }
 
     void Environment::cleanup()
     {
-        if (classRegistry) classRegistry->cleanup();
-        if (functionRegistry) functionRegistry->cleanup();
         if (variableManager) variableManager->cleanup();
         if (scopeManager) scopeManager->cleanup();
         if (nativeRegistry) nativeRegistry->cleanup();
@@ -85,7 +80,7 @@ namespace environment
         {
             scopeManager->declareVariable(varName, variable);
         }
-        
+
         // Register in VariableManager for global scope
         if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
         {
@@ -115,13 +110,13 @@ namespace environment
                 return var;
             }
         }
-        
+
         // Then check global scope variables
         if (variableManager)
         {
             return variableManager->findVariable(name);
         }
-        
+
         return nullptr;
     }
 
@@ -182,12 +177,12 @@ namespace environment
     {
         return scopeManager ? scopeManager->isInLoop() : false;
     }
-    
+
     bool Environment::isEvaluatingImport() const
     {
         return importEvaluationActive;
     }
-    
+
     void Environment::setImportEvaluation(bool active)
     {
         importEvaluationActive = active;
@@ -202,50 +197,55 @@ namespace environment
     {
         importManager = mgr;
     }
-    
+
     services::ImportManager* Environment::getImportManager() const
     {
         return importManager;
     }
-    
+
     bool Environment::wouldCauseCircularImport(const std::string& filePath)
     {
         // Check if this file is already in the evaluation import stack
         std::stack<std::string> tempStack = evaluationImportStack;
-        while (!tempStack.empty()) {
-            if (tempStack.top() == filePath) {
+        while (!tempStack.empty())
+        {
+            if (tempStack.top() == filePath)
+            {
                 return true;
             }
             tempStack.pop();
         }
         return false;
     }
-    
+
     void Environment::pushEvaluationImport(const std::string& filePath)
     {
         evaluationImportStack.push(filePath);
     }
-    
+
     void Environment::popEvaluationImport()
     {
-        if (!evaluationImportStack.empty()) {
+        if (!evaluationImportStack.empty())
+        {
             evaluationImportStack.pop();
         }
     }
-    
+
     std::string Environment::getCircularImportChain(const std::string& filePath)
     {
         std::string chain = filePath;
         std::stack<std::string> tempStack = evaluationImportStack;
-        
-        while (!tempStack.empty()) {
+
+        while (!tempStack.empty())
+        {
             chain = tempStack.top() + " -> " + chain;
-            if (tempStack.top() == filePath) {
+            if (tempStack.top() == filePath)
+            {
                 break; // Found the cycle
             }
             tempStack.pop();
         }
-        
+
         return chain;
     }
 }

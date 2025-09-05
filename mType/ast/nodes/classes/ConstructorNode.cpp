@@ -2,11 +2,21 @@
 
 namespace ast::nodes::classes
 {
+    // Constructor accepting shared_ptr
+    ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
+                                     std::shared_ptr<ASTNode> constructorBody,
+                                     const SourceLocation& loc)
+        : ASTNode(loc), parameters(std::move(params)),
+          body(std::move(constructorBody))
+    {
+    }
+    
+    // Constructor accepting unique_ptr for backward compatibility
     ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
                                      std::unique_ptr<ASTNode> constructorBody,
                                      const SourceLocation& loc)
         : ASTNode(loc), parameters(std::move(params)),
-          body(std::move(constructorBody))
+          body(std::move(constructorBody))  // unique_ptr converts to shared_ptr automatically
     {
     }
 
@@ -15,7 +25,12 @@ namespace ast::nodes::classes
         return parameters;
     }
 
-    ASTNode* ConstructorNode::getBody() const
+    std::shared_ptr<ASTNode> ConstructorNode::getBody() const
+    {
+        return body;
+    }
+    
+    ASTNode* ConstructorNode::getBodyPtr() const noexcept
     {
         return body.get();
     }
@@ -25,7 +40,7 @@ namespace ast::nodes::classes
         parameters = std::move(params);
     }
 
-    void ConstructorNode::setBody(std::unique_ptr<ASTNode> constructorBody)
+    void ConstructorNode::setBody(std::shared_ptr<ASTNode> constructorBody)
     {
         body = std::move(constructorBody);
     }

@@ -13,21 +13,29 @@ namespace ast::nodes::classes
     {
     private:
         std::vector<std::pair<std::string, ValueType>> parameters;
-        std::unique_ptr<ASTNode> body;
+        std::shared_ptr<ASTNode> body;
 
     public:
+        // Constructor accepting shared_ptr
+        explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
+                        std::shared_ptr<ASTNode> constructorBody,
+                        const SourceLocation& loc = SourceLocation());
+        
+        // Constructor accepting unique_ptr for backward compatibility
         explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
                         std::unique_ptr<ASTNode> constructorBody,
                         const SourceLocation& loc = SourceLocation());
 
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
-        ASTNode* getBody() const;
-        std::shared_ptr<ASTNode> releaseBody() { 
-            return std::shared_ptr<ASTNode>(body.release()); 
-        }
+        
+        // Safe getter - returns shared_ptr
+        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
+        
+        // For code that just needs to read
+        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
 
         void setParameters(std::vector<std::pair<std::string, ValueType>> params);
-        void setBody(std::unique_ptr<ASTNode> constructorBody);
+        void setBody(std::shared_ptr<ASTNode> constructorBody);
 
         size_t getParameterCount() const;
 

@@ -2,19 +2,22 @@
 #include <memory>
 #include <vector>
 #include "../ast/ASTNode.hpp"
+#include "TokenStream.hpp"
+#include "ParseContext.hpp"
 
 namespace parser
 {
-    class Parser;
+    class ParseContext;
     using namespace ast;
     
     class ExpressionParser
     {
     private:
-        Parser& parser;
+        TokenStream& tokenStream;
+        ParseContext& context;
         
     public:
-        explicit ExpressionParser(Parser& p) : parser(p) {}
+        explicit ExpressionParser(TokenStream& stream, ParseContext& ctx) : tokenStream(stream), context(ctx) {}
         
         // Expression parsing methods (precedence climbing)
         std::unique_ptr<ASTNode> parseExpression();
@@ -34,7 +37,6 @@ namespace parser
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
         
     private:
-        //TODO move to utils
         // Helper methods
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
     

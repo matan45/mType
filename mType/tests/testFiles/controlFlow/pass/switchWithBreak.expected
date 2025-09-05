@@ -1,6 +1,7 @@
 Case 2
 Matched case 2, continuing
 Fell through to case 3
+Fell through to default
 Case 1 - will fall through
 Fell through from case 1
 Case 3

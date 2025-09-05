@@ -345,6 +345,12 @@ namespace services
             }
 
             std::cout << "[DEBUG] Starting method execution..." << std::endl;
+            
+            // Store current class name for static field access (same as ObjectEvaluator does)
+            auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "__current_class_name__", ValueType::STRING, classDef->getName(), false);
+            environment->declareVariable("__current_class_name__", classNameVar);
+            
             // Execute method body
             Value result = std::monostate{}; // void
             if (method->getBody())
