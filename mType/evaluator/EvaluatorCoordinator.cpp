@@ -283,4 +283,25 @@ namespace evaluator
     {
         return context->getCurrentInstance();
     }
+
+    // Collection visitor methods
+    Value EvaluatorCoordinator::visitArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        return exprEvaluator->evaluateArrayLiteralNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
+    {
+        return exprEvaluator->evaluateMapLiteralNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
+    {
+        return exprEvaluator->evaluateIndexAccessNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitForEachNode(ForEachNode* node)
+    {
+        return stmtEvaluator->evaluateForEachNode(node);
+    }
 }

@@ -4,6 +4,7 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
+#include "../errors/ScriptException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -15,6 +16,9 @@
 #include "../ast/nodes/expressions/FloatNode.hpp"
 #include "../ast/nodes/expressions/StringNode.hpp"
 #include "../ast/nodes/expressions/BoolNode.hpp"
+#include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../ast/nodes/expressions/MapLiteralNode.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
@@ -890,6 +894,25 @@ namespace evaluator
                               " but got " + ValueConverter::valueTypeToString(actualType), 
                               location);
         }
+    }
+
+    // Collection evaluation methods
+    Value ExpressionEvaluator::evaluateArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        // TODO: Implement array literal evaluation
+        throw ScriptException("Array literals not yet implemented", node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateMapLiteralNode(MapLiteralNode* node)
+    {
+        // TODO: Implement map literal evaluation
+        throw ScriptException("Map literals not yet implemented", node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
+    {
+        // TODO: Implement index access evaluation
+        throw ScriptException("Index access not yet implemented", node->getLocation());
     }
 
 }

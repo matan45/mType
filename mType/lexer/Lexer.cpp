@@ -25,7 +25,7 @@ namespace lexer
         {"::", TokenType::SCOPE, 2}
     }};
 
-    const std::array<Lexer::OperatorInfo, 18> Lexer::SINGLE_CHAR_OPERATORS = {{
+    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {{
         {"+", TokenType::PLUS, 1},
         {"-", TokenType::MINUS, 1},
         {"*", TokenType::MULTIPLY, 1},
@@ -36,6 +36,8 @@ namespace lexer
         {")", TokenType::RPAREN, 1},
         {"{", TokenType::LBRACE, 1},
         {"}", TokenType::RBRACE, 1},
+        {"[", TokenType::LBRACKET, 1},
+        {"]", TokenType::RBRACKET, 1},
         {",", TokenType::COMMA, 1},
         {";", TokenType::SEMICOLON, 1},
         {":", TokenType::COLON, 1},

@@ -22,9 +22,11 @@
 #include "../exception/ReturnException.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
+#include "../errors/ScriptException.hpp"
 #include "../errors/EnvironmentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
+#include "../ast/nodes/statements/ForEachNode.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
 
@@ -976,5 +978,11 @@ namespace evaluator
             // Unknown node type - this shouldn't happen in a well-formed AST
             throw TypeException("Unknown node type during import evaluation");
         }
+    }
+
+    Value StatementEvaluator::evaluateForEachNode(ForEachNode* node)
+    {
+        // TODO: Implement for-each loop evaluation
+        throw ScriptException("For-each loops not yet implemented", node->getLocation());
     }
 }

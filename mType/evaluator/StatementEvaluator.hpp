@@ -60,6 +60,7 @@ namespace evaluator
         Value evaluateWhileNode(WhileNode* node);
         Value evaluateDoWhileNode(DoWhileNode* node);
         Value evaluateForNode(ForNode* node);
+        Value evaluateForEachNode(ForEachNode* node);
         Value evaluateBreakNode(BreakNode* node);
         Value evaluateContinueNode(ContinueNode* node);
         Value evaluateSwitchNode(SwitchNode* node);

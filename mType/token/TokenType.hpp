@@ -13,8 +13,9 @@ namespace  token
         ASSIGN, // =
         LPAREN, RPAREN, // ( )
         LBRACE, RBRACE, // { }
+        LBRACKET, RBRACKET, // [ ] (for array literals and indexing)
         COMMA, SEMICOLON, // , ;
-        COLON, // : (for return type)
+        COLON, // : (for return type and for-each)
         QUESTION, // ? (for ternary operator)
         AND, OR, NOT, // &&, ||, !
         EQUALS, NOT_EQUALS, // ==, !=
@@ -30,6 +31,7 @@ namespace  token
         FUNCTION, RETURN, IF, ELSE, WHILE, FOR, // Keywords
         BREAK, CONTINUE, // Loop control keywords
         INT, FLOAT, BOOL, STRING_TYPE, VOID, // Data types
+        ARRAY, LIST, MAP, SET, QUEUE, STACK, // Collection types
         TRUE, FALSE, DO,
         CLASS, // class keyword
         NEW, // new keyword

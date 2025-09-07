@@ -1,0 +1,738 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ast">
+      <UniqueIdentifier>{CD5E880B-3968-887C-C2E3-9E7C2EEC937C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes">
+      <UniqueIdentifier>{7516E18D-E180-9504-2ABF-46AA96687359}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\classes">
+      <UniqueIdentifier>{72C25BF5-DED8-598B-2750-E5AC93A52A13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\expressions">
+      <UniqueIdentifier>{870EF1F6-F37A-ACF1-BC6E-444F289ACE59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\functions">
+      <UniqueIdentifier>{3DC9922A-A92A-7038-3298-B6EA9EF8A6F7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\statements">
+      <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment">
+      <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\manager">
+      <UniqueIdentifier>{8430FB85-F091-D893-79FF-1E46E55F0F53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\registry">
+      <UniqueIdentifier>{E2D8D606-CE67-60D0-7786-74CB63F47076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="errors">
+      <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator">
+      <UniqueIdentifier>{B8C8C7FC-2433-7C73-6D71-2D19D91A5AC8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\base">
+      <UniqueIdentifier>{62E4A349-4EB2-974F-3746-087623B373B4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\managers">
+      <UniqueIdentifier>{B575FFA2-A159-C0F8-0ABA-BA4BF6BCAA7A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\utils">
+      <UniqueIdentifier>{3884827F-A40F-F043-AD20-7338192B4C44}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exception">
+      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lexer">
+      <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser">
+      <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="run">
+      <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes">
+      <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\collections">
+      <UniqueIdentifier>{2CCBD4D1-18F0-2352-413B-09E22DBF2270}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\global">
+      <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\klass">
+      <UniqueIdentifier>{EBBBCA07-D79F-8B5D-4000-86B02C0376DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="services">
+      <UniqueIdentifier>{C98C7E0E-B559-D919-DE72-C7C1CA9E0EA8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{78756B10-E489-93C1-AD0B-372119DF8FF2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\suites">
+      <UniqueIdentifier>{E4C7E415-D02A-74BA-79B0-AC7065F23F3D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFramework">
+      <UniqueIdentifier>{55686F43-C1C9-4C51-4A37-9303B6978310}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="token">
+      <UniqueIdentifier>{46CD7010-B2E1-98C1-7B63-3C21E73695F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value">
+      <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ast\ASTNode.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\ASTVisitor.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\NodeClassesDeclaration.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ConstructorNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\FieldNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MemberAccessNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\NewNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BoolNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\MapLiteralNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\NullNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\StringNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\TernaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\UnaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\VariableNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionCallNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\ReturnNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\AssignmentNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BlockNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BreakNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CaseNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DeclarationNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DefaultCaseNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DoWhileNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForEachNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\IfNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ImportNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\NativeFunctionNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ProgramNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\SwitchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\Environment.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\EnvironmentBuilder.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\Scope.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\ScopeManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\VariableManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ClassRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\FunctionRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\NativeRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\AmbiguousReferenceException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ArgumentException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\EnvironmentException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\FileException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ImportException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\MathException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ParseException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ScriptException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\SourceLocation.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\TypeException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\UndefinedException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\Evaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\EvaluatorCoordinator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\ExpressionEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\ObjectEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\StatementEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\base\EvaluationContext.hpp">
+      <Filter>evaluator\base</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\managers\ControlFlowManager.hpp">
+      <Filter>evaluator\managers</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\managers\InstanceManager.hpp">
+      <Filter>evaluator\managers</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ScopeGuard.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ValueConverter.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\BreakException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\ContinueException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\ReturnException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\BracketBalancer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\Lexer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\SourceLocationTracker.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\TokenFactory.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ClassParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ExpressionParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParseContext.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\Parser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserUtils.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserValidator.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\StatementParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TokenStream.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TypeParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\Definition.hpp">
+      <Filter>runtimeTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Array.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Collection.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\List.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Map.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Queue.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Set.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Stack.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\VariableDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ClassDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ConstructorDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\FieldDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\MethodDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="services\FileReader.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ImportManager.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ScriptInterpreter.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ClassTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ImportTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\IntegrationTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\NativeTest.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestCase.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestRunner.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestSuite.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestTypeEnum.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="token\Token.hpp">
+      <Filter>token</Filter>
+    </ClInclude>
+    <ClInclude Include="token\TokenType.hpp">
+      <Filter>token</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ConstructorNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\FieldNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MemberAccessNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\NewNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BoolNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\MapLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\NullNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\StringNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\TernaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\UnaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\VariableNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionCallNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\ReturnNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\AssignmentNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BlockNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BreakNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CaseNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DeclarationNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DefaultCaseNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DoWhileNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForEachNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\IfNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ImportNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\NativeFunctionNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ProgramNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\SwitchNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\Environment.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\EnvironmentBuilder.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\Scope.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\ScopeManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\VariableManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\FunctionRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\NativeRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\Evaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\EvaluatorCoordinator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\ExpressionEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\ObjectEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\StatementEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\base\EvaluationContext.cpp">
+      <Filter>evaluator\base</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\managers\ControlFlowManager.cpp">
+      <Filter>evaluator\managers</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\managers\InstanceManager.cpp">
+      <Filter>evaluator\managers</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ParameterBinder.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ScopeGuard.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ValueConverter.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\BracketBalancer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\Lexer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\SourceLocationTracker.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\TokenFactory.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ClassParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ExpressionParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParseContext.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\Parser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParserUtils.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParserValidator.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\StatementParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TokenStream.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TypeParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="run\Main.cpp">
+      <Filter>run</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\Definition.cpp">
+      <Filter>runtimeTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\FunctionDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\VariableDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ClassDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ConstructorDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\FieldDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\MethodDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="services\FileReader.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptInterpreter.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ClassTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ImportTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\IntegrationTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\NativeTest.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestCase.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestRunner.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestSuite.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

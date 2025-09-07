@@ -64,6 +64,9 @@ namespace evaluator
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateNewNode(NewNode* node);
         Value evaluateAssignmentExpression(AssignmentNode* node);
+        Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
+        Value evaluateMapLiteralNode(MapLiteralNode* node);
+        Value evaluateIndexAccessNode(IndexAccessNode* node);
 
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
