@@ -681,7 +681,6 @@ namespace evaluator
         // Check if it's a collection - delegate to ObjectEvaluator
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue)) {

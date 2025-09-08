@@ -402,7 +402,6 @@ namespace parser
         TokenType currentType = tokenStream.current().type;
         if (currentType != TokenType::IDENTIFIER && 
             currentType != TokenType::ARRAY && 
-            currentType != TokenType::LIST && 
             currentType != TokenType::MAP && 
             currentType != TokenType::SET && 
             currentType != TokenType::QUEUE && 
@@ -495,7 +494,6 @@ namespace parser
         // Handle type name (could be identifier or built-in type)
         if (tokenStream.current().type == TokenType::IDENTIFIER ||
             tokenStream.current().type == TokenType::ARRAY ||
-            tokenStream.current().type == TokenType::LIST ||
             tokenStream.current().type == TokenType::MAP ||
             tokenStream.current().type == TokenType::SET ||
             tokenStream.current().type == TokenType::QUEUE ||

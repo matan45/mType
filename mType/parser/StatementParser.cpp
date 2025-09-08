@@ -45,7 +45,6 @@ namespace parser
         case TokenType::BOOL:
         case TokenType::STRING_TYPE:
         case TokenType::ARRAY:
-        case TokenType::LIST:
         case TokenType::MAP:
         case TokenType::SET:
         case TokenType::QUEUE:
@@ -307,7 +306,6 @@ namespace parser
                 tokenStream.current().type == TokenType::BOOL ||
                 tokenStream.current().type == TokenType::STRING_TYPE ||
                 tokenStream.current().type == TokenType::ARRAY ||
-                tokenStream.current().type == TokenType::LIST ||
                 tokenStream.current().type == TokenType::MAP ||
                 tokenStream.current().type == TokenType::SET ||
                 tokenStream.current().type == TokenType::QUEUE ||

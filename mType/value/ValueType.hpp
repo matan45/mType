@@ -12,7 +12,6 @@ namespace runtimeTypes::collections
 {
     class Collection;
     class Array;
-    class List; 
     class Map;
     class Set;
     class Queue;
@@ -32,7 +31,6 @@ namespace value
         OBJECT,
         NULL_TYPE,
         ARRAY,
-        LIST,
         MAP,
         SET,
         QUEUE,
@@ -44,7 +42,6 @@ namespace value
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                nullptr_t,
                                std::shared_ptr<runtimeTypes::collections::Array>,
-                               std::shared_ptr<runtimeTypes::collections::List>,
                                std::shared_ptr<runtimeTypes::collections::Map>,
                                std::shared_ptr<runtimeTypes::collections::Set>,
                                std::shared_ptr<runtimeTypes::collections::Queue>,
@@ -69,8 +66,6 @@ namespace value
                 return ValueType::NULL_TYPE;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Array>>) {
                 return ValueType::ARRAY;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::List>>) {
-                return ValueType::LIST;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Map>>) {
                 return ValueType::MAP;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Set>>) {

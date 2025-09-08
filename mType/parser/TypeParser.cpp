@@ -13,7 +13,6 @@ namespace parser
         {TokenType::STRING_TYPE, ValueType::STRING},
         {TokenType::VOID, ValueType::VOID},
         {TokenType::ARRAY, ValueType::ARRAY},
-        {TokenType::LIST, ValueType::LIST},
         {TokenType::MAP, ValueType::MAP},
         {TokenType::SET, ValueType::SET},
         {TokenType::QUEUE, ValueType::QUEUE},
@@ -27,7 +26,6 @@ namespace parser
         {"string", ValueType::STRING},
         {"void", ValueType::VOID},
         {"Array", ValueType::ARRAY},
-        {"List", ValueType::LIST},
         {"Map", ValueType::MAP},
         {"Set", ValueType::SET},
         {"Queue", ValueType::QUEUE},
@@ -62,7 +60,7 @@ namespace parser
             stream.advance();
             
             // Handle generic parameters for collection types
-            if (collectionType == ValueType::ARRAY || collectionType == ValueType::LIST || 
+            if (collectionType == ValueType::ARRAY || 
                 collectionType == ValueType::SET || collectionType == ValueType::QUEUE || 
                 collectionType == ValueType::STACK)
             {
@@ -119,7 +117,7 @@ namespace parser
                 ValueType collectionType = stringIt->second;
                 
                 // Handle generic parameters for collection types
-                if (collectionType == ValueType::ARRAY || collectionType == ValueType::LIST || 
+                if (collectionType == ValueType::ARRAY || 
                     collectionType == ValueType::SET || collectionType == ValueType::QUEUE || 
                     collectionType == ValueType::STACK)
                 {
@@ -251,7 +249,6 @@ namespace parser
             case ValueType::STRING: result = "string"; break;
             case ValueType::VOID: result = "void"; break;
             case ValueType::ARRAY: result = "Array"; break;
-            case ValueType::LIST: result = "List"; break;
             case ValueType::MAP: result = "Map"; break;
             case ValueType::SET: result = "Set"; break;
             case ValueType::QUEUE: result = "Queue"; break;
@@ -263,7 +260,7 @@ namespace parser
         }
         
         // Handle generic parameters
-        if (baseType == ValueType::ARRAY || baseType == ValueType::LIST || 
+        if (baseType == ValueType::ARRAY || 
             baseType == ValueType::SET || baseType == ValueType::QUEUE || 
             baseType == ValueType::STACK) {
             

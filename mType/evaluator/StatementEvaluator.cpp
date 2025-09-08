@@ -28,10 +28,11 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/statements/ForEachNode.hpp"
+#include "../runtimeTypes/collections/Stack.hpp"
+#include "../runtimeTypes/collections/Queue.hpp"
 #include "../runtimeTypes/collections/Collection.hpp"
 #include "../runtimeTypes/collections/Array.hpp"
 #include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/List.hpp"
 #include "../runtimeTypes/collections/Set.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
@@ -998,8 +999,10 @@ namespace evaluator
         // Evaluate the collection to iterate over
         value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
         
-        // Check if it's a collection type
+        // Check if it's a collection type - handle Stack and Queue separately
         std::shared_ptr<runtimeTypes::collections::Collection> collection = nullptr;
+        std::shared_ptr<runtimeTypes::collections::Stack> stack = nullptr;
+        std::shared_ptr<runtimeTypes::collections::Queue> queue = nullptr;
         
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(collectionValue)) {
             collection = std::get<std::shared_ptr<runtimeTypes::collections::Array>>(collectionValue);
@@ -1007,14 +1010,17 @@ namespace evaluator
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(collectionValue)) {
             collection = std::get<std::shared_ptr<runtimeTypes::collections::Map>>(collectionValue);
         }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(collectionValue)) {
-            collection = std::get<std::shared_ptr<runtimeTypes::collections::List>>(collectionValue);
-        }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue)) {
             collection = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue);
         }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(collectionValue)) {
+            stack = std::get<std::shared_ptr<runtimeTypes::collections::Stack>>(collectionValue);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(collectionValue)) {
+            queue = std::get<std::shared_ptr<runtimeTypes::collections::Queue>>(collectionValue);
+        }
         else {
-            throw ScriptException("For-each can only iterate over collections (Array, Map, List, Set)", node->getLocation());
+            throw ScriptException("For-each can only iterate over collections (Array, Map, Set, Stack, Queue)", node->getLocation());
         }
         
         // Create a new scope for the loop variable
@@ -1105,18 +1111,18 @@ namespace evaluator
                 }
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(collectionValue)) {
-            auto list = std::get<std::shared_ptr<runtimeTypes::collections::List>>(collectionValue);
-            list->resetIterator();
-            while (list->hasNext()) {
-                value::Value currentValue = list->getNext();
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue)) {
+            auto set = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue);
+            set->resetIterator();
+            while (set->hasNext()) {
+                value::Value currentValue = set->getNext();
                 
                 // Validate type compatibility
                 value::ValueType actualType = evaluator::utils::ValueConverter::getValueType(currentValue);
                 if (actualType != varType && varType != value::ValueType::OBJECT) {
                     throw TypeException("Type mismatch in for-each loop: expected " + 
                                       evaluator::utils::ValueConverter::valueTypeToString(varType) + 
-                                      " but list contains " + 
+                                      " but set contains " + 
                                       evaluator::utils::ValueConverter::valueTypeToString(actualType));
                 }
                 
@@ -1140,18 +1146,51 @@ namespace evaluator
                 }
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue)) {
-            auto set = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(collectionValue);
-            set->resetIterator();
-            while (set->hasNext()) {
-                value::Value currentValue = set->getNext();
+        else if (stack != nullptr) {
+            stack->resetIterator();
+            while (stack->hasNext()) {
+                value::Value currentValue = stack->getNext();
                 
                 // Validate type compatibility
                 value::ValueType actualType = evaluator::utils::ValueConverter::getValueType(currentValue);
                 if (actualType != varType && varType != value::ValueType::OBJECT) {
                     throw TypeException("Type mismatch in for-each loop: expected " + 
                                       evaluator::utils::ValueConverter::valueTypeToString(varType) + 
-                                      " but set contains " + 
+                                      " but stack contains " + 
+                                      evaluator::utils::ValueConverter::valueTypeToString(actualType));
+                }
+                
+                auto varDef = std::make_shared<VariableDefinition>(
+                    varName, varType, currentValue, false, ""
+                );
+                context->getEnvironment()->declareVariable(varName, varDef);
+                
+                try {
+                    evaluate(node->getBody());
+                }
+                catch (const BreakException&) {
+                    break;
+                }
+                catch (const ContinueException&) {
+                    continue;
+                }
+                
+                if (context->shouldReturn()) {
+                    break;
+                }
+            }
+        }
+        else if (queue != nullptr) {
+            queue->resetIterator();
+            while (queue->hasNext()) {
+                value::Value currentValue = queue->getNext();
+                
+                // Validate type compatibility
+                value::ValueType actualType = evaluator::utils::ValueConverter::getValueType(currentValue);
+                if (actualType != varType && varType != value::ValueType::OBJECT) {
+                    throw TypeException("Type mismatch in for-each loop: expected " + 
+                                      evaluator::utils::ValueConverter::valueTypeToString(varType) + 
+                                      " but queue contains " + 
                                       evaluator::utils::ValueConverter::valueTypeToString(actualType));
                 }
                 

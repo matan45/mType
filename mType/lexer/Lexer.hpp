@@ -57,7 +57,6 @@ namespace lexer
             {"string", TokenType::STRING_TYPE},
             {"void", TokenType::VOID},
             {"Array", TokenType::ARRAY},
-            {"List", TokenType::LIST},
             {"Map", TokenType::MAP},
             {"Set", TokenType::SET},
             {"Queue", TokenType::QUEUE},

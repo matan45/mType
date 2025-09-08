@@ -97,7 +97,7 @@ namespace runtimeTypes::collections
             if (valueType == ValueType::OBJECT && !expectedClassName.empty()) {
                 
                 // Check if we're expecting a collection type and got a collection
-                if (expectedClassName.find("Array<") == 0 || expectedClassName.find("List<") == 0 || 
+                if (expectedClassName.find("Array<") == 0 || 
                     expectedClassName.find("Map<") == 0 || expectedClassName.find("Set<") == 0 ||
                     expectedClassName.find("Queue<") == 0 || expectedClassName.find("Stack<") == 0) {
                     
@@ -106,10 +106,6 @@ namespace runtimeTypes::collections
                     
                     if (expectedClassName.find("Array<") == 0 && 
                         std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(value)) {
-                        validCollection = true;
-                    }
-                    else if (expectedClassName.find("List<") == 0 && 
-                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(value)) {
                         validCollection = true;
                     }
                     else if (expectedClassName.find("Map<") == 0 && 

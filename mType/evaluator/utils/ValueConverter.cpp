@@ -2,7 +2,6 @@
 #include "../../errors/TypeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/collections/Array.hpp"
-#include "../../runtimeTypes/collections/List.hpp"
 #include "../../runtimeTypes/collections/Map.hpp"
 #include "../../runtimeTypes/collections/Set.hpp"
 #include "../../runtimeTypes/collections/Queue.hpp"
@@ -165,9 +164,6 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<Array>>) {
                 return ValueType::ARRAY;
             }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<List>>) {
-                return ValueType::LIST;
-            }
             else if constexpr (std::is_same_v<T, std::shared_ptr<Map>>) {
                 return ValueType::MAP;
             }
@@ -200,7 +196,6 @@ namespace evaluator::utils
             case ValueType::NULL_TYPE: return "null";
             case ValueType::VOID: return "void";
             case ValueType::ARRAY: return "Array";
-            case ValueType::LIST: return "List";
             case ValueType::MAP: return "Map";
             case ValueType::SET: return "Set";
             case ValueType::QUEUE: return "Queue";

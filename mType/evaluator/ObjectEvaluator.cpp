@@ -19,7 +19,6 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/List.hpp"
 #include "../runtimeTypes/collections/Map.hpp"
 #include "../runtimeTypes/collections/Set.hpp"
 #include "../runtimeTypes/collections/Queue.hpp"
@@ -213,7 +212,7 @@ namespace evaluator
                 std::string elementTypeName = className.substr(start, end - start);
                 
                 // Check if element type is a collection (nested generic)
-                if (elementTypeName.find("Array<") == 0 || elementTypeName.find("List<") == 0 || 
+                if (elementTypeName.find("Array<") == 0 || 
                     elementTypeName.find("Map<") == 0 || elementTypeName.find("Set<") == 0 ||
                     elementTypeName.find("Queue<") == 0 || elementTypeName.find("Stack<") == 0)
                 {
@@ -239,22 +238,6 @@ namespace evaluator
                 return std::make_shared<runtimeTypes::collections::Array>(value::ValueType::OBJECT);
             }
         }
-        else if (className.find("List<") == 0)
-        {
-            // Parse the element type from List<ElementType>
-            size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string elementTypeName = className.substr(start, end - start);
-                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                return std::make_shared<runtimeTypes::collections::List>(elementType);
-            }
-            else
-            {
-                return std::make_shared<runtimeTypes::collections::List>(value::ValueType::OBJECT);
-            }
-        }
         else if (className.find("Map<") == 0)
         {
             // Parse the key and value types from Map<KeyType, ValueType>
@@ -277,7 +260,7 @@ namespace evaluator
                     // Check if key type is a collection (nested generic)
                     value::ValueType keyType;
                     std::string keyClassName = "";
-                    if (keyTypeName.find("Array<") == 0 || keyTypeName.find("List<") == 0 || 
+                    if (keyTypeName.find("Array<") == 0 || 
                         keyTypeName.find("Map<") == 0 || keyTypeName.find("Set<") == 0 ||
                         keyTypeName.find("Queue<") == 0 || keyTypeName.find("Stack<") == 0) {
                         keyType = value::ValueType::OBJECT;
@@ -292,7 +275,7 @@ namespace evaluator
                     // Check if value type is a collection (nested generic)
                     value::ValueType valueType;
                     std::string valueClassName = "";
-                    if (valueTypeName.find("Array<") == 0 || valueTypeName.find("List<") == 0 || 
+                    if (valueTypeName.find("Array<") == 0 || 
                         valueTypeName.find("Map<") == 0 || valueTypeName.find("Set<") == 0 ||
                         valueTypeName.find("Queue<") == 0 || valueTypeName.find("Stack<") == 0) {
                         valueType = value::ValueType::OBJECT;
@@ -548,11 +531,6 @@ namespace evaluator
         {
             auto queue = std::get<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue);
             return callQueueMethod(queue, node->getMethodName(), args);
-        }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue))
-        {
-            auto list = std::get<std::shared_ptr<runtimeTypes::collections::List>>(objectValue);
-            return callCollectionMethod(list, node->getMethodName(), args);
         }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue))
         {
@@ -1240,6 +1218,4 @@ namespace evaluator
         std::shared_ptr<runtimeTypes::collections::Array>, const std::string&, const std::vector<Value>&);
     template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Map>(
         std::shared_ptr<runtimeTypes::collections::Map>, const std::string&, const std::vector<Value>&);
-    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::List>(
-        std::shared_ptr<runtimeTypes::collections::List>, const std::string&, const std::vector<Value>&);
 }
