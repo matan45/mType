@@ -66,10 +66,10 @@ namespace runtimeTypes::collections
 
     private:
         void validateType(const Value& value) const {
-            if (getValueType(value) != elementType) {
+            if (value::getValueType(value) != elementType) {
                 throw std::runtime_error("Type mismatch: expected " + 
                     valueTypeToString(elementType) + " but got " + 
-                    valueTypeToString(getValueType(value)));
+                    valueTypeToString(value::getValueType(value)));
             }
         }
         

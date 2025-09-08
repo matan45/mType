@@ -44,6 +44,12 @@ namespace parser
         case TokenType::FLOAT:
         case TokenType::BOOL:
         case TokenType::STRING_TYPE:
+        case TokenType::ARRAY:
+        case TokenType::LIST:
+        case TokenType::MAP:
+        case TokenType::SET:
+        case TokenType::QUEUE:
+        case TokenType::STACK:
             return parseDeclaration();
         case TokenType::FINAL:
         case TokenType::STATIC:
@@ -134,7 +140,10 @@ namespace parser
             tokenStream.advance();
         }
 
-        auto [type, className] = TypeParser::parseTypeWithClassName(tokenStream);
+        // Parse the complete type information using the new parseTypeInfo method
+        parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
+        ValueType type = typeInfo.baseType;
+        std::string className = typeInfo.className;
 
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {

@@ -2,10 +2,17 @@
 
 namespace ast::nodes::statements
 {
+    ForEachNode::ForEachNode(const std::string& varName, const parser::TypeInfo& varTypeInfo, 
+                           std::unique_ptr<ASTNode> collection, std::unique_ptr<ASTNode> body,
+                           const SourceLocation& loc)
+        : ASTNode(loc), variableName(varName), variableTypeInfo(varTypeInfo), 
+          collection(std::move(collection)), body(std::move(body)) {}
+
+    // Legacy constructor for backward compatibility
     ForEachNode::ForEachNode(const std::string& varName, ValueType varType, 
                            std::unique_ptr<ASTNode> collection, std::unique_ptr<ASTNode> body,
                            const SourceLocation& loc)
-        : ASTNode(loc), variableName(varName), variableType(varType), 
+        : ASTNode(loc), variableName(varName), variableTypeInfo(parser::TypeInfo(varType)), 
           collection(std::move(collection)), body(std::move(body)) {}
 
     const std::string& ForEachNode::getVariableName() const
@@ -15,7 +22,12 @@ namespace ast::nodes::statements
 
     ValueType ForEachNode::getVariableType() const
     {
-        return variableType;
+        return variableTypeInfo.baseType;
+    }
+
+    const parser::TypeInfo& ForEachNode::getVariableTypeInfo() const
+    {
+        return variableTypeInfo;
     }
 
     ASTNode* ForEachNode::getCollection() const
@@ -35,7 +47,12 @@ namespace ast::nodes::statements
 
     void ForEachNode::setVariableType(ValueType varType)
     {
-        variableType = varType;
+        variableTypeInfo = parser::TypeInfo(varType);
+    }
+
+    void ForEachNode::setVariableTypeInfo(const parser::TypeInfo& varTypeInfo)
+    {
+        variableTypeInfo = varTypeInfo;
     }
 
     void ForEachNode::setCollection(std::unique_ptr<ASTNode> newCollection)

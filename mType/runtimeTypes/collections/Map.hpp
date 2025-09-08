@@ -12,7 +12,7 @@ namespace runtimeTypes::collections
         std::unordered_map<std::string, Value> elements;  // For simplicity, using string keys only
         ValueType keyType;
         ValueType valueType;
-        mutable std::unordered_map<std::string, Value>::iterator iterator;
+        mutable std::unordered_map<std::string, Value>::const_iterator iterator;
         mutable bool iteratorValid = false;
 
     public:
@@ -75,10 +75,10 @@ namespace runtimeTypes::collections
 
     private:
         void validateValueType(const Value& value) const {
-            if (getValueType(value) != valueType) {
+            if (value::getValueType(value) != valueType) {
                 throw std::runtime_error("Type mismatch: expected " + 
                     valueTypeToString(valueType) + " but got " + 
-                    valueTypeToString(getValueType(value)));
+                    valueTypeToString(value::getValueType(value)));
             }
         }
         

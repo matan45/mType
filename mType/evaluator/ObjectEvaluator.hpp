@@ -70,6 +70,11 @@ namespace evaluator
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args);
 
+        // Collection method operations
+        template<typename CollectionType>
+        Value callCollectionMethod(std::shared_ptr<CollectionType> collection, 
+                                   const std::string& methodName, const std::vector<Value>& args);
+
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
         void setStatementEvaluator(StatementEvaluator* evaluator);

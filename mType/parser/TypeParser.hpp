@@ -6,11 +6,42 @@
 #include <unordered_set>
 #include <string>
 #include <string_view>
+#include <optional>
 
 namespace parser
 {
     using namespace value;
     using namespace token;
+
+    /// @brief Holds complete type information including generic parameters
+    struct TypeInfo
+    {
+        ValueType baseType;
+        std::string className;  // For custom classes
+        std::optional<ValueType> elementType;  // For Array, List, Set, Queue, Stack
+        std::optional<ValueType> keyType;      // For Map
+        std::optional<ValueType> valueType;    // For Map
+        std::optional<std::string> elementClassName;  // For collections of custom objects
+        std::optional<std::string> keyClassName;      // For Map with custom key objects  
+        std::optional<std::string> valueClassName;    // For Map with custom value objects
+
+        // Constructor for simple types
+        TypeInfo(ValueType type) : baseType(type) {}
+        
+        // Constructor for object types
+        TypeInfo(ValueType type, const std::string& className) : baseType(type), className(className) {}
+        
+        // Constructor for single-element collections (Array, List, Set, Queue, Stack)
+        TypeInfo(ValueType baseType, ValueType elementType, const std::string& elementClassName = "")
+            : baseType(baseType), elementType(elementType), elementClassName(elementClassName.empty() ? std::nullopt : std::make_optional(elementClassName)) {}
+        
+        // Constructor for Map
+        TypeInfo(ValueType baseType, ValueType keyType, ValueType valueType, 
+                const std::string& keyClassName = "", const std::string& valueClassName = "")
+            : baseType(baseType), keyType(keyType), valueType(valueType),
+              keyClassName(keyClassName.empty() ? std::nullopt : std::make_optional(keyClassName)),
+              valueClassName(valueClassName.empty() ? std::nullopt : std::make_optional(valueClassName)) {}
+    };
 
     /// @brief Centralized type parsing utility with optimized lookups
     /// Eliminates code duplication across parsers
@@ -23,10 +54,13 @@ namespace parser
         static const std::unordered_set<TokenType> assignmentOperators;
 
     public:
-        /// @brief Parse ValueType from token stream
+        /// @brief Parse ValueType from token stream (legacy method)
         [[nodiscard]] static ValueType parseType(TokenStream& stream);
         
-        /// @brief Parse type with class name for object types
+        /// @brief Parse complete type information including generics
+        [[nodiscard]] static TypeInfo parseTypeInfo(TokenStream& stream);
+        
+        /// @brief Parse type with class name for object types (legacy method)
         [[nodiscard]] static std::pair<ValueType, std::string> parseTypeWithClassName(TokenStream& stream);
         
         /// @brief Check if token is assignment operator

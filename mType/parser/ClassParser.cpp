@@ -398,12 +398,20 @@ namespace parser
     {
         tokenStream.expect(TokenType::NEW);
 
-        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        // Check for valid type names - both identifiers and collection types
+        TokenType currentType = tokenStream.current().type;
+        if (currentType != TokenType::IDENTIFIER && 
+            currentType != TokenType::ARRAY && 
+            currentType != TokenType::LIST && 
+            currentType != TokenType::MAP && 
+            currentType != TokenType::SET && 
+            currentType != TokenType::QUEUE && 
+            currentType != TokenType::STACK)
         {
             throw ParseException("Expected class name after 'new'", tokenStream.current().location);
         }
 
-        // Parse qualified class name (e.g., namespace::ClassName)
+        // Parse qualified class name (e.g., namespace::ClassName or collection type)
         std::vector<std::string> qualifiedParts;
         qualifiedParts.push_back(tokenStream.current().stringValue);
         tokenStream.advance();
@@ -432,6 +440,64 @@ namespace parser
         for (size_t i = 1; i < qualifiedParts.size(); ++i)
         {
             className += "::" + qualifiedParts[i];
+        }
+
+        // Handle generic parameters like Array<int> or Map<string, int>
+        if (tokenStream.check(TokenType::LESS))
+        {
+            className += "<";
+            tokenStream.advance(); // consume '<'
+            
+            // Parse first type parameter
+            if (tokenStream.current().type == TokenType::IDENTIFIER ||
+                tokenStream.current().type == TokenType::ARRAY ||
+                tokenStream.current().type == TokenType::LIST ||
+                tokenStream.current().type == TokenType::MAP ||
+                tokenStream.current().type == TokenType::SET ||
+                tokenStream.current().type == TokenType::QUEUE ||
+                tokenStream.current().type == TokenType::STACK ||
+                tokenStream.current().type == TokenType::INT ||
+                tokenStream.current().type == TokenType::FLOAT ||
+                tokenStream.current().type == TokenType::BOOL ||
+                tokenStream.current().type == TokenType::STRING_TYPE)
+            {
+                className += tokenStream.current().stringValue;
+                tokenStream.advance();
+            }
+            else
+            {
+                throw ParseException("Expected type parameter after '<'", tokenStream.current().location);
+            }
+            
+            // Handle additional type parameters (for Map, etc.)
+            while (tokenStream.check(TokenType::COMMA))
+            {
+                className += ", ";
+                tokenStream.advance(); // consume ','
+                
+                if (tokenStream.current().type == TokenType::IDENTIFIER ||
+                    tokenStream.current().type == TokenType::ARRAY ||
+                    tokenStream.current().type == TokenType::LIST ||
+                    tokenStream.current().type == TokenType::MAP ||
+                    tokenStream.current().type == TokenType::SET ||
+                    tokenStream.current().type == TokenType::QUEUE ||
+                    tokenStream.current().type == TokenType::STACK ||
+                    tokenStream.current().type == TokenType::INT ||
+                    tokenStream.current().type == TokenType::FLOAT ||
+                    tokenStream.current().type == TokenType::BOOL ||
+                    tokenStream.current().type == TokenType::STRING_TYPE)
+                {
+                    className += tokenStream.current().stringValue;
+                    tokenStream.advance();
+                }
+                else
+                {
+                    throw ParseException("Expected type parameter after ','", tokenStream.current().location);
+                }
+            }
+            
+            tokenStream.expect(TokenType::GREATER); // consume '>'
+            className += ">";
         }
 
         tokenStream.expect(TokenType::LPAREN);

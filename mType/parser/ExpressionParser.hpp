@@ -42,6 +42,10 @@ namespace parser
         std::unique_ptr<ASTNode> parseArrayLiteral();
         std::unique_ptr<ASTNode> parseMapLiteral();
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
+        
+        // Type inference helpers
+        ValueType inferArrayElementType();
+        ValueType inferElementTypeFromToken();
     
     };
 }

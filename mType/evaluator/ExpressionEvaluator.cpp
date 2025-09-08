@@ -25,6 +25,8 @@
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
+#include "../runtimeTypes/collections/Array.hpp"
+#include "../runtimeTypes/collections/Map.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include <cmath>
@@ -35,6 +37,7 @@ namespace evaluator
     using namespace runtimeTypes;
     using namespace runtimeTypes::global;
     using namespace runtimeTypes::klass;
+    using namespace runtimeTypes::collections;
 
     ExpressionEvaluator::ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx)
         : context(ctx), stmtEvaluator(nullptr), objEvaluator(nullptr)
@@ -98,6 +101,15 @@ namespace evaluator
                 throw UndefinedException("Object evaluator not available for member assignment", node->getLocation());
             }
         }
+        if (auto arrayLiteralNode = dynamic_cast<ArrayLiteralNode*>(node)) {
+            return evaluateArrayLiteralNode(arrayLiteralNode);
+        }
+        if (auto mapLiteralNode = dynamic_cast<MapLiteralNode*>(node)) {
+            return evaluateMapLiteralNode(mapLiteralNode);
+        }
+        if (auto indexAccessNode = dynamic_cast<IndexAccessNode*>(node)) {
+            return evaluateIndexAccessNode(indexAccessNode);
+        }
         
         return std::monostate{};
     }
@@ -153,7 +165,10 @@ namespace evaluator
                dynamic_cast<MethodCallNode*>(node) ||
                dynamic_cast<MemberAccessNode*>(node) ||
                dynamic_cast<AssignmentNode*>(node) ||
-               dynamic_cast<MemberAssignmentNode*>(node);
+               dynamic_cast<MemberAssignmentNode*>(node) ||
+               dynamic_cast<ArrayLiteralNode*>(node) ||
+               dynamic_cast<MapLiteralNode*>(node) ||
+               dynamic_cast<IndexAccessNode*>(node);
     }
 
     Value ExpressionEvaluator::evaluateIntegerNode(IntegerNode* node)
@@ -663,6 +678,17 @@ namespace evaluator
             throw TypeException("Cannot call method on null object", node->getLocation());
         }
         
+        // Check if it's a collection - delegate to ObjectEvaluator
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue) ||
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue) ||
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue) ||
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue)) {
+            if (!objEvaluator) {
+                throw TypeException("Object evaluator not available for collection method calls");
+            }
+            return objEvaluator->evaluateMethodCallNode(node);
+        }
+        
         // Get object instance
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
             throw TypeException("Cannot call method on non-object value", node->getLocation());
@@ -899,20 +925,89 @@ namespace evaluator
     // Collection evaluation methods
     Value ExpressionEvaluator::evaluateArrayLiteralNode(ArrayLiteralNode* node)
     {
-        // TODO: Implement array literal evaluation
-        throw ScriptException("Array literals not yet implemented", node->getLocation());
+        // Get the element type from the node's type information, or infer from first element
+        auto typeInfo = node->getElementTypeInfo();
+        ValueType elementType = typeInfo.elementType.value_or(ValueType::VOID);
+        
+        // If element type is VOID and we have elements, infer from first element
+        if (elementType == ValueType::VOID && !node->getElements().empty()) {
+            Value firstElement = evaluate(node->getElements()[0].get());
+            elementType = getValueType(firstElement);
+        }
+        
+        // Create the array with the correct element type
+        auto array = std::make_shared<Array>(elementType);
+        
+        // Evaluate and add each element
+        for (const auto& element : node->getElements()) {
+            Value elementValue = evaluate(element.get());
+            
+            // Type checking is handled by Array::add() method
+            array->add(elementValue);
+        }
+        
+        return array;
     }
 
     Value ExpressionEvaluator::evaluateMapLiteralNode(MapLiteralNode* node)
     {
-        // TODO: Implement map literal evaluation
-        throw ScriptException("Map literals not yet implemented", node->getLocation());
+        // Get the key and value types from the node's type information
+        auto typeInfo = node->getMapTypeInfo();
+        ValueType keyType = typeInfo.keyType.value_or(ValueType::STRING);
+        ValueType valueType = typeInfo.valueType.value_or(ValueType::VOID);
+        
+        // Create the map with the correct key and value types
+        auto map = std::make_shared<Map>(keyType, valueType);
+        
+        // Evaluate and add each key-value pair
+        for (const auto& pair : node->getKeyValuePairs()) {
+            Value keyValue = evaluate(pair.first.get());
+            Value value = evaluate(pair.second.get());
+            
+            // Convert key to string (Map currently uses string keys for simplicity)
+            std::string keyStr = toString(keyValue);
+            
+            // Type checking is handled by Map::put() method
+            map->put(keyStr, value);
+        }
+        
+        return map;
     }
 
     Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
     {
-        // TODO: Implement index access evaluation
-        throw ScriptException("Index access not yet implemented", node->getLocation());
+        // Evaluate the collection object
+        Value collectionValue = evaluate(node->getCollection());
+        
+        // Check if it's an array or map
+        if (std::holds_alternative<std::shared_ptr<Array>>(collectionValue)) {
+            auto array = std::get<std::shared_ptr<Array>>(collectionValue);
+            
+            // Evaluate the index
+            Value indexValue = evaluate(node->getIndex());
+            if (!std::holds_alternative<int>(indexValue)) {
+                throw ScriptException("Array index must be an integer", node->getLocation());
+            }
+            
+            int index = std::get<int>(indexValue);
+            if (index < 0) {
+                throw ScriptException("Array index cannot be negative", node->getLocation());
+            }
+            
+            return array->get(static_cast<size_t>(index));
+        }
+        else if (std::holds_alternative<std::shared_ptr<Map>>(collectionValue)) {
+            auto map = std::get<std::shared_ptr<Map>>(collectionValue);
+            
+            // Evaluate the key
+            Value keyValue = evaluate(node->getIndex());
+            std::string keyStr = toString(keyValue);
+            
+            return map->get(keyStr);
+        }
+        else {
+            throw ScriptException("Index access can only be used on arrays or maps", node->getLocation());
+        }
     }
 
 }

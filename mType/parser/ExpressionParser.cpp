@@ -407,16 +407,18 @@ namespace parser
         // Parse array literal: [element1, element2, ...]
         tokenStream.expect(TokenType::LBRACKET);
         
-        // For now, we'll use int as the default element type
-        // TODO: Add type inference or explicit type syntax
-        auto arrayNode = std::make_unique<ArrayLiteralNode>(ValueType::INT);
-        
         // Handle empty array
         if (tokenStream.current().type == TokenType::RBRACKET)
         {
             tokenStream.advance();
+            // For empty arrays, use OBJECT as default - type will be refined by context
+            auto arrayNode = std::make_unique<ArrayLiteralNode>(ValueType::OBJECT);
             return std::move(arrayNode);
         }
+        
+        // Try to infer element type from the first element
+        ValueType inferredType = inferArrayElementType();
+        auto arrayNode = std::make_unique<ArrayLiteralNode>(inferredType);
         
         // Parse elements
         do {
@@ -446,41 +448,82 @@ namespace parser
         // Parse map literal: {"key": value, "key2": value2}
         tokenStream.expect(TokenType::LBRACE);
         
-        // For now, we'll use string keys and int values as default
-        // TODO: Add type inference or explicit type syntax
-        auto mapNode = std::make_unique<MapLiteralNode>(ValueType::STRING, ValueType::INT);
-        
         // Handle empty map
         if (tokenStream.current().type == TokenType::RBRACE)
         {
             tokenStream.advance();
+            // For empty maps, use OBJECT as default - type will be refined by context
+            auto mapNode = std::make_unique<MapLiteralNode>(ValueType::OBJECT, ValueType::OBJECT);
             return std::move(mapNode);
         }
         
-        // Parse key-value pairs
-        do {
+        // Try to infer key and value types from the first pair
+        ValueType keyType = inferArrayElementType(); // reuse the logic
+        
+        // Parse the first key to move to the value
+        auto firstKey = parseExpression();
+        tokenStream.expect(TokenType::COLON);
+        
+        ValueType valueType = inferArrayElementType();
+        auto mapNode = std::make_unique<MapLiteralNode>(keyType, valueType);
+        
+        // Add the first key-value pair
+        auto firstValue = parseExpression();
+        mapNode->addKeyValuePair(std::move(firstKey), std::move(firstValue));
+        
+        // Continue parsing additional key-value pairs if there are any
+        while (tokenStream.current().type == TokenType::COMMA)
+        {
+            tokenStream.advance(); // consume ','
+            
             auto key = parseExpression();
             tokenStream.expect(TokenType::COLON);
             auto value = parseExpression();
             
             mapNode->addKeyValuePair(std::move(key), std::move(value));
-            
-            if (tokenStream.current().type == TokenType::COMMA)
-            {
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::RBRACE)
-            {
-                break;
-            }
-            else
-            {
-                throw ParseException("Expected ',' or '}' in map literal", tokenStream.current().location);
-            }
-        } while (true);
+        }
         
         tokenStream.expect(TokenType::RBRACE);
         return std::move(mapNode);
+    }
+
+    ValueType ExpressionParser::inferArrayElementType()
+    {
+        // Look ahead at the first token to infer the element type
+        TokenType currentType = tokenStream.current().type;
+        
+        switch (currentType)
+        {
+        case TokenType::INT_NUMBER:
+            return ValueType::INT;
+        case TokenType::FLOAT_NUMBER:
+            return ValueType::FLOAT;
+        case TokenType::STRING_LITERAL:
+            return ValueType::STRING;
+        case TokenType::TRUE:
+        case TokenType::FALSE:
+            return ValueType::BOOL;
+        case TokenType::NULL_LITERAL:
+            return ValueType::OBJECT; // null can be any object type
+        case TokenType::NEW:
+            return ValueType::OBJECT; // object construction
+        case TokenType::IDENTIFIER:
+            // Could be a variable reference - assume object for now
+            return ValueType::OBJECT;
+        case TokenType::LBRACKET:
+            return ValueType::ARRAY; // nested array
+        case TokenType::LBRACE:
+            return ValueType::MAP; // nested map
+        default:
+            // Default to OBJECT for complex expressions
+            return ValueType::OBJECT;
+        }
+    }
+
+    ValueType ExpressionParser::inferElementTypeFromToken()
+    {
+        // Helper method to infer type from current token without advancing
+        return inferArrayElementType();
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)

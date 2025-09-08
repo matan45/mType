@@ -18,7 +18,18 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../runtimeTypes/collections/Array.hpp"
+#include "../runtimeTypes/collections/List.hpp"
+#include "../runtimeTypes/collections/Map.hpp"
+#include "../runtimeTypes/collections/Set.hpp"
+#include "../runtimeTypes/collections/Queue.hpp"
+#include "../runtimeTypes/collections/Stack.hpp"
+#include "../parser/TypeParser.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../runtimeTypes/collections/Array.hpp"
+#include "../runtimeTypes/collections/Map.hpp"
+#include "../runtimeTypes/collections/List.hpp"
+#include "../runtimeTypes/collections/Set.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 
@@ -193,6 +204,115 @@ namespace evaluator
             args = evaluateArgumentList(node->getArguments());
         }
 
+        std::string className = node->getClassName();
+        
+        // Handle collection types specially
+        if (className.find("Array<") == 0)
+        {
+            // Parse the element type from Array<ElementType>
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string elementTypeName = className.substr(start, end - start);
+                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                return std::make_shared<runtimeTypes::collections::Array>(elementType);
+            }
+            else
+            {
+                // Fallback to default element type
+                return std::make_shared<runtimeTypes::collections::Array>(value::ValueType::OBJECT);
+            }
+        }
+        else if (className.find("List<") == 0)
+        {
+            // Parse the element type from List<ElementType>
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string elementTypeName = className.substr(start, end - start);
+                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                return std::make_shared<runtimeTypes::collections::List>(elementType);
+            }
+            else
+            {
+                return std::make_shared<runtimeTypes::collections::List>(value::ValueType::OBJECT);
+            }
+        }
+        else if (className.find("Map<") == 0)
+        {
+            // Parse the key and value types from Map<KeyType, ValueType>
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string typeParams = className.substr(start, end - start);
+                size_t commaPos = typeParams.find(',');
+                if (commaPos != std::string::npos)
+                {
+                    std::string keyTypeName = typeParams.substr(0, commaPos);
+                    std::string valueTypeName = typeParams.substr(commaPos + 1);
+                    // Remove leading/trailing spaces
+                    keyTypeName.erase(0, keyTypeName.find_first_not_of(' '));
+                    keyTypeName.erase(keyTypeName.find_last_not_of(' ') + 1);
+                    valueTypeName.erase(0, valueTypeName.find_first_not_of(' '));
+                    valueTypeName.erase(valueTypeName.find_last_not_of(' ') + 1);
+                    
+                    value::ValueType keyType = parser::TypeParser::stringToValueType(keyTypeName);
+                    value::ValueType valueType = parser::TypeParser::stringToValueType(valueTypeName);
+                    return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType);
+                }
+            }
+            return std::make_shared<runtimeTypes::collections::Map>(value::ValueType::STRING, value::ValueType::OBJECT);
+        }
+        else if (className.find("Set<") == 0)
+        {
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string elementTypeName = className.substr(start, end - start);
+                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                return std::make_shared<runtimeTypes::collections::Set>(elementType);
+            }
+            else
+            {
+                return std::make_shared<runtimeTypes::collections::Set>(value::ValueType::OBJECT);
+            }
+        }
+        else if (className.find("Queue<") == 0)
+        {
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string elementTypeName = className.substr(start, end - start);
+                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                return std::make_shared<runtimeTypes::collections::Queue>(elementType);
+            }
+            else
+            {
+                return std::make_shared<runtimeTypes::collections::Queue>(value::ValueType::OBJECT);
+            }
+        }
+        else if (className.find("Stack<") == 0)
+        {
+            size_t start = className.find('<') + 1;
+            size_t end = className.find('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string elementTypeName = className.substr(start, end - start);
+                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                return std::make_shared<runtimeTypes::collections::Stack>(elementType);
+            }
+            else
+            {
+                return std::make_shared<runtimeTypes::collections::Stack>(value::ValueType::OBJECT);
+            }
+        }
+
+        // Handle regular class instantiation
         auto instance = createInstance(node->getClassName(), args);
 
         // Execute constructor if it exists
@@ -360,6 +480,26 @@ namespace evaluator
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return callMethod(instance, node->getMethodName(), args);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue);
+            return callCollectionMethod(array, node->getMethodName(), args);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue))
+        {
+            auto map = std::get<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue);
+            return callCollectionMethod(map, node->getMethodName(), args);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue))
+        {
+            auto list = std::get<std::shared_ptr<runtimeTypes::collections::List>>(objectValue);
+            return callCollectionMethod(list, node->getMethodName(), args);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue))
+        {
+            auto set = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue);
+            return callCollectionMethod(set, node->getMethodName(), args);
         }
         else
         {
@@ -588,4 +728,124 @@ namespace evaluator
         // TODO: Implement constructor definition evaluation
         throw TypeException("Constructor definition evaluation not implemented in refactored version");
     }
+
+    // Collection method implementations
+    template<typename CollectionType>
+    Value ObjectEvaluator::callCollectionMethod(std::shared_ptr<CollectionType> collection,
+                                                 const std::string& methodName,
+                                                 const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(collection->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return collection->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            collection->clear();
+            return std::monostate{};
+        }
+        // Array-specific methods
+        else if (methodName == "get")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
+                if (args.size() != 1)
+                    throw TypeException("get() method takes exactly 1 argument");
+                if (!std::holds_alternative<int>(args[0]))
+                    throw TypeException("Array index must be an integer");
+                int index = std::get<int>(args[0]);
+                if (index < 0)
+                    throw TypeException("Array index cannot be negative");
+                return collection->get(static_cast<size_t>(index));
+            }
+            else if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
+                if (args.size() != 1)
+                    throw TypeException("get() method takes exactly 1 argument");
+                std::string key = exprEvaluator->toString(args[0]);
+                return collection->get(key);
+            }
+            else {
+                throw TypeException("get() method is not available on this collection type");
+            }
+        }
+        else if (methodName == "set")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
+                if (args.size() != 2)
+                    throw TypeException("set() method takes exactly 2 arguments");
+                if (!std::holds_alternative<int>(args[0]))
+                    throw TypeException("Array index must be an integer");
+                int index = std::get<int>(args[0]);
+                if (index < 0)
+                    throw TypeException("Array index cannot be negative");
+                collection->set(static_cast<size_t>(index), args[1]);
+                return std::monostate{};
+            }
+            else {
+                throw TypeException("set() method is only available on Arrays");
+            }
+        }
+        else if (methodName == "add" || methodName == "push")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
+                if (args.size() != 1)
+                    throw TypeException("add() method takes exactly 1 argument");
+                collection->add(args[0]);
+                return std::monostate{};
+            }
+            else {
+                throw TypeException("add() method is only available on Arrays");
+            }
+        }
+        // Map-specific methods
+        else if (methodName == "put")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
+                if (args.size() != 2)
+                    throw TypeException("put() method takes exactly 2 arguments");
+                std::string key = exprEvaluator->toString(args[0]);
+                collection->put(key, args[1]);
+                return std::monostate{};
+            }
+            else {
+                throw TypeException("put() method is only available on Maps");
+            }
+        }
+        else if (methodName == "containsKey")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
+                if (args.size() != 1)
+                    throw TypeException("containsKey() method takes exactly 1 argument");
+                std::string key = exprEvaluator->toString(args[0]);
+                return collection->containsKey(key);
+            }
+            else {
+                throw TypeException("containsKey() method is only available on Maps");
+            }
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for collection type");
+        }
+    }
+
+    // Explicit template instantiations
+    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Array>(
+        std::shared_ptr<runtimeTypes::collections::Array>, const std::string&, const std::vector<Value>&);
+    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Map>(
+        std::shared_ptr<runtimeTypes::collections::Map>, const std::string&, const std::vector<Value>&);
+    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::List>(
+        std::shared_ptr<runtimeTypes::collections::List>, const std::string&, const std::vector<Value>&);
+    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Set>(
+        std::shared_ptr<runtimeTypes::collections::Set>, const std::string&, const std::vector<Value>&);
 }

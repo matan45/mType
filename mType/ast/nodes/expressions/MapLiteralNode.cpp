@@ -2,8 +2,12 @@
 
 namespace ast::nodes::expressions
 {
+    MapLiteralNode::MapLiteralNode(const parser::TypeInfo& mapTypeInfo, const SourceLocation& loc)
+        : ASTNode(loc), mapTypeInfo(mapTypeInfo) {}
+    
+    // Legacy constructor for backward compatibility  
     MapLiteralNode::MapLiteralNode(ValueType keyType, ValueType valueType, const SourceLocation& loc)
-        : ASTNode(loc), keyType(keyType), valueType(valueType) {}
+        : ASTNode(loc), mapTypeInfo(parser::TypeInfo(ValueType::MAP, keyType, valueType)) {}
 
     void MapLiteralNode::addKeyValuePair(std::unique_ptr<ASTNode> key, std::unique_ptr<ASTNode> value)
     {
@@ -17,12 +21,17 @@ namespace ast::nodes::expressions
 
     ValueType MapLiteralNode::getKeyType() const
     {
-        return keyType;
+        return mapTypeInfo.keyType.value_or(ValueType::OBJECT);
     }
 
     ValueType MapLiteralNode::getValueType() const
     {
-        return valueType;
+        return mapTypeInfo.valueType.value_or(ValueType::OBJECT);
+    }
+
+    const parser::TypeInfo& MapLiteralNode::getMapTypeInfo() const
+    {
+        return mapTypeInfo;
     }
 
     size_t MapLiteralNode::getPairCount() const
