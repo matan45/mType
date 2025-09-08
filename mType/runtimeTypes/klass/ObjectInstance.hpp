@@ -31,5 +31,8 @@ namespace runtimeTypes::klass
         // Call method on this instance
         Value callMethod(const std::string& methodName,
                          const std::vector<Value>& args);
+        
+        // Generate content-based hash for Set/Map operations
+        std::string getContentHash() const;
     };
 }

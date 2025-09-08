@@ -126,8 +126,8 @@ namespace runtimeTypes::collections
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>) {
                     return v;
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    // Use object memory address as unique identifier
-                    return "obj_" + std::to_string(reinterpret_cast<uintptr_t>(v.get()));
+                    // Use object content-based hash for uniqueness
+                    return v ? v->getContentHash() : "null_obj";
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Array>>) {
                     return "array_" + std::to_string(reinterpret_cast<uintptr_t>(v.get()));
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Map>>) {
