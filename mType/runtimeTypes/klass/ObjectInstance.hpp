@@ -34,5 +34,8 @@ namespace runtimeTypes::klass
         
         // Generate content-based hash for Set/Map operations
         std::string getContentHash() const;
+        
+        // Content-based equality comparison for collections
+        bool contentEquals(const ObjectInstance& other) const;
     };
 }

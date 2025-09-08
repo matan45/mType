@@ -70,9 +70,29 @@ namespace runtimeTypes::collections
             validateType(value);
             std::string identifier = convertToString(value);
             
-            // Check if already exists
+            // Phase 1: Check hash-based uniqueness
             if (stringElements.find(identifier) != stringElements.end()) {
-                return false;  // Already exists
+                // Phase 2: For objects with hash collision, perform explicit equality check
+                if (elementType == ValueType::OBJECT) {
+                    auto storedValue = objectStorage.find(identifier);
+                    if (storedValue != objectStorage.end()) {
+                        // Extract object pointers for comparison
+                        auto newObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&value);
+                        auto storedObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&storedValue->second);
+                        
+                        if (newObj && storedObj && *newObj && *storedObj) {
+                            // Explicit content equality check
+                            if ((*newObj)->contentEquals(**storedObj)) {
+                                return false;  // Truly equal - don't add
+                            }
+                            // Hash collision but different content - need to handle this case
+                            // For now, we'll consider hash collisions as duplicates to maintain uniqueness
+                            // In a more sophisticated implementation, we'd use chaining or probing
+                            return false;
+                        }
+                    }
+                }
+                return false;  // Already exists for primitive types
             }
             
             // Add to string set for uniqueness tracking
@@ -90,15 +110,58 @@ namespace runtimeTypes::collections
         }
         
         bool contains(const Value& value) const {
-            std::string strValue = convertToString(value);
-            return stringElements.find(strValue) != stringElements.end();
+            std::string identifier = convertToString(value);
+            
+            // Phase 1: Check hash-based existence
+            if (stringElements.find(identifier) == stringElements.end()) {
+                return false;  // Not found by hash
+            }
+            
+            // Phase 2: For objects, perform explicit equality check
+            if (elementType == ValueType::OBJECT) {
+                auto storedValue = objectStorage.find(identifier);
+                if (storedValue != objectStorage.end()) {
+                    // Extract object pointers for comparison
+                    auto queryObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&value);
+                    auto storedObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&storedValue->second);
+                    
+                    if (queryObj && storedObj && *queryObj && *storedObj) {
+                        // Explicit content equality check
+                        return (*queryObj)->contentEquals(**storedObj);
+                    }
+                }
+            }
+            
+            return true;  // Found for primitive types or when explicit comparison not applicable
         }
         
         bool remove(const Value& value) {
             std::string identifier = convertToString(value);
-            bool removed = stringElements.erase(identifier) > 0;
             
-            // Also remove from object storage if it exists
+            // Phase 1: Check if hash exists
+            if (stringElements.find(identifier) == stringElements.end()) {
+                return false;  // Not found by hash
+            }
+            
+            // Phase 2: For objects, verify equality before removal
+            if (elementType == ValueType::OBJECT) {
+                auto storedValue = objectStorage.find(identifier);
+                if (storedValue != objectStorage.end()) {
+                    // Extract object pointers for comparison
+                    auto queryObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&value);
+                    auto storedObj = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&storedValue->second);
+                    
+                    if (queryObj && storedObj && *queryObj && *storedObj) {
+                        // Only remove if content actually matches
+                        if (!(*queryObj)->contentEquals(**storedObj)) {
+                            return false;  // Hash collision but different content
+                        }
+                    }
+                }
+            }
+            
+            // Remove from both storage systems
+            bool removed = stringElements.erase(identifier) > 0;
             if (removed) {
                 objectStorage.erase(identifier);
             }

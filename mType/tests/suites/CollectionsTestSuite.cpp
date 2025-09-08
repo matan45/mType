@@ -33,6 +33,8 @@ namespace tests::testSuite
                         passPath + "setObjects.mt");
         addOutputVerificationTest("Set Iteration",
                         passPath + "setIteration.mt");
+        addOutputVerificationTest("Two-Phase Comparison",
+                        passPath + "twoPhaseComparison.mt");
 
         // Stack tests
         addOutputVerificationTest("Basic Stack Operations",
