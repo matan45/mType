@@ -26,10 +26,6 @@
 #include "../runtimeTypes/collections/Stack.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/List.hpp"
-#include "../runtimeTypes/collections/Set.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 
@@ -543,6 +539,16 @@ namespace evaluator
             auto map = std::get<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue);
             return callMapMethod(map, node->getMethodName(), args);
         }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue))
+        {
+            auto stack = std::get<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue);
+            return callStackMethod(stack, node->getMethodName(), args);
+        }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue))
+        {
+            auto queue = std::get<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue);
+            return callQueueMethod(queue, node->getMethodName(), args);
+        }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue))
         {
             auto list = std::get<std::shared_ptr<runtimeTypes::collections::List>>(objectValue);
@@ -551,7 +557,7 @@ namespace evaluator
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue))
         {
             auto set = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue);
-            return callCollectionMethod(set, node->getMethodName(), args);
+            return callSetMethod(set, node->getMethodName(), args);
         }
         else
         {
@@ -1075,6 +1081,160 @@ namespace evaluator
         }
     }
 
+    // Specialized Set method operations
+    Value ObjectEvaluator::callSetMethod(std::shared_ptr<runtimeTypes::collections::Set> set,
+                                        const std::string& methodName,
+                                        const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(set->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return set->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            set->clear();
+            return std::monostate{};
+        }
+        // Set-specific methods
+        else if (methodName == "add")
+        {
+            if (args.size() != 1)
+                throw TypeException("add() method takes exactly 1 argument");
+            bool added = set->add(args[0]);
+            return added;
+        }
+        else if (methodName == "contains")
+        {
+            if (args.size() != 1)
+                throw TypeException("contains() method takes exactly 1 argument");
+            return set->contains(args[0]);
+        }
+        else if (methodName == "remove")
+        {
+            if (args.size() != 1)
+                throw TypeException("remove() method takes exactly 1 argument");
+            bool removed = set->remove(args[0]);
+            return removed;
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for Set type");
+        }
+    }
+
+    // Specialized Stack method operations
+    Value ObjectEvaluator::callStackMethod(std::shared_ptr<runtimeTypes::collections::Stack> stack,
+                                          const std::string& methodName,
+                                          const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(stack->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return stack->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            stack->clear();
+            return std::monostate{};
+        }
+        // Stack-specific methods
+        else if (methodName == "push")
+        {
+            if (args.size() != 1)
+                throw TypeException("push() method takes exactly 1 argument");
+            stack->push(args[0]);
+            return std::monostate{};
+        }
+        else if (methodName == "pop")
+        {
+            if (!args.empty())
+                throw TypeException("pop() method takes no arguments");
+            return stack->pop();
+        }
+        else if (methodName == "top")
+        {
+            if (!args.empty())
+                throw TypeException("top() method takes no arguments");
+            return stack->top();
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for Stack type");
+        }
+    }
+
+    // Specialized Queue method operations
+    Value ObjectEvaluator::callQueueMethod(std::shared_ptr<runtimeTypes::collections::Queue> queue,
+                                          const std::string& methodName,
+                                          const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(queue->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return queue->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            queue->clear();
+            return std::monostate{};
+        }
+        // Queue-specific methods
+        else if (methodName == "enqueue")
+        {
+            if (args.size() != 1)
+                throw TypeException("enqueue() method takes exactly 1 argument");
+            queue->enqueue(args[0]);
+            return std::monostate{};
+        }
+        else if (methodName == "dequeue")
+        {
+            if (!args.empty())
+                throw TypeException("dequeue() method takes no arguments");
+            return queue->dequeue();
+        }
+        else if (methodName == "front")
+        {
+            if (!args.empty())
+                throw TypeException("front() method takes no arguments");
+            return queue->front();
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for Queue type");
+        }
+    }
+
     // Explicit template instantiations
     template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Array>(
         std::shared_ptr<runtimeTypes::collections::Array>, const std::string&, const std::vector<Value>&);
@@ -1082,6 +1242,4 @@ namespace evaluator
         std::shared_ptr<runtimeTypes::collections::Map>, const std::string&, const std::vector<Value>&);
     template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::List>(
         std::shared_ptr<runtimeTypes::collections::List>, const std::string&, const std::vector<Value>&);
-    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Set>(
-        std::shared_ptr<runtimeTypes::collections::Set>, const std::string&, const std::vector<Value>&);
 }

@@ -682,7 +682,9 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue) ||
             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue)) {
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue) ||
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue) ||
+            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue)) {
             if (!objEvaluator) {
                 throw TypeException("Object evaluator not available for collection method calls");
             }

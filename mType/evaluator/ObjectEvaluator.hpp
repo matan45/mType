@@ -10,6 +10,9 @@
 namespace runtimeTypes::collections {
     class Array;
     class Map;
+    class Set;
+    class Stack;
+    class Queue;
 }
 
 namespace evaluator
@@ -86,6 +89,12 @@ namespace evaluator
                              const std::string& methodName, const std::vector<Value>& args);
         Value callMapMethod(std::shared_ptr<runtimeTypes::collections::Map> map, 
                            const std::string& methodName, const std::vector<Value>& args);
+        Value callSetMethod(std::shared_ptr<runtimeTypes::collections::Set> set, 
+                           const std::string& methodName, const std::vector<Value>& args);
+        Value callStackMethod(std::shared_ptr<runtimeTypes::collections::Stack> stack, 
+                             const std::string& methodName, const std::vector<Value>& args);
+        Value callQueueMethod(std::shared_ptr<runtimeTypes::collections::Queue> queue, 
+                             const std::string& methodName, const std::vector<Value>& args);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
