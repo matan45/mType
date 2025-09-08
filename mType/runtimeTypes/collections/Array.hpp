@@ -66,9 +66,6 @@ namespace runtimeTypes::collections
             }
             elements.erase(elements.begin() + index);
         }
-        
-        // Index operator for bracket access
-        Value operator[](size_t index) const { return get(index); }
 
     private:
         void validateType(const Value& value) const {
