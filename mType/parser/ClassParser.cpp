@@ -442,62 +442,19 @@ namespace parser
             className += "::" + qualifiedParts[i];
         }
 
-        // Handle generic parameters like Array<int> or Map<string, int>
+        // Handle generic parameters using recursive parsing for nested types
         if (tokenStream.check(TokenType::LESS))
         {
-            className += "<";
+            std::string genericsString = "<";
             tokenStream.advance(); // consume '<'
             
-            // Parse first type parameter
-            if (tokenStream.current().type == TokenType::IDENTIFIER ||
-                tokenStream.current().type == TokenType::ARRAY ||
-                tokenStream.current().type == TokenType::LIST ||
-                tokenStream.current().type == TokenType::MAP ||
-                tokenStream.current().type == TokenType::SET ||
-                tokenStream.current().type == TokenType::QUEUE ||
-                tokenStream.current().type == TokenType::STACK ||
-                tokenStream.current().type == TokenType::INT ||
-                tokenStream.current().type == TokenType::FLOAT ||
-                tokenStream.current().type == TokenType::BOOL ||
-                tokenStream.current().type == TokenType::STRING_TYPE)
-            {
-                className += tokenStream.current().stringValue;
-                tokenStream.advance();
-            }
-            else
-            {
-                throw ParseException("Expected type parameter after '<'", tokenStream.current().location);
-            }
-            
-            // Handle additional type parameters (for Map, etc.)
-            while (tokenStream.check(TokenType::COMMA))
-            {
-                className += ", ";
-                tokenStream.advance(); // consume ','
-                
-                if (tokenStream.current().type == TokenType::IDENTIFIER ||
-                    tokenStream.current().type == TokenType::ARRAY ||
-                    tokenStream.current().type == TokenType::LIST ||
-                    tokenStream.current().type == TokenType::MAP ||
-                    tokenStream.current().type == TokenType::SET ||
-                    tokenStream.current().type == TokenType::QUEUE ||
-                    tokenStream.current().type == TokenType::STACK ||
-                    tokenStream.current().type == TokenType::INT ||
-                    tokenStream.current().type == TokenType::FLOAT ||
-                    tokenStream.current().type == TokenType::BOOL ||
-                    tokenStream.current().type == TokenType::STRING_TYPE)
-                {
-                    className += tokenStream.current().stringValue;
-                    tokenStream.advance();
-                }
-                else
-                {
-                    throw ParseException("Expected type parameter after ','", tokenStream.current().location);
-                }
-            }
+            // Use recursive approach to parse generic parameters
+            genericsString += parseGenericParameters();
             
             tokenStream.expect(TokenType::GREATER); // consume '>'
-            className += ">";
+            genericsString += ">";
+            
+            className += genericsString;
         }
 
         tokenStream.expect(TokenType::LPAREN);
@@ -513,6 +470,60 @@ namespace parser
         tokenStream.expect(TokenType::RPAREN);
 
         return std::make_unique<NewNode>(className, std::move(arguments));
+    }
+
+    std::string ClassParser::parseGenericParameters()
+    {
+        std::string result;
+        
+        // Parse first parameter
+        result += parseGenericParameter();
+        
+        // Parse additional parameters separated by commas
+        while (tokenStream.check(TokenType::COMMA))
+        {
+            result += ", ";
+            tokenStream.advance(); // consume ','
+            result += parseGenericParameter();
+        }
+        
+        return result;
+    }
+    
+    std::string ClassParser::parseGenericParameter()
+    {
+        // Handle type name (could be identifier or built-in type)
+        if (tokenStream.current().type == TokenType::IDENTIFIER ||
+            tokenStream.current().type == TokenType::ARRAY ||
+            tokenStream.current().type == TokenType::LIST ||
+            tokenStream.current().type == TokenType::MAP ||
+            tokenStream.current().type == TokenType::SET ||
+            tokenStream.current().type == TokenType::QUEUE ||
+            tokenStream.current().type == TokenType::STACK ||
+            tokenStream.current().type == TokenType::INT ||
+            tokenStream.current().type == TokenType::FLOAT ||
+            tokenStream.current().type == TokenType::BOOL ||
+            tokenStream.current().type == TokenType::STRING_TYPE)
+        {
+            std::string paramType = tokenStream.current().stringValue;
+            tokenStream.advance();
+            
+            // Check for nested generics (e.g., Array<int> inside Array<Array<int>>)
+            if (tokenStream.check(TokenType::LESS))
+            {
+                paramType += "<";
+                tokenStream.advance(); // consume '<'
+                paramType += parseGenericParameters(); // Recursive call
+                tokenStream.expect(TokenType::GREATER); // consume '>'
+                paramType += ">";
+            }
+            
+            return paramType;
+        }
+        else
+        {
+            throw ParseException("Expected type parameter", tokenStream.current().location);
+        }
     }
 
 }

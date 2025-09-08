@@ -311,10 +311,11 @@ namespace parser
                 tokenStream.current().type == TokenType::MAP ||
                 tokenStream.current().type == TokenType::SET ||
                 tokenStream.current().type == TokenType::QUEUE ||
-                tokenStream.current().type == TokenType::STACK)
+                tokenStream.current().type == TokenType::STACK ||
+                tokenStream.current().type == TokenType::IDENTIFIER)
             {
                 // Parse declaration inline - could be regular for loop or for-each
-                ValueType type = TypeParser::parseType(tokenStream);
+                parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
                 
                 if (tokenStream.current().type != TokenType::IDENTIFIER)
                 {
@@ -336,7 +337,7 @@ namespace parser
                     
                     auto body = parseStatement();
                     
-                    return std::make_unique<ForEachNode>(varName, type, 
+                    return std::make_unique<ForEachNode>(varName, typeInfo, 
                                                        std::move(collection), std::move(body), location);
                 }
                 else
@@ -348,7 +349,7 @@ namespace parser
                         value = context.parseExpression();
                     }
                     
-                    init = std::make_unique<AssignmentNode>(varName, std::move(value), type, "", false, false);
+                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false);
                 }
             }
             else
@@ -386,7 +387,7 @@ namespace parser
         // Parse for-each syntax: for (type variable : collection) body
         // We should be positioned at the start of the type (after the opening parenthesis)
         
-        ValueType variableType = TypeParser::parseType(tokenStream);
+        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
         
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -408,7 +409,7 @@ namespace parser
         
         auto body = parseStatement();
         
-        return std::make_unique<ForEachNode>(variableName, variableType, 
+        return std::make_unique<ForEachNode>(variableName, variableTypeInfo, 
                                            std::move(collection), std::move(body), location);
     }
 
@@ -418,7 +419,7 @@ namespace parser
         // Returns nullptr if this is not a for-each loop
         
         // Save the current position conceptually (we'll track manually)
-        ValueType variableType = TypeParser::parseType(tokenStream);
+        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
         
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -447,7 +448,7 @@ namespace parser
         
         auto body = parseStatement();
         
-        return std::make_unique<ForEachNode>(variableName, variableType, 
+        return std::make_unique<ForEachNode>(variableName, variableTypeInfo, 
                                            std::move(collection), std::move(body), location);
     }
 

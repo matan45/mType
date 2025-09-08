@@ -85,8 +85,8 @@ namespace runtimeTypes::collections
                 }
                 
                 // Reverse to get bottom-to-top order for iteration
-                for (int i = tempVec.size() - 1; i >= 0; --i) {
-                    iteratorCopy.push_back(tempVec[i]);
+                for (size_t i = tempVec.size(); i > 0; --i) {
+                    iteratorCopy.push_back(tempVec[i - 1]);
                 }
                 
                 iteratorPrepared = true;

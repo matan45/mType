@@ -211,12 +211,31 @@ namespace evaluator
         {
             // Parse the element type from Array<ElementType>
             size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
+            size_t end = className.rfind('>'); // Use rfind to get the last '>' to handle nested generics
             if (start != std::string::npos && end != std::string::npos && end > start)
             {
                 std::string elementTypeName = className.substr(start, end - start);
-                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                return std::make_shared<runtimeTypes::collections::Array>(elementType);
+                
+                // Check if element type is a collection (nested generic)
+                if (elementTypeName.find("Array<") == 0 || elementTypeName.find("List<") == 0 || 
+                    elementTypeName.find("Map<") == 0 || elementTypeName.find("Set<") == 0 ||
+                    elementTypeName.find("Queue<") == 0 || elementTypeName.find("Stack<") == 0)
+                {
+                    // For nested collections, use OBJECT type and store the full type name
+                    return std::make_shared<runtimeTypes::collections::Array>(value::ValueType::OBJECT, elementTypeName);
+                }
+                else
+                {
+                    // For simple types, use the existing logic
+                    value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
+                    
+                    // If elementType is OBJECT, it means it's a class name - store the class name for validation
+                    if (elementType == value::ValueType::OBJECT) {
+                        return std::make_shared<runtimeTypes::collections::Array>(elementType, elementTypeName);
+                    } else {
+                        return std::make_shared<runtimeTypes::collections::Array>(elementType);
+                    }
+                }
             }
             else
             {
@@ -261,7 +280,13 @@ namespace evaluator
                     
                     value::ValueType keyType = parser::TypeParser::stringToValueType(keyTypeName);
                     value::ValueType valueType = parser::TypeParser::stringToValueType(valueTypeName);
-                    return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType);
+                    
+                    // If valueType is OBJECT, it means it's a class name - store the class name for validation
+                    if (valueType == value::ValueType::OBJECT) {
+                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType, valueTypeName);
+                    } else {
+                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType);
+                    }
                 }
             }
             return std::make_shared<runtimeTypes::collections::Map>(value::ValueType::STRING, value::ValueType::OBJECT);
@@ -831,6 +856,17 @@ namespace evaluator
             }
             else {
                 throw TypeException("containsKey() method is only available on Maps");
+            }
+        }
+        else if (methodName == "keySet")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
+                if (!args.empty())
+                    throw TypeException("keySet() method takes no arguments");
+                return collection->keySet();
+            }
+            else {
+                throw TypeException("keySet() method is only available on Maps");
             }
         }
         else

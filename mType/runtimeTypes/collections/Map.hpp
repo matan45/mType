@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Collection.hpp"
+#include "Array.hpp"
+#include "../klass/ObjectInstance.hpp"
 #include <unordered_map>
 #include <stdexcept>
 
@@ -12,11 +14,16 @@ namespace runtimeTypes::collections
         std::unordered_map<std::string, Value> elements;  // For simplicity, using string keys only
         ValueType keyType;
         ValueType valueType;
+        std::string expectedClassName;  // Store expected class name for object types
         mutable std::unordered_map<std::string, Value>::const_iterator iterator;
         mutable bool iteratorValid = false;
 
     public:
-        Map(ValueType keyType, ValueType valType) : keyType(keyType), valueType(valType) {}
+        Map(ValueType keyType, ValueType valType) : keyType(keyType), valueType(valType), expectedClassName("") {}
+        
+        // Constructor for specific class types
+        Map(ValueType keyType, ValueType valType, const std::string& className) 
+            : keyType(keyType), valueType(valType), expectedClassName(className) {}
         
         // Collection interface implementation
         size_t size() const override { return elements.size(); }
@@ -70,15 +77,39 @@ namespace runtimeTypes::collections
             elements.erase(key);
         }
         
+        // Get all keys as an Array
+        std::shared_ptr<Array> keySet() const {
+            auto keyArray = std::make_shared<Array>(ValueType::STRING);
+            for (const auto& pair : elements) {
+                keyArray->add(Value(pair.first));
+            }
+            return keyArray;
+        }
+        
         ValueType getKeyType() const { return keyType; }
         ValueType getValueType() const { return valueType; }
 
     private:
         void validateValueType(const Value& value) const {
-            if (value::getValueType(value) != valueType) {
+            ValueType actualType = value::getValueType(value);
+            
+            // Basic type check
+            if (actualType != valueType) {
                 throw std::runtime_error("Type mismatch: expected " + 
                     valueTypeToString(valueType) + " but got " + 
-                    valueTypeToString(value::getValueType(value)));
+                    valueTypeToString(actualType));
+            }
+            
+            // Additional validation for object types with specific class names
+            if (valueType == ValueType::OBJECT && !expectedClassName.empty()) {
+                if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
+                    auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
+                    if (objectInstance && !objectInstance->isInstanceOf(expectedClassName)) {
+                        throw std::runtime_error("Object type mismatch: expected instance of '" + 
+                            expectedClassName + "' but got instance of '" + 
+                            objectInstance->getTypeName() + "'");
+                    }
+                }
             }
         }
         

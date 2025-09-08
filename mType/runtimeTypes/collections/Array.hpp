@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Collection.hpp"
+#include "../klass/ObjectInstance.hpp"
 #include <vector>
 #include <stdexcept>
 
@@ -11,10 +12,15 @@ namespace runtimeTypes::collections
     private:
         std::vector<Value> elements;
         ValueType elementType;
+        std::string expectedClassName;  // Store expected class name for object types
         mutable size_t iteratorIndex = 0;
 
     public:
-        explicit Array(ValueType elemType) : elementType(elemType) {}
+        explicit Array(ValueType elemType) : elementType(elemType), expectedClassName("") {}
+        
+        // Constructor for specific class types
+        Array(ValueType elemType, const std::string& className) 
+            : elementType(elemType), expectedClassName(className) {}
         
         // Collection interface implementation
         size_t size() const override { return elements.size(); }
@@ -66,10 +72,57 @@ namespace runtimeTypes::collections
 
     private:
         void validateType(const Value& value) const {
-            if (value::getValueType(value) != elementType) {
+            ValueType actualType = value::getValueType(value);
+            
+            // Special handling for collections as objects (for nested collections)
+            if (elementType == ValueType::OBJECT && !expectedClassName.empty()) {
+                
+                // Check if we're expecting a collection type and got a collection
+                if (expectedClassName.find("Array<") == 0 || expectedClassName.find("List<") == 0 || 
+                    expectedClassName.find("Map<") == 0 || expectedClassName.find("Set<") == 0 ||
+                    expectedClassName.find("Queue<") == 0 || expectedClassName.find("Stack<") == 0) {
+                    
+                    // For nested collections, validate the collection type matches
+                    bool validCollection = false;
+                    
+                    if (expectedClassName.find("Array<") == 0 && 
+                        std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("List<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("Map<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(value)) {
+                        validCollection = true;
+                    }
+                    // Add other collection types as needed
+                    
+                    if (!validCollection) {
+                        throw std::runtime_error("Collection type mismatch: expected " + 
+                            expectedClassName + " but got " + valueTypeToString(actualType));
+                    }
+                    return; // Valid collection, skip further validation
+                }
+                
+                // Handle regular object validation
+                if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
+                    auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
+                    if (objectInstance && !objectInstance->isInstanceOf(expectedClassName)) {
+                        throw std::runtime_error("Object type mismatch: expected instance of '" + 
+                            expectedClassName + "' but got instance of '" + 
+                            objectInstance->getTypeName() + "'");
+                    }
+                }
+                return;
+            }
+            
+            // Basic type check for non-nested collections
+            if (actualType != elementType) {
                 throw std::runtime_error("Type mismatch: expected " + 
                     valueTypeToString(elementType) + " but got " + 
-                    valueTypeToString(value::getValueType(value)));
+                    valueTypeToString(actualType));
             }
         }
         
