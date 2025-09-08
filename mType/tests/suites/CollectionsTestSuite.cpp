@@ -85,5 +85,6 @@ namespace tests::testSuite
         addTestFromFile("Map Key Not Found Error",
                         errorPath + "mapKeyNotFound.mt",
                         TestType::ERROR_EXPECTED);
+        
     }
 }
