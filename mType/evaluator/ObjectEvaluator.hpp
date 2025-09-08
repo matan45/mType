@@ -6,6 +6,12 @@
 #include <memory>
 #include <vector>
 
+// Forward declarations for collection types
+namespace runtimeTypes::collections {
+    class Array;
+    class Map;
+}
+
 namespace evaluator
 {
     using namespace base;
@@ -74,6 +80,12 @@ namespace evaluator
         template<typename CollectionType>
         Value callCollectionMethod(std::shared_ptr<CollectionType> collection, 
                                    const std::string& methodName, const std::vector<Value>& args);
+        
+        // Specialized collection method operations
+        Value callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array, 
+                             const std::string& methodName, const std::vector<Value>& args);
+        Value callMapMethod(std::shared_ptr<runtimeTypes::collections::Map> map, 
+                           const std::string& methodName, const std::vector<Value>& args);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);

@@ -536,12 +536,12 @@ namespace evaluator
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue))
         {
             auto array = std::get<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue);
-            return callCollectionMethod(array, node->getMethodName(), args);
+            return callArrayMethod(array, node->getMethodName(), args);
         }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue))
         {
             auto map = std::get<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue);
-            return callCollectionMethod(map, node->getMethodName(), args);
+            return callMapMethod(map, node->getMethodName(), args);
         }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(objectValue))
         {
@@ -896,9 +896,182 @@ namespace evaluator
                 throw TypeException("keySet() method is only available on Maps");
             }
         }
+        // Remove methods
+        else if (methodName == "removeAt")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
+                if (args.size() != 1)
+                    throw TypeException("removeAt() method takes exactly 1 argument");
+                if (!std::holds_alternative<int>(args[0]))
+                    throw TypeException("Array index must be an integer");
+                int index = std::get<int>(args[0]);
+                if (index < 0)
+                    throw TypeException("Array index cannot be negative");
+                collection->removeAt(static_cast<size_t>(index));
+                return std::monostate{};
+            }
+            else {
+                throw TypeException("removeAt() method is only available on Arrays");
+            }
+        }
+        else if (methodName == "remove")
+        {
+            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
+                if (args.size() != 1)
+                    throw TypeException("remove() method takes exactly 1 argument");
+                std::string key = exprEvaluator->toString(args[0]);
+                collection->remove(key);
+                return std::monostate{};
+            }
+            else {
+                throw TypeException("remove() method is only available on Maps");
+            }
+        }
         else
         {
             throw TypeException("Unknown method '" + methodName + "' for collection type");
+        }
+    }
+
+    // Specialized Array method operations
+    Value ObjectEvaluator::callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array,
+                                          const std::string& methodName,
+                                          const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(array->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return array->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            array->clear();
+            return std::monostate{};
+        }
+        // Array-specific methods
+        else if (methodName == "get")
+        {
+            if (args.size() != 1)
+                throw TypeException("get() method takes exactly 1 argument");
+            if (!std::holds_alternative<int>(args[0]))
+                throw TypeException("Array index must be an integer");
+            int index = std::get<int>(args[0]);
+            if (index < 0)
+                throw TypeException("Array index cannot be negative");
+            return array->get(static_cast<size_t>(index));
+        }
+        else if (methodName == "set")
+        {
+            if (args.size() != 2)
+                throw TypeException("set() method takes exactly 2 arguments");
+            if (!std::holds_alternative<int>(args[0]))
+                throw TypeException("Array index must be an integer");
+            int index = std::get<int>(args[0]);
+            if (index < 0)
+                throw TypeException("Array index cannot be negative");
+            array->set(static_cast<size_t>(index), args[1]);
+            return std::monostate{};
+        }
+        else if (methodName == "add" || methodName == "push")
+        {
+            if (args.size() != 1)
+                throw TypeException("add() method takes exactly 1 argument");
+            array->add(args[0]);
+            return std::monostate{};
+        }
+        else if (methodName == "removeAt")
+        {
+            if (args.size() != 1)
+                throw TypeException("removeAt() method takes exactly 1 argument");
+            if (!std::holds_alternative<int>(args[0]))
+                throw TypeException("Array index must be an integer");
+            int index = std::get<int>(args[0]);
+            if (index < 0)
+                throw TypeException("Array index cannot be negative");
+            array->removeAt(static_cast<size_t>(index));
+            return std::monostate{};
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for Array type");
+        }
+    }
+
+    // Specialized Map method operations
+    Value ObjectEvaluator::callMapMethod(std::shared_ptr<runtimeTypes::collections::Map> map,
+                                        const std::string& methodName,
+                                        const std::vector<Value>& args)
+    {
+        // Common collection methods
+        if (methodName == "size")
+        {
+            if (!args.empty())
+                throw TypeException("size() method takes no arguments");
+            return static_cast<int>(map->size());
+        }
+        else if (methodName == "empty")
+        {
+            if (!args.empty())
+                throw TypeException("empty() method takes no arguments");
+            return map->empty();
+        }
+        else if (methodName == "clear")
+        {
+            if (!args.empty())
+                throw TypeException("clear() method takes no arguments");
+            map->clear();
+            return std::monostate{};
+        }
+        // Map-specific methods
+        else if (methodName == "get")
+        {
+            if (args.size() != 1)
+                throw TypeException("get() method takes exactly 1 argument");
+            std::string key = exprEvaluator->toString(args[0]);
+            return map->get(key);
+        }
+        else if (methodName == "put")
+        {
+            if (args.size() != 2)
+                throw TypeException("put() method takes exactly 2 arguments");
+            std::string key = exprEvaluator->toString(args[0]);
+            map->put(key, args[1]);
+            return std::monostate{};
+        }
+        else if (methodName == "containsKey")
+        {
+            if (args.size() != 1)
+                throw TypeException("containsKey() method takes exactly 1 argument");
+            std::string key = exprEvaluator->toString(args[0]);
+            return map->containsKey(key);
+        }
+        else if (methodName == "keySet")
+        {
+            if (!args.empty())
+                throw TypeException("keySet() method takes no arguments");
+            return map->keySet();
+        }
+        else if (methodName == "remove")
+        {
+            if (args.size() != 1)
+                throw TypeException("remove() method takes exactly 1 argument");
+            std::string key = exprEvaluator->toString(args[0]);
+            map->remove(key);
+            return std::monostate{};
+        }
+        else
+        {
+            throw TypeException("Unknown method '" + methodName + "' for Map type");
         }
     }
 
