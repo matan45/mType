@@ -93,15 +93,39 @@ namespace runtimeTypes::collections
         void validateValueType(const Value& value) const {
             ValueType actualType = value::getValueType(value);
             
-            // Basic type check
-            if (actualType != valueType) {
-                throw std::runtime_error("Type mismatch: expected " + 
-                    valueTypeToString(valueType) + " but got " + 
-                    valueTypeToString(actualType));
-            }
-            
-            // Additional validation for object types with specific class names
+            // Special handling for collections as objects (for nested collections)
             if (valueType == ValueType::OBJECT && !expectedClassName.empty()) {
+                
+                // Check if we're expecting a collection type and got a collection
+                if (expectedClassName.find("Array<") == 0 || expectedClassName.find("List<") == 0 || 
+                    expectedClassName.find("Map<") == 0 || expectedClassName.find("Set<") == 0 ||
+                    expectedClassName.find("Queue<") == 0 || expectedClassName.find("Stack<") == 0) {
+                    
+                    // For nested collections, validate the collection type matches
+                    bool validCollection = false;
+                    
+                    if (expectedClassName.find("Array<") == 0 && 
+                        std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("List<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::List>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("Map<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(value)) {
+                        validCollection = true;
+                    }
+                    // Add other collection types as needed
+                    
+                    if (!validCollection) {
+                        throw std::runtime_error("Collection type mismatch: expected " + 
+                            expectedClassName + " but got " + valueTypeToString(actualType));
+                    }
+                    return; // Valid collection, skip further validation
+                }
+                
+                // Handle regular object validation
                 if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
                     auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
                     if (objectInstance && !objectInstance->isInstanceOf(expectedClassName)) {
@@ -110,6 +134,14 @@ namespace runtimeTypes::collections
                             objectInstance->getTypeName() + "'");
                     }
                 }
+                return;
+            }
+            
+            // Basic type check for non-nested collections
+            if (actualType != valueType) {
+                throw std::runtime_error("Type mismatch: expected " + 
+                    valueTypeToString(valueType) + " but got " + 
+                    valueTypeToString(actualType));
             }
         }
         

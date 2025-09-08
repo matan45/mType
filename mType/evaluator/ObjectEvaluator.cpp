@@ -278,12 +278,39 @@ namespace evaluator
                     valueTypeName.erase(0, valueTypeName.find_first_not_of(' '));
                     valueTypeName.erase(valueTypeName.find_last_not_of(' ') + 1);
                     
-                    value::ValueType keyType = parser::TypeParser::stringToValueType(keyTypeName);
-                    value::ValueType valueType = parser::TypeParser::stringToValueType(valueTypeName);
+                    // Check if key type is a collection (nested generic)
+                    value::ValueType keyType;
+                    std::string keyClassName = "";
+                    if (keyTypeName.find("Array<") == 0 || keyTypeName.find("List<") == 0 || 
+                        keyTypeName.find("Map<") == 0 || keyTypeName.find("Set<") == 0 ||
+                        keyTypeName.find("Queue<") == 0 || keyTypeName.find("Stack<") == 0) {
+                        keyType = value::ValueType::OBJECT;
+                        keyClassName = keyTypeName;
+                    } else {
+                        keyType = parser::TypeParser::stringToValueType(keyTypeName);
+                        if (keyType == value::ValueType::OBJECT) {
+                            keyClassName = keyTypeName;
+                        }
+                    }
                     
-                    // If valueType is OBJECT, it means it's a class name - store the class name for validation
-                    if (valueType == value::ValueType::OBJECT) {
-                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType, valueTypeName);
+                    // Check if value type is a collection (nested generic)
+                    value::ValueType valueType;
+                    std::string valueClassName = "";
+                    if (valueTypeName.find("Array<") == 0 || valueTypeName.find("List<") == 0 || 
+                        valueTypeName.find("Map<") == 0 || valueTypeName.find("Set<") == 0 ||
+                        valueTypeName.find("Queue<") == 0 || valueTypeName.find("Stack<") == 0) {
+                        valueType = value::ValueType::OBJECT;
+                        valueClassName = valueTypeName;
+                    } else {
+                        valueType = parser::TypeParser::stringToValueType(valueTypeName);
+                        if (valueType == value::ValueType::OBJECT) {
+                            valueClassName = valueTypeName;
+                        }
+                    }
+                    
+                    // Create Map with appropriate class name (currently only supports value type class names)
+                    if (!valueClassName.empty()) {
+                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType, valueClassName);
                     } else {
                         return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType);
                     }
