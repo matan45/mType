@@ -65,6 +65,8 @@ namespace tests::testSuite
                         passPath + "collectionsAsReturnTypes.mt");
         addOutputVerificationTest("Nested Collections",
                         passPath + "nestedCollections.mt");
+        addOutputVerificationTest("Nested Collections as Map Values",
+                        passPath + "nestedCollectionsAsMapValues.mt");
         addOutputVerificationTest("Comprehensive Nested For-Each",
                         passPath + "comprehensiveNestedForEach.mt");
 

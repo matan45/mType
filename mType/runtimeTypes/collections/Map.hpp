@@ -6,6 +6,13 @@
 #include <unordered_map>
 #include <stdexcept>
 
+// Forward declarations for other collection types
+namespace runtimeTypes::collections {
+    class Set;
+    class Stack; 
+    class Queue;
+}
+
 namespace runtimeTypes::collections
 {
     class Map : public Collection
@@ -112,7 +119,18 @@ namespace runtimeTypes::collections
                              std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(value)) {
                         validCollection = true;
                     }
-                    // Add other collection types as needed
+                    else if (expectedClassName.find("Set<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("Stack<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(value)) {
+                        validCollection = true;
+                    }
+                    else if (expectedClassName.find("Queue<") == 0 && 
+                             std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(value)) {
+                        validCollection = true;
+                    }
                     
                     if (!validCollection) {
                         throw std::runtime_error("Collection type mismatch: expected " + 
