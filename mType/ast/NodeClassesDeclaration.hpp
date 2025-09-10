@@ -16,6 +16,9 @@ namespace ast
             class VariableNode;
             class IntegerNode;
             class FloatNode;
+            class ArrayLiteralNode;
+            class MapLiteralNode;
+            class IndexAccessNode;
         }
         
         namespace statements
@@ -31,6 +34,7 @@ namespace ast
             class WhileNode;
             class DoWhileNode;
             class ForNode;
+            class ForEachNode;
             class BreakNode;
             class ContinueNode;
             class SwitchNode;
@@ -93,4 +97,8 @@ namespace ast
     using NullNode = nodes::expressions::NullNode;
     using FloatNode = nodes::expressions::FloatNode;
     using IntegerNode = nodes::expressions::IntegerNode;
+    using ArrayLiteralNode = nodes::expressions::ArrayLiteralNode;
+    using MapLiteralNode = nodes::expressions::MapLiteralNode;
+    using IndexAccessNode = nodes::expressions::IndexAccessNode;
+    using ForEachNode = nodes::statements::ForEachNode;
 }

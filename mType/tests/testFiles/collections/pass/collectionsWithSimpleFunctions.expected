@@ -1,0 +1,37 @@
+Testing collections with simple functions:
+Processing array:
+Number:1
+Number:2
+Number:3
+Number:4
+Number:5
+Sum:15
+Processing map:
+Map size:3
+Grade:95
+Grade:87
+Grade:92
+Has Alice:true
+Has David:false
+Names array:
+- Alice
+- Bob
+- Charlie
+First name:Alice
+Array size:3
+Color map:
+Color:#FF0000
+Color:#0000FF
+Color:#00FF00
+Red color:#FF0000
+Handling numbers in class:
+Value:10
+Value:20
+Value:30
+Value:40
+Value:50
+Handling strings in class:
+Word:hello
+Word:world
+Word:test
+Collections with simple functions test passed

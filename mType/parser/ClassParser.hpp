@@ -25,7 +25,9 @@ namespace parser
         std::unique_ptr<ASTNode> parseNewExpression();
         
     private:
-    
+        // Helper methods for parsing nested generic parameters
+        std::string parseGenericParameters();
+        std::string parseGenericParameter();
     };
 }
 

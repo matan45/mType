@@ -1,0 +1,1769 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ast">
+      <UniqueIdentifier>{CD5E880B-3968-887C-C2E3-9E7C2EEC937C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes">
+      <UniqueIdentifier>{7516E18D-E180-9504-2ABF-46AA96687359}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\classes">
+      <UniqueIdentifier>{72C25BF5-DED8-598B-2750-E5AC93A52A13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\expressions">
+      <UniqueIdentifier>{870EF1F6-F37A-ACF1-BC6E-444F289ACE59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\functions">
+      <UniqueIdentifier>{3DC9922A-A92A-7038-3298-B6EA9EF8A6F7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ast\nodes\statements">
+      <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment">
+      <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\manager">
+      <UniqueIdentifier>{8430FB85-F091-D893-79FF-1E46E55F0F53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\registry">
+      <UniqueIdentifier>{E2D8D606-CE67-60D0-7786-74CB63F47076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="errors">
+      <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator">
+      <UniqueIdentifier>{B8C8C7FC-2433-7C73-6D71-2D19D91A5AC8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\base">
+      <UniqueIdentifier>{62E4A349-4EB2-974F-3746-087623B373B4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\managers">
+      <UniqueIdentifier>{B575FFA2-A159-C0F8-0ABA-BA4BF6BCAA7A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\utils">
+      <UniqueIdentifier>{3884827F-A40F-F043-AD20-7338192B4C44}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="exception">
+      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lexer">
+      <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser">
+      <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="run">
+      <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes">
+      <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\collections">
+      <UniqueIdentifier>{2CCBD4D1-18F0-2352-413B-09E22DBF2270}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\global">
+      <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\klass">
+      <UniqueIdentifier>{EBBBCA07-D79F-8B5D-4000-86B02C0376DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="services">
+      <UniqueIdentifier>{C98C7E0E-B559-D919-DE72-C7C1CA9E0EA8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{78756B10-E489-93C1-AD0B-372119DF8FF2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\suites">
+      <UniqueIdentifier>{E4C7E415-D02A-74BA-79B0-AC7065F23F3D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles">
+      <UniqueIdentifier>{5A55F118-C6E0-5EDD-CFF1-E1D13BFCBADD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\class">
+      <UniqueIdentifier>{1F45B5E4-8BB1-70DF-54A5-083DC0D09247}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\class\error">
+      <UniqueIdentifier>{B8F72812-2405-57F8-ADEB-52E319F822AF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\class\pass">
+      <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\collections">
+      <UniqueIdentifier>{68157CEE-D422-AAD4-5D09-A6BFC915768B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\collections\error">
+      <UniqueIdentifier>{C11A271D-2D89-7C9C-7672-379CE21F7238}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\collections\pass">
+      <UniqueIdentifier>{6E4C7B4E-5A9D-6690-8301-55526FB1F9F9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\controlFlow">
+      <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\controlFlow\error">
+      <UniqueIdentifier>{BB92519B-2701-A71A-70EA-611ADC979CB6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\controlFlow\pass">
+      <UniqueIdentifier>{28ADD980-14FE-C4C2-3D62-B3842912582C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\error">
+      <UniqueIdentifier>{3308DDE4-9F74-98DF-6868-303DD493BA47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\error\error">
+      <UniqueIdentifier>{CCB963F3-38C7-91D9-C1AD-8DC42DBA5D90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\error\pass">
+      <UniqueIdentifier>{19B6CA9A-05C6-766B-6E7F-DB895AAE6504}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import">
+      <UniqueIdentifier>{441E7789-3018-A0DB-1985-36EC051E0648}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import\error">
+      <UniqueIdentifier>{9D5854C1-8913-446D-32CB-BCB71E658EFD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import\pass">
+      <UniqueIdentifier>{CA3ECAA8-364C-F88E-BF32-F4792B3FC445}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\integration">
+      <UniqueIdentifier>{CD7154F4-397F-82DA-C265-7EC52E724E91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\integration\pass">
+      <UniqueIdentifier>{F32F8641-DF80-7183-08E5-5F45F49404ED}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\native">
+      <UniqueIdentifier>{D0DB4994-BCD5-72E6-A542-09F791DBD852}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\typeChecking">
+      <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\typeChecking\error">
+      <UniqueIdentifier>{E0D6C41B-CC12-C885-3525-E07C218070A0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\typeChecking\pass">
+      <UniqueIdentifier>{AD803256-19EF-87D5-62D8-42D5CE857D71}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFramework">
+      <UniqueIdentifier>{55686F43-C1C9-4C51-4A37-9303B6978310}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="token">
+      <UniqueIdentifier>{46CD7010-B2E1-98C1-7B63-3C21E73695F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value">
+      <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ast\ASTNode.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\ASTVisitor.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\NodeClassesDeclaration.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ConstructorNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\FieldNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MemberAccessNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\NewNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BoolNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\MapLiteralNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\NullNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\StringNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\TernaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\UnaryExpNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\VariableNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionCallNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\ReturnNode.hpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\AssignmentNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BlockNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BreakNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CaseNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DeclarationNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DefaultCaseNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DoWhileNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForEachNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\IfNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ImportNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\NativeFunctionNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ProgramNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\SwitchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\Environment.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\EnvironmentBuilder.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\Scope.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\ScopeManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\VariableManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ClassRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\FunctionRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\NativeRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\AmbiguousReferenceException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ArgumentException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\EnvironmentException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\FileException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ImportException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\MathException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ParseException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ScriptException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\SourceLocation.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\TypeException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\UndefinedException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\Evaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\EvaluatorCoordinator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\ExpressionEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\ObjectEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\StatementEvaluator.hpp">
+      <Filter>evaluator</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\base\EvaluationContext.hpp">
+      <Filter>evaluator\base</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\managers\ControlFlowManager.hpp">
+      <Filter>evaluator\managers</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\managers\InstanceManager.hpp">
+      <Filter>evaluator\managers</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionMethodDispatcher.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionMethodValidator.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionTypeHelper.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ScopeGuard.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ValueConverter.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\BreakException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\ContinueException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\ReturnException.hpp">
+      <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\BracketBalancer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\Lexer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\SourceLocationTracker.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\TokenFactory.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ClassParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ExpressionParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParseContext.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\Parser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserUtils.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserValidator.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\StatementParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TokenStream.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TypeParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\Definition.hpp">
+      <Filter>runtimeTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Array.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Collection.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\List.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Map.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Queue.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Set.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\collections\Stack.hpp">
+      <Filter>runtimeTypes\collections</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\VariableDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ClassDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ConstructorDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\FieldDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\MethodDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="services\FileReader.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ImportManager.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ScriptInterpreter.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ClassTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ImportTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\IntegrationTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\NativeTest.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestCase.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestRunner.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestSuite.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\testFramework\TestTypeEnum.hpp">
+      <Filter>tests\testFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="token\Token.hpp">
+      <Filter>token</Filter>
+    </ClInclude>
+    <ClInclude Include="token\TokenType.hpp">
+      <Filter>token</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ConstructorNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\FieldNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MemberAccessNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\NewNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BoolNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\MapLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\NullNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\StringNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\TernaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\UnaryExpNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\VariableNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionCallNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\ReturnNode.cpp">
+      <Filter>ast\nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\AssignmentNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BlockNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BreakNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CaseNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DeclarationNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DefaultCaseNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DoWhileNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForEachNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\IfNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ImportNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\NativeFunctionNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ProgramNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\SwitchNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\Environment.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\EnvironmentBuilder.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\Scope.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\ScopeManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\VariableManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\FunctionRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\NativeRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\Evaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\EvaluatorCoordinator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\ExpressionEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\ObjectEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\StatementEvaluator.cpp">
+      <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\base\EvaluationContext.cpp">
+      <Filter>evaluator\base</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\managers\ControlFlowManager.cpp">
+      <Filter>evaluator\managers</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\managers\InstanceManager.cpp">
+      <Filter>evaluator\managers</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ParameterBinder.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ScopeGuard.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ValueConverter.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\BracketBalancer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\Lexer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\SourceLocationTracker.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\TokenFactory.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ClassParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ExpressionParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParseContext.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\Parser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParserUtils.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParserValidator.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\StatementParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TokenStream.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TypeParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="run\Main.cpp">
+      <Filter>run</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\Definition.cpp">
+      <Filter>runtimeTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\FunctionDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\VariableDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ClassDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ConstructorDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\FieldDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\MethodDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="services\FileReader.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptInterpreter.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ClassTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ImportTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\IntegrationTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\NativeTest.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestCase.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestRunner.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\testFramework\TestSuite.cpp">
+      <Filter>tests\testFramework</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\constructorReturnTypes.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\constructorReturnTypesString.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\constructorReturnTypesVoid.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalConstructor.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalMethod.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalParameters.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalReturnTypes.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalVariableReassignment.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\invalidConstructor.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\nullPointerAccess.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\staticClassDeclaration.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\staticConstructor.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\staticParameters.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\staticReturnTypes.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\undefinedClass.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\basicClassDefinition.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\basicClassDefinition.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\chainedMemberAccess.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\chainedMemberAccess.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\circularObjectReferences.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\circularObjectReferences.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classAsParameter.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classAsParameter.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classAsReturnType.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classAsReturnType.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classInFunctions.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classInFunctions.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithAllFeatures.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithAllFeatures.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithDataMembers.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithDataMembers.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithMethods.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\classWithMethods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\complexExample.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\complexExample.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\constructorWithParameters.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\constructorWithParameters.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\defaultConstructor.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\defaultConstructor.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\memberAccess.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\memberAccess.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\memberAssignment.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\memberAssignment.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodCalls.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodCalls.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\mixedStaticAndInstance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\mixedStaticAndInstance.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\multipleConstructors.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\multipleConstructors.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\multipleObjects.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\multipleObjects.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\nullHandling.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\nullHandling.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAssignment.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAssignment.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectCreation.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectCreation.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\returningThisAndChaining.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\returningThisAndChaining.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticDataMembers.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticDataMembers.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticFinalMembers.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticFinalMembers.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticMethods.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticMethods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayTypeMismatch.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\forEachTypeMismatch.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayBasic.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayBasic.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayLiteral.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayLiteral.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\forEachArray.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\forEachArray.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapBasic.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapBasic.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapLiteral.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapLiteral.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\finalFunctionParameters.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\finalVariableReassignment.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\staticForLoopVariable.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\staticFunctionParameters.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakStatement.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakStatement.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\complexBooleanExpressions.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\complexBooleanExpressions.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\complexFunctionsNewSyntax.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\complexFunctionsNewSyntax.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\compoundAssignmentOperators.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\compoundAssignmentOperators.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueStatement.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueStatement.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalInFunctions.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalInFunctions.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalInLoops.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalInLoops.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalVariables.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\finalVariables.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\mixedParameterTypes.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\mixedParameterTypes.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\moduloNegativeOperands.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\moduloNegativeOperands.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\mutualRecursion.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\mutualRecursion.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedFunctionCalls.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedFunctionCalls.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedLoopBreakContinueLimits.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedLoopBreakContinueLimits.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedLoopsWithBreakContinue.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\nestedLoopsWithBreakContinue.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchCaseDefault.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchCaseDefault.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchComplexExpressions.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchComplexExpressions.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchEdgeCaseValues.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchEdgeCaseValues.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchExtremeCases.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchExtremeCases.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchNestedInLoops.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchWithBreak.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchWithBreak.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorBasic.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorBasic.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorNested.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorNested.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorNestingLimits.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\ternaryOperatorNestingLimits.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\typeScriptStyleFunctions.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\typeScriptStyleFunctions.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidFunctions.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidFunctions.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\assignNullToFinal.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\classConstructorParameterMismatch.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\classModifyingFinalField.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\classUndefinedClass.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\classUndefinedMember.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedArgumentMismatchLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedDivisionByZeroLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedFinalVariableModificationLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedNullPointerLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedStaticMethodErrorLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedTypeMismatchLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\enhancedUndefinedFunctionLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\lexerUnteminatedString.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\missingNew.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\parserMissingSemicolon.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\runtimeDivisionByZero.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\runtimeNullPointerDereference.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\scopeFunctionParameterShadowing.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\scopeVariableOutOfScope.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\semanticUndefinedVariable.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\semanticVariableRedefinition.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\semanticWrongParameterCount.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\syntaxInvalidFunctionName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\syntaxMissingReturnType.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\syntaxMissingSemicolon.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\syntaxUnmatchedParentheses.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\typeAssignmentMismatch.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\typeInvalidOperation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\typeReturnTypeMismatch.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\basicErrorReportingValid.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\basicErrorReportingValid.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validClassUsage.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validClassUsage.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validFunctionDeclaration.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validFunctionDeclaration.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validScopeUsage.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validScopeUsage.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validTypeOperations.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\circular_a.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\circular_b.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\book_utils.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\main_script.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\main_script.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\math_utils.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\string_utils.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexControlFlowPerformance.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexControlFlowPerformance.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexInheritanceWithNamespaces.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexInheritanceWithNamespaces.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexObjectCleanupScenarios.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\complexObjectCleanupScenarios.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\concurrentNamespaceAndClassModifications.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\concurrentNamespaceAndClassModifications.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\controlFlowWithClassMembersAndNamespaces.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\controlFlowWithClassMembersAndNamespaces.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\corruptedStateRecovery.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\corruptedStateRecovery.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\deepNestingLimits.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\deepNestingLimits.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\errorRecoveryWithPartialFailures.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\errorRecoveryWithPartialFailures.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\largeDataStructures.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\largeDataStructures.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\loopsWithClassCreationAndNamespaces.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\loopsWithClassCreationAndNamespaces.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryLeakPrevention.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryLeakPrevention.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryLeaksWithComplexObjects.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryLeaksWithComplexObjects.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryUsageWithDeepNesting.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\memoryUsageWithDeepNesting.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\namespacesWithClassesAndImports.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\namespacesWithClassesAndImports.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\nestedNamespacesWithStaticMethods.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\nestedNamespacesWithStaticMethods.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\objectDestructionOrderBasic.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\objectDestructionOrderBasic.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\objectLifecycleEdgeCases.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\objectLifecycleEdgeCases.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\performanceWithLargeNamespaces.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\performanceWithLargeNamespaces.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\recursiveNamespaceClassInteractions.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\recursiveNamespaceClassInteractions.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\resourceCleanupPatterns.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\resourceCleanupPatterns.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\returnWithNamespace.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\returnWithNamespace.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\native\nativeExample.mt">
+      <Filter>tests\testFiles\native</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\booleanConversionBoundaryError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\complexTypeCheckingInvalidAssignment.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\constructorParameterTypeCheckingWrongOrder.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\declarationTypeCheckingInvalid.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\declarationTypeCheckingMixedInvalid.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\differentTypeAssignmentError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterFloatConversionStringError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterTypeMismatchBoolForObject.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterTypeMismatchIntForString.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterTypeMismatchStringForInt.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterWithNamespacesTypeMismatch.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionParameterWrongOrder.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionReturnTypeMismatchBoolToString.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionReturnTypeMismatchFloatToBool.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionReturnTypeMismatchIntToString.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionReturnTypeMismatchMethodIntToString.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionReturnTypeMismatchStringToBool.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\functionTypeConversionBoundaryError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\incompatibleClassConversionError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\invalidReassignmentChains.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\methodParameterTypeCheckingWrong.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\mixedTypeChainAssignmentError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\namespaceReturnTypesMismatch.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\namespaceReturnTypesWrongClass.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\nullToNonNullableConversionError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\numericOverflowBoundaryError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\objectReturnTypesMethodMismatch.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\objectReturnTypesStaticMethodMismatch.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\objectReturnTypesWrongObjectType.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeConversionFailureBoundaryTests.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\chainedObjectAssignments.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\chainedObjectAssignments.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\complexReassignmentChains.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\complexReassignmentChains.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\complexTypeChecking.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\complexTypeChecking.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\constructorParameterTypeChecking.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\constructorParameterTypeChecking.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\declarationTypeChecking.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\declarationTypeChecking.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\declarationTypeCheckingMixed.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\declarationTypeCheckingMixed.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\emptyStringEdgeCases.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\emptyStringEdgeCases.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterFloatConversion.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterFloatConversion.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterNullValues.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterNullValues.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterObjectTypes.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterObjectTypes.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterPrimitiveTypes.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterPrimitiveTypes.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionParameterWithNamespaces.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionReturnTypeMatching.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\functionReturnTypeMatching.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\methodParameterTypeChecking.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\methodParameterTypeChecking.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\multipleAssignments.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\multipleAssignments.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\nullAssignment.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\nullAssignment.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\nullPropagationComplexExpressions.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\nullPropagationComplexExpressions.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypes.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypes.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesFunctionReturningObject.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesFunctionReturningObject.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesNamespaceReturningObject.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesNestedObjects.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesNestedObjects.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesStaticMethods.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesStaticMethods.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\sameTypeAssignment.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\sameTypeAssignment.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\stringConcatenationWithNulls.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\stringConcatenationWithNulls.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+  </ItemGroup>
+</Project>

@@ -73,6 +73,10 @@ namespace evaluator
         Value visitConstructorNode(ConstructorNode* node) override;
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
+        Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
+        Value visitMapLiteralNode(MapLiteralNode* node) override;
+        Value visitIndexAccessNode(IndexAccessNode* node) override;
+        Value visitForEachNode(ForEachNode* node) override;
         
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }

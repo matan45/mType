@@ -14,6 +14,7 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/statements/DoWhileNode.hpp"
 #include "../ast/nodes/statements/ForNode.hpp"
+#include "../ast/nodes/statements/ForEachNode.hpp"
 #include "../ast/nodes/statements/SwitchNode.hpp"
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
@@ -43,6 +44,11 @@ namespace parser
         case TokenType::FLOAT:
         case TokenType::BOOL:
         case TokenType::STRING_TYPE:
+        case TokenType::ARRAY:
+        case TokenType::MAP:
+        case TokenType::SET:
+        case TokenType::QUEUE:
+        case TokenType::STACK:
             return parseDeclaration();
         case TokenType::FINAL:
         case TokenType::STATIC:
@@ -133,7 +139,10 @@ namespace parser
             tokenStream.advance();
         }
 
-        auto [type, className] = TypeParser::parseTypeWithClassName(tokenStream);
+        // Parse the complete type information using the new parseTypeInfo method
+        parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
+        ValueType type = typeInfo.baseType;
+        std::string className = typeInfo.className;
 
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -282,6 +291,12 @@ namespace parser
         tokenStream.expect(TokenType::FOR);
         tokenStream.expect(TokenType::LPAREN);
 
+        // Parse the first part which could be initialization or for-each declaration
+        // For-each syntax: for (type variable : collection)
+        // Regular for syntax: for (init; condition; increment)
+        
+        // Start parsing optimistically as regular for loop, but handle colon case
+
         // Parse initialization
         std::unique_ptr<ASTNode> init = nullptr;
         if (tokenStream.current().type != TokenType::SEMICOLON)
@@ -289,10 +304,16 @@ namespace parser
             if (tokenStream.current().type == TokenType::INT ||
                 tokenStream.current().type == TokenType::FLOAT ||
                 tokenStream.current().type == TokenType::BOOL ||
-                tokenStream.current().type == TokenType::STRING_TYPE)
+                tokenStream.current().type == TokenType::STRING_TYPE ||
+                tokenStream.current().type == TokenType::ARRAY ||
+                tokenStream.current().type == TokenType::MAP ||
+                tokenStream.current().type == TokenType::SET ||
+                tokenStream.current().type == TokenType::QUEUE ||
+                tokenStream.current().type == TokenType::STACK ||
+                tokenStream.current().type == TokenType::IDENTIFIER)
             {
-                // Parse declaration inline without consuming semicolon (for loop specific)
-                ValueType type = TypeParser::parseType(tokenStream);
+                // Parse declaration inline - could be regular for loop or for-each
+                parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
                 
                 if (tokenStream.current().type != TokenType::IDENTIFIER)
                 {
@@ -300,15 +321,34 @@ namespace parser
                 }
                 
                 std::string varName = tokenStream.current().stringValue;
+                SourceLocation location = tokenStream.current().location;
                 tokenStream.advance();
                 
-                std::unique_ptr<ASTNode> value = nullptr;
-                if (tokenStream.match(TokenType::ASSIGN))
+                // Check if this is for-each (colon) or regular for loop (assignment/semicolon)
+                if (tokenStream.current().type == TokenType::COLON)
                 {
-                    value = context.parseExpression();
+                    // This is a for-each loop!
+                    tokenStream.advance(); // consume ':'
+                    
+                    auto collection = context.parseExpression();
+                    tokenStream.expect(TokenType::RPAREN);
+                    
+                    auto body = parseStatement();
+                    
+                    return std::make_unique<ForEachNode>(varName, typeInfo, 
+                                                       std::move(collection), std::move(body), location);
                 }
-                
-                init = std::make_unique<AssignmentNode>(varName, std::move(value), type, "", false, false);
+                else
+                {
+                    // Regular for loop with variable declaration
+                    std::unique_ptr<ASTNode> value = nullptr;
+                    if (tokenStream.match(TokenType::ASSIGN))
+                    {
+                        value = context.parseExpression();
+                    }
+                    
+                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false);
+                }
             }
             else
             {
@@ -338,6 +378,76 @@ namespace parser
 
         return std::make_unique<ForNode>(std::move(init), std::move(condition),
                                          std::move(update), std::move(body));
+    }
+
+    std::unique_ptr<ASTNode> StatementParser::parseForEachStatement()
+    {
+        // Parse for-each syntax: for (type variable : collection) body
+        // We should be positioned at the start of the type (after the opening parenthesis)
+        
+        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
+        
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        {
+            throw ParseException("Expected variable name in for-each loop", tokenStream.current().location);
+        }
+        
+        std::string variableName = tokenStream.current().stringValue;
+        SourceLocation location = tokenStream.current().location;
+        tokenStream.advance();
+        
+        if (tokenStream.current().type != TokenType::COLON)
+        {
+            throw ParseException("Expected ':' in for-each loop. Use ';' for regular for loops.", tokenStream.current().location);
+        }
+        tokenStream.advance(); // consume ':'
+        
+        auto collection = context.parseExpression();
+        tokenStream.expect(TokenType::RPAREN);
+        
+        auto body = parseStatement();
+        
+        return std::make_unique<ForEachNode>(variableName, variableTypeInfo, 
+                                           std::move(collection), std::move(body), location);
+    }
+
+    std::unique_ptr<ASTNode> StatementParser::tryParseForEach()
+    {
+        // Try to parse for-each pattern without consuming too many tokens
+        // Returns nullptr if this is not a for-each loop
+        
+        // Save the current position conceptually (we'll track manually)
+        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
+        
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        {
+            // Not a for-each pattern, but we've consumed the type token
+            // This is problematic - we need a different approach
+            return nullptr;
+        }
+        
+        std::string variableName = tokenStream.current().stringValue;
+        SourceLocation location = tokenStream.current().location;
+        tokenStream.advance();
+        
+        // This is the key check - if we see colon, it's for-each
+        if (tokenStream.current().type != TokenType::COLON)
+        {
+            // Not a for-each loop - this should be regular for loop
+            // But we've already consumed tokens, which is problematic
+            return nullptr;
+        }
+        
+        // We found a colon - this is definitely for-each
+        tokenStream.advance(); // consume ':'
+        
+        auto collection = context.parseExpression();
+        tokenStream.expect(TokenType::RPAREN);
+        
+        auto body = parseStatement();
+        
+        return std::make_unique<ForEachNode>(variableName, variableTypeInfo, 
+                                           std::move(collection), std::move(body), location);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseSwitchStatement()

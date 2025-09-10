@@ -28,6 +28,7 @@ namespace parser
         std::unique_ptr<ASTNode> parseWhileStatement();
         std::unique_ptr<ASTNode> parseDoWhileStatement();
         std::unique_ptr<ASTNode> parseForStatement();
+        std::unique_ptr<ASTNode> parseForEachStatement();
         std::unique_ptr<ASTNode> parseSwitchStatement();
         std::unique_ptr<ASTNode> parseBreakStatement();
         std::unique_ptr<ASTNode> parseContinueStatement();
@@ -40,6 +41,7 @@ namespace parser
     private:
         // Helper methods
         std::vector<std::pair<std::string, ValueType>> parseParameterList();
+        std::unique_ptr<ASTNode> tryParseForEach(); // Returns nullptr if not for-each pattern
     };
 }
 

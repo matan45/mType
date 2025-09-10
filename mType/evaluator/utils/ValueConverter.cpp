@@ -1,12 +1,18 @@
 #include "ValueConverter.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../runtimeTypes/collections/Array.hpp"
+#include "../../runtimeTypes/collections/Map.hpp"
+#include "../../runtimeTypes/collections/Set.hpp"
+#include "../../runtimeTypes/collections/Queue.hpp"
+#include "../../runtimeTypes/collections/Stack.hpp"
 #include <sstream>
 
 namespace evaluator::utils
 {
     using namespace errors;
     using namespace runtimeTypes::klass;
+    using namespace runtimeTypes::collections;
     
     bool ValueConverter::isTruthy(const Value& value)
     {
@@ -155,6 +161,24 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 return ValueType::NULL_TYPE;
             }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<Array>>) {
+                return ValueType::ARRAY;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<Map>>) {
+                return ValueType::MAP;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<Set>>) {
+                return ValueType::SET;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<Queue>>) {
+                return ValueType::QUEUE;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<Stack>>) {
+                return ValueType::STACK;
+            }
+            else if constexpr (std::is_same_v<T, std::monostate>) {
+                return ValueType::VOID;
+            }
             else {
                 return ValueType::VOID;
             }
@@ -171,6 +195,11 @@ namespace evaluator::utils
             case ValueType::OBJECT: return "object";
             case ValueType::NULL_TYPE: return "null";
             case ValueType::VOID: return "void";
+            case ValueType::ARRAY: return "Array";
+            case ValueType::MAP: return "Map";
+            case ValueType::SET: return "Set";
+            case ValueType::QUEUE: return "Queue";
+            case ValueType::STACK: return "Stack";
             default: return "unknown";
         }
     }

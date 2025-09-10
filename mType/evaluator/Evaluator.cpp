@@ -272,4 +272,25 @@ namespace evaluator
         return objEvaluator->callMethod(instance, methodName, args);
     }
 
+    // Collection visitor methods - delegate to coordinator
+    Value Evaluator::visitArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        return coordinator->visitArrayLiteralNode(node);
+    }
+
+    Value Evaluator::visitMapLiteralNode(MapLiteralNode* node)
+    {
+        return coordinator->visitMapLiteralNode(node);
+    }
+
+    Value Evaluator::visitIndexAccessNode(IndexAccessNode* node)
+    {
+        return coordinator->visitIndexAccessNode(node);
+    }
+
+    Value Evaluator::visitForEachNode(ForEachNode* node)
+    {
+        return coordinator->visitForEachNode(node);
+    }
+
 }

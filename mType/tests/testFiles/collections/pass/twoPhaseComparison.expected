@@ -1,0 +1,18 @@
+=== Testing Two-Phase Comparison in Set ===
+Adding alice1: true
+Size after alice1: 1
+Adding alice2 (same content): false
+Size after alice2: 1
+Adding bob: true
+Size after bob: 2
+Adding alice3 (different age): true
+Final size: 3
+
+=== Testing Contains ===
+Contains alice4 (same content as alice1): true
+Contains charlie: false
+
+=== Testing Remove ===
+Removing alice5 (same content as alice1): true
+Size after removal: 2
+Contains alice1 after removal: false
