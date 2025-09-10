@@ -1,6 +1,7 @@
 ﻿#include "ExpressionEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
+#include "utils/CollectionTypeHelper.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
@@ -604,19 +605,6 @@ namespace evaluator
                 }
             } catch (const exception::ReturnException& e) {
                 // Handle return statement - this is the expected way functions return
-            // Restore namespace context (disabled since namespaces removed)
-            /*
-            if (!functionNamespace.empty()) {
-                env->exitNamespace();
-                if (!savedNamespacePath.empty()) {
-                    env->enterNamespace(savedNamespacePath);
-                } else {
-                    while (!env->getCurrentNamespacePath().empty()) {
-                        env->exitNamespace();
-                    }
-                }
-            }
-            */
             // Reset return state since this was a function return, not a program return
             context->setReturned(false);
             
@@ -631,18 +619,7 @@ namespace evaluator
             return result;
             // Scope automatically exits via RAII
         }
-        // Restore namespace context (disabled since namespaces removed)
-        /*
-        if (!functionNamespace.empty()) {
-            env->exitNamespace();
-            if (!savedNamespacePath.empty()) {
-                env->enterNamespace(savedNamespacePath);
-            } else {
-                while (!env->getCurrentNamespacePath().empty()) {
-                    env->exitNamespace();
-                }
-            }
-        */
+       
     }
 
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
@@ -678,12 +655,8 @@ namespace evaluator
             throw TypeException("Cannot call method on null object", node->getLocation());
         }
         
-        // Check if it's a collection - delegate to ObjectEvaluator
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue) ||
-            std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue)) {
+        // Check if it's a collection using unified helper - delegate to ObjectEvaluator
+        if (utils::CollectionTypeHelper::isCollection(objectValue)) {
             if (!objEvaluator) {
                 throw TypeException("Object evaluator not available for collection method calls");
             }
@@ -720,15 +693,6 @@ namespace evaluator
             throw UndefinedException("Object evaluator not available for object creation", node->getLocation());
         }
     }
-
-    // Removed since namespaces disabled
-    /*
-    Value ExpressionEvaluator::evaluateQualifiedNameNode(QualifiedNameNode* node)
-    {
-        // Delegate to NamespaceEvaluator through main evaluator
-        return // TODO: Need to delegate to appropriate evaluatorQualifiedNameAccess(node);
-    }
-    */
 
     // Helper methods for binary operations
     Value ExpressionEvaluator::evaluateArithmetic(const Value& left, const Value& right, TokenType op)

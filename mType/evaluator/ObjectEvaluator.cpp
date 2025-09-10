@@ -1,6 +1,7 @@
 #include "ObjectEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
+#include "utils/CollectionTypeHelper.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../exception/ReturnException.hpp"
@@ -512,30 +513,10 @@ namespace evaluator
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return callMethod(instance, node->getMethodName(), args);
         }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue))
+        // Handle all collection types using unified dispatcher
+        else if (utils::CollectionTypeHelper::isCollection(objectValue))
         {
-            auto array = std::get<std::shared_ptr<runtimeTypes::collections::Array>>(objectValue);
-            return callArrayMethod(array, node->getMethodName(), args);
-        }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue))
-        {
-            auto map = std::get<std::shared_ptr<runtimeTypes::collections::Map>>(objectValue);
-            return callMapMethod(map, node->getMethodName(), args);
-        }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue))
-        {
-            auto stack = std::get<std::shared_ptr<runtimeTypes::collections::Stack>>(objectValue);
-            return callStackMethod(stack, node->getMethodName(), args);
-        }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue))
-        {
-            auto queue = std::get<std::shared_ptr<runtimeTypes::collections::Queue>>(objectValue);
-            return callQueueMethod(queue, node->getMethodName(), args);
-        }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue))
-        {
-            auto set = std::get<std::shared_ptr<runtimeTypes::collections::Set>>(objectValue);
-            return callSetMethod(set, node->getMethodName(), args);
+            return dispatchCollectionMethod(objectValue, node->getMethodName(), args);
         }
         else
         {
@@ -764,156 +745,35 @@ namespace evaluator
         // TODO: Implement constructor definition evaluation
         throw TypeException("Constructor definition evaluation not implemented in refactored version");
     }
-
-    // Collection method implementations
-    template<typename CollectionType>
-    Value ObjectEvaluator::callCollectionMethod(std::shared_ptr<CollectionType> collection,
-                                                 const std::string& methodName,
-                                                 const std::vector<Value>& args)
+    
+    
+    Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
+                                                   const std::string& methodName,
+                                                   const std::vector<Value>& args)
     {
-        // Common collection methods
-        if (methodName == "size")
-        {
-            if (!args.empty())
-                throw TypeException("size() method takes no arguments");
-            return static_cast<int>(collection->size());
+        // Use template dispatch based on the actual collection type
+        if (utils::CollectionTypeHelper::isArray(collectionValue)) {
+            auto collection = utils::CollectionTypeHelper::extractCollection<Array>(collectionValue);
+            return callCollectionMethod(collection, methodName, args);
         }
-        else if (methodName == "empty")
-        {
-            if (!args.empty())
-                throw TypeException("empty() method takes no arguments");
-            return collection->empty();
+        else if (utils::CollectionTypeHelper::isMap(collectionValue)) {
+            auto collection = utils::CollectionTypeHelper::extractCollection<Map>(collectionValue);
+            return callCollectionMethod(collection, methodName, args);
         }
-        else if (methodName == "clear")
-        {
-            if (!args.empty())
-                throw TypeException("clear() method takes no arguments");
-            collection->clear();
-            return std::monostate{};
+        else if (utils::CollectionTypeHelper::isSet(collectionValue)) {
+            auto collection = utils::CollectionTypeHelper::extractCollection<Set>(collectionValue);
+            return callCollectionMethod(collection, methodName, args);
         }
-        // Array-specific methods
-        else if (methodName == "get")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
-                if (args.size() != 1)
-                    throw TypeException("get() method takes exactly 1 argument");
-                if (!std::holds_alternative<int>(args[0]))
-                    throw TypeException("Array index must be an integer");
-                int index = std::get<int>(args[0]);
-                if (index < 0)
-                    throw TypeException("Array index cannot be negative");
-                return collection->get(static_cast<size_t>(index));
-            }
-            else if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
-                if (args.size() != 1)
-                    throw TypeException("get() method takes exactly 1 argument");
-                std::string key = exprEvaluator->toString(args[0]);
-                return collection->get(key);
-            }
-            else {
-                throw TypeException("get() method is not available on this collection type");
-            }
+        else if (utils::CollectionTypeHelper::isStack(collectionValue)) {
+            auto collection = utils::CollectionTypeHelper::extractCollection<Stack>(collectionValue);
+            return callCollectionMethod(collection, methodName, args);
         }
-        else if (methodName == "set")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
-                if (args.size() != 2)
-                    throw TypeException("set() method takes exactly 2 arguments");
-                if (!std::holds_alternative<int>(args[0]))
-                    throw TypeException("Array index must be an integer");
-                int index = std::get<int>(args[0]);
-                if (index < 0)
-                    throw TypeException("Array index cannot be negative");
-                collection->set(static_cast<size_t>(index), args[1]);
-                return std::monostate{};
-            }
-            else {
-                throw TypeException("set() method is only available on Arrays");
-            }
+        else if (utils::CollectionTypeHelper::isQueue(collectionValue)) {
+            auto collection = utils::CollectionTypeHelper::extractCollection<Queue>(collectionValue);
+            return callCollectionMethod(collection, methodName, args);
         }
-        else if (methodName == "add" || methodName == "push")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
-                if (args.size() != 1)
-                    throw TypeException("add() method takes exactly 1 argument");
-                collection->add(args[0]);
-                return std::monostate{};
-            }
-            else {
-                throw TypeException("add() method is only available on Arrays");
-            }
-        }
-        // Map-specific methods
-        else if (methodName == "put")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
-                if (args.size() != 2)
-                    throw TypeException("put() method takes exactly 2 arguments");
-                std::string key = exprEvaluator->toString(args[0]);
-                collection->put(key, args[1]);
-                return std::monostate{};
-            }
-            else {
-                throw TypeException("put() method is only available on Maps");
-            }
-        }
-        else if (methodName == "containsKey")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
-                if (args.size() != 1)
-                    throw TypeException("containsKey() method takes exactly 1 argument");
-                std::string key = exprEvaluator->toString(args[0]);
-                return collection->containsKey(key);
-            }
-            else {
-                throw TypeException("containsKey() method is only available on Maps");
-            }
-        }
-        else if (methodName == "keySet")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
-                if (!args.empty())
-                    throw TypeException("keySet() method takes no arguments");
-                return collection->keySet();
-            }
-            else {
-                throw TypeException("keySet() method is only available on Maps");
-            }
-        }
-        // Remove methods
-        else if (methodName == "removeAt")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Array>) {
-                if (args.size() != 1)
-                    throw TypeException("removeAt() method takes exactly 1 argument");
-                if (!std::holds_alternative<int>(args[0]))
-                    throw TypeException("Array index must be an integer");
-                int index = std::get<int>(args[0]);
-                if (index < 0)
-                    throw TypeException("Array index cannot be negative");
-                collection->removeAt(static_cast<size_t>(index));
-                return std::monostate{};
-            }
-            else {
-                throw TypeException("removeAt() method is only available on Arrays");
-            }
-        }
-        else if (methodName == "remove")
-        {
-            if constexpr (std::is_same_v<CollectionType, runtimeTypes::collections::Map>) {
-                if (args.size() != 1)
-                    throw TypeException("remove() method takes exactly 1 argument");
-                std::string key = exprEvaluator->toString(args[0]);
-                collection->remove(key);
-                return std::monostate{};
-            }
-            else {
-                throw TypeException("remove() method is only available on Maps");
-            }
-        }
-        else
-        {
-            throw TypeException("Unknown method '" + methodName + "' for collection type");
+        else {
+            throw TypeException("Unknown collection type for method '" + methodName + "'");
         }
     }
 
@@ -1213,9 +1073,5 @@ namespace evaluator
         }
     }
 
-    // Explicit template instantiations
-    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Array>(
-        std::shared_ptr<runtimeTypes::collections::Array>, const std::string&, const std::vector<Value>&);
-    template Value ObjectEvaluator::callCollectionMethod<runtimeTypes::collections::Map>(
-        std::shared_ptr<runtimeTypes::collections::Map>, const std::string&, const std::vector<Value>&);
+    // Template instantiations not needed - template is now in header
 }

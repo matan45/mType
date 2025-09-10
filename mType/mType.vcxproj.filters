@@ -360,6 +360,15 @@
     <ClInclude Include="evaluator\managers\InstanceManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionMethodDispatcher.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionMethodValidator.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\CollectionTypeHelper.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>

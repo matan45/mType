@@ -1,7 +1,7 @@
 #pragma once
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
-#include "utils/ValueConverter.hpp"
+#include "utils/CollectionMethodDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
@@ -79,7 +79,11 @@ namespace evaluator
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args);
 
-        // Collection method operations
+        // Collection method operations - UNIFIED APPROACH
+        Value dispatchCollectionMethod(const Value& collectionValue,
+                                     const std::string& methodName, 
+                                     const std::vector<Value>& args);
+        
         template<typename CollectionType>
         Value callCollectionMethod(std::shared_ptr<CollectionType> collection, 
                                    const std::string& methodName, const std::vector<Value>& args);
@@ -106,4 +110,13 @@ namespace evaluator
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
     };
+
+    // Template implementation - Must be in header for templates
+    template<typename CollectionType>
+    Value ObjectEvaluator::callCollectionMethod(std::shared_ptr<CollectionType> collection,
+                                               const std::string& methodName,
+                                               const std::vector<Value>& args)
+    {
+        return utils::CollectionMethodDispatcher<CollectionType>::dispatch(collection, methodName, args);
+    }
 }
