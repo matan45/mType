@@ -1,0 +1,13 @@
+{
+  "iconDefinitions": {
+    "mtype-file": {
+      "iconPath": "./mtype-file.svg"
+    }
+  },
+  "fileExtensions": {
+    "mt": "mtype-file"
+  },
+  "languageIds": {
+    "mtype": "mtype-file"
+  }
+}

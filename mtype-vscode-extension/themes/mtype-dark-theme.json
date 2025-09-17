@@ -1,0 +1,240 @@
+{
+  "name": "mType Dark (Atom One Dark Style)",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#282c34",
+    "editor.foreground": "#abb2bf",
+    "editor.lineHighlightBackground": "#2c313c",
+    "editor.selectionBackground": "#3e4451",
+    "editorCursor.foreground": "#528bff",
+    "editorLineNumber.foreground": "#636d83",
+    "editorLineNumber.activeForeground": "#abb2bf",
+    "sideBar.background": "#21252b",
+    "sideBar.foreground": "#abb2bf",
+    "sideBarSectionHeader.background": "#282c34",
+    "activityBar.background": "#21252b",
+    "activityBar.foreground": "#abb2bf",
+    "activityBarBadge.background": "#4CAF50",
+    "statusBar.background": "#21252b",
+    "statusBar.foreground": "#abb2bf",
+    "titleBar.activeBackground": "#21252b",
+    "titleBar.activeForeground": "#abb2bf",
+    "titleBar.inactiveBackground": "#21252b",
+    "titleBar.inactiveForeground": "#636d83"
+  },
+  "tokenColors": [
+    {
+      "name": "Comment",
+      "scope": [
+        "comment",
+        "punctuation.definition.comment"
+      ],
+      "settings": {
+        "foreground": "#5c6370",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "mType Control Keywords",
+      "scope": [
+        "keyword.control.mtype"
+      ],
+      "settings": {
+        "foreground": "#c678dd"
+      }
+    },
+    {
+      "name": "mType Other Keywords",
+      "scope": [
+        "keyword.other.mtype"
+      ],
+      "settings": {
+        "foreground": "#c678dd"
+      }
+    },
+    {
+      "name": "mType Primitive Types",
+      "scope": [
+        "storage.type.primitive.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "mType Collection Types",
+      "scope": [
+        "storage.type.collection.mtype",
+        "storage.type.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "mType String",
+      "scope": [
+        "string.quoted.double.mtype",
+        "string.quoted.single.mtype"
+      ],
+      "settings": {
+        "foreground": "#98c379"
+      }
+    },
+    {
+      "name": "mType String Escapes",
+      "scope": [
+        "constant.character.escape.mtype"
+      ],
+      "settings": {
+        "foreground": "#56b6c2"
+      }
+    },
+    {
+      "name": "mType Numbers",
+      "scope": [
+        "constant.numeric.decimal.mtype",
+        "constant.numeric.integer.mtype"
+      ],
+      "settings": {
+        "foreground": "#d19a66"
+      }
+    },
+    {
+      "name": "mType Boolean Constants",
+      "scope": [
+        "constant.language.mtype"
+      ],
+      "settings": {
+        "foreground": "#d19a66"
+      }
+    },
+    {
+      "name": "mType Function Names",
+      "scope": [
+        "entity.name.function.mtype"
+      ],
+      "settings": {
+        "foreground": "#6176ba"
+      }
+    },
+    {
+      "name": "mType Class Names",
+      "scope": [
+        "entity.name.type.class.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "mType Namespace Names",
+      "scope": [
+        "entity.name.namespace.mtype"
+      ],
+      "settings": {
+        "foreground": "#e06c75"
+      }
+    },
+    {
+      "name": "mType Annotations",
+      "scope": [
+        "entity.name.tag.mtype",
+        "meta.annotation.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "mType Function Parameters",
+      "scope": [
+        "variable.parameter.mtype"
+      ],
+      "settings": {
+        "foreground": "#abb2bf"
+      }
+    },
+    {
+      "name": "mType Data Members and Fields",
+      "scope": [
+        "variable.other.member.mtype",
+        "variable.other.field.mtype",
+        "variable.other.field.simple.mtype"
+      ],
+      "settings": {
+        "foreground": "#e06c75",
+        "fontStyle": ""
+      }
+    },
+    {
+      "name": "mType Variable Assignments",
+      "scope": [
+        "variable.other.assignment.mtype"
+      ],
+      "settings": {
+        "foreground": "#e06c75"
+      }
+    },
+    {
+      "name": "mType Operators",
+      "scope": [
+        "keyword.operator.arithmetic.mtype",
+        "keyword.operator.comparison.mtype",
+        "keyword.operator.logical.mtype",
+        "keyword.operator.assignment.mtype",
+        "keyword.operator.ternary.mtype"
+      ],
+      "settings": {
+        "foreground": "#56b6c2"
+      }
+    },
+    {
+      "name": "mType Member Access",
+      "scope": [
+        "keyword.operator.member-access.mtype"
+      ],
+      "settings": {
+        "foreground": "#abb2bf"
+      }
+    },
+    {
+      "name": "mType Namespace Separator",
+      "scope": [
+        "punctuation.separator.namespace.mtype"
+      ],
+      "settings": {
+        "foreground": "#56b6c2"
+      }
+    },
+    {
+      "name": "mType Punctuation",
+      "scope": [
+        "punctuation.separator.comma.mtype"
+      ],
+      "settings": {
+        "foreground": "#abb2bf"
+      }
+    },
+    {
+      "name": "mType Collection Generics",
+      "scope": [
+        "meta.collection.generic.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
+      }
+    },
+    {
+      "name": "mType Meta Scopes",
+      "scope": [
+        "meta.function.declaration.mtype",
+        "meta.class.mtype",
+        "meta.namespace.mtype"
+      ],
+      "settings": {
+        "foreground": "#abb2bf"
+      }
+    }
+  ]
+}

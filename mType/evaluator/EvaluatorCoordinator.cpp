@@ -4,6 +4,7 @@
 namespace evaluator
 {
     using namespace runtimeTypes::klass;
+
     
     EvaluatorCoordinator::EvaluatorCoordinator(std::shared_ptr<Environment> environment)
         : context(std::make_shared<EvaluationContext>(environment))

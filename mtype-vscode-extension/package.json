@@ -1,0 +1,184 @@
+{
+  "name": "mtype-language-support",
+  "displayName": "mType Language Support",
+  "description": "Syntax highlighting and code completion for mType programming language",
+  "version": "1.0.0",
+  "publisher": "mtype-team",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "mtype",
+    "programming language",
+    "syntax highlighting",
+    "code completion"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:mtype",
+    "onCommand:mtype.run",
+    "onCommand:mtype.runTests",
+    "onCommand:mtype.formatDocument"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mtype",
+        "aliases": [
+          "mType",
+          "mtype"
+        ],
+        "extensions": [
+          ".mt"
+        ],
+        "configuration": "./language-configuration/mtype-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mtype",
+        "scopeName": "source.mtype",
+        "path": "./syntaxes/mtype.tmGrammar.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "mtype-icons",
+        "label": "mType File Icons",
+        "path": "./icons/mtype-icon-theme.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "mType Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/mtype-dark-theme.json"
+      },
+      {
+        "label": "mType Light",
+        "uiTheme": "vs",
+        "path": "./themes/mtype-light-theme.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "mtype.run",
+        "title": "Run mType File",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.runTests",
+        "title": "Run mType Tests",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.formatDocument",
+        "title": "Format mType Document",
+        "category": "mType"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "mtype.run",
+        "key": "f5",
+        "when": "editorTextFocus && resourceExtname == '.mt'"
+      },
+      {
+        "command": "mtype.runTests",
+        "key": "ctrl+f5",
+        "when": "editorTextFocus && resourceExtname == '.mt'"
+      },
+      {
+        "command": "mtype.formatDocument",
+        "key": "shift+alt+f",
+        "when": "editorTextFocus && resourceExtname == '.mt'"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname == '.mt'",
+          "command": "mtype.run",
+          "group": "mtype"
+        },
+        {
+          "when": "resourceExtname == '.mt'",
+          "command": "mtype.formatDocument",
+          "group": "mtype"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mtype.run",
+          "when": "resourceExtname == '.mt'"
+        },
+        {
+          "command": "mtype.runTests"
+        },
+        {
+          "command": "mtype.formatDocument",
+          "when": "resourceExtname == '.mt'"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "mType Language Server",
+      "properties": {
+        "mTypeLanguageServer.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable mType language server"
+        },
+        "mTypeLanguageServer.interpreterPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to mType interpreter executable"
+        },
+        "mTypeFormatter.indentSize": {
+          "type": "number",
+          "default": 4,
+          "description": "Number of spaces for indentation"
+        },
+        "mTypeFormatter.useSpaces": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use spaces for indentation instead of tabs"
+        },
+        "mTypeFormatter.formatOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Format mType files on save"
+        },
+        "mTypeFormatter.insertSpaceAfterComma": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert space after commas"
+        },
+        "mTypeFormatter.insertSpaceAroundOperators": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert spaces around operators (=, +, -, etc.)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^16.x",
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.4.4"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0",
+    "vscode-languageserver": "^8.1.0",
+    "vscode-languageserver-textdocument": "^1.0.1"
+  }
+}
