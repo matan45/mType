@@ -2,6 +2,12 @@
   "iconDefinitions": {
     "mtype-file": {
       "iconPath": "./mtype-file.svg"
+    },
+    "mtype-folder": {
+      "iconPath": "./mtype-folder.svg"
+    },
+    "mtype-folder-open": {
+      "iconPath": "./mtype-folder-open.svg"
     }
   },
   "fileExtensions": {
@@ -9,5 +15,7 @@
   },
   "languageIds": {
     "mtype": "mtype-file"
-  }
+  },
+  "folder": "mtype-folder",
+  "folderExpanded": "mtype-folder-open"
 }

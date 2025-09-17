@@ -1,37 +1,38 @@
 // Complex inheritance scenarios with namespaces
 
-    class Entity {
-        int id;
-        string name;
-        
-        constructor(int entityId, string entityName) {
-            id = entityId;
-            name = entityName;
-        }
-        
-        function getName(): string {
-            return name;
-        }
-        
-        function getId(): int {
-            return id;
-        }
-    }
-    
+class Entity {
+    int id;
+    string name;
 
-        class GameObject {
-            Entity entity;
-            final string TYPE = "GameObject";
-            
-            constructor(int id, string name) {
-                entity = new Entity(id, name);
-            }
-            
-            function getEntityInfo(): string {
-                return TYPE + ": " + entity.getName() + " [" + toString(entity.getId()) + "]";
-            }
-        }
-    
+    constructor(int entityId, string entityName) {
+        id = entityId;
+        name = entityName;
+    }
+
+    function getName() : string {
+        return name;
+    }
+
+    function getId() : int {
+        return id;
+    }
+}
+
+
+class GameObject {
+    Entity entity;
+    final string TYPE = "GameObject";
+
+    constructor(int id, string name) {
+        entity = new Entity(id, name);
+        entity.
+    }
+
+    function getEntityInfo() : string {
+        return TYPE + " : " + entity.getName() + " [" + toString(entity.getId()) + "]";
+    }
+}
+
 
 
 // Test inheritance-like composition with namespaces
