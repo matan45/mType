@@ -201,6 +201,11 @@ namespace evaluator
     {
         // Handle 'this' keyword specifically
         if (node->getName() == "this") {
+            // VALIDATION: Prevent 'this' access from static methods
+            if (context->isInStaticMethodContext()) {
+                throw TypeException("Cannot use 'this' in static method context", node->getLocation());
+            }
+
             auto currentInstance = context->getCurrentInstance();
             if (currentInstance) {
                 return currentInstance;
@@ -247,6 +252,15 @@ namespace evaluator
             // Check if this might be a field access on the current instance
             auto currentInstance = context->getCurrentInstance();
             if (currentInstance) {
+                // VALIDATION: Prevent instance member access from static methods
+                if (context->isInStaticMethodContext()) {
+                    auto field = currentInstance->getField(varName);
+                    if (field && !field->isStatic()) {
+                        throw TypeException("Cannot access instance field '" + varName +
+                                          "' from static method context", node->getLocation());
+                    }
+                }
+
                 auto field = currentInstance->getField(varName);
                 if (field) {
                     return currentInstance->getFieldValue(varName);

@@ -128,5 +128,19 @@ namespace tests::testSuite
         addTestFromFile("Enhanced Null Pointer Location Error",
                         errorPath + "enhancedNullPointerLocation.mt",
                         TestType::ERROR_EXPECTED);
+
+        // Static method validation error tests (expected to fail)
+        addTestFromFile("Static Method Access This Error",
+                        errorPath + "staticMethodAccessThis.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Access Instance Field Error",
+                        errorPath + "staticMethodAccessInstanceField.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Call Instance Method Error",
+                        errorPath + "staticMethodCallInstanceMethod.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Access Instance Member Error",
+                        errorPath + "staticMethodAccessInstanceMember.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

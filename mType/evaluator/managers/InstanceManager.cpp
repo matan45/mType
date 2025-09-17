@@ -67,19 +67,19 @@ namespace evaluator::managers
         currentInstance = nullptr;
     }
     
-    Value InstanceManager::accessMember(std::shared_ptr<ObjectInstance> object, 
+    Value InstanceManager::accessMember(std::shared_ptr<ObjectInstance> object,
                                        const std::string& memberName) const
     {
         if (!object) {
             throw TypeException("Cannot access member '" + memberName + "' on null object");
         }
-        
+
         // Check if it's a field
         if (object->getField(memberName)) {
             return object->getFieldValue(memberName);
         }
-        
-        throw UndefinedException("Member '" + memberName + "' not found in class '" + 
+
+        throw UndefinedException("Member '" + memberName + "' not found in class '" +
                                 object->getTypeName() + "'");
     }
     

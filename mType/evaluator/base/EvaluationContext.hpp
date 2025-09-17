@@ -22,7 +22,8 @@ namespace evaluator::base
         std::shared_ptr<ObjectInstance> currentInstance;
         std::stack<Value> returnStack;
         bool hasReturned;
-        
+        bool isInStaticMethod;
+
         // Performance optimization: cache frequently accessed values
         mutable std::shared_ptr<Environment> cachedEnv;
         mutable bool envCacheValid;
@@ -49,6 +50,10 @@ namespace evaluator::base
         // Utility methods to reduce code duplication
         bool isInFunction() const;
         bool isEvaluatingImport() const;
+
+        // Static method context management
+        void setInStaticMethod(bool inStatic) { isInStaticMethod = inStatic; }
+        bool isInStaticMethodContext() const { return isInStaticMethod; }
         
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;

@@ -448,6 +448,20 @@ namespace evaluator
     Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object,
                                         const std::string& memberName)
     {
+        if (!object) {
+            throw TypeException("Cannot access member '" + memberName + "' on null object");
+        }
+
+        // VALIDATION: Prevent instance member access from static methods
+        if (context->isInStaticMethodContext()) {
+            auto field = object->getField(memberName);
+            if (field && !field->isStatic()) {
+                throw TypeException("Cannot access instance field '" + memberName +
+                                  "' from static method context",
+                                  SourceLocation()); // TODO: Pass proper location if available
+            }
+        }
+
         auto env = context->getEnvironment();
         return instanceManager->accessMember(object, memberName);
     }
@@ -482,6 +496,20 @@ namespace evaluator
                                        const std::string& memberName,
                                        const Value& value)
     {
+        if (!object) {
+            throw TypeException("Cannot assign to member '" + memberName + "' on null object");
+        }
+
+        // VALIDATION: Prevent instance member assignment from static methods
+        if (context->isInStaticMethodContext()) {
+            auto field = object->getField(memberName);
+            if (field && !field->isStatic()) {
+                throw TypeException("Cannot assign to instance field '" + memberName +
+                                  "' from static method context",
+                                  SourceLocation()); // TODO: Pass proper location if available
+            }
+        }
+
         instanceManager->assignMember(object, memberName, value);
     }
 
@@ -552,6 +580,14 @@ namespace evaluator
             throw TypeException("Cannot call static method '" + methodName +
                 "' on instance of class '" + classDef->getName() +
                 "'. Use class name instead.");
+        }
+
+        // VALIDATION: Prevent instance method calls from static methods
+        if (context->isInStaticMethodContext() && !method->isStatic())
+        {
+            throw TypeException("Cannot call instance method '" + methodName +
+                "' from static method context",
+                SourceLocation()); // TODO: Pass proper location if available
         }
 
         // Set current instance context
@@ -697,31 +733,47 @@ namespace evaluator
                 );
                 env->declareVariable("__current_class_name__", classNameVar);
 
-                // Execute method body (no instance context for static methods)
-                Value result = std::monostate{}; // void default
-                if (method->getBody() && stmtEvaluator)
-                {
-                    stmtEvaluator->evaluate(method->getBody());
-                }
+                // Set static method context to prevent instance member access
+                bool previousStaticState = context->isInStaticMethodContext();
+                context->setInStaticMethod(true);
 
-                // Get return value if method returned
-                if (context->shouldReturn())
+                try
                 {
-                    result = context->getReturnValue();
+                    // Execute method body (no instance context for static methods)
+                    Value result = std::monostate{}; // void default
+                    if (method->getBody() && stmtEvaluator)
+                    {
+                        stmtEvaluator->evaluate(method->getBody());
+                    }
+
+                    // Get return value if method returned
+                    if (context->shouldReturn())
+                    {
+                        result = context->getReturnValue();
+                        context->setReturned(false);
+                    }
+
+                    // Restore previous static method state
+                    context->setInStaticMethod(previousStaticState);
+                    return result;
+                }
+                catch (const exception::ReturnException& e)
+                {
+                    // Handle return exception - extract return value
+                    context->setInStaticMethod(previousStaticState);
                     context->setReturned(false);
+                    return e.returnValue;
                 }
-
-                return result;
-            }
-            catch (const exception::ReturnException& e)
-            {
-                // Handle return exception - extract return value
-                context->setReturned(false); // Reset return state after handling exception
-                return e.returnValue;
+                catch (...)
+                {
+                    // Ensure we restore state even if exception occurs
+                    context->setInStaticMethod(previousStaticState);
+                    throw;
+                }
             }
             catch (...)
             {
-                throw;
+                throw; // Re-throw any exceptions that weren't handled by inner try-catch
             }
             // Scope automatically exits via RAII
         }

@@ -435,9 +435,6 @@
     <ClInclude Include="runtimeTypes\collections\Collection.hpp">
       <Filter>runtimeTypes\collections</Filter>
     </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\List.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
     <ClInclude Include="runtimeTypes\collections\Map.hpp">
       <Filter>runtimeTypes\collections</Filter>
     </ClInclude>
@@ -1015,6 +1012,24 @@
     <None Include="tests\testFiles\collections\error\forEachTypeMismatch.mt">
       <Filter>tests\testFiles\collections\error</Filter>
     </None>
+    <None Include="tests\testFiles\collections\error\mapKeyNotFound.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\queueEmptyDequeue.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\setTypeMismatch.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\stackEmptyPop.mt">
+      <Filter>tests\testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayAdvanced.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayAdvanced.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\arrayBasic.expected">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
@@ -1027,10 +1042,67 @@
     <None Include="tests\testFiles\collections\pass\arrayLiteral.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayObjects.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayObjects.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\basicCollectionFunctionTest.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsParameters.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsParameters.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsReturnTypes.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsReturnTypes.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsVariables.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsVariables.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsInMethods.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsInMethods.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsWithSimpleFunctions.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsWithSimpleFunctions.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\comprehensiveIteration.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\comprehensiveIteration.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\comprehensiveNestedForEach.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\comprehensiveNestedForEach.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\forEachArray.expected">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\forEachArray.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapAdvanced.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapAdvanced.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\mapBasic.expected">
@@ -1043,6 +1115,84 @@
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\mapLiteral.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapObjects.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\mapObjects.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\nestedCollections.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\nestedCollections.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\nestedCollectionsAsMapValues.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\nestedCollectionsAsMapValues.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueBasic.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueBasic.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueIteration.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueIteration.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueObjects.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\queueObjects.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setBasic.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setBasic.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setIteration.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setIteration.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setObjects.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\setObjects.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackBasic.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackBasic.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackIteration.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackIteration.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackObjects.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\stackObjects.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\twoPhaseComparison.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\twoPhaseComparison.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
@@ -1283,6 +1433,18 @@
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\semanticWrongParameterCount.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\staticMethodAccessInstanceField.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\staticMethodAccessInstanceMember.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\staticMethodAccessThis.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\staticMethodCallInstanceMethod.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\syntaxInvalidFunctionName.mt">
