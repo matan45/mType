@@ -44,6 +44,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include "../../errors/SourceLocation.hpp"
 #include "../../token/TokenType.hpp"
 
 namespace ast::serialization
@@ -146,6 +147,8 @@ namespace ast::serialization
                 return deserializeUnaryExpNode(header);
             case NodeType::RETURN_NODE:
                 return deserializeReturnNode(header);
+            case NodeType::IMPORT_NODE:
+                return deserializeImportNode(header);
             // Add more cases as we implement them
             default:
                 throw std::runtime_error("Unknown node type during deserialization: " + std::to_string(static_cast<int>(header.type)));
@@ -517,7 +520,32 @@ namespace ast::serialization
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeSwitchNode(const NodeHeader& header) { return nullptr; }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeCaseNode(const NodeHeader& header) { return nullptr; }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeDefaultCaseNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeImportNode(const NodeHeader& header) { return nullptr; }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeImportNode(const NodeHeader& header)
+    {
+        // Read the file path
+        std::string filePath = readString();
+
+        // Create the import node with the file path
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+        auto importNode = std::make_unique<nodes::statements::ImportNode>(filePath, location);
+
+        // Read the number of imported declarations
+        uint32_t declarationCount = readUInt32();
+
+        // Read each imported declaration
+        for (uint32_t i = 0; i < declarationCount; ++i)
+        {
+            auto declaration = deserializeNode();
+            if (declaration)
+            {
+                importNode->addImportedDeclaration(std::move(declaration));
+            }
+        }
+
+        return importNode;
+    }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeNativeFunctionNode(const NodeHeader& header) { return nullptr; }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodNode(const NodeHeader& header) { return nullptr; }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeFieldNode(const NodeHeader& header) { return nullptr; }

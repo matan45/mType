@@ -171,6 +171,9 @@ namespace ast::serialization
             case NodeType::RETURN_NODE:
                 serializeReturnNode(dynamic_cast<const nodes::functions::ReturnNode*>(node));
                 break;
+            case NodeType::IMPORT_NODE:
+                serializeImportNode(dynamic_cast<const nodes::statements::ImportNode*>(node));
+                break;
             // Add cases for other node types as we implement them
             default:
                 std::cerr << "Warning: Unsupported node type for serialization: " << static_cast<int>(type) << std::endl;
@@ -460,6 +463,8 @@ namespace ast::serialization
             return NodeType::UNARY_EXP_NODE;
         if (dynamic_cast<const nodes::functions::ReturnNode*>(node))
             return NodeType::RETURN_NODE;
+        if (dynamic_cast<const nodes::statements::ImportNode*>(node))
+            return NodeType::IMPORT_NODE;
 
         // Add more type checks as we implement them
         throw std::runtime_error("Unknown node type for serialization");
@@ -529,7 +534,21 @@ namespace ast::serialization
     void ASTSerializer::serializeSwitchNode(const nodes::statements::SwitchNode* node) {}
     void ASTSerializer::serializeCaseNode(const nodes::statements::CaseNode* node) {}
     void ASTSerializer::serializeDefaultCaseNode(const nodes::statements::DefaultCaseNode* node) {}
-    void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node) {}
+    void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node)
+    {
+        // Serialize the file path
+        writeString(node->getFilePath());
+
+        // Serialize the number of imported declarations
+        const auto& declarations = node->getImportedDeclarations();
+        writeUInt32(static_cast<uint32_t>(declarations.size()));
+
+        // Serialize each imported declaration
+        for (const auto& declaration : declarations)
+        {
+            serializeNode(declaration.get());
+        }
+    }
     void ASTSerializer::serializeNativeFunctionNode(const nodes::statements::NativeFunctionNode* node) {}
     void ASTSerializer::serializeMethodNode(const nodes::classes::MethodNode* node) {}
     void ASTSerializer::serializeFieldNode(const nodes::classes::FieldNode* node) {}
