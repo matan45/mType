@@ -37,16 +37,8 @@
     {
       "name": "mType Control Keywords",
       "scope": [
-        "keyword.control.mtype"
-      ],
-      "settings": {
-        "foreground": "#c678dd"
-      }
-    },
-    {
-      "name": "mType Other Keywords",
-      "scope": [
-        "keyword.other.mtype"
+        "keyword.control.mtype",
+		"keyword.other.mtype"
       ],
       "settings": {
         "foreground": "#c678dd"
@@ -115,7 +107,7 @@
         "entity.name.function.mtype"
       ],
       "settings": {
-        "foreground": "#6176ba"
+        "foreground": "#7474ed"
       }
     },
     {
@@ -125,15 +117,6 @@
       ],
       "settings": {
         "foreground": "#e5c07b"
-      }
-    },
-    {
-      "name": "mType Namespace Names",
-      "scope": [
-        "entity.name.namespace.mtype"
-      ],
-      "settings": {
-        "foreground": "#e06c75"
       }
     },
     {
@@ -152,7 +135,7 @@
         "variable.parameter.mtype"
       ],
       "settings": {
-        "foreground": "#abb2bf"
+        "foreground": "#636d83"
       }
     },
     {
@@ -160,7 +143,9 @@
       "scope": [
         "variable.other.member.mtype",
         "variable.other.field.mtype",
-        "variable.other.field.simple.mtype"
+        "variable.other.field.simple.mtype",
+        "variable.other.member.access.mtype",
+        "variable.other.member.standalone.mtype"
       ],
       "settings": {
         "foreground": "#e06c75",
@@ -174,6 +159,15 @@
       ],
       "settings": {
         "foreground": "#e06c75"
+      }
+    },
+    {
+      "name": "mType Local Variables",
+      "scope": [
+        "variable.other.local.mtype"
+      ],
+      "settings": {
+        "foreground": "#636d83"
       }
     },
     {
@@ -196,15 +190,6 @@
       ],
       "settings": {
         "foreground": "#abb2bf"
-      }
-    },
-    {
-      "name": "mType Namespace Separator",
-      "scope": [
-        "punctuation.separator.namespace.mtype"
-      ],
-      "settings": {
-        "foreground": "#56b6c2"
       }
     },
     {

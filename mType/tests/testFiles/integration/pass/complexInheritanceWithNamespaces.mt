@@ -25,7 +25,6 @@ class GameObject {
 
     constructor(int id, string name) {
         entity = new Entity(id, name);
-        entity.
     }
 
     function getEntityInfo() : string {
