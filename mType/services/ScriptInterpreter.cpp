@@ -5,6 +5,8 @@
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
+#include "../ast/serialization/ASTSerializer.hpp"
+#include "../ast/serialization/ASTDeserializer.hpp"
 #include <iostream>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -15,6 +17,7 @@
 #include <stdexcept>
 #include <memory>
 #include <filesystem>
+#include <chrono>
 
 namespace services
 {
@@ -29,6 +32,20 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
+        // Check for cached AST first
+        std::filesystem::path sourcePath(filename);
+        std::string cacheFile = sourcePath.string() + "c"; // .mt -> .mtc
+
+        if (std::filesystem::exists(cacheFile) && isCacheValid(filename, cacheFile))
+        {
+            // Use cached AST
+            if (runCachedScript(cacheFile))
+            {
+                return;
+            }
+            // If cache loading fails, fall back to parsing
+        }
+
         // Parse and execute
         lexer::Lexer lexer(filename);
 
@@ -47,7 +64,93 @@ namespace services
         // Set ImportManager on environment for clean architecture
         environment->setImportManager(importManagerPtr);
 
+        // Cache the AST for future use
+        ast::serialization::ASTSerializer serializer;
+        serializer.serialize(ast.get(), cacheFile);
+
         evaluator->evaluate(ast.get());
+    }
+
+    bool ScriptInterpreter::compileScript(const std::string& filename, const std::string& outputPath)
+    {
+        try
+        {
+            // Parse the script
+            lexer::Lexer lexer(filename);
+
+            // Create and configure ImportManager
+            auto importManager = std::make_unique<ImportManager>();
+
+            // Set base directory to the directory of the script file
+            std::filesystem::path scriptPath(filename);
+            importManager->setBaseDirectory(scriptPath.parent_path().string());
+
+            parser::Parser parser(lexer, std::move(importManager));
+            auto ast = parser.parseProgram();
+
+            // Determine output path
+            std::string outputFile = outputPath;
+            if (outputFile.empty())
+            {
+                outputFile = filename + "c"; // .mt -> .mtc
+            }
+
+            // Serialize the AST
+            ast::serialization::ASTSerializer serializer;
+            return serializer.serialize(ast.get(), outputFile);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error compiling script: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
+    {
+        try
+        {
+            // Deserialize the AST
+            ast::serialization::ASTDeserializer deserializer;
+            auto ast = deserializer.deserialize(cachedPath);
+
+            if (!ast)
+            {
+                std::cerr << "Failed to load cached AST from: " << cachedPath << std::endl;
+                return false;
+            }
+
+            // Execute the AST
+            evaluator->evaluate(ast.get());
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error running cached script: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool ScriptInterpreter::isCacheValid(const std::string& sourceFile, const std::string& cacheFile)
+    {
+        try
+        {
+            if (!std::filesystem::exists(sourceFile) || !std::filesystem::exists(cacheFile))
+            {
+                return false;
+            }
+
+            auto sourceTime = std::filesystem::last_write_time(sourceFile);
+            auto cacheTime = std::filesystem::last_write_time(cacheFile);
+
+            // Cache is valid if it's newer than the source file
+            return cacheTime >= sourceTime;
+        }
+        catch (const std::filesystem::filesystem_error& e)
+        {
+            std::cerr << "Error checking cache validity: " << e.what() << std::endl;
+            return false;
+        }
     }
 
 

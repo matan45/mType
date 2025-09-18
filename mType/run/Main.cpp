@@ -151,13 +151,77 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    // Handle compile-only mode
+    if (argc >= 3 && std::string(argv[1]) == "--compile")
+    {
+        std::string sourceFile = argv[2];
+        std::string outputFile = "";
+
+        if (argc >= 4)
+        {
+            outputFile = argv[3];
+        }
+
+        try
+        {
+            ScriptInterpreter interpreter;
+            if (interpreter.compileScript(sourceFile, outputFile))
+            {
+                std::cout << "Successfully compiled " << sourceFile;
+                if (!outputFile.empty())
+                {
+                    std::cout << " to " << outputFile;
+                }
+                else
+                {
+                    std::cout << " to " << sourceFile << "c";
+                }
+                std::cout << std::endl;
+                return 0;
+            }
+            else
+            {
+                std::cerr << "Failed to compile " << sourceFile << std::endl;
+                return 1;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle run-cached mode
+    if (argc == 3 && std::string(argv[1]) == "--run-cached")
+    {
+        std::string cachedFile = argv[2];
+
+        try
+        {
+            ScriptInterpreter interpreter;
+            if (!interpreter.runCachedScript(cachedFile))
+            {
+                return 1;
+            }
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
     if (argc == 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
-        std::cout << "  " << argv[0] << " <script_file.mt>     - Run a script file\n";
-        std::cout << "  " << argv[0] << " --tests             - Run all test suites\n";
-        std::cout << "  " << argv[0] << " --test <suite>      - Run specific test suite\n";
-        std::cout << "  " << argv[0] << " --help              - Show this help message\n\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
+        std::cout << "  " << argv[0] << " --compile <file.mt> [out]  - Compile script to AST cache\n";
+        std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled AST cache\n";
+        std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
+        std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         printAvailableTestSuites();
         return 0;
     }
@@ -165,6 +229,7 @@ int main(int argc, char* argv[])
     if (argc != 2)
     {
         std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
+        std::cout << "       " << argv[0] << " --compile <file.mt> [output] or --run-cached <file.mtc>" << std::endl;
         std::cout << "Use --help for detailed usage information" << std::endl;
         return 1;
     }
