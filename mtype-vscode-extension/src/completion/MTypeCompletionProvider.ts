@@ -487,14 +487,17 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                     break;
                 }
 
-                // Parse methods
-                const methodMatch = line.match(/^\s*(?:private\s+)?(?:static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
+                // Parse methods - exclude static methods for instance completion
+                const methodMatch = line.match(/^\s*(private\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
                 if (methodMatch) {
-                    const methodName = methodMatch[1];
-                    const parameters = methodMatch[2];
-                    const returnType = methodMatch[3];
+                    const isPrivate = !!methodMatch[1];
+                    const isStatic = !!methodMatch[2];
+                    const methodName = methodMatch[3];
+                    const parameters = methodMatch[4];
+                    const returnType = methodMatch[5];
 
-                    if (methodName !== 'constructor') {
+                    // Only include non-static methods for instance completion
+                    if (!isStatic && methodName !== 'constructor') {
                         const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
                         item.detail = `${returnType} ${methodName}(${parameters})`;
                         item.documentation = `Imported method from ${className}`;
@@ -513,14 +516,28 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                     }
                 }
 
-                // Parse fields
-                const fieldMatch = line.match(/^\s*(?:private\s+)?(?:static\s+)?(?:final\s+)?(\w+)\s+(\w+)\s*;?/);
+                // Parse fields - exclude static fields for instance completion
+                const fieldMatch = line.match(/^\s*(private\s+)?(static\s+)?(final\s+)?(\w+)\s+(\w+)\s*[=;]?/);
                 if (fieldMatch) {
-                    const fieldType = fieldMatch[1];
-                    const fieldName = fieldMatch[2];
+                    const isPrivate = !!fieldMatch[1];
+                    const isStatic = !!fieldMatch[2];
+                    const isFinal = !!fieldMatch[3];
+                    const fieldType = fieldMatch[4];
+                    const fieldName = fieldMatch[5];
 
-                    // Skip if it looks like a method or constructor
-                    if (!line.includes('(') && !line.includes('function')) {
+                    // Skip non-field lines and static fields for instance completion
+                    const trimmedLine = line.trim();
+                    const isReturnStatement = trimmedLine.startsWith('return ');
+                    const isControlFlow = trimmedLine.startsWith('if ') || trimmedLine.startsWith('while ') || trimmedLine.startsWith('for ');
+                    const isKeywordType = ['return', 'if', 'while', 'for', 'else', 'switch', 'case', 'break', 'continue'].includes(fieldType);
+
+                    if (!line.includes('(') &&
+                        !line.includes('function') &&
+                        !isStatic &&
+                        !isReturnStatement &&
+                        !isControlFlow &&
+                        !isKeywordType) {
+
                         const item = new vscode.CompletionItem(fieldName, vscode.CompletionItemKind.Field);
                         item.detail = `${fieldType} ${fieldName}`;
                         item.documentation = `Imported field from ${className}`;

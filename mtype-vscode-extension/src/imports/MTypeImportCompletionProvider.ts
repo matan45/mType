@@ -208,6 +208,7 @@ export class MTypeImportedSymbolProvider {
      */
     async analyzeDocumentImports(document: vscode.TextDocument): Promise<void> {
         const imports: ImportInfo[] = [];
+        const processedPaths = new Set<string>(); // Track processed import paths to avoid duplicates
         const text = document.getText();
         const lines = text.split('\n');
 
@@ -215,9 +216,17 @@ export class MTypeImportedSymbolProvider {
             const importMatch = line.match(/^\s*import\s+["']([^"']+)["']\s*;?/);
             if (importMatch) {
                 const importPath = importMatch[1];
+
+                // Skip if we've already processed this import path
+                if (processedPaths.has(importPath)) {
+                    console.log(`Skipping duplicate import: ${importPath}`);
+                    continue;
+                }
+
                 const importInfo = await this.importResolver.getImportInfo(importPath, document.uri.fsPath);
                 if (importInfo && importInfo.isValid) {
                     imports.push(importInfo);
+                    processedPaths.add(importPath);
                 }
             }
         }
@@ -238,6 +247,7 @@ export class MTypeImportedSymbolProvider {
     getImportedSymbolCompletions(document: vscode.TextDocument): vscode.CompletionItem[] {
         const completions: vscode.CompletionItem[] = [];
         const imports = this.getImportedSymbols(document);
+        const addedSymbols = new Set<string>(); // Track added symbols to avoid duplicates
 
         console.log('Getting imported symbol completions for:', document.uri.toString());
         console.log('Found imports:', imports.length);
@@ -245,6 +255,10 @@ export class MTypeImportedSymbolProvider {
         for (const importInfo of imports) {
             console.log('Processing import:', importInfo.importPath, 'with symbols:', importInfo.exportedSymbols.length);
             for (const symbol of importInfo.exportedSymbols) {
+                // Skip if we've already added this symbol
+                if (addedSymbols.has(symbol.name)) {
+                    continue;
+                }
                 let item: vscode.CompletionItem;
 
                 switch (symbol.type) {
@@ -286,6 +300,7 @@ export class MTypeImportedSymbolProvider {
 
                 item.sortText = '1' + symbol.name; // Lower priority than local symbols
                 completions.push(item);
+                addedSymbols.add(symbol.name); // Mark this symbol as added
             }
         }
 

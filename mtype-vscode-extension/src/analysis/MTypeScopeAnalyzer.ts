@@ -274,6 +274,17 @@ export class MTypeScopeAnalyzer {
     private parseLocalVariables(line: string, lineIndex: number, scope: ScopeInfo | null): void {
         if (!scope) return;
 
+        // Skip lines that are not variable declarations
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('return ') ||
+            trimmedLine.startsWith('if ') ||
+            trimmedLine.startsWith('while ') ||
+            trimmedLine.startsWith('for ') ||
+            trimmedLine.startsWith('//') ||
+            trimmedLine.includes('(') && !trimmedLine.includes('new ')) {
+            return;
+        }
+
         // Parse local variable declarations: [final] type varName = value;
         // Support both simple assignments and 'new' constructor calls
         const varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=\s*(?:new\s+\w+\(.*\)|.*);?\s*$/);
@@ -281,6 +292,12 @@ export class MTypeScopeAnalyzer {
             const isFinal = !!varMatch[1];
             const varType = varMatch[2];
             const varName = varMatch[3];
+
+            // Additional validation: ensure the type is not a keyword
+            const keywords = ['return', 'if', 'while', 'for', 'else', 'switch', 'case', 'break', 'continue'];
+            if (keywords.includes(varType)) {
+                return;
+            }
 
             const varInfo: VariableInfo = {
                 name: varName,
@@ -354,6 +371,17 @@ export class MTypeScopeAnalyzer {
                 continue;
             }
 
+            // Skip lines that are not variable declarations
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('return ') ||
+                trimmedLine.startsWith('if ') ||
+                trimmedLine.startsWith('while ') ||
+                trimmedLine.startsWith('for ') ||
+                trimmedLine.startsWith('//') ||
+                trimmedLine.includes('(') && !trimmedLine.includes('new ')) {
+                continue;
+            }
+
             // Parse global variable declarations - more flexible pattern
             // Match: [final] Type varName = anything;
             let varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=.*$/);
@@ -366,6 +394,12 @@ export class MTypeScopeAnalyzer {
                 const isFinal = !!varMatch[1];
                 const varType = varMatch[2];
                 const varName = varMatch[3];
+
+                // Additional validation: ensure the type is not a keyword
+                const keywords = ['return', 'if', 'while', 'for', 'else', 'switch', 'case', 'break', 'continue'];
+                if (keywords.includes(varType)) {
+                    continue;
+                }
 
                 const varInfo: VariableInfo = {
                     name: varName,
