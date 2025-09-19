@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { MTypeFormatter } from './formatter/MTypeFormatter';
 import { MTypeCompletionProvider } from './completion/MTypeCompletionProvider';
+import { MTypeDefinitionProvider } from './definition/MTypeDefinitionProvider';
+import { MTypeReferenceProvider } from './references/MTypeReferenceProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage('mType extension activated!');
@@ -17,6 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
     // Register document formatter
     const formatter = new MTypeFormatter();
     const formatterDisposable = vscode.languages.registerDocumentFormattingEditProvider('mtype', formatter);
+
+    // Register definition provider
+    const definitionProvider = new MTypeDefinitionProvider();
+    const definitionDisposable = vscode.languages.registerDefinitionProvider('mtype', definitionProvider);
+
+    // Register reference provider
+    const referenceProvider = new MTypeReferenceProvider();
+    const referenceDisposable = vscode.languages.registerReferenceProvider('mtype', referenceProvider);
 
     // Register additional commands
     const disposables = [
@@ -88,11 +98,31 @@ export function activate(context: vscode.ExtensionContext) {
             } catch (error) {
                 vscode.window.showErrorMessage('Failed to format document: ' + error);
             }
+        }),
+
+        // Command to find all references
+        vscode.commands.registerCommand('mtype.findReferences', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            try {
+                // Trigger find references
+                await vscode.commands.executeCommand('editor.action.referenceSearch.trigger');
+            } catch (error) {
+                vscode.window.showErrorMessage('Failed to find references: ' + error);
+            }
         })
     ];
 
-    context.subscriptions.push(completionDisposable, formatterDisposable, ...disposables);
-    console.log('mType extension fully activated with completion provider');
+    context.subscriptions.push(completionDisposable, formatterDisposable, definitionDisposable, referenceDisposable, ...disposables);
 }
 
 export function deactivate(): void {

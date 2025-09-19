@@ -1,6 +1,24 @@
+export interface SymbolLocation {
+    line: number;
+    character: number;
+}
+
+export interface ClassInfo {
+    name: string;
+    members: any[];
+    location?: SymbolLocation;
+}
+
+export interface VariableInfo {
+    type: string;
+    location?: SymbolLocation;
+}
+
 export class MTypeCodeAnalyzer {
-    public classes = new Map<string, any>();
-    private variables = new Map<string, string>();
+    public classes = new Map<string, ClassInfo>();
+    private variables = new Map<string, VariableInfo>();
+    private symbolLocations = new Map<string, SymbolLocation>();
+    private namespaces = new Map<string, SymbolLocation>();
 
     analyzeDocument(text: string): void {
         this.parseClasses(text);
@@ -16,6 +34,7 @@ export class MTypeCodeAnalyzer {
         let braceCount = 0;
         let classBody = '';
         let inClass = false;
+        let classStartLine = 0;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -27,6 +46,15 @@ export class MTypeCodeAnalyzer {
                 classBody = '';
                 braceCount = 1;
                 inClass = true;
+                classStartLine = i;
+
+                // Store class location
+                const classKeywordIndex = line.indexOf('class');
+                const classNameIndex = line.indexOf(currentClass);
+                this.symbolLocations.set(currentClass, {
+                    line: i,
+                    character: classNameIndex
+                });
                 continue;
             }
 
@@ -40,8 +68,17 @@ export class MTypeCodeAnalyzer {
                     classBody += line + '\n';
                 } else {
                     // End of class found
-                    const members = this.parseClassMembers(classBody);
-                    this.classes.set(currentClass, { name: currentClass, members: members });
+                    const members = this.parseClassMembers(classBody, currentClass, classStartLine + 1);
+                    const classLocation: SymbolLocation = {
+                        line: classStartLine,
+                        character: lines[classStartLine].indexOf(currentClass)
+                    };
+
+                    this.classes.set(currentClass, {
+                        name: currentClass,
+                        members: members,
+                        location: classLocation
+                    });
 
                     inClass = false;
                     currentClass = '';
@@ -51,12 +88,13 @@ export class MTypeCodeAnalyzer {
         }
     }
 
-    private parseClassMembers(classBody: string): any[] {
+    private parseClassMembers(classBody: string, className: string, startLine: number): any[] {
         const members: any[] = [];
 
         // Parse mType function syntax: [static] function methodName(parameters): returnType {
         const functionRegex = /(?:(static)\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)\s*\{/g;
         let functionMatch;
+        const lines = classBody.split('\n');
 
         while ((functionMatch = functionRegex.exec(classBody)) !== null) {
             const isStatic = functionMatch[1] === 'static';
@@ -67,6 +105,23 @@ export class MTypeCodeAnalyzer {
             const parameters = parametersStr.split(',')
                 .map(p => p.trim())
                 .filter(p => p.length > 0);
+
+            // Find line number within class body
+            const matchText = functionMatch[0];
+            let lineIndex = 0;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes(methodName) && lines[i].includes('function')) {
+                    lineIndex = i;
+                    break;
+                }
+            }
+
+            // Store method location
+            const methodKey = `${className}.${methodName}`;
+            this.symbolLocations.set(methodKey, {
+                line: startLine + lineIndex,
+                character: lines[lineIndex].indexOf(methodName)
+            });
 
             members.push({
                 name: methodName,
@@ -101,6 +156,22 @@ export class MTypeCodeAnalyzer {
             // Check if this field name already exists to avoid duplicates
             const existingMember = members.find(m => m.name === fieldName);
             if (!existingMember) {
+                // Find line number for field
+                let fieldLineIndex = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes(fieldName) && lines[i].includes(fieldType) && lines[i].includes(';')) {
+                        fieldLineIndex = i;
+                        break;
+                    }
+                }
+
+                // Store field location
+                const fieldKey = `${className}.${fieldName}`;
+                this.symbolLocations.set(fieldKey, {
+                    line: startLine + fieldLineIndex,
+                    character: lines[fieldLineIndex].indexOf(fieldName)
+                });
+
                 members.push({
                     name: fieldName,
                     type: 'field',
@@ -110,11 +181,47 @@ export class MTypeCodeAnalyzer {
             }
         }
 
+        // Parse constructors
+        const constructorRegex = /constructor\s*\(([^)]*)\)\s*\{/g;
+        let constructorMatch;
+
+        while ((constructorMatch = constructorRegex.exec(classBody)) !== null) {
+            const parametersStr = constructorMatch[1];
+            const parameters = parametersStr.split(',')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+
+            // Find line number for constructor
+            let constructorLineIndex = 0;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('constructor')) {
+                    constructorLineIndex = i;
+                    break;
+                }
+            }
+
+            // Store constructor location
+            const constructorKey = `${className}.constructor`;
+            this.symbolLocations.set(constructorKey, {
+                line: startLine + constructorLineIndex,
+                character: lines[constructorLineIndex].indexOf('constructor')
+            });
+
+            members.push({
+                name: 'constructor',
+                type: 'constructor',
+                returnType: className,
+                isStatic: false,
+                parameters: parameters
+            });
+        }
+
         return members;
     }
 
     private parseVariables(text: string): void {
         this.variables.clear();
+        const lines = text.split('\n');
 
         // Parse global variable declarations (outside classes)
         const globalVarRegex = /^(?!.*class\s)(\w+)\s+(\w+)\s*=\s*(?:new\s+(\w+)\s*\(|([^;]+))/gm;
@@ -126,7 +233,21 @@ export class MTypeCodeAnalyzer {
             const newType = match[3];
 
             const actualType = newType || declaredType;
-            this.variables.set(varName, actualType);
+
+            // Find line number
+            const lineIndex = this.findLineIndex(lines, match.index);
+            const charIndex = lines[lineIndex].indexOf(varName);
+
+            this.variables.set(varName, {
+                type: actualType,
+                location: { line: lineIndex, character: charIndex }
+            });
+
+            // Store in symbol locations for easy lookup
+            this.symbolLocations.set(varName, {
+                line: lineIndex,
+                character: charIndex
+            });
         }
 
         // Parse variable declarations inside methods/constructors
@@ -140,7 +261,18 @@ export class MTypeCodeAnalyzer {
 
             const actualType = newType || declaredType;
             if (!this.variables.has(varName)) { // Don't override global variables
-                this.variables.set(varName, actualType);
+                const lineIndex = this.findLineIndex(lines, localMatch.index);
+                const charIndex = lines[lineIndex].indexOf(varName);
+
+                this.variables.set(varName, {
+                    type: actualType,
+                    location: { line: lineIndex, character: charIndex }
+                });
+
+                this.symbolLocations.set(varName, {
+                    line: lineIndex,
+                    character: charIndex
+                });
             }
         }
 
@@ -158,7 +290,14 @@ export class MTypeCodeAnalyzer {
                     if (paramMatch) {
                         const paramType = paramMatch[1];
                         const paramName = paramMatch[2];
-                        this.variables.set(paramName, paramType);
+
+                        const lineIndex = this.findLineIndex(lines, funcMatch.index);
+                        const charIndex = lines[lineIndex].indexOf(paramName);
+
+                        this.variables.set(paramName, {
+                            type: paramType,
+                            location: { line: lineIndex, character: charIndex }
+                        });
                     }
                 }
             }
@@ -178,18 +317,79 @@ export class MTypeCodeAnalyzer {
                     if (paramMatch) {
                         const paramType = paramMatch[1];
                         const paramName = paramMatch[2];
-                        this.variables.set(paramName, paramType);
+
+                        const lineIndex = this.findLineIndex(lines, constructorMatch.index);
+                        const charIndex = lines[lineIndex].indexOf(paramName);
+
+                        this.variables.set(paramName, {
+                            type: paramType,
+                            location: { line: lineIndex, character: charIndex }
+                        });
                     }
                 }
             }
         }
     }
 
+
+    private findLineIndex(lines: string[], charIndex: number): number {
+        let currentIndex = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const lineLength = lines[i].length + 1; // +1 for newline
+            if (currentIndex + lineLength > charIndex) {
+                return i;
+            }
+            currentIndex += lineLength;
+        }
+        return lines.length - 1;
+    }
+
+    // Public methods for the DefinitionProvider and ReferenceProvider
+    getSymbolLocation(symbol: string, type?: string): SymbolLocation | null {
+        return this.symbolLocations.get(symbol) || null;
+    }
+
+    getVariableType(variableName: string): string | null {
+        const variable = this.variables.get(variableName);
+        return variable ? variable.type : null;
+    }
+
+    // Helper method to check if a member exists in a class
+    hasMember(className: string, memberName: string, isStatic?: boolean): boolean {
+        const classInfo = this.classes.get(className);
+        if (!classInfo) return false;
+
+        const member = classInfo.members.find(m => {
+            return m.name === memberName && (isStatic === undefined || m.isStatic === isStatic);
+        });
+
+        return !!member;
+    }
+
+    // Get member info from a class
+    getMemberInfo(className: string, memberName: string): any | null {
+        const classInfo = this.classes.get(className);
+        if (!classInfo) return null;
+
+        return classInfo.members.find(m => m.name === memberName) || null;
+    }
+
+    // Get all variables of a specific type
+    getVariablesOfType(typeName: string): string[] {
+        const variablesOfType: string[] = [];
+        for (const [varName, varInfo] of this.variables.entries()) {
+            if (varInfo.type === typeName) {
+                variablesOfType.push(varName);
+            }
+        }
+        return variablesOfType;
+    }
+
     getObjectMembers(objectName: string): any[] {
         // Check if it's a regular variable
         const directType = this.variables.get(objectName);
-        if (directType && this.classes.has(directType)) {
-            return this.classes.get(directType)!.members.filter((m: any) => !m.isStatic);
+        if (directType && directType.type && this.classes.has(directType.type)) {
+            return this.classes.get(directType.type)!.members.filter((m: any) => !m.isStatic);
         }
 
         // Check if it's a static class reference
