@@ -1,56 +1,18 @@
 <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Blue gradient for the bracket border -->
-    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4A9EFF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2E86C1;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Yellow gradient for the "m" -->
+    <!-- Yellow gradient for the "M" -->
     <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#FFD93D;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#F39C12;stop-opacity:1" />
     </linearGradient>
   </defs>
 
-  <!-- Outer blue bracket border (similar to your logo) -->
-  <path d="M8 4
-           C4 4, 2 6, 2 10
-           L2 12
-           C2 14, 0 14, 0 16
-           C0 18, 2 18, 2 20
-           L2 22
-           C2 26, 4 28, 8 28
-           L24 28
-           C28 28, 30 26, 30 22
-           L30 20
-           C30 18, 32 18, 32 16
-           C32 14, 30 14, 30 12
-           L30 10
-           C30 6, 28 4, 24 4
-           L8 4 Z"
-        fill="url(#blueGradient)"
-        stroke="#1B4F72"
-        stroke-width="0.5"/>
-
-  <!-- Inner dark background -->
-  <rect x="8" y="6" width="16" height="20" rx="3" ry="3" fill="#2C3E50"/>
-
-  <!-- Yellow "m" letter (similar to your logo style) -->
-  <text x="16" y="20"
+  <!-- Yellow capital "M" letter -->
+  <text x="16" y="24"
         font-family="Arial Black, Arial, sans-serif"
-        font-size="14"
+        font-size="24"
         font-weight="900"
         text-anchor="middle"
         fill="url(#yellowGradient)"
-        style="text-shadow: 0 1px 2px rgba(0,0,0,0.3);">m</text>
-
-  <!-- Small "mt" extension indicator -->
-  <text x="16" y="24"
-        font-family="Arial, sans-serif"
-        font-size="4"
-        font-weight="bold"
-        text-anchor="middle"
-        fill="#BDC3C7"
-        opacity="0.8">.mt</text>
+        style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);">M</text>
 </svg>

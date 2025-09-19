@@ -3,6 +3,9 @@
     "mtype-file": {
       "iconPath": "./mtype-file.svg"
     },
+    "mtc-file": {
+      "iconPath": "./mtc-file.svg"
+    },
     "mtype-folder": {
       "iconPath": "./mtype-folder.svg"
     },
@@ -11,10 +14,12 @@
     }
   },
   "fileExtensions": {
-    "mt": "mtype-file"
+    "mt": "mtype-file",
+    "mtc": "mtc-file"
   },
   "languageIds": {
-    "mtype": "mtype-file"
+    "mtype": "mtype-file",
+    "mtype-compiled": "mtc-file"
   },
   "folder": "mtype-folder",
   "folderExpanded": "mtype-folder-open"

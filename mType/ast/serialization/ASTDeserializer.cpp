@@ -289,7 +289,7 @@ namespace ast::serialization
     {
         double value = readDouble();
         errors::SourceLocation location = createSourceLocation(header.line, header.column);
-        return std::make_unique<nodes::expressions::FloatNode>(value, location);
+        return std::make_unique<nodes::expressions::FloatNode>(static_cast<float>(value), location);
     }
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeStringNode(const NodeHeader& header)

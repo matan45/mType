@@ -1,0 +1,18 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Blue gradient for the "MC" -->
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A9EFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E86C1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Blue "MC" letters -->
+  <text x="16" y="24"
+        font-family="Arial Black, Arial, sans-serif"
+        font-size="18"
+        font-weight="900"
+        text-anchor="middle"
+        fill="url(#blueGradient)"
+        style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);">MC</text>
+</svg>

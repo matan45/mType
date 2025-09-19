@@ -19,6 +19,7 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
+    "onLanguage:mtype-compiled",
     "onCommand:mtype.run",
     "onCommand:mtype.runTests",
     "onCommand:mtype.formatDocument"
@@ -35,12 +36,28 @@
           ".mt"
         ],
         "configuration": "./language-configuration/mtype-configuration.json"
+      },
+      {
+        "id": "mtype-compiled",
+        "aliases": [
+          "mType Compiled",
+          "mtc"
+        ],
+        "extensions": [
+          ".mtc"
+        ],
+        "configuration": "./language-configuration/mtype-configuration.json"
       }
     ],
     "grammars": [
       {
         "language": "mtype",
         "scopeName": "source.mtype",
+        "path": "./syntaxes/mtype.tmGrammar.json"
+      },
+      {
+        "language": "mtype-compiled",
+        "scopeName": "source.mtype.compiled",
         "path": "./syntaxes/mtype.tmGrammar.json"
       }
     ],
