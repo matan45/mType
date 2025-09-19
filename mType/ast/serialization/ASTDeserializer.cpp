@@ -50,6 +50,7 @@
 namespace ast::serialization
 {
     using namespace value;
+
     ASTDeserializer::ASTDeserializer()
     {
     }
@@ -130,85 +131,86 @@ namespace ast::serialization
         // Deserialize node based on type
         switch (header.type)
         {
-            case NodeType::INTEGER_NODE:
-                return deserializeIntegerNode(header);
-            case NodeType::FLOAT_NODE:
-                return deserializeFloatNode(header);
-            case NodeType::STRING_NODE:
-                return deserializeStringNode(header);
-            case NodeType::BOOL_NODE:
-                return deserializeBoolNode(header);
-            case NodeType::NULL_NODE:
-                return deserializeNullNode(header);
-            case NodeType::VARIABLE_NODE:
-                return deserializeVariableNode(header);
-            case NodeType::PROGRAM_NODE:
-                return deserializeProgramNode(header);
-            case NodeType::BLOCK_NODE:
-                return deserializeBlockNode(header);
-            case NodeType::CLASS_NODE:
-                return deserializeClassNode(header);
-            case NodeType::DECLARATION_NODE:
-                return deserializeDeclarationNode(header);
-            case NodeType::ASSIGNMENT_NODE:
-                return deserializeAssignmentNode(header);
-            case NodeType::MEMBER_ASSIGNMENT_NODE:
-                return deserializeMemberAssignmentNode(header);
-            case NodeType::FUNCTION_NODE:
-                return deserializeFunctionNode(header);
-            case NodeType::FUNCTION_CALL_NODE:
-                return deserializeFunctionCallNode(header);
-            case NodeType::BINARY_EXP_NODE:
-                return deserializeBinaryExpNode(header);
-            case NodeType::UNARY_EXP_NODE:
-                return deserializeUnaryExpNode(header);
-            case NodeType::TERNARY_EXP_NODE:
-                return deserializeTernaryExpNode(header);
-            case NodeType::ARRAY_LITERAL_NODE:
-                return deserializeArrayLiteralNode(header);
-            case NodeType::MAP_LITERAL_NODE:
-                return deserializeMapLiteralNode(header);
-            case NodeType::INDEX_ACCESS_NODE:
-                return deserializeIndexAccessNode(header);
-            case NodeType::RETURN_NODE:
-                return deserializeReturnNode(header);
-            case NodeType::IMPORT_NODE:
-                return deserializeImportNode(header);
-            case NodeType::IF_NODE:
-                return deserializeIfNode(header);
-            case NodeType::WHILE_NODE:
-                return deserializeWhileNode(header);
-            case NodeType::DO_WHILE_NODE:
-                return deserializeDoWhileNode(header);
-            case NodeType::FOR_NODE:
-                return deserializeForNode(header);
-            case NodeType::FOR_EACH_NODE:
-                return deserializeForEachNode(header);
-            case NodeType::BREAK_NODE:
-                return deserializeBreakNode(header);
-            case NodeType::CONTINUE_NODE:
-                return deserializeContinueNode(header);
-            case NodeType::SWITCH_NODE:
-                return deserializeSwitchNode(header);
-            case NodeType::CASE_NODE:
-                return deserializeCaseNode(header);
-            case NodeType::DEFAULT_CASE_NODE:
-                return deserializeDefaultCaseNode(header);
-            case NodeType::NEW_NODE:
-                return deserializeNewNode(header);
-            case NodeType::MEMBER_ACCESS_NODE:
-                return deserializeMemberAccessNode(header);
-            case NodeType::METHOD_CALL_NODE:
-                return deserializeMethodCallNode(header);
-            case NodeType::FIELD_NODE:
-                return deserializeFieldNode(header);
-            case NodeType::METHOD_NODE:
-                return deserializeMethodNode(header);
-            case NodeType::CONSTRUCTOR_NODE:
-                return deserializeConstructorNode(header);
-            // Add more cases as we implement them
-            default:
-                throw std::runtime_error("Unknown node type during deserialization: " + std::to_string(static_cast<int>(header.type)));
+        case NodeType::INTEGER_NODE:
+            return deserializeIntegerNode(header);
+        case NodeType::FLOAT_NODE:
+            return deserializeFloatNode(header);
+        case NodeType::STRING_NODE:
+            return deserializeStringNode(header);
+        case NodeType::BOOL_NODE:
+            return deserializeBoolNode(header);
+        case NodeType::NULL_NODE:
+            return deserializeNullNode(header);
+        case NodeType::VARIABLE_NODE:
+            return deserializeVariableNode(header);
+        case NodeType::PROGRAM_NODE:
+            return deserializeProgramNode(header);
+        case NodeType::BLOCK_NODE:
+            return deserializeBlockNode(header);
+        case NodeType::CLASS_NODE:
+            return deserializeClassNode(header);
+        case NodeType::DECLARATION_NODE:
+            return deserializeDeclarationNode(header);
+        case NodeType::ASSIGNMENT_NODE:
+            return deserializeAssignmentNode(header);
+        case NodeType::MEMBER_ASSIGNMENT_NODE:
+            return deserializeMemberAssignmentNode(header);
+        case NodeType::FUNCTION_NODE:
+            return deserializeFunctionNode(header);
+        case NodeType::FUNCTION_CALL_NODE:
+            return deserializeFunctionCallNode(header);
+        case NodeType::BINARY_EXP_NODE:
+            return deserializeBinaryExpNode(header);
+        case NodeType::UNARY_EXP_NODE:
+            return deserializeUnaryExpNode(header);
+        case NodeType::TERNARY_EXP_NODE:
+            return deserializeTernaryExpNode(header);
+        case NodeType::ARRAY_LITERAL_NODE:
+            return deserializeArrayLiteralNode(header);
+        case NodeType::MAP_LITERAL_NODE:
+            return deserializeMapLiteralNode(header);
+        case NodeType::INDEX_ACCESS_NODE:
+            return deserializeIndexAccessNode(header);
+        case NodeType::RETURN_NODE:
+            return deserializeReturnNode(header);
+        case NodeType::IMPORT_NODE:
+            return deserializeImportNode(header);
+        case NodeType::IF_NODE:
+            return deserializeIfNode(header);
+        case NodeType::WHILE_NODE:
+            return deserializeWhileNode(header);
+        case NodeType::DO_WHILE_NODE:
+            return deserializeDoWhileNode(header);
+        case NodeType::FOR_NODE:
+            return deserializeForNode(header);
+        case NodeType::FOR_EACH_NODE:
+            return deserializeForEachNode(header);
+        case NodeType::BREAK_NODE:
+            return deserializeBreakNode(header);
+        case NodeType::CONTINUE_NODE:
+            return deserializeContinueNode(header);
+        case NodeType::SWITCH_NODE:
+            return deserializeSwitchNode(header);
+        case NodeType::CASE_NODE:
+            return deserializeCaseNode(header);
+        case NodeType::DEFAULT_CASE_NODE:
+            return deserializeDefaultCaseNode(header);
+        case NodeType::NEW_NODE:
+            return deserializeNewNode(header);
+        case NodeType::MEMBER_ACCESS_NODE:
+            return deserializeMemberAccessNode(header);
+        case NodeType::METHOD_CALL_NODE:
+            return deserializeMethodCallNode(header);
+        case NodeType::FIELD_NODE:
+            return deserializeFieldNode(header);
+        case NodeType::METHOD_NODE:
+            return deserializeMethodNode(header);
+        case NodeType::CONSTRUCTOR_NODE:
+            return deserializeConstructorNode(header);
+        // Add more cases as we implement them
+        default:
+            throw std::runtime_error(
+                "Unknown node type during deserialization: " + std::to_string(static_cast<int>(header.type)));
         }
     }
 
@@ -505,7 +507,8 @@ namespace ast::serialization
     {
         // Calculate checksum of the data using the same algorithm as serializer
         uint32_t calculatedChecksum = 0;
-        for (uint8_t byte : data) {
+        for (uint8_t byte : data)
+        {
             calculatedChecksum ^= byte;
             calculatedChecksum = (calculatedChecksum << 1) | (calculatedChecksum >> 31);
         }
@@ -518,27 +521,27 @@ namespace ast::serialization
     {
         switch (static_cast<BinaryOperator>(binaryOp))
         {
-            case BinaryOperator::ADD: return token::TokenType::PLUS;
-            case BinaryOperator::SUBTRACT: return token::TokenType::MINUS;
-            case BinaryOperator::MULTIPLY: return token::TokenType::MULTIPLY;
-            case BinaryOperator::DIVIDE: return token::TokenType::DIVIDE;
-            case BinaryOperator::MODULO: return token::TokenType::MODULO;
-            case BinaryOperator::EQUAL: return token::TokenType::EQUALS;
-            case BinaryOperator::NOT_EQUAL: return token::TokenType::NOT_EQUALS;
-            case BinaryOperator::LESS_THAN: return token::TokenType::LESS;
-            case BinaryOperator::LESS_EQUAL: return token::TokenType::LESS_EQUALS;
-            case BinaryOperator::GREATER_THAN: return token::TokenType::GREATER;
-            case BinaryOperator::GREATER_EQUAL: return token::TokenType::GREATER_EQUALS;
-            case BinaryOperator::LOGICAL_AND: return token::TokenType::AND;
-            case BinaryOperator::LOGICAL_OR: return token::TokenType::OR;
-            case BinaryOperator::ASSIGN: return token::TokenType::ASSIGN;
-            case BinaryOperator::PLUS_ASSIGN: return token::TokenType::PLUS_ASSIGN;
-            case BinaryOperator::MINUS_ASSIGN: return token::TokenType::MINUS_ASSIGN;
-            case BinaryOperator::MULTIPLY_ASSIGN: return token::TokenType::MULTIPLY_ASSIGN;
-            case BinaryOperator::DIVIDE_ASSIGN: return token::TokenType::DIVIDE_ASSIGN;
-            case BinaryOperator::MODULO_ASSIGN: return token::TokenType::MODULO_ASSIGN;
-            default:
-                throw std::runtime_error("Unknown binary operator during deserialization");
+        case BinaryOperator::ADD: return token::TokenType::PLUS;
+        case BinaryOperator::SUBTRACT: return token::TokenType::MINUS;
+        case BinaryOperator::MULTIPLY: return token::TokenType::MULTIPLY;
+        case BinaryOperator::DIVIDE: return token::TokenType::DIVIDE;
+        case BinaryOperator::MODULO: return token::TokenType::MODULO;
+        case BinaryOperator::EQUAL: return token::TokenType::EQUALS;
+        case BinaryOperator::NOT_EQUAL: return token::TokenType::NOT_EQUALS;
+        case BinaryOperator::LESS_THAN: return token::TokenType::LESS;
+        case BinaryOperator::LESS_EQUAL: return token::TokenType::LESS_EQUALS;
+        case BinaryOperator::GREATER_THAN: return token::TokenType::GREATER;
+        case BinaryOperator::GREATER_EQUAL: return token::TokenType::GREATER_EQUALS;
+        case BinaryOperator::LOGICAL_AND: return token::TokenType::AND;
+        case BinaryOperator::LOGICAL_OR: return token::TokenType::OR;
+        case BinaryOperator::ASSIGN: return token::TokenType::ASSIGN;
+        case BinaryOperator::PLUS_ASSIGN: return token::TokenType::PLUS_ASSIGN;
+        case BinaryOperator::MINUS_ASSIGN: return token::TokenType::MINUS_ASSIGN;
+        case BinaryOperator::MULTIPLY_ASSIGN: return token::TokenType::MULTIPLY_ASSIGN;
+        case BinaryOperator::DIVIDE_ASSIGN: return token::TokenType::DIVIDE_ASSIGN;
+        case BinaryOperator::MODULO_ASSIGN: return token::TokenType::MODULO_ASSIGN;
+        default:
+            throw std::runtime_error("Unknown binary operator during deserialization");
         }
     }
 
@@ -546,13 +549,13 @@ namespace ast::serialization
     {
         switch (static_cast<UnaryOperator>(unaryOp))
         {
-            case UnaryOperator::MINUS: return token::TokenType::MINUS;
-            case UnaryOperator::PLUS: return token::TokenType::PLUS;
-            case UnaryOperator::NOT: return token::TokenType::NOT;
-            case UnaryOperator::PRE_INCREMENT: return token::TokenType::INCREMENT;
-            case UnaryOperator::PRE_DECREMENT: return token::TokenType::DECREMENT;
-            default:
-                throw std::runtime_error("Unknown unary operator during deserialization");
+        case UnaryOperator::MINUS: return token::TokenType::MINUS;
+        case UnaryOperator::PLUS: return token::TokenType::PLUS;
+        case UnaryOperator::NOT: return token::TokenType::NOT;
+        case UnaryOperator::PRE_INCREMENT: return token::TokenType::INCREMENT;
+        case UnaryOperator::PRE_DECREMENT: return token::TokenType::DECREMENT;
+        default:
+            throw std::runtime_error("Unknown unary operator during deserialization");
         }
     }
 
@@ -560,10 +563,10 @@ namespace ast::serialization
     {
         switch (static_cast<UnaryPosition>(position))
         {
-            case UnaryPosition::PREFIX: return nodes::expressions::UnaryPosition::PREFIX;
-            case UnaryPosition::POSTFIX: return nodes::expressions::UnaryPosition::POSTFIX;
-            default:
-                throw std::runtime_error("Unknown unary position during deserialization");
+        case UnaryPosition::PREFIX: return nodes::expressions::UnaryPosition::PREFIX;
+        case UnaryPosition::POSTFIX: return nodes::expressions::UnaryPosition::POSTFIX;
+        default:
+            throw std::runtime_error("Unknown unary position during deserialization");
         }
     }
 
@@ -590,10 +593,12 @@ namespace ast::serialization
             std::move(falseExpression),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayLiteralNode(const NodeHeader& header)
     {
         // Read the element type
-        ast::serialization::ValueType serializationElementType = static_cast<ast::serialization::ValueType>(readUInt8());
+        ast::serialization::ValueType serializationElementType = static_cast<ast::serialization::ValueType>(
+            readUInt8());
         value::ValueType elementType = serializationValueTypeToValueType(serializationElementType);
 
         // Read the number of elements
@@ -618,6 +623,7 @@ namespace ast::serialization
 
         return arrayNode;
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMapLiteralNode(const NodeHeader& header)
     {
         // Read the key and value types
@@ -650,6 +656,7 @@ namespace ast::serialization
 
         return mapNode;
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeIndexAccessNode(const NodeHeader& header)
     {
         // Read the collection expression
@@ -668,6 +675,7 @@ namespace ast::serialization
             std::move(index),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAssignmentNode(const NodeHeader& header)
     {
         // Read the object
@@ -692,6 +700,7 @@ namespace ast::serialization
             location
         );
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeIfNode(const NodeHeader& header)
     {
         // Read the condition expression
@@ -721,6 +730,7 @@ namespace ast::serialization
             std::move(elseStatement),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeWhileNode(const NodeHeader& header)
     {
         // Read the condition expression
@@ -739,6 +749,7 @@ namespace ast::serialization
             std::move(body),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeDoWhileNode(const NodeHeader& header)
     {
         // Read the body statement first (as it was serialized first)
@@ -757,6 +768,7 @@ namespace ast::serialization
             std::move(condition),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeForNode(const NodeHeader& header)
     {
         // Read the initialization statement
@@ -783,6 +795,7 @@ namespace ast::serialization
             std::move(body),
             location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeForEachNode(const NodeHeader& header)
     {
         // Read the variable name
@@ -790,7 +803,8 @@ namespace ast::serialization
 
         // Read the variable type
         uint8_t serializationType = readUInt8();
-        value::ValueType variableType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+        value::ValueType variableType = serializationValueTypeToValueType(
+            static_cast<ast::serialization::ValueType>(serializationType));
 
         // Read the collection
         auto collection = deserializeNode();
@@ -812,6 +826,7 @@ namespace ast::serialization
             location
         );
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeBreakNode(const NodeHeader& header)
     {
         // Create source location
@@ -822,6 +837,7 @@ namespace ast::serialization
         // BreakNode has no additional data
         return std::make_unique<nodes::statements::BreakNode>(location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeContinueNode(const NodeHeader& header)
     {
         // Create source location
@@ -832,6 +848,7 @@ namespace ast::serialization
         // ContinueNode has no additional data
         return std::make_unique<nodes::statements::ContinueNode>(location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeSwitchNode(const NodeHeader& header)
     {
         // Read the switch expression
@@ -859,6 +876,7 @@ namespace ast::serialization
 
         return switchNode;
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeCaseNode(const NodeHeader& header)
     {
         // Read the case value
@@ -886,6 +904,7 @@ namespace ast::serialization
 
         return caseNode;
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeDefaultCaseNode(const NodeHeader& header)
     {
         // Read the statements
@@ -907,6 +926,7 @@ namespace ast::serialization
 
         return defaultCaseNode;
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeImportNode(const NodeHeader& header)
     {
         // Read the file path
@@ -933,7 +953,12 @@ namespace ast::serialization
 
         return importNode;
     }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeNativeFunctionNode(const NodeHeader& header) { return nullptr; }
+
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeNativeFunctionNode(const NodeHeader& header)
+    {
+        return nullptr;
+    }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodNode(const NodeHeader& header)
     {
         // Read the method name
@@ -941,7 +966,8 @@ namespace ast::serialization
 
         // Read the return type
         uint8_t serializationType = readUInt8();
-        value::ValueType returnType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+        value::ValueType returnType = serializationValueTypeToValueType(
+            static_cast<ast::serialization::ValueType>(serializationType));
 
         // Read the parameters
         uint32_t parameterCount = readUInt32();
@@ -952,7 +978,8 @@ namespace ast::serialization
         {
             std::string paramName = readString();
             uint8_t paramSerializationType = readUInt8();
-            value::ValueType paramType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(paramSerializationType));
+            value::ValueType paramType = serializationValueTypeToValueType(
+                static_cast<ast::serialization::ValueType>(paramSerializationType));
             parameters.emplace_back(paramName, paramType);
         }
 
@@ -985,6 +1012,7 @@ namespace ast::serialization
             location
         );
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeFieldNode(const NodeHeader& header)
     {
         // Read the field name
@@ -992,7 +1020,8 @@ namespace ast::serialization
 
         // Read the field type
         uint8_t serializationType = readUInt8();
-        value::ValueType fieldType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+        value::ValueType fieldType = serializationValueTypeToValueType(
+            static_cast<ast::serialization::ValueType>(serializationType));
 
         // Read flags
         bool isStatic = readBool();
@@ -1023,6 +1052,7 @@ namespace ast::serialization
             location
         );
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeConstructorNode(const NodeHeader& header)
     {
         // Read the parameters
@@ -1034,7 +1064,8 @@ namespace ast::serialization
         {
             std::string paramName = readString();
             uint8_t paramSerializationType = readUInt8();
-            value::ValueType paramType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(paramSerializationType));
+            value::ValueType paramType = serializationValueTypeToValueType(
+                static_cast<ast::serialization::ValueType>(paramSerializationType));
             parameters.emplace_back(paramName, paramType);
         }
 
@@ -1061,6 +1092,7 @@ namespace ast::serialization
             location
         );
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeNewNode(const NodeHeader& header)
     {
         // Read the class name
@@ -1089,6 +1121,7 @@ namespace ast::serialization
 
         return std::make_unique<nodes::classes::NewNode>(className, std::move(arguments), location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAccessNode(const NodeHeader& header)
     {
         // Read whether there's an object
@@ -1115,6 +1148,7 @@ namespace ast::serialization
         return std::make_unique<nodes::classes::MemberAccessNode>(
             std::move(object), memberName, isStaticAccess, location);
     }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodCallNode(const NodeHeader& header)
     {
         // Read whether there's an object
@@ -1163,20 +1197,21 @@ namespace ast::serialization
     {
         switch (serializationType)
         {
-            case ast::serialization::ValueType::INT: return value::ValueType::INT;
-            case ast::serialization::ValueType::FLOAT: return value::ValueType::FLOAT;
-            case ast::serialization::ValueType::STRING: return value::ValueType::STRING;
-            case ast::serialization::ValueType::BOOL: return value::ValueType::BOOL;
-            case ast::serialization::ValueType::OBJECT: return value::ValueType::OBJECT;
-            case ast::serialization::ValueType::ARRAY: return value::ValueType::ARRAY;
-            case ast::serialization::ValueType::MAP: return value::ValueType::MAP;
-            case ast::serialization::ValueType::SET: return value::ValueType::SET;
-            case ast::serialization::ValueType::STACK: return value::ValueType::STACK;
-            case ast::serialization::ValueType::QUEUE: return value::ValueType::QUEUE;
-            case ast::serialization::ValueType::NULL_VALUE: return value::ValueType::NULL_TYPE;
-            case ast::serialization::ValueType::VOID: return value::ValueType::VOID;
-            default:
-                throw std::runtime_error("Unknown serialization ValueType: " + std::to_string(static_cast<int>(serializationType)));
+        case ast::serialization::ValueType::INT: return value::ValueType::INT;
+        case ast::serialization::ValueType::FLOAT: return value::ValueType::FLOAT;
+        case ast::serialization::ValueType::STRING: return value::ValueType::STRING;
+        case ast::serialization::ValueType::BOOL: return value::ValueType::BOOL;
+        case ast::serialization::ValueType::OBJECT: return value::ValueType::OBJECT;
+        case ast::serialization::ValueType::ARRAY: return value::ValueType::ARRAY;
+        case ast::serialization::ValueType::MAP: return value::ValueType::MAP;
+        case ast::serialization::ValueType::SET: return value::ValueType::SET;
+        case ast::serialization::ValueType::STACK: return value::ValueType::STACK;
+        case ast::serialization::ValueType::QUEUE: return value::ValueType::QUEUE;
+        case ast::serialization::ValueType::NULL_VALUE: return value::ValueType::NULL_TYPE;
+        case ast::serialization::ValueType::VOID: return value::ValueType::VOID;
+        default:
+            throw std::runtime_error(
+                "Unknown serialization ValueType: " + std::to_string(static_cast<int>(serializationType)));
         }
     }
 }
