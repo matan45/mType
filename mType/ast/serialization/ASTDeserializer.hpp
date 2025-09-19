@@ -101,5 +101,8 @@ namespace ast::serialization
         token::TokenType binaryOperatorToTokenType(uint8_t binaryOp);
         token::TokenType unaryOperatorToTokenType(uint8_t unaryOp);
         nodes::expressions::UnaryPosition byteToUnaryPosition(uint8_t position);
+
+        // Helper function to convert serialization ValueType to value::ValueType
+        value::ValueType serializationValueTypeToValueType(ast::serialization::ValueType serializationType);
     };
 }

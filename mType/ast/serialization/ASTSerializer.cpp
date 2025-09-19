@@ -156,6 +156,9 @@ namespace ast::serialization
             case NodeType::ASSIGNMENT_NODE:
                 serializeAssignmentNode(dynamic_cast<const nodes::statements::AssignmentNode*>(node));
                 break;
+            case NodeType::MEMBER_ASSIGNMENT_NODE:
+                serializeMemberAssignmentNode(dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node));
+                break;
             case NodeType::FUNCTION_NODE:
                 serializeFunctionNode(dynamic_cast<const nodes::functions::FunctionNode*>(node));
                 break;
@@ -168,11 +171,68 @@ namespace ast::serialization
             case NodeType::UNARY_EXP_NODE:
                 serializeUnaryExpNode(dynamic_cast<const nodes::expressions::UnaryExpNode*>(node));
                 break;
+            case NodeType::TERNARY_EXP_NODE:
+                serializeTernaryExpNode(dynamic_cast<const nodes::expressions::TernaryExpNode*>(node));
+                break;
+            case NodeType::ARRAY_LITERAL_NODE:
+                serializeArrayLiteralNode(dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node));
+                break;
+            case NodeType::MAP_LITERAL_NODE:
+                serializeMapLiteralNode(dynamic_cast<const nodes::expressions::MapLiteralNode*>(node));
+                break;
+            case NodeType::INDEX_ACCESS_NODE:
+                serializeIndexAccessNode(dynamic_cast<const nodes::expressions::IndexAccessNode*>(node));
+                break;
             case NodeType::RETURN_NODE:
                 serializeReturnNode(dynamic_cast<const nodes::functions::ReturnNode*>(node));
                 break;
             case NodeType::IMPORT_NODE:
                 serializeImportNode(dynamic_cast<const nodes::statements::ImportNode*>(node));
+                break;
+            case NodeType::IF_NODE:
+                serializeIfNode(dynamic_cast<const nodes::statements::IfNode*>(node));
+                break;
+            case NodeType::WHILE_NODE:
+                serializeWhileNode(dynamic_cast<const nodes::statements::WhileNode*>(node));
+                break;
+            case NodeType::FOR_NODE:
+                serializeForNode(dynamic_cast<const nodes::statements::ForNode*>(node));
+                break;
+            case NodeType::FOR_EACH_NODE:
+                serializeForEachNode(dynamic_cast<const nodes::statements::ForEachNode*>(node));
+                break;
+            case NodeType::BREAK_NODE:
+                serializeBreakNode(dynamic_cast<const nodes::statements::BreakNode*>(node));
+                break;
+            case NodeType::CONTINUE_NODE:
+                serializeContinueNode(dynamic_cast<const nodes::statements::ContinueNode*>(node));
+                break;
+            case NodeType::SWITCH_NODE:
+                serializeSwitchNode(dynamic_cast<const nodes::statements::SwitchNode*>(node));
+                break;
+            case NodeType::CASE_NODE:
+                serializeCaseNode(dynamic_cast<const nodes::statements::CaseNode*>(node));
+                break;
+            case NodeType::DEFAULT_CASE_NODE:
+                serializeDefaultCaseNode(dynamic_cast<const nodes::statements::DefaultCaseNode*>(node));
+                break;
+            case NodeType::NEW_NODE:
+                serializeNewNode(dynamic_cast<const nodes::classes::NewNode*>(node));
+                break;
+            case NodeType::MEMBER_ACCESS_NODE:
+                serializeMemberAccessNode(dynamic_cast<const nodes::classes::MemberAccessNode*>(node));
+                break;
+            case NodeType::METHOD_CALL_NODE:
+                serializeMethodCallNode(dynamic_cast<const nodes::classes::MethodCallNode*>(node));
+                break;
+            case NodeType::FIELD_NODE:
+                serializeFieldNode(dynamic_cast<const nodes::classes::FieldNode*>(node));
+                break;
+            case NodeType::METHOD_NODE:
+                serializeMethodNode(dynamic_cast<const nodes::classes::MethodNode*>(node));
+                break;
+            case NodeType::CONSTRUCTOR_NODE:
+                serializeConstructorNode(dynamic_cast<const nodes::classes::ConstructorNode*>(node));
                 break;
             // Add cases for other node types as we implement them
             default:
@@ -232,6 +292,18 @@ namespace ast::serialization
     {
         writeUInt32(location.getLine());
         writeUInt32(location.getColumn());
+    }
+
+    uint32_t ASTSerializer::calculateCRC32(const std::vector<uint8_t>& data)
+    {
+        // Simple checksum calculation for now
+        // TODO: Implement proper CRC32 algorithm if needed
+        uint32_t checksum = 0;
+        for (uint8_t byte : data) {
+            checksum ^= byte;
+            checksum = (checksum << 1) | (checksum >> 31);
+        }
+        return checksum;
     }
 
     // Node-specific serialization implementations
@@ -453,6 +525,8 @@ namespace ast::serialization
             return NodeType::DECLARATION_NODE;
         if (dynamic_cast<const nodes::statements::AssignmentNode*>(node))
             return NodeType::ASSIGNMENT_NODE;
+        if (dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node))
+            return NodeType::MEMBER_ASSIGNMENT_NODE;
         if (dynamic_cast<const nodes::functions::FunctionNode*>(node))
             return NodeType::FUNCTION_NODE;
         if (dynamic_cast<const nodes::functions::FunctionCallNode*>(node))
@@ -461,10 +535,48 @@ namespace ast::serialization
             return NodeType::BINARY_EXP_NODE;
         if (dynamic_cast<const nodes::expressions::UnaryExpNode*>(node))
             return NodeType::UNARY_EXP_NODE;
+        if (dynamic_cast<const nodes::expressions::TernaryExpNode*>(node))
+            return NodeType::TERNARY_EXP_NODE;
+        if (dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node))
+            return NodeType::ARRAY_LITERAL_NODE;
+        if (dynamic_cast<const nodes::expressions::MapLiteralNode*>(node))
+            return NodeType::MAP_LITERAL_NODE;
+        if (dynamic_cast<const nodes::expressions::IndexAccessNode*>(node))
+            return NodeType::INDEX_ACCESS_NODE;
         if (dynamic_cast<const nodes::functions::ReturnNode*>(node))
             return NodeType::RETURN_NODE;
         if (dynamic_cast<const nodes::statements::ImportNode*>(node))
             return NodeType::IMPORT_NODE;
+        if (dynamic_cast<const nodes::statements::IfNode*>(node))
+            return NodeType::IF_NODE;
+        if (dynamic_cast<const nodes::statements::WhileNode*>(node))
+            return NodeType::WHILE_NODE;
+        if (dynamic_cast<const nodes::statements::ForNode*>(node))
+            return NodeType::FOR_NODE;
+        if (dynamic_cast<const nodes::statements::ForEachNode*>(node))
+            return NodeType::FOR_EACH_NODE;
+        if (dynamic_cast<const nodes::statements::BreakNode*>(node))
+            return NodeType::BREAK_NODE;
+        if (dynamic_cast<const nodes::statements::ContinueNode*>(node))
+            return NodeType::CONTINUE_NODE;
+        if (dynamic_cast<const nodes::statements::SwitchNode*>(node))
+            return NodeType::SWITCH_NODE;
+        if (dynamic_cast<const nodes::statements::CaseNode*>(node))
+            return NodeType::CASE_NODE;
+        if (dynamic_cast<const nodes::statements::DefaultCaseNode*>(node))
+            return NodeType::DEFAULT_CASE_NODE;
+        if (dynamic_cast<const nodes::classes::NewNode*>(node))
+            return NodeType::NEW_NODE;
+        if (dynamic_cast<const nodes::classes::MemberAccessNode*>(node))
+            return NodeType::MEMBER_ACCESS_NODE;
+        if (dynamic_cast<const nodes::classes::MethodCallNode*>(node))
+            return NodeType::METHOD_CALL_NODE;
+        if (dynamic_cast<const nodes::classes::FieldNode*>(node))
+            return NodeType::FIELD_NODE;
+        if (dynamic_cast<const nodes::classes::MethodNode*>(node))
+            return NodeType::METHOD_NODE;
+        if (dynamic_cast<const nodes::classes::ConstructorNode*>(node))
+            return NodeType::CONSTRUCTOR_NODE;
 
         // Add more type checks as we implement them
         throw std::runtime_error("Unknown node type for serialization");
@@ -519,21 +631,166 @@ namespace ast::serialization
     }
 
     // Placeholder implementations for other node types
-    void ASTSerializer::serializeTernaryExpNode(const nodes::expressions::TernaryExpNode* node) {}
-    void ASTSerializer::serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node) {}
-    void ASTSerializer::serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node) {}
-    void ASTSerializer::serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node) {}
-    void ASTSerializer::serializeMemberAssignmentNode(const nodes::statements::MemberAssignmentNode* node) {}
-    void ASTSerializer::serializeIfNode(const nodes::statements::IfNode* node) {}
-    void ASTSerializer::serializeWhileNode(const nodes::statements::WhileNode* node) {}
+    void ASTSerializer::serializeTernaryExpNode(const nodes::expressions::TernaryExpNode* node)
+    {
+        // Serialize the condition expression
+        serializeNode(node->getCondition());
+
+        // Serialize the true expression
+        serializeNode(node->getTrueExpression());
+
+        // Serialize the false expression
+        serializeNode(node->getFalseExpression());
+    }
+    void ASTSerializer::serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node)
+    {
+        // Serialize the element type
+        writeUInt8(static_cast<uint8_t>(node->getElementType()));
+
+        // Serialize the number of elements
+        const auto& elements = node->getElements();
+        writeUInt32(static_cast<uint32_t>(elements.size()));
+
+        // Serialize each element
+        for (const auto& element : elements)
+        {
+            serializeNode(element.get());
+        }
+    }
+    void ASTSerializer::serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node)
+    {
+        // Serialize the key and value types
+        writeUInt8(static_cast<uint8_t>(node->getKeyType()));
+        writeUInt8(static_cast<uint8_t>(node->getValueType()));
+
+        // Serialize the number of key-value pairs
+        const auto& pairs = node->getKeyValuePairs();
+        writeUInt32(static_cast<uint32_t>(pairs.size()));
+
+        // Serialize each key-value pair
+        for (const auto& pair : pairs)
+        {
+            serializeNode(pair.first.get());  // key
+            serializeNode(pair.second.get()); // value
+        }
+    }
+    void ASTSerializer::serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node)
+    {
+        // Serialize the collection expression
+        serializeNode(node->getCollection());
+
+        // Serialize the index expression
+        serializeNode(node->getIndex());
+    }
+    void ASTSerializer::serializeMemberAssignmentNode(const nodes::statements::MemberAssignmentNode* node)
+{
+    if (node)
+    {
+        // Serialize the object
+        serializeNode(node->getObject());
+
+        // Serialize the member name
+        writeString(node->getMemberName());
+
+        // Serialize the value
+        serializeNode(node->getValue());
+    }
+}
+    void ASTSerializer::serializeIfNode(const nodes::statements::IfNode* node)
+    {
+        // Serialize the condition expression
+        serializeNode(node->getCondition());
+
+        // Serialize the then statement
+        serializeNode(node->getThenStatement());
+
+        // Serialize whether there's an else statement
+        writeBool(node->hasElseStatement());
+
+        // Serialize the else statement if it exists
+        if (node->hasElseStatement())
+        {
+            serializeNode(node->getElseStatement());
+        }
+    }
+    void ASTSerializer::serializeWhileNode(const nodes::statements::WhileNode* node)
+    {
+        // Serialize the condition expression
+        serializeNode(node->getCondition());
+
+        // Serialize the body statement
+        serializeNode(node->getBody());
+    }
     void ASTSerializer::serializeDoWhileNode(const nodes::statements::DoWhileNode* node) {}
-    void ASTSerializer::serializeForNode(const nodes::statements::ForNode* node) {}
-    void ASTSerializer::serializeForEachNode(const nodes::statements::ForEachNode* node) {}
-    void ASTSerializer::serializeBreakNode(const nodes::statements::BreakNode* node) {}
-    void ASTSerializer::serializeContinueNode(const nodes::statements::ContinueNode* node) {}
-    void ASTSerializer::serializeSwitchNode(const nodes::statements::SwitchNode* node) {}
-    void ASTSerializer::serializeCaseNode(const nodes::statements::CaseNode* node) {}
-    void ASTSerializer::serializeDefaultCaseNode(const nodes::statements::DefaultCaseNode* node) {}
+    void ASTSerializer::serializeForNode(const nodes::statements::ForNode* node)
+    {
+        // Serialize the initialization statement
+        serializeNode(node->getInitialization());
+
+        // Serialize the condition expression
+        serializeNode(node->getCondition());
+
+        // Serialize the update statement
+        serializeNode(node->getUpdate());
+
+        // Serialize the body statement
+        serializeNode(node->getBody());
+    }
+    void ASTSerializer::serializeForEachNode(const nodes::statements::ForEachNode* node)
+{
+    if (node)
+    {
+        // Serialize the variable name
+        writeString(node->getVariableName());
+
+        // Serialize the variable type (using legacy method for simplicity)
+        writeUInt8(static_cast<uint8_t>(node->getVariableType()));
+
+        // Serialize the collection
+        serializeNode(node->getCollection());
+
+        // Serialize the body
+        serializeNode(node->getBody());
+    }
+}
+    void ASTSerializer::serializeBreakNode(const nodes::statements::BreakNode* node)
+    {
+        // BreakNode has no additional data beyond location (which is handled by NodeHeader)
+    }
+    void ASTSerializer::serializeContinueNode(const nodes::statements::ContinueNode* node)
+    {
+        // ContinueNode has no additional data beyond location (which is handled by NodeHeader)
+    }
+    void ASTSerializer::serializeSwitchNode(const nodes::statements::SwitchNode* node)
+    {
+        if (node)
+        {
+            // Serialize the switch expression
+            serializeNode(node->getExpression());
+
+            // Serialize the cases
+            serializeChildNodes(node->getCases());
+        }
+    }
+    void ASTSerializer::serializeCaseNode(const nodes::statements::CaseNode* node)
+    {
+        if (node)
+        {
+            // Serialize the case value
+            serializeNode(node->getValue());
+
+            // Serialize the statements
+            serializeChildNodes(node->getStatements());
+        }
+    }
+    void ASTSerializer::serializeDefaultCaseNode(const nodes::statements::DefaultCaseNode* node)
+    {
+        if (node)
+        {
+            // Serialize the statements
+            serializeChildNodes(node->getStatements());
+        }
+    }
     void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node)
     {
         // Serialize the file path
@@ -550,16 +807,146 @@ namespace ast::serialization
         }
     }
     void ASTSerializer::serializeNativeFunctionNode(const nodes::statements::NativeFunctionNode* node) {}
-    void ASTSerializer::serializeMethodNode(const nodes::classes::MethodNode* node) {}
-    void ASTSerializer::serializeFieldNode(const nodes::classes::FieldNode* node) {}
-    void ASTSerializer::serializeConstructorNode(const nodes::classes::ConstructorNode* node) {}
-    void ASTSerializer::serializeNewNode(const nodes::classes::NewNode* node) {}
-    void ASTSerializer::serializeMemberAccessNode(const nodes::classes::MemberAccessNode* node) {}
-    void ASTSerializer::serializeMethodCallNode(const nodes::classes::MethodCallNode* node) {}
-
-    uint32_t ASTSerializer::calculateCRC32(const std::vector<uint8_t>& data)
+    void ASTSerializer::serializeMethodNode(const nodes::classes::MethodNode* node)
+{
+    if (node)
     {
-        // Simple CRC32 implementation - for production use a proper CRC32 library
-        return 0;
+        // Serialize the method name
+        writeString(node->getName());
+
+        // Serialize the return type
+        writeUInt8(static_cast<uint8_t>(node->getReturnType()));
+
+        // Serialize the parameters
+        const auto& parameters = node->getParameters();
+        writeUInt32(static_cast<uint32_t>(parameters.size()));
+
+        for (const auto& param : parameters)
+        {
+            writeString(param.first);  // parameter name
+            writeUInt8(static_cast<uint8_t>(param.second));  // parameter type
+        }
+
+        // Serialize the static flag
+        writeBool(node->getIsStatic());
+
+        // Serialize whether there's a body
+        bool hasBody = (node->getBodyPtr() != nullptr);
+        writeBool(hasBody);
+
+        // Serialize the body if it exists
+        if (hasBody)
+        {
+            serializeNode(node->getBodyPtr());
+        }
+    }
+}
+    void ASTSerializer::serializeFieldNode(const nodes::classes::FieldNode* node)
+    {
+        // Serialize the field name
+        writeString(node->getName());
+
+        // Serialize the field type
+        writeUInt8(static_cast<uint8_t>(node->getType()));
+
+        // Serialize flags
+        writeBool(node->getIsStatic());
+        writeBool(node->getIsFinal());
+
+        // Serialize whether there's an initial value
+        bool hasInitialValue = node->hasInitialValue();
+        writeBool(hasInitialValue);
+
+        // Serialize the initial value if it exists
+        if (hasInitialValue)
+        {
+            serializeNode(node->getInitialValue());
+        }
+    }
+    void ASTSerializer::serializeConstructorNode(const nodes::classes::ConstructorNode* node)
+{
+    if (node)
+    {
+        // Serialize the parameters
+        const auto& parameters = node->getParameters();
+        writeUInt32(static_cast<uint32_t>(parameters.size()));
+
+        for (const auto& param : parameters)
+        {
+            writeString(param.first);  // parameter name
+            writeUInt8(static_cast<uint8_t>(param.second));  // parameter type
+        }
+
+        // Serialize whether there's a body
+        bool hasBody = (node->getBodyPtr() != nullptr);
+        writeBool(hasBody);
+
+        // Serialize the body if it exists
+        if (hasBody)
+        {
+            serializeNode(node->getBodyPtr());
+        }
+    }
+}
+    void ASTSerializer::serializeNewNode(const nodes::classes::NewNode* node)
+    {
+        // Serialize the class name
+        writeString(node->getClassName());
+
+        // Serialize the number of arguments
+        const auto& arguments = node->getArguments();
+        writeUInt32(static_cast<uint32_t>(arguments.size()));
+
+        // Serialize each argument
+        for (const auto& argument : arguments)
+        {
+            serializeNode(argument.get());
+        }
+    }
+    void ASTSerializer::serializeMemberAccessNode(const nodes::classes::MemberAccessNode* node)
+    {
+        // Write whether there's an object
+        bool hasObject = (node->getObject() != nullptr);
+        writeBool(hasObject);
+
+        // Serialize the object if it exists
+        if (hasObject)
+        {
+            serializeNode(node->getObject());
+        }
+
+        // Serialize the member name
+        writeString(node->getMemberName());
+
+        // Serialize the static access flag
+        writeBool(node->getIsStaticAccess());
+    }
+    void ASTSerializer::serializeMethodCallNode(const nodes::classes::MethodCallNode* node)
+    {
+        // Write whether there's an object
+        bool hasObject = (node->getObject() != nullptr);
+        writeBool(hasObject);
+
+        // Serialize the object if it exists
+        if (hasObject)
+        {
+            serializeNode(node->getObject());
+        }
+
+        // Serialize the method name
+        writeString(node->getMethodName());
+
+        // Serialize the static call flag
+        writeBool(node->getIsStaticCall());
+
+        // Serialize the number of arguments
+        const auto& arguments = node->getArguments();
+        writeUInt32(static_cast<uint32_t>(arguments.size()));
+
+        // Serialize each argument
+        for (const auto& argument : arguments)
+        {
+            serializeNode(argument.get());
+        }
     }
 }

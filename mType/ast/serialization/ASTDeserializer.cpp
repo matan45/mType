@@ -49,6 +49,7 @@
 
 namespace ast::serialization
 {
+    using namespace value;
     ASTDeserializer::ASTDeserializer()
     {
     }
@@ -137,6 +138,8 @@ namespace ast::serialization
                 return deserializeDeclarationNode(header);
             case NodeType::ASSIGNMENT_NODE:
                 return deserializeAssignmentNode(header);
+            case NodeType::MEMBER_ASSIGNMENT_NODE:
+                return deserializeMemberAssignmentNode(header);
             case NodeType::FUNCTION_NODE:
                 return deserializeFunctionNode(header);
             case NodeType::FUNCTION_CALL_NODE:
@@ -145,10 +148,48 @@ namespace ast::serialization
                 return deserializeBinaryExpNode(header);
             case NodeType::UNARY_EXP_NODE:
                 return deserializeUnaryExpNode(header);
+            case NodeType::TERNARY_EXP_NODE:
+                return deserializeTernaryExpNode(header);
+            case NodeType::ARRAY_LITERAL_NODE:
+                return deserializeArrayLiteralNode(header);
+            case NodeType::MAP_LITERAL_NODE:
+                return deserializeMapLiteralNode(header);
+            case NodeType::INDEX_ACCESS_NODE:
+                return deserializeIndexAccessNode(header);
             case NodeType::RETURN_NODE:
                 return deserializeReturnNode(header);
             case NodeType::IMPORT_NODE:
                 return deserializeImportNode(header);
+            case NodeType::IF_NODE:
+                return deserializeIfNode(header);
+            case NodeType::WHILE_NODE:
+                return deserializeWhileNode(header);
+            case NodeType::FOR_NODE:
+                return deserializeForNode(header);
+            case NodeType::FOR_EACH_NODE:
+                return deserializeForEachNode(header);
+            case NodeType::BREAK_NODE:
+                return deserializeBreakNode(header);
+            case NodeType::CONTINUE_NODE:
+                return deserializeContinueNode(header);
+            case NodeType::SWITCH_NODE:
+                return deserializeSwitchNode(header);
+            case NodeType::CASE_NODE:
+                return deserializeCaseNode(header);
+            case NodeType::DEFAULT_CASE_NODE:
+                return deserializeDefaultCaseNode(header);
+            case NodeType::NEW_NODE:
+                return deserializeNewNode(header);
+            case NodeType::MEMBER_ACCESS_NODE:
+                return deserializeMemberAccessNode(header);
+            case NodeType::METHOD_CALL_NODE:
+                return deserializeMethodCallNode(header);
+            case NodeType::FIELD_NODE:
+                return deserializeFieldNode(header);
+            case NodeType::METHOD_NODE:
+                return deserializeMethodNode(header);
+            case NodeType::CONSTRUCTOR_NODE:
+                return deserializeConstructorNode(header);
             // Add more cases as we implement them
             default:
                 throw std::runtime_error("Unknown node type during deserialization: " + std::to_string(static_cast<int>(header.type)));
@@ -505,21 +546,328 @@ namespace ast::serialization
     }
 
     // Placeholder implementations for other node types
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeTernaryExpNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayLiteralNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMapLiteralNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeIndexAccessNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAssignmentNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeIfNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeWhileNode(const NodeHeader& header) { return nullptr; }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeTernaryExpNode(const NodeHeader& header)
+    {
+        // Read the condition expression
+        auto condition = deserializeNode();
+
+        // Read the true expression
+        auto trueExpression = deserializeNode();
+
+        // Read the false expression
+        auto falseExpression = deserializeNode();
+
+        // Create the ternary expression node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::expressions::TernaryExpNode>(
+            std::move(condition),
+            std::move(trueExpression),
+            std::move(falseExpression),
+            location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayLiteralNode(const NodeHeader& header)
+    {
+        // Read the element type
+        ast::serialization::ValueType serializationElementType = static_cast<ast::serialization::ValueType>(readUInt8());
+        value::ValueType elementType = serializationValueTypeToValueType(serializationElementType);
+
+        // Read the number of elements
+        uint32_t elementCount = readUInt32();
+
+        // Create the array literal node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        auto arrayNode = std::make_unique<nodes::expressions::ArrayLiteralNode>(elementType, location);
+
+        // Read each element
+        for (uint32_t i = 0; i < elementCount; ++i)
+        {
+            auto element = deserializeNode();
+            if (element)
+            {
+                arrayNode->addElement(std::move(element));
+            }
+        }
+
+        return arrayNode;
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMapLiteralNode(const NodeHeader& header)
+    {
+        // Read the key and value types
+        ast::serialization::ValueType serializationKeyType = static_cast<ast::serialization::ValueType>(readUInt8());
+        ast::serialization::ValueType serializationValueType = static_cast<ast::serialization::ValueType>(readUInt8());
+        value::ValueType keyType = serializationValueTypeToValueType(serializationKeyType);
+        value::ValueType valueType = serializationValueTypeToValueType(serializationValueType);
+
+        // Read the number of key-value pairs
+        uint32_t pairCount = readUInt32();
+
+        // Create the map literal node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        auto mapNode = std::make_unique<nodes::expressions::MapLiteralNode>(keyType, valueType, location);
+
+        // Read each key-value pair
+        for (uint32_t i = 0; i < pairCount; ++i)
+        {
+            auto key = deserializeNode();
+            auto value = deserializeNode();
+
+            if (key && value)
+            {
+                mapNode->addKeyValuePair(std::move(key), std::move(value));
+            }
+        }
+
+        return mapNode;
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeIndexAccessNode(const NodeHeader& header)
+    {
+        // Read the collection expression
+        auto collection = deserializeNode();
+
+        // Read the index expression
+        auto index = deserializeNode();
+
+        // Create the index access node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::expressions::IndexAccessNode>(
+            std::move(collection),
+            std::move(index),
+            location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAssignmentNode(const NodeHeader& header)
+    {
+        // Read the object
+        auto object = deserializeNode();
+
+        // Read the member name
+        std::string memberName = readString();
+
+        // Read the value
+        auto value = deserializeNode();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the MemberAssignmentNode
+        return std::make_unique<nodes::statements::MemberAssignmentNode>(
+            std::move(object),
+            memberName,
+            std::move(value),
+            location
+        );
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeIfNode(const NodeHeader& header)
+    {
+        // Read the condition expression
+        auto condition = deserializeNode();
+
+        // Read the then statement
+        auto thenStatement = deserializeNode();
+
+        // Read whether there's an else statement
+        bool hasElse = readBool();
+
+        // Read the else statement if it exists
+        std::unique_ptr<ASTNode> elseStatement = nullptr;
+        if (hasElse)
+        {
+            elseStatement = deserializeNode();
+        }
+
+        // Create the if node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::statements::IfNode>(
+            std::move(condition),
+            std::move(thenStatement),
+            std::move(elseStatement),
+            location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeWhileNode(const NodeHeader& header)
+    {
+        // Read the condition expression
+        auto condition = deserializeNode();
+
+        // Read the body statement
+        auto body = deserializeNode();
+
+        // Create the while node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::statements::WhileNode>(
+            std::move(condition),
+            std::move(body),
+            location);
+    }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeDoWhileNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeForNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeForEachNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeBreakNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeContinueNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeSwitchNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeCaseNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeDefaultCaseNode(const NodeHeader& header) { return nullptr; }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeForNode(const NodeHeader& header)
+    {
+        // Read the initialization statement
+        auto initialization = deserializeNode();
+
+        // Read the condition expression
+        auto condition = deserializeNode();
+
+        // Read the update statement
+        auto update = deserializeNode();
+
+        // Read the body statement
+        auto body = deserializeNode();
+
+        // Create the for node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::statements::ForNode>(
+            std::move(initialization),
+            std::move(condition),
+            std::move(update),
+            std::move(body),
+            location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeForEachNode(const NodeHeader& header)
+    {
+        // Read the variable name
+        std::string variableName = readString();
+
+        // Read the variable type
+        uint8_t serializationType = readUInt8();
+        value::ValueType variableType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+
+        // Read the collection
+        auto collection = deserializeNode();
+
+        // Read the body
+        auto body = deserializeNode();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the ForEachNode using the legacy constructor
+        return std::make_unique<nodes::statements::ForEachNode>(
+            variableName,
+            variableType,
+            std::move(collection),
+            std::move(body),
+            location
+        );
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeBreakNode(const NodeHeader& header)
+    {
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // BreakNode has no additional data
+        return std::make_unique<nodes::statements::BreakNode>(location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeContinueNode(const NodeHeader& header)
+    {
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // ContinueNode has no additional data
+        return std::make_unique<nodes::statements::ContinueNode>(location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeSwitchNode(const NodeHeader& header)
+    {
+        // Read the switch expression
+        auto expression = deserializeNode();
+
+        // Read the cases
+        auto cases = deserializeChildNodes();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the SwitchNode
+        auto switchNode = std::make_unique<nodes::statements::SwitchNode>(
+            std::move(expression),
+            location
+        );
+
+        // Add all cases to the switch node
+        for (auto& caseNode : cases)
+        {
+            switchNode->addCase(std::move(caseNode));
+        }
+
+        return switchNode;
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeCaseNode(const NodeHeader& header)
+    {
+        // Read the case value
+        auto value = deserializeNode();
+
+        // Read the statements
+        auto statements = deserializeChildNodes();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the CaseNode
+        auto caseNode = std::make_unique<nodes::statements::CaseNode>(
+            std::move(value),
+            location
+        );
+
+        // Add all statements to the case node
+        for (auto& statement : statements)
+        {
+            caseNode->addStatement(std::move(statement));
+        }
+
+        return caseNode;
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeDefaultCaseNode(const NodeHeader& header)
+    {
+        // Read the statements
+        auto statements = deserializeChildNodes();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the DefaultCaseNode
+        auto defaultCaseNode = std::make_unique<nodes::statements::DefaultCaseNode>(location);
+
+        // Add all statements to the default case node
+        for (auto& statement : statements)
+        {
+            defaultCaseNode->addStatement(std::move(statement));
+        }
+
+        return defaultCaseNode;
+    }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeImportNode(const NodeHeader& header)
     {
         // Read the file path
@@ -547,10 +895,249 @@ namespace ast::serialization
         return importNode;
     }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeNativeFunctionNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeFieldNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeConstructorNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeNewNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAccessNode(const NodeHeader& header) { return nullptr; }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodCallNode(const NodeHeader& header) { return nullptr; }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodNode(const NodeHeader& header)
+    {
+        // Read the method name
+        std::string methodName = readString();
+
+        // Read the return type
+        uint8_t serializationType = readUInt8();
+        value::ValueType returnType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+
+        // Read the parameters
+        uint32_t parameterCount = readUInt32();
+        std::vector<std::pair<std::string, value::ValueType>> parameters;
+        parameters.reserve(parameterCount);
+
+        for (uint32_t i = 0; i < parameterCount; ++i)
+        {
+            std::string paramName = readString();
+            uint8_t paramSerializationType = readUInt8();
+            value::ValueType paramType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(paramSerializationType));
+            parameters.emplace_back(paramName, paramType);
+        }
+
+        // Read the static flag
+        bool isStatic = readBool();
+
+        // Read whether there's a body
+        bool hasBody = readBool();
+
+        // Read the body if it exists
+        std::shared_ptr<ASTNode> body = nullptr;
+        if (hasBody)
+        {
+            auto bodyNode = deserializeNode();
+            body = std::shared_ptr<ASTNode>(bodyNode.release());
+        }
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the MethodNode
+        return std::make_unique<nodes::classes::MethodNode>(
+            methodName,
+            returnType,
+            parameters,
+            body,
+            isStatic,
+            location
+        );
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeFieldNode(const NodeHeader& header)
+    {
+        // Read the field name
+        std::string fieldName = readString();
+
+        // Read the field type
+        uint8_t serializationType = readUInt8();
+        value::ValueType fieldType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(serializationType));
+
+        // Read flags
+        bool isStatic = readBool();
+        bool isFinal = readBool();
+
+        // Read whether there's an initial value
+        bool hasInitialValue = readBool();
+
+        // Read the initial value if it exists
+        std::unique_ptr<ASTNode> initialValue = nullptr;
+        if (hasInitialValue)
+        {
+            initialValue = deserializeNode();
+        }
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the FieldNode
+        return std::make_unique<nodes::classes::FieldNode>(
+            fieldName,
+            fieldType,
+            std::move(initialValue),
+            isStatic,
+            isFinal,
+            location
+        );
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeConstructorNode(const NodeHeader& header)
+    {
+        // Read the parameters
+        uint32_t parameterCount = readUInt32();
+        std::vector<std::pair<std::string, value::ValueType>> parameters;
+        parameters.reserve(parameterCount);
+
+        for (uint32_t i = 0; i < parameterCount; ++i)
+        {
+            std::string paramName = readString();
+            uint8_t paramSerializationType = readUInt8();
+            value::ValueType paramType = serializationValueTypeToValueType(static_cast<ast::serialization::ValueType>(paramSerializationType));
+            parameters.emplace_back(paramName, paramType);
+        }
+
+        // Read whether there's a body
+        bool hasBody = readBool();
+
+        // Read the body if it exists
+        std::shared_ptr<ASTNode> body = nullptr;
+        if (hasBody)
+        {
+            auto bodyNode = deserializeNode();
+            body = std::shared_ptr<ASTNode>(bodyNode.release());
+        }
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the ConstructorNode
+        return std::make_unique<nodes::classes::ConstructorNode>(
+            parameters,
+            body,
+            location
+        );
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeNewNode(const NodeHeader& header)
+    {
+        // Read the class name
+        std::string className = readString();
+
+        // Read the number of arguments
+        uint32_t argumentCount = readUInt32();
+
+        // Read each argument
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+        arguments.reserve(argumentCount);
+
+        for (uint32_t i = 0; i < argumentCount; ++i)
+        {
+            auto argument = deserializeNode();
+            if (argument)
+            {
+                arguments.push_back(std::move(argument));
+            }
+        }
+
+        // Create the new node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::classes::NewNode>(className, std::move(arguments), location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMemberAccessNode(const NodeHeader& header)
+    {
+        // Read whether there's an object
+        bool hasObject = readBool();
+
+        // Read the object if it exists
+        std::unique_ptr<ASTNode> object = nullptr;
+        if (hasObject)
+        {
+            object = deserializeNode();
+        }
+
+        // Read the member name
+        std::string memberName = readString();
+
+        // Read the static access flag
+        bool isStaticAccess = readBool();
+
+        // Create the member access node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::classes::MemberAccessNode>(
+            std::move(object), memberName, isStaticAccess, location);
+    }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMethodCallNode(const NodeHeader& header)
+    {
+        // Read whether there's an object
+        bool hasObject = readBool();
+
+        // Read the object if it exists
+        std::unique_ptr<ASTNode> object = nullptr;
+        if (hasObject)
+        {
+            object = deserializeNode();
+        }
+
+        // Read the method name
+        std::string methodName = readString();
+
+        // Read the static call flag
+        bool isStaticCall = readBool();
+
+        // Read the number of arguments
+        uint32_t argumentCount = readUInt32();
+
+        // Read each argument
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+        arguments.reserve(argumentCount);
+
+        for (uint32_t i = 0; i < argumentCount; ++i)
+        {
+            auto argument = deserializeNode();
+            if (argument)
+            {
+                arguments.push_back(std::move(argument));
+            }
+        }
+
+        // Create the method call node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::classes::MethodCallNode>(
+            std::move(object), methodName, std::move(arguments), isStaticCall, location);
+    }
+
+    // Helper function to convert serialization ValueType to value::ValueType
+    value::ValueType ASTDeserializer::serializationValueTypeToValueType(ast::serialization::ValueType serializationType)
+    {
+        switch (serializationType)
+        {
+            case ast::serialization::ValueType::INT: return value::ValueType::INT;
+            case ast::serialization::ValueType::FLOAT: return value::ValueType::FLOAT;
+            case ast::serialization::ValueType::STRING: return value::ValueType::STRING;
+            case ast::serialization::ValueType::BOOL: return value::ValueType::BOOL;
+            case ast::serialization::ValueType::OBJECT: return value::ValueType::OBJECT;
+            case ast::serialization::ValueType::ARRAY: return value::ValueType::ARRAY;
+            case ast::serialization::ValueType::MAP: return value::ValueType::MAP;
+            case ast::serialization::ValueType::SET: return value::ValueType::SET;
+            case ast::serialization::ValueType::STACK: return value::ValueType::STACK;
+            case ast::serialization::ValueType::QUEUE: return value::ValueType::QUEUE;
+            case ast::serialization::ValueType::NULL_VALUE: return value::ValueType::NULL_TYPE;
+            case ast::serialization::ValueType::VOID: return value::ValueType::VOID;
+            default:
+                throw std::runtime_error("Unknown serialization ValueType: " + std::to_string(static_cast<int>(serializationType)));
+        }
+    }
 }
