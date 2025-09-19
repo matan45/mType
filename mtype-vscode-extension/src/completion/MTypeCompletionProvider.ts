@@ -3,15 +3,21 @@ import { MTypeCodeAnalyzer } from '../analyzer/MTypeCodeAnalyzer';
 import { MTypeKeywords } from './MTypeKeywords';
 import { MTypeContextAnalyzer } from './MTypeContextAnalyzer';
 import { MTypeScopeAnalyzer, VariableInfo, MethodInfo, Visibility } from '../analysis/MTypeScopeAnalyzer';
+import { MTypeImportedSymbolProvider } from '../imports/MTypeImportCompletionProvider';
 
 export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
     private analyzer = new MTypeCodeAnalyzer();
     private scopeAnalyzer: MTypeScopeAnalyzer | null = null;
+    private importedSymbolProvider: MTypeImportedSymbolProvider | null = null;
 
-    provideCompletionItems(
+    setImportedSymbolProvider(provider: MTypeImportedSymbolProvider): void {
+        this.importedSymbolProvider = provider;
+    }
+
+    async provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position
-    ): vscode.CompletionItem[] {
+    ): Promise<vscode.CompletionItem[]> {
         const text = document.getText();
         this.analyzer.analyzeDocument(text);
 
@@ -31,7 +37,13 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             const staticMatch = lineText.match(/(\w+)::\s*$/);
             if (staticMatch) {
                 const className = staticMatch[1];
-                const staticCompletions = this.getStaticMemberCompletions(className);
+                console.log('Static member access for class:', className);
+                // Ensure imports are analyzed for static access
+                if (this.importedSymbolProvider) {
+                    await this.importedSymbolProvider.analyzeDocumentImports(document);
+                }
+                const staticCompletions = await this.getStaticMemberCompletions(className, document);
+                console.log('Found static completions:', staticCompletions.length);
                 // Return ONLY static member completions, no other suggestions
                 return staticCompletions;
             }
@@ -41,7 +53,13 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             const dotMatch = lineText.match(/(\w+)\.\s*$/);
             if (dotMatch) {
                 const objectName = dotMatch[1];
-                const instanceCompletions = this.getScopeAwareInstanceCompletions(objectName, document, position);
+                console.log('Instance member access for object:', objectName);
+                // Ensure imports are analyzed for member access
+                if (this.importedSymbolProvider) {
+                    await this.importedSymbolProvider.analyzeDocumentImports(document);
+                }
+                const instanceCompletions = await this.getScopeAwareInstanceCompletions(objectName, document, position);
+                console.log('Found instance completions:', instanceCompletions.length);
                 // Return ONLY instance member completions, no other suggestions
                 return instanceCompletions;
             }
@@ -67,6 +85,15 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             const variableCompletions = this.getScopeAwareVariableCompletions(document, position);
             completionItems.push(...variableCompletions);
 
+            // Add imported symbol completions
+            if (this.importedSymbolProvider) {
+                // Ensure imports are analyzed before getting completions
+                await this.importedSymbolProvider.analyzeDocumentImports(document);
+                const importedCompletions = this.importedSymbolProvider.getImportedSymbolCompletions(document);
+                console.log('Adding imported completions:', importedCompletions.length);
+                completionItems.push(...importedCompletions);
+            }
+
             // Add class and variable completions for non-trigger contexts
             const symbolCompletions = this.getSymbolCompletions(contexts, lineText);
             completionItems.push(...symbolCompletions);
@@ -75,7 +102,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         return completionItems;
     }
 
-    private getStaticMemberCompletions(className: string): vscode.CompletionItem[] {
+    private async getStaticMemberCompletions(className: string, document: vscode.TextDocument): Promise<vscode.CompletionItem[]> {
         const completionItems: vscode.CompletionItem[] = [];
 
         if (!this.scopeAnalyzer) {
@@ -84,6 +111,15 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
         const classInfo = this.scopeAnalyzer.getClassInfo(className);
         if (!classInfo) {
+            // Class not found locally, check if it's an imported class
+            if (this.importedSymbolProvider) {
+                console.log('Class not found locally, checking imports for:', className);
+                const importedStaticMembers = await this.getImportedStaticMembers(className, document);
+                if (importedStaticMembers.length > 0) {
+                    console.log('Found imported static members:', importedStaticMembers.length);
+                    return importedStaticMembers;
+                }
+            }
             return completionItems;
         }
 
@@ -279,7 +315,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         return completionItems;
     }
 
-    private getScopeAwareInstanceCompletions(objectName: string, document: vscode.TextDocument, position: vscode.Position): vscode.CompletionItem[] {
+    private async getScopeAwareInstanceCompletions(objectName: string, document: vscode.TextDocument, position: vscode.Position): Promise<vscode.CompletionItem[]> {
         const completionItems: vscode.CompletionItem[] = [];
 
         if (!this.scopeAnalyzer) {
@@ -288,14 +324,43 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
         // First, find the variable to get its type
         const visibleVariables = this.scopeAnalyzer.getVisibleVariables(position);
-        const objectVariable = visibleVariables.find(v => v.name === objectName);
+        let objectVariable = visibleVariables.find(v => v.name === objectName);
+
+        console.log('Looking for object variable:', objectName);
+        console.log('Visible variables:', visibleVariables.map(v => `${v.name}:${v.type}`));
+        console.log('Found object variable:', objectVariable ? `${objectVariable.name}:${objectVariable.type}` : 'not found');
+
+        // If not found in local scope, check if it's an imported class instance
+        if (!objectVariable && this.importedSymbolProvider) {
+            const importedSymbols = this.importedSymbolProvider.getImportedSymbols(document);
+            for (const importInfo of importedSymbols) {
+                for (const symbol of importInfo.exportedSymbols) {
+                    if (symbol.type === 'class' && symbol.name === objectName) {
+                        // This is a direct class reference (like Rectangle.method)
+                        const importedMembers = await this.getImportedClassMembers(symbol.name, importInfo.resolvedPath);
+                        return importedMembers;
+                    }
+                }
+            }
+
+        }
 
         if (!objectVariable) {
             return completionItems;
         }
 
         // Get accessible members for the object's type
-        const accessibleMembers = this.scopeAnalyzer.getAccessibleMembers(objectVariable.type, position, false);
+        let accessibleMembers = this.scopeAnalyzer.getAccessibleMembers(objectVariable.type, position, false);
+
+        // If no members found locally, check if it's an imported class type
+        if (accessibleMembers.length === 0 && this.importedSymbolProvider) {
+            console.log('No local members found, checking if type is imported:', objectVariable.type);
+            const importedMembers = await this.getImportedClassMembers(objectVariable.type, null);
+            console.log('Found imported members:', importedMembers.length);
+            if (importedMembers.length > 0) {
+                return importedMembers;
+            }
+        }
 
         for (const member of accessibleMembers) {
             if ('parameters' in member) {
@@ -352,6 +417,228 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
         return completionItems;
     }
+
+    /**
+     * Get members of an imported class
+     */
+    private async getImportedClassMembers(className: string, filePath: string | null): Promise<vscode.CompletionItem[]> {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        if (!this.importedSymbolProvider) {
+            return completionItems;
+        }
+
+        try {
+            // If we have a specific file path, analyze that file
+            if (filePath) {
+                const fileUri = vscode.Uri.file(filePath);
+                const document = await vscode.workspace.openTextDocument(fileUri);
+                const classMembers = this.parseClassMembersFromDocument(className, document);
+                return classMembers;
+            }
+
+            // Otherwise, search through all imported files
+            const imports = this.importedSymbolProvider.getImportedSymbols(vscode.window.activeTextEditor?.document!);
+            for (const importInfo of imports) {
+                for (const symbol of importInfo.exportedSymbols) {
+                    if (symbol.type === 'class' && symbol.name === className) {
+                        const fileUri = vscode.Uri.file(importInfo.resolvedPath);
+                        const document = await vscode.workspace.openTextDocument(fileUri);
+                        return this.parseClassMembersFromDocument(className, document);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error getting imported class members:', error);
+        }
+
+        return completionItems;
+    }
+
+    /**
+     * Parse class members from a document
+     */
+    private parseClassMembersFromDocument(className: string, document: vscode.TextDocument): vscode.CompletionItem[] {
+        const completionItems: vscode.CompletionItem[] = [];
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        let inClass = false;
+        let braceCount = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check if we're entering the target class
+            const classMatch = line.match(new RegExp(`^\\s*class\\s+${className}\\s*\\{`));
+            if (classMatch) {
+                inClass = true;
+                braceCount = 1;
+                continue;
+            }
+
+            if (inClass) {
+                const openBraces = (line.match(/\{/g) || []).length;
+                const closeBraces = (line.match(/\}/g) || []).length;
+                braceCount += openBraces - closeBraces;
+
+                if (braceCount <= 0) {
+                    // End of class
+                    break;
+                }
+
+                // Parse methods
+                const methodMatch = line.match(/^\s*(?:private\s+)?(?:static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
+                if (methodMatch) {
+                    const methodName = methodMatch[1];
+                    const parameters = methodMatch[2];
+                    const returnType = methodMatch[3];
+
+                    if (methodName !== 'constructor') {
+                        const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
+                        item.detail = `${returnType} ${methodName}(${parameters})`;
+                        item.documentation = `Imported method from ${className}`;
+
+                        // Create snippet
+                        if (parameters.trim()) {
+                            const paramCount = parameters.split(',').length;
+                            const snippetParams = Array.from({ length: paramCount }, (_, i) => `\${${i + 1}:arg${i + 1}}`).join(', ');
+                            item.insertText = new vscode.SnippetString(`${methodName}(${snippetParams})`);
+                        } else {
+                            item.insertText = new vscode.SnippetString(`${methodName}()`);
+                        }
+
+                        item.sortText = '0' + methodName;
+                        completionItems.push(item);
+                    }
+                }
+
+                // Parse fields
+                const fieldMatch = line.match(/^\s*(?:private\s+)?(?:static\s+)?(?:final\s+)?(\w+)\s+(\w+)\s*;?/);
+                if (fieldMatch) {
+                    const fieldType = fieldMatch[1];
+                    const fieldName = fieldMatch[2];
+
+                    // Skip if it looks like a method or constructor
+                    if (!line.includes('(') && !line.includes('function')) {
+                        const item = new vscode.CompletionItem(fieldName, vscode.CompletionItemKind.Field);
+                        item.detail = `${fieldType} ${fieldName}`;
+                        item.documentation = `Imported field from ${className}`;
+                        item.sortText = '1' + fieldName;
+                        completionItems.push(item);
+                    }
+                }
+            }
+        }
+
+        return completionItems;
+    }
+
+    /**
+     * Get static members of an imported class
+     */
+    private async getImportedStaticMembers(className: string, document: vscode.TextDocument): Promise<vscode.CompletionItem[]> {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        if (!this.importedSymbolProvider) {
+            return completionItems;
+        }
+
+        try {
+            const imports = this.importedSymbolProvider.getImportedSymbols(document);
+            for (const importInfo of imports) {
+                for (const symbol of importInfo.exportedSymbols) {
+                    if (symbol.type === 'class' && symbol.name === className) {
+                        const fileUri = vscode.Uri.file(importInfo.resolvedPath);
+                        const importedDocument = await vscode.workspace.openTextDocument(fileUri);
+                        return this.parseStaticMembersFromDocument(className, importedDocument);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error getting imported static members:', error);
+        }
+
+        return completionItems;
+    }
+
+    /**
+     * Parse static members from a document
+     */
+    private parseStaticMembersFromDocument(className: string, document: vscode.TextDocument): vscode.CompletionItem[] {
+        const completionItems: vscode.CompletionItem[] = [];
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        let inClass = false;
+        let braceCount = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check if we're entering the target class
+            const classMatch = line.match(new RegExp(`^\\s*class\\s+${className}\\s*\\{`));
+            if (classMatch) {
+                inClass = true;
+                braceCount = 1;
+                continue;
+            }
+
+            if (inClass) {
+                const openBraces = (line.match(/\{/g) || []).length;
+                const closeBraces = (line.match(/\}/g) || []).length;
+                braceCount += openBraces - closeBraces;
+
+                if (braceCount <= 0) {
+                    // End of class
+                    break;
+                }
+
+                // Parse static methods
+                const staticMethodMatch = line.match(/^\s*static\s+function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
+                if (staticMethodMatch) {
+                    const methodName = staticMethodMatch[1];
+                    const parameters = staticMethodMatch[2];
+                    const returnType = staticMethodMatch[3];
+
+                    const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
+                    item.detail = `static ${returnType} ${methodName}(${parameters})`;
+                    item.documentation = `Static method from imported class ${className}`;
+
+                    // Create snippet
+                    if (parameters.trim()) {
+                        const paramCount = parameters.split(',').length;
+                        const snippetParams = Array.from({ length: paramCount }, (_, i) => `\${${i + 1}:arg${i + 1}}`).join(', ');
+                        item.insertText = new vscode.SnippetString(`${methodName}(${snippetParams})`);
+                    } else {
+                        item.insertText = new vscode.SnippetString(`${methodName}()`);
+                    }
+
+                    item.sortText = '0' + methodName;
+                    completionItems.push(item);
+                }
+
+                // Parse static fields
+                const staticFieldMatch = line.match(/^\s*static\s+(?:final\s+)?(\w+)\s+(\w+)\s*;?/);
+                if (staticFieldMatch) {
+                    const fieldType = staticFieldMatch[1];
+                    const fieldName = staticFieldMatch[2];
+
+                    // Skip if it looks like a method
+                    if (!line.includes('(') && !line.includes('function')) {
+                        const item = new vscode.CompletionItem(fieldName, vscode.CompletionItemKind.Field);
+                        item.detail = `static ${fieldType} ${fieldName}`;
+                        item.documentation = `Static field from imported class ${className}`;
+                        item.sortText = '1' + fieldName;
+                        completionItems.push(item);
+                    }
+                }
+            }
+        }
+
+        return completionItems;
+    }
+
 
     private getFallbackInstanceCompletions(objectName: string): vscode.CompletionItem[] {
         // Fallback to old analyzer

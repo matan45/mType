@@ -3,12 +3,34 @@ import { MTypeFormatter } from './formatter/MTypeFormatter';
 import { MTypeCompletionProvider } from './completion/MTypeCompletionProvider';
 import { MTypeDefinitionProvider } from './definition/MTypeDefinitionProvider';
 import { MTypeReferenceProvider } from './references/MTypeReferenceProvider';
+import { MTypeImportResolver } from './imports/MTypeImportResolver';
+import { MTypeImportCompletionProvider, MTypeImportedSymbolProvider } from './imports/MTypeImportCompletionProvider';
+import { MTypeImportDiagnostics } from './imports/MTypeImportDiagnostics';
 
 export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage('mType extension activated!');
 
-    // Register completion provider
+    // Get workspace root for import resolution
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+
+    // Initialize import system
+    const importResolver = new MTypeImportResolver(workspaceRoot);
+    const importedSymbolProvider = new MTypeImportedSymbolProvider(importResolver);
+    const importDiagnostics = new MTypeImportDiagnostics(importResolver);
+
+    // Register import completion provider (for import statements)
+    const importCompletionProvider = new MTypeImportCompletionProvider(importResolver);
+    const importCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+        'mtype',
+        importCompletionProvider,
+        '"',   // Trigger on quote (for import paths)
+        "'",   // Trigger on single quote
+        ' '    // Trigger on space (for import keyword)
+    );
+
+    // Register main completion provider
     const completionProvider = new MTypeCompletionProvider();
+    completionProvider.setImportedSymbolProvider(importedSymbolProvider);
     const completionDisposable = vscode.languages.registerCompletionItemProvider(
         'mtype',
         completionProvider,
@@ -26,11 +48,44 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register definition provider
     const definitionProvider = new MTypeDefinitionProvider();
+    definitionProvider.setImportResolver(importResolver);
+    definitionProvider.setImportedSymbolProvider(importedSymbolProvider);
     const definitionDisposable = vscode.languages.registerDefinitionProvider('mtype', definitionProvider);
 
     // Register reference provider
     const referenceProvider = new MTypeReferenceProvider();
+    referenceProvider.setImportResolver(importResolver);
+    referenceProvider.setImportedSymbolProvider(importedSymbolProvider);
     const referenceDisposable = vscode.languages.registerReferenceProvider('mtype', referenceProvider);
+
+    // Set up document change listeners for import analysis
+    const documentChangeDisposable = vscode.workspace.onDidChangeTextDocument(async (event) => {
+        if (event.document.languageId === 'mtype') {
+            // Re-analyze imports when document changes
+            await importedSymbolProvider.analyzeDocumentImports(event.document);
+            // Update import diagnostics
+            await importDiagnostics.updateDiagnostics(event.document);
+            // Clear import cache for this file
+            importResolver.clearCacheForFile(event.document.uri.fsPath);
+        }
+    });
+
+    const documentOpenDisposable = vscode.workspace.onDidOpenTextDocument(async (document) => {
+        if (document.languageId === 'mtype') {
+            // Analyze imports when document opens
+            await importedSymbolProvider.analyzeDocumentImports(document);
+            // Update import diagnostics
+            await importDiagnostics.updateDiagnostics(document);
+        }
+    });
+
+    const documentCloseDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
+        if (document.languageId === 'mtype') {
+            // Clear cache when document closes
+            importedSymbolProvider.clearDocumentCache(document);
+            importDiagnostics.clearDiagnostics(document);
+        }
+    });
 
     // Register additional commands
     const disposables = [
@@ -126,7 +181,17 @@ export function activate(context: vscode.ExtensionContext) {
         })
     ];
 
-    context.subscriptions.push(completionDisposable, formatterDisposable, definitionDisposable, referenceDisposable, ...disposables);
+    context.subscriptions.push(
+        completionDisposable,
+        importCompletionDisposable,
+        formatterDisposable,
+        definitionDisposable,
+        referenceDisposable,
+        documentChangeDisposable,
+        documentOpenDisposable,
+        documentCloseDisposable,
+        ...disposables
+    );
 }
 
 export function deactivate(): void {

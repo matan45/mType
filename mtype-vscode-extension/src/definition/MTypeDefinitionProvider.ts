@@ -1,14 +1,26 @@
 import * as vscode from 'vscode';
 import { MTypeCodeAnalyzer } from '../analyzer/MTypeCodeAnalyzer';
+import { MTypeImportResolver } from '../imports/MTypeImportResolver';
+import { MTypeImportedSymbolProvider } from '../imports/MTypeImportCompletionProvider';
 
 export class MTypeDefinitionProvider implements vscode.DefinitionProvider {
     private analyzer = new MTypeCodeAnalyzer();
+    private importResolver: MTypeImportResolver | null = null;
+    private importedSymbolProvider: MTypeImportedSymbolProvider | null = null;
 
-    provideDefinition(
+    setImportResolver(resolver: MTypeImportResolver): void {
+        this.importResolver = resolver;
+    }
+
+    setImportedSymbolProvider(provider: MTypeImportedSymbolProvider): void {
+        this.importedSymbolProvider = provider;
+    }
+
+    async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.Definition> {
+    ): Promise<vscode.Definition | null> {
         const text = document.getText();
         this.analyzer.analyzeDocument(text);
 
@@ -21,17 +33,17 @@ export class MTypeDefinitionProvider implements vscode.DefinitionProvider {
         const line = document.lineAt(position.line).text;
 
         // Check different contexts for the symbol
-        const definition = this.findDefinition(word, line, position, document);
+        const definition = await this.findDefinition(word, line, position, document);
 
         return definition;
     }
 
-    private findDefinition(
+    private async findDefinition(
         word: string,
         line: string,
         position: vscode.Position,
         document: vscode.TextDocument
-    ): vscode.Definition | null {
+    ): Promise<vscode.Definition | null> {
 
         // 1. Check for class definitions
         const classDefinition = this.findClassDefinition(word, document);
@@ -63,6 +75,89 @@ export class MTypeDefinitionProvider implements vscode.DefinitionProvider {
             return constructorDefinition;
         }
 
+        // 6. Check imported files for the symbol
+        const importedDefinition = await this.findImportedDefinition(word, document);
+        if (importedDefinition) {
+            return importedDefinition;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find definition of a symbol in imported files
+     */
+    private async findImportedDefinition(symbolName: string, document: vscode.TextDocument): Promise<vscode.Location | null> {
+        if (!this.importResolver || !this.importedSymbolProvider) {
+            return null;
+        }
+
+        try {
+            // First, ensure imports are analyzed for this document
+            await this.importedSymbolProvider.analyzeDocumentImports(document);
+
+            // Get all imports for this document
+            const imports = this.importedSymbolProvider.getImportedSymbols(document);
+
+            // Search through each imported file for the symbol
+            for (const importInfo of imports) {
+                for (const exportedSymbol of importInfo.exportedSymbols) {
+                    if (exportedSymbol.name === symbolName) {
+                        // Found the symbol, now find its definition in the imported file
+                        const importedFileUri = vscode.Uri.file(importInfo.resolvedPath);
+
+                        try {
+                            const importedDocument = await vscode.workspace.openTextDocument(importedFileUri);
+                            const location = this.findSymbolInDocument(symbolName, exportedSymbol.type, importedDocument);
+                            if (location) {
+                                return location;
+                            }
+                        } catch (error) {
+                            console.error(`Error opening imported file ${importInfo.resolvedPath}:`, error);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error finding imported definition:', error);
+        }
+
+        return null;
+    }
+
+    /**
+     * Find a specific symbol definition within a document
+     */
+    private findSymbolInDocument(symbolName: string, symbolType: string, document: vscode.TextDocument): vscode.Location | null {
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            switch (symbolType) {
+                case 'function':
+                    const functionMatch = line.match(new RegExp(`^\\s*function\\s+${symbolName}\\s*\\(`));
+                    if (functionMatch) {
+                        return new vscode.Location(document.uri, new vscode.Position(i, line.indexOf(symbolName)));
+                    }
+                    break;
+
+                case 'class':
+                    const classMatch = line.match(new RegExp(`^\\s*class\\s+${symbolName}\\s*\\{`));
+                    if (classMatch) {
+                        return new vscode.Location(document.uri, new vscode.Position(i, line.indexOf(symbolName)));
+                    }
+                    break;
+
+                case 'variable':
+                    const varMatch = line.match(new RegExp(`^\\s*(?:final\\s+)?\\w+\\s+${symbolName}\\s*=`));
+                    if (varMatch) {
+                        return new vscode.Location(document.uri, new vscode.Position(i, line.indexOf(symbolName)));
+                    }
+                    break;
+            }
+        }
 
         return null;
     }

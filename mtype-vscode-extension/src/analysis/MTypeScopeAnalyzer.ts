@@ -275,7 +275,8 @@ export class MTypeScopeAnalyzer {
         if (!scope) return;
 
         // Parse local variable declarations: [final] type varName = value;
-        const varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=.*$/);
+        // Support both simple assignments and 'new' constructor calls
+        const varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=\s*(?:new\s+\w+\(.*\)|.*);?\s*$/);
         if (varMatch) {
             const isFinal = !!varMatch[1];
             const varType = varMatch[2];
@@ -349,10 +350,18 @@ export class MTypeScopeAnalyzer {
             const line = lines[i];
 
             // Skip if we're inside a class or function
-            if (this.isInsideClass(i) || this.isInsideFunction(i)) continue;
+            if (this.isInsideClass(i) || this.isInsideFunction(i)) {
+                continue;
+            }
 
-            // Parse global variable declarations
-            const varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=.*$/);
+            // Parse global variable declarations - more flexible pattern
+            // Match: [final] Type varName = anything;
+            let varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=.*$/);
+            if (!varMatch) {
+                // Try without semicolon requirement
+                varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=/);
+            }
+
             if (varMatch) {
                 const isFinal = !!varMatch[1];
                 const varType = varMatch[2];

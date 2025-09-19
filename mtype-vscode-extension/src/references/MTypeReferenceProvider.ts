@@ -1,33 +1,68 @@
 import * as vscode from 'vscode';
 import { MTypeCodeAnalyzer } from '../analyzer/MTypeCodeAnalyzer';
+import { MTypeImportResolver } from '../imports/MTypeImportResolver';
+import { MTypeImportedSymbolProvider } from '../imports/MTypeImportCompletionProvider';
 
 export class MTypeReferenceProvider implements vscode.ReferenceProvider {
     private analyzer = new MTypeCodeAnalyzer();
+    private importResolver: MTypeImportResolver | null = null;
+    private importedSymbolProvider: MTypeImportedSymbolProvider | null = null;
 
-    provideReferences(
+    setImportResolver(resolver: MTypeImportResolver): void {
+        this.importResolver = resolver;
+    }
+
+    setImportedSymbolProvider(provider: MTypeImportedSymbolProvider): void {
+        this.importedSymbolProvider = provider;
+    }
+
+    async provideReferences(
         document: vscode.TextDocument,
         position: vscode.Position,
         context: vscode.ReferenceContext,
         token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.Location[]> {
+    ): Promise<vscode.Location[]> {
         const text = document.getText();
         this.analyzer.analyzeDocument(text);
 
         const wordRange = document.getWordRangeAtPosition(position);
         if (!wordRange) {
-            return null;
+            return [];
         }
 
         const word = document.getText(wordRange);
         const line = document.lineAt(position.line).text;
 
         // Find all references to the symbol
-        const references = this.findAllReferences(word, line, position, document, context.includeDeclaration);
+        const references = await this.findAllReferences(word, line, position, document, context.includeDeclaration);
+
+        return references || [];
+    }
+
+    private async findAllReferences(
+        word: string,
+        line: string,
+        position: vscode.Position,
+        document: vscode.TextDocument,
+        includeDeclaration: boolean
+    ): Promise<vscode.Location[]> {
+        const references: vscode.Location[] = [];
+
+        // First, find references in the current document
+        const localReferences = this.findLocalReferences(word, line, position, document, includeDeclaration);
+        references.push(...localReferences);
+
+        // Then, find references in other files that import this symbol or are imported by this file
+        const crossFileReferences = await this.findCrossFileReferences(word, document, includeDeclaration);
+        references.push(...crossFileReferences);
 
         return references;
     }
 
-    private findAllReferences(
+    /**
+     * Find references within the current document
+     */
+    private findLocalReferences(
         word: string,
         line: string,
         position: vscode.Position,
@@ -55,6 +90,79 @@ export class MTypeReferenceProvider implements vscode.ReferenceProvider {
             case 'constructor':
                 references.push(...this.findConstructorReferences(word, document, includeDeclaration));
                 break;
+        }
+
+        return references;
+    }
+
+    /**
+     * Find references across imported files
+     */
+    private async findCrossFileReferences(
+        symbolName: string,
+        document: vscode.TextDocument,
+        includeDeclaration: boolean
+    ): Promise<vscode.Location[]> {
+        const references: vscode.Location[] = [];
+
+        if (!this.importResolver || !this.importedSymbolProvider) {
+            return references;
+        }
+
+        try {
+            // Ensure imports are analyzed
+            await this.importedSymbolProvider.analyzeDocumentImports(document);
+
+            // Get all workspace .mt files
+            const allMTypeFiles = await vscode.workspace.findFiles('**/*.mt');
+
+            // Search each file for references to this symbol
+            for (const fileUri of allMTypeFiles) {
+                try {
+                    const fileDocument = await vscode.workspace.openTextDocument(fileUri);
+                    const fileReferences = this.findSymbolReferencesInDocument(symbolName, fileDocument);
+                    references.push(...fileReferences);
+                } catch (error) {
+                    console.error(`Error searching file ${fileUri.fsPath}:`, error);
+                }
+            }
+        } catch (error) {
+            console.error('Error finding cross-file references:', error);
+        }
+
+        return references;
+    }
+
+    /**
+     * Find all references to a symbol within a specific document
+     */
+    private findSymbolReferencesInDocument(symbolName: string, document: vscode.TextDocument): vscode.Location[] {
+        const references: vscode.Location[] = [];
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Find all occurrences of the symbol in this line
+            let startIndex = 0;
+            while (true) {
+                const index = line.indexOf(symbolName, startIndex);
+                if (index === -1) break;
+
+                // Check if this is a whole word match (not part of another identifier)
+                const prevChar = index > 0 ? line[index - 1] : ' ';
+                const nextChar = index + symbolName.length < line.length ? line[index + symbolName.length] : ' ';
+
+                const isWholeWord = !/[a-zA-Z0-9_]/.test(prevChar) && !/[a-zA-Z0-9_]/.test(nextChar);
+
+                if (isWholeWord) {
+                    const position = new vscode.Position(i, index);
+                    references.push(new vscode.Location(document.uri, position));
+                }
+
+                startIndex = index + 1;
+            }
         }
 
         return references;
