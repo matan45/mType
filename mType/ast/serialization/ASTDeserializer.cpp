@@ -89,6 +89,20 @@ namespace ast::serialization
                 return nullptr;
             }
 
+            // Read content data for checksum validation
+            std::vector<uint8_t> contentData(header.size);
+            stream.read(reinterpret_cast<char*>(contentData.data()), header.size);
+
+            // Validate checksum
+            if (!validateChecksum(header.checksum, contentData))
+            {
+                std::cerr << "Checksum validation failed: file may be corrupted" << std::endl;
+                return nullptr;
+            }
+
+            // Reset stream position to start of content for deserialization
+            stream.seekg(sizeof(FileHeader));
+
             // Deserialize the root node
             auto rootNode = deserializeNode();
             stream.close();
@@ -164,6 +178,8 @@ namespace ast::serialization
                 return deserializeIfNode(header);
             case NodeType::WHILE_NODE:
                 return deserializeWhileNode(header);
+            case NodeType::DO_WHILE_NODE:
+                return deserializeDoWhileNode(header);
             case NodeType::FOR_NODE:
                 return deserializeForNode(header);
             case NodeType::FOR_EACH_NODE:
@@ -487,8 +503,14 @@ namespace ast::serialization
 
     bool ASTDeserializer::validateChecksum(uint32_t expectedChecksum, const std::vector<uint8_t>& data)
     {
-        // For now, always return true - implement proper CRC32 validation later
-        return true;
+        // Calculate checksum of the data using the same algorithm as serializer
+        uint32_t calculatedChecksum = 0;
+        for (uint8_t byte : data) {
+            calculatedChecksum ^= byte;
+            calculatedChecksum = (calculatedChecksum << 1) | (calculatedChecksum >> 31);
+        }
+
+        return calculatedChecksum == expectedChecksum;
     }
 
     // Helper function implementations
@@ -717,7 +739,24 @@ namespace ast::serialization
             std::move(body),
             location);
     }
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeDoWhileNode(const NodeHeader& header) { return nullptr; }
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeDoWhileNode(const NodeHeader& header)
+    {
+        // Read the body statement first (as it was serialized first)
+        auto body = deserializeNode();
+
+        // Read the condition expression
+        auto condition = deserializeNode();
+
+        // Create the do-while node
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        return std::make_unique<nodes::statements::DoWhileNode>(
+            std::move(body),
+            std::move(condition),
+            location);
+    }
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeForNode(const NodeHeader& header)
     {
         // Read the initialization statement

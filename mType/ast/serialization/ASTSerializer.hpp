@@ -40,6 +40,7 @@ namespace ast::serialization
         // Main serialization methods
         bool serialize(const ASTNode* root, const std::string& filePath);
 
+
         // Node-specific serialization methods
         void serializeNode(const ASTNode* node);
 
