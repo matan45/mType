@@ -171,10 +171,10 @@ export class MTypeKeywords {
             priority: 8
         },
         {
-            keyword: 'foreach',
+            keyword: 'for',
             detail: 'foreach loop (enhanced for)',
             documentation: 'Iterates over collection elements',
-            insertText: 'foreach (${1:elementType} ${2:element} in ${3:collection}) {\n\t$0\n}',
+            insertText: 'foreach (${1:elementType} ${2:element} : ${3:collection}) {\n\t$0\n}',
             kind: vscode.CompletionItemKind.Keyword,
             contexts: ['function', 'block', 'global-function', 'global'],
             priority: 8
