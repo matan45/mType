@@ -13,7 +13,11 @@ export function activate(context: vscode.ExtensionContext) {
         'mtype',
         completionProvider,
         '.',   // Trigger on dot (for instance members)
-        ':'    // Trigger on colon (for static members with ::)
+        ':',   // Trigger on colon (for static members with ::)
+        ' ',   // Trigger on space (for keywords)
+        '<',   // Trigger on < (for generic types)
+        '(',   // Trigger on ( (for parameters)
+        ','    // Trigger on , (for parameter lists)
     );
 
     // Register document formatter
