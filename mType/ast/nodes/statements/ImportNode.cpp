@@ -1,4 +1,5 @@
 #include "ImportNode.hpp"
+#include <filesystem>
 
 namespace ast::nodes::statements
 {
@@ -46,6 +47,46 @@ namespace ast::nodes::statements
     bool ImportNode::isResolved() const
     {
         return importedAST != nullptr;
+    }
+
+    std::string ImportNode::getResolvedImportPath(const std::string& baseDirectory) const
+    {
+        std::filesystem::path path(filePath);
+
+        // If path is relative, resolve it relative to base directory
+        if (path.is_relative() && !baseDirectory.empty()) {
+            path = std::filesystem::path(baseDirectory) / path;
+        }
+
+        // Check if .mtc version exists and prefer it
+        std::string mtcPath = convertToMtcPath(path.string());
+        if (std::filesystem::exists(mtcPath)) {
+            return mtcPath;
+        }
+
+        // Fall back to original .mt path
+        return path.string();
+    }
+
+    std::string ImportNode::convertToMtcPath(const std::string& mtPath) const
+    {
+        std::filesystem::path path(mtPath);
+
+        // If already .mtc, return as-is
+        if (path.extension() == ".mtc") {
+            return mtPath;
+        }
+
+        // Convert .mt to .mtc
+        path.replace_extension(".mtc");
+        return path.string();
+    }
+
+    bool ImportNode::prefersMtcFile() const
+    {
+        // Check if a .mtc version exists for this import
+        std::string mtcPath = convertToMtcPath(filePath);
+        return std::filesystem::exists(mtcPath);
     }
 
     Value ImportNode::accept(ASTVisitor<Value>& visitor)

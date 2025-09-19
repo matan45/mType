@@ -190,8 +190,9 @@ namespace evaluator
     Value StatementEvaluator::executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements)
     {
         Value lastValue = std::monostate{};
-        
-        for (const auto& statement : statements) {
+
+        for (size_t i = 0; i < statements.size(); i++) {
+            const auto& statement = statements[i];
             // Delegate evaluation based on statement type
             if (canHandle(statement.get())) {
                 lastValue = evaluate(statement.get());
@@ -236,27 +237,28 @@ namespace evaluator
     
     Value StatementEvaluator::evaluateDeclarationNode(DeclarationNode* node)
     {
+
         validateVariableDeclaration(node);
-        
+
         auto env = context->getEnvironment();
-        
+
         // Evaluate initial value if present, otherwise use default
         Value initialValue = std::monostate{};
         if (node->getInitializer() && exprEvaluator) {
             initialValue = exprEvaluator->evaluate(node->getInitializer());
-            
+
             // Validate type compatibility between declared type and initial value
             validateTypeAssignment(node->getType(), initialValue, node->getVariableName(), node->getLocation());
         }
-        
+
         // Create variable definition
         auto varDef = std::make_shared<VariableDefinition>(
-            node->getVariableName(), 
-            node->getType(), 
+            node->getVariableName(),
+            node->getType(),
             initialValue,
             node->isFinal()
         );
-        
+
         env->declareVariable(node->getVariableName(), varDef);
         return initialValue;
     }
@@ -414,10 +416,11 @@ namespace evaluator
     
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)
     {
+
         if (!exprEvaluator) {
             throw TypeException("Expression evaluator not available for assignment evaluation");
         }
-        
+
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
         
@@ -469,9 +472,47 @@ namespace evaluator
                 env->declareVariable(node->getVariableName(), newVarDef);
                 return newValue;
             } else {
-                // Check if this might be a static field assignment
+                // Check if this is a qualified static field assignment (contains ::)
+                std::string varName = node->getVariableName();
+                if (varName.find("::") != std::string::npos) {
+                    // Parse the qualified name into parts
+                    std::vector<std::string> parts;
+                    size_t start = 0;
+                    size_t pos = varName.find("::");
+
+                    while (pos != std::string::npos) {
+                        parts.push_back(varName.substr(start, pos - start));
+                        start = pos + 2; // Skip "::"
+                        pos = varName.find("::", start);
+                    }
+                    parts.push_back(varName.substr(start));
+
+                    // Handle qualified static field assignment: ClassName::fieldName
+                    if (parts.size() == 2) {
+                        std::string className = parts[0];
+                        std::string fieldName = parts[1];
+
+                        auto classDef = env->findClass(className);
+                        if (classDef) {
+                            auto field = classDef->getField(fieldName);
+                            if (field && field->isStatic()) {
+                                // This is a qualified static field assignment
+                                field->setValue(newValue);
+                                return newValue;
+                            }
+                        }
+
+                        throw UndefinedException("Static field '" + varName + "' is not defined",
+                                               node->getLocation());
+                    } else {
+                        throw UndefinedException("Complex qualified variable assignment not supported: '" + varName + "'",
+                                               node->getLocation());
+                    }
+                }
+
+                // Check if this might be a static field assignment using current class context
                 auto classRegistry = env->getClassRegistry();
-                
+
                 // Check if we have a current class name stored (from method execution)
                 auto currentClassVar = env->findVariable("__current_class_name__");
                 if (currentClassVar) {
@@ -489,9 +530,9 @@ namespace evaluator
                         }
                     }
                 }
-                
+
                 // This is a pure assignment to non-existent variable
-                throw UndefinedException("Variable '" + node->getVariableName() + "' is not defined", 
+                throw UndefinedException("Variable '" + node->getVariableName() + "' is not defined",
                                        node->getLocation());
             }
         }
@@ -882,33 +923,76 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
         auto importManager = env->getImportManager();
-        
+
         if (!importManager) {
             throw TypeException("Import manager not available for import evaluation");
         }
-        
+
         std::string filePath = node->getFilePath();
-        
+
+        // Convert .mtc paths back to .mt paths for consistent tracking
+        std::string trackingPath = filePath;
+        if (filePath.ends_with(".mtc")) {
+            trackingPath = filePath.substr(0, filePath.length() - 1); // Remove 'c' to get .mt
+        }
+
+        // Use consistent path resolution for tracking (always use .mt path for cache keys)
+        std::string resolvedPath = importManager->resolvePath(trackingPath);
+
         // Check if already evaluated to avoid re-evaluation
-        if (importManager->isEvaluated(filePath)) {
+        if (importManager->isEvaluated(resolvedPath)) {
             return std::monostate{}; // Already imported
+        }
+
+        // Check if this is a .mtc import (from deserialized ImportNode)
+        if (filePath.ends_with(".mtc")) {
+            // This is a serialized import - load the .mtc file directly
+            // Mark as being evaluated to prevent circular imports
+            importManager->markAsBeingEvaluated(resolvedPath);
+
+            try {
+
+                // Load the .mtc file using our ImportManager
+                ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
+
+                if (!importedAST) {
+                    throw TypeException("Failed to load cached imported file: " + filePath);
+                }
+
+
+                // Set import evaluation context and evaluate the loaded AST
+                env->setImportEvaluation(true);
+                evaluateRecursively(importedAST);
+                env->setImportEvaluation(false);
+
+
+                // Mark as evaluated and no longer being evaluated
+                importManager->markAsEvaluated(resolvedPath);
+                importManager->unmarkAsBeingEvaluated(resolvedPath);
+
+                return std::monostate{};
+            } catch (...) {
+                env->setImportEvaluation(false);
+                importManager->unmarkAsBeingEvaluated(resolvedPath);
+                throw;
+            }
         }
         
         // Check for circular imports
-        if (importManager->isBeingEvaluated(filePath)) {
+        if (importManager->isBeingEvaluated(resolvedPath)) {
             throw TypeException("Circular import detected: " + filePath + " is already being imported");
         }
-        
+
         try {
-            // Parse and cache the AST (doesn't evaluate)
+            // Parse and cache the AST (doesn't evaluate) - this now supports .mtc files
             ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
-            
+
             if (!importedAST) {
                 throw TypeException("Failed to parse imported file: " + filePath);
             }
-            
-            // Mark as being evaluated to prevent circular imports
-            importManager->markAsBeingEvaluated(filePath);
+
+            // Mark as being evaluated to prevent circular imports (use resolved path for consistency)
+            importManager->markAsBeingEvaluated(resolvedPath);
             
             // Set import evaluation context
             env->setImportEvaluation(true);
@@ -922,15 +1006,15 @@ namespace evaluator
                 // Reset import evaluation context
                 env->setImportEvaluation(false);
                 
-                // Mark as evaluated and no longer being evaluated
-                importManager->markAsEvaluated(filePath);
-                importManager->unmarkAsBeingEvaluated(filePath);
-                
+                // Mark as evaluated and no longer being evaluated (use resolved path for consistency)
+                importManager->markAsEvaluated(resolvedPath);
+                importManager->unmarkAsBeingEvaluated(resolvedPath);
+
                 return std::monostate{}; // Imports return void
-                
+
             } catch (...) {
                 env->setImportEvaluation(false);
-                importManager->unmarkAsBeingEvaluated(filePath);
+                importManager->unmarkAsBeingEvaluated(resolvedPath);
                 throw;
             }
             
@@ -942,20 +1026,22 @@ namespace evaluator
     Value StatementEvaluator::evaluateFunctionNode(FunctionNode* node)
     {
         auto env = context->getEnvironment();
-        
+
+
         // Create function definition
         auto funcDef = std::make_shared<FunctionDefinition>(
             node->getName(),
             node->getReturnType(),
             node->getParameters()
         );
-        
+
         // Set the function body
         funcDef->setBody(node->getBody());
-        
+
         // Register function in environment
         env->registerFunction(node->getName(), funcDef);
-        
+
+
         return std::monostate{}; // Function definitions don't return values
     }
     

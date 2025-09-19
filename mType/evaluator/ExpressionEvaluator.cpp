@@ -7,6 +7,7 @@
 #include "../errors/UndefinedException.hpp"
 #include "../errors/ScriptException.hpp"
 #include "../exception/ReturnException.hpp"
+#include <iostream>
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
@@ -453,7 +454,8 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateFunctionCallNode(FunctionCallNode* node)
     {
         auto env = context->getEnvironment();
-        
+
+
         // First check if it's a native function
         auto nativeRegistry = env->getNativeRegistry();
         if (nativeRegistry->hasNativeFunction(node->getFunctionName())) {
@@ -540,10 +542,11 @@ namespace evaluator
         
         // Check for user-defined function
         auto funcDef = env->findFunction(node->getFunctionName());
-        
+
         if (!funcDef) {
             throw UndefinedException("Undefined function: " + node->getFunctionName(), node->getLocation());
         }
+
         
         // Evaluate arguments
         std::vector<Value> args;

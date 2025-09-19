@@ -128,6 +128,7 @@ namespace ast::serialization
             return nullptr;
         }
 
+
         // Deserialize node based on type
         switch (header.type)
         {
@@ -266,14 +267,24 @@ namespace ast::serialization
 
     errors::SourceLocation ASTDeserializer::readSourceLocation()
     {
+        std::string filename = readString();
         uint32_t line = readUInt32();
         uint32_t column = readUInt32();
-        return createSourceLocation(line, column);
+        return createSourceLocation(filename, line, column);
     }
 
     errors::SourceLocation ASTDeserializer::createSourceLocation(uint32_t line, uint32_t column)
     {
         errors::SourceLocation location;
+        location.setLine(line);
+        location.setColumn(column);
+        return location;
+    }
+
+    errors::SourceLocation ASTDeserializer::createSourceLocation(const std::string& filename, uint32_t line, uint32_t column)
+    {
+        errors::SourceLocation location;
+        location.setFilename(filename);
         location.setLine(line);
         location.setColumn(column);
         return location;
@@ -421,7 +432,12 @@ namespace ast::serialization
         }
 
         // Deserialize function body
-        std::unique_ptr<ASTNode> body = deserializeNode();
+        bool hasBody = readBool();
+        std::unique_ptr<ASTNode> body = nullptr;
+        if (hasBody)
+        {
+            body = deserializeNode();
+        }
 
         errors::SourceLocation location = createSourceLocation(header.line, header.column);
         return std::make_unique<nodes::functions::FunctionNode>(
@@ -492,6 +508,9 @@ namespace ast::serialization
             if (child)
             {
                 children.push_back(std::move(child));
+            }
+            else
+            {
             }
         }
 

@@ -1,6 +1,7 @@
 #include "ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
+#include "../ast/serialization/ASTDeserializer.hpp"
 #include <filesystem>
 #include <algorithm>
 
@@ -43,28 +44,76 @@ namespace services
     ASTNode* ImportManager::parseAndCacheAST(const std::string& rawPath)
     {
         std::string resolvedPath = resolvePath(rawPath);
-        
+
         // Check if already cached
         auto it = astCache.find(resolvedPath);
         if (it != astCache.end()) {
             return it->second.get();
         }
-        
-        
-        // Parse the imported file (NO evaluation, NO environment interaction)
+
+        // Try to load from .mtc file first (faster deserialization)
+        std::string mtcPath = convertToMtcPath(resolvedPath);
+        if (mtcFileExists(mtcPath)) {
+            ASTNode* astPtr = loadFromMtcFile(mtcPath);
+            if (astPtr) {
+                // Use the original .mt path as cache key for consistency
+                astCache[resolvedPath] = std::unique_ptr<ASTNode>(astPtr);
+                importedFiles.insert(resolvedPath);
+                return astPtr;
+            }
+        }
+
+        // Fallback to parsing .mt file
         Lexer lexer(resolvedPath);
         Parser parser(lexer, nullptr);  // Pass nullptr for ImportManager since we don't handle nested imports during parsing
-        
+
         // Pure parsing only - no ImportManager dependency
         // If the nested file has imports, they will be handled during evaluation phase
         std::unique_ptr<ASTNode> ast = parser.parseProgram();
-        
+
         // Cache the AST
         ASTNode* astPtr = ast.get();
         astCache[resolvedPath] = std::move(ast);
         importedFiles.insert(resolvedPath);
-        
+
         return astPtr;
+    }
+
+    std::string ImportManager::convertToMtcPath(const std::string& mtPath)
+    {
+        fs::path path(mtPath);
+
+        // If already .mtc, return as-is
+        if (path.extension() == ".mtc") {
+            return mtPath;
+        }
+
+        // Convert .mt to .mtc
+        path.replace_extension(".mtc");
+        return path.string();
+    }
+
+    bool ImportManager::mtcFileExists(const std::string& mtPath)
+    {
+        std::string mtcPath = convertToMtcPath(mtPath);
+        return fs::exists(mtcPath) && fs::is_regular_file(mtcPath);
+    }
+
+    ASTNode* ImportManager::loadFromMtcFile(const std::string& mtcPath)
+    {
+        try {
+            ast::serialization::ASTDeserializer deserializer;
+            auto ast = deserializer.deserialize(mtcPath);
+
+            if (ast) {
+                return ast.release(); // Transfer ownership to caller
+            }
+        } catch (const std::exception& e) {
+            // If deserialization fails, return nullptr to fallback to .mt parsing
+            // Could log the error here if needed
+        }
+
+        return nullptr;
     }
     
     std::string ImportManager::resolvePathConsistently(const std::string& path)

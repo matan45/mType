@@ -7,7 +7,12 @@
 #include "../exception/ReturnException.hpp"
 #include "../ast/serialization/ASTSerializer.hpp"
 #include "../ast/serialization/ASTDeserializer.hpp"
+#include "../ast/nodes/statements/ImportNode.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
 #include <iostream>
+#include <filesystem>
+#include <unordered_set>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
@@ -88,6 +93,10 @@ namespace services
             parser::Parser parser(lexer, std::move(importManager));
             auto ast = parser.parseProgram();
 
+            // Automatically compile import dependencies first
+            std::string baseDirectory = scriptPath.parent_path().string();
+            compileImportDependencies(ast.get(), baseDirectory);
+
             // Determine output path
             std::string outputFile = outputPath;
             if (outputFile.empty())
@@ -110,6 +119,7 @@ namespace services
     {
         try
         {
+
             // Deserialize the AST
             ast::serialization::ASTDeserializer deserializer;
             auto ast = deserializer.deserialize(cachedPath);
@@ -120,8 +130,28 @@ namespace services
                 return false;
             }
 
+
+            // Create and configure ImportManager for cached script execution
+            auto importManager = std::make_unique<ImportManager>();
+
+            // Set base directory to the directory of the cached script file
+            std::filesystem::path scriptPath(cachedPath);
+            std::string baseDir = scriptPath.parent_path().string();
+            importManager->setBaseDirectory(baseDir);
+
+
+            // Keep a raw pointer for later use before setting on environment
+            ImportManager* importManagerPtr = importManager.get();
+            environment->setImportManager(importManagerPtr);
+
+
             // Execute the AST
             evaluator->evaluate(ast.get());
+
+
+            // Clean up ImportManager reference
+            environment->setImportManager(nullptr);
+
             return true;
         }
         catch (const std::exception& e)
@@ -536,5 +566,95 @@ namespace services
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
         auto classDef = instance->getClassDefinition();
         return classDef->getName();
+    }
+
+    void ScriptInterpreter::compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory)
+    {
+        std::vector<std::string> importPaths;
+        std::unordered_set<std::string> compiled;
+
+        // Collect all import paths from the AST
+        collectImportPaths(ast, importPaths, baseDirectory);
+
+        // Compile each dependency if not already compiled
+        for (const std::string& importPath : importPaths)
+        {
+            std::filesystem::path fullPath = std::filesystem::path(baseDirectory) / importPath;
+            std::string resolvedPath = fullPath.string();
+            std::string mtcPath = resolvedPath + "c"; // .mt -> .mtc
+
+            // Skip if already compiled and up-to-date
+            if (compiled.find(resolvedPath) != compiled.end())
+            {
+                continue;
+            }
+
+            // Check if .mtc file exists and is newer than .mt file
+            if (std::filesystem::exists(mtcPath) && std::filesystem::exists(resolvedPath))
+            {
+                auto mtcTime = std::filesystem::last_write_time(mtcPath);
+                auto mtTime = std::filesystem::last_write_time(resolvedPath);
+
+                if (mtcTime >= mtTime)
+                {
+                    compiled.insert(resolvedPath);
+                    continue; // .mtc is up-to-date
+                }
+            }
+
+            try
+            {
+                // Recursively compile the dependency
+                std::cout << "Auto-compiling dependency: " << resolvedPath << std::endl;
+
+                if (compileScript(resolvedPath, mtcPath))
+                {
+                    compiled.insert(resolvedPath);
+                    std::cout << "Successfully compiled dependency: " << resolvedPath << " -> " << mtcPath << std::endl;
+                }
+                else
+                {
+                    std::cerr << "Warning: Failed to compile dependency: " << resolvedPath << std::endl;
+                }
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "Warning: Error compiling dependency " << resolvedPath << ": " << e.what() << std::endl;
+            }
+        }
+    }
+
+    void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports, const std::string& baseDirectory)
+    {
+        if (!node) return;
+
+        // Check if this node is an ImportNode
+        if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            std::string importPath = importNode->getFilePath();
+
+            // Only collect .mt files (skip already processed .mtc files)
+            if (importPath.ends_with(".mt"))
+            {
+                imports.push_back(importPath);
+            }
+        }
+
+        // Recursively check child nodes
+        if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(node))
+        {
+            for (auto& child : programNode->getStatements())
+            {
+                collectImportPaths(child.get(), imports, baseDirectory);
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::nodes::statements::BlockNode*>(node))
+        {
+            for (auto& child : blockNode->getStatements())
+            {
+                collectImportPaths(child.get(), imports, baseDirectory);
+            }
+        }
+        // Note: ImportNodes are typically at the top level, so we mainly need to check ProgramNode and BlockNode
     }
 }

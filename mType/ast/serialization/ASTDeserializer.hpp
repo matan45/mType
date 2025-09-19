@@ -96,6 +96,7 @@ namespace ast::serialization
     private:
         // Internal helper to create source location from line/column
         errors::SourceLocation createSourceLocation(uint32_t line, uint32_t column);
+        errors::SourceLocation createSourceLocation(const std::string& filename, uint32_t line, uint32_t column);
 
         // Helper functions to convert serialization enums to TokenType
         token::TokenType binaryOperatorToTokenType(uint8_t binaryOp);

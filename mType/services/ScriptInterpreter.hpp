@@ -3,8 +3,10 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <unordered_set>
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
+#include "../ast/ASTNode.hpp"
 
 // Forward declarations
 namespace evaluator { class Evaluator; }
@@ -22,6 +24,10 @@ namespace services
         // Helper methods for internal use
         value::Value invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef, const std::vector<value::Value>& args);
         value::Value invokeStaticMethod(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef, const std::string& methodName, const std::vector<value::Value>& args);
+
+        // Import dependency compilation helpers
+        void compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory);
+        void collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports, const std::string& baseDirectory);
         
     public:
         ScriptInterpreter();

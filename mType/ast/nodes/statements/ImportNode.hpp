@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <filesystem>
 
 namespace ast::nodes::statements
 {
@@ -29,6 +30,11 @@ namespace ast::nodes::statements
 
         // Check if this import was successfully resolved
         bool isResolved() const;
+
+        // Path resolution utilities for .mtc support
+        std::string getResolvedImportPath(const std::string& baseDirectory = "") const;
+        std::string convertToMtcPath(const std::string& mtPath) const;
+        bool prefersMtcFile() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

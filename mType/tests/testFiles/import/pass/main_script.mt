@@ -1,6 +1,6 @@
 ﻿        import "math_utils.mt";
         import "string_utils.mt";
-		import "book_utils.mt";
+	import "book_utils.mt";
         import "math_utils.mt";  // Safe duplicate - will be ignored
         
         native function print(int n): void;

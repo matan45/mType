@@ -320,6 +320,7 @@ namespace ast::serialization
 
     void ASTSerializer::writeSourceLocation(const errors::SourceLocation& location)
     {
+        writeString(location.getFilename());
         writeUInt32(location.getLine());
         writeUInt32(location.getColumn());
     }
@@ -467,7 +468,9 @@ namespace ast::serialization
             }
 
             // Serialize function body
-            if (node->getBodyPtr())
+            bool hasBody = (node->getBodyPtr() != nullptr);
+            writeBool(hasBody);
+            if (hasBody)
             {
                 serializeNode(node->getBodyPtr());
             }
@@ -853,8 +856,17 @@ namespace ast::serialization
 
     void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node)
     {
-        // Serialize the file path
-        writeString(node->getFilePath());
+        // Convert the file path to .mtc format for serialized imports
+        std::string originalPath = node->getFilePath();
+        std::string serializedPath = originalPath;
+
+        // Convert .mt to .mtc
+        if (originalPath.ends_with(".mt")) {
+            serializedPath = originalPath + "c"; // .mt -> .mtc
+        }
+
+        // Serialize the converted file path
+        writeString(serializedPath);
 
         // Serialize the number of imported declarations
         const auto& declarations = node->getImportedDeclarations();
@@ -879,7 +891,7 @@ namespace ast::serialization
             writeString(node->getName());
 
             // Serialize the return type
-            writeUInt8(static_cast<uint8_t>(node->getReturnType()));
+            writeUInt8(valueTypeToSerializationType(node->getReturnType()));
 
             // Serialize the parameters
             const auto& parameters = node->getParameters();
@@ -888,7 +900,7 @@ namespace ast::serialization
             for (const auto& param : parameters)
             {
                 writeString(param.first); // parameter name
-                writeUInt8(static_cast<uint8_t>(param.second)); // parameter type
+                writeUInt8(valueTypeToSerializationType(param.second)); // parameter type
             }
 
             // Serialize the static flag
@@ -940,7 +952,7 @@ namespace ast::serialization
             for (const auto& param : parameters)
             {
                 writeString(param.first); // parameter name
-                writeUInt8(static_cast<uint8_t>(param.second)); // parameter type
+                writeUInt8(valueTypeToSerializationType(param.second)); // parameter type
             }
 
             // Serialize whether there's a body
@@ -1016,6 +1028,28 @@ namespace ast::serialization
         for (const auto& argument : arguments)
         {
             serializeNode(argument.get());
+        }
+    }
+
+    uint8_t ASTSerializer::valueTypeToSerializationType(value::ValueType valueType)
+    {
+        switch (valueType)
+        {
+        case value::ValueType::INT: return static_cast<uint8_t>(ast::serialization::ValueType::INT);
+        case value::ValueType::FLOAT: return static_cast<uint8_t>(ast::serialization::ValueType::FLOAT);
+        case value::ValueType::STRING: return static_cast<uint8_t>(ast::serialization::ValueType::STRING);
+        case value::ValueType::BOOL: return static_cast<uint8_t>(ast::serialization::ValueType::BOOL);
+        case value::ValueType::OBJECT: return static_cast<uint8_t>(ast::serialization::ValueType::OBJECT);
+        case value::ValueType::ARRAY: return static_cast<uint8_t>(ast::serialization::ValueType::ARRAY);
+        case value::ValueType::MAP: return static_cast<uint8_t>(ast::serialization::ValueType::MAP);
+        case value::ValueType::SET: return static_cast<uint8_t>(ast::serialization::ValueType::SET);
+        case value::ValueType::STACK: return static_cast<uint8_t>(ast::serialization::ValueType::STACK);
+        case value::ValueType::QUEUE: return static_cast<uint8_t>(ast::serialization::ValueType::QUEUE);
+        case value::ValueType::NULL_TYPE: return static_cast<uint8_t>(ast::serialization::ValueType::NULL_VALUE);
+        case value::ValueType::VOID: return static_cast<uint8_t>(ast::serialization::ValueType::VOID);
+        default:
+            throw std::runtime_error(
+                "Unknown value::ValueType: " + std::to_string(static_cast<int>(valueType)));
         }
     }
 }
