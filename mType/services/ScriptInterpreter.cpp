@@ -21,7 +21,6 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include <stdexcept>
 #include <memory>
-#include <filesystem>
 #include <chrono>
 
 namespace services
@@ -119,7 +118,6 @@ namespace services
     {
         try
         {
-
             // Deserialize the AST
             ast::serialization::ASTDeserializer deserializer;
             auto ast = deserializer.deserialize(cachedPath);
@@ -395,7 +393,7 @@ namespace services
     }
 
     Value ScriptInterpreter::createObjectForReturn(const std::string& className,
-        const std::vector<Value>& constructorArgs)
+                                                   const std::vector<Value>& constructorArgs)
     {
         // Use the existing createObject method - it already handles object creation properly
         return createObject(className, constructorArgs);
@@ -446,21 +444,17 @@ namespace services
                                                 const std::string& methodName,
                                                 const std::vector<Value>& args)
     {
-        std::cout << "[DEBUG] invokeStaticMethod called: " << classDef->getName() << "::" << methodName << std::endl;
-        
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
             throw std::runtime_error("Static method not found: " + classDef->getName() + "::" + methodName);
         }
 
-        std::cout << "[DEBUG] Method found, entering scope..." << std::endl;
         // Set up method scope
         environment->enterScope(classDef->getName() + "::" + methodName, environment::ScopeType::FUNCTION);
 
         try
         {
-            std::cout << "[DEBUG] Binding parameters..." << std::endl;
             // Bind parameters
             auto params = method->getParameters();
             if (params.size() != args.size())
@@ -477,65 +471,49 @@ namespace services
                 environment->declareVariable(params[i].first, paramVar);
             }
 
-            std::cout << "[DEBUG] Starting method execution..." << std::endl;
-            
             // Store current class name for static field access (same as ObjectEvaluator does)
             auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
                 "__current_class_name__", ValueType::STRING, classDef->getName(), false);
             environment->declareVariable("__current_class_name__", classNameVar);
-            
+
             // Execute method body
             Value result = std::monostate{}; // void
             if (method->getBody())
             {
-                std::cout << "[DEBUG] Method has body, evaluating..." << std::endl;
-                std::cout << "[DEBUG] Method body AST type: " << typeid(*method->getBody()).name() << std::endl;
-                
-                // Create a fresh evaluator instance for API calls to avoid reentrancy issues
-                std::cout << "[DEBUG] Creating fresh evaluator for API call..." << std::endl;
                 auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
-                
+
                 try
                 {
-                    std::cout << "[DEBUG] About to call apiEvaluator->evaluate()..." << std::endl;
                     result = apiEvaluator->evaluate(method->getBody());
-                    std::cout << "[DEBUG] apiEvaluator->evaluate() completed" << std::endl;
 
                     // Check if there was a return value
                     if (apiEvaluator->shouldReturn())
                     {
-                        std::cout << "[DEBUG] Getting return value..." << std::endl;
                         result = apiEvaluator->getReturnValue();
                     }
                 }
                 catch (const exception::ReturnException& returnEx)
                 {
-                    std::cout << "[DEBUG] Caught ReturnException" << std::endl;
                     // Handle explicit return statements - this is the normal case for static methods with return values
                     result = returnEx.returnValue;
                 }
                 catch (const std::exception& evalException)
                 {
-                    std::cout << "[DEBUG] Exception during API evaluation: " << evalException.what() << std::endl;
+                    std::cerr << "Warning: Error compiling dependency : " << evalException.what() << std::endl;
                     throw;
                 }
                 catch (...)
                 {
-                    std::cout << "[DEBUG] Unknown exception during API evaluation" << std::endl;
                     throw;
                 }
             }
-
-            std::cout << "[DEBUG] Method execution completed, cleaning up..." << std::endl;
             // Clean up and return
             environment->exitScope();
 
-            std::cout << "[DEBUG] Returning result from invokeStaticMethod" << std::endl;
             return result;
         }
         catch (...)
         {
-            std::cout << "[DEBUG] Exception in invokeStaticMethod, cleaning up..." << std::endl;
             // Clean up on exception
             environment->exitScope();
             throw;
@@ -604,17 +582,9 @@ namespace services
 
             try
             {
-                // Recursively compile the dependency
-                std::cout << "Auto-compiling dependency: " << resolvedPath << std::endl;
-
                 if (compileScript(resolvedPath, mtcPath))
                 {
                     compiled.insert(resolvedPath);
-                    std::cout << "Successfully compiled dependency: " << resolvedPath << " -> " << mtcPath << std::endl;
-                }
-                else
-                {
-                    std::cerr << "Warning: Failed to compile dependency: " << resolvedPath << std::endl;
                 }
             }
             catch (const std::exception& e)
@@ -624,7 +594,8 @@ namespace services
         }
     }
 
-    void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports, const std::string& baseDirectory)
+    void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports,
+                                               const std::string& baseDirectory)
     {
         if (!node) return;
 

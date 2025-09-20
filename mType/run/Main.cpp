@@ -9,7 +9,6 @@
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
-#include "../services/ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
