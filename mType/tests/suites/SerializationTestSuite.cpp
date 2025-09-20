@@ -13,20 +13,21 @@ namespace tests::testSuite
 
     void SerializationTestSuite::setupTests()
     {
-        // Use regular OUTPUT_EXPECTED tests but we'll override execution
-        // to test compilation and cached execution
-
+        
         addOutputVerificationTest("Namespace Class Name Collisions",
-                                passPath + "namespaceClassNameCollisions.mt");
+                                  passPath + "namespaceClassNameCollisions.mt");
 
         addOutputVerificationTest("Nested Collections As Map Values",
-                                passPath + "nestedCollectionsAsMapValues.mt");
+                                  passPath + "nestedCollectionsAsMapValues.mt");
 
         addOutputVerificationTest("Switch Nested In Loops",
-                                passPath + "switchNestedInLoops.mt");
+                                  passPath + "switchNestedInLoops.mt");
+
+        addOutputVerificationTest("Collections as Data Members",
+                                  passPath + "collectionsAsDataMembers.mt");
 
         addOutputVerificationTest("Test Import Main Compilation",
-                                passPath + "test_import_main.mt");
+                                  passPath + "test_import_main.mt");
     }
 
     void SerializationTestSuite::run()
@@ -77,9 +78,10 @@ namespace tests::testSuite
 
                 // Trim trailing whitespace (newlines, spaces, etc.)
                 while (!actualOutput.empty() && (actualOutput.back() == '\n' ||
-                                                actualOutput.back() == '\r' ||
-                                                actualOutput.back() == ' ' ||
-                                                actualOutput.back() == '\t')) {
+                    actualOutput.back() == '\r' ||
+                    actualOutput.back() == ' ' ||
+                    actualOutput.back() == '\t'))
+                {
                     actualOutput.pop_back();
                 }
 
@@ -95,13 +97,14 @@ namespace tests::testSuite
                 {
                     std::ifstream expectedFile(expectedPath);
                     std::string expectedOutput((std::istreambuf_iterator<char>(expectedFile)),
-                                             std::istreambuf_iterator<char>());
+                                               std::istreambuf_iterator<char>());
 
                     // Trim trailing whitespace from expected output too
                     while (!expectedOutput.empty() && (expectedOutput.back() == '\n' ||
-                                                      expectedOutput.back() == '\r' ||
-                                                      expectedOutput.back() == ' ' ||
-                                                      expectedOutput.back() == '\t')) {
+                        expectedOutput.back() == '\r' ||
+                        expectedOutput.back() == ' ' ||
+                        expectedOutput.back() == '\t'))
+                    {
                         expectedOutput.pop_back();
                     }
 
@@ -117,10 +120,12 @@ namespace tests::testSuite
                         std::cout << "    Actual length: " << actualOutput.length() << std::endl;
 
                         // Show first difference
-                        for (size_t i = 0; i < std::min(expectedOutput.length(), actualOutput.length()); ++i) {
-                            if (expectedOutput[i] != actualOutput[i]) {
+                        for (size_t i = 0; i < std::min(expectedOutput.length(), actualOutput.length()); ++i)
+                        {
+                            if (expectedOutput[i] != actualOutput[i])
+                            {
                                 std::cout << "    First difference at position " << i << ": expected '"
-                                         << (int)expectedOutput[i] << "' got '" << (int)actualOutput[i] << "'" << std::endl;
+                                    << (int)expectedOutput[i] << "' got '" << (int)actualOutput[i] << "'" << std::endl;
                                 break;
                             }
                         }
@@ -152,9 +157,12 @@ namespace tests::testSuite
         std::cout << "Failed: " << failed << std::endl;
         std::cout << "Pass Rate: " << (100.0 * passed / (passed + failed)) << "%" << std::endl;
 
-        if (failed == 0) {
+        if (failed == 0)
+        {
             std::cout << "✓ Suite PASSED" << std::endl;
-        } else {
+        }
+        else
+        {
             std::cout << "✗ Suite FAILED" << std::endl;
         }
         std::cout << std::string(80, '=') << std::endl;

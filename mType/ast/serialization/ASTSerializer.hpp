@@ -1,6 +1,7 @@
 #pragma once
 #include "SerializationFormat.hpp"
 #include "../ASTNode.hpp"
+#include "../../parser/TypeParser.hpp"
 #include <fstream>
 #include <memory>
 #include <string>
@@ -106,5 +107,8 @@ namespace ast::serialization
 
         // Helper function to convert value::ValueType to serialization ValueType
         uint8_t valueTypeToSerializationType(value::ValueType valueType);
+
+        // TypeInfo serialization methods
+        void writeTypeInfo(const parser::TypeInfo& typeInfo);
     };
 }

@@ -820,10 +820,8 @@ namespace ast::serialization
         // Read the variable name
         std::string variableName = readString();
 
-        // Read the variable type
-        uint8_t serializationType = readUInt8();
-        value::ValueType variableType = serializationValueTypeToValueType(
-            static_cast<ast::serialization::ValueType>(serializationType));
+        // Read the complete variable type information
+        parser::TypeInfo variableTypeInfo = readTypeInfo();
 
         // Read the collection
         auto collection = deserializeNode();
@@ -836,10 +834,10 @@ namespace ast::serialization
         location.setLine(header.line);
         location.setColumn(header.column);
 
-        // Create and return the ForEachNode using the legacy constructor
+        // Create and return the ForEachNode using the new constructor
         return std::make_unique<nodes::statements::ForEachNode>(
             variableName,
-            variableType,
+            variableTypeInfo,
             std::move(collection),
             std::move(body),
             location
@@ -1232,5 +1230,79 @@ namespace ast::serialization
             throw std::runtime_error(
                 "Unknown serialization ValueType: " + std::to_string(static_cast<int>(serializationType)));
         }
+    }
+
+    parser::TypeInfo ASTDeserializer::readTypeInfo()
+    {
+        // Read base type
+        uint8_t baseTypeSerializedValue = readUInt8();
+        value::ValueType baseType = serializationValueTypeToValueType(
+            static_cast<ast::serialization::ValueType>(baseTypeSerializedValue));
+
+        // Read class name
+        std::string className = readString();
+
+        // Create TypeInfo with base type and class name
+        parser::TypeInfo typeInfo(baseType, className);
+
+        // Read element type info
+        uint8_t hasElementType = readUInt8();
+        if (hasElementType) {
+            auto elementTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
+            typeInfo.elementTypeInfo = elementTypeInfo;
+        }
+
+        // Read key type info
+        uint8_t hasKeyType = readUInt8();
+        if (hasKeyType) {
+            auto keyTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
+            typeInfo.keyTypeInfo = keyTypeInfo;
+        }
+
+        // Read value type info
+        uint8_t hasValueType = readUInt8();
+        if (hasValueType) {
+            auto valueTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
+            typeInfo.valueTypeInfo = valueTypeInfo;
+        }
+
+        // Read legacy fields for backward compatibility
+        uint8_t hasLegacyElementType = readUInt8();
+        if (hasLegacyElementType) {
+            uint8_t legacyElementTypeValue = readUInt8();
+            typeInfo.elementType = serializationValueTypeToValueType(
+                static_cast<ast::serialization::ValueType>(legacyElementTypeValue));
+        }
+
+        uint8_t hasLegacyKeyType = readUInt8();
+        if (hasLegacyKeyType) {
+            uint8_t legacyKeyTypeValue = readUInt8();
+            typeInfo.keyType = serializationValueTypeToValueType(
+                static_cast<ast::serialization::ValueType>(legacyKeyTypeValue));
+        }
+
+        uint8_t hasLegacyValueType = readUInt8();
+        if (hasLegacyValueType) {
+            uint8_t legacyValueTypeValue = readUInt8();
+            typeInfo.valueType = serializationValueTypeToValueType(
+                static_cast<ast::serialization::ValueType>(legacyValueTypeValue));
+        }
+
+        // Read class names
+        std::string elementClassName = readString();
+        std::string keyClassName = readString();
+        std::string valueClassName = readString();
+
+        if (!elementClassName.empty()) {
+            typeInfo.elementClassName = elementClassName;
+        }
+        if (!keyClassName.empty()) {
+            typeInfo.keyClassName = keyClassName;
+        }
+        if (!valueClassName.empty()) {
+            typeInfo.valueClassName = valueClassName;
+        }
+
+        return typeInfo;
     }
 }

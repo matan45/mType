@@ -800,8 +800,8 @@ namespace ast::serialization
             // Serialize the variable name
             writeString(node->getVariableName());
 
-            // Serialize the variable type (using legacy method for simplicity)
-            writeUInt8(static_cast<uint8_t>(node->getVariableType()));
+            // Serialize the complete variable type information
+            writeTypeInfo(node->getVariableTypeInfo());
 
             // Serialize the collection
             serializeNode(node->getCollection());
@@ -1051,5 +1051,65 @@ namespace ast::serialization
             throw std::runtime_error(
                 "Unknown value::ValueType: " + std::to_string(static_cast<int>(valueType)));
         }
+    }
+
+    void ASTSerializer::writeTypeInfo(const parser::TypeInfo& typeInfo)
+    {
+        // Serialize base type
+        writeUInt8(valueTypeToSerializationType(typeInfo.baseType));
+
+        // Serialize class name
+        writeString(typeInfo.className);
+
+        // Serialize element type info for collections
+        if (typeInfo.elementTypeInfo.has_value()) {
+            writeUInt8(1); // Has element type
+            writeTypeInfo(*typeInfo.elementTypeInfo.value());
+        } else {
+            writeUInt8(0); // No element type
+        }
+
+        // Serialize key type info for maps
+        if (typeInfo.keyTypeInfo.has_value()) {
+            writeUInt8(1); // Has key type
+            writeTypeInfo(*typeInfo.keyTypeInfo.value());
+        } else {
+            writeUInt8(0); // No key type
+        }
+
+        // Serialize value type info for maps
+        if (typeInfo.valueTypeInfo.has_value()) {
+            writeUInt8(1); // Has value type
+            writeTypeInfo(*typeInfo.valueTypeInfo.value());
+        } else {
+            writeUInt8(0); // No value type
+        }
+
+        // Serialize legacy fields for backward compatibility
+        if (typeInfo.elementType.has_value()) {
+            writeUInt8(1); // Has legacy element type
+            writeUInt8(valueTypeToSerializationType(typeInfo.elementType.value()));
+        } else {
+            writeUInt8(0); // No legacy element type
+        }
+
+        if (typeInfo.keyType.has_value()) {
+            writeUInt8(1); // Has legacy key type
+            writeUInt8(valueTypeToSerializationType(typeInfo.keyType.value()));
+        } else {
+            writeUInt8(0); // No legacy key type
+        }
+
+        if (typeInfo.valueType.has_value()) {
+            writeUInt8(1); // Has legacy value type
+            writeUInt8(valueTypeToSerializationType(typeInfo.valueType.value()));
+        } else {
+            writeUInt8(0); // No legacy value type
+        }
+
+        // Serialize class names
+        writeString(typeInfo.elementClassName.value_or(""));
+        writeString(typeInfo.keyClassName.value_or(""));
+        writeString(typeInfo.valueClassName.value_or(""));
     }
 }
