@@ -120,6 +120,15 @@ export class MTypeKeywords {
             kind: vscode.CompletionItemKind.Keyword,
             contexts: ['function', 'global-function'],
             priority: 8
+        },
+        {
+            keyword: 'native',
+            detail: 'native modifier',
+            documentation: 'Marks a method as implemented in native code',
+            insertText: 'native ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class', 'function'],
+            priority: 7
         }
     ];
 
@@ -172,9 +181,9 @@ export class MTypeKeywords {
         },
         {
             keyword: 'for',
-            detail: 'foreach loop (enhanced for)',
+            detail: 'for loop (enhanced for)',
             documentation: 'Iterates over collection elements',
-            insertText: 'foreach (${1:elementType} ${2:element} : ${3:collection}) {\n\t$0\n}',
+            insertText: 'for (${1:elementType} ${2:element} : ${3:collection}) {\n\t$0\n}',
             kind: vscode.CompletionItemKind.Keyword,
             contexts: ['function', 'block', 'global-function', 'global'],
             priority: 8
@@ -262,19 +271,10 @@ export class MTypeKeywords {
             priority: 7
         },
         {
-            keyword: 'foreach-array',
-            detail: 'foreach loop (Array)',
-            documentation: 'Foreach loop specifically for arrays',
-            insertText: 'foreach (${1:int} ${2:item} in ${3:array}) {\n\t$0\n}',
-            kind: vscode.CompletionItemKind.Snippet,
-            contexts: ['function', 'block', 'global-function', 'global'],
-            priority: 7
-        },
-        {
-            keyword: 'foreach-collection',
-            detail: 'foreach loop (Collection)',
-            documentation: 'Foreach loop for collections with generic type',
-            insertText: 'foreach (${1:T} ${2:item} in ${3:collection}) {\n\t$0\n}',
+            keyword: 'for-collection',
+            detail: 'for loop (Collection)',
+            documentation: 'Enhanced for loop for collections with generic type',
+            insertText: 'for (${1:T} ${2:item} : ${3:collection}) {\n\t$0\n}',
             kind: vscode.CompletionItemKind.Snippet,
             contexts: ['function', 'block', 'global-function', 'global'],
             priority: 7
@@ -458,15 +458,8 @@ export class MTypeKeywords {
 
     // Operators (for completion in expressions)
     static readonly OPERATOR_KEYWORDS: KeywordInfo[] = [
-        {
-            keyword: 'in',
-            detail: 'in operator',
-            documentation: 'Used in foreach loops to iterate over collections',
-            insertText: 'in',
-            kind: vscode.CompletionItemKind.Operator,
-            contexts: ['foreach'],
-            priority: 9
-        }
+        // Note: 'in' operator removed as mType now uses ':' syntax for enhanced for loops
+        // If you need other operators, add them here
     ];
 
     // Get all keywords

@@ -51,6 +51,10 @@
           "match": "\\b(class|import|new|this|null|static|final|function|constructor|return)\\b"
         },
         {
+          "name": "keyword.native.mtype",
+          "match": "\\b(native)\\b"
+        },
+        {
           "name": "constant.language.mtype",
           "match": "\\b(true|false)\\b"
         }
