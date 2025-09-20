@@ -100,6 +100,12 @@
     <Filter Include="tests\testFiles\collections\pass">
       <UniqueIdentifier>{6E4C7B4E-5A9D-6690-8301-55526FB1F9F9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\complie">
+      <UniqueIdentifier>{D2F3F1EE-3E2B-3A86-4735-9EA9B3EB607F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\complie\pass">
+      <UniqueIdentifier>{18BD8EB0-0478-7E5C-AD2F-F7A699C9C8EC}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
     </Filter>
@@ -510,6 +516,9 @@
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\SerializationTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -812,6 +821,9 @@
     <ClCompile Include="tests\suites\NativeTest.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\SerializationTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -1069,6 +1081,12 @@
     <None Include="tests\testFiles\collections\pass\basicCollectionFunctionTest.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsDataMembers.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\collectionsAsDataMembers.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\collectionsAsParameters.expected">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
@@ -1079,12 +1097,6 @@
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\collectionsAsReturnTypes.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsVariables.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsVariables.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\collectionsInMethods.expected">
@@ -1212,6 +1224,39 @@
     </None>
     <None Include="tests\testFiles\collections\pass\twoPhaseComparison.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\nestedCollectionsAsMapValues.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\nestedCollectionsAsMapValues.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\switchNestedInLoops.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\test_import_main.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\test_import_main.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\test_library.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>

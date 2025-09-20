@@ -101,6 +101,7 @@ namespace lexer
         
         // Token creation helpers
         Token tryParseOperator();
+        Token tryParseSpacedOperator();
         TokenType findKeywordType(std::string_view identifier) const;
         
         // Error handling

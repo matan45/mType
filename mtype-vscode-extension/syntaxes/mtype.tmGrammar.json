@@ -236,22 +236,25 @@
         },
         {
           "name": "variable.other.field.mtype",
-          "match": "^\\s*(static|final)?\\s*(?!(if|else|while|for|do|switch|case|default|break|continue|return|class|import|new|this|null|static|final|function|constructor)\\b)([a-zA-Z_][a-zA-Z0-9_<>]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[;=]",
+          "match": "^\\s*(?:(static)\\s+)?(?:(final)\\s+)?(?!(if|else|while|for|do|switch|case|default|break|continue|return|class|import|new|this|null|static|final|function|constructor)\\b)([a-zA-Z_][a-zA-Z0-9_]*(?:<[a-zA-Z0-9_,\\s<>]*>)?)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[;=]",
           "captures": {
             "1": {
               "name": "keyword.other.mtype"
             },
-            "3": {
-              "name": "storage.type.mtype"
+            "2": {
+              "name": "keyword.other.mtype"
             },
             "4": {
+              "name": "storage.type.mtype"
+            },
+            "5": {
               "name": "variable.other.field.mtype"
             }
           }
         },
         {
           "name": "variable.other.field.simple.mtype",
-          "match": "^\\s*(?!(if|else|while|for|do|switch|case|default|break|continue|return|class|import|new|this|null|static|final|function|constructor)\\b)([a-zA-Z_][a-zA-Z0-9_<>]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+          "match": "^\\s*(?!(if|else|while|for|do|switch|case|default|break|continue|return|class|import|new|this|null|static|final|function|constructor)\\b)([a-zA-Z_][a-zA-Z0-9_]*(?:<[a-zA-Z0-9_,\\s<>]*>)?)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
           "captures": {
             "1": {
               "name": "storage.type.mtype"

@@ -5,7 +5,11 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
         const edits: vscode.TextEdit[] = [];
         const text = document.getText();
 
-        const formatted = this.formatMTypeCode(text);
+        // Get configuration settings
+        const config = vscode.workspace.getConfiguration('mTypeFormatter');
+        const insertSpaceAroundOperators = config.get<boolean>('insertSpaceAroundOperators', true);
+
+        const formatted = this.formatMTypeCode(text, insertSpaceAroundOperators);
 
         const fullRange = new vscode.Range(
             document.positionAt(0),
@@ -16,7 +20,7 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
         return edits;
     }
 
-    private formatMTypeCode(code: string): string {
+    private formatMTypeCode(code: string, insertSpaceAroundOperators: boolean): string {
         const lines = code.split('\n');
         const formatted: string[] = [];
         let indentLevel = 0;
@@ -40,7 +44,7 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
             const indent = ' '.repeat(indentLevel * indentSize);
 
             // Format the line content
-            line = this.formatLineContent(line);
+            line = this.formatLineContent(line, insertSpaceAroundOperators);
 
             formatted.push(indent + line);
 
@@ -53,40 +57,44 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
         return formatted.join('\n');
     }
 
-    private formatLineContent(line: string): string {
+    private formatLineContent(line: string, insertSpaceAroundOperators: boolean): string {
         // Don't format comments
         if (line.startsWith('//')) {
             return line;
         }
 
-        // Format operators with proper spacing
+        // FIRST: Handle comparison operators completely separately
+        line = this.formatComparisonOperators(line);
+
+        // Format other operators with proper spacing
         line = line
-            // Assignment operators
-            .replace(/\s*=\s*/g, ' = ')
+
+            // Increment/decrement operators (no spaces)
+            .replace(/\s*\+\+\s*/g, '++')
+            .replace(/\s*--\s*/g, '--')
+
+            // Compound assignment operators (with spaces)
             .replace(/\s*\+=\s*/g, ' += ')
             .replace(/\s*-=\s*/g, ' -= ')
             .replace(/\s*\*=\s*/g, ' *= ')
             .replace(/\s*\/=\s*/g, ' /= ')
+            .replace(/\s*%=\s*/g, ' %= ')
 
-            // Arithmetic operators (be careful not to affect negative numbers)
-            .replace(/([^\s])\+([^\s])/g, '$1 + $2')
-            .replace(/([^\s])-([^\s])/g, '$1 - $2')
-            .replace(/([^\s])\*([^\s])/g, '$1 * $2')
-            .replace(/([^\s])\/([^\s])/g, '$1 / $2')
-            .replace(/([^\s])%([^\s])/g, '$1 % $2')
+            // Regular assignment operator (with spaces)
+            .replace(/(?<![+\-*\/%])\s*=\s*(?![=])/g, ' = ')  // = but not +=, -=, *=, /=, %=, ==
 
-            // Comparison operators
-            .replace(/\s*==\s*/g, ' == ')
-            .replace(/\s*!=\s*/g, ' != ')
-            .replace(/\s*<=\s*/g, ' <= ')
-            .replace(/\s*>=\s*/g, ' >= ')
-            .replace(/([^\s<>])(<)([^\s=])/g, '$1 $2 $3')
-            .replace(/([^\s<>])(>)([^\s=])/g, '$1 $2 $3')
+            // Arithmetic operators - always add spaces
+            .replace(/([^\s+])\+([^\s+=])/g, '$1 + $2')  // + but not ++ or +=
+            .replace(/([^\s-])-([^\s-=])/g, '$1 - $2')   // - but not -- or -=
+            .replace(/([^\s])\*([^\s=])/g, '$1 * $2')    // * but not *=
+            .replace(/([^\s])\/([^\s=])/g, '$1 / $2')    // / but not /=
+            .replace(/([^\s])%([^\s=])/g, '$1 % $2')     // % but not %=
+
+            // Note: Comparison operators are handled separately
 
             // Logical operators
             .replace(/\s*&&\s*/g, ' && ')
             .replace(/\s*\|\|\s*/g, ' || ')
-            .replace(/\s*\:\:\s*/g, '::')
 
             // Commas
             .replace(/\s*,\s*/g, ', ')
@@ -106,19 +114,36 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
             .replace(/([a-zA-Z_][a-zA-Z0-9_]*)\s+\(/g, '$1(')
 
 			
-            // Colons in foreach loops (but not double colons)
-            .replace(/(?<!\:)\s*:\s*(?!\:)/g, ' : ')
-
-            // Collection type formatting - remove spaces inside angle brackets
-            .replace(/([A-Z][a-zA-Z]*)\s*<\s*/g, '$1<')  // Remove space after <
-            .replace(/\s*>\s*([(),;{}])/g, '>$1')        // Remove space before > followed by punctuation
-            .replace(/\s*>\s*\(\s*/g, '>(')              // Remove spaces around >(
-            .replace(/,\s*([A-Za-z_][A-Za-z0-9_]*)\s*>/g, ', $1>')  // Format Map<K, V> with space after comma
-            .replace(/\s*>\s*$/g, '>')                   // Remove space before > at end of line
+            // Colons in foreach loops
+            .replace(/\s*:\s*/g, ' : ')
 
             // Clean up multiple spaces
             .replace(/\s+/g, ' ');
 
         return line;
+    }
+
+    private formatComparisonOperators(line: string): string {
+        // Handle comparison operators with spaces - isolated from other formatting
+        return line
+            // Fix already-split operators first (merge them back together) - more comprehensive
+            .replace(/=\s+=\s*/g, '==')      // Fix = = to == (one or more spaces between)
+            .replace(/!\s+=\s*/g, '!=')      // Fix ! = to != (one or more spaces between)
+            .replace(/<\s+=\s*/g, '<=')      // Fix < = to <= (one or more spaces between)
+            .replace(/>\s+=\s*/g, '>=')      // Fix > = to >= (one or more spaces between)
+
+            // Also handle any remaining spacing variations
+            .replace(/=\s*=/g, '==')         // Fix = = to == (any spacing)
+            .replace(/!\s*=/g, '!=')         // Fix ! = to != (any spacing)
+            .replace(/<\s*=/g, '<=')         // Fix < = to <= (any spacing)
+            .replace(/>\s*=/g, '>=')         // Fix > = to >= (any spacing)
+
+            // Then handle spacing around all comparison operators (add spaces) - more flexible patterns
+            .replace(/([a-zA-Z0-9_)])\s*<=\s*([a-zA-Z0-9_(])/g, '$1 <= $2')    // Add spaces around <=
+            .replace(/([a-zA-Z0-9_)])\s*>=\s*([a-zA-Z0-9_(])/g, '$1 >= $2')    // Add spaces around >=
+            .replace(/([a-zA-Z0-9_)])\s*==\s*([a-zA-Z0-9_(])/g, '$1 == $2')    // Add spaces around ==
+            .replace(/([a-zA-Z0-9_)])\s*!=\s*([a-zA-Z0-9_(])/g, '$1 != $2')    // Add spaces around !=
+            .replace(/([a-zA-Z0-9_)])\s*<\s*([a-zA-Z0-9_(])/g, '$1 < $2')      // Add spaces around <
+            .replace(/([a-zA-Z0-9_)])\s*>\s*([a-zA-Z0-9_(])/g, '$1 > $2');     // Add spaces around >
     }
 }

@@ -351,7 +351,7 @@ namespace lexer
     Token Lexer::tryParseOperator()
     {
         errors::SourceLocation location = locationTracker->getCurrentLocation();
-        
+
         // Try two-character operators first
         if (pos + 1 < input.length())
         {
@@ -362,6 +362,21 @@ namespace lexer
                 {
                     advanceMultiple(op.length);
                     return TokenFactory::createOperatorToken(op.type, op.symbol, location);
+                }
+            }
+        }
+
+        // Before trying single-character operators, check for spaced operators
+        // that might be tokenized incorrectly as single characters
+        if (pos < input.length())
+        {
+            char current = input[pos];
+            if (current == '=' || current == '!' || current == '<' || current == '>')
+            {
+                Token spacedToken = tryParseSpacedOperator();
+                if (spacedToken.type != TokenType::END)
+                {
+                    return spacedToken;
                 }
             }
         }
@@ -393,6 +408,72 @@ namespace lexer
 
         // No operator found
         return TokenFactory::createEndToken(location); // Invalid token as sentinel
+    }
+
+    Token Lexer::tryParseSpacedOperator()
+    {
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
+        size_t originalPos = pos;
+
+        // Look for patterns like "= =", "! =", "< =", "> ="
+        if (pos < input.length())
+        {
+            char firstChar = input[pos];
+
+            // Check if first character could be part of a spaced operator
+            if (firstChar == '=' || firstChar == '!' || firstChar == '<' || firstChar == '>')
+            {
+                size_t tempPos = pos + 1;
+
+                // Skip whitespace
+                while (tempPos < input.length() && std::isspace(input[tempPos]))
+                {
+                    tempPos++;
+                }
+
+                // Check if we have a second character that forms a valid spaced operator
+                if (tempPos < input.length())
+                {
+                    char secondChar = input[tempPos];
+
+                    // Check for valid spaced operator combinations
+                    TokenType operatorType = TokenType::END;
+                    std::string_view operatorSymbol;
+
+                    if (firstChar == '=' && secondChar == '=')
+                    {
+                        operatorType = TokenType::EQUALS;
+                        operatorSymbol = "==";
+                    }
+                    else if (firstChar == '!' && secondChar == '=')
+                    {
+                        operatorType = TokenType::NOT_EQUALS;
+                        operatorSymbol = "!=";
+                    }
+                    else if (firstChar == '<' && secondChar == '=')
+                    {
+                        operatorType = TokenType::LESS_EQUALS;
+                        operatorSymbol = "<=";
+                    }
+                    else if (firstChar == '>' && secondChar == '=')
+                    {
+                        operatorType = TokenType::GREATER_EQUALS;
+                        operatorSymbol = ">=";
+                    }
+
+                    if (operatorType != TokenType::END)
+                    {
+                        // Update position to after the second character
+                        pos = tempPos + 1;
+                        return TokenFactory::createOperatorToken(operatorType, operatorSymbol, location);
+                    }
+                }
+            }
+        }
+
+        // No spaced operator found, restore position
+        pos = originalPos;
+        return TokenFactory::createEndToken(location);
     }
 
 

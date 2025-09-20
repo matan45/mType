@@ -28,10 +28,7 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
-    "onLanguage:mtype-compiled",
-    "onCommand:mtype.run",
-    "onCommand:mtype.runTests",
-    "onCommand:mtype.formatDocument"
+    "onLanguage:mtype-compiled"
   ],
   "contributes": {
     "languages": [
@@ -94,32 +91,12 @@
         "command": "mtype.run",
         "title": "Run mType File",
         "category": "mType"
-      },
-      {
-        "command": "mtype.runTests",
-        "title": "Run mType Tests",
-        "category": "mType"
-      },
-      {
-        "command": "mtype.formatDocument",
-        "title": "Format mType Document",
-        "category": "mType"
       }
     ],
     "keybindings": [
       {
         "command": "mtype.run",
         "key": "f5",
-        "when": "editorTextFocus && resourceExtname == '.mt'"
-      },
-      {
-        "command": "mtype.runTests",
-        "key": "ctrl+f5",
-        "when": "editorTextFocus && resourceExtname == '.mt'"
-      },
-      {
-        "command": "mtype.formatDocument",
-        "key": "shift+alt+f",
         "when": "editorTextFocus && resourceExtname == '.mt'"
       }
     ],
@@ -139,13 +116,6 @@
       "commandPalette": [
         {
           "command": "mtype.run",
-          "when": "resourceExtname == '.mt'"
-        },
-        {
-          "command": "mtype.runTests"
-        },
-        {
-          "command": "mtype.formatDocument",
           "when": "resourceExtname == '.mt'"
         }
       ]
@@ -186,7 +156,7 @@
         },
         "mTypeFormatter.insertSpaceAroundOperators": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Insert spaces around operators (=, +, -, etc.)"
         }
       }
