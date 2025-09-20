@@ -109,6 +109,13 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
             // Colons in foreach loops (but not double colons)
             .replace(/(?<!\:)\s*:\s*(?!\:)/g, ' : ')
 
+            // Collection type formatting - remove spaces inside angle brackets
+            .replace(/([A-Z][a-zA-Z]*)\s*<\s*/g, '$1<')  // Remove space after <
+            .replace(/\s*>\s*([(),;{}])/g, '>$1')        // Remove space before > followed by punctuation
+            .replace(/\s*>\s*\(\s*/g, '>(')              // Remove spaces around >(
+            .replace(/,\s*([A-Za-z_][A-Za-z0-9_]*)\s*>/g, ', $1>')  // Format Map<K, V> with space after comma
+            .replace(/\s*>\s*$/g, '>')                   // Remove space before > at end of line
+
             // Clean up multiple spaces
             .replace(/\s+/g, ' ');
 

@@ -349,6 +349,12 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             return completionItems;
         }
 
+        // Check if it's a collection type first
+        if (this.isCollectionType(objectVariable.type)) {
+            console.log('Detected collection type:', objectVariable.type);
+            return this.getCollectionMethodCompletions(objectVariable.type);
+        }
+
         // Get accessible members for the object's type
         let accessibleMembers = this.scopeAnalyzer.getAccessibleMembers(objectVariable.type, position, false);
 
@@ -687,5 +693,124 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         });
 
         return completionItems;
+    }
+
+    /**
+     * Check if a type is a collection type
+     */
+    private isCollectionType(typeName: string): boolean {
+        return typeName.startsWith('Array<') ||
+               typeName.startsWith('Map<') ||
+               typeName.startsWith('Set<') ||
+               typeName.startsWith('Stack<') ||
+               typeName.startsWith('Queue<');
+    }
+
+    /**
+     * Get completion items for collection methods
+     */
+    private getCollectionMethodCompletions(typeName: string): vscode.CompletionItem[] {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        // Add common collection methods (available to all collections)
+        completionItems.push(
+            this.createMethodCompletion('size', 'int size()', 'Returns the number of elements in the collection', []),
+            this.createMethodCompletion('empty', 'bool empty()', 'Returns true if the collection is empty', []),
+            this.createMethodCompletion('clear', 'void clear()', 'Removes all elements from the collection', [])
+        );
+
+        // Add specific methods based on collection type
+        if (typeName.startsWith('Array<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
+                this.createMethodCompletion('set', 'void set(int index, T value)', 'Sets the element at the specified index', ['int index', `${elementType} value`]),
+                this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the array', [`${elementType} item`]),
+                this.createMethodCompletion('push', `void push(${elementType} item)`, 'Adds an element to the end of the array (alias for add)', [`${elementType} item`]),
+                this.createMethodCompletion('removeAt', 'void removeAt(int index)', 'Removes the element at the specified index', ['int index'])
+            );
+        } else if (typeName.startsWith('Map<')) {
+            const [keyType, valueType] = this.extractMapTypes(typeName);
+            completionItems.push(
+                this.createMethodCompletion('get', `${valueType} get(${keyType} key)`, 'Gets the value associated with the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('put', `void put(${keyType} key, ${valueType} value)`, 'Associates the specified value with the specified key', [`${keyType} key`, `${valueType} value`]),
+                this.createMethodCompletion('containsKey', `bool containsKey(${keyType} key)`, 'Returns true if the map contains the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('keySet', `Set<${keyType}> keySet()`, 'Returns a set of all keys in the map', []),
+                this.createMethodCompletion('remove', `void remove(${keyType} key)`, 'Removes the key-value pair for the specified key', [`${keyType} key`])
+            );
+        } else if (typeName.startsWith('Set<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `bool add(${elementType} item)`, 'Adds the specified element to the set, returns true if added', [`${elementType} item`]),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the set contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the specified element from the set, returns true if removed', [`${elementType} item`])
+            );
+        } else if (typeName.startsWith('Stack<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('push', `void push(${elementType} item)`, 'Pushes an element onto the top of the stack', [`${elementType} item`]),
+                this.createMethodCompletion('pop', `${elementType} pop()`, 'Removes and returns the top element of the stack', []),
+                this.createMethodCompletion('top', `${elementType} top()`, 'Returns the top element without removing it', [])
+            );
+        } else if (typeName.startsWith('Queue<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('enqueue', `void enqueue(${elementType} item)`, 'Adds an element to the rear of the queue', [`${elementType} item`]),
+                this.createMethodCompletion('dequeue', `${elementType} dequeue()`, 'Removes and returns the front element of the queue', []),
+                this.createMethodCompletion('front', `${elementType} front()`, 'Returns the front element without removing it', [])
+            );
+        }
+
+        return completionItems;
+    }
+
+    /**
+     * Create a method completion item
+     */
+    private createMethodCompletion(name: string, signature: string, documentation: string, parameters: string[]): vscode.CompletionItem {
+        const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Method);
+        item.detail = signature;
+        item.documentation = new vscode.MarkdownString(`**Collection Method**\n\n${documentation}`);
+
+        // Create snippet for parameters
+        if (parameters.length > 0) {
+            const snippetParams = parameters.map((param, index) => `\${${index + 1}:${param.split(' ')[1] || param}}`).join(', ');
+            item.insertText = new vscode.SnippetString(`${name}(${snippetParams})`);
+        } else {
+            item.insertText = new vscode.SnippetString(`${name}()`);
+        }
+
+        item.sortText = '0' + name; // High priority for collection methods
+        return item;
+    }
+
+    /**
+     * Extract the generic type from a single-parameter generic type (Array<T>, Set<T>, etc.)
+     */
+    private extractGenericType(typeName: string): string {
+        const start = typeName.indexOf('<') + 1;
+        const end = typeName.lastIndexOf('>');
+        if (start > 0 && end > start) {
+            return typeName.substring(start, end);
+        }
+        return 'T'; // fallback
+    }
+
+    /**
+     * Extract key and value types from Map<K,V>
+     */
+    private extractMapTypes(typeName: string): [string, string] {
+        const start = typeName.indexOf('<') + 1;
+        const end = typeName.lastIndexOf('>');
+        if (start > 0 && end > start) {
+            const typeParams = typeName.substring(start, end);
+            const commaIndex = typeParams.indexOf(',');
+            if (commaIndex > 0) {
+                const keyType = typeParams.substring(0, commaIndex).trim();
+                const valueType = typeParams.substring(commaIndex + 1).trim();
+                return [keyType, valueType];
+            }
+        }
+        return ['K', 'V']; // fallback
     }
 }

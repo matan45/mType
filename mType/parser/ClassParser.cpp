@@ -313,65 +313,9 @@ namespace parser
             return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters), std::move(body), isStatic);
         }
 
-        ValueType fieldType = ValueType::VOID;
-
-        // Handle both dedicated type tokens and identifier-based types
-        TokenType currentType = tokenStream.current().type;
-
-        if (currentType == TokenType::INT)
-        {
-            fieldType = ValueType::INT;
-            tokenStream.advance();
-        }
-        else if (currentType == TokenType::FLOAT)
-        {
-            fieldType = ValueType::FLOAT;
-            tokenStream.advance();
-        }
-        else if (currentType == TokenType::BOOL)
-        {
-            fieldType = ValueType::BOOL;
-            tokenStream.advance();
-        }
-        else if (currentType == TokenType::STRING_TYPE)
-        {
-            fieldType = ValueType::STRING;
-            tokenStream.advance();
-        }
-        else if (currentType == TokenType::VOID)
-        {
-            fieldType = ValueType::VOID;
-            tokenStream.advance();
-        }
-        else if (currentType == TokenType::IDENTIFIER)
-        {
-            // Handle string as identifier for backwards compatibility
-            std::string typeName = tokenStream.current().stringValue;
-            tokenStream.advance();
-
-            // Handle qualified names like geometry::Point
-            while (tokenStream.current().type == TokenType::SCOPE)
-            {
-                tokenStream.advance();
-                if (tokenStream.current().type != TokenType::IDENTIFIER)
-                {
-                    throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                }
-                typeName += "::" + tokenStream.current().stringValue;
-                tokenStream.advance();
-            }
-
-            if (typeName == "int") fieldType = ValueType::INT;
-            else if (typeName == "float") fieldType = ValueType::FLOAT;
-            else if (typeName == "string") fieldType = ValueType::STRING;
-            else if (typeName == "bool") fieldType = ValueType::BOOL;
-            else if (typeName == "void") fieldType = ValueType::VOID;
-            else
-            {
-                // Treat unknown identifier types as custom class types (OBJECT)
-                fieldType = ValueType::OBJECT;
-            }
-        }
+        // Parse the complete type information using TypeParser (supports collections and generics)
+        parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
+        ValueType fieldType = typeInfo.baseType;
 
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {

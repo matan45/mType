@@ -63,6 +63,8 @@ namespace tests::testSuite
                         passPath + "collectionsAsParameters.mt");
         addOutputVerificationTest("Collections as Return Types",
                         passPath + "collectionsAsReturnTypes.mt");
+        addOutputVerificationTest("Collections as Data Members",
+                        passPath + "collectionsAsDataMembers.mt");
         addOutputVerificationTest("Nested Collections",
                         passPath + "nestedCollections.mt");
         addOutputVerificationTest("Nested Collections as Map Values",
