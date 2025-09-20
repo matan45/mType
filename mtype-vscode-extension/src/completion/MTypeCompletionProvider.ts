@@ -37,13 +37,11 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             const staticMatch = lineText.match(/(\w+)::\s*$/);
             if (staticMatch) {
                 const className = staticMatch[1];
-                console.log('Static member access for class:', className);
                 // Ensure imports are analyzed for static access
                 if (this.importedSymbolProvider) {
                     await this.importedSymbolProvider.analyzeDocumentImports(document);
                 }
                 const staticCompletions = await this.getStaticMemberCompletions(className, document);
-                console.log('Found static completions:', staticCompletions.length);
                 // Return ONLY static member completions, no other suggestions
                 return staticCompletions;
             }
@@ -53,13 +51,19 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             const dotMatch = lineText.match(/(\w+)\.\s*$/);
             if (dotMatch) {
                 const objectName = dotMatch[1];
-                console.log('Instance member access for object:', objectName);
+
+                // First, check if this is a collection by looking for the variable declaration in the current document
+                const collectionType = this.findVariableTypeInDocument(document, objectName);
+                if (collectionType && this.isCollectionType(collectionType)) {
+                    const collectionMethods = this.getCollectionMethodCompletions(collectionType);
+                    return collectionMethods;
+                }
+
                 // Ensure imports are analyzed for member access
                 if (this.importedSymbolProvider) {
                     await this.importedSymbolProvider.analyzeDocumentImports(document);
                 }
                 const instanceCompletions = await this.getScopeAwareInstanceCompletions(objectName, document, position);
-                console.log('Found instance completions:', instanceCompletions.length);
                 // Return ONLY instance member completions, no other suggestions
                 return instanceCompletions;
             }
@@ -90,7 +94,6 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 // Ensure imports are analyzed before getting completions
                 await this.importedSymbolProvider.analyzeDocumentImports(document);
                 const importedCompletions = this.importedSymbolProvider.getImportedSymbolCompletions(document);
-                console.log('Adding imported completions:', importedCompletions.length);
                 completionItems.push(...importedCompletions);
             }
 
@@ -113,10 +116,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         if (!classInfo) {
             // Class not found locally, check if it's an imported class
             if (this.importedSymbolProvider) {
-                console.log('Class not found locally, checking imports for:', className);
                 const importedStaticMembers = await this.getImportedStaticMembers(className, document);
                 if (importedStaticMembers.length > 0) {
-                    console.log('Found imported static members:', importedStaticMembers.length);
                     return importedStaticMembers;
                 }
             }
@@ -326,10 +327,6 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         const visibleVariables = this.scopeAnalyzer.getVisibleVariables(position);
         let objectVariable = visibleVariables.find(v => v.name === objectName);
 
-        console.log('Looking for object variable:', objectName);
-        console.log('Visible variables:', visibleVariables.map(v => `${v.name}:${v.type}`));
-        console.log('Found object variable:', objectVariable ? `${objectVariable.name}:${objectVariable.type}` : 'not found');
-
         // If not found in local scope, check if it's an imported class instance
         if (!objectVariable && this.importedSymbolProvider) {
             const importedSymbols = this.importedSymbolProvider.getImportedSymbols(document);
@@ -351,7 +348,6 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
         // Check if it's a collection type first
         if (this.isCollectionType(objectVariable.type)) {
-            console.log('Detected collection type:', objectVariable.type);
             return this.getCollectionMethodCompletions(objectVariable.type);
         }
 
@@ -360,9 +356,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
         // If no members found locally, check if it's an imported class type
         if (accessibleMembers.length === 0 && this.importedSymbolProvider) {
-            console.log('No local members found, checking if type is imported:', objectVariable.type);
             const importedMembers = await this.getImportedClassMembers(objectVariable.type, null);
-            console.log('Found imported members:', importedMembers.length);
             if (importedMembers.length > 0) {
                 return importedMembers;
             }
@@ -707,24 +701,24 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
     }
 
     /**
-     * Get completion items for collection methods
+     * Get completion items for collection methods based on the actual C++ interpreter implementation
      */
     private getCollectionMethodCompletions(typeName: string): vscode.CompletionItem[] {
         const completionItems: vscode.CompletionItem[] = [];
 
-        // Add common collection methods (available to all collections)
+        // Add common collection methods (available to all collections per ObjectEvaluator.cpp)
         completionItems.push(
             this.createMethodCompletion('size', 'int size()', 'Returns the number of elements in the collection', []),
             this.createMethodCompletion('empty', 'bool empty()', 'Returns true if the collection is empty', []),
             this.createMethodCompletion('clear', 'void clear()', 'Removes all elements from the collection', [])
         );
 
-        // Add specific methods based on collection type
+        // Add specific methods based on collection type (matching ObjectEvaluator.cpp implementation)
         if (typeName.startsWith('Array<')) {
             const elementType = this.extractGenericType(typeName);
             completionItems.push(
                 this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
-                this.createMethodCompletion('set', 'void set(int index, T value)', 'Sets the element at the specified index', ['int index', `${elementType} value`]),
+                this.createMethodCompletion('set', 'void set(int index, value)', 'Sets the element at the specified index', ['int index', `${elementType} value`]),
                 this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the array', [`${elementType} item`]),
                 this.createMethodCompletion('push', `void push(${elementType} item)`, 'Adds an element to the end of the array (alias for add)', [`${elementType} item`]),
                 this.createMethodCompletion('removeAt', 'void removeAt(int index)', 'Removes the element at the specified index', ['int index'])
@@ -732,11 +726,11 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         } else if (typeName.startsWith('Map<')) {
             const [keyType, valueType] = this.extractMapTypes(typeName);
             completionItems.push(
-                this.createMethodCompletion('get', `${valueType} get(${keyType} key)`, 'Gets the value associated with the specified key', [`${keyType} key`]),
-                this.createMethodCompletion('put', `void put(${keyType} key, ${valueType} value)`, 'Associates the specified value with the specified key', [`${keyType} key`, `${valueType} value`]),
-                this.createMethodCompletion('containsKey', `bool containsKey(${keyType} key)`, 'Returns true if the map contains the specified key', [`${keyType} key`]),
-                this.createMethodCompletion('keySet', `Set<${keyType}> keySet()`, 'Returns a set of all keys in the map', []),
-                this.createMethodCompletion('remove', `void remove(${keyType} key)`, 'Removes the key-value pair for the specified key', [`${keyType} key`])
+                this.createMethodCompletion('get', `${valueType} get(key)`, 'Gets the value associated with the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('put', 'void put(key, value)', 'Associates the specified value with the specified key', [`${keyType} key`, `${valueType} value`]),
+                this.createMethodCompletion('containsKey', 'bool containsKey(key)', 'Returns true if the map contains the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('keySet', 'keySet()', 'Returns a set of all keys in the map', []),
+                this.createMethodCompletion('remove', 'void remove(key)', 'Removes the key-value pair for the specified key', [`${keyType} key`])
             );
         } else if (typeName.startsWith('Set<')) {
             const elementType = this.extractGenericType(typeName);
@@ -812,5 +806,31 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             }
         }
         return ['K', 'V']; // fallback
+    }
+
+    /**
+     * Simple direct search for variable type in document text
+     * This bypasses the complex scope analysis for collection detection
+     */
+    private findVariableTypeInDocument(document: vscode.TextDocument, variableName: string): string | null {
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        // Look for variable declarations with the pattern: Type variableName = new Type(...)
+        for (const line of lines) {
+            // Match generic types like Array<int> variableName = new Array<int>();
+            const genericMatch = line.match(new RegExp(`([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\\s+${variableName}\\s*=`));
+            if (genericMatch) {
+                return genericMatch[1];
+            }
+
+            // Also check for simple types: int variableName = ...
+            const simpleMatch = line.match(new RegExp(`([A-Za-z_][A-Za-z0-9_]*)\\s+${variableName}\\s*=`));
+            if (simpleMatch) {
+                return simpleMatch[1];
+            }
+        }
+
+        return null;
     }
 }

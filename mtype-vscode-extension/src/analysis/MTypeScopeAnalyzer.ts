@@ -152,7 +152,8 @@ export class MTypeScopeAnalyzer {
             }
 
             // Parse method declarations
-            const methodMatch = line.match(/^\s*(private\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)\s*\{/);
+            // Updated regex to handle generic return types like Array<int>, Map<string, int>, etc.
+            const methodMatch = line.match(/^\s*(private\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
             const constructorMatch = line.match(/^\s*constructor\s*\(([^)]*)\)\s*\{/);
 
             if ((methodMatch || constructorMatch) && !currentMethod) {
@@ -241,7 +242,8 @@ export class MTypeScopeAnalyzer {
     private parseClassFields(line: string, lineIndex: number, classInfo: ClassInfo): void {
         // Parse field declarations: [private] [static] [final] type fieldName [= value];
         // More strict pattern: must be at start of line, end with semicolon, and have proper field name
-        const fieldMatch = line.match(/^\s*(private\s+)?(static\s+)?(final\s+)?(\w+)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
+        // Updated regex to handle generic types like Array<int>, Map<string, int>, etc.
+        const fieldMatch = line.match(/^\s*(private\s+)?(static\s+)?(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
         if (fieldMatch) {
             const isPrivate = !!fieldMatch[1];
             const isStatic = !!fieldMatch[2];
@@ -287,7 +289,8 @@ export class MTypeScopeAnalyzer {
 
         // Parse local variable declarations: [final] type varName = value;
         // Support both simple assignments and 'new' constructor calls
-        const varMatch = line.match(/^\s*(final\s+)?(\w+)\s+(\w+)\s*=\s*(?:new\s+\w+\(.*\)|.*);?\s*$/);
+        // Updated regex to handle generic types like Array<int>, Map<string, int>, etc.
+        const varMatch = line.match(/^\s*(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+(\w+)\s*=\s*(?:new\s+[A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?\(.*\)|.*);?\s*$/);
         if (varMatch) {
             const isFinal = !!varMatch[1];
             const varType = varMatch[2];
@@ -316,7 +319,8 @@ export class MTypeScopeAnalyzer {
 
         return parametersStr.split(',').map(param => {
             const trimmed = param.trim();
-            const match = trimmed.match(/(\w+)\s+(\w+)/);
+            // Updated regex to handle generic types like Array<int>, Map<string, int>, etc.
+            const match = trimmed.match(/([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+(\w+)/);
             if (match) {
                 return {
                     type: match[1],
@@ -335,7 +339,8 @@ export class MTypeScopeAnalyzer {
             // Skip if we're inside a class
             if (this.isInsideClass(i)) continue;
 
-            const functionMatch = line.match(/^\s*function\s+(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)\s*\{/);
+            // Updated regex to handle generic return types like Array<int>, Map<string, int>, etc.
+            const functionMatch = line.match(/^\s*function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
             if (functionMatch) {
                 const functionName = functionMatch[1];
                 const parametersStr = functionMatch[2];
@@ -467,7 +472,11 @@ export class MTypeScopeAnalyzer {
 
         for (const scope of this.scopes.values()) {
             if (lineIndex >= scope.startLine && lineIndex <= scope.endLine) {
-                if (!currentScope || scope.startLine > currentScope.startLine) {
+                // Select the most specific scope: prefer non-global scopes, and among scopes with the same start line, prefer the one with smaller range
+                if (!currentScope ||
+                    (scope.type !== ScopeType.Global && currentScope.type === ScopeType.Global) ||
+                    (scope.startLine > currentScope.startLine) ||
+                    (scope.startLine === currentScope.startLine && (scope.endLine - scope.startLine) < (currentScope.endLine - currentScope.startLine))) {
                     currentScope = scope;
                 }
             }
