@@ -108,7 +108,7 @@ namespace services
             if (ast) {
                 return ast.release(); // Transfer ownership to caller
             }
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             // If deserialization fails, return nullptr to fallback to .mt parsing
             // Could log the error here if needed
         }

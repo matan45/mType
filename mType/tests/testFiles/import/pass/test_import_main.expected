@@ -1,39 +1,39 @@
-	 === Static Methods Before Object Creation ===
-     Version:
-     1.0.0
-     Initial operation count:
-     0
-     Reset operation count:
-     0
+=== Static Methods Before Object Creation ===
+Version: 
+1.0.0
+Initial operation count: 
+0
+Reset operation count: 
+0
 
-     === Object Creation and Method Calls ===
-     Created calc1 with default constructor
-     calc1 name:
-     Default Calculator
-     Created calc2 with parameters
-     calc2 name:
-     Advanced Calculator
+=== Object Creation and Method Calls ===
+Created calc1 with default constructor
+calc1 name: 
+Default Calculator
+Created calc2 with parameters
+calc2 name: 
+Advanced Calculator
 
-     === Instance Method Tests ===
-     calc1.add(15, 25) =
-     40
-     calc2.multiply(6, 7) =
-     42
-     Current operation count:
-     4
+=== Instance Method Tests ===
+calc1.add(15, 25) = 
+40
+calc2.multiply(6, 7) = 
+42
+Current operation count: 
+4
 
-     === Utility Function Tests ===
-     Created calc3 using utility function
-     calc3 name:
-     Default Calculator
-     Created calc4 using named utility function
-     calc4 name:
-     Scientific Calculator
+=== Utility Function Tests ===
+Created calc3 using utility function
+calc3 name: 
+Default Calculator
+Created calc4 using named utility function
+calc4 name: 
+Scientific Calculator
 
-     === State Modification Tests ===
-     calc2.add(10, 20) after deactivation =
-     0
-     Final operation count:
-     6
-     Version:
-     1.0.0
+=== State Modification Tests ===
+calc2.add(10, 20) after deactivation = 
+0
+Final operation count: 
+6
+Version: 
+1.0.0

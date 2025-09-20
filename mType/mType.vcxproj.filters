@@ -19,6 +19,9 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ast\serialization">
+      <UniqueIdentifier>{3A4A67FD-A660-6593-EFD7-F0B45B2D361B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="environment">
       <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
     </Filter>
@@ -278,6 +281,15 @@
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\serialization\ASTDeserializer.hpp">
+      <Filter>ast\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\serialization\ASTSerializer.hpp">
+      <Filter>ast\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\serialization\SerializationFormat.hpp">
+      <Filter>ast\serialization</Filter>
     </ClInclude>
     <ClInclude Include="environment\Environment.hpp">
       <Filter>environment</Filter>
@@ -640,6 +652,12 @@
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\serialization\ASTDeserializer.cpp">
+      <Filter>ast\serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\serialization\ASTSerializer.cpp">
+      <Filter>ast\serialization</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
       <Filter>environment</Filter>
@@ -1517,6 +1535,15 @@
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\string_utils.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\test_import_main.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\test_import_main.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\test_library.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
