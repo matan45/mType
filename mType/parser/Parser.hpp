@@ -48,7 +48,7 @@ namespace parser
         explicit Parser(Lexer& lex, std::unique_ptr<services::ImportManager> manager);
         ~Parser() = default;
 
-        std::unique_ptr<services::ImportManager> getImportManager() { return std::move(importManager); }
+        std::unique_ptr<services::ImportManager> getImportManager();
 
         std::unique_ptr<ASTNode> parseProgram();
         std::unique_ptr<ASTNode> parseStatement();

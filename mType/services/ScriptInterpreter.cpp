@@ -1,4 +1,11 @@
 ﻿#include "ScriptInterpreter.hpp"
+#include <iostream>
+#include <filesystem>
+#include <unordered_set>
+#include <stdexcept>
+#include <memory>
+#include <chrono>
+
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -10,18 +17,12 @@
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
-#include <iostream>
-#include <filesystem>
-#include <unordered_set>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include <stdexcept>
-#include <memory>
-#include <chrono>
 
 namespace services
 {
@@ -548,6 +549,7 @@ namespace services
 
     void ScriptInterpreter::compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory)
     {
+        static std::unordered_set<std::string> beingCompiled;
         std::vector<std::string> importPaths;
         std::unordered_set<std::string> compiled;
 
@@ -560,6 +562,16 @@ namespace services
             std::filesystem::path fullPath = std::filesystem::path(baseDirectory) / importPath;
             std::string resolvedPath = fullPath.string();
             std::string mtcPath = resolvedPath + "c"; // .mt -> .mtc
+
+            // Normalize path for consistent tracking
+            std::string normalizedPath = std::filesystem::canonical(std::filesystem::exists(resolvedPath) ? resolvedPath : fullPath).string();
+
+            // Check for circular compilation dependency
+            if (beingCompiled.find(normalizedPath) != beingCompiled.end())
+            {
+                std::cerr << "Warning: Circular import detected during compilation: " << importPath << " (skipping recursive compilation)" << std::endl;
+                continue;
+            }
 
             // Skip if already compiled and up-to-date
             if (compiled.find(resolvedPath) != compiled.end())
@@ -580,6 +592,9 @@ namespace services
                 }
             }
 
+            // Mark as being compiled to prevent circular dependencies
+            beingCompiled.insert(normalizedPath);
+
             try
             {
                 if (compileScript(resolvedPath, mtcPath))
@@ -591,6 +606,9 @@ namespace services
             {
                 std::cerr << "Warning: Error compiling dependency " << resolvedPath << ": " << e.what() << std::endl;
             }
+
+            // Clean up tracking - remove from being compiled
+            beingCompiled.erase(normalizedPath);
         }
     }
 

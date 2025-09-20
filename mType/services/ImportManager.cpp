@@ -1,9 +1,11 @@
 #include "ImportManager.hpp"
+#include <iostream>
+#include <filesystem>
+#include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../ast/serialization/ASTDeserializer.hpp"
-#include <filesystem>
-#include <algorithm>
+
 
 namespace services
 {
@@ -108,9 +110,8 @@ namespace services
             if (ast) {
                 return ast.release(); // Transfer ownership to caller
             }
-        } catch (const std::exception&) {
-            // If deserialization fails, return nullptr to fallback to .mt parsing
-            // Could log the error here if needed
+        } catch (const std::exception& e) {
+            std::cerr << "Error loading .mtc file: " << e.what() << std::endl;
         }
 
         return nullptr;
@@ -171,7 +172,8 @@ namespace services
         try {
             std::string resolvedPath = resolvePathConsistently(rawPath);
             evaluatedFiles.insert(resolvedPath);
-        } catch (...) {
+        } catch (const std::exception& e) {
+            std::cerr << "Error marking as evaluated: " << e.what() << std::endl;
             // Ignore errors when marking as evaluated
         }
     }
@@ -191,8 +193,8 @@ namespace services
         try {
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.insert(resolvedPath);
-        } catch (...) {
-            // Ignore errors
+        } catch (const std::exception& e) {
+            std::cerr << "Error marking as being evaluated: " << e.what() << std::endl;
         }
     }
     
@@ -201,8 +203,8 @@ namespace services
         try {
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.erase(resolvedPath);
-        } catch (...) {
-            // Ignore errors
+        } catch (const std::exception& e) {
+            std::cerr << "Error unmarking as being evaluated: " << e.what() << std::endl;
         }
     }
     
