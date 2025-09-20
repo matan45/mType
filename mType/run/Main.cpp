@@ -6,6 +6,7 @@
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
 #include "../tests/suites/CollectionsTestSuite.hpp"
+#include "../tests/suites/SerializationTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -59,6 +60,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<CollectionsTestSuite>();
     }
+    else if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
+    {
+        return std::make_unique<SerializationTestSuite>();
+    }
     return nullptr;
 }
 
@@ -72,6 +77,7 @@ void printAvailableTestSuites()
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
     std::cout << "  collections  - Collections Test Suite\n";
+    std::cout << "  serialization- Serialization & Compilation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -86,7 +92,16 @@ void runSpecificTestSuite(const std::string& suiteName)
         nativeTest->runCustomTests();
         return;
     }
-    
+
+    // Handle serialization test separately since it needs custom execution
+    if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
+    {
+        std::cout << "Running Serialization Test Suite...\n\n";
+        auto serializationTest = std::make_unique<SerializationTestSuite>();
+        serializationTest->run();
+        return;
+    }
+
     auto suite = createTestSuite(suiteName);
     if (!suite)
     {
@@ -120,7 +135,12 @@ void runAllTests()
         suite->setupTests(); // Initialize test cases
         suite->run(); // Run tests and generate reports
     }
-    
+
+    // Run serialization tests separately
+    std::cout << "\nRunning Serialization Test Suite...\n";
+    auto serializationTest = std::make_unique<SerializationTestSuite>();
+    serializationTest->run();
+
     // Run native tests separately
     std::cout << "\nRunning Native C++ Integration Test Suite...\n";
     auto nativeTest = std::make_unique<NativeTest>();
