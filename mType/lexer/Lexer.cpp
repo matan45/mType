@@ -1,7 +1,7 @@
 ﻿#include "Lexer.hpp"
 #include <cctype>
 #include <stdexcept>
-#include <climits>
+#include <limits>
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
 
@@ -173,7 +173,34 @@ namespace lexer
             advance();
         }
         std::string_view floatView(input.data() + start, pos - start);
-        return std::stof(std::string(floatView)); // std::stof requires std::string
+        try
+        {
+            return std::stof(std::string(floatView)); // std::stof requires std::string
+        }catch (const std::out_of_range&)
+        {
+            // Handle float overflow - clamp to float limits
+            std::string floatStr(floatView); // Convert to string for error handling
+            long double value;
+            try
+            {
+                value = std::stold(floatStr);
+            }
+            catch (const std::out_of_range&)
+            {
+                // If even long double overflows, return max/min float
+                return (floatView[0] == '-') ? std::numeric_limits<float>::lowest() : std::numeric_limits<float>::max();
+            }
+
+            // Clamp to float range
+            if (value > std::numeric_limits<float>::max()) return std::numeric_limits<float>::max();
+            if (value < std::numeric_limits<float>::lowest()) return std::numeric_limits<float>::lowest();
+            return static_cast<float>(value);
+        }
+        catch (const std::invalid_argument&)
+        {
+            throw std::runtime_error("Invalid integer format: " + std::string(floatView));
+        }
+        
     }
 
     int Lexer::parseInteger()
@@ -200,7 +227,7 @@ namespace lexer
             }
             catch (const std::out_of_range&)
             {
-                // If even long long overflows, return max/min int
+                // If even long overflows, return max/min int
                 return (intView[0] == '-') ? INT_MIN : INT_MAX;
             }
 
@@ -371,7 +398,9 @@ namespace lexer
         if (pos < input.length())
         {
             char current = input[pos];
-            if (current == '=' || current == '!' || current == '<' || current == '>')
+            if (current == '=' || current == '!' || current == '<' || current == '>' ||
+                current == '+' || current == '-' || current == '*' || current == '/' ||
+                current == '%' || current == '&' || current == '|')
             {
                 Token spacedToken = tryParseSpacedOperator();
                 if (spacedToken.type != TokenType::END)
@@ -415,58 +444,102 @@ namespace lexer
         errors::SourceLocation location = locationTracker->getCurrentLocation();
         size_t originalPos = pos;
 
-        // Look for patterns like "= =", "! =", "< =", "> ="
+        // Look for spaced two-character operators
         if (pos < input.length())
         {
             char firstChar = input[pos];
+            size_t tempPos = pos + 1;
 
-            // Check if first character could be part of a spaced operator
-            if (firstChar == '=' || firstChar == '!' || firstChar == '<' || firstChar == '>')
+            // Skip whitespace
+            while (tempPos < input.length() && std::isspace(input[tempPos]))
             {
-                size_t tempPos = pos + 1;
+                tempPos++;
+            }
 
-                // Skip whitespace
-                while (tempPos < input.length() && std::isspace(input[tempPos]))
+            // Check if we have a second character that forms a valid spaced operator
+            if (tempPos < input.length())
+            {
+                char secondChar = input[tempPos];
+
+                // Check all possible spaced operator combinations
+                TokenType operatorType = TokenType::END;
+                std::string_view operatorSymbol;
+
+                // Comparison operators
+                if (firstChar == '=' && secondChar == '=')
                 {
-                    tempPos++;
+                    operatorType = TokenType::EQUALS;
+                    operatorSymbol = "==";
+                }
+                else if (firstChar == '!' && secondChar == '=')
+                {
+                    operatorType = TokenType::NOT_EQUALS;
+                    operatorSymbol = "!=";
+                }
+                else if (firstChar == '<' && secondChar == '=')
+                {
+                    operatorType = TokenType::LESS_EQUALS;
+                    operatorSymbol = "<=";
+                }
+                else if (firstChar == '>' && secondChar == '=')
+                {
+                    operatorType = TokenType::GREATER_EQUALS;
+                    operatorSymbol = ">=";
+                }
+                // Increment/Decrement operators
+                else if (firstChar == '+' && secondChar == '+')
+                {
+                    operatorType = TokenType::INCREMENT;
+                    operatorSymbol = "++";
+                }
+                else if (firstChar == '-' && secondChar == '-')
+                {
+                    operatorType = TokenType::DECREMENT;
+                    operatorSymbol = "--";
+                }
+                // Logical operators
+                else if (firstChar == '&' && secondChar == '&')
+                {
+                    operatorType = TokenType::AND;
+                    operatorSymbol = "&&";
+                }
+                else if (firstChar == '|' && secondChar == '|')
+                {
+                    operatorType = TokenType::OR;
+                    operatorSymbol = "||";
+                }
+                // Assignment operators
+                else if (firstChar == '+' && secondChar == '=')
+                {
+                    operatorType = TokenType::PLUS_ASSIGN;
+                    operatorSymbol = "+=";
+                }
+                else if (firstChar == '-' && secondChar == '=')
+                {
+                    operatorType = TokenType::MINUS_ASSIGN;
+                    operatorSymbol = "-=";
+                }
+                else if (firstChar == '*' && secondChar == '=')
+                {
+                    operatorType = TokenType::MULTIPLY_ASSIGN;
+                    operatorSymbol = "*=";
+                }
+                else if (firstChar == '/' && secondChar == '=')
+                {
+                    operatorType = TokenType::DIVIDE_ASSIGN;
+                    operatorSymbol = "/=";
+                }
+                else if (firstChar == '%' && secondChar == '=')
+                {
+                    operatorType = TokenType::MODULO_ASSIGN;
+                    operatorSymbol = "%=";
                 }
 
-                // Check if we have a second character that forms a valid spaced operator
-                if (tempPos < input.length())
+                if (operatorType != TokenType::END)
                 {
-                    char secondChar = input[tempPos];
-
-                    // Check for valid spaced operator combinations
-                    TokenType operatorType = TokenType::END;
-                    std::string_view operatorSymbol;
-
-                    if (firstChar == '=' && secondChar == '=')
-                    {
-                        operatorType = TokenType::EQUALS;
-                        operatorSymbol = "==";
-                    }
-                    else if (firstChar == '!' && secondChar == '=')
-                    {
-                        operatorType = TokenType::NOT_EQUALS;
-                        operatorSymbol = "!=";
-                    }
-                    else if (firstChar == '<' && secondChar == '=')
-                    {
-                        operatorType = TokenType::LESS_EQUALS;
-                        operatorSymbol = "<=";
-                    }
-                    else if (firstChar == '>' && secondChar == '=')
-                    {
-                        operatorType = TokenType::GREATER_EQUALS;
-                        operatorSymbol = ">=";
-                    }
-
-                    if (operatorType != TokenType::END)
-                    {
-                        // Update position to after the second character
-                        pos = tempPos + 1;
-                        return TokenFactory::createOperatorToken(operatorType, operatorSymbol, location);
-                    }
+                    // Update position to after the second character
+                    pos = tempPos + 1;
+                    return TokenFactory::createOperatorToken(operatorType, operatorSymbol, location);
                 }
             }
         }
