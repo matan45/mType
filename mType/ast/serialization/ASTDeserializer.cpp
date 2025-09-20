@@ -353,12 +353,16 @@ namespace ast::serialization
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeClassNode(const NodeHeader& header)
     {
         std::string className = readString();
+
+        // Read generic type parameters
+        auto genericParameters = readGenericTypeParameters();
+
         auto fields = deserializeChildNodes();
         auto constructors = deserializeChildNodes();
         auto methods = deserializeChildNodes();
 
         errors::SourceLocation location = createSourceLocation(header.line, header.column);
-        auto classNode = std::make_unique<nodes::classes::ClassNode>(className, location);
+        auto classNode = std::make_unique<nodes::classes::ClassNode>(className, genericParameters, location);
 
         for (auto& field : fields)
         {
@@ -1003,6 +1007,13 @@ namespace ast::serialization
         // Read the static flag
         bool isStatic = readBool();
 
+        // Read generic type parameters (only for non-static methods)
+        std::vector<ast::GenericTypeParameter> genericParameters;
+        if (!isStatic)
+        {
+            genericParameters = readGenericTypeParameters();
+        }
+
         // Read whether there's a body
         bool hasBody = readBool();
 
@@ -1019,8 +1030,8 @@ namespace ast::serialization
         location.setLine(header.line);
         location.setColumn(header.column);
 
-        // Create and return the MethodNode
-        return std::make_unique<nodes::classes::MethodNode>(
+        // Create the MethodNode
+        auto methodNode = std::make_unique<nodes::classes::MethodNode>(
             methodName,
             returnType,
             parameters,
@@ -1028,6 +1039,14 @@ namespace ast::serialization
             isStatic,
             location
         );
+
+        // Set generic type parameters if not static
+        if (!isStatic && !genericParameters.empty())
+        {
+            methodNode->setGenericTypeParameters(genericParameters);
+        }
+
+        return std::move(methodNode);
     }
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeFieldNode(const NodeHeader& header)
@@ -1304,5 +1323,42 @@ namespace ast::serialization
         }
 
         return typeInfo;
+    }
+
+    ast::GenericTypeParameter ASTDeserializer::readGenericTypeParameter()
+    {
+        // Read the parameter name
+        std::string name = readString();
+
+        // Read the constraints count and constraints
+        uint32_t constraintsCount = readUInt32();
+        std::vector<std::string> constraints;
+        constraints.reserve(constraintsCount);
+
+        for (uint32_t i = 0; i < constraintsCount; ++i)
+        {
+            constraints.push_back(readString());
+        }
+
+        // Read the source location
+        errors::SourceLocation location = readSourceLocation();
+
+        return ast::GenericTypeParameter(name, constraints, location);
+    }
+
+    std::vector<ast::GenericTypeParameter> ASTDeserializer::readGenericTypeParameters()
+    {
+        // Read the count of generic type parameters
+        uint32_t count = readUInt32();
+        std::vector<ast::GenericTypeParameter> params;
+        params.reserve(count);
+
+        // Read each parameter
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            params.push_back(readGenericTypeParameter());
+        }
+
+        return params;
     }
 }

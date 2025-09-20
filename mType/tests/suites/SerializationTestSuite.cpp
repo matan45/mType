@@ -28,6 +28,19 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Test Import Main Compilation",
                                   passPath + "test_import_main.mt");
+
+        // Generic serialization tests
+        addOutputVerificationTest("Basic Generic Serialization",
+                                  passPath + "basicGenericSerialization.mt");
+
+        addOutputVerificationTest("Multi-Type Generic Serialization",
+                                  passPath + "multiTypeGenericSerialization.mt");
+
+        addOutputVerificationTest("Generic Import Serialization",
+                                  passPath + "genericImportSerialization.mt");
+
+        addOutputVerificationTest("Class Generic Serialization",
+                                  passPath + "classGenericSerialization.mt");
     }
 
     void SerializationTestSuite::run()

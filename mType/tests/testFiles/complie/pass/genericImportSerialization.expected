@@ -1,0 +1,7 @@
+Int container empty: false
+Int container value: 42
+String container empty: false
+String container value: hello
+Valid: 100
+Valid: test
+Valid: true

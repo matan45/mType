@@ -405,6 +405,10 @@ namespace ast::serialization
         if (node)
         {
             writeString(node->getClassName());
+
+            // Serialize generic type parameters
+            writeGenericTypeParameters(node->getGenericParameters());
+
             serializeChildNodes(node->getFields());
             serializeChildNodes(node->getConstructors());
             serializeChildNodes(node->getMethods());
@@ -906,6 +910,12 @@ namespace ast::serialization
             // Serialize the static flag
             writeBool(node->getIsStatic());
 
+            // Serialize generic type parameters (only for non-static methods as per requirements)
+            if (!node->getIsStatic())
+            {
+                writeGenericTypeParameters(node->getGenericTypeParameters());
+            }
+
             // Serialize whether there's a body
             bool hasBody = (node->getBodyPtr() != nullptr);
             writeBool(hasBody);
@@ -1111,5 +1121,33 @@ namespace ast::serialization
         writeString(typeInfo.elementClassName.value_or(""));
         writeString(typeInfo.keyClassName.value_or(""));
         writeString(typeInfo.valueClassName.value_or(""));
+    }
+
+    void ASTSerializer::writeGenericTypeParameter(const ast::GenericTypeParameter& param)
+    {
+        // Serialize the parameter name
+        writeString(param.name);
+
+        // Serialize the constraints count and constraints
+        writeUInt32(static_cast<uint32_t>(param.constraints.size()));
+        for (const auto& constraint : param.constraints)
+        {
+            writeString(constraint);
+        }
+
+        // Serialize the source location
+        writeSourceLocation(param.location);
+    }
+
+    void ASTSerializer::writeGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& params)
+    {
+        // Serialize the count of generic type parameters
+        writeUInt32(static_cast<uint32_t>(params.size()));
+
+        // Serialize each parameter
+        for (const auto& param : params)
+        {
+            writeGenericTypeParameter(param);
+        }
     }
 }

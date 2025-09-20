@@ -8,6 +8,7 @@
 #include "FieldDefinition.hpp"
 #include "MethodDefinition.hpp"
 #include "../Definition.hpp"
+#include "../../ast/GenericTypeParameter.hpp"
 
 
 namespace runtimeTypes::klass
@@ -26,9 +27,19 @@ namespace runtimeTypes::klass
         // Constructors and destructor
         std::vector<std::shared_ptr<ConstructorDefinition>> constructors;
 
+        // NEW: Generic support
+        std::vector<ast::GenericTypeParameter> genericParameters;
+        bool isGenericClass;
+
     public:
         explicit ClassDefinition(const std::string& n)
-            : Definition(n)
+            : Definition(n), isGenericClass(false)
+        {
+        }
+
+        // NEW: Constructor with generic parameters
+        explicit ClassDefinition(const std::string& n, const std::vector<ast::GenericTypeParameter>& generics)
+            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty())
         {
         }
 
@@ -68,5 +79,21 @@ namespace runtimeTypes::klass
         std::shared_ptr<MethodDefinition> getMethod(const std::string& methodName) const;
         std::shared_ptr<ConstructorDefinition> getConstructor() const;
         std::shared_ptr<MethodDefinition> findMethod(const std::string& methodName, size_t argCount) const;
+
+        // NEW: Generic-related methods
+        bool isGeneric() const { return isGenericClass; }
+        const std::vector<ast::GenericTypeParameter>& getGenericParameters() const { return genericParameters; }
+        void setGenericParameters(const std::vector<ast::GenericTypeParameter>& params) {
+            genericParameters = params;
+            isGenericClass = !params.empty();
+        }
+        size_t getGenericParameterCount() const { return genericParameters.size(); }
+        std::string getBaseName() const { return getName(); }
+
+        // Get full generic class name like "Box<T>"
+        std::string getGenericClassName() const;
+
+        // Check if a type parameter exists
+        bool hasGenericParameter(const std::string& paramName) const;
     };
 }

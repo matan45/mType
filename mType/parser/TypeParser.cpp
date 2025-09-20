@@ -1,5 +1,6 @@
 #include "TypeParser.hpp"
 #include "../errors/ParseException.hpp"
+#include "../ast/GenericType.hpp"
 
 namespace parser
 {
@@ -159,8 +160,194 @@ namespace parser
             }
             else
             {
+                // Check if this might be a generic type parameter (single letter, capitalized)
+                if (typeName.length() == 1 && std::isupper(typeName[0])) {
+                    // This looks like a generic type parameter (T, K, V, etc.)
+                    // For TypeInfo, we'll treat it as OBJECT with the parameter name
+                    return TypeInfo(ValueType::OBJECT, typeName);
+                }
+
+                // Check if this custom class has generic type parameters
+                if (stream.check(TokenType::LESS))
+                {
+                    // This is a generic custom class like Box<int>, Person<T>, etc.
+                    // For now, we'll parse the generics but store them as a string
+                    // (TypeInfo doesn't have full generic support yet)
+                    std::string fullTypeName = typeName + "<";
+                    stream.advance(); // consume '<'
+
+                    // Parse type arguments
+                    do {
+                        TypeInfo argTypeInfo = parseTypeInfo(stream); // Parse type argument
+                        fullTypeName += argTypeInfo.toString();
+
+                        if (stream.check(TokenType::COMMA)) {
+                            fullTypeName += ", ";
+                            stream.advance(); // consume ','
+                        } else {
+                            break;
+                        }
+                    } while (true);
+
+                    stream.expect(TokenType::GREATER); // consume '>'
+                    fullTypeName += ">";
+
+                    return TypeInfo(ValueType::OBJECT, fullTypeName);
+                }
+
                 // Treat unknown identifier types as custom class types (OBJECT)
                 return TypeInfo(ValueType::OBJECT, typeName);
+            }
+        }
+
+        throw ParseException("Expected type", stream.location());
+    }
+
+    std::shared_ptr<ast::GenericType> TypeParser::parseGenericType(TokenStream& stream)
+    {
+        TokenType currentType = stream.current().type;
+
+        // Handle dedicated type tokens with O(1) lookup
+        auto tokenIt = tokenTypeMap.find(currentType);
+        if (tokenIt != tokenTypeMap.end())
+        {
+            ValueType valueType = tokenIt->second;
+            stream.advance();
+
+            // Handle generic parameters for collection types
+            if (valueType == ValueType::ARRAY ||
+                valueType == ValueType::SET || valueType == ValueType::QUEUE ||
+                valueType == ValueType::STACK)
+            {
+                // These collections expect: CollectionType<ElementType>
+                if (stream.check(TokenType::LESS))
+                {
+                    stream.advance(); // consume '<'
+                    auto elementType = parseGenericType(stream); // Recursively parse element type
+                    stream.expect(TokenType::GREATER); // consume '>'
+
+                    std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {elementType};
+                    return std::make_shared<ast::GenericType>(valueType, typeArgs);
+                }
+                else
+                {
+                    // Collection without generic parameters - use default
+                    return std::make_shared<ast::GenericType>(valueType);
+                }
+            }
+            else if (valueType == ValueType::MAP)
+            {
+                // Map expects: Map<KeyType, ValueType>
+                if (stream.check(TokenType::LESS))
+                {
+                    stream.advance(); // consume '<'
+                    auto keyGenericType = parseGenericType(stream); // Parse key type
+                    stream.expect(TokenType::COMMA); // consume ','
+                    auto valueGenericType = parseGenericType(stream); // Parse value type
+                    stream.expect(TokenType::GREATER); // consume '>'
+
+                    std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {keyGenericType, valueGenericType};
+                    return std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
+                }
+                else
+                {
+                    // Map without generic parameters - use defaults
+                    return std::make_shared<ast::GenericType>(valueType);
+                }
+            }
+            else
+            {
+                // Simple type (int, float, bool, string, void)
+                return std::make_shared<ast::GenericType>(valueType);
+            }
+        }
+
+        // Handle identifier-based types
+        if (currentType == TokenType::IDENTIFIER)
+        {
+            std::string typeName = parseQualifiedName(stream);
+
+            // Check if it's a string-based primitive type with O(1) lookup
+            auto stringIt = stringTypeMap.find(typeName);
+            if (stringIt != stringTypeMap.end())
+            {
+                ValueType valueType = stringIt->second;
+
+                // Handle generic parameters for collection types
+                if (valueType == ValueType::ARRAY ||
+                    valueType == ValueType::SET || valueType == ValueType::QUEUE ||
+                    valueType == ValueType::STACK)
+                {
+                    if (stream.check(TokenType::LESS))
+                    {
+                        stream.advance(); // consume '<'
+                        auto elementType = parseGenericType(stream); // Parse element type
+                        stream.expect(TokenType::GREATER); // consume '>'
+
+                        std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {elementType};
+                        return std::make_shared<ast::GenericType>(valueType, typeArgs);
+                    }
+                    else
+                    {
+                        return std::make_shared<ast::GenericType>(valueType);
+                    }
+                }
+                else if (valueType == ValueType::MAP)
+                {
+                    if (stream.check(TokenType::LESS))
+                    {
+                        stream.advance(); // consume '<'
+                        auto keyGenericType = parseGenericType(stream); // Parse key type
+                        stream.expect(TokenType::COMMA); // consume ','
+                        auto valueGenericType = parseGenericType(stream); // Parse value type
+                        stream.expect(TokenType::GREATER); // consume '>'
+
+                        std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {keyGenericType, valueGenericType};
+                        return std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
+                    }
+                    else
+                    {
+                        return std::make_shared<ast::GenericType>(valueType);
+                    }
+                }
+                else
+                {
+                    // Simple primitive type
+                    return std::make_shared<ast::GenericType>(valueType);
+                }
+            }
+            else
+            {
+                // Check if this might be a generic type parameter (single letter, capitalized)
+                if (typeName.length() == 1 && std::isupper(typeName[0])) {
+                    // This is a generic type parameter (T, K, V, etc.)
+                    return std::make_shared<ast::GenericType>(typeName);
+                }
+
+                // Check if this is a generic class with type arguments
+                if (stream.check(TokenType::LESS)) {
+                    stream.advance(); // consume '<'
+                    std::vector<std::shared_ptr<ast::GenericType>> typeArgs;
+
+                    // Parse type arguments
+                    do {
+                        typeArgs.push_back(parseGenericType(stream));
+
+                        if (stream.check(TokenType::COMMA)) {
+                            stream.advance(); // consume ','
+                        } else {
+                            break;
+                        }
+                    } while (true);
+
+                    stream.expect(TokenType::GREATER); // consume '>'
+
+                    // Create generic type for custom class with type arguments
+                    return std::make_shared<ast::GenericType>(typeName, typeArgs);
+                }
+
+                // Treat as custom class type without type arguments
+                return std::make_shared<ast::GenericType>(typeName);
             }
         }
 

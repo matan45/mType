@@ -28,6 +28,9 @@ namespace services
         // Import dependency compilation helpers
         void compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory);
         void collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports, const std::string& baseDirectory);
+
+        // Cached execution helpers
+        void preRegisterClassDefinitions(ast::ASTNode* node);
         
     public:
         ScriptInterpreter();

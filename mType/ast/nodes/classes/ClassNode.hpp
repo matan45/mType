@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
+#include "../../GenericTypeParameter.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -10,17 +11,34 @@ namespace ast::nodes::classes
     {
     private:
         std::string className;
+        std::vector<GenericTypeParameter> genericParameters;  // NEW: Generic type parameters
         std::vector<std::unique_ptr<ASTNode>> fields;
         std::vector<std::unique_ptr<ASTNode>> constructors;
         std::vector<std::unique_ptr<ASTNode>> methods;
 
     public:
+        // Backward compatibility constructor (most common usage)
         explicit ClassNode(const std::string& name, const SourceLocation& loc = SourceLocation());
+
+        // NEW: Primary constructor with generic parameters
+        ClassNode(const std::string& name,
+                 const std::vector<GenericTypeParameter>& generics,
+                 const SourceLocation& loc = SourceLocation());
 
         const std::string& getClassName() const;
         const std::vector<std::unique_ptr<ASTNode>>& getFields() const;
         const std::vector<std::unique_ptr<ASTNode>>& getConstructors() const;
         const std::vector<std::unique_ptr<ASTNode>>& getMethods() const;
+
+        // NEW: Generic-related methods
+        const std::vector<GenericTypeParameter>& getGenericParameters() const;
+        void setGenericParameters(const std::vector<GenericTypeParameter>& generics);
+        void addGenericParameter(const GenericTypeParameter& param);
+        size_t getGenericParameterCount() const;
+        bool isGeneric() const { return !genericParameters.empty(); }
+
+        // Helper to get full generic class name (e.g., "Box<T>")
+        std::string getFullClassName() const;
 
         void setClassName(const std::string& name);
 

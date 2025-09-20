@@ -1,0 +1,6 @@
+Person empty: false
+Employee empty: false
+Retrieved person: Alice (25 years old)
+Retrieved employee: John from Engineering
+Valid: [object Person]
+Valid: [object Employee]

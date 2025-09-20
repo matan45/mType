@@ -2,6 +2,7 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
 #include "utils/CollectionMethodDispatcher.hpp"
+#include "utils/GenericTypeManager.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>

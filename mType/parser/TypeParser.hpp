@@ -2,6 +2,7 @@
 #include "../value/ValueType.hpp"
 #include "../token/TokenType.hpp"
 #include "TokenStream.hpp"
+#include "../ast/GenericType.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -113,6 +114,9 @@ namespace parser
         
         /// @brief Parse complete type information including generics
         [[nodiscard]] static TypeInfo parseTypeInfo(TokenStream& stream);
+
+        /// @brief Parse type information and convert to GenericType (for new generic system)
+        [[nodiscard]] static std::shared_ptr<ast::GenericType> parseGenericType(TokenStream& stream);
         
         /// @brief Parse type with class name for object types (legacy method)
         [[nodiscard]] static std::pair<ValueType, std::string> parseTypeWithClassName(TokenStream& stream);

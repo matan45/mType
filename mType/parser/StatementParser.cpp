@@ -78,6 +78,9 @@ namespace parser
                 if (nextToken.type == TokenType::IDENTIFIER) {
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
+                } else if (nextToken.type == TokenType::LESS) {
+                    // Pattern: "ClassName<...>" - this is a generic type declaration
+                    return parseDeclaration();
                 } else if (nextToken.type == TokenType::SCOPE) {
                     // Pattern: "identifier::..." - this is always an expression (qualified call/assignment/access)
                     // Static method calls, static field access, static field assignment, etc.

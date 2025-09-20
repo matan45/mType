@@ -1,12 +1,28 @@
-﻿#include "FieldNode.hpp"
+#include "FieldNode.hpp"
 
 namespace ast::nodes::classes
 {
-    FieldNode::FieldNode(const std::string& fieldName, ValueType fieldType, std::unique_ptr<ASTNode> initValue,
-                         bool isStaticField, bool isFinalField, const SourceLocation& loc)
+    // NEW: Primary constructor with GenericType support
+    FieldNode::FieldNode(const std::string& fieldName,
+                         std::shared_ptr<GenericType> fieldType,
+                         std::unique_ptr<ASTNode> initValue,
+                         bool isStaticField, bool isFinalField,
+                         const SourceLocation& loc)
         : ASTNode(loc), name(fieldName), type(fieldType), initialValue(std::move(initValue)),
           isStatic(isStaticField), isFinal(isFinalField)
     {
+    }
+
+    // Backward compatibility constructor with ValueType
+    FieldNode::FieldNode(const std::string& fieldName, ValueType fieldType,
+                         std::unique_ptr<ASTNode> initValue,
+                         bool isStaticField, bool isFinalField,
+                         const SourceLocation& loc)
+        : ASTNode(loc), name(fieldName), initialValue(std::move(initValue)),
+          isStatic(isStaticField), isFinal(isFinalField)
+    {
+        // Convert ValueType to GenericType
+        type = std::make_shared<GenericType>(fieldType);
     }
 
     const std::string& FieldNode::getName() const
@@ -14,9 +30,18 @@ namespace ast::nodes::classes
         return name;
     }
 
-    ValueType FieldNode::getType() const
+    std::shared_ptr<GenericType> FieldNode::getGenericType() const
     {
         return type;
+    }
+
+    // Legacy getter for backward compatibility
+    ValueType FieldNode::getType() const
+    {
+        if (type && !type->isGenericParameter()) {
+            return type->getConcreteType();
+        }
+        return ValueType::OBJECT; // Default for generic parameters
     }
 
     ASTNode* FieldNode::getInitialValue() const
@@ -39,9 +64,15 @@ namespace ast::nodes::classes
         name = fieldName;
     }
 
-    void FieldNode::setType(ValueType fieldType)
+    void FieldNode::setGenericType(std::shared_ptr<GenericType> fieldType)
     {
         type = fieldType;
+    }
+
+    // Legacy setter for backward compatibility
+    void FieldNode::setType(ValueType fieldType)
+    {
+        type = std::make_shared<GenericType>(fieldType);
     }
 
     void FieldNode::setInitialValue(std::unique_ptr<ASTNode> initValue)

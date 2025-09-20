@@ -7,6 +7,11 @@
 #include "../../environment/Environment.hpp"
 #include "../../errors/SourceLocation.hpp"
 
+// Forward declaration
+namespace runtimeTypes::klass {
+    class MethodDefinition;
+}
+
 namespace evaluator::utils
 {
     class ParameterBinder
@@ -22,6 +27,22 @@ namespace evaluator::utils
          */
         static void bindAndValidateParameters(
             const std::vector<std::pair<std::string, value::ValueType>>& params,
+            const std::vector<value::Value>& args,
+            const std::string& functionName,
+            std::shared_ptr<environment::Environment> env,
+            const errors::SourceLocation& location = errors::SourceLocation{}
+        );
+
+        /**
+         * NEW: Binds and validates parameters for generic method calls with runtime type resolution
+         * @param method Method definition with generic type information
+         * @param args Actual argument values
+         * @param functionName Name of function/method for error messages
+         * @param env Environment to bind variables in
+         * @param location Source location for error reporting
+         */
+        static void bindAndValidateParameters(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
             const std::vector<value::Value>& args,
             const std::string& functionName,
             std::shared_ptr<environment::Environment> env,

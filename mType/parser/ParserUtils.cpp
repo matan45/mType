@@ -2,6 +2,7 @@
 #include "TypeParser.hpp"
 #include "TokenStream.hpp"
 #include "../ast/ASTNode.hpp"
+#include "../ast/GenericType.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/SourceLocation.hpp"
@@ -74,6 +75,57 @@ namespace parser
         do {
             // Parse parameter type using centralized TypeParser
             ValueType paramType = TypeParser::parseType(stream);
+
+            // Expect parameter name
+            if (stream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected parameter name", stream.location());
+            }
+
+            std::string paramName = stream.current().stringValue;
+            stream.advance();
+
+            // Add parameter to list
+            parameters.emplace_back(paramName, paramType);
+
+            // Check for more parameters
+            if (stream.current().type == TokenType::COMMA) {
+                stream.advance(); // consume ','
+            } else {
+                break; // End of parameter list
+            }
+        } while (stream.current().type != TokenType::RPAREN);
+
+        if (expectParentheses) {
+            stream.expect(TokenType::RPAREN);
+        }
+
+        return parameters;
+    }
+
+    std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> ParserUtils::parseGenericParameterList(TokenStream& stream, bool expectParentheses)
+    {
+        using namespace value;
+        using namespace errors;
+        using namespace token;
+
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> parameters;
+
+        if (expectParentheses) {
+            stream.expect(TokenType::LPAREN);
+        }
+
+        // Handle empty parameter list
+        if (stream.current().type == TokenType::RPAREN) {
+            if (expectParentheses) {
+                stream.advance(); // consume ')'
+            }
+            return parameters;
+        }
+
+        // Parse first parameter
+        do {
+            // Parse parameter type using centralized TypeParser with generic support
+            auto paramType = TypeParser::parseGenericType(stream);
 
             // Expect parameter name
             if (stream.current().type != TokenType::IDENTIFIER) {

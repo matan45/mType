@@ -2,6 +2,8 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/CollectionTypeHelper.hpp"
+#include "utils/GenericTypeManager.hpp"
+#include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../exception/ReturnException.hpp"
@@ -116,8 +118,8 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
-        // Create class definition
-        auto classDef = std::make_shared<ClassDefinition>(node->getClassName());
+        // Create class definition with generic parameters if present
+        auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
         // Add fields
         for (const auto& fieldPtr : node->getFields())
@@ -151,14 +153,33 @@ namespace evaluator
             // Get shared_ptr to method body safely
             auto bodyPtr = methodNode->getBody();
 
-            auto methodDef = std::make_shared<MethodDefinition>(
-                methodNode->getName(),
-                methodNode->getReturnType(),
-                methodNode->getParameters(),
-                std::vector<std::pair<std::string, Value>>{}, // empty arguments
-                bodyPtr,
-                methodNode->getIsStatic()
-            );
+            // Create method definition with generic type information preserved
+            std::shared_ptr<MethodDefinition> methodDef;
+
+            if (node->isGeneric()) {
+                // For generic classes, preserve the generic type information
+                methodDef = std::make_shared<MethodDefinition>(
+                    methodNode->getName(),
+                    methodNode->getReturnType(),               // Legacy ValueType for compatibility
+                    methodNode->getParameters(),               // Legacy ValueType parameters for compatibility
+                    std::vector<std::pair<std::string, Value>>{}, // empty arguments
+                    bodyPtr,
+                    methodNode->getIsStatic(),
+                    methodNode->getGenericReturnType(),        // NEW: Preserve generic return type
+                    methodNode->getGenericParameters(),        // NEW: Preserve generic parameters
+                    std::unordered_map<std::string, std::string>{} // Empty substitution map for template
+                );
+            } else {
+                // For non-generic classes, use legacy constructor
+                methodDef = std::make_shared<MethodDefinition>(
+                    methodNode->getName(),
+                    methodNode->getReturnType(),
+                    methodNode->getParameters(),
+                    std::vector<std::pair<std::string, Value>>{}, // empty arguments
+                    bodyPtr,
+                    methodNode->getIsStatic()
+                );
+            }
 
             classDef->addMethod(methodDef);
         }
@@ -345,11 +366,58 @@ namespace evaluator
         }
 
         // Handle regular class instantiation
-        auto instance = createInstance(node->getClassName(), args);
+        // className already declared above for collections
+        std::shared_ptr<ClassDefinition> classDef;
+        auto env = context->getEnvironment();
+
+        // Check if this is a generic instantiation
+        if (utils::GenericTypeManager::isGenericInstantiation(className))
+        {
+            // Parse generic instantiation
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+            // Find the generic class template
+            auto genericClass = env->findClass(baseName);
+            if (!genericClass)
+            {
+                throw UndefinedException("Generic class '" + baseName + "' not found");
+            }
+
+            if (!genericClass->isGeneric())
+            {
+                throw TypeException("Class '" + baseName + "' is not generic but used with type arguments");
+            }
+
+            // Validate type arguments
+            if (!utils::GenericTypeManager::validateTypeArguments(genericClass, typeArguments))
+            {
+                throw TypeException("Invalid type arguments for generic class '" + baseName + "'");
+            }
+
+            // Create instantiated class
+            classDef = utils::GenericTypeManager::instantiateGenericClass(genericClass, typeArguments);
+            if (!classDef)
+            {
+                throw TypeException("Failed to instantiate generic class '" + className + "'");
+            }
+
+            // Register the instantiated class for future use
+            env->registerClass(className, classDef);
+        }
+        else
+        {
+            // Regular non-generic class
+            classDef = env->findClass(className);
+        }
+
+        if (!classDef)
+        {
+            throw UndefinedException("Class '" + className + "' not found");
+        }
+
+        auto instance = createInstance(className, args);
 
         // Execute constructor if it exists
-        auto env = context->getEnvironment();
-        auto classDef = env->findClass(node->getClassName());
         if (classDef && !classDef->getConstructors().empty())
         {
             auto constructor = classDef->findConstructor(args.size());
@@ -600,13 +668,24 @@ namespace evaluator
 
             try
             {
-                // Use ParameterBinder utility instead of manual parameter binding
-                utils::ParameterBinder::bindAndValidateParameters(
-                    method->getParameters(),
-                    args,
-                    "method '" + methodName + "'",
-                    env
-                );
+                // Use enhanced ParameterBinder for generic-aware parameter binding
+                if (method->hasGenericInformation()) {
+                    // Use the new generic-aware parameter binding
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        method,
+                        args,
+                        "method '" + methodName + "'",
+                        env
+                    );
+                } else {
+                    // Use legacy parameter binding for non-generic methods
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        method->getParameters(),
+                        args,
+                        "method '" + methodName + "'",
+                        env
+                    );
+                }
 
                 // Store current class name for static field access from instance methods
                 auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(

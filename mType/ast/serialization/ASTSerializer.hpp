@@ -1,6 +1,7 @@
 #pragma once
 #include "SerializationFormat.hpp"
 #include "../ASTNode.hpp"
+#include "../GenericTypeParameter.hpp"
 #include "../../parser/TypeParser.hpp"
 #include <fstream>
 #include <memory>
@@ -110,5 +111,9 @@ namespace ast::serialization
 
         // TypeInfo serialization methods
         void writeTypeInfo(const parser::TypeInfo& typeInfo);
+
+        // Generic type parameter serialization methods
+        void writeGenericTypeParameter(const ast::GenericTypeParameter& param);
+        void writeGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& params);
     };
 }

@@ -2,8 +2,10 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include <unordered_map>
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
+#include "../../ast/GenericType.hpp"
 #include "../Definition.hpp"
 
 
@@ -21,13 +23,32 @@ namespace runtimeTypes::klass
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
 
+        // NEW: Generic type information for runtime type resolution
+        std::shared_ptr<ast::GenericType> genericReturnType;
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        std::unordered_map<std::string, std::string> typeSubstitutionMap;  // For instantiated generic methods
+
     public:
+        // Legacy constructor for backward compatibility
         explicit MethodDefinition(const std::string& n, ValueType rt,
                          const std::vector<std::pair<std::string, ValueType>>& params,
                          const std::vector<std::pair<std::string, Value>>&args,
                          std::shared_ptr<ASTNode> b, bool s)
-            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s)
-             
+            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
+              genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
+        {
+        }
+
+        // NEW: Constructor with generic type information
+        explicit MethodDefinition(const std::string& n, ValueType rt,
+                         const std::vector<std::pair<std::string, ValueType>>& params,
+                         const std::vector<std::pair<std::string, Value>>&args,
+                         std::shared_ptr<ASTNode> b, bool s,
+                         std::shared_ptr<ast::GenericType> genRetType,
+                         const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams,
+                         const std::unordered_map<std::string, std::string>& substitutions = {})
+            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
+              genericReturnType(genRetType), genericParameters(genParams), typeSubstitutionMap(substitutions)
         {
         }
 
@@ -40,9 +61,26 @@ namespace runtimeTypes::klass
         void setParameters(const std::vector<std::pair<std::string, ValueType>>& params) { parameters = params; }
         
         ASTNode* getBody() const { return body.get(); }
+        std::shared_ptr<ASTNode> getBodyPtr() const { return body; }
         void setBody(std::shared_ptr<ASTNode> b) { body = b; }
         
         bool isStatic() const { return isStaticMethod; }
         void setStatic(bool s) { isStaticMethod = s; }
+
+        // NEW: Generic type information getters and setters
+        std::shared_ptr<ast::GenericType> getGenericReturnType() const { return genericReturnType; }
+        void setGenericReturnType(std::shared_ptr<ast::GenericType> genRetType) { genericReturnType = genRetType; }
+
+        const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& getGenericParameters() const { return genericParameters; }
+        void setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams) { genericParameters = genParams; }
+
+        const std::unordered_map<std::string, std::string>& getTypeSubstitutionMap() const { return typeSubstitutionMap; }
+        void setTypeSubstitutionMap(const std::unordered_map<std::string, std::string>& substitutions) { typeSubstitutionMap = substitutions; }
+
+        // NEW: Runtime type resolution methods
+        ValueType resolveParameterType(size_t paramIndex) const;
+        ValueType resolveParameterType(const std::string& paramName) const;
+        ValueType resolveReturnType() const;
+        bool hasGenericInformation() const { return genericReturnType != nullptr || !genericParameters.empty(); }
     };
 }

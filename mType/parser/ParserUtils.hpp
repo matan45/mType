@@ -11,6 +11,7 @@
 // Forward declarations
 namespace ast {
     class ASTNode;
+    class GenericType;
 }
 
 namespace parser
@@ -36,8 +37,16 @@ namespace parser
         /// @param stream Token stream to parse from
         /// @param expectParentheses Whether to expect and consume parentheses
         /// @return Vector of parameter name-type pairs
-        [[nodiscard]] static std::vector<std::pair<std::string, value::ValueType>> 
+        [[nodiscard]] static std::vector<std::pair<std::string, value::ValueType>>
             parseParameterList(class TokenStream& stream, bool expectParentheses = true);
+
+        /// @brief Parse parameter list with generic type support (NEW)
+        /// Parses function/method parameters with full generic type support
+        /// @param stream Token stream to parse from
+        /// @param expectParentheses Whether to expect and consume parentheses
+        /// @return Vector of parameter name-GenericType pairs
+        [[nodiscard]] static std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>
+            parseGenericParameterList(class TokenStream& stream, bool expectParentheses = true);
             
         /// @brief Parse binary operators with left-associative precedence
         /// Eliminates code duplication across ExpressionParser binary operator methods

@@ -1,9 +1,11 @@
 #include "ParameterBinder.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
+#include <iostream>
 
 namespace evaluator::utils
 {
@@ -43,6 +45,45 @@ namespace evaluator::utils
                 false  // parameters are not final
             );
             
+            env->declareVariable(param.first, varDef);
+        }
+    }
+
+    void ParameterBinder::bindAndValidateParameters(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const SourceLocation& location)
+    {
+        auto params = method->getParameters();
+
+        // Validate parameter count
+        validateParameterCount(params.size(), args.size(), functionName);
+
+        // Bind and validate each parameter with runtime type resolution
+        for (size_t i = 0; i < params.size(); ++i)
+        {
+            const auto& param = params[i];
+            const Value& arg = args[i];
+
+            // Get actual argument type
+            ValueType actualType = ValueConverter::getValueType(arg);
+
+            // Get expected type with runtime resolution for generics
+            ValueType expectedType = method->resolveParameterType(i);
+
+            // Validate type compatibility
+            validateParameterType(actualType, expectedType, param.first, functionName, location);
+
+            // Create and bind parameter variable
+            auto varDef = std::make_shared<VariableDefinition>(
+                param.first,
+                expectedType,  // Use resolved type
+                arg,
+                false  // parameters are not final
+            );
+
             env->declareVariable(param.first, varDef);
         }
     }

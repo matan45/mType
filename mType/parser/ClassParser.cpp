@@ -38,9 +38,19 @@ namespace parser
 
         tokenStream.advance();
 
+        // NEW: Parse generic type parameters if present (e.g., class Box<T>)
+        std::vector<ast::GenericTypeParameter> genericParameters;
+        if (tokenStream.check(TokenType::LESS))
+        {
+            tokenStream.advance(); // consume '<'
+            genericParameters = parseGenericTypeParameters();
+            tokenStream.expect(TokenType::GREATER); // consume '>'
+        }
+
         tokenStream.expect(TokenType::LBRACE);
 
-        auto classNode = std::make_unique<ClassNode>(className);
+        // Create class node with generic parameters
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters);
 
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {
@@ -117,6 +127,15 @@ namespace parser
         }
         tokenStream.advance();
 
+        // Parse generic type parameters for generic methods (only for non-static methods)
+        std::vector<ast::GenericTypeParameter> methodGenericParameters;
+        if (!isStatic && tokenStream.check(TokenType::LESS))
+        {
+            tokenStream.advance(); // consume '<'
+            methodGenericParameters = parseGenericTypeParameters();
+            tokenStream.expect(TokenType::GREATER); // consume '>'
+        }
+
         // Parse method name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -126,79 +145,22 @@ namespace parser
         std::string methodName = tokenStream.current().stringValue;
         tokenStream.advance();
 
-        // Parse parameter list using centralized utility
-        auto parameters = ParserUtils::parseParameterList(tokenStream, true);
+        // Parse parameter list using generic-aware utility
+        auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
-        // Parse return type after the parameters (mType syntax: function name(params): returnType)
-        ValueType returnType = ValueType::VOID;
+        // Parse return type after the parameters using new generic type system
+        std::shared_ptr<ast::GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
         if (tokenStream.current().type == TokenType::COLON)
         {
             tokenStream.advance();
-
-            TokenType returnTokenType = tokenStream.current().type;
-            if (returnTokenType == TokenType::INT)
-            {
-                returnType = ValueType::INT;
-                tokenStream.advance();
-            }
-            else if (returnTokenType == TokenType::FLOAT)
-            {
-                returnType = ValueType::FLOAT;
-                tokenStream.advance();
-            }
-            else if (returnTokenType == TokenType::BOOL)
-            {
-                returnType = ValueType::BOOL;
-                tokenStream.advance();
-            }
-            else if (returnTokenType == TokenType::STRING_TYPE)
-            {
-                returnType = ValueType::STRING;
-                tokenStream.advance();
-            }
-            else if (returnTokenType == TokenType::VOID)
-            {
-                returnType = ValueType::VOID;
-                tokenStream.advance();
-            }
-            else if (returnTokenType == TokenType::IDENTIFIER)
-            {
-                std::string typeName = tokenStream.current().stringValue;
-                tokenStream.advance();
-
-                // Handle qualified names like geometry::Point
-                while (tokenStream.current().type == TokenType::SCOPE)
-                {
-                    tokenStream.advance();
-                    if (tokenStream.current().type != TokenType::IDENTIFIER)
-                    {
-                        throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                    }
-                    typeName += "::" + tokenStream.current().stringValue;
-                    tokenStream.advance();
-                }
-
-                if (typeName == "int") returnType = ValueType::INT;
-                else if (typeName == "float") returnType = ValueType::FLOAT;
-                else if (typeName == "string") returnType = ValueType::STRING;
-                else if (typeName == "bool") returnType = ValueType::BOOL;
-                else if (typeName == "void") returnType = ValueType::VOID;
-                else
-                {
-                    // Treat unknown identifier types as custom class types (OBJECT)
-                    returnType = ValueType::OBJECT;
-                }
-            }
-            else
-            {
-                throw ParseException("Expected return type after ':'", tokenStream.current().location);
-            }
+            returnType = TypeParser::parseGenericType(tokenStream);
         }
 
         auto body = context.parseStatement();
 
+        // Create MethodNode with generic support - always use the new constructor
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), isStatic);
+                                            std::move(body), isStatic, methodGenericParameters);
     }
 
     std::unique_ptr<ASTNode> ClassParser::parseField()
@@ -229,7 +191,10 @@ namespace parser
             
             // This is a static method, parse it here since we already have the modifiers
             tokenStream.advance(); // consume 'function'
-            
+
+            // Static methods do not support generic type parameters
+            std::vector<ast::GenericTypeParameter> methodGenericParameters;
+
             // Parse method name
             if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
@@ -239,83 +204,28 @@ namespace parser
             std::string methodName = tokenStream.current().stringValue;
             tokenStream.advance();
             
-            // Parse parameter list using centralized utility
-            auto parameters = ParserUtils::parseParameterList(tokenStream, true);
-            
-            // Parse return type
-            ValueType returnType = ValueType::VOID;
+            // Parse parameter list using generic-aware utility
+            auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
+
+            // Parse return type using generic type system
+            std::shared_ptr<ast::GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
             if (tokenStream.current().type == TokenType::COLON)
             {
                 tokenStream.advance();
-                TokenType returnTokenType = tokenStream.current().type;
-                if (returnTokenType == TokenType::INT)
-                {
-                    returnType = ValueType::INT;
-                    tokenStream.advance();
-                }
-                else if (returnTokenType == TokenType::FLOAT)
-                {
-                    returnType = ValueType::FLOAT;
-                    tokenStream.advance();
-                }
-                else if (returnTokenType == TokenType::BOOL)
-                {
-                    returnType = ValueType::BOOL;
-                    tokenStream.advance();
-                }
-                else if (returnTokenType == TokenType::STRING_TYPE)
-                {
-                    returnType = ValueType::STRING;
-                    tokenStream.advance();
-                }
-                else if (returnTokenType == TokenType::VOID)
-                {
-                    returnType = ValueType::VOID;
-                    tokenStream.advance();
-                }
-                else if (returnTokenType == TokenType::IDENTIFIER)
-                {
-                    std::string typeName = tokenStream.current().stringValue;
-                    tokenStream.advance();
-
-                    // Handle qualified names like geometry::Point
-                    while (tokenStream.current().type == TokenType::SCOPE)
-                    {
-                        tokenStream.advance();
-                        if (tokenStream.current().type != TokenType::IDENTIFIER)
-                        {
-                            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
-                        }
-                        typeName += "::" + tokenStream.current().stringValue;
-                        tokenStream.advance();
-                    }
-
-                    if (typeName == "int") returnType = ValueType::INT;
-                    else if (typeName == "float") returnType = ValueType::FLOAT;
-                    else if (typeName == "string") returnType = ValueType::STRING;
-                    else if (typeName == "bool") returnType = ValueType::BOOL;
-                    else if (typeName == "void") returnType = ValueType::VOID;
-                    else
-                    {
-                        // Treat unknown identifier types as custom class types (OBJECT)
-                        returnType = ValueType::OBJECT;
-                    }
-                }
-                else
-                {
-                    throw ParseException("Expected return type after ':'", tokenStream.current().location);
-                }
+                returnType = TypeParser::parseGenericType(tokenStream);
             }
             
             // Parse method body
             auto body = context.parseStatement();
             
-            return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters), std::move(body), isStatic);
+            // Create MethodNode with generic support - always use the new constructor
+            return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
+                                                std::move(body), isStatic, methodGenericParameters);
         }
 
         // Parse the complete type information using TypeParser (supports collections and generics)
         parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
-        ValueType fieldType = typeInfo.baseType;
+        auto fieldGenericType = convertTypeInfoToGenericType(typeInfo);
 
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -334,7 +244,7 @@ namespace parser
 
         tokenStream.expect(TokenType::SEMICOLON);
 
-        return std::make_unique<FieldNode>(fieldName, fieldType, std::move(initialValue),
+        return std::make_unique<FieldNode>(fieldName, fieldGenericType, std::move(initialValue),
                                            isStatic, isFinal);
     }
 
@@ -465,6 +375,95 @@ namespace parser
         else
         {
             throw ParseException("Expected type parameter", tokenStream.current().location);
+        }
+    }
+
+    // NEW: Parse generic type parameter declarations (e.g., <T, U, K extends Comparable>)
+    std::vector<ast::GenericTypeParameter> ClassParser::parseGenericTypeParameters()
+    {
+        std::vector<ast::GenericTypeParameter> parameters;
+
+        // Parse first parameter
+        parameters.push_back(parseGenericTypeParameter());
+
+        // Parse additional parameters separated by commas
+        while (tokenStream.check(TokenType::COMMA))
+        {
+            tokenStream.advance(); // consume ','
+            parameters.push_back(parseGenericTypeParameter());
+        }
+
+        return parameters;
+    }
+
+    // NEW: Parse a single generic type parameter declaration (e.g., T, U, K extends Comparable)
+    ast::GenericTypeParameter ClassParser::parseGenericTypeParameter()
+    {
+        // Expect an identifier for the type parameter name
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        {
+            throw ParseException("Expected generic type parameter name", tokenStream.current().location);
+        }
+
+        std::string paramName = tokenStream.current().stringValue;
+        auto location = tokenStream.current().location;
+        tokenStream.advance();
+
+        // For now, we don't support constraints (extends/implements)
+        // This can be added later when we implement bounded generics
+        std::vector<std::string> constraints;
+
+        // TODO: Future enhancement - parse constraints
+        // if (tokenStream.check("extends")) {
+        //     tokenStream.advance();
+        //     constraints.push_back(parseTypeName());
+        // }
+
+        return ast::GenericTypeParameter(paramName, constraints, location);
+    }
+
+    // NEW: Convert TypeInfo to GenericType for field and method parsing
+    std::shared_ptr<ast::GenericType> ClassParser::convertTypeInfoToGenericType(const TypeInfo& typeInfo)
+    {
+        // Handle basic types
+        if (typeInfo.baseType != ValueType::OBJECT)
+        {
+            // For collection types, handle their generic arguments
+            if (typeInfo.hasNestedElementType())
+            {
+                // Single-element collections (Array, Set, Queue, Stack)
+                auto elementType = convertTypeInfoToGenericType(*typeInfo.getElementTypeInfo());
+                return std::make_shared<ast::GenericType>(typeInfo.baseType,
+                    std::vector<std::shared_ptr<ast::GenericType>>{elementType});
+            }
+            else if (typeInfo.hasNestedKeyType() && typeInfo.hasNestedValueType())
+            {
+                // Map type
+                auto keyType = convertTypeInfoToGenericType(*typeInfo.getKeyTypeInfo());
+                auto valueType = convertTypeInfoToGenericType(*typeInfo.getValueTypeInfo());
+                return std::make_shared<ast::GenericType>(typeInfo.baseType,
+                    std::vector<std::shared_ptr<ast::GenericType>>{keyType, valueType});
+            }
+            else
+            {
+                // Simple built-in types (int, float, bool, string, void)
+                return std::make_shared<ast::GenericType>(typeInfo.baseType);
+            }
+        }
+        else
+        {
+            // Handle object types
+            if (!typeInfo.className.empty())
+            {
+                // For now, treat as regular object type
+                // Later we can enhance this to detect generic type parameters
+                return std::make_shared<ast::GenericType>(typeInfo.className);
+            }
+            else
+            {
+                // Generic object type
+                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
+            }
         }
     }
 

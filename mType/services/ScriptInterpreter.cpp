@@ -17,6 +17,7 @@
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
+#include "../ast/nodes/classes/ClassNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
@@ -143,6 +144,9 @@ namespace services
             ImportManager* importManagerPtr = importManager.get();
             environment->setImportManager(importManagerPtr);
 
+
+            // Pre-register all class definitions from the cached AST
+            preRegisterClassDefinitions(ast.get());
 
             // Execute the AST
             evaluator->evaluate(ast.get());
@@ -645,5 +649,37 @@ namespace services
             }
         }
         // Note: ImportNodes are typically at the top level, so we mainly need to check ProgramNode and BlockNode
+    }
+
+    void ScriptInterpreter::preRegisterClassDefinitions(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            // Pre-register class in environment
+
+            // Evaluate the ClassNode to register it in the environment
+            evaluator->evaluate(classNode);
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                preRegisterClassDefinitions(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                preRegisterClassDefinitions(statement.get());
+            }
+        }
+        // Add other node types that may contain ClassNodes as needed
     }
 }
