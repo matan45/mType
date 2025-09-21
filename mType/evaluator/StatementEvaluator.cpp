@@ -1018,6 +1018,7 @@ namespace evaluator
             return std::monostate{}; // Already imported
         }
 
+
         // Check if this is a .mtc import (from deserialized ImportNode)
         if (filePath.ends_with(".mtc")) {
             // This is a serialized import - load the .mtc file directly
@@ -1032,7 +1033,6 @@ namespace evaluator
                 if (!importedAST) {
                     throw TypeException("Failed to load cached imported file: " + filePath);
                 }
-
 
                 // Set import evaluation context and evaluate the loaded AST
                 env->setImportEvaluation(true);
@@ -1067,7 +1067,7 @@ namespace evaluator
 
             // Mark as being evaluated to prevent circular imports (use resolved path for consistency)
             importManager->markAsBeingEvaluated(resolvedPath);
-            
+
             // Set import evaluation context
             env->setImportEvaluation(true);
             
@@ -1076,7 +1076,7 @@ namespace evaluator
                 // We need to recursively evaluate the AST using the appropriate evaluators
                 // Since we can't access the coordinator directly, we'll evaluate it ourselves
                 evaluateRecursively(importedAST);
-                
+
                 // Reset import evaluation context
                 env->setImportEvaluation(false);
                 

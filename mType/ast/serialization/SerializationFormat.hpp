@@ -103,17 +103,17 @@ namespace ast::serialization
         POSTFIX = 1
     };
 
-    // Value types for serialization
+    // Value types for serialization - must match runtime ValueType enum exactly
     enum class ValueType : uint8_t
     {
         INT = 0,
         FLOAT = 1,
-        STRING = 2,
-        BOOL = 3,
-        OBJECT = 4,
+        BOOL = 2,
+        STRING = 3,
+        VOID = 4,
+        OBJECT = 5,
+        NULL_VALUE = 6,
         // Collection types removed - now implemented in mType
-        NULL_VALUE = 10,
-        VOID = 11
     };
 
     // File header structure

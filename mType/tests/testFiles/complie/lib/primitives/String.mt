@@ -28,11 +28,11 @@ class String {
     }
 
     function isEmpty() : bool {
-        return value == "";
+        return value = = "";
     }
 
     function equals(String other) : bool {
-        return value == other.value;
+        return this.value = = other.value;
     }
 
     function toString() : string {
@@ -45,6 +45,6 @@ class String {
 
     // Concatenation
     function concat(String other) : String {
-        return new String(value + other.value);
+        return new String(this.value + other.value);
     }
 }

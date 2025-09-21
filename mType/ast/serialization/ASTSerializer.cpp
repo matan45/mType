@@ -1008,6 +1008,9 @@ namespace ast::serialization
 
         // Serialize the static access flag
         writeBool(node->getIsStaticAccess());
+
+        // Write full source location information (filename, line, column)
+        writeSourceLocation(node->getLocation());
     }
 
     void ASTSerializer::serializeMethodCallNode(const nodes::classes::MethodCallNode* node)

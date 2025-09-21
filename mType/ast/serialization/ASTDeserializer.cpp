@@ -1164,10 +1164,8 @@ namespace ast::serialization
         // Read the static access flag
         bool isStaticAccess = readBool();
 
-        // Create the member access node
-        SourceLocation location;
-        location.setLine(header.line);
-        location.setColumn(header.column);
+        // Read full source location information (filename, line, column)
+        errors::SourceLocation location = readSourceLocation();
 
         return std::make_unique<nodes::classes::MemberAccessNode>(
             std::move(object), memberName, isStaticAccess, location);

@@ -394,6 +394,7 @@ namespace parser
         }
 
         std::string memberName = tokenStream.current().stringValue;
+        SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
         // Check if it's a method call
@@ -402,11 +403,11 @@ namespace parser
             tokenStream.advance();
             auto arguments = parseArguments();
             tokenStream.expect(TokenType::RPAREN);
-            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments));
+            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments), false, location);
         }
         else
         {
-            return std::make_unique<MemberAccessNode>(std::move(object), memberName);
+            return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
         }
     }
 

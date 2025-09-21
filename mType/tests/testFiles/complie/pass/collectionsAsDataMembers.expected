@@ -1,57 +1,7 @@
-Testing Collections as Data Members:
-Static Collections:
-Global counters count: 3
-Counter: 100
-Counter: 200
-Counter: 300
-Statistics count: 3
-Stat value: 0
-Stat value: 0
-Stat value: 1440
-Static Final Collections:
-System roles count: 3
-Role: ADMIN
-Role: USER
-Role: GUEST
-Default history count: 3
-History: Services started
-History: Database connected
-History: System initialized
-Added user: Alice (ID: 1)
-Added user: Bob (ID: 2)
-Added user: Charlie (ID: 3)
-Manager 1:
-Regular Collections:
-Names count: 2
-Valid IDs count: 2
-History entries: 2
-Pending IDs: 2
-Final Collections:
-Readonly names count: 2
-Readonly name: System
-Readonly name: Admin
-Categories count: 2
-Category: User
-Category: Manager
-Manager 2:
-Regular Collections:
-Names count: 1
-Valid IDs count: 1
-History entries: 1
-Pending IDs: 1
-Final Collections:
-Readonly names count: 2
-Readonly name: System
-Readonly name: Admin
-Categories count: 2
-Category: User
-Category: Manager
-Updated totalUsers to 3
-Updated activeUsers to 2
-All collection types working as data members:
-- Array<T> as regular, final, static, and static final
-- Map<K,V> as regular and static
-- Set<T> as regular, final, and static final
-- Stack<T> as regular and static final
-- Queue<T> as regular
-Collections as data members test completed successfully!
+Testing collections as data members...
+Number count: 3
+Alice age: 25
+Bob age: 30
+Has Alice: true
+Has Charlie: false
+Collections as data members test completed

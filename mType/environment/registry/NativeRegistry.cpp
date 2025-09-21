@@ -118,9 +118,8 @@ namespace environment::registry
                 }
             }, args[0]);
         });
-
-        // Add str namespace functions - register with qualified names
-        registerNativeFunction("length", [](const std::vector<Value>& args) -> Value
+        
+        registerNativeFunction("strLength", [](const std::vector<Value>& args) -> Value
         {
             if (args.size() != 1)
             {
