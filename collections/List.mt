@@ -45,6 +45,16 @@ class List<T> {
             return false;
         }
 
+        // Content-based comparison using equals() method
+        function containsEquals(T item): bool {
+            for (int i = 0; i < this.count; i++) {
+                if (this.data[i].equals(item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         function size(): int {
             return this.count;
         }
@@ -72,10 +82,20 @@ class List<T> {
             return true;
         }
 
-        // Remove first occurrence of item
+        // Remove first occurrence of item (identity comparison)
         function remove(T item): bool {
             for (int i = 0; i < this.count; i++) {
                 if (this.data[i] == item) {
+                    return this.removeAt(i);
+                }
+            }
+            return false;
+        }
+
+        // Remove first occurrence of item (content comparison using equals)
+        function removeEquals(T item): bool {
+            for (int i = 0; i < this.count; i++) {
+                if (this.data[i].equals(item)) {
                     return this.removeAt(i);
                 }
             }

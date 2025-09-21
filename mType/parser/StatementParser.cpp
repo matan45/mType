@@ -84,12 +84,14 @@ namespace parser
 
                     std::string identifier = tokenStream.current().stringValue;
 
-                    // Check if this identifier is a primitive type name
+                    // Check if this identifier is a type name
                     if (identifier == "int" || identifier == "float" || identifier == "string" ||
                         identifier == "bool" ||
                         // Also check for single-letter generic type parameters (T, K, V, etc.)
-                        (identifier.length() == 1 && std::isupper(identifier[0]))) {
-                        // Pattern: "type[]" - this is likely a type declaration
+                        (identifier.length() == 1 && std::isupper(identifier[0])) ||
+                        // Also check for class names (start with uppercase letter)
+                        (!identifier.empty() && std::isupper(identifier[0]))) {
+                        // Pattern: "Type[]" - this is likely a type declaration
                         return parseDeclaration();
                     } else {
                         // Pattern: "variableName[index]" - this is likely an expression/assignment

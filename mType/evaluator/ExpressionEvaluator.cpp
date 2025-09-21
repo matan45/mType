@@ -997,6 +997,26 @@ namespace evaluator
             }
         }
 
+        // Handle object comparisons (identity-based)
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(left) ||
+            std::holds_alternative<std::shared_ptr<ObjectInstance>>(right) ||
+            std::holds_alternative<std::shared_ptr<NativeArray>>(left) ||
+            std::holds_alternative<std::shared_ptr<NativeArray>>(right))
+        {
+            switch (op)
+            {
+            case TokenType::EQUALS:
+            case TokenType::NOT_EQUALS:
+                {
+                    // Use ValueConverter for consistent object comparison
+                    bool areEqual = ValueConverter::compareValues(left, right);
+                    return (op == TokenType::EQUALS) ? areEqual : !areEqual;
+                }
+            default:
+                throw TypeException("Cannot use relational operators (<, >, <=, >=) with objects", SourceLocation{});
+            }
+        }
+
         // Handle numeric comparisons
         bool isFloat = std::holds_alternative<float>(left) || std::holds_alternative<float>(right);
 
