@@ -1,0 +1,10 @@
+Testing arrays as class data members
+Grades array length: 3
+Math grade: 85
+Science grade: 92
+English grade: 78
+Subjects array length: 3
+Subject 0: Math
+Subject 1: Science
+Subject 2: English
+Array as data member test completed

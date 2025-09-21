@@ -63,6 +63,7 @@ namespace evaluator
         Value evaluateMemberAccessNode(MemberAccessNode* node);
         Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
+        Value evaluateIndexAssignmentNode(IndexAssignmentNode* node);
 
         // Static member operations
         Value accessStaticMember(const std::string& className, const std::string& memberName);

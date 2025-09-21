@@ -17,6 +17,7 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
@@ -82,13 +83,19 @@ namespace evaluator
         {
             return evaluateMemberAssignmentNode(memberAssignNode);
         }
+        if (auto indexAssignNode = dynamic_cast<IndexAssignmentNode*>(node))
+        {
+            return evaluateIndexAssignmentNode(indexAssignNode);
+        }
 
         return std::monostate{};
     }
 
     bool ObjectEvaluator::canHandle(ASTNode* node) const
     {
-        return isObjectNode(node);
+        bool result = isObjectNode(node);
+        std::cout << "[DEBUG] ObjectEvaluator::canHandle for " << typeid(*node).name() << " = " << result << std::endl;
+        return result;
     }
 
 
@@ -111,7 +118,8 @@ namespace evaluator
             dynamic_cast<NewNode*>(node) ||
             dynamic_cast<MemberAccessNode*>(node) ||
             dynamic_cast<MethodCallNode*>(node) ||
-            dynamic_cast<MemberAssignmentNode*>(node);
+            dynamic_cast<MemberAssignmentNode*>(node) ||
+            dynamic_cast<IndexAssignmentNode*>(node);
     }
 
     Value ObjectEvaluator::evaluateClassNode(ClassNode* node)
@@ -557,6 +565,74 @@ namespace evaluator
         {
             throw TypeException("Cannot assign to member '" + node->getMemberName() +
                 "' on non-object value");
+        }
+    }
+
+    Value ObjectEvaluator::evaluateIndexAssignmentNode(IndexAssignmentNode* node)
+    {
+        std::cout << "[DEBUG] IndexAssignmentNode evaluation started" << std::endl;
+
+        if (!exprEvaluator)
+        {
+            throw TypeException("Expression evaluator not available for index assignment");
+        }
+
+        // Evaluate the object expression (should be an array)
+        std::cout << "[DEBUG] Evaluating object expression..." << std::endl;
+        Value objectValue = exprEvaluator->evaluate(node->getObject());
+
+        // Evaluate the index expression
+        std::cout << "[DEBUG] Evaluating index expression..." << std::endl;
+        Value indexValue = exprEvaluator->evaluate(node->getIndex());
+
+        // Evaluate the new value
+        std::cout << "[DEBUG] Evaluating value expression..." << std::endl;
+        Value newValue = exprEvaluator->evaluate(node->getValue());
+
+        std::cout << "[DEBUG] Checking if object is an Array..." << std::endl;
+        if (std::holds_alternative<std::shared_ptr<Array>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<Array>>(objectValue);
+            std::cout << "[DEBUG] Found Array object, size: " << array->size() << std::endl;
+
+            if (std::holds_alternative<int>(indexValue))
+            {
+                int index = std::get<int>(indexValue);
+                std::cout << "[DEBUG] Index value: " << index << std::endl;
+
+                // Log the value type and content
+                if (std::holds_alternative<int>(newValue)) {
+                    std::cout << "[DEBUG] New value (int): " << std::get<int>(newValue) << std::endl;
+                } else if (std::holds_alternative<std::string>(newValue)) {
+                    std::cout << "[DEBUG] New value (string): '" << std::get<std::string>(newValue) << "'" << std::endl;
+                } else {
+                    std::cout << "[DEBUG] New value type: (other)" << std::endl;
+                }
+
+                std::cout << "[DEBUG] Calling array->set(" << index << ", value)..." << std::endl;
+                array->set(index, newValue);
+                std::cout << "[DEBUG] array->set() completed successfully" << std::endl;
+
+                // Verify the value was set
+                Value retrievedValue = array->get(index);
+                if (std::holds_alternative<int>(retrievedValue)) {
+                    std::cout << "[DEBUG] Retrieved value after set (int): " << std::get<int>(retrievedValue) << std::endl;
+                } else if (std::holds_alternative<std::string>(retrievedValue)) {
+                    std::cout << "[DEBUG] Retrieved value after set (string): '" << std::get<std::string>(retrievedValue) << "'" << std::endl;
+                }
+
+                return newValue;
+            }
+            else
+            {
+                std::cout << "[DEBUG] ERROR: Index is not an integer" << std::endl;
+                throw TypeException("Array index must be an integer");
+            }
+        }
+        else
+        {
+            std::cout << "[DEBUG] ERROR: Object is not an Array" << std::endl;
+            throw TypeException("Cannot assign to index on non-array value");
         }
     }
 

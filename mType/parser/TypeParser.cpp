@@ -53,16 +53,19 @@ namespace parser
     {
         TokenType currentType = stream.current().type;
 
+        // Parse base type first
+        TypeInfo baseTypeInfo(ValueType::VOID); // Initialize with dummy value
+
         // Handle dedicated type tokens with O(1) lookup
         auto tokenIt = tokenTypeMap.find(currentType);
         if (tokenIt != tokenTypeMap.end())
         {
             ValueType collectionType = tokenIt->second;
             stream.advance();
-            
+
             // Handle generic parameters for collection types
-            if (collectionType == ValueType::ARRAY || 
-                collectionType == ValueType::SET || collectionType == ValueType::QUEUE || 
+            if (collectionType == ValueType::ARRAY ||
+                collectionType == ValueType::SET || collectionType == ValueType::QUEUE ||
                 collectionType == ValueType::STACK)
             {
                 // These collections expect: CollectionType<ElementType>
@@ -71,13 +74,13 @@ namespace parser
                     stream.advance(); // consume '<'
                     TypeInfo elementTypeInfo = parseTypeInfo(stream); // Recursively parse element type
                     stream.expect(TokenType::GREATER); // consume '>'
-                    
-                    return TypeInfo(collectionType, std::make_shared<TypeInfo>(elementTypeInfo));
+
+                    baseTypeInfo = TypeInfo(collectionType, std::make_shared<TypeInfo>(elementTypeInfo));
                 }
                 else
                 {
                     // Collection without generic parameters - use default
-                    return TypeInfo(collectionType, ValueType::OBJECT);
+                    baseTypeInfo = TypeInfo(collectionType, ValueType::OBJECT);
                 }
             }
             else if (collectionType == ValueType::MAP)
@@ -90,36 +93,36 @@ namespace parser
                     stream.expect(TokenType::COMMA); // consume ','
                     TypeInfo valueTypeInfo = parseTypeInfo(stream); // Parse value type
                     stream.expect(TokenType::GREATER); // consume '>'
-                    
-                    return TypeInfo(collectionType, std::make_shared<TypeInfo>(keyTypeInfo), std::make_shared<TypeInfo>(valueTypeInfo));
+
+                    baseTypeInfo = TypeInfo(collectionType, std::make_shared<TypeInfo>(keyTypeInfo), std::make_shared<TypeInfo>(valueTypeInfo));
                 }
                 else
                 {
                     // Map without generic parameters - use defaults
-                    return TypeInfo(collectionType, ValueType::OBJECT, ValueType::OBJECT);
+                    baseTypeInfo = TypeInfo(collectionType, ValueType::OBJECT, ValueType::OBJECT);
                 }
             }
             else
             {
                 // Simple type (int, float, bool, string, void)
-                return TypeInfo(collectionType);
+                baseTypeInfo = TypeInfo(collectionType);
             }
         }
 
         // Handle identifier-based types
-        if (currentType == TokenType::IDENTIFIER)
+        else if (currentType == TokenType::IDENTIFIER)
         {
             std::string typeName = parseQualifiedName(stream);
-            
+
             // Check if it's a string-based primitive type with O(1) lookup
             auto stringIt = stringTypeMap.find(typeName);
             if (stringIt != stringTypeMap.end())
             {
                 ValueType collectionType = stringIt->second;
-                
+
                 // Handle generic parameters for collection types
-                if (collectionType == ValueType::ARRAY || 
-                    collectionType == ValueType::SET || collectionType == ValueType::QUEUE || 
+                if (collectionType == ValueType::ARRAY ||
+                    collectionType == ValueType::SET || collectionType == ValueType::QUEUE ||
                     collectionType == ValueType::STACK)
                 {
                     if (stream.check(TokenType::LESS))
@@ -127,12 +130,12 @@ namespace parser
                         stream.advance(); // consume '<'
                         TypeInfo elementTypeInfo = parseTypeInfo(stream); // Parse element type
                         stream.expect(TokenType::GREATER); // consume '>'
-                        
-                        return TypeInfo(collectionType, std::make_shared<TypeInfo>(elementTypeInfo));
+
+                        baseTypeInfo = TypeInfo(collectionType, std::make_shared<TypeInfo>(elementTypeInfo));
                     }
                     else
                     {
-                        return TypeInfo(collectionType, ValueType::OBJECT);
+                        baseTypeInfo = TypeInfo(collectionType, ValueType::OBJECT);
                     }
                 }
                 else if (collectionType == ValueType::MAP)
@@ -144,18 +147,18 @@ namespace parser
                         stream.expect(TokenType::COMMA); // consume ','
                         TypeInfo valueTypeInfo = parseTypeInfo(stream); // Parse value type
                         stream.expect(TokenType::GREATER); // consume '>'
-                        
-                        return TypeInfo(collectionType, std::make_shared<TypeInfo>(keyTypeInfo), std::make_shared<TypeInfo>(valueTypeInfo));
+
+                        baseTypeInfo = TypeInfo(collectionType, std::make_shared<TypeInfo>(keyTypeInfo), std::make_shared<TypeInfo>(valueTypeInfo));
                     }
                     else
                     {
-                        return TypeInfo(collectionType, ValueType::OBJECT, ValueType::OBJECT);
+                        baseTypeInfo = TypeInfo(collectionType, ValueType::OBJECT, ValueType::OBJECT);
                     }
                 }
                 else
                 {
                     // Simple primitive type
-                    return TypeInfo(collectionType);
+                    baseTypeInfo = TypeInfo(collectionType);
                 }
             }
             else
@@ -164,11 +167,9 @@ namespace parser
                 if (typeName.length() == 1 && std::isupper(typeName[0])) {
                     // This looks like a generic type parameter (T, K, V, etc.)
                     // For TypeInfo, we'll treat it as OBJECT with the parameter name
-                    return TypeInfo(ValueType::OBJECT, typeName);
+                    baseTypeInfo = TypeInfo(ValueType::OBJECT, typeName);
                 }
-
-                // Check if this custom class has generic type parameters
-                if (stream.check(TokenType::LESS))
+                else if (stream.check(TokenType::LESS))
                 {
                     // This is a generic custom class like Box<int>, Person<T>, etc.
                     // For now, we'll parse the generics but store them as a string
@@ -192,20 +193,52 @@ namespace parser
                     stream.expect(TokenType::GREATER); // consume '>'
                     fullTypeName += ">";
 
-                    return TypeInfo(ValueType::OBJECT, fullTypeName);
+                    baseTypeInfo = TypeInfo(ValueType::OBJECT, fullTypeName);
                 }
-
-                // Treat unknown identifier types as custom class types (OBJECT)
-                return TypeInfo(ValueType::OBJECT, typeName);
+                else
+                {
+                    // Treat unknown identifier types as custom class types (OBJECT)
+                    baseTypeInfo = TypeInfo(ValueType::OBJECT, typeName);
+                }
             }
         }
+        else
+        {
+            throw ParseException("Expected type", stream.location());
+        }
 
-        throw ParseException("Expected type", stream.location());
+        // Now check for array brackets: int[], string[][], T[], etc.
+        int arrayDimensions = 0;
+        while (stream.check(TokenType::LBRACKET))
+        {
+            stream.advance(); // consume '['
+            stream.expect(TokenType::RBRACKET); // consume ']'
+            arrayDimensions++;
+        }
+
+        // If we found array brackets, convert the base type to an Array<> type
+        if (arrayDimensions > 0)
+        {
+            TypeInfo currentType = baseTypeInfo;
+
+            // Wrap in Array<> for each dimension: int[] -> Array<int>, int[][] -> Array<Array<int>>
+            for (int i = 0; i < arrayDimensions; i++)
+            {
+                currentType = TypeInfo(ValueType::ARRAY, std::make_shared<TypeInfo>(currentType));
+            }
+
+            return currentType;
+        }
+
+        return baseTypeInfo;
     }
 
     std::shared_ptr<ast::GenericType> TypeParser::parseGenericType(TokenStream& stream)
     {
         TokenType currentType = stream.current().type;
+
+        // Parse base type first
+        std::shared_ptr<ast::GenericType> baseType;
 
         // Handle dedicated type tokens with O(1) lookup
         auto tokenIt = tokenTypeMap.find(currentType);
@@ -227,12 +260,12 @@ namespace parser
                     stream.expect(TokenType::GREATER); // consume '>'
 
                     std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {elementType};
-                    return std::make_shared<ast::GenericType>(valueType, typeArgs);
+                    baseType = std::make_shared<ast::GenericType>(valueType, typeArgs);
                 }
                 else
                 {
                     // Collection without generic parameters - use default
-                    return std::make_shared<ast::GenericType>(valueType);
+                    baseType = std::make_shared<ast::GenericType>(valueType);
                 }
             }
             else if (valueType == ValueType::MAP)
@@ -247,23 +280,23 @@ namespace parser
                     stream.expect(TokenType::GREATER); // consume '>'
 
                     std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {keyGenericType, valueGenericType};
-                    return std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
+                    baseType = std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
                 }
                 else
                 {
                     // Map without generic parameters - use defaults
-                    return std::make_shared<ast::GenericType>(valueType);
+                    baseType = std::make_shared<ast::GenericType>(valueType);
                 }
             }
             else
             {
                 // Simple type (int, float, bool, string, void)
-                return std::make_shared<ast::GenericType>(valueType);
+                baseType = std::make_shared<ast::GenericType>(valueType);
             }
         }
 
         // Handle identifier-based types
-        if (currentType == TokenType::IDENTIFIER)
+        else if (currentType == TokenType::IDENTIFIER)
         {
             std::string typeName = parseQualifiedName(stream);
 
@@ -285,11 +318,11 @@ namespace parser
                         stream.expect(TokenType::GREATER); // consume '>'
 
                         std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {elementType};
-                        return std::make_shared<ast::GenericType>(valueType, typeArgs);
+                        baseType = std::make_shared<ast::GenericType>(valueType, typeArgs);
                     }
                     else
                     {
-                        return std::make_shared<ast::GenericType>(valueType);
+                        baseType = std::make_shared<ast::GenericType>(valueType);
                     }
                 }
                 else if (valueType == ValueType::MAP)
@@ -303,17 +336,17 @@ namespace parser
                         stream.expect(TokenType::GREATER); // consume '>'
 
                         std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {keyGenericType, valueGenericType};
-                        return std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
+                        baseType = std::make_shared<ast::GenericType>(ValueType::MAP, typeArgs);
                     }
                     else
                     {
-                        return std::make_shared<ast::GenericType>(valueType);
+                        baseType = std::make_shared<ast::GenericType>(valueType);
                     }
                 }
                 else
                 {
                     // Simple primitive type
-                    return std::make_shared<ast::GenericType>(valueType);
+                    baseType = std::make_shared<ast::GenericType>(valueType);
                 }
             }
             else
@@ -321,11 +354,9 @@ namespace parser
                 // Check if this might be a generic type parameter (single letter, capitalized)
                 if (typeName.length() == 1 && std::isupper(typeName[0])) {
                     // This is a generic type parameter (T, K, V, etc.)
-                    return std::make_shared<ast::GenericType>(typeName);
+                    baseType = std::make_shared<ast::GenericType>(typeName);
                 }
-
-                // Check if this is a generic class with type arguments
-                if (stream.check(TokenType::LESS)) {
+                else if (stream.check(TokenType::LESS)) {
                     stream.advance(); // consume '<'
                     std::vector<std::shared_ptr<ast::GenericType>> typeArgs;
 
@@ -343,15 +374,45 @@ namespace parser
                     stream.expect(TokenType::GREATER); // consume '>'
 
                     // Create generic type for custom class with type arguments
-                    return std::make_shared<ast::GenericType>(typeName, typeArgs);
+                    baseType = std::make_shared<ast::GenericType>(typeName, typeArgs);
                 }
-
-                // Treat as custom class type without type arguments
-                return std::make_shared<ast::GenericType>(typeName);
+                else
+                {
+                    // Treat as custom class type without type arguments
+                    baseType = std::make_shared<ast::GenericType>(typeName);
+                }
             }
         }
+        else
+        {
+            throw ParseException("Expected type", stream.location());
+        }
 
-        throw ParseException("Expected type", stream.location());
+        // Now check for array brackets: int[], string[][], T[], etc.
+        int arrayDimensions = 0;
+        while (stream.check(TokenType::LBRACKET))
+        {
+            stream.advance(); // consume '['
+            stream.expect(TokenType::RBRACKET); // consume ']'
+            arrayDimensions++;
+        }
+
+        // If we found array brackets, convert the base type to an Array<> type
+        if (arrayDimensions > 0)
+        {
+            auto currentType = baseType;
+
+            // Wrap in Array<> for each dimension: int[] -> Array<int>, int[][] -> Array<Array<int>>
+            for (int i = 0; i < arrayDimensions; i++)
+            {
+                std::vector<std::shared_ptr<ast::GenericType>> typeArgs = {currentType};
+                currentType = std::make_shared<ast::GenericType>(ValueType::ARRAY, typeArgs);
+            }
+
+            return currentType;
+        }
+
+        return baseType;
     }
 
     std::pair<ValueType, std::string> TypeParser::parseTypeWithClassName(TokenStream& stream)

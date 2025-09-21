@@ -56,6 +56,7 @@ namespace evaluator
         Value visitNativeFunctionNode(NativeFunctionNode* node) override;
         Value visitNullNode(NullNode* node) override;
         Value visitMemberAssignmentNode(MemberAssignmentNode* node) override;
+        Value visitIndexAssignmentNode(IndexAssignmentNode* node) override;
         Value visitMethodCallNode(MethodCallNode* node) override;
         Value visitMemberAccessNode(MemberAccessNode* node) override;
         Value visitNewNode(NewNode* node) override;
@@ -64,6 +65,8 @@ namespace evaluator
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
         Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
+        Value visitArrayCreationNode(ArrayCreationNode* node) override;
+        Value visitArrayTypeNode(ArrayTypeNode* node) override;
         Value visitMapLiteralNode(MapLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;

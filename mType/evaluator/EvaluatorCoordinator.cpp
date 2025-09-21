@@ -1,5 +1,6 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include <iostream>
 
 namespace evaluator
 {
@@ -202,6 +203,12 @@ namespace evaluator
     {
         return objEvaluator->evaluateMemberAssignmentNode(node);
     }
+
+    Value EvaluatorCoordinator::visitIndexAssignmentNode(IndexAssignmentNode* node)
+    {
+        std::cout << "[DEBUG] EvaluatorCoordinator::visitIndexAssignmentNode called" << std::endl;
+        return objEvaluator->evaluateIndexAssignmentNode(node);
+    }
     
     Value EvaluatorCoordinator::visitMethodCallNode(MethodCallNode* node)
     {
@@ -289,6 +296,16 @@ namespace evaluator
     Value EvaluatorCoordinator::visitArrayLiteralNode(ArrayLiteralNode* node)
     {
         return exprEvaluator->evaluateArrayLiteralNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitArrayCreationNode(ArrayCreationNode* node)
+    {
+        return exprEvaluator->evaluateArrayCreationNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitArrayTypeNode(ArrayTypeNode* node)
+    {
+        return exprEvaluator->evaluateArrayTypeNode(node);
     }
 
     Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)

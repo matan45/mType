@@ -65,6 +65,8 @@ namespace evaluator
         Value evaluateNewNode(NewNode* node);
         Value evaluateAssignmentExpression(AssignmentNode* node);
         Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
+        Value evaluateArrayCreationNode(ArrayCreationNode* node);
+        Value evaluateArrayTypeNode(ArrayTypeNode* node);
         Value evaluateMapLiteralNode(MapLiteralNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
 

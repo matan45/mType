@@ -3,7 +3,9 @@
 #include "ParserUtils.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
@@ -592,7 +594,47 @@ namespace parser
                 );
             }
         }
-        
+
+        // Check if this is an index assignment (array[index] = value)
+        if (auto indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(expr.get())) {
+            TokenType opType = tokenStream.current().type;
+            if (TypeParser::isAssignmentOperator(opType)) {
+
+                tokenStream.advance(); // consume assignment operator
+                auto value = context.parseExpression();
+
+                // For compound assignments, create a binary expression
+                if (opType != TokenType::ASSIGN) {
+                    TokenType binaryOp;
+                    switch (opType) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
+                        default: binaryOp = TokenType::PLUS; break;
+                    }
+                    value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
+                        std::move(expr), binaryOp, std::move(value));
+
+                    tokenStream.expect(TokenType::SEMICOLON);
+                    return value;
+                }
+
+                tokenStream.expect(TokenType::SEMICOLON);
+
+                // Extract the object and index for the assignment
+                auto object = indexAccess->transferCollectionOwnership();
+                auto index = indexAccess->transferIndexOwnership();
+
+                return std::make_unique<ast::nodes::statements::IndexAssignmentNode>(
+                    std::move(object),
+                    std::move(index),
+                    std::move(value)
+                );
+            }
+        }
+
         tokenStream.expect(TokenType::SEMICOLON);
         return expr;
     }

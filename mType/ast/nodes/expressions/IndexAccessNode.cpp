@@ -25,6 +25,16 @@ namespace ast::nodes::expressions
         index = std::move(newIndex);
     }
 
+    std::unique_ptr<ASTNode> IndexAccessNode::transferCollectionOwnership()
+    {
+        return std::move(collection);
+    }
+
+    std::unique_ptr<ASTNode> IndexAccessNode::transferIndexOwnership()
+    {
+        return std::move(index);
+    }
+
     Value IndexAccessNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitIndexAccessNode(this);

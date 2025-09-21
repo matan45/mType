@@ -2,6 +2,7 @@
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
+#include <iostream>
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
@@ -18,6 +19,7 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../errors/ParseException.hpp"
 
@@ -46,10 +48,11 @@ namespace parser
             tokenStream.current().type == TokenType::DIVIDE_ASSIGN ||
             tokenStream.current().type == TokenType::MODULO_ASSIGN)
         {
-            // For assignment expressions, the left side should be a variable, member access, or qualified name
+            // For assignment expressions, the left side should be a variable, member access, or index access
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
-            if (!variableNode && !memberAccessNode)
+            auto indexAccessNode = dynamic_cast<IndexAccessNode*>(expr.get());
+            if (!variableNode && !memberAccessNode && !indexAccessNode)
             {
                 throw ParseException("Invalid assignment target", tokenStream.current().location);
             }
@@ -73,6 +76,27 @@ namespace parser
                 {
                     // Compound member assignment - not fully implemented yet
                     throw ParseException("Compound assignment to member not yet supported",
+                                         tokenStream.current().location);
+                }
+            }
+            else if (indexAccessNode)
+            {
+                std::cout << "[DEBUG] ExpressionParser: Found IndexAccessNode in assignment context" << std::endl;
+                // Index assignment (e.g., array[0] = "value")
+                if (opType == TokenType::ASSIGN)
+                {
+                    std::cout << "[DEBUG] ExpressionParser: Creating IndexAssignmentNode" << std::endl;
+                    auto node = std::make_unique<IndexAssignmentNode>(
+                        indexAccessNode->transferCollectionOwnership(),
+                        indexAccessNode->transferIndexOwnership(),
+                        std::move(rightExpr));
+                    std::cout << "[DEBUG] ExpressionParser: IndexAssignmentNode created successfully" << std::endl;
+                    return node;
+                }
+                else
+                {
+                    // Compound index assignment - not fully implemented yet
+                    throw ParseException("Compound assignment to index not yet supported",
                                          tokenStream.current().location);
                 }
             }

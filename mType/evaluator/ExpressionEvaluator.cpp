@@ -19,6 +19,8 @@
 #include "../ast/nodes/expressions/StringNode.hpp"
 #include "../ast/nodes/expressions/BoolNode.hpp"
 #include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../ast/nodes/expressions/ArrayTypeNode.hpp"
 #include "../ast/nodes/expressions/MapLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
@@ -106,6 +108,12 @@ namespace evaluator
         if (auto arrayLiteralNode = dynamic_cast<ArrayLiteralNode*>(node)) {
             return evaluateArrayLiteralNode(arrayLiteralNode);
         }
+        if (auto arrayCreationNode = dynamic_cast<ArrayCreationNode*>(node)) {
+            return evaluateArrayCreationNode(arrayCreationNode);
+        }
+        if (auto arrayTypeNode = dynamic_cast<ArrayTypeNode*>(node)) {
+            return evaluateArrayTypeNode(arrayTypeNode);
+        }
         if (auto mapLiteralNode = dynamic_cast<MapLiteralNode*>(node)) {
             return evaluateMapLiteralNode(mapLiteralNode);
         }
@@ -169,6 +177,8 @@ namespace evaluator
                dynamic_cast<AssignmentNode*>(node) ||
                dynamic_cast<MemberAssignmentNode*>(node) ||
                dynamic_cast<ArrayLiteralNode*>(node) ||
+               dynamic_cast<ArrayCreationNode*>(node) ||
+               dynamic_cast<ArrayTypeNode*>(node) ||
                dynamic_cast<MapLiteralNode*>(node) ||
                dynamic_cast<IndexAccessNode*>(node);
     }
@@ -642,25 +652,36 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
     {
         Value objectValue = evaluate(node->getObject());
-        
+
         // Check if object is null
         if (std::holds_alternative<nullptr_t>(objectValue)) {
             throw TypeException("Cannot access member of null object", node->getLocation());
         }
-        
-        // Get object instance
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw TypeException("Cannot access member of non-object value", node->getLocation());
+
+        // Handle Array.length property
+        if (std::holds_alternative<std::shared_ptr<Array>>(objectValue)) {
+            auto array = std::get<std::shared_ptr<Array>>(objectValue);
+
+            if (node->getMemberName() == "length") {
+                return static_cast<int>(array->size());
+            } else {
+                throw UndefinedException("Array only supports 'length' property, not '" + node->getMemberName() + "'", node->getLocation());
+            }
         }
-        
-        auto object = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-        auto field = object->getField(node->getMemberName());
-        
-        if (!field) {
-            throw UndefinedException("Undefined field: " + node->getMemberName(), node->getLocation());
+
+        // Handle object instances
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+            auto object = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+            auto field = object->getField(node->getMemberName());
+
+            if (!field) {
+                throw UndefinedException("Undefined field: " + node->getMemberName(), node->getLocation());
+            }
+
+            return object->getFieldValue(node->getMemberName());
         }
-        
-        return object->getFieldValue(node->getMemberName());
+
+        throw TypeException("Cannot access member of non-object value", node->getLocation());
     }
 
     Value ExpressionEvaluator::evaluateMethodCallNode(MethodCallNode* node)
@@ -929,6 +950,68 @@ namespace evaluator
         }
         
         return array;
+    }
+
+    Value ExpressionEvaluator::evaluateArrayCreationNode(ArrayCreationNode* node)
+    {
+        // Evaluate the size expression
+        Value sizeValue = evaluate(node->getSizeExpression().get());
+
+        // Convert size to integer
+        int size = 0;
+        if (std::holds_alternative<int>(sizeValue)) {
+            size = std::get<int>(sizeValue);
+        } else if (std::holds_alternative<float>(sizeValue)) {
+            size = static_cast<int>(std::get<float>(sizeValue));
+        } else {
+            throw TypeException("Array size must be an integer", node->getLocation());
+        }
+
+        if (size < 0) {
+            throw TypeException("Array size cannot be negative", node->getLocation());
+        }
+
+        // Get the element type
+        auto typeInfo = node->getElementTypeInfo();
+        ValueType elementType = typeInfo.baseType;
+
+        // Create array with specified size (initialized with default values)
+        auto array = std::make_shared<Array>(elementType);
+
+        // Initialize array with default values based on type
+        Value defaultValue;
+        switch (elementType) {
+            case ValueType::INT:
+                defaultValue = 0;
+                break;
+            case ValueType::FLOAT:
+                defaultValue = 0.0f;
+                break;
+            case ValueType::BOOL:
+                defaultValue = false;
+                break;
+            case ValueType::STRING:
+                defaultValue = std::string("");
+                break;
+            case ValueType::OBJECT:
+            default:
+                defaultValue = nullptr_t{};
+                break;
+        }
+
+        // Fill array with default values
+        for (int i = 0; i < size; i++) {
+            array->add(defaultValue);
+        }
+
+        return array;
+    }
+
+    Value ExpressionEvaluator::evaluateArrayTypeNode(ArrayTypeNode* node)
+    {
+        // ArrayTypeNode is typically used in type declarations, not runtime evaluation
+        // This method is here for completeness but should rarely be called directly
+        throw TypeException("ArrayTypeNode should not be evaluated directly", node->getLocation());
     }
 
     Value ExpressionEvaluator::evaluateMapLiteralNode(MapLiteralNode* node)

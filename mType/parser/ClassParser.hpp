@@ -38,6 +38,9 @@ namespace parser
 
         // NEW: Helper method to convert TypeInfo to GenericType
         std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
+
+        // Helper method to create TypeInfo from class name string
+        TypeInfo createTypeInfoFromClassName(const std::string& className);
     };
 }
 
