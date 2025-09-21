@@ -56,9 +56,7 @@ namespace ast::serialization
         void serializeBinaryExpNode(const nodes::expressions::BinaryExpNode* node);
         void serializeUnaryExpNode(const nodes::expressions::UnaryExpNode* node);
         void serializeTernaryExpNode(const nodes::expressions::TernaryExpNode* node);
-        void serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node);
         void serializeArrayCreationNode(const nodes::expressions::ArrayCreationNode* node);
-        void serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node);
         void serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node);
 
         // Statement node serialization

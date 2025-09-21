@@ -23,76 +23,20 @@ namespace parser
         ValueType baseType;
         std::string className;  // For custom classes
         
-        // Recursive type information for nested collections
-        std::optional<std::shared_ptr<TypeInfo>> elementTypeInfo;  // For Array, List, Set, Queue, Stack
-        std::optional<std::shared_ptr<TypeInfo>> keyTypeInfo;      // For Map
-        std::optional<std::shared_ptr<TypeInfo>> valueTypeInfo;    // For Map
-        
-        // Legacy fields for backward compatibility
-        std::optional<ValueType> elementType;  // For Array, List, Set, Queue, Stack
-        std::optional<ValueType> keyType;      // For Map
-        std::optional<ValueType> valueType;    // For Map
-        std::optional<std::string> elementClassName;  // For collections of custom objects
-        std::optional<std::string> keyClassName;      // For Map with custom key objects  
-        std::optional<std::string> valueClassName;    // For Map with custom value objects
+        // No collection-specific fields needed anymore
+
+        // Default constructor
+        TypeInfo() : baseType(ValueType::VOID) {}
 
         // Constructor for simple types
         TypeInfo(ValueType type) : baseType(type) {}
-        
+
         // Constructor for object types
         TypeInfo(ValueType type, const std::string& className) : baseType(type), className(className) {}
         
-        // Constructor for single-element collections (Array, List, Set, Queue, Stack) - legacy
-        TypeInfo(ValueType baseType, ValueType elementType, const std::string& elementClassName = "")
-            : baseType(baseType), elementType(elementType), elementClassName(elementClassName.empty() ? std::nullopt : std::make_optional(elementClassName)) {}
+        // No collection-specific constructors needed anymore
         
-        // Constructor for Map - legacy
-        TypeInfo(ValueType baseType, ValueType keyType, ValueType valueType, 
-                const std::string& keyClassName = "", const std::string& valueClassName = "")
-            : baseType(baseType), keyType(keyType), valueType(valueType),
-              keyClassName(keyClassName.empty() ? std::nullopt : std::make_optional(keyClassName)),
-              valueClassName(valueClassName.empty() ? std::nullopt : std::make_optional(valueClassName)) {}
-              
-        // NEW: Constructor for single-element collections with recursive TypeInfo
-        TypeInfo(ValueType baseType, std::shared_ptr<TypeInfo> elementTypeInfo)
-            : baseType(baseType), elementTypeInfo(elementTypeInfo) 
-        {
-            // Set legacy fields for backward compatibility
-            if (elementTypeInfo) {
-                elementType = elementTypeInfo->baseType;
-                if (elementTypeInfo->baseType == ValueType::OBJECT) {
-                    elementClassName = elementTypeInfo->className;
-                }
-            }
-        }
-        
-        // NEW: Constructor for Map with recursive TypeInfo
-        TypeInfo(ValueType baseType, std::shared_ptr<TypeInfo> keyTypeInfo, std::shared_ptr<TypeInfo> valueTypeInfo)
-            : baseType(baseType), keyTypeInfo(keyTypeInfo), valueTypeInfo(valueTypeInfo)
-        {
-            // Set legacy fields for backward compatibility
-            if (keyTypeInfo) {
-                keyType = keyTypeInfo->baseType;
-                if (keyTypeInfo->baseType == ValueType::OBJECT) {
-                    keyClassName = keyTypeInfo->className;
-                }
-            }
-            if (valueTypeInfo) {
-                valueType = valueTypeInfo->baseType;
-                if (valueTypeInfo->baseType == ValueType::OBJECT) {
-                    valueClassName = valueTypeInfo->className;
-                }
-            }
-        }
-        
-        // Helper methods for recursive type access
-        bool hasNestedElementType() const { return elementTypeInfo.has_value(); }
-        bool hasNestedKeyType() const { return keyTypeInfo.has_value(); }
-        bool hasNestedValueType() const { return valueTypeInfo.has_value(); }
-        
-        std::shared_ptr<TypeInfo> getElementTypeInfo() const { return elementTypeInfo.value_or(nullptr); }
-        std::shared_ptr<TypeInfo> getKeyTypeInfo() const { return keyTypeInfo.value_or(nullptr); }
-        std::shared_ptr<TypeInfo> getValueTypeInfo() const { return valueTypeInfo.value_or(nullptr); }
+        // No collection-specific helper methods needed anymore
         
         // Convert TypeInfo to string representation (for backward compatibility)
         std::string toString() const;

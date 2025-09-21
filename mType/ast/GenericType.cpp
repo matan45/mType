@@ -37,11 +37,7 @@ namespace ast
             case value::ValueType::VOID: return "void";
             case value::ValueType::OBJECT: return "object";
             case value::ValueType::NULL_TYPE: return "null";
-            case value::ValueType::ARRAY: return "Array";
-            case value::ValueType::MAP: return "Map";
-            case value::ValueType::SET: return "Set";
-            case value::ValueType::QUEUE: return "Queue";
-            case value::ValueType::STACK: return "Stack";
+            // Collection types removed - now implemented in mType
             default: return "unknown";
         }
     }

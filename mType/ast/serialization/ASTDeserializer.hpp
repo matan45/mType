@@ -54,9 +54,7 @@ namespace ast::serialization
         std::unique_ptr<ASTNode> deserializeBinaryExpNode(const NodeHeader& header);
         std::unique_ptr<ASTNode> deserializeUnaryExpNode(const NodeHeader& header);
         std::unique_ptr<ASTNode> deserializeTernaryExpNode(const NodeHeader& header);
-        std::unique_ptr<ASTNode> deserializeArrayLiteralNode(const NodeHeader& header);
         std::unique_ptr<ASTNode> deserializeArrayCreationNode(const NodeHeader& header);
-        std::unique_ptr<ASTNode> deserializeMapLiteralNode(const NodeHeader& header);
         std::unique_ptr<ASTNode> deserializeIndexAccessNode(const NodeHeader& header);
 
         // Statement node deserialization

@@ -1,9 +1,7 @@
 #include "ObjectEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
-#include "utils/CollectionTypeHelper.hpp"
 #include "utils/GenericTypeManager.hpp"
-#include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../exception/ReturnException.hpp"
@@ -18,15 +16,12 @@
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../value/NativeArray.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/Set.hpp"
-#include "../runtimeTypes/collections/Queue.hpp"
-#include "../runtimeTypes/collections/Stack.hpp"
+// All collection includes removed - collections now implemented in mType language
 #include "../parser/TypeParser.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "ExpressionEvaluator.hpp"
@@ -36,6 +31,7 @@ namespace evaluator
 {
     using namespace errors;
     using namespace runtimeTypes::klass;
+    using namespace parser;
 
     ObjectEvaluator::ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx)
         : context(ctx), instanceManager(std::make_unique<InstanceManager>()),
@@ -228,9 +224,11 @@ namespace evaluator
         }
 
         std::string className = node->getClassName();
-        
-        // Handle collection types specially
-        if (className.find("Array<") == 0)
+
+        // REMOVED: Collection handling - collections now implemented in mType language
+        // All collections (Array, Map, Set, Stack, Queue) will be handled as regular mType classes
+
+        /* if (className.find("Array<") == 0)
         {
             // Parse the element type from Array<ElementType>
             size_t start = className.find('<') + 1;
@@ -369,7 +367,7 @@ namespace evaluator
             {
                 return std::make_shared<runtimeTypes::collections::Stack>(value::ValueType::OBJECT);
             }
-        }
+        } */
 
         // Handle regular class instantiation
         // className already declared above for collections
@@ -581,7 +579,29 @@ namespace evaluator
 
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
-        if (std::holds_alternative<std::shared_ptr<Array>>(objectValue))
+
+        // Check if index is an integer
+        if (!std::holds_alternative<int>(indexValue)) {
+            throw TypeException("Array index must be an integer", node->getLocation());
+        }
+
+        int index = std::get<int>(indexValue);
+
+        // Check if object is a NativeArray
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue)) {
+            auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+
+            // Check bounds
+            if (index < 0 || static_cast<size_t>(index) >= nativeArray->size()) {
+                throw TypeException("Array index out of bounds", node->getLocation());
+            }
+
+            nativeArray->set(static_cast<size_t>(index), newValue);
+            return newValue;
+        }
+
+        throw TypeException("Cannot assign to index of non-array value", node->getLocation());
+        /* if (std::holds_alternative<std::shared_ptr<Array>>(objectValue))
         {
             auto array = std::get<std::shared_ptr<Array>>(objectValue);
 
@@ -602,7 +622,7 @@ namespace evaluator
         {
             std::cout << "[DEBUG] ERROR: Object is not an Array" << std::endl;
             throw TypeException("Cannot assign to index on non-array value");
-        }
+        } */
     }
 
     void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object,
@@ -654,11 +674,8 @@ namespace evaluator
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return callMethod(instance, node->getMethodName(), args);
         }
-        // Handle all collection types using unified dispatcher
-        else if (utils::CollectionTypeHelper::isCollection(objectValue))
-        {
-            return dispatchCollectionMethod(objectValue, node->getMethodName(), args);
-        }
+        // Collection method dispatch removed - collections now implemented in mType language
+        // Collections will be handled as regular object method calls
         else
         {
             throw TypeException("Cannot call method '" + node->getMethodName() +
@@ -923,38 +940,17 @@ namespace evaluator
     }
     
     
-    Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
+    // REMOVED: Collection method dispatch - collections now implemented in mType language
+    /* Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
                                                    const std::string& methodName,
                                                    const std::vector<Value>& args)
     {
-        // Use template dispatch based on the actual collection type
-        if (utils::CollectionTypeHelper::isArray(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Array>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isMap(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Map>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isSet(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Set>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isStack(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Stack>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isQueue(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Queue>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else {
-            throw TypeException("Unknown collection type for method '" + methodName + "'");
-        }
-    }
+        // This method is no longer needed since collections are implemented in mType
+        throw TypeException("Collection method dispatch removed - collections now handled as mType objects");
+    } */
 
-    // Specialized Array method operations
-    Value ObjectEvaluator::callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array,
+    // REMOVED: All collection method implementations - collections now implemented in mType language
+    /* Value ObjectEvaluator::callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array,
                                           const std::string& methodName,
                                           const std::vector<Value>& args)
     {
@@ -1247,7 +1243,8 @@ namespace evaluator
         {
             throw TypeException("Unknown method '" + methodName + "' for Queue type");
         }
-    }
+    } */
+
 
     // Template instantiations not needed - template is now in header
 }

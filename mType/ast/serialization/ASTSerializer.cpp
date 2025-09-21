@@ -9,9 +9,7 @@
 #include "../nodes/expressions/BinaryExpNode.hpp"
 #include "../nodes/expressions/UnaryExpNode.hpp"
 #include "../nodes/expressions/TernaryExpNode.hpp"
-#include "../nodes/expressions/ArrayLiteralNode.hpp"
 #include "../nodes/expressions/ArrayCreationNode.hpp"
-#include "../nodes/expressions/MapLiteralNode.hpp"
 #include "../nodes/expressions/IndexAccessNode.hpp"
 
 #include "../nodes/statements/ProgramNode.hpp"
@@ -205,12 +203,6 @@ namespace ast::serialization
             break;
         case NodeType::TERNARY_EXP_NODE:
             serializeTernaryExpNode(dynamic_cast<const nodes::expressions::TernaryExpNode*>(node));
-            break;
-        case NodeType::ARRAY_LITERAL_NODE:
-            serializeArrayLiteralNode(dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node));
-            break;
-        case NodeType::MAP_LITERAL_NODE:
-            serializeMapLiteralNode(dynamic_cast<const nodes::expressions::MapLiteralNode*>(node));
             break;
         case NodeType::INDEX_ACCESS_NODE:
             serializeIndexAccessNode(dynamic_cast<const nodes::expressions::IndexAccessNode*>(node));
@@ -585,10 +577,6 @@ namespace ast::serialization
             return NodeType::UNARY_EXP_NODE;
         if (dynamic_cast<const nodes::expressions::TernaryExpNode*>(node))
             return NodeType::TERNARY_EXP_NODE;
-        if (dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node))
-            return NodeType::ARRAY_LITERAL_NODE;
-        if (dynamic_cast<const nodes::expressions::MapLiteralNode*>(node))
-            return NodeType::MAP_LITERAL_NODE;
         if (dynamic_cast<const nodes::expressions::IndexAccessNode*>(node))
             return NodeType::INDEX_ACCESS_NODE;
         if (dynamic_cast<const nodes::expressions::ArrayCreationNode*>(node))
@@ -697,21 +685,6 @@ namespace ast::serialization
         serializeNode(node->getFalseExpression());
     }
 
-    void ASTSerializer::serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node)
-    {
-        // Serialize the element type
-        writeUInt8(static_cast<uint8_t>(node->getElementType()));
-
-        // Serialize the number of elements
-        const auto& elements = node->getElements();
-        writeUInt32(static_cast<uint32_t>(elements.size()));
-
-        // Serialize each element
-        for (const auto& element : elements)
-        {
-            serializeNode(element.get());
-        }
-    }
 
     void ASTSerializer::serializeArrayCreationNode(const nodes::expressions::ArrayCreationNode* node)
     {
@@ -728,23 +701,6 @@ namespace ast::serialization
         }
     }
 
-    void ASTSerializer::serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node)
-    {
-        // Serialize the key and value types
-        writeUInt8(static_cast<uint8_t>(node->getKeyType()));
-        writeUInt8(static_cast<uint8_t>(node->getValueType()));
-
-        // Serialize the number of key-value pairs
-        const auto& pairs = node->getKeyValuePairs();
-        writeUInt32(static_cast<uint32_t>(pairs.size()));
-
-        // Serialize each key-value pair
-        for (const auto& pair : pairs)
-        {
-            serializeNode(pair.first.get()); // key
-            serializeNode(pair.second.get()); // value
-        }
-    }
 
     void ASTSerializer::serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node)
     {
@@ -1092,11 +1048,7 @@ namespace ast::serialization
         case value::ValueType::STRING: return static_cast<uint8_t>(ast::serialization::ValueType::STRING);
         case value::ValueType::BOOL: return static_cast<uint8_t>(ast::serialization::ValueType::BOOL);
         case value::ValueType::OBJECT: return static_cast<uint8_t>(ast::serialization::ValueType::OBJECT);
-        case value::ValueType::ARRAY: return static_cast<uint8_t>(ast::serialization::ValueType::ARRAY);
-        case value::ValueType::MAP: return static_cast<uint8_t>(ast::serialization::ValueType::MAP);
-        case value::ValueType::SET: return static_cast<uint8_t>(ast::serialization::ValueType::SET);
-        case value::ValueType::STACK: return static_cast<uint8_t>(ast::serialization::ValueType::STACK);
-        case value::ValueType::QUEUE: return static_cast<uint8_t>(ast::serialization::ValueType::QUEUE);
+        // Collection ValueTypes removed - now implemented in mType
         case value::ValueType::NULL_TYPE: return static_cast<uint8_t>(ast::serialization::ValueType::NULL_VALUE);
         case value::ValueType::VOID: return static_cast<uint8_t>(ast::serialization::ValueType::VOID);
         default:
@@ -1113,56 +1065,20 @@ namespace ast::serialization
         // Serialize class name
         writeString(typeInfo.className);
 
-        // Serialize element type info for collections
-        if (typeInfo.elementTypeInfo.has_value()) {
-            writeUInt8(1); // Has element type
-            writeTypeInfo(*typeInfo.elementTypeInfo.value());
-        } else {
-            writeUInt8(0); // No element type
-        }
+        // Collection-specific type info no longer exists, but maintain serialization format
+        writeUInt8(0); // No element type
+        writeUInt8(0); // No key type
+        writeUInt8(0); // No value type
 
-        // Serialize key type info for maps
-        if (typeInfo.keyTypeInfo.has_value()) {
-            writeUInt8(1); // Has key type
-            writeTypeInfo(*typeInfo.keyTypeInfo.value());
-        } else {
-            writeUInt8(0); // No key type
-        }
+        // Legacy collection fields no longer exist, but maintain serialization format
+        writeUInt8(0); // No legacy element type
+        writeUInt8(0); // No legacy key type
+        writeUInt8(0); // No legacy value type
 
-        // Serialize value type info for maps
-        if (typeInfo.valueTypeInfo.has_value()) {
-            writeUInt8(1); // Has value type
-            writeTypeInfo(*typeInfo.valueTypeInfo.value());
-        } else {
-            writeUInt8(0); // No value type
-        }
-
-        // Serialize legacy fields for backward compatibility
-        if (typeInfo.elementType.has_value()) {
-            writeUInt8(1); // Has legacy element type
-            writeUInt8(valueTypeToSerializationType(typeInfo.elementType.value()));
-        } else {
-            writeUInt8(0); // No legacy element type
-        }
-
-        if (typeInfo.keyType.has_value()) {
-            writeUInt8(1); // Has legacy key type
-            writeUInt8(valueTypeToSerializationType(typeInfo.keyType.value()));
-        } else {
-            writeUInt8(0); // No legacy key type
-        }
-
-        if (typeInfo.valueType.has_value()) {
-            writeUInt8(1); // Has legacy value type
-            writeUInt8(valueTypeToSerializationType(typeInfo.valueType.value()));
-        } else {
-            writeUInt8(0); // No legacy value type
-        }
-
-        // Serialize class names
-        writeString(typeInfo.elementClassName.value_or(""));
-        writeString(typeInfo.keyClassName.value_or(""));
-        writeString(typeInfo.valueClassName.value_or(""));
+        // Legacy collection class names no longer exist, but maintain serialization format
+        writeString(""); // Empty element class name
+        writeString(""); // Empty key class name
+        writeString(""); // Empty value class name
     }
 
     void ASTSerializer::writeGenericTypeParameter(const ast::GenericTypeParameter& param)

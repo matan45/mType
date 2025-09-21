@@ -8,9 +8,7 @@
 #include "../nodes/expressions/BinaryExpNode.hpp"
 #include "../nodes/expressions/UnaryExpNode.hpp"
 #include "../nodes/expressions/TernaryExpNode.hpp"
-#include "../nodes/expressions/ArrayLiteralNode.hpp"
 #include "../nodes/expressions/ArrayCreationNode.hpp"
-#include "../nodes/expressions/MapLiteralNode.hpp"
 #include "../nodes/expressions/IndexAccessNode.hpp"
 
 #include "../nodes/statements/ProgramNode.hpp"
@@ -170,12 +168,8 @@ namespace ast::serialization
             return deserializeUnaryExpNode(header);
         case NodeType::TERNARY_EXP_NODE:
             return deserializeTernaryExpNode(header);
-        case NodeType::ARRAY_LITERAL_NODE:
-            return deserializeArrayLiteralNode(header);
         case NodeType::ARRAY_CREATION_NODE:
             return deserializeArrayCreationNode(header);
-        case NodeType::MAP_LITERAL_NODE:
-            return deserializeMapLiteralNode(header);
         case NodeType::INDEX_ACCESS_NODE:
             return deserializeIndexAccessNode(header);
         case NodeType::RETURN_NODE:
@@ -623,35 +617,6 @@ namespace ast::serialization
             location);
     }
 
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayLiteralNode(const NodeHeader& header)
-    {
-        // Read the element type
-        ast::serialization::ValueType serializationElementType = static_cast<ast::serialization::ValueType>(
-            readUInt8());
-        value::ValueType elementType = serializationValueTypeToValueType(serializationElementType);
-
-        // Read the number of elements
-        uint32_t elementCount = readUInt32();
-
-        // Create the array literal node
-        SourceLocation location;
-        location.setLine(header.line);
-        location.setColumn(header.column);
-
-        auto arrayNode = std::make_unique<nodes::expressions::ArrayLiteralNode>(elementType, location);
-
-        // Read each element
-        for (uint32_t i = 0; i < elementCount; ++i)
-        {
-            auto element = deserializeNode();
-            if (element)
-            {
-                arrayNode->addElement(std::move(element));
-            }
-        }
-
-        return arrayNode;
-    }
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayCreationNode(const NodeHeader& header)
     {
@@ -677,38 +642,6 @@ namespace ast::serialization
         );
     }
 
-    std::unique_ptr<ASTNode> ASTDeserializer::deserializeMapLiteralNode(const NodeHeader& header)
-    {
-        // Read the key and value types
-        ast::serialization::ValueType serializationKeyType = static_cast<ast::serialization::ValueType>(readUInt8());
-        ast::serialization::ValueType serializationValueType = static_cast<ast::serialization::ValueType>(readUInt8());
-        value::ValueType keyType = serializationValueTypeToValueType(serializationKeyType);
-        value::ValueType valueType = serializationValueTypeToValueType(serializationValueType);
-
-        // Read the number of key-value pairs
-        uint32_t pairCount = readUInt32();
-
-        // Create the map literal node
-        SourceLocation location;
-        location.setLine(header.line);
-        location.setColumn(header.column);
-
-        auto mapNode = std::make_unique<nodes::expressions::MapLiteralNode>(keyType, valueType, location);
-
-        // Read each key-value pair
-        for (uint32_t i = 0; i < pairCount; ++i)
-        {
-            auto key = deserializeNode();
-            auto value = deserializeNode();
-
-            if (key && value)
-            {
-                mapNode->addKeyValuePair(std::move(key), std::move(value));
-            }
-        }
-
-        return mapNode;
-    }
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeIndexAccessNode(const NodeHeader& header)
     {
@@ -1293,11 +1226,7 @@ namespace ast::serialization
         case ast::serialization::ValueType::STRING: return value::ValueType::STRING;
         case ast::serialization::ValueType::BOOL: return value::ValueType::BOOL;
         case ast::serialization::ValueType::OBJECT: return value::ValueType::OBJECT;
-        case ast::serialization::ValueType::ARRAY: return value::ValueType::ARRAY;
-        case ast::serialization::ValueType::MAP: return value::ValueType::MAP;
-        case ast::serialization::ValueType::SET: return value::ValueType::SET;
-        case ast::serialization::ValueType::STACK: return value::ValueType::STACK;
-        case ast::serialization::ValueType::QUEUE: return value::ValueType::QUEUE;
+        // Collection types removed - now implemented in mType
         case ast::serialization::ValueType::NULL_VALUE: return value::ValueType::NULL_TYPE;
         case ast::serialization::ValueType::VOID: return value::ValueType::VOID;
         default:
@@ -1323,43 +1252,40 @@ namespace ast::serialization
         uint8_t hasElementType = readUInt8();
         if (hasElementType) {
             auto elementTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
-            typeInfo.elementTypeInfo = elementTypeInfo;
+            // Collection-specific TypeInfo fields no longer exist
         }
 
         // Read key type info
         uint8_t hasKeyType = readUInt8();
         if (hasKeyType) {
             auto keyTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
-            typeInfo.keyTypeInfo = keyTypeInfo;
+            // Collection-specific TypeInfo fields no longer exist
         }
 
         // Read value type info
         uint8_t hasValueType = readUInt8();
         if (hasValueType) {
             auto valueTypeInfo = std::make_shared<parser::TypeInfo>(readTypeInfo());
-            typeInfo.valueTypeInfo = valueTypeInfo;
+            // Collection-specific TypeInfo fields no longer exist
         }
 
         // Read legacy fields for backward compatibility
         uint8_t hasLegacyElementType = readUInt8();
         if (hasLegacyElementType) {
             uint8_t legacyElementTypeValue = readUInt8();
-            typeInfo.elementType = serializationValueTypeToValueType(
-                static_cast<ast::serialization::ValueType>(legacyElementTypeValue));
+            // Legacy collection field no longer exists
         }
 
         uint8_t hasLegacyKeyType = readUInt8();
         if (hasLegacyKeyType) {
             uint8_t legacyKeyTypeValue = readUInt8();
-            typeInfo.keyType = serializationValueTypeToValueType(
-                static_cast<ast::serialization::ValueType>(legacyKeyTypeValue));
+            // Legacy collection field no longer exists
         }
 
         uint8_t hasLegacyValueType = readUInt8();
         if (hasLegacyValueType) {
             uint8_t legacyValueTypeValue = readUInt8();
-            typeInfo.valueType = serializationValueTypeToValueType(
-                static_cast<ast::serialization::ValueType>(legacyValueTypeValue));
+            // Legacy collection field no longer exists
         }
 
         // Read class names
@@ -1367,14 +1293,15 @@ namespace ast::serialization
         std::string keyClassName = readString();
         std::string valueClassName = readString();
 
+        // Legacy collection class name fields no longer exist
         if (!elementClassName.empty()) {
-            typeInfo.elementClassName = elementClassName;
+            // elementClassName no longer used
         }
         if (!keyClassName.empty()) {
-            typeInfo.keyClassName = keyClassName;
+            // keyClassName no longer used
         }
         if (!valueClassName.empty()) {
-            typeInfo.valueClassName = valueClassName;
+            // valueClassName no longer used
         }
 
         return typeInfo;

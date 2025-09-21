@@ -1,20 +1,11 @@
 #pragma once
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
-#include "utils/CollectionMethodDispatcher.hpp"
 #include "utils/GenericTypeManager.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
 
-// Forward declarations for collection types
-namespace runtimeTypes::collections {
-    class Array;
-    class Map;
-    class Set;
-    class Stack;
-    class Queue;
-}
 
 namespace evaluator
 {
@@ -81,26 +72,6 @@ namespace evaluator
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args);
 
-        // Collection method operations - UNIFIED APPROACH
-        Value dispatchCollectionMethod(const Value& collectionValue,
-                                     const std::string& methodName, 
-                                     const std::vector<Value>& args);
-        
-        template<typename CollectionType>
-        Value callCollectionMethod(std::shared_ptr<CollectionType> collection, 
-                                   const std::string& methodName, const std::vector<Value>& args);
-        
-        // Specialized collection method operations
-        Value callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array, 
-                             const std::string& methodName, const std::vector<Value>& args);
-        Value callMapMethod(std::shared_ptr<runtimeTypes::collections::Map> map, 
-                           const std::string& methodName, const std::vector<Value>& args);
-        Value callSetMethod(std::shared_ptr<runtimeTypes::collections::Set> set, 
-                           const std::string& methodName, const std::vector<Value>& args);
-        Value callStackMethod(std::shared_ptr<runtimeTypes::collections::Stack> stack, 
-                             const std::string& methodName, const std::vector<Value>& args);
-        Value callQueueMethod(std::shared_ptr<runtimeTypes::collections::Queue> queue, 
-                             const std::string& methodName, const std::vector<Value>& args);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
@@ -112,13 +83,4 @@ namespace evaluator
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
     };
-
-    // Template implementation - Must be in header for templates
-    template<typename CollectionType>
-    Value ObjectEvaluator::callCollectionMethod(std::shared_ptr<CollectionType> collection,
-                                               const std::string& methodName,
-                                               const std::vector<Value>& args)
-    {
-        return utils::CollectionMethodDispatcher<CollectionType>::dispatch(collection, methodName, args);
-    }
 }

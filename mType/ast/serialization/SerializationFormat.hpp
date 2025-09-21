@@ -22,10 +22,8 @@ namespace ast::serialization
         BINARY_EXP_NODE = 106,
         UNARY_EXP_NODE = 107,
         TERNARY_EXP_NODE = 108,
-        ARRAY_LITERAL_NODE = 109,
-        MAP_LITERAL_NODE = 110,
-        INDEX_ACCESS_NODE = 111,
-        ARRAY_CREATION_NODE = 112,
+        INDEX_ACCESS_NODE = 109,
+        ARRAY_CREATION_NODE = 110,
 
         // Statement nodes
         PROGRAM_NODE = 200,
@@ -113,11 +111,7 @@ namespace ast::serialization
         STRING = 2,
         BOOL = 3,
         OBJECT = 4,
-        ARRAY = 5,
-        MAP = 6,
-        SET = 7,
-        STACK = 8,
-        QUEUE = 9,
+        // Collection types removed - now implemented in mType
         NULL_VALUE = 10,
         VOID = 11
     };

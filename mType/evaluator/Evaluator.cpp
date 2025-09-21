@@ -280,24 +280,9 @@ namespace evaluator
     }
 
     // Collection visitor methods - delegate to coordinator
-    Value Evaluator::visitArrayLiteralNode(ArrayLiteralNode* node)
-    {
-        return coordinator->visitArrayLiteralNode(node);
-    }
-
     Value Evaluator::visitArrayCreationNode(ArrayCreationNode* node)
     {
         return coordinator->visitArrayCreationNode(node);
-    }
-
-    Value Evaluator::visitArrayTypeNode(ArrayTypeNode* node)
-    {
-        return coordinator->visitArrayTypeNode(node);
-    }
-
-    Value Evaluator::visitMapLiteralNode(MapLiteralNode* node)
-    {
-        return coordinator->visitMapLiteralNode(node);
     }
 
     Value Evaluator::visitIndexAccessNode(IndexAccessNode* node)

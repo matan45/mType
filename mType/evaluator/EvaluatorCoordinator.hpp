@@ -74,10 +74,7 @@ namespace evaluator
         Value visitConstructorNode(ConstructorNode* node) override;
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
-        Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
         Value visitArrayCreationNode(ArrayCreationNode* node) override;
-        Value visitArrayTypeNode(ArrayTypeNode* node) override;
-        Value visitMapLiteralNode(MapLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
         

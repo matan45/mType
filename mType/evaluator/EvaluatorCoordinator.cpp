@@ -293,25 +293,16 @@ namespace evaluator
     }
 
     // Collection visitor methods
-    Value EvaluatorCoordinator::visitArrayLiteralNode(ArrayLiteralNode* node)
-    {
-        return exprEvaluator->evaluateArrayLiteralNode(node);
-    }
-
     Value EvaluatorCoordinator::visitArrayCreationNode(ArrayCreationNode* node)
     {
         return exprEvaluator->evaluateArrayCreationNode(node);
     }
 
-    Value EvaluatorCoordinator::visitArrayTypeNode(ArrayTypeNode* node)
-    {
-        return exprEvaluator->evaluateArrayTypeNode(node);
-    }
-
-    Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
+    // REMOVED: MapLiteralNode no longer exists - collections now implemented in mType
+    /* Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
     {
         return exprEvaluator->evaluateMapLiteralNode(node);
-    }
+    } */
 
     Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
     {

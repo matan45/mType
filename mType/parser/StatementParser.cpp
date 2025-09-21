@@ -47,11 +47,7 @@ namespace parser
         case TokenType::FLOAT:
         case TokenType::BOOL:
         case TokenType::STRING_TYPE:
-        case TokenType::ARRAY:
-        case TokenType::MAP:
-        case TokenType::SET:
-        case TokenType::QUEUE:
-        case TokenType::STACK:
+        // Collection type parsing removed
             return parseDeclaration();
         case TokenType::FINAL:
         case TokenType::STATIC:
@@ -81,6 +77,24 @@ namespace parser
                 if (nextToken.type == TokenType::IDENTIFIER) {
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
+                } else if (nextToken.type == TokenType::LBRACKET) {
+                    // Need to distinguish between:
+                    // 1. "int[] data" (array type declaration)
+                    // 2. "data[0]" (array indexing/assignment)
+
+                    std::string identifier = tokenStream.current().stringValue;
+
+                    // Check if this identifier is a primitive type name
+                    if (identifier == "int" || identifier == "float" || identifier == "string" ||
+                        identifier == "bool" ||
+                        // Also check for single-letter generic type parameters (T, K, V, etc.)
+                        (identifier.length() == 1 && std::isupper(identifier[0]))) {
+                        // Pattern: "type[]" - this is likely a type declaration
+                        return parseDeclaration();
+                    } else {
+                        // Pattern: "variableName[index]" - this is likely an expression/assignment
+                        return parseExpressionStatement();
+                    }
                 } else if (nextToken.type == TokenType::LESS) {
                     // Pattern: "ClassName<...>" - this is a generic type declaration
                     return parseDeclaration();
@@ -311,11 +325,6 @@ namespace parser
                 tokenStream.current().type == TokenType::FLOAT ||
                 tokenStream.current().type == TokenType::BOOL ||
                 tokenStream.current().type == TokenType::STRING_TYPE ||
-                tokenStream.current().type == TokenType::ARRAY ||
-                tokenStream.current().type == TokenType::MAP ||
-                tokenStream.current().type == TokenType::SET ||
-                tokenStream.current().type == TokenType::QUEUE ||
-                tokenStream.current().type == TokenType::STACK ||
                 tokenStream.current().type == TokenType::IDENTIFIER)
             {
                 // Parse declaration inline - could be regular for loop or for-each

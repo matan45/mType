@@ -28,12 +28,8 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/statements/ForEachNode.hpp"
-#include "../runtimeTypes/collections/Stack.hpp"
-#include "../runtimeTypes/collections/Queue.hpp"
-#include "../runtimeTypes/collections/Collection.hpp"
-#include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/Set.hpp"
+// Collection includes removed - collections now implemented in mType language
+// More collection includes removed
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
@@ -43,7 +39,6 @@ namespace evaluator
     using namespace errors;
     using namespace exception;
     using namespace runtimeTypes::global;
-    using namespace runtimeTypes::collections;
     using namespace environment::manager;
     using namespace services;
     using namespace utils;
@@ -446,9 +441,13 @@ namespace evaluator
                 // This is a declaration - create the variable
                 validateAssignmentAsDeclaration(node);
                 
-                // Validate that the class exists for object types
+                // Validate that the class exists for object types (but skip native arrays)
                 if (node->getVariableType() == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateClassExists(node->getClassName(), node->getLocation());
+                    std::string className = node->getClassName();
+                    // Skip validation for native array types (e.g., "int[]", "string[]", "T[]")
+                    if (className.find("[]") == std::string::npos) {
+                        validateClassExists(className, node->getLocation());
+                    }
                 }
                 
                 // Validate type compatibility for new variable declarations
@@ -1082,9 +1081,14 @@ namespace evaluator
 
     value::Value StatementEvaluator::evaluateForEachNode(ForEachNode* node)
     {
+        // REMOVED: Collection-specific foreach implementation
+        // Collections are now mType objects and should implement iteration through method calls
+
+        /* Original collection-specific code removed - collections now implemented in mType
+
         // Evaluate the collection to iterate over
         value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
-        
+
         // Check if it's a collection type - handle Stack and Queue separately
         std::shared_ptr<runtimeTypes::collections::Collection> collection = nullptr;
         std::shared_ptr<runtimeTypes::collections::Stack> stack = nullptr;
@@ -1304,7 +1308,10 @@ namespace evaluator
             // DEBUG: Force an error to see if this branch is taken
             throw ScriptException("DEBUG: For-each collection type not recognized - this should show if we reach here", node->getLocation());
         }
-        
-        return std::monostate{};
+
+        return std::monostate{}; */
+
+        // New simplified implementation for mType collections
+        throw ScriptException("ForEach loops with mType collections not yet implemented in refactored version", node->getLocation());
     }
 }

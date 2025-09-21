@@ -31,7 +31,6 @@ namespace  token
         FUNCTION, RETURN, IF, ELSE, WHILE, FOR, // Keywords
         BREAK, CONTINUE, // Loop control keywords
         INT, FLOAT, BOOL, STRING_TYPE, VOID, // Data types
-        ARRAY, MAP, SET, QUEUE, STACK, // Collection types
         TRUE, FALSE, DO,
         CLASS, // class keyword
         NEW, // new keyword
