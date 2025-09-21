@@ -5,6 +5,7 @@
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
 #include "../errors/SourceLocation.hpp"
+#include "../parser/TypeParser.hpp"
 #include <memory>
 
 namespace evaluator
@@ -66,6 +67,11 @@ namespace evaluator
         Value evaluateAssignmentExpression(AssignmentNode* node);
         Value evaluateArrayCreationNode(ArrayCreationNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
+
+        // Helper method for multidimensional arrays
+        Value createMultidimensionalArray(const std::vector<int>& sizes,
+                                         const ::parser::TypeInfo& elementType,
+                                         size_t currentDimension);
 
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);

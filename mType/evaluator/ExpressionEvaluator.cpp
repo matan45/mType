@@ -1135,46 +1135,84 @@ namespace evaluator
 
     // Collection-related method implementations
     Value ExpressionEvaluator::evaluateArrayCreationNode(ArrayCreationNode* node) {
-        // Evaluate the size expression
-        Value sizeValue = evaluate(node->getSizeExpression().get());
+        // Get all size expressions for multidimensional support
+        const auto& sizeExpressions = node->getSizeExpressions();
 
-        if (!std::holds_alternative<int>(sizeValue)) {
-            throw TypeException("Array size must be an integer", node->getLocation());
+        if (sizeExpressions.empty()) {
+            throw TypeException("Array creation must have at least one dimension", node->getLocation());
         }
 
-        int size = std::get<int>(sizeValue);
-        if (size < 0) {
-            throw TypeException("Array size cannot be negative", node->getLocation());
+        // Evaluate all size expressions
+        std::vector<int> sizes;
+        for (const auto& sizeExpr : sizeExpressions) {
+            Value sizeValue = evaluate(sizeExpr.get());
+
+            if (!std::holds_alternative<int>(sizeValue)) {
+                throw TypeException("Array size must be an integer", node->getLocation());
+            }
+
+            int size = std::get<int>(sizeValue);
+            if (size < 0) {
+                throw TypeException("Array size cannot be negative", node->getLocation());
+            }
+            sizes.push_back(size);
         }
 
-        // Create a native array that supports indexing
-        auto nativeArray = std::make_shared<NativeArray>(static_cast<size_t>(size));
+        // Create multidimensional array
+        return createMultidimensionalArray(sizes, node->getElementTypeInfo(), 0);
+    }
 
-        // Initialize with default values based on element type
-        const parser::TypeInfo& elementType = node->getElementTypeInfo();
-        Value defaultValue = std::monostate{}; // null/void default
-
-        switch (elementType.baseType) {
-            case ValueType::INT:
-                defaultValue = 0;
-                break;
-            case ValueType::FLOAT:
-                defaultValue = 0.0f;
-                break;
-            case ValueType::STRING:
-                defaultValue = std::string("");
-                break;
-            case ValueType::BOOL:
-                defaultValue = false;
-                break;
-            default:
-                // For objects and generic types, keep null default
-                break;
+    Value ExpressionEvaluator::createMultidimensionalArray(const std::vector<int>& sizes,
+                                                           const ::parser::TypeInfo& elementType,
+                                                           size_t currentDimension) {
+        if (currentDimension >= sizes.size()) {
+            // Base case - return default value for the element type
+            switch (elementType.baseType) {
+                case ValueType::INT:
+                    return 0;
+                case ValueType::FLOAT:
+                    return 0.0f;
+                case ValueType::STRING:
+                    return std::string("");
+                case ValueType::BOOL:
+                    return false;
+                default:
+                    return std::monostate{}; // null for objects and generics
+            }
         }
 
-        // Initialize all elements with default values
-        for (int i = 0; i < size; i++) {
-            nativeArray->set(i, defaultValue);
+        int currentSize = sizes[currentDimension];
+        auto nativeArray = std::make_shared<NativeArray>(static_cast<size_t>(currentSize));
+
+        if (currentDimension == sizes.size() - 1) {
+            // Last dimension - fill with default values
+            Value defaultValue = std::monostate{};
+            switch (elementType.baseType) {
+                case ValueType::INT:
+                    defaultValue = 0;
+                    break;
+                case ValueType::FLOAT:
+                    defaultValue = 0.0f;
+                    break;
+                case ValueType::STRING:
+                    defaultValue = std::string("");
+                    break;
+                case ValueType::BOOL:
+                    defaultValue = false;
+                    break;
+                default:
+                    break;
+            }
+
+            for (int i = 0; i < currentSize; i++) {
+                nativeArray->set(i, defaultValue);
+            }
+        } else {
+            // Not the last dimension - recursively create sub-arrays
+            for (int i = 0; i < currentSize; i++) {
+                Value subArray = createMultidimensionalArray(sizes, elementType, currentDimension + 1);
+                nativeArray->set(i, subArray);
+            }
         }
 
         return nativeArray;

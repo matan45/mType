@@ -47,45 +47,15 @@ namespace runtimeTypes::klass
                 }
 
                 // Fallback: Use position-based mapping for OBJECT parameters
-                // But we need to be smart about when to resolve vs when to keep as OBJECT
+                // With boxed types, all collection parameters are objects, making this much simpler
 
-                // Check if this parameter name suggests it's a collection instance
-                std::string paramName = parameters[paramIndex].first;
-                bool isLikelyCollectionParam =
-                    paramName.find("other") != std::string::npos ||
-                    paramName.find("set") != std::string::npos ||
-                    paramName.find("list") != std::string::npos ||
-                    paramName.find("map") != std::string::npos ||
-                    paramName.find("queue") != std::string::npos ||
-                    paramName.find("stack") != std::string::npos;
-
-                // If it looks like a collection parameter, keep it as OBJECT
-                if (isLikelyCollectionParam)
-                {
-                    return ValueType::OBJECT;
-                }
-
-                // For other OBJECT parameters, try position-based resolution
                 // Count how many OBJECT parameters we've seen before this one
                 size_t objectParamIndex = 0;
                 for (size_t j = 0; j < paramIndex; ++j)
                 {
                     if (parameters[j].second == ValueType::OBJECT)
                     {
-                        // Skip collection-like parameters in the count
-                        std::string otherParamName = parameters[j].first;
-                        bool isOtherCollectionParam =
-                            otherParamName.find("other") != std::string::npos ||
-                            otherParamName.find("set") != std::string::npos ||
-                            otherParamName.find("list") != std::string::npos ||
-                            otherParamName.find("map") != std::string::npos ||
-                            otherParamName.find("queue") != std::string::npos ||
-                            otherParamName.find("stack") != std::string::npos;
-
-                        if (!isOtherCollectionParam)
-                        {
-                            objectParamIndex++;
-                        }
+                        objectParamIndex++;
                     }
                 }
 
@@ -97,13 +67,24 @@ namespace runtimeTypes::klass
                 }
                 std::sort(sortedTypeParams.begin(), sortedTypeParams.end());
 
-                // Use the nth type parameter for the nth non-collection OBJECT parameter
+                // Use the nth type parameter for the nth OBJECT parameter
                 if (objectParamIndex < sortedTypeParams.size())
                 {
                     auto it = typeSubstitutionMap.find(sortedTypeParams[objectParamIndex]);
                     if (it != typeSubstitutionMap.end())
                     {
-                        return parser::TypeParser::stringToValueType(it->second);
+                        // With boxed types, we only resolve if the target type is also OBJECT
+                        // If target is primitive, keep as OBJECT (since boxed types are objects)
+                        value::ValueType targetType = parser::TypeParser::stringToValueType(it->second);
+                        if (targetType == ValueType::OBJECT)
+                        {
+                            return targetType;
+                        }
+                        else
+                        {
+                            // Target is primitive, but parameter is boxed object - keep as OBJECT
+                            return ValueType::OBJECT;
+                        }
                     }
                 }
             }

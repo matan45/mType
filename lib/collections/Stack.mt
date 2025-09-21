@@ -49,7 +49,7 @@ class Stack<T> {
         function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element == item) {
+                if (element.equals(item)) {
                     return true;
                 }
             }
@@ -63,6 +63,15 @@ class Stack<T> {
                 result[i] = this.data[i];
             }
             return result;
+        }
+
+        // Content-based hash code (order matters for Stack)
+        function hashCode(): int {
+            int hash = 1;
+            for (int i = 0; i <= this.top; i++) {
+                hash = 31 * hash + hashCode(this.data[i]);
+            }
+            return hash;
         }
 
         function resize(): void {

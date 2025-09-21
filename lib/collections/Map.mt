@@ -107,9 +107,21 @@ class Map<K,V> {
             return result;
         }
 
+        // Content-based hash code (order-independent for Map)
+        function hashCode(): int {
+            int hash = 0;
+            for (int i = 0; i < this.count; i++) {
+                // Combine key and value hash codes
+                int keyHash = hashCode(this.keys[i]);
+                int valueHash = hashCode(this.values[i]);
+                hash = hash + (keyHash ^ valueHash); // XOR and addition for order independence
+            }
+            return hash;
+        }
+
         function findKeyIndex(K key): int {
             for (int i = 0; i < this.count; i++) {
-                if (this.keys[i] == key) {
+                if (this.keys[i].equals(key)) {
                     return i;
                 }
             }

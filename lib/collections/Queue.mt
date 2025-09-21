@@ -57,7 +57,7 @@ class Queue<T> {
         function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element == item) {
+                if (element.equals(item)) {
                     return true;
                 }
             }
@@ -72,6 +72,16 @@ class Queue<T> {
                 result[i] = this.data[index];
             }
             return result;
+        }
+
+        // Content-based hash code (order matters for Queue)
+        function hashCode(): int {
+            int hash = 1;
+            for (int i = 0; i < this.count; i++) {
+                int index = (this.front + i) % this.capacity;
+                hash = 31 * hash + hashCode(this.data[index]);
+            }
+            return hash;
         }
 
         function resize(): void {

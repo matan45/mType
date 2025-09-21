@@ -39,7 +39,7 @@ class List<T> {
         function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element == item) {
+                if (element.equals(item)) {
                     return true;
                 }
             }
@@ -84,10 +84,10 @@ class List<T> {
             return true;
         }
 
-        // Remove first occurrence of item (identity comparison)
+        // Remove first occurrence of item (content comparison)
         function remove(T item): bool {
             for (int i = 0; i < this.count; i++) {
-                if (this.data[i] == item) {
+                if (this.data[i].equals(item)) {
                     return this.removeAt(i);
                 }
             }
@@ -127,6 +127,15 @@ class List<T> {
                 result[i] = this.data[i];
             }
             return result;
+        }
+
+        // Content-based hash code
+        function hashCode(): int {
+            int hash = 1;
+            for (int i = 0; i < this.count; i++) {
+                hash = 31 * hash + hashCode(this.data[i]);
+            }
+            return hash;
         }
 
         // Helper method

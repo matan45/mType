@@ -307,12 +307,20 @@ namespace parser
         // Check if this is array creation (new Type[size]) or class instantiation (new Type())
         if (tokenStream.check(TokenType::LBRACKET))
         {
-            // Array creation: new T[size] or new int[size]
-            tokenStream.advance(); // consume '['
+            // Array creation: new T[size] or new int[size] or new int[size1][size2]
+            std::vector<std::unique_ptr<ASTNode>> sizeExpressions;
 
-            // Parse the size expression
-            auto sizeExpression = context.parseExpression();
-            tokenStream.expect(TokenType::RBRACKET); // consume ']'
+            // Parse all dimensions
+            while (tokenStream.check(TokenType::LBRACKET))
+            {
+                tokenStream.advance(); // consume '['
+
+                // Parse the size expression for this dimension
+                auto sizeExpression = context.parseExpression();
+                sizeExpressions.push_back(std::move(sizeExpression));
+
+                tokenStream.expect(TokenType::RBRACKET); // consume ']'
+            }
 
             // Create TypeInfo from the type name
             TypeInfo elementTypeInfo;
@@ -331,7 +339,7 @@ namespace parser
                 elementTypeInfo = TypeInfo(ValueType::OBJECT, className);
             }
 
-            return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(sizeExpression));
+            return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(sizeExpressions));
         }
         else
         {

@@ -25,7 +25,7 @@ class Set<T> {
         function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element == item) {
+                if (element.equals(item)) {
                     return true;
                 }
             }
@@ -34,7 +34,7 @@ class Set<T> {
 
         function remove(T item): bool {
             for (int i = 0; i < this.count; i++) {
-                if (this.data[i] == item) {
+                if (this.data[i].equals(item)) {
                     // Shift elements left
                     for (int j = i; j < this.count - 1; j++) {
                         this.data[j] = this.data[j + 1];
@@ -65,6 +65,15 @@ class Set<T> {
                 result[i] = this.data[i];
             }
             return result;
+        }
+
+        // Content-based hash code (order-independent for Set)
+        function hashCode(): int {
+            int hash = 0;
+            for (int i = 0; i < this.count; i++) {
+                hash = hash + hashCode(this.data[i]); // Addition is commutative
+            }
+            return hash;
         }
 
         // Union with another set
