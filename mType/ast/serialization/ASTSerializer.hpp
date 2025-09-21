@@ -57,6 +57,7 @@ namespace ast::serialization
         void serializeUnaryExpNode(const nodes::expressions::UnaryExpNode* node);
         void serializeTernaryExpNode(const nodes::expressions::TernaryExpNode* node);
         void serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node);
+        void serializeArrayCreationNode(const nodes::expressions::ArrayCreationNode* node);
         void serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node);
         void serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node);
 
@@ -66,6 +67,7 @@ namespace ast::serialization
         void serializeDeclarationNode(const nodes::statements::DeclarationNode* node);
         void serializeAssignmentNode(const nodes::statements::AssignmentNode* node);
         void serializeMemberAssignmentNode(const nodes::statements::MemberAssignmentNode* node);
+        void serializeIndexAssignmentNode(const nodes::statements::IndexAssignmentNode* node);
         void serializeIfNode(const nodes::statements::IfNode* node);
         void serializeWhileNode(const nodes::statements::WhileNode* node);
         void serializeDoWhileNode(const nodes::statements::DoWhileNode* node);

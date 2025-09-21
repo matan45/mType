@@ -10,6 +10,7 @@
 #include "../nodes/expressions/UnaryExpNode.hpp"
 #include "../nodes/expressions/TernaryExpNode.hpp"
 #include "../nodes/expressions/ArrayLiteralNode.hpp"
+#include "../nodes/expressions/ArrayCreationNode.hpp"
 #include "../nodes/expressions/MapLiteralNode.hpp"
 #include "../nodes/expressions/IndexAccessNode.hpp"
 
@@ -18,6 +19,7 @@
 #include "../nodes/statements/DeclarationNode.hpp"
 #include "../nodes/statements/AssignmentNode.hpp"
 #include "../nodes/statements/MemberAssignmentNode.hpp"
+#include "../nodes/statements/IndexAssignmentNode.hpp"
 #include "../nodes/statements/IfNode.hpp"
 #include "../nodes/statements/WhileNode.hpp"
 #include "../nodes/statements/DoWhileNode.hpp"
@@ -186,6 +188,9 @@ namespace ast::serialization
         case NodeType::MEMBER_ASSIGNMENT_NODE:
             serializeMemberAssignmentNode(dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node));
             break;
+        case NodeType::INDEX_ASSIGNMENT_NODE:
+            serializeIndexAssignmentNode(dynamic_cast<const nodes::statements::IndexAssignmentNode*>(node));
+            break;
         case NodeType::FUNCTION_NODE:
             serializeFunctionNode(dynamic_cast<const nodes::functions::FunctionNode*>(node));
             break;
@@ -209,6 +214,9 @@ namespace ast::serialization
             break;
         case NodeType::INDEX_ACCESS_NODE:
             serializeIndexAccessNode(dynamic_cast<const nodes::expressions::IndexAccessNode*>(node));
+            break;
+        case NodeType::ARRAY_CREATION_NODE:
+            serializeArrayCreationNode(dynamic_cast<const nodes::expressions::ArrayCreationNode*>(node));
             break;
         case NodeType::RETURN_NODE:
             serializeReturnNode(dynamic_cast<const nodes::functions::ReturnNode*>(node));
@@ -565,6 +573,8 @@ namespace ast::serialization
             return NodeType::ASSIGNMENT_NODE;
         if (dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node))
             return NodeType::MEMBER_ASSIGNMENT_NODE;
+        if (dynamic_cast<const nodes::statements::IndexAssignmentNode*>(node))
+            return NodeType::INDEX_ASSIGNMENT_NODE;
         if (dynamic_cast<const nodes::functions::FunctionNode*>(node))
             return NodeType::FUNCTION_NODE;
         if (dynamic_cast<const nodes::functions::FunctionCallNode*>(node))
@@ -581,6 +591,8 @@ namespace ast::serialization
             return NodeType::MAP_LITERAL_NODE;
         if (dynamic_cast<const nodes::expressions::IndexAccessNode*>(node))
             return NodeType::INDEX_ACCESS_NODE;
+        if (dynamic_cast<const nodes::expressions::ArrayCreationNode*>(node))
+            return NodeType::ARRAY_CREATION_NODE;
         if (dynamic_cast<const nodes::functions::ReturnNode*>(node))
             return NodeType::RETURN_NODE;
         if (dynamic_cast<const nodes::statements::ImportNode*>(node))
@@ -701,6 +713,21 @@ namespace ast::serialization
         }
     }
 
+    void ASTSerializer::serializeArrayCreationNode(const nodes::expressions::ArrayCreationNode* node)
+    {
+        if (node)
+        {
+            // Serialize the element type information
+            writeTypeInfo(node->getElementTypeInfo());
+
+            // Serialize whether size is dynamic
+            writeBool(node->hasDynamicSize());
+
+            // Serialize the size expression
+            serializeNode(node->getSizeExpression().get());
+        }
+    }
+
     void ASTSerializer::serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node)
     {
         // Serialize the key and value types
@@ -737,6 +764,21 @@ namespace ast::serialization
 
             // Serialize the member name
             writeString(node->getMemberName());
+
+            // Serialize the value
+            serializeNode(node->getValue());
+        }
+    }
+
+    void ASTSerializer::serializeIndexAssignmentNode(const nodes::statements::IndexAssignmentNode* node)
+    {
+        if (node)
+        {
+            // Serialize the object
+            serializeNode(node->getObject());
+
+            // Serialize the index
+            serializeNode(node->getIndex());
 
             // Serialize the value
             serializeNode(node->getValue());

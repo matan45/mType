@@ -9,6 +9,7 @@
 #include "../nodes/expressions/UnaryExpNode.hpp"
 #include "../nodes/expressions/TernaryExpNode.hpp"
 #include "../nodes/expressions/ArrayLiteralNode.hpp"
+#include "../nodes/expressions/ArrayCreationNode.hpp"
 #include "../nodes/expressions/MapLiteralNode.hpp"
 #include "../nodes/expressions/IndexAccessNode.hpp"
 
@@ -17,6 +18,7 @@
 #include "../nodes/statements/DeclarationNode.hpp"
 #include "../nodes/statements/AssignmentNode.hpp"
 #include "../nodes/statements/MemberAssignmentNode.hpp"
+#include "../nodes/statements/IndexAssignmentNode.hpp"
 #include "../nodes/statements/IfNode.hpp"
 #include "../nodes/statements/WhileNode.hpp"
 #include "../nodes/statements/DoWhileNode.hpp"
@@ -156,6 +158,8 @@ namespace ast::serialization
             return deserializeAssignmentNode(header);
         case NodeType::MEMBER_ASSIGNMENT_NODE:
             return deserializeMemberAssignmentNode(header);
+        case NodeType::INDEX_ASSIGNMENT_NODE:
+            return deserializeIndexAssignmentNode(header);
         case NodeType::FUNCTION_NODE:
             return deserializeFunctionNode(header);
         case NodeType::FUNCTION_CALL_NODE:
@@ -168,6 +172,8 @@ namespace ast::serialization
             return deserializeTernaryExpNode(header);
         case NodeType::ARRAY_LITERAL_NODE:
             return deserializeArrayLiteralNode(header);
+        case NodeType::ARRAY_CREATION_NODE:
+            return deserializeArrayCreationNode(header);
         case NodeType::MAP_LITERAL_NODE:
             return deserializeMapLiteralNode(header);
         case NodeType::INDEX_ACCESS_NODE:
@@ -647,6 +653,30 @@ namespace ast::serialization
         return arrayNode;
     }
 
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeArrayCreationNode(const NodeHeader& header)
+    {
+        // Read the element type information
+        parser::TypeInfo elementTypeInfo = readTypeInfo();
+
+        // Read whether size is dynamic
+        bool isDynamicSize = readBool();
+
+        // Read the size expression
+        auto sizeExpression = deserializeNode();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the ArrayCreationNode
+        return std::make_unique<nodes::expressions::ArrayCreationNode>(
+            elementTypeInfo,
+            std::move(sizeExpression),
+            location
+        );
+    }
+
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeMapLiteralNode(const NodeHeader& header)
     {
         // Read the key and value types
@@ -719,6 +749,31 @@ namespace ast::serialization
         return std::make_unique<nodes::statements::MemberAssignmentNode>(
             std::move(object),
             memberName,
+            std::move(value),
+            location
+        );
+    }
+
+    std::unique_ptr<ASTNode> ASTDeserializer::deserializeIndexAssignmentNode(const NodeHeader& header)
+    {
+        // Read the object
+        auto object = deserializeNode();
+
+        // Read the index
+        auto index = deserializeNode();
+
+        // Read the value
+        auto value = deserializeNode();
+
+        // Create source location
+        SourceLocation location;
+        location.setLine(header.line);
+        location.setColumn(header.column);
+
+        // Create and return the IndexAssignmentNode
+        return std::make_unique<nodes::statements::IndexAssignmentNode>(
+            std::move(object),
+            std::move(index),
             std::move(value),
             location
         );

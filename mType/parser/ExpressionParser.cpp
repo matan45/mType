@@ -81,17 +81,13 @@ namespace parser
             }
             else if (indexAccessNode)
             {
-                std::cout << "[DEBUG] ExpressionParser: Found IndexAccessNode in assignment context" << std::endl;
                 // Index assignment (e.g., array[0] = "value")
                 if (opType == TokenType::ASSIGN)
                 {
-                    std::cout << "[DEBUG] ExpressionParser: Creating IndexAssignmentNode" << std::endl;
-                    auto node = std::make_unique<IndexAssignmentNode>(
+                    return std::make_unique<IndexAssignmentNode>(
                         indexAccessNode->transferCollectionOwnership(),
                         indexAccessNode->transferIndexOwnership(),
                         std::move(rightExpr));
-                    std::cout << "[DEBUG] ExpressionParser: IndexAssignmentNode created successfully" << std::endl;
-                    return node;
                 }
                 else
                 {
