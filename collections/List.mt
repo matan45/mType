@@ -6,7 +6,7 @@ class List<T> {
 
     // Constructor
     constructor() {
-            this.capacity = 4;
+            this.capacity = 10;
             this.data = new T[this.capacity];
             this.count = 0;
         }
@@ -37,8 +37,9 @@ class List<T> {
         }
 
         function contains(T item): bool {
-            for (int i = 0; i < this.count; i++) {
-                if (this.data[i] == item) {
+            T[] currentData = this.toArray();
+            for (T element : currentData) {
+                if (element == item) {
                     return true;
                 }
             }
@@ -47,8 +48,9 @@ class List<T> {
 
         // Content-based comparison using equals() method
         function containsEquals(T item): bool {
-            for (int i = 0; i < this.count; i++) {
-                if (this.data[i].equals(item)) {
+            T[] currentData = this.toArray();
+            for (T element : currentData) {
+                if (element.equals(item)) {
                     return true;
                 }
             }
@@ -116,6 +118,15 @@ class List<T> {
                 return null;
             }
             return this.data[this.count - 1];
+        }
+
+        // Convert to array for iteration
+        function toArray(): T[] {
+            T[] result = new T[this.count];
+            for (int i = 0; i < this.count; i++) {
+                result[i] = this.data[i];
+            }
+            return result;
         }
 
         // Helper method

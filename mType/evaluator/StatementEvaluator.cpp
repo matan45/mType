@@ -33,6 +33,7 @@
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
+#include "../value/NativeArray.hpp"
 
 namespace evaluator
 {
@@ -354,10 +355,35 @@ namespace evaluator
     void StatementEvaluator::validateClassExists(const std::string& className, const SourceLocation& location)
     {
         auto env = context->getEnvironment();
-        
+
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance && className.find('<') != std::string::npos && className.find('T') != std::string::npos) {
+            auto instanceClassDef = currentInstance->getClassDefinition();
+            if (instanceClassDef) {
+                std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
+
+                if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName)) {
+                    auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(instanceClassName);
+
+                    // Replace type parameters in className
+                    resolvedClassName = className;
+                    if (className.find("T") != std::string::npos && !typeArguments.empty()) {
+                        // Simple T replacement - can be extended for multiple type parameters
+                        size_t pos = resolvedClassName.find("T");
+                        while (pos != std::string::npos) {
+                            resolvedClassName.replace(pos, 1, typeArguments[0]);
+                            pos = resolvedClassName.find("T", pos + typeArguments[0].length());
+                        }
+                    }
+                }
+            }
+        }
+
         // Check if the class is defined
-        if (!env->findClass(className)) {
-            throw UndefinedException("Class '" + className + "' is not defined", location);
+        if (!env->findClass(resolvedClassName)) {
+            throw UndefinedException("Class '" + resolvedClassName + "' is not defined", location);
         }
     }
     
@@ -386,8 +412,37 @@ namespace evaluator
         // This should be used only when class name information is not available
     }
     
-    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value, 
-                                                           const std::string& variableName, 
+    bool StatementEvaluator::isGenericTypeCompatible(const std::string& actualClassName,
+                                                     const std::string& expectedClassName)
+    {
+        // Exact match is always compatible
+        if (actualClassName == expectedClassName) {
+            return true;
+        }
+
+        // Handle generic type compatibility
+        // Extract base class name (e.g., "Set" from "Set<T>" or "Set<int>")
+        auto extractBaseClassName = [](const std::string& className) -> std::string {
+            size_t pos = className.find('<');
+            if (pos != std::string::npos) {
+                return className.substr(0, pos);
+            }
+            return className;
+        };
+
+        std::string actualBase = extractBaseClassName(actualClassName);
+        std::string expectedBase = extractBaseClassName(expectedClassName);
+
+        // If base class names match, consider compatible for generic types
+        if (actualBase == expectedBase) {
+            return true;
+        }
+
+        return false;
+    }
+
+    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value,
+                                                           const std::string& variableName,
                                                            const SourceLocation& location,
                                                            const std::string& expectedClassName)
     {
@@ -398,8 +453,8 @@ namespace evaluator
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
                 
                 // Check if the actual class matches the expected class
-                if (actualClassName != expectedClassName) {
-                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " + 
+                if (!isGenericTypeCompatible(actualClassName, expectedClassName)) {
+                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
                                       expectedClassName + " but got " + actualClassName, location);
                 }
                 
@@ -446,7 +501,27 @@ namespace evaluator
                     std::string className = node->getClassName();
                     // Skip validation for native array types (e.g., "int[]", "string[]", "T[]")
                     if (className.find("[]") == std::string::npos) {
-                        validateClassExists(className, node->getLocation());
+                        // Skip validation for unresolved generic type parameters
+                        // If the class name contains type parameters like T, K, V, skip validation
+                        // since these should be resolved at instantiation time
+                        bool hasUnresolvedTypeParams = false;
+                        if (className.find('<') != std::string::npos) {
+                            // Check for common generic type parameter names
+                            if (className.find("<T>") != std::string::npos ||
+                                className.find("<T,") != std::string::npos ||
+                                className.find(",T>") != std::string::npos ||
+                                className.find(",T,") != std::string::npos ||
+                                className.find("<K,") != std::string::npos ||
+                                className.find(",V>") != std::string::npos ||
+                                className.find("<K>") != std::string::npos ||
+                                className.find("<V>") != std::string::npos) {
+                                hasUnresolvedTypeParams = true;
+                            }
+                        }
+
+                        if (!hasUnresolvedTypeParams) {
+                            validateClassExists(className, node->getLocation());
+                        }
                     }
                 }
                 
@@ -1311,7 +1386,122 @@ namespace evaluator
 
         return std::monostate{}; */
 
-        // New simplified implementation for mType collections
-        throw ScriptException("ForEach loops with mType collections not yet implemented in refactored version", node->getLocation());
+        // New implementation for mType collections and native arrays
+        if (!exprEvaluator) {
+            throw TypeException("Expression evaluator not available for foreach evaluation");
+        }
+
+        // Evaluate the collection to iterate over
+        value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
+        auto env = context->getEnvironment();
+
+        // Create a new scope for the loop
+        utils::ScopeGuard scope(env, "foreach", environment::manager::ScopeType::BLOCK);
+
+        // Handle native arrays first
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue)) {
+            auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
+
+            for (size_t i = 0; i < array->size(); ++i) {
+                value::Value element = array->get(i);
+
+                // Define the loop variable in this scope
+                auto varType = node->getVariableType();
+                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    node->getVariableName(), varType, element, false, "");
+
+                env->declareVariable(node->getVariableName(), variableDef);
+
+                // Execute the loop body
+                if (node->getBody()) {
+                    value::Value result = evaluate(node->getBody());
+
+                    // Handle control flow statements
+                    if (context->shouldReturn()) {
+                        return result;
+                    }
+                }
+            }
+            return std::monostate{};
+        }
+
+        // Handle mType collection objects
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(collectionValue)) {
+            auto collection = std::get<std::shared_ptr<ObjectInstance>>(collectionValue);
+            auto classDef = collection->getClassDefinition();
+
+            if (!classDef) {
+                throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
+            }
+
+            std::string className = classDef->getName();
+
+            // Check if this is a collection class by trying to get an array for iteration
+            std::shared_ptr<value::NativeArray> iterationArray = nullptr;
+
+            // For Map collections, iterate over values by default
+            if (className.find("Map<") == 0) {
+                // Call getValues() method
+                auto getValuesMethod = classDef->findMethod("getValues", 0);
+                if (getValuesMethod) {
+                    // Set current instance context for method call
+                    context->setCurrentInstance(collection);
+
+                    // Call getValues() method
+                    value::Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult)) {
+                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
+                    }
+
+                    context->clearCurrentInstance();
+                }
+            } else {
+                // For other collections (Set, List, Stack, Queue), try toArray() method
+                auto toArrayMethod = classDef->findMethod("toArray", 0);
+                if (toArrayMethod) {
+                    // Set current instance context for method call
+                    context->setCurrentInstance(collection);
+
+                    // Call toArray() method
+                    value::Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult)) {
+                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
+                    }
+
+                    context->clearCurrentInstance();
+                }
+            }
+
+            if (!iterationArray) {
+                throw ScriptException("Collection '" + className + "' does not support iteration (missing toArray() or getValues() method)", node->getLocation());
+            }
+
+            // Iterate through the array
+            for (size_t i = 0; i < iterationArray->size(); ++i) {
+                value::Value element = iterationArray->get(i);
+
+                // Define the loop variable in this scope
+                auto varType = node->getVariableType();
+                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    node->getVariableName(), varType, element, false, "");
+
+                env->declareVariable(node->getVariableName(), variableDef);
+
+                // Execute the loop body
+                if (node->getBody()) {
+                    value::Value result = evaluate(node->getBody());
+
+                    // Handle control flow statements
+                    if (context->shouldReturn()) {
+                        return result;
+                    }
+                }
+            }
+            return std::monostate{};
+        }
+
+        throw ScriptException("Value is not a valid collection for foreach iteration", node->getLocation());
     }
 }

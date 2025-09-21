@@ -47,8 +47,9 @@ class Stack<T> {
 
         // Check if stack contains item
         function contains(T item): bool {
-            for (int i = 0; i <= this.top; i++) {
-                if (this.data[i] == item) {
+            T[] currentData = this.toArray();
+            for (T element : currentData) {
+                if (element == item) {
                     return true;
                 }
             }

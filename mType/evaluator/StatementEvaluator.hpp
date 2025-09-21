@@ -90,6 +90,8 @@ namespace evaluator
                                     const std::string& expectedClassName);
         void validateClassExists(const std::string& className, const SourceLocation& location);
         bool isValidTypeConversion(ValueType from, ValueType to);
+        bool isGenericTypeCompatible(const std::string& actualClassName,
+                                   const std::string& expectedClassName);
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
                                              const SourceLocation& location);
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,

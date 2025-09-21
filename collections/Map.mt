@@ -68,6 +68,18 @@ class Map<K,V> {
         // Get all keys
         function getKeys(): K[] {
             K[] result = new K[this.count];
+            int index = 0;
+            K[] currentKeys = this.getKeysInternal();
+            for (K key : currentKeys) {
+                result[index] = key;
+                index++;
+            }
+            return result;
+        }
+
+        // Internal helper to avoid recursion
+        function getKeysInternal(): K[] {
+            K[] result = new K[this.count];
             for (int i = 0; i < this.count; i++) {
                 result[i] = this.keys[i];
             }
@@ -76,6 +88,18 @@ class Map<K,V> {
 
         // Get all values
         function getValues(): V[] {
+            V[] result = new V[this.count];
+            int index = 0;
+            V[] currentValues = this.getValuesInternal();
+            for (V value : currentValues) {
+                result[index] = value;
+                index++;
+            }
+            return result;
+        }
+
+        // Internal helper to avoid recursion
+        function getValuesInternal(): V[] {
             V[] result = new V[this.count];
             for (int i = 0; i < this.count; i++) {
                 result[i] = this.values[i];

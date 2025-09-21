@@ -18,6 +18,7 @@ namespace runtimeTypes::klass
 
             // If the stored type is OBJECT, it might represent a generic type parameter
             // For generic methods, OBJECT parameters should be substituted with concrete types
+
             if (storedType == ValueType::OBJECT) {
                 // For multi-type parameter classes, we need a smarter way to determine
                 // which type parameter this OBJECT represents
@@ -27,14 +28,79 @@ namespace runtimeTypes::klass
                 // This is not perfect but works for common cases
 
                 if (typeSubstitutionMap.size() == 1) {
-                    // Single type parameter case - use the only available substitution
-                    auto it = typeSubstitutionMap.begin();
-                    return parser::TypeParser::stringToValueType(it->second);
+                    // Single type parameter case - but we need to check if this is a generic class parameter
+                    // For Set<T> other, the parameter should remain OBJECT (not resolve to T)
+                    // Only primitive type parameters like T item should resolve to the concrete type
+
+                    // Check parameter name to determine if it should stay as object
+                    if (paramIndex < parameters.size()) {
+                        const std::string& paramName = parameters[paramIndex].first;
+
+                        auto it = typeSubstitutionMap.begin();
+
+                        // If parameter name suggests it's a generic collection/object, keep as OBJECT
+                        if (paramName.find("other") != std::string::npos ||
+                            paramName.find("collection") != std::string::npos ||
+                            paramName.find("set") != std::string::npos ||
+                            paramName.find("list") != std::string::npos) {
+                            return ValueType::OBJECT;
+                        }
+
+                        // Otherwise resolve to concrete type for primitive parameters
+                        return parser::TypeParser::stringToValueType(it->second);
+                    }
                 } else {
                     // Multi-type parameter case - use method name heuristic
                     // For common patterns like setFirst/setSecond, getFirst/getSecond
                     std::string methodName = getName(); // Use the method name
+                    std::string paramName = parameters[paramIndex].first;
 
+                    // For Map<K,V> classes, use parameter position and common name patterns
+                    if (typeSubstitutionMap.find("K") != typeSubstitutionMap.end() &&
+                        typeSubstitutionMap.find("V") != typeSubstitutionMap.end()) {
+                        // This is a Map<K,V> class - use parameter position and name heuristics
+
+                        // Check for key-related parameters (K type)
+                        if (paramName.find("key") != std::string::npos ||
+                            paramName.find("Key") != std::string::npos) {
+                            auto it = typeSubstitutionMap.find("K");
+                            if (it != typeSubstitutionMap.end()) {
+                                return parser::TypeParser::stringToValueType(it->second);
+                            }
+                        }
+
+                        // Check for value-related parameters (V type)
+                        if (paramName.find("value") != std::string::npos ||
+                            paramName.find("Value") != std::string::npos) {
+                            auto it = typeSubstitutionMap.find("V");
+                            if (it != typeSubstitutionMap.end()) {
+                                return parser::TypeParser::stringToValueType(it->second);
+                            }
+                        }
+
+                        // Count OBJECT parameters to determine position-based mapping
+                        int objectParamIndex = 0;
+                        for (size_t j = 0; j < paramIndex; ++j) {
+                            if (parameters[j].second == ValueType::OBJECT) {
+                                objectParamIndex++;
+                            }
+                        }
+
+                        // First OBJECT parameter -> K, second OBJECT parameter -> V
+                        if (objectParamIndex == 0) {
+                            auto it = typeSubstitutionMap.find("K");
+                            if (it != typeSubstitutionMap.end()) {
+                                return parser::TypeParser::stringToValueType(it->second);
+                            }
+                        } else if (objectParamIndex == 1) {
+                            auto it = typeSubstitutionMap.find("V");
+                            if (it != typeSubstitutionMap.end()) {
+                                return parser::TypeParser::stringToValueType(it->second);
+                            }
+                        }
+                    }
+
+                    // Fallback to method name patterns
                     if (methodName.find("First") != std::string::npos) {
                         // Methods with "First" in name use the first type parameter
                         auto it = typeSubstitutionMap.find("T");
@@ -96,6 +162,11 @@ namespace runtimeTypes::klass
 
     ValueType MethodDefinition::resolveReturnType() const
     {
+        // For methods that return generic collections like Set<T>, the return type should be OBJECT
+        if (hasGenericInformation() && returnType == ValueType::OBJECT) {
+            return ValueType::OBJECT;
+        }
+
         // If we have generic information and a substitution map, resolve the return type
         if (hasGenericInformation() && genericReturnType && genericReturnType->isGenericParameter()) {
             std::string typeName = genericReturnType->getGenericName();

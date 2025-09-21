@@ -82,5 +82,6 @@ namespace evaluator
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
+        std::string resolveTypeParameterFromContext(const std::string& typeParam);
     };
 }

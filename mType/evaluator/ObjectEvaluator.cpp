@@ -2,6 +2,7 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../exception/ReturnException.hpp"
@@ -374,8 +375,44 @@ namespace evaluator
         std::shared_ptr<ClassDefinition> classDef;
         auto env = context->getEnvironment();
 
-        // Check if this is a generic instantiation
-        if (utils::GenericTypeManager::isGenericInstantiation(className))
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+            std::vector<std::string> resolvedTypeArguments;
+            bool hasResolvedParams = false;
+            for (const std::string& typeArg : typeArguments) {
+                std::string resolvedType = resolveTypeParameterFromContext(typeArg);
+                resolvedTypeArguments.push_back(resolvedType);
+                if (resolvedType != typeArg) {
+                    hasResolvedParams = true;
+                }
+            }
+
+            // If we resolved any type parameters, construct the resolved class name
+            if (hasResolvedParams) {
+                resolvedClassName = baseName + "<" + resolvedTypeArguments[0];
+                for (size_t i = 1; i < resolvedTypeArguments.size(); ++i) {
+                    resolvedClassName += "," + resolvedTypeArguments[i];
+                }
+                resolvedClassName += ">";
+            }
+        }
+
+        // Check if we should use the resolved class name for direct instantiation
+        if (resolvedClassName != className) {
+            // We resolved type parameters - try to find the instantiated class directly
+            auto instantiatedClass = env->findClass(resolvedClassName);
+            if (instantiatedClass) {
+                classDef = instantiatedClass;
+            } else {
+                className = resolvedClassName; // Use resolved name for generic instantiation
+            }
+        }
+
+        // Check if this is a generic instantiation (only if we haven't already found instantiated class)
+        if (!classDef && utils::GenericTypeManager::isGenericInstantiation(className))
         {
             // Parse generic instantiation
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
@@ -410,16 +447,19 @@ namespace evaluator
         }
         else
         {
-            // Regular non-generic class
-            classDef = env->findClass(className);
+            // Regular non-generic class - use resolved class name if available
+            std::string classNameToLookup = (resolvedClassName != className) ? resolvedClassName : className;
+            classDef = env->findClass(classNameToLookup);
         }
 
         if (!classDef)
         {
-            throw UndefinedException("Class '" + className + "' not found");
+            std::string classNameToReport = (resolvedClassName != className) ? resolvedClassName : className;
+            throw UndefinedException("Class '" + classNameToReport + "' not found");
         }
 
-        auto instance = createInstance(className, args);
+        std::string classNameForInstance = (resolvedClassName != className) ? resolvedClassName : className;
+        auto instance = createInstance(classNameForInstance, args);
 
         // Execute constructor if it exists
         if (classDef && !classDef->getConstructors().empty())
@@ -509,6 +549,18 @@ namespace evaluator
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return accessMember(instance, node->getMemberName());
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                return static_cast<int>(array->size());
+            }
+            else
+            {
+                throw TypeException("Array does not have member '" + node->getMemberName() + "'");
+            }
         }
         else
         {
@@ -827,11 +879,39 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance) {
+            auto instanceClassDef = currentInstance->getClassDefinition();
+            if (instanceClassDef) {
+                std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
+
+                // Check if the target className contains type parameters that need resolution
+                if (className.find('<') != std::string::npos && className.find('T') != std::string::npos) {
+                    if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName)) {
+                        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(instanceClassName);
+
+                        // Replace type parameters in className
+                        resolvedClassName = className;
+                        if (className.find("T") != std::string::npos && !typeArguments.empty()) {
+                            // Simple T replacement - can be extended for multiple type parameters
+                            size_t pos = resolvedClassName.find("T");
+                            while (pos != std::string::npos) {
+                                resolvedClassName.replace(pos, 1, typeArguments[0]);
+                                pos = resolvedClassName.find("T", pos + typeArguments[0].length());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Find the class and method
-        auto classDef = env->findClass(className);
+        auto classDef = env->findClass(resolvedClassName);
         if (!classDef)
         {
-            throw UndefinedException("Class '" + className + "' not found");
+            throw UndefinedException("Class '" + resolvedClassName + "' not found");
         }
 
         // Try to find method with exact argument count first
@@ -1245,6 +1325,51 @@ namespace evaluator
         }
     } */
 
+
+
+    std::string ObjectEvaluator::resolveTypeParameterFromContext(const std::string& typeParam)
+    {
+        // Try to resolve type parameters from the current object instance context
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            return typeParam;
+        }
+
+        auto classDef = currentInstance->getClassDefinition();
+        if (!classDef) {
+            return typeParam;
+        }
+
+        // Get the class name which should contain the instantiated type
+        // e.g., "Set<int>" for a Set<int> instance
+        std::string className = classDef->getName();
+
+        // Check if the class name itself is a generic instantiation (e.g., "Set<int>")
+        // This handles the case where we have an instantiated generic class
+        if (!classDef->isGeneric() && !utils::GenericTypeManager::isGenericInstantiation(className)) {
+            return typeParam;
+        }
+
+        // Parse the generic instantiation to extract type parameters
+        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+            // For simple cases like Set<T>, map T to the first type argument
+            if (typeParam == "T" && !typeArguments.empty()) {
+                return typeArguments[0];
+            }
+            // For Map<K,V> etc., we could extend this logic
+            if (typeParam == "K" && !typeArguments.empty()) {
+                return typeArguments[0];
+            }
+            if (typeParam == "V" && typeArguments.size() > 1) {
+                return typeArguments[1];
+            }
+        }
+
+        // If we can't resolve, return the original parameter
+        return typeParam;
+    }
 
     // Template instantiations not needed - template is now in header
 }

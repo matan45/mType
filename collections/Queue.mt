@@ -55,9 +55,9 @@ class Queue<T> {
 
         // Check if queue contains item
         function contains(T item): bool {
-            for (int i = 0; i < this.count; i++) {
-                int index = (this.front + i) % this.capacity;
-                if (this.data[index] == item) {
+            T[] currentData = this.toArray();
+            for (T element : currentData) {
+                if (element == item) {
                     return true;
                 }
             }

@@ -23,8 +23,9 @@ class Set<T> {
         }
 
         function contains(T item): bool {
-            for (int i = 0; i < this.count; i++) {
-                if (this.data[i] == item) {
+            T[] currentData = this.toArray();
+            for (T element : currentData) {
+                if (element == item) {
                     return true;
                 }
             }
@@ -67,18 +68,22 @@ class Set<T> {
         }
 
         // Union with another set
+        // NOTE: Currently has internal type resolution issue with generic instantiation
+        // The method signature works correctly, but creating new Set<T> inside the method
+        // doesn't properly resolve T to the concrete type. Use static helper functions as workaround.
         function union(Set<T> other): Set<T> {
             Set<T> result = new Set<T>();
 
             // Add all elements from this set
-            for (int i = 0; i < this.count; i++) {
-                result.add(this.data[i]);
+            T[] thisArray = this.toArray();
+            for (T element : thisArray) {
+                result.add(element);
             }
 
             // Add all elements from other set
             T[] otherArray = other.toArray();
-            for (int i = 0; i < otherArray.length; i++) {
-                result.add(otherArray[i]);
+            for (T element : otherArray) {
+                result.add(element);
             }
 
             return result;

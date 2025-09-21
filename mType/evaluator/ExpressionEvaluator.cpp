@@ -826,6 +826,20 @@ namespace evaluator
             return object->getFieldValue(node->getMemberName());
         }
 
+        // Handle native arrays
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                return static_cast<int>(array->size());
+            }
+            else
+            {
+                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'", node->getLocation());
+            }
+        }
+
         throw TypeException("Cannot access member of non-object value", node->getLocation());
     }
 
