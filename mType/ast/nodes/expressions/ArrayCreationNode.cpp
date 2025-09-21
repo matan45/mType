@@ -1,4 +1,5 @@
 #include "ArrayCreationNode.hpp"
+#include <stdexcept>
 
 namespace ast::nodes::expressions
 {
