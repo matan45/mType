@@ -2,21 +2,20 @@
 #include <variant>
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace runtimeTypes::klass
 {
     class ObjectInstance;
 }
 
-namespace runtimeTypes::collections
+namespace value
 {
-    class Collection;
-    class Array;
-    class Map;
-    class Set;
-    class Queue;
-    class Stack;
+    class NativeArray;
+    class FlatMultiArray;
+    class SparseMultiArray;
 }
+
 
 namespace value
 {
@@ -29,26 +28,27 @@ namespace value
         STRING,
         VOID,
         OBJECT,
-        NULL_TYPE,
-        ARRAY,
-        MAP,
-        SET,
-        QUEUE,
-        STACK
+        NULL_TYPE
     };
 
     // Runtime value that can hold different types
     using Value = std::variant<int, float, bool, std::string, std::monostate,
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
-                               nullptr_t,
-                               std::shared_ptr<runtimeTypes::collections::Array>,
-                               std::shared_ptr<runtimeTypes::collections::Map>,
-                               std::shared_ptr<runtimeTypes::collections::Set>,
-                               std::shared_ptr<runtimeTypes::collections::Queue>,
-                               std::shared_ptr<runtimeTypes::collections::Stack>>;
+                               std::shared_ptr<NativeArray>,
+                               std::shared_ptr<FlatMultiArray>,
+                               std::shared_ptr<SparseMultiArray>,
+                               nullptr_t>;
     
     // Helper function to get ValueType from Value
     inline ValueType getValueType(const Value& value) {
+        // Explicit check for multi-dimensional arrays before using std::visit
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(value)) {
+            return ValueType::OBJECT;
+        }
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
+            return ValueType::OBJECT;
+        }
+
         return std::visit([](const auto& v) -> ValueType {
             if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int>) {
                 return ValueType::INT;
@@ -62,18 +62,10 @@ namespace value
                 return ValueType::VOID;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
                 return ValueType::OBJECT;
+            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<NativeArray>>) {
+                return ValueType::OBJECT; // Arrays are treated as objects
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, nullptr_t>) {
                 return ValueType::NULL_TYPE;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Array>>) {
-                return ValueType::ARRAY;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Map>>) {
-                return ValueType::MAP;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Set>>) {
-                return ValueType::SET;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Queue>>) {
-                return ValueType::QUEUE;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::collections::Stack>>) {
-                return ValueType::STACK;
             } else {
                 return ValueType::VOID;
             }

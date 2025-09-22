@@ -1,6 +1,8 @@
 ﻿#include "NativeRegistry.hpp"
 #include <algorithm>
 #include <iostream>
+#include <functional>
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
 
 namespace environment::registry
 {
@@ -53,10 +55,12 @@ namespace environment::registry
 
     void NativeRegistry::registerBuiltinFunctions()
     {
-        registerNativeFunction("print", [](const std::vector<Value>& args) -> Value {
+        registerNativeFunction("print", [](const std::vector<Value>& args) -> Value
+        {
             for (const auto& arg : args)
             {
-                std::visit([](const auto& value) {
+                std::visit([](const auto& value)
+                {
                     if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
                         std::cout << value;
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
@@ -75,70 +79,118 @@ namespace environment::registry
             return std::monostate{};
         });
 
-        registerNativeFunction("println", [](const std::vector<Value>& args) -> Value {
-            for (const auto& arg : args)
+        registerNativeFunction("toString", [](const std::vector<Value>& args) -> Value
+        {
+            if (args.size() != 1)
             {
-                std::visit([](const auto& value) {
-                    if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
-                        std::cout << value;
-                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
-                        std::cout << value;
-                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
-                        std::cout << value;
-                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
-                        std::cout << (value ? "true" : "false");
-                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>)
-                        std::cout << "void";
-                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
-                        std::cout << "null";
-                }, arg);
-            }
-            std::cout << std::endl;
-            return std::monostate{};
-        });
-
-        registerNativeFunction("toString", [](const std::vector<Value>& args) -> Value {
-            if (args.size() != 1) {
                 throw std::runtime_error("toString expects exactly 1 argument");
             }
-            
-            return std::visit([](const auto& value) -> Value {
-                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+
+            return std::visit([](const auto& value) -> Value
+            {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
+                {
                     return value; // Already a string
                 }
-                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>) {
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+                {
                     return std::to_string(value);
                 }
-                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>) {
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+                {
                     return std::to_string(value);
                 }
-                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>) {
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
+                {
                     return value ? std::string("true") : std::string("false");
                 }
-                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>) {
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>)
+                {
                     return std::string("void");
                 }
-                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>) {
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
+                {
                     return std::string("null");
                 }
-                else {
+                else
+                {
                     return std::string("unknown");
                 }
             }, args[0]);
         });
-
-        // Add str namespace functions - register with qualified names
-        registerNativeFunction("str::length", [](const std::vector<Value>& args) -> Value {
-            if (args.size() != 1) {
+        
+        registerNativeFunction("strLength", [](const std::vector<Value>& args) -> Value
+        {
+            if (args.size() != 1)
+            {
                 throw std::runtime_error("str::length expects exactly 1 argument");
             }
-            
-            return std::visit([](const auto& value) -> Value {
-                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+
+            return std::visit([](const auto& value) -> Value
+            {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
+                {
                     return static_cast<int>(value.length());
                 }
-                else {
+                else
+                {
                     throw std::runtime_error("str::length can only be called on strings");
+                }
+            }, args[0]);
+        });
+
+        // Add hashCode function for generating hash codes for any value
+        registerNativeFunction("hashCode", [](const std::vector<Value>& args) -> Value
+        {
+            if (args.size() != 1)
+            {
+                throw std::runtime_error("hashCode expects exactly 1 argument");
+            }
+
+            return std::visit([](const auto& value) -> Value
+            {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
+                {
+                    // Hash string content
+                    std::hash<std::string> hasher;
+                    return static_cast<int>(hasher(value) & 0x7FFFFFFF); // Keep positive
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+                {
+                    // Hash int value
+                    std::hash<int> hasher;
+                    return static_cast<int>(hasher(value) & 0x7FFFFFFF);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+                {
+                    // Hash float value
+                    std::hash<float> hasher;
+                    return static_cast<int>(hasher(value) & 0x7FFFFFFF);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
+                {
+                    // Hash bool value
+                    return value ? 1231 : 1237; // Standard Java hash codes for true/false
+                }
+                else if constexpr (std::is_same_v<
+                    std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
+                {
+                    if (!value) {
+                        return 0; // Null object hash
+                    }
+
+                    // Use content-based hashing for objects
+                    std::string contentHash = value->getContentHash();
+                    std::hash<std::string> hasher;
+                    return static_cast<int>(hasher(contentHash) & 0x7FFFFFFF);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
+                {
+                    return 0; // Null hash code
+                }
+                else
+                {
+                    return 0; // Default hash code for unknown types
                 }
             }, args[0]);
         });

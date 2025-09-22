@@ -9,8 +9,7 @@
 #include "../nodes/expressions/BinaryExpNode.hpp"
 #include "../nodes/expressions/UnaryExpNode.hpp"
 #include "../nodes/expressions/TernaryExpNode.hpp"
-#include "../nodes/expressions/ArrayLiteralNode.hpp"
-#include "../nodes/expressions/MapLiteralNode.hpp"
+#include "../nodes/expressions/ArrayCreationNode.hpp"
 #include "../nodes/expressions/IndexAccessNode.hpp"
 
 #include "../nodes/statements/ProgramNode.hpp"
@@ -18,6 +17,7 @@
 #include "../nodes/statements/DeclarationNode.hpp"
 #include "../nodes/statements/AssignmentNode.hpp"
 #include "../nodes/statements/MemberAssignmentNode.hpp"
+#include "../nodes/statements/IndexAssignmentNode.hpp"
 #include "../nodes/statements/IfNode.hpp"
 #include "../nodes/statements/WhileNode.hpp"
 #include "../nodes/statements/DoWhileNode.hpp"
@@ -45,7 +45,12 @@
 #include <iostream>
 #include <vector>
 #include <typeinfo>
+#include <filesystem>
+#include <unordered_set>
 #include "../../token/TokenType.hpp"
+#include "../../services/ImportManager.hpp"
+#include "../../parser/Parser.hpp"
+#include "../../lexer/Lexer.hpp"
 
 namespace ast::serialization
 {
@@ -186,6 +191,9 @@ namespace ast::serialization
         case NodeType::MEMBER_ASSIGNMENT_NODE:
             serializeMemberAssignmentNode(dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node));
             break;
+        case NodeType::INDEX_ASSIGNMENT_NODE:
+            serializeIndexAssignmentNode(dynamic_cast<const nodes::statements::IndexAssignmentNode*>(node));
+            break;
         case NodeType::FUNCTION_NODE:
             serializeFunctionNode(dynamic_cast<const nodes::functions::FunctionNode*>(node));
             break;
@@ -201,14 +209,11 @@ namespace ast::serialization
         case NodeType::TERNARY_EXP_NODE:
             serializeTernaryExpNode(dynamic_cast<const nodes::expressions::TernaryExpNode*>(node));
             break;
-        case NodeType::ARRAY_LITERAL_NODE:
-            serializeArrayLiteralNode(dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node));
-            break;
-        case NodeType::MAP_LITERAL_NODE:
-            serializeMapLiteralNode(dynamic_cast<const nodes::expressions::MapLiteralNode*>(node));
-            break;
         case NodeType::INDEX_ACCESS_NODE:
             serializeIndexAccessNode(dynamic_cast<const nodes::expressions::IndexAccessNode*>(node));
+            break;
+        case NodeType::ARRAY_CREATION_NODE:
+            serializeArrayCreationNode(dynamic_cast<const nodes::expressions::ArrayCreationNode*>(node));
             break;
         case NodeType::RETURN_NODE:
             serializeReturnNode(dynamic_cast<const nodes::functions::ReturnNode*>(node));
@@ -538,6 +543,7 @@ namespace ast::serialization
         serializeNode(child.get());
     }
 
+
     NodeType ASTSerializer::getNodeType(const ASTNode* node)
     {
         // Use dynamic_cast to determine the actual type
@@ -565,6 +571,8 @@ namespace ast::serialization
             return NodeType::ASSIGNMENT_NODE;
         if (dynamic_cast<const nodes::statements::MemberAssignmentNode*>(node))
             return NodeType::MEMBER_ASSIGNMENT_NODE;
+        if (dynamic_cast<const nodes::statements::IndexAssignmentNode*>(node))
+            return NodeType::INDEX_ASSIGNMENT_NODE;
         if (dynamic_cast<const nodes::functions::FunctionNode*>(node))
             return NodeType::FUNCTION_NODE;
         if (dynamic_cast<const nodes::functions::FunctionCallNode*>(node))
@@ -575,12 +583,10 @@ namespace ast::serialization
             return NodeType::UNARY_EXP_NODE;
         if (dynamic_cast<const nodes::expressions::TernaryExpNode*>(node))
             return NodeType::TERNARY_EXP_NODE;
-        if (dynamic_cast<const nodes::expressions::ArrayLiteralNode*>(node))
-            return NodeType::ARRAY_LITERAL_NODE;
-        if (dynamic_cast<const nodes::expressions::MapLiteralNode*>(node))
-            return NodeType::MAP_LITERAL_NODE;
         if (dynamic_cast<const nodes::expressions::IndexAccessNode*>(node))
             return NodeType::INDEX_ACCESS_NODE;
+        if (dynamic_cast<const nodes::expressions::ArrayCreationNode*>(node))
+            return NodeType::ARRAY_CREATION_NODE;
         if (dynamic_cast<const nodes::functions::ReturnNode*>(node))
             return NodeType::RETURN_NODE;
         if (dynamic_cast<const nodes::statements::ImportNode*>(node))
@@ -685,39 +691,28 @@ namespace ast::serialization
         serializeNode(node->getFalseExpression());
     }
 
-    void ASTSerializer::serializeArrayLiteralNode(const nodes::expressions::ArrayLiteralNode* node)
+
+    void ASTSerializer::serializeArrayCreationNode(const nodes::expressions::ArrayCreationNode* node)
     {
-        // Serialize the element type
-        writeUInt8(static_cast<uint8_t>(node->getElementType()));
-
-        // Serialize the number of elements
-        const auto& elements = node->getElements();
-        writeUInt32(static_cast<uint32_t>(elements.size()));
-
-        // Serialize each element
-        for (const auto& element : elements)
+        if (node)
         {
-            serializeNode(element.get());
+            // Serialize the element type information
+            writeTypeInfo(node->getElementTypeInfo());
+
+            // Serialize whether size is dynamic
+            writeBool(node->hasDynamicSize());
+
+            // Serialize the number of dimensions
+            writeUInt32(static_cast<uint32_t>(node->getDimensionCount()));
+
+            // Serialize all size expressions for multidimensional arrays
+            const auto& sizeExpressions = node->getSizeExpressions();
+            for (const auto& sizeExpr : sizeExpressions) {
+                serializeNode(sizeExpr.get());
+            }
         }
     }
 
-    void ASTSerializer::serializeMapLiteralNode(const nodes::expressions::MapLiteralNode* node)
-    {
-        // Serialize the key and value types
-        writeUInt8(static_cast<uint8_t>(node->getKeyType()));
-        writeUInt8(static_cast<uint8_t>(node->getValueType()));
-
-        // Serialize the number of key-value pairs
-        const auto& pairs = node->getKeyValuePairs();
-        writeUInt32(static_cast<uint32_t>(pairs.size()));
-
-        // Serialize each key-value pair
-        for (const auto& pair : pairs)
-        {
-            serializeNode(pair.first.get()); // key
-            serializeNode(pair.second.get()); // value
-        }
-    }
 
     void ASTSerializer::serializeIndexAccessNode(const nodes::expressions::IndexAccessNode* node)
     {
@@ -737,6 +732,21 @@ namespace ast::serialization
 
             // Serialize the member name
             writeString(node->getMemberName());
+
+            // Serialize the value
+            serializeNode(node->getValue());
+        }
+    }
+
+    void ASTSerializer::serializeIndexAssignmentNode(const nodes::statements::IndexAssignmentNode* node)
+    {
+        if (node)
+        {
+            // Serialize the object
+            serializeNode(node->getObject());
+
+            // Serialize the index
+            serializeNode(node->getIndex());
 
             // Serialize the value
             serializeNode(node->getValue());
@@ -860,17 +870,15 @@ namespace ast::serialization
 
     void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node)
     {
-        // Convert the file path to .mtc format for serialized imports
         std::string originalPath = node->getFilePath();
-        std::string serializedPath = originalPath;
 
-        // Convert .mt to .mtc
-        if (originalPath.ends_with(".mt")) {
-            serializedPath = originalPath + "c"; // .mt -> .mtc
+        // Convert .mt to .mtc for cached imports
+        if (!baseDirectory.empty() && originalPath.ends_with(".mt")) {
+            originalPath = originalPath.substr(0, originalPath.length() - 3) + ".mtc";
         }
 
-        // Serialize the converted file path
-        writeString(serializedPath);
+        // Serialize the (possibly modified) file path
+        writeString(originalPath);
 
         // Serialize the number of imported declarations
         const auto& declarations = node->getImportedDeclarations();
@@ -1010,6 +1018,9 @@ namespace ast::serialization
 
         // Serialize the static access flag
         writeBool(node->getIsStaticAccess());
+
+        // Write full source location information (filename, line, column)
+        writeSourceLocation(node->getLocation());
     }
 
     void ASTSerializer::serializeMethodCallNode(const nodes::classes::MethodCallNode* node)
@@ -1050,11 +1061,7 @@ namespace ast::serialization
         case value::ValueType::STRING: return static_cast<uint8_t>(ast::serialization::ValueType::STRING);
         case value::ValueType::BOOL: return static_cast<uint8_t>(ast::serialization::ValueType::BOOL);
         case value::ValueType::OBJECT: return static_cast<uint8_t>(ast::serialization::ValueType::OBJECT);
-        case value::ValueType::ARRAY: return static_cast<uint8_t>(ast::serialization::ValueType::ARRAY);
-        case value::ValueType::MAP: return static_cast<uint8_t>(ast::serialization::ValueType::MAP);
-        case value::ValueType::SET: return static_cast<uint8_t>(ast::serialization::ValueType::SET);
-        case value::ValueType::STACK: return static_cast<uint8_t>(ast::serialization::ValueType::STACK);
-        case value::ValueType::QUEUE: return static_cast<uint8_t>(ast::serialization::ValueType::QUEUE);
+        // Collection ValueTypes removed - now implemented in mType
         case value::ValueType::NULL_TYPE: return static_cast<uint8_t>(ast::serialization::ValueType::NULL_VALUE);
         case value::ValueType::VOID: return static_cast<uint8_t>(ast::serialization::ValueType::VOID);
         default:
@@ -1071,56 +1078,20 @@ namespace ast::serialization
         // Serialize class name
         writeString(typeInfo.className);
 
-        // Serialize element type info for collections
-        if (typeInfo.elementTypeInfo.has_value()) {
-            writeUInt8(1); // Has element type
-            writeTypeInfo(*typeInfo.elementTypeInfo.value());
-        } else {
-            writeUInt8(0); // No element type
-        }
+        // Collection-specific type info no longer exists, but maintain serialization format
+        writeUInt8(0); // No element type
+        writeUInt8(0); // No key type
+        writeUInt8(0); // No value type
 
-        // Serialize key type info for maps
-        if (typeInfo.keyTypeInfo.has_value()) {
-            writeUInt8(1); // Has key type
-            writeTypeInfo(*typeInfo.keyTypeInfo.value());
-        } else {
-            writeUInt8(0); // No key type
-        }
+        // Legacy collection fields no longer exist, but maintain serialization format
+        writeUInt8(0); // No legacy element type
+        writeUInt8(0); // No legacy key type
+        writeUInt8(0); // No legacy value type
 
-        // Serialize value type info for maps
-        if (typeInfo.valueTypeInfo.has_value()) {
-            writeUInt8(1); // Has value type
-            writeTypeInfo(*typeInfo.valueTypeInfo.value());
-        } else {
-            writeUInt8(0); // No value type
-        }
-
-        // Serialize legacy fields for backward compatibility
-        if (typeInfo.elementType.has_value()) {
-            writeUInt8(1); // Has legacy element type
-            writeUInt8(valueTypeToSerializationType(typeInfo.elementType.value()));
-        } else {
-            writeUInt8(0); // No legacy element type
-        }
-
-        if (typeInfo.keyType.has_value()) {
-            writeUInt8(1); // Has legacy key type
-            writeUInt8(valueTypeToSerializationType(typeInfo.keyType.value()));
-        } else {
-            writeUInt8(0); // No legacy key type
-        }
-
-        if (typeInfo.valueType.has_value()) {
-            writeUInt8(1); // Has legacy value type
-            writeUInt8(valueTypeToSerializationType(typeInfo.valueType.value()));
-        } else {
-            writeUInt8(0); // No legacy value type
-        }
-
-        // Serialize class names
-        writeString(typeInfo.elementClassName.value_or(""));
-        writeString(typeInfo.keyClassName.value_or(""));
-        writeString(typeInfo.valueClassName.value_or(""));
+        // Legacy collection class names no longer exist, but maintain serialization format
+        writeString(""); // Empty element class name
+        writeString(""); // Empty key class name
+        writeString(""); // Empty value class name
     }
 
     void ASTSerializer::writeGenericTypeParameter(const ast::GenericTypeParameter& param)
@@ -1150,4 +1121,101 @@ namespace ast::serialization
             writeGenericTypeParameter(param);
         }
     }
+
+    // ========================================
+    // Import Resolution Implementation
+    // ========================================
+
+    bool ASTSerializer::serializeWithImportResolution(const ASTNode* root, const std::string& filePath, const std::string& baseDir)
+    {
+        // Set base directory for import resolution
+        setBaseDirectory(baseDir);
+
+        // Clear processed imports for this serialization
+        processedImports.clear();
+
+        // First, recursively compile all imported .mt files to .mtc files
+        compileImportsRecursively(root, baseDir);
+
+        // Then serialize the main file with .mt → .mtc path conversion
+        return serialize(root, filePath);
+    }
+
+    void ASTSerializer::setBaseDirectory(const std::string& baseDir)
+    {
+        baseDirectory = baseDir;
+    }
+
+    void ASTSerializer::compileImportsRecursively(const ASTNode* root, const std::string& baseDir)
+    {
+        // Find all ImportNodes in the AST and compile their targets
+        if (auto programNode = dynamic_cast<const nodes::statements::ProgramNode*>(root)) {
+            const auto& statements = programNode->getStatements();
+
+            for (const auto& stmt : statements) {
+                if (auto importNode = dynamic_cast<const nodes::statements::ImportNode*>(stmt.get())) {
+                    compileImportTarget(importNode, baseDir);
+                }
+            }
+        }
+    }
+
+    void ASTSerializer::compileImportTarget(const nodes::statements::ImportNode* importNode, const std::string& baseDir)
+    {
+        std::string importPath = importNode->getFilePath();
+
+        // Convert relative path to absolute path
+        std::filesystem::path fullPath = std::filesystem::path(baseDir) / importPath;
+        std::string resolvedPath = fullPath.string();
+
+        // Check if we've already processed this import to avoid infinite recursion
+        if (processedImports.find(resolvedPath) != processedImports.end()) {
+            return; // Already processed
+        }
+
+        // Mark as processed
+        processedImports.insert(resolvedPath);
+
+        // Load and parse the imported file
+        auto importedAST = loadImportedAST(resolvedPath);
+        if (!importedAST) {
+            return; // Failed to load
+        }
+
+        // Get the directory of the imported file for recursive imports
+        std::filesystem::path importedFilePath(resolvedPath);
+        std::string importedFileDir = importedFilePath.parent_path().string();
+
+        // Recursively compile imports in the imported file
+        compileImportsRecursively(importedAST.get(), importedFileDir);
+
+        // Compile the imported file itself
+        std::string outputPath = resolvedPath + "c"; // .mt -> .mtc
+        ASTSerializer importSerializer;
+        importSerializer.serializeWithImportResolution(importedAST.get(), outputPath, importedFileDir);
+    }
+
+    void ASTSerializer::processImportNode(const nodes::statements::ImportNode* node)
+    {
+        // This method is no longer used with the new approach
+        // Import processing is now handled by compileImportsRecursively
+    }
+
+    std::unique_ptr<ASTNode> ASTSerializer::loadImportedAST(const std::string& importPath)
+    {
+        // Parse the imported file
+        lexer::Lexer importLexer(importPath);
+
+        // Create ImportManager for parsing the imported file
+        auto importManager = std::make_unique<services::ImportManager>();
+
+        // Set base directory to the directory of the imported file, not the original base directory
+        std::filesystem::path importFilePath(importPath);
+        std::string importFileDirectory = importFilePath.parent_path().string();
+        importManager->setBaseDirectory(importFileDirectory);
+
+        parser::Parser importParser(importLexer, std::move(importManager));
+        return importParser.parseProgram();
+    }
+
 }

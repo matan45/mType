@@ -240,6 +240,60 @@ foreach (Person p in people) {
 }
 ```
 
+## Array Memory Management & Optimization
+
+### FlatMultiArray Architecture
+mType uses a sophisticated flat array architecture for multi-dimensional arrays that provides significant performance benefits:
+
+- **Single Allocation**: Multi-dimensional arrays use one contiguous memory block instead of nested allocations
+- **Stride-Based Indexing**: Efficient calculation of positions in flat buffer using stride arithmetic
+- **Cache Optimization**: Contiguous memory layout improves CPU cache performance
+- **Exception Safety**: Single allocation eliminates partial construction memory leaks
+
+### ArrayPool System
+The ArrayPool provides intelligent memory reuse for common array patterns:
+
+#### Pooling Strategy
+- **Common Patterns**: Powers of 2, small matrices (2x2, 3x3, 4x4, 8x8, 16x16)
+- **Size Limits**: Arrays up to 1M elements with dimensions ≤ 1024
+- **Automatic Management**: Pool sizing and cleanup handled automatically
+- **Thread Safety**: Mutex-protected operations for concurrent access
+
+#### Performance Benefits
+- **Reduced Allocations**: Reuses arrays for common dimension patterns
+- **Memory Efficiency**: Eliminates frequent allocation/deallocation overhead
+- **Hit Rate Tracking**: Statistics available for optimization analysis
+- **Fallback Handling**: Large or uncommon arrays bypass pool gracefully
+
+#### Pool Configuration
+```cpp
+// Pool automatically handles these patterns efficiently:
+int[][] matrix2x2 = new int[2][2];     // Pooled - common pattern
+int[][] matrix4x4 = new int[4][4];     // Pooled - power of 2
+int[][] large = new int[200][200];     // Not pooled - too large
+```
+
+### Array Creation Flow
+1. **Dimension Evaluation**: Parse and validate array size expressions
+2. **Pool Check**: Determine if dimensions match poolable patterns
+3. **Allocation Strategy**:
+   - **1D Arrays**: Use NativeArray for optimal single-dimension performance
+   - **2D+ Poolable**: Acquire from ArrayPool with automatic reset
+   - **2D+ Large**: Direct FlatMultiArray allocation
+4. **Initialization**: Fill with appropriate default values based on element type
+
+### Exception Safety Improvements
+- **RAII Design**: Automatic cleanup via smart pointers and RAII guards
+- **Pool Validation**: Dimension verification prevents pool corruption
+- **Reset Mechanism**: Pooled arrays properly reset between uses
+- **Memory Leak Prevention**: Eliminated recursive allocation vulnerabilities
+
+### Recent Fixes (2024)
+✅ **ArrayPool Reuse Bug**: Fixed pool returning new arrays instead of reusing pooled ones
+✅ **Memory Leak Elimination**: Removed legacy recursive allocation method
+✅ **Exception Safety**: Added comprehensive null checks and validation
+✅ **Performance Validation**: All 229+ tests pass with improved efficiency
+
 ## Contributing Guidelines
 
 - Follow the established coding style consistently

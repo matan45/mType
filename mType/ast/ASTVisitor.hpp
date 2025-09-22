@@ -39,6 +39,7 @@ namespace ast
         virtual T visitNativeFunctionNode(NativeFunctionNode* node) = 0;
         virtual T visitNullNode(NullNode* node) = 0;
         virtual T visitMemberAssignmentNode(MemberAssignmentNode* node) = 0;
+        virtual T visitIndexAssignmentNode(IndexAssignmentNode* node) = 0;
         virtual T visitMethodCallNode(MethodCallNode* node) = 0;
         virtual T visitMemberAccessNode(MemberAccessNode* node) = 0;
         virtual T visitNewNode(NewNode* node) = 0;
@@ -46,8 +47,7 @@ namespace ast
         virtual T visitConstructorNode(ConstructorNode* node) = 0;
         virtual T visitFieldNode(FieldNode* node) = 0;
         virtual T visitClassNode(ClassNode* node) = 0;
-        virtual T visitArrayLiteralNode(ArrayLiteralNode* node) = 0;
-        virtual T visitMapLiteralNode(MapLiteralNode* node) = 0;
+        virtual T visitArrayCreationNode(ArrayCreationNode* node) = 0;
         virtual T visitIndexAccessNode(IndexAccessNode* node) = 0;
         virtual T visitForEachNode(ForEachNode* node) = 0;
     };

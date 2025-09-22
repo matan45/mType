@@ -5,8 +5,8 @@
 #include "../tests/suites/IntegrationTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
-#include "../tests/suites/CollectionsTestSuite.hpp"
 #include "../tests/suites/GenericsTestSuite.hpp"
+#include "../tests/suites/ArrayTestSuite.hpp"
 #include "../tests/suites/SerializationTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
@@ -57,13 +57,13 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<TypeCheckingTestSuite>();
     }
-    else if (suiteName == "collections" || suiteName == "collection")
-    {
-        return std::make_unique<CollectionsTestSuite>();
-    }
     else if (suiteName == "generics" || suiteName == "generic")
     {
         return std::make_unique<GenericsTestSuite>();
+    }
+    else if (suiteName == "arrays" || suiteName == "array")
+    {
+        return std::make_unique<ArrayTestSuite>();
     }
     else if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
     {
@@ -81,8 +81,8 @@ void printAvailableTestSuites()
     std::cout << "  error        - Error Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
-    std::cout << "  collections  - Collections Test Suite\n";
     std::cout << "  generics     - Generics Test Suite\n";
+    std::cout << "  arrays       - Array Test Suite\n";
     std::cout << "  serialization- Serialization & Compilation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
@@ -135,7 +135,7 @@ void runAllTests()
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
     suites.push_back(std::make_unique<GenericsTestSuite>());
-    suites.push_back(std::make_unique<CollectionsTestSuite>());
+    suites.push_back(std::make_unique<ArrayTestSuite>());
 
     for (auto& suite : suites)
     {

@@ -22,9 +22,8 @@ namespace ast::serialization
         BINARY_EXP_NODE = 106,
         UNARY_EXP_NODE = 107,
         TERNARY_EXP_NODE = 108,
-        ARRAY_LITERAL_NODE = 109,
-        MAP_LITERAL_NODE = 110,
-        INDEX_ACCESS_NODE = 111,
+        INDEX_ACCESS_NODE = 109,
+        ARRAY_CREATION_NODE = 110,
 
         // Statement nodes
         PROGRAM_NODE = 200,
@@ -32,18 +31,19 @@ namespace ast::serialization
         DECLARATION_NODE = 202,
         ASSIGNMENT_NODE = 203,
         MEMBER_ASSIGNMENT_NODE = 204,
-        IF_NODE = 205,
-        WHILE_NODE = 206,
-        DO_WHILE_NODE = 207,
-        FOR_NODE = 208,
-        FOR_EACH_NODE = 209,
-        BREAK_NODE = 210,
-        CONTINUE_NODE = 211,
-        SWITCH_NODE = 212,
-        CASE_NODE = 213,
-        DEFAULT_CASE_NODE = 214,
-        IMPORT_NODE = 215,
-        NATIVE_FUNCTION_NODE = 216,
+        INDEX_ASSIGNMENT_NODE = 205,
+        IF_NODE = 206,
+        WHILE_NODE = 207,
+        DO_WHILE_NODE = 208,
+        FOR_NODE = 209,
+        FOR_EACH_NODE = 210,
+        BREAK_NODE = 211,
+        CONTINUE_NODE = 212,
+        SWITCH_NODE = 213,
+        CASE_NODE = 214,
+        DEFAULT_CASE_NODE = 215,
+        IMPORT_NODE = 216,
+        NATIVE_FUNCTION_NODE = 217,
 
         // Function nodes
         FUNCTION_NODE = 300,
@@ -103,21 +103,17 @@ namespace ast::serialization
         POSTFIX = 1
     };
 
-    // Value types for serialization
+    // Value types for serialization - must match runtime ValueType enum exactly
     enum class ValueType : uint8_t
     {
         INT = 0,
         FLOAT = 1,
-        STRING = 2,
-        BOOL = 3,
-        OBJECT = 4,
-        ARRAY = 5,
-        MAP = 6,
-        SET = 7,
-        STACK = 8,
-        QUEUE = 9,
-        NULL_VALUE = 10,
-        VOID = 11
+        BOOL = 2,
+        STRING = 3,
+        VOID = 4,
+        OBJECT = 5,
+        NULL_VALUE = 6,
+        // Collection types removed - now implemented in mType
     };
 
     // File header structure

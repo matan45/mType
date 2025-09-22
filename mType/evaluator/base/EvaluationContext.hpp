@@ -24,6 +24,9 @@ namespace evaluator::base
         bool hasReturned;
         bool isInStaticMethod;
 
+        // Current method execution context for generic type resolution
+        std::shared_ptr<MethodDefinition> currentMethod;
+
         // Performance optimization: cache frequently accessed values
         mutable std::shared_ptr<Environment> cachedEnv;
         mutable bool envCacheValid;
@@ -54,7 +57,12 @@ namespace evaluator::base
         // Static method context management
         void setInStaticMethod(bool inStatic) { isInStaticMethod = inStatic; }
         bool isInStaticMethodContext() const { return isInStaticMethod; }
-        
+
+        // Current method context management for generic type resolution
+        void setCurrentMethod(std::shared_ptr<MethodDefinition> method) { currentMethod = method; }
+        std::shared_ptr<MethodDefinition> getCurrentMethod() const { return currentMethod; }
+        void clearCurrentMethod() { currentMethod = nullptr; }
+
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;
         EvaluationContext& operator=(const EvaluationContext&) = delete;

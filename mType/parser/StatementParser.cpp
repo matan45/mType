@@ -1,9 +1,12 @@
 ﻿#include "StatementParser.hpp"
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
+#include <iostream>
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
@@ -44,11 +47,7 @@ namespace parser
         case TokenType::FLOAT:
         case TokenType::BOOL:
         case TokenType::STRING_TYPE:
-        case TokenType::ARRAY:
-        case TokenType::MAP:
-        case TokenType::SET:
-        case TokenType::QUEUE:
-        case TokenType::STACK:
+        // Collection type parsing removed
             return parseDeclaration();
         case TokenType::FINAL:
         case TokenType::STATIC:
@@ -78,6 +77,26 @@ namespace parser
                 if (nextToken.type == TokenType::IDENTIFIER) {
                     // Pattern: "ClassName varName" - this is a custom type declaration
                     return parseDeclaration();
+                } else if (nextToken.type == TokenType::LBRACKET) {
+                    // Need to distinguish between:
+                    // 1. "int[] data" (array type declaration)
+                    // 2. "data[0]" (array indexing/assignment)
+
+                    std::string identifier = tokenStream.current().stringValue;
+
+                    // Check if this identifier is a type name
+                    if (identifier == "int" || identifier == "float" || identifier == "string" ||
+                        identifier == "bool" ||
+                        // Also check for single-letter generic type parameters (T, K, V, etc.)
+                        (identifier.length() == 1 && std::isupper(identifier[0])) ||
+                        // Also check for class names (start with uppercase letter)
+                        (!identifier.empty() && std::isupper(identifier[0]))) {
+                        // Pattern: "Type[]" - this is likely a type declaration
+                        return parseDeclaration();
+                    } else {
+                        // Pattern: "variableName[index]" - this is likely an expression/assignment
+                        return parseExpressionStatement();
+                    }
                 } else if (nextToken.type == TokenType::LESS) {
                     // Pattern: "ClassName<...>" - this is a generic type declaration
                     return parseDeclaration();
@@ -180,6 +199,7 @@ namespace parser
         }
 
         std::string varName = tokenStream.current().stringValue;
+        SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> value = nullptr;
@@ -190,12 +210,13 @@ namespace parser
 
         tokenStream.expect(TokenType::SEMICOLON);
 
-        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic);
+        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic, varLocation);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseAssignment()
     {
         std::string varName = tokenStream.current().stringValue;
+        SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
         // Check for compound assignment operators
@@ -213,7 +234,7 @@ namespace parser
             // For compound assignments, create a binary expression
             if (opType != TokenType::ASSIGN)
             {
-                auto varNode = std::make_unique<ast::nodes::expressions::VariableNode>(varName);
+                auto varNode = std::make_unique<ast::nodes::expressions::VariableNode>(varName, varLocation);
                 TokenType binaryOp;
                 switch (opType)
                 {
@@ -231,11 +252,11 @@ namespace parser
                     break;
                 }
                 value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
-                    std::move(varNode), binaryOp, std::move(value));
+                    std::move(varNode), binaryOp, std::move(value), varLocation);
             }
 
             tokenStream.expect(TokenType::SEMICOLON);
-            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false);
+            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false, varLocation);
         }
         else
         {
@@ -308,11 +329,6 @@ namespace parser
                 tokenStream.current().type == TokenType::FLOAT ||
                 tokenStream.current().type == TokenType::BOOL ||
                 tokenStream.current().type == TokenType::STRING_TYPE ||
-                tokenStream.current().type == TokenType::ARRAY ||
-                tokenStream.current().type == TokenType::MAP ||
-                tokenStream.current().type == TokenType::SET ||
-                tokenStream.current().type == TokenType::QUEUE ||
-                tokenStream.current().type == TokenType::STACK ||
                 tokenStream.current().type == TokenType::IDENTIFIER)
             {
                 // Parse declaration inline - could be regular for loop or for-each
@@ -349,8 +365,8 @@ namespace parser
                     {
                         value = context.parseExpression();
                     }
-                    
-                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false);
+
+                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false, location);
                 }
             }
             else
@@ -592,7 +608,47 @@ namespace parser
                 );
             }
         }
-        
+
+        // Check if this is an index assignment (array[index] = value)
+        if (auto indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(expr.get())) {
+            TokenType opType = tokenStream.current().type;
+            if (TypeParser::isAssignmentOperator(opType)) {
+
+                tokenStream.advance(); // consume assignment operator
+                auto value = context.parseExpression();
+
+                // For compound assignments, create a binary expression
+                if (opType != TokenType::ASSIGN) {
+                    TokenType binaryOp;
+                    switch (opType) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = TokenType::PLUS; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = TokenType::MINUS; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = TokenType::MULTIPLY; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = TokenType::DIVIDE; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = TokenType::MODULO; break;
+                        default: binaryOp = TokenType::PLUS; break;
+                    }
+                    value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
+                        std::move(expr), binaryOp, std::move(value));
+
+                    tokenStream.expect(TokenType::SEMICOLON);
+                    return value;
+                }
+
+                tokenStream.expect(TokenType::SEMICOLON);
+
+                // Extract the object and index for the assignment
+                auto object = indexAccess->transferCollectionOwnership();
+                auto index = indexAccess->transferIndexOwnership();
+
+                return std::make_unique<ast::nodes::statements::IndexAssignmentNode>(
+                    std::move(object),
+                    std::move(index),
+                    std::move(value)
+                );
+            }
+        }
+
         tokenStream.expect(TokenType::SEMICOLON);
         return expr;
     }

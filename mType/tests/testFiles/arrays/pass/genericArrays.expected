@@ -1,0 +1,13 @@
+Testing generic arrays
+Creating simple arrays
+String array length: 3
+Item 0: apple
+Item 1: banana
+Item 2: cherry
+Int array length: 2
+Item 0: 42
+Item 1: 84
+Bool array length: 2
+Flag 0: true
+Flag 1: false
+Generic arrays test completed

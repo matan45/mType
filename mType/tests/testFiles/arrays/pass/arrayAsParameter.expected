@@ -1,0 +1,14 @@
+Testing arrays as parameters and return types
+Creating test array
+Array length: 3
+testArray[0] = 10
+testArray[1] = 20
+testArray[2] = 30
+Created array:
+Array length: 4
+  [0] = 5
+  [1] = 10
+  [2] = 15
+  [3] = 20
+Sum of testArray: 60
+Array parameter test completed

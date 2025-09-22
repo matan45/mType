@@ -3,6 +3,7 @@
 #include "ParseContext.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include <iostream>
 
 namespace parser
 {

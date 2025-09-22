@@ -7,12 +7,14 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
+#include "../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../parser/ParserValidator.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::classes;
+    using namespace ast::nodes::expressions;
     using namespace token;
     using namespace value;
     using namespace errors;
@@ -252,14 +254,14 @@ namespace parser
     {
         tokenStream.expect(TokenType::NEW);
 
-        // Check for valid type names - both identifiers and collection types
+        // Check for valid type names - identifiers, primitive types, and collection types
         TokenType currentType = tokenStream.current().type;
-        if (currentType != TokenType::IDENTIFIER && 
-            currentType != TokenType::ARRAY && 
-            currentType != TokenType::MAP && 
-            currentType != TokenType::SET && 
-            currentType != TokenType::QUEUE && 
-            currentType != TokenType::STACK)
+        if (currentType != TokenType::IDENTIFIER &&
+            currentType != TokenType::INT &&
+            currentType != TokenType::FLOAT &&
+            currentType != TokenType::BOOL &&
+            currentType != TokenType::STRING_TYPE &&
+            true)
         {
             throw ParseException("Expected class name after 'new'", tokenStream.current().location);
         }
@@ -280,14 +282,6 @@ namespace parser
             tokenStream.advance();
         }
 
-        // Validate only the final class name (not namespace parts)
-        std::string finalClassName = qualifiedParts.back();
-        if (!ParserValidator::isValidClassName(finalClassName))
-        {
-            throw ParseException("Class name '" + finalClassName + "' must start with an uppercase letter",
-                                 tokenStream.current().location);
-        }
-
         // Reconstruct full qualified name for the AST
         std::string className = qualifiedParts[0];
         for (size_t i = 1; i < qualifiedParts.size(); ++i)
@@ -300,29 +294,78 @@ namespace parser
         {
             std::string genericsString = "<";
             tokenStream.advance(); // consume '<'
-            
+
             // Use recursive approach to parse generic parameters
             genericsString += parseGenericParameters();
-            
+
             tokenStream.expect(TokenType::GREATER); // consume '>'
             genericsString += ">";
-            
+
             className += genericsString;
         }
 
-        tokenStream.expect(TokenType::LPAREN);
-        std::vector<std::unique_ptr<ASTNode>> arguments;
-        if (!tokenStream.check(TokenType::RPAREN))
+        // Check if this is array creation (new Type[size]) or class instantiation (new Type())
+        if (tokenStream.check(TokenType::LBRACKET))
         {
-            arguments.push_back(context.parseExpression());
-            while (tokenStream.match(TokenType::COMMA))
+            // Array creation: new T[size] or new int[size] or new int[size1][size2]
+            std::vector<std::unique_ptr<ASTNode>> sizeExpressions;
+
+            // Parse all dimensions
+            while (tokenStream.check(TokenType::LBRACKET))
+            {
+                tokenStream.advance(); // consume '['
+
+                // Parse the size expression for this dimension
+                auto sizeExpression = context.parseExpression();
+                sizeExpressions.push_back(std::move(sizeExpression));
+
+                tokenStream.expect(TokenType::RBRACKET); // consume ']'
+            }
+
+            // Create TypeInfo from the type name
+            TypeInfo elementTypeInfo;
+
+            // Check if it's a primitive type
+            if (className == "int") {
+                elementTypeInfo = TypeInfo(ValueType::INT);
+            } else if (className == "float") {
+                elementTypeInfo = TypeInfo(ValueType::FLOAT);
+            } else if (className == "bool") {
+                elementTypeInfo = TypeInfo(ValueType::BOOL);
+            } else if (className == "string") {
+                elementTypeInfo = TypeInfo(ValueType::STRING);
+            } else {
+                // Generic type parameter or custom class - treat as OBJECT
+                elementTypeInfo = TypeInfo(ValueType::OBJECT, className);
+            }
+
+            return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(sizeExpressions));
+        }
+        else
+        {
+            // Class instantiation: new Type()
+            // Validate class name for actual class instantiation (not array creation)
+            std::string finalClassName = qualifiedParts.back();
+            if (!ParserValidator::isValidClassName(finalClassName))
+            {
+                throw ParseException("Class name '" + finalClassName + "' must start with an uppercase letter",
+                                     tokenStream.current().location);
+            }
+
+            tokenStream.expect(TokenType::LPAREN);
+            std::vector<std::unique_ptr<ASTNode>> arguments;
+            if (!tokenStream.check(TokenType::RPAREN))
             {
                 arguments.push_back(context.parseExpression());
+                while (tokenStream.match(TokenType::COMMA))
+                {
+                    arguments.push_back(context.parseExpression());
+                }
             }
-        }
-        tokenStream.expect(TokenType::RPAREN);
+            tokenStream.expect(TokenType::RPAREN);
 
-        return std::make_unique<NewNode>(className, std::move(arguments));
+            return std::make_unique<NewNode>(className, std::move(arguments));
+        }
     }
 
     std::string ClassParser::parseGenericParameters()
@@ -347,11 +390,6 @@ namespace parser
     {
         // Handle type name (could be identifier or built-in type)
         if (tokenStream.current().type == TokenType::IDENTIFIER ||
-            tokenStream.current().type == TokenType::ARRAY ||
-            tokenStream.current().type == TokenType::MAP ||
-            tokenStream.current().type == TokenType::SET ||
-            tokenStream.current().type == TokenType::QUEUE ||
-            tokenStream.current().type == TokenType::STACK ||
             tokenStream.current().type == TokenType::INT ||
             tokenStream.current().type == TokenType::FLOAT ||
             tokenStream.current().type == TokenType::BOOL ||
@@ -422,33 +460,40 @@ namespace parser
         return ast::GenericTypeParameter(paramName, constraints, location);
     }
 
+    // Helper method to create TypeInfo from class name string
+    TypeInfo ClassParser::createTypeInfoFromClassName(const std::string& className)
+    {
+        // Handle basic types
+        if (className == "int") return TypeInfo(ValueType::INT);
+        if (className == "float") return TypeInfo(ValueType::FLOAT);
+        if (className == "bool") return TypeInfo(ValueType::BOOL);
+        if (className == "string") return TypeInfo(ValueType::STRING);
+        if (className == "void") return TypeInfo(ValueType::VOID);
+
+
+        // For complex generic types like "Array<int>", extract and parse
+        size_t anglePos = className.find('<');
+        if (anglePos != std::string::npos)
+        {
+            std::string baseType = className.substr(0, anglePos);
+            std::string genericPart = className.substr(anglePos + 1, className.length() - anglePos - 2); // Remove < and >
+
+            // Custom generic class - treat as object for now
+            return TypeInfo(ValueType::OBJECT, className);
+        }
+
+        // Default: treat as custom class (OBJECT type)
+        return TypeInfo(ValueType::OBJECT, className);
+    }
+
     // NEW: Convert TypeInfo to GenericType for field and method parsing
     std::shared_ptr<ast::GenericType> ClassParser::convertTypeInfoToGenericType(const TypeInfo& typeInfo)
     {
         // Handle basic types
         if (typeInfo.baseType != ValueType::OBJECT)
         {
-            // For collection types, handle their generic arguments
-            if (typeInfo.hasNestedElementType())
-            {
-                // Single-element collections (Array, Set, Queue, Stack)
-                auto elementType = convertTypeInfoToGenericType(*typeInfo.getElementTypeInfo());
-                return std::make_shared<ast::GenericType>(typeInfo.baseType,
-                    std::vector<std::shared_ptr<ast::GenericType>>{elementType});
-            }
-            else if (typeInfo.hasNestedKeyType() && typeInfo.hasNestedValueType())
-            {
-                // Map type
-                auto keyType = convertTypeInfoToGenericType(*typeInfo.getKeyTypeInfo());
-                auto valueType = convertTypeInfoToGenericType(*typeInfo.getValueTypeInfo());
-                return std::make_shared<ast::GenericType>(typeInfo.baseType,
-                    std::vector<std::shared_ptr<ast::GenericType>>{keyType, valueType});
-            }
-            else
-            {
-                // Simple built-in types (int, float, bool, string, void)
-                return std::make_shared<ast::GenericType>(typeInfo.baseType);
-            }
+            // Simple built-in types (int, float, bool, string, void)
+            return std::make_shared<ast::GenericType>(typeInfo.baseType);
         }
         else
         {

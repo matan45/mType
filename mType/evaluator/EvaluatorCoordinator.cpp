@@ -1,5 +1,6 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include <iostream>
 
 namespace evaluator
 {
@@ -202,6 +203,12 @@ namespace evaluator
     {
         return objEvaluator->evaluateMemberAssignmentNode(node);
     }
+
+    Value EvaluatorCoordinator::visitIndexAssignmentNode(IndexAssignmentNode* node)
+    {
+        std::cout << "[DEBUG] EvaluatorCoordinator::visitIndexAssignmentNode called" << std::endl;
+        return objEvaluator->evaluateIndexAssignmentNode(node);
+    }
     
     Value EvaluatorCoordinator::visitMethodCallNode(MethodCallNode* node)
     {
@@ -286,15 +293,16 @@ namespace evaluator
     }
 
     // Collection visitor methods
-    Value EvaluatorCoordinator::visitArrayLiteralNode(ArrayLiteralNode* node)
+    Value EvaluatorCoordinator::visitArrayCreationNode(ArrayCreationNode* node)
     {
-        return exprEvaluator->evaluateArrayLiteralNode(node);
+        return exprEvaluator->evaluateArrayCreationNode(node);
     }
 
-    Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
+    // REMOVED: MapLiteralNode no longer exists - collections now implemented in mType
+    /* Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
     {
         return exprEvaluator->evaluateMapLiteralNode(node);
-    }
+    } */
 
     Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
     {

@@ -95,7 +95,7 @@ class LeakDetector {
         }
         
         string batchResult = processMultiple(10);
-        print("Batch processing result length: " + toString(str::length(batchResult)));
+        print("Batch processing result length: " + toString(strLength(batchResult)));
         print("After batch processing: " + LeakDetector::getAllocationStats());
     }
     

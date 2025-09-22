@@ -1,7 +1,9 @@
-Int container empty: false
-Int container value: 42
-String container empty: false
-String container value: hello
-Valid: 100
-Valid: test
-Valid: true
+Testing generic import serialization...
+Int container size: 2
+String container size: 2
+First int: 84
+First string: test
+Contains 42: true
+Contains 'test': true
+Contains 'missing': false
+Generic import serialization test completed

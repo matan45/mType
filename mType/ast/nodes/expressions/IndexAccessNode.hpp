@@ -18,6 +18,10 @@ namespace ast::nodes::expressions
         void setCollection(std::unique_ptr<ASTNode> collection);
         void setIndex(std::unique_ptr<ASTNode> index);
 
+        // Transfer ownership methods for parser use
+        [[nodiscard]] std::unique_ptr<ASTNode> transferCollectionOwnership();
+        [[nodiscard]] std::unique_ptr<ASTNode> transferIndexOwnership();
+
         Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

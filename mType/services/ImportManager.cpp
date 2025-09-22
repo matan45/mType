@@ -53,19 +53,7 @@ namespace services
             return it->second.get();
         }
 
-        // Try to load from .mtc file first (faster deserialization)
-        std::string mtcPath = convertToMtcPath(resolvedPath);
-        if (mtcFileExists(mtcPath)) {
-            ASTNode* astPtr = loadFromMtcFile(mtcPath);
-            if (astPtr) {
-                // Use the original .mt path as cache key for consistency
-                astCache[resolvedPath] = std::unique_ptr<ASTNode>(astPtr);
-                importedFiles.insert(resolvedPath);
-                return astPtr;
-            }
-        }
-
-        // Fallback to parsing .mt file
+        // Parse .mt file directly
         Lexer lexer(resolvedPath);
         Parser parser(lexer, nullptr);  // Pass nullptr for ImportManager since we don't handle nested imports during parsing
 

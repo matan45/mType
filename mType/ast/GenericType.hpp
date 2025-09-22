@@ -208,12 +208,6 @@ namespace ast
             return std::make_shared<GenericType>(name);
         }
 
-        static std::shared_ptr<GenericType> createArray(std::shared_ptr<GenericType> elementType) {
-            return std::make_shared<GenericType>(value::ValueType::ARRAY, std::vector<std::shared_ptr<GenericType>>{elementType});
-        }
-
-        static std::shared_ptr<GenericType> createMap(std::shared_ptr<GenericType> keyType, std::shared_ptr<GenericType> valueType) {
-            return std::make_shared<GenericType>(value::ValueType::MAP, std::vector<std::shared_ptr<GenericType>>{keyType, valueType});
-        }
+        // Collection factory methods removed - collections now implemented in mType
     };
 }

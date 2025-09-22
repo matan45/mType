@@ -21,6 +21,14 @@ class Person {
     function toString(): string {
         return name + " (" + age + " years old)";
     }
+
+    function equals(Person other): bool {
+        return this.name == other.name && this.age == other.age;
+    }
+
+    function hashCode(): int {
+        return name.hashCode() + age;
+    }
 }
 
 class Employee {
@@ -35,34 +43,39 @@ class Employee {
     function toString(): string {
         return name + " from " + department;
     }
+
+    function equals(Employee other): bool {
+        return this.name == other.name && this.department == other.department;
+    }
+
+    function hashCode(): int {
+        return name.hashCode() + department.hashCode();
+    }
 }
 
 function main(): void {
-    // Test SimpleContainer with custom classes
-    SimpleContainer<Person> personContainer = new SimpleContainer<Person>();
-    SimpleContainer<Employee> employeeContainer = new SimpleContainer<Employee>();
+    // Test GenericContainer with custom classes
+    GenericContainer<Person> personContainer = new GenericContainer<Person>();
+    GenericContainer<Employee> employeeContainer = new GenericContainer<Employee>();
 
     Person alice = new Person("Alice", 25);
     Employee john = new Employee("John", "Engineering");
 
-    personContainer.store(alice);
-    employeeContainer.store(john);
+    personContainer.add(alice);
+    employeeContainer.add(john);
 
-    print("Person empty: " + personContainer.isEmpty());
-    print("Employee empty: " + employeeContainer.isEmpty());
+    print("Person size: " + personContainer.size());
+    print("Employee size: " + employeeContainer.size());
 
-    Person retrievedPerson = personContainer.retrieve();
-    Employee retrievedEmployee = employeeContainer.retrieve();
+    Person retrievedPerson = personContainer.getFirst();
+    Employee retrievedEmployee = employeeContainer.getFirst();
 
     print("Retrieved person: " + retrievedPerson.toString());
     print("Retrieved employee: " + retrievedEmployee.toString());
 
-    // Test Validator with custom classes
-    Validator<Person> personValidator = new Validator<Person>();
-    Validator<Employee> employeeValidator = new Validator<Employee>();
-
-    print(personValidator.validateAndProcess(alice));
-    print(employeeValidator.validateAndProcess(john));
+    // Test contains functionality
+    print("Contains alice: " + personContainer.contains(alice));
+    print("Contains john: " + employeeContainer.contains(john));
 }
 
 main();

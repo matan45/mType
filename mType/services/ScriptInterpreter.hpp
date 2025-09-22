@@ -31,6 +31,7 @@ namespace services
 
         // Cached execution helpers
         void preRegisterClassDefinitions(ast::ASTNode* node);
+
         
     public:
         ScriptInterpreter();

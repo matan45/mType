@@ -1,8 +1,11 @@
 #include "ObjectEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
-#include "utils/CollectionTypeHelper.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/ValueConverter.hpp"
+#include "../value/FlatMultiArray.hpp"
+#include "../value/SparseMultiArray.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
@@ -17,15 +20,13 @@
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../value/NativeArray.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/Set.hpp"
-#include "../runtimeTypes/collections/Queue.hpp"
-#include "../runtimeTypes/collections/Stack.hpp"
+// All collection includes removed - collections now implemented in mType language
 #include "../parser/TypeParser.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "ExpressionEvaluator.hpp"
@@ -35,6 +36,7 @@ namespace evaluator
 {
     using namespace errors;
     using namespace runtimeTypes::klass;
+    using namespace parser;
 
     ObjectEvaluator::ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx)
         : context(ctx), instanceManager(std::make_unique<InstanceManager>()),
@@ -82,6 +84,10 @@ namespace evaluator
         {
             return evaluateMemberAssignmentNode(memberAssignNode);
         }
+        if (auto indexAssignNode = dynamic_cast<IndexAssignmentNode*>(node))
+        {
+            return evaluateIndexAssignmentNode(indexAssignNode);
+        }
 
         return std::monostate{};
     }
@@ -111,7 +117,8 @@ namespace evaluator
             dynamic_cast<NewNode*>(node) ||
             dynamic_cast<MemberAccessNode*>(node) ||
             dynamic_cast<MethodCallNode*>(node) ||
-            dynamic_cast<MemberAssignmentNode*>(node);
+            dynamic_cast<MemberAssignmentNode*>(node) ||
+            dynamic_cast<IndexAssignmentNode*>(node);
     }
 
     Value ObjectEvaluator::evaluateClassNode(ClassNode* node)
@@ -222,9 +229,11 @@ namespace evaluator
         }
 
         std::string className = node->getClassName();
-        
-        // Handle collection types specially
-        if (className.find("Array<") == 0)
+
+        // REMOVED: Collection handling - collections now implemented in mType language
+        // All collections (Array, Map, Set, Stack, Queue) will be handled as regular mType classes
+
+        /* if (className.find("Array<") == 0)
         {
             // Parse the element type from Array<ElementType>
             size_t start = className.find('<') + 1;
@@ -363,15 +372,51 @@ namespace evaluator
             {
                 return std::make_shared<runtimeTypes::collections::Stack>(value::ValueType::OBJECT);
             }
-        }
+        } */
 
         // Handle regular class instantiation
         // className already declared above for collections
         std::shared_ptr<ClassDefinition> classDef;
         auto env = context->getEnvironment();
 
-        // Check if this is a generic instantiation
-        if (utils::GenericTypeManager::isGenericInstantiation(className))
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+            std::vector<std::string> resolvedTypeArguments;
+            bool hasResolvedParams = false;
+            for (const std::string& typeArg : typeArguments) {
+                std::string resolvedType = resolveTypeParameterFromContext(typeArg);
+                resolvedTypeArguments.push_back(resolvedType);
+                if (resolvedType != typeArg) {
+                    hasResolvedParams = true;
+                }
+            }
+
+            // If we resolved any type parameters, construct the resolved class name
+            if (hasResolvedParams) {
+                resolvedClassName = baseName + "<" + resolvedTypeArguments[0];
+                for (size_t i = 1; i < resolvedTypeArguments.size(); ++i) {
+                    resolvedClassName += "," + resolvedTypeArguments[i];
+                }
+                resolvedClassName += ">";
+            }
+        }
+
+        // Check if we should use the resolved class name for direct instantiation
+        if (resolvedClassName != className) {
+            // We resolved type parameters - try to find the instantiated class directly
+            auto instantiatedClass = env->findClass(resolvedClassName);
+            if (instantiatedClass) {
+                classDef = instantiatedClass;
+            } else {
+                className = resolvedClassName; // Use resolved name for generic instantiation
+            }
+        }
+
+        // Check if this is a generic instantiation (only if we haven't already found instantiated class)
+        if (!classDef && utils::GenericTypeManager::isGenericInstantiation(className))
         {
             // Parse generic instantiation
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
@@ -406,16 +451,19 @@ namespace evaluator
         }
         else
         {
-            // Regular non-generic class
-            classDef = env->findClass(className);
+            // Regular non-generic class - use resolved class name if available
+            std::string classNameToLookup = (resolvedClassName != className) ? resolvedClassName : className;
+            classDef = env->findClass(classNameToLookup);
         }
 
         if (!classDef)
         {
-            throw UndefinedException("Class '" + className + "' not found");
+            std::string classNameToReport = (resolvedClassName != className) ? resolvedClassName : className;
+            throw UndefinedException("Class '" + classNameToReport + "' not found");
         }
 
-        auto instance = createInstance(className, args);
+        std::string classNameForInstance = (resolvedClassName != className) ? resolvedClassName : className;
+        auto instance = createInstance(classNameForInstance, args);
 
         // Execute constructor if it exists
         if (classDef && !classDef->getConstructors().empty())
@@ -506,6 +554,18 @@ namespace evaluator
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return accessMember(instance, node->getMemberName());
         }
+        else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                return static_cast<int>(array->size());
+            }
+            else
+            {
+                throw TypeException("Array does not have member '" + node->getMemberName() + "'");
+            }
+        }
         else
         {
             throw TypeException("Cannot access member '" + node->getMemberName() +
@@ -560,6 +620,227 @@ namespace evaluator
         }
     }
 
+    Value ObjectEvaluator::evaluateIndexAssignmentNode(IndexAssignmentNode* node)
+    {
+        if (!exprEvaluator)
+        {
+            throw TypeException("Expression evaluator not available for index assignment");
+        }
+
+        // Try to extract multi-dimensional assignment (e.g., arr[i][j][k] = value)
+        auto multiDimResult = extractMultiDimensionalAssignment(node);
+        if (multiDimResult.has_value()) {
+            auto [baseArray, indices] = multiDimResult.value();
+            Value newValue = exprEvaluator->evaluate(node->getValue());
+            return performDirectMultiDimensionalAssignment(baseArray, indices, newValue, node->getLocation());
+        }
+
+        // Check if this is a multi-dimensional assignment (e.g., arr2d[0][0] = value)
+        // If node->getObject() is an IndexAccessNode, we might have a multi-dimensional assignment
+        auto objectASTNode = node->getObject();
+
+        // Try to detect if this is an IndexAccessNode
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
+            // Get the base array (e.g., arr2d in arr2d[0][0] = value)
+            Value baseArrayValue = exprEvaluator->evaluate(indexAccessNode->getCollection());
+
+            if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue)) {
+                auto baseArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue);
+
+                // Get the first dimension index (e.g., 0 in arr2d[0][0])
+                Value firstIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+
+                // Get the second dimension index (e.g., 0 in arr2d[0][0])
+                Value secondIndexValue = exprEvaluator->evaluate(node->getIndex());
+
+                // Get the new value
+                Value newValue = exprEvaluator->evaluate(node->getValue());
+
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                    int firstIndex = std::get<int>(firstIndexValue);
+                    int secondIndex = std::get<int>(secondIndexValue);
+
+                    // Validate indices before conversion
+                    if (firstIndex < 0) {
+                        throw TypeException("Multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    }
+                    if (secondIndex < 0) {
+                        throw TypeException("Multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    }
+
+                    std::vector<size_t> indices;
+                    indices.push_back(static_cast<size_t>(firstIndex));
+                    indices.push_back(static_cast<size_t>(secondIndex));
+
+                    try {
+                        baseArray->set(indices, newValue);
+                        return newValue;
+                    } catch (const std::out_of_range& e) {
+                        throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
+                }
+            } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue)) {
+                auto baseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue);
+
+                // Get the first dimension index (e.g., 0 in arr2d[0][0])
+                Value firstIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+
+                // Get the second dimension index (e.g., 0 in arr2d[0][0])
+                Value secondIndexValue = exprEvaluator->evaluate(node->getIndex());
+
+                // Get the new value
+                Value newValue = exprEvaluator->evaluate(node->getValue());
+
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                    int firstIndex = std::get<int>(firstIndexValue);
+                    int secondIndex = std::get<int>(secondIndexValue);
+
+                    // Validate indices before conversion
+                    if (firstIndex < 0) {
+                        throw TypeException("Sparse multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    }
+                    if (secondIndex < 0) {
+                        throw TypeException("Sparse multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    }
+
+                    std::vector<size_t> indices;
+                    indices.push_back(static_cast<size_t>(firstIndex));
+                    indices.push_back(static_cast<size_t>(secondIndex));
+
+                    try {
+                        baseArray->set(indices, newValue);
+                        return newValue;
+                    } catch (const std::out_of_range& e) {
+                        throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
+                }
+            }
+        }
+
+        // Fall back to single-dimensional assignment
+        // Evaluate the object expression (should be an array)
+        Value objectValue = exprEvaluator->evaluate(node->getObject());
+
+        // Evaluate the index expression
+        Value indexValue = exprEvaluator->evaluate(node->getIndex());
+
+        // Evaluate the new value
+        Value newValue = exprEvaluator->evaluate(node->getValue());
+
+
+        // Check if index is an integer
+        if (!std::holds_alternative<int>(indexValue)) {
+            throw TypeException("Array index must be an integer", node->getLocation());
+        }
+
+        int index = std::get<int>(indexValue);
+
+        // Check if object is a NativeArray
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue)) {
+            auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= nativeArray->size()) {
+                throw TypeException("Array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+            }
+
+            nativeArray->set(static_cast<size_t>(index), newValue);
+            return newValue;
+        }
+
+        // Check if object is a FlatMultiArray (for multi-dimensional arrays)
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue)) {
+            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
+
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= flatArray->size()) {
+                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            }
+
+            // For 1D FlatMultiArray, set directly
+            if (flatArray->getRank() == 1) {
+                try {
+                    flatArray->set(static_cast<size_t>(index), newValue);
+                    return newValue;
+                } catch (const std::out_of_range& e) {
+                    throw TypeException("Array assignment failed: " + std::string(e.what()), node->getLocation());
+                }
+            } else {
+                // For multi-dimensional arrays, this should be handled differently
+                // The parser should create nested IndexAssignmentNodes, but if we get here,
+                // it means we're assigning to a sub-array which isn't supported
+                throw TypeException("Cannot assign array to index position", node->getLocation());
+            }
+        }
+
+        // Check if object is a SparseMultiArray (for adaptive sparse arrays)
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue)) {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
+
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Sparse array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= sparseArray->size()) {
+                throw TypeException("Sparse array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+
+            // For single dimension sparse array
+            if (sparseArray->getRank() == 1) {
+                try {
+                    std::vector<size_t> indices = {static_cast<size_t>(index)};
+                    sparseArray->set(indices, newValue);
+                    return newValue;
+                } catch (const std::out_of_range& e) {
+                    throw TypeException("Sparse array assignment failed: " + std::string(e.what()), node->getLocation());
+                }
+            } else {
+                // For multi-dimensional sparse arrays, this should be handled differently
+                // The parser should create nested IndexAssignmentNodes
+                throw TypeException("Cannot assign array to index position in sparse array", node->getLocation());
+            }
+        }
+
+        throw TypeException("Cannot assign to index of non-array value", node->getLocation());
+        /* if (std::holds_alternative<std::shared_ptr<Array>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<Array>>(objectValue);
+
+            if (std::holds_alternative<int>(indexValue))
+            {
+                int index = std::get<int>(indexValue);
+                array->set(index, newValue);
+
+                return newValue;
+            }
+            else
+            {
+                std::cout << "[DEBUG] ERROR: Index is not an integer" << std::endl;
+                throw TypeException("Array index must be an integer");
+            }
+        }
+        else
+        {
+            std::cout << "[DEBUG] ERROR: Object is not an Array" << std::endl;
+            throw TypeException("Cannot assign to index on non-array value");
+        } */
+    }
+
     void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object,
                                        const std::string& memberName,
                                        const Value& value)
@@ -609,11 +890,8 @@ namespace evaluator
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
             return callMethod(instance, node->getMethodName(), args);
         }
-        // Handle all collection types using unified dispatcher
-        else if (utils::CollectionTypeHelper::isCollection(objectValue))
-        {
-            return dispatchCollectionMethod(objectValue, node->getMethodName(), args);
-        }
+        // Collection method dispatch removed - collections now implemented in mType language
+        // Collections will be handled as regular object method calls
         else
         {
             throw TypeException("Cannot call method '" + node->getMethodName() +
@@ -765,11 +1043,39 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance) {
+            auto instanceClassDef = currentInstance->getClassDefinition();
+            if (instanceClassDef) {
+                std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
+
+                // Check if the target className contains type parameters that need resolution
+                if (className.find('<') != std::string::npos && className.find('T') != std::string::npos) {
+                    if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName)) {
+                        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(instanceClassName);
+
+                        // Replace type parameters in className
+                        resolvedClassName = className;
+                        if (className.find("T") != std::string::npos && !typeArguments.empty()) {
+                            // Simple T replacement - can be extended for multiple type parameters
+                            size_t pos = resolvedClassName.find("T");
+                            while (pos != std::string::npos) {
+                                resolvedClassName.replace(pos, 1, typeArguments[0]);
+                                pos = resolvedClassName.find("T", pos + typeArguments[0].length());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Find the class and method
-        auto classDef = env->findClass(className);
+        auto classDef = env->findClass(resolvedClassName);
         if (!classDef)
         {
-            throw UndefinedException("Class '" + className + "' not found");
+            throw UndefinedException("Class '" + resolvedClassName + "' not found");
         }
 
         // Try to find method with exact argument count first
@@ -878,38 +1184,17 @@ namespace evaluator
     }
     
     
-    Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
+    // REMOVED: Collection method dispatch - collections now implemented in mType language
+    /* Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
                                                    const std::string& methodName,
                                                    const std::vector<Value>& args)
     {
-        // Use template dispatch based on the actual collection type
-        if (utils::CollectionTypeHelper::isArray(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Array>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isMap(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Map>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isSet(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Set>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isStack(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Stack>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else if (utils::CollectionTypeHelper::isQueue(collectionValue)) {
-            auto collection = utils::CollectionTypeHelper::extractCollection<Queue>(collectionValue);
-            return callCollectionMethod(collection, methodName, args);
-        }
-        else {
-            throw TypeException("Unknown collection type for method '" + methodName + "'");
-        }
-    }
+        // This method is no longer needed since collections are implemented in mType
+        throw TypeException("Collection method dispatch removed - collections now handled as mType objects");
+    } */
 
-    // Specialized Array method operations
-    Value ObjectEvaluator::callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array,
+    // REMOVED: All collection method implementations - collections now implemented in mType language
+    /* Value ObjectEvaluator::callArrayMethod(std::shared_ptr<runtimeTypes::collections::Array> array,
                                           const std::string& methodName,
                                           const std::vector<Value>& args)
     {
@@ -1202,6 +1487,176 @@ namespace evaluator
         {
             throw TypeException("Unknown method '" + methodName + "' for Queue type");
         }
+    } */
+
+
+
+    std::string ObjectEvaluator::resolveTypeParameterFromContext(const std::string& typeParam)
+    {
+        // Try to resolve type parameters from the current object instance context
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            return typeParam;
+        }
+
+        auto classDef = currentInstance->getClassDefinition();
+        if (!classDef) {
+            return typeParam;
+        }
+
+        // Get the class name which should contain the instantiated type
+        // e.g., "Set<int>" for a Set<int> instance
+        std::string className = classDef->getName();
+
+        // Check if the class name itself is a generic instantiation (e.g., "Set<int>")
+        // This handles the case where we have an instantiated generic class
+        if (!classDef->isGeneric() && !utils::GenericTypeManager::isGenericInstantiation(className)) {
+            return typeParam;
+        }
+
+        // Parse the generic instantiation to extract type parameters
+        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+            // Get the generic class definition to find its type parameter names
+            auto env = context->getEnvironment();
+            auto genericClass = env->findClass(baseName);
+            if (genericClass && genericClass->isGeneric()) {
+                auto genericParams = genericClass->getGenericParameters();
+
+                // Handle array types (T[], T[][], Element[], etc.)
+                if (typeParam.find("[]") != std::string::npos) {
+                    std::string baseType = typeParam.substr(0, typeParam.find("[]"));
+                    std::string arraySuffix = typeParam.substr(typeParam.find("[]"));
+
+                    // Find the position of baseType in the generic parameters
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
+                        if (genericParams[i].name == baseType) {
+                            return typeArguments[i] + arraySuffix;
+                        }
+                    }
+                }
+                // For simple cases like Set<T>, map any type parameter to its corresponding argument
+                else {
+                    // Find the position of typeParam in the generic parameters
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
+                        if (genericParams[i].name == typeParam) {
+                            return typeArguments[i];
+                        }
+                    }
+                }
+            }
+        }
+
+        // If we can't resolve, return the original parameter
+        return typeParam;
+    }
+
+    std::optional<std::pair<Value, std::vector<size_t>>> ObjectEvaluator::extractMultiDimensionalAssignment(IndexAssignmentNode* node)
+    {
+        auto objectASTNode = node->getObject();
+
+        // Check if this is a 2D assignment: arr[i][j] = value
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
+
+            // Check if this is a 3D assignment: arr[i][j][k] = value
+            // In this case, indexAccessNode->getCollection() would be another IndexAccessNode
+            if (auto innerIndexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(indexAccessNode->getCollection())) {
+
+                // This is a 3D assignment: arr[i][j][k] = value
+                // Structure: IndexAssignmentNode(IndexAccessNode(IndexAccessNode(arr, i), j), k) = value
+
+                Value baseArray = exprEvaluator->evaluate(innerIndexAccess->getCollection());
+
+                // Check if it's a 3D array
+                bool is3D = false;
+                if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+                    auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+                    is3D = flatArray->getRank() == 3;
+                } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+                    auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+                    is3D = sparseArray->getRank() == 3;
+                }
+
+                if (!is3D) {
+                    return std::nullopt;
+                }
+
+                // Extract the three indices: [i][j][k]
+                std::vector<size_t> indices;
+
+                // First index (i): from innerIndexAccess->getIndex()
+                Value firstIndexValue = exprEvaluator->evaluate(innerIndexAccess->getIndex());
+                if (!std::holds_alternative<int>(firstIndexValue)) {
+                    return std::nullopt;
+                }
+                int firstIndex = std::get<int>(firstIndexValue);
+                if (firstIndex < 0) {
+                    return std::nullopt;
+                }
+
+                // Second index (j): from indexAccessNode->getIndex()
+                Value secondIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+                if (!std::holds_alternative<int>(secondIndexValue)) {
+                    return std::nullopt;
+                }
+                int secondIndex = std::get<int>(secondIndexValue);
+                if (secondIndex < 0) {
+                    return std::nullopt;
+                }
+
+                // Third index (k): from node->getIndex()
+                Value thirdIndexValue = exprEvaluator->evaluate(node->getIndex());
+                if (!std::holds_alternative<int>(thirdIndexValue)) {
+                    return std::nullopt;
+                }
+                int thirdIndex = std::get<int>(thirdIndexValue);
+                if (thirdIndex < 0) {
+                    return std::nullopt;
+                }
+
+                indices.push_back(static_cast<size_t>(firstIndex));
+                indices.push_back(static_cast<size_t>(secondIndex));
+                indices.push_back(static_cast<size_t>(thirdIndex));
+
+                return std::make_pair(baseArray, indices);
+            } else {
+                // This is a 2D assignment: arr[i][j] = value
+                // Let the existing 2D logic handle this
+                return std::nullopt;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    Value ObjectEvaluator::performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location)
+    {
+        // Handle FlatMultiArray direct assignment
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+
+            try {
+                flatArray->set(indices, newValue);
+                return newValue;
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), location);
+            }
+        }
+
+        // Handle SparseMultiArray direct assignment
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+
+            try {
+                sparseArray->set(indices, newValue);
+                return newValue;
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), location);
+            }
+        }
+
+        throw TypeException("Unsupported array type for direct multi-dimensional assignment", location);
     }
 
     // Template instantiations not needed - template is now in header

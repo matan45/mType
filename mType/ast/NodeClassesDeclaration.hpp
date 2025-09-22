@@ -17,6 +17,8 @@ namespace ast
             class IntegerNode;
             class FloatNode;
             class ArrayLiteralNode;
+            class ArrayCreationNode;
+            class ArrayTypeNode;
             class MapLiteralNode;
             class IndexAccessNode;
         }
@@ -30,6 +32,7 @@ namespace ast
             class NativeFunctionNode;
             class AssignmentNode;
             class MemberAssignmentNode;
+            class IndexAssignmentNode;
             class IfNode;
             class WhileNode;
             class DoWhileNode;
@@ -94,10 +97,13 @@ namespace ast
     using MemberAccessNode = nodes::classes::MemberAccessNode;
     using MethodCallNode = nodes::classes::MethodCallNode;
     using MemberAssignmentNode = nodes::statements::MemberAssignmentNode;
+    using IndexAssignmentNode = nodes::statements::IndexAssignmentNode;
     using NullNode = nodes::expressions::NullNode;
     using FloatNode = nodes::expressions::FloatNode;
     using IntegerNode = nodes::expressions::IntegerNode;
     using ArrayLiteralNode = nodes::expressions::ArrayLiteralNode;
+    using ArrayCreationNode = nodes::expressions::ArrayCreationNode;
+    using ArrayTypeNode = nodes::expressions::ArrayTypeNode;
     using MapLiteralNode = nodes::expressions::MapLiteralNode;
     using IndexAccessNode = nodes::expressions::IndexAccessNode;
     using ForEachNode = nodes::statements::ForEachNode;

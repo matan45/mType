@@ -28,22 +28,18 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/statements/ForEachNode.hpp"
-#include "../runtimeTypes/collections/Stack.hpp"
-#include "../runtimeTypes/collections/Queue.hpp"
-#include "../runtimeTypes/collections/Collection.hpp"
-#include "../runtimeTypes/collections/Array.hpp"
-#include "../runtimeTypes/collections/Map.hpp"
-#include "../runtimeTypes/collections/Set.hpp"
+// Collection includes removed - collections now implemented in mType language
+// More collection includes removed
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
+#include "../value/NativeArray.hpp"
 
 namespace evaluator
 {
     using namespace errors;
     using namespace exception;
     using namespace runtimeTypes::global;
-    using namespace runtimeTypes::collections;
     using namespace environment::manager;
     using namespace services;
     using namespace utils;
@@ -359,10 +355,35 @@ namespace evaluator
     void StatementEvaluator::validateClassExists(const std::string& className, const SourceLocation& location)
     {
         auto env = context->getEnvironment();
-        
+
+        // Try to resolve type parameters from current object context first
+        std::string resolvedClassName = className;
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance && className.find('<') != std::string::npos && className.find('T') != std::string::npos) {
+            auto instanceClassDef = currentInstance->getClassDefinition();
+            if (instanceClassDef) {
+                std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
+
+                if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName)) {
+                    auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(instanceClassName);
+
+                    // Replace type parameters in className
+                    resolvedClassName = className;
+                    if (className.find("T") != std::string::npos && !typeArguments.empty()) {
+                        // Simple T replacement - can be extended for multiple type parameters
+                        size_t pos = resolvedClassName.find("T");
+                        while (pos != std::string::npos) {
+                            resolvedClassName.replace(pos, 1, typeArguments[0]);
+                            pos = resolvedClassName.find("T", pos + typeArguments[0].length());
+                        }
+                    }
+                }
+            }
+        }
+
         // Check if the class is defined
-        if (!env->findClass(className)) {
-            throw UndefinedException("Class '" + className + "' is not defined", location);
+        if (!env->findClass(resolvedClassName)) {
+            throw UndefinedException("Class '" + resolvedClassName + "' is not defined", location);
         }
     }
     
@@ -382,36 +403,84 @@ namespace evaluator
         return false; // No other conversions allowed for now
     }
     
-    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value, 
-                                                           const std::string& variableName, 
-                                                           const SourceLocation& location)
+    bool StatementEvaluator::isGenericTypeCompatible(const std::string& actualClassName,
+                                                     const std::string& expectedClassName)
     {
-        // This is the legacy version without expected class name
-        // For now, we'll skip validation since we don't have the expected class
-        // This should be used only when class name information is not available
+        // Exact match is always compatible
+        if (actualClassName == expectedClassName) {
+            return true;
+        }
+
+        // Handle generic type compatibility
+        // Extract base class name (e.g., "Set" from "Set<T>" or "Set<int>")
+        auto extractBaseClassName = [](const std::string& className) -> std::string {
+            size_t pos = className.find('<');
+            if (pos != std::string::npos) {
+                return className.substr(0, pos);
+            }
+            return className;
+        };
+
+        std::string actualBase = extractBaseClassName(actualClassName);
+        std::string expectedBase = extractBaseClassName(expectedClassName);
+
+        // If base class names match, consider compatible for generic types
+        if (actualBase == expectedBase) {
+            return true;
+        }
+
+        return false;
     }
-    
-    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value, 
-                                                           const std::string& variableName, 
+
+    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value,
+                                                           const std::string& variableName,
                                                            const SourceLocation& location,
                                                            const std::string& expectedClassName)
     {
-        // Extract object instance and get its class name
+        // Handle Object instances
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
             if (objInstance) {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
-                
+
                 // Check if the actual class matches the expected class
-                if (actualClassName != expectedClassName) {
-                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " + 
+                if (!isGenericTypeCompatible(actualClassName, expectedClassName)) {
+                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
                                       expectedClassName + " but got " + actualClassName, location);
                 }
-                
+
                 // TODO: In a full implementation, this would also check class hierarchies
                 // to allow assignments like Derived -> Base (inheritance compatibility)
             }
+            return;
         }
+
+        // Handle NativeArray (1D arrays)
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(value)) {
+            // NativeArray represents 1D arrays, expected type should be like "int[]"
+            if (expectedClassName.find("[]") != std::string::npos) {
+                // It's an array type, allow the assignment
+                return;
+            } else {
+                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
+                                  expectedClassName + " but got array type", location);
+            }
+        }
+
+        // Handle FlatMultiArray (multi-dimensional arrays)
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(value)) {
+            // FlatMultiArray represents N-dimensional arrays, expected type should be like "int[][]"
+            if (expectedClassName.find("[]") != std::string::npos) {
+                // It's an array type, allow the assignment
+                return;
+            } else {
+                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
+                                  expectedClassName + " but got multi-dimensional array type", location);
+            }
+        }
+
+        // If we get here, the value type is not compatible with object expectations
+        // This should not happen if called correctly, but add safety check
     }
     
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)
@@ -423,6 +492,8 @@ namespace evaluator
 
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
+
+        // Type detection is now working correctly
         
         auto env = context->getEnvironment();
         
@@ -446,15 +517,81 @@ namespace evaluator
                 // This is a declaration - create the variable
                 validateAssignmentAsDeclaration(node);
                 
-                // Validate that the class exists for object types
+                // Validate that the class exists for object types (but skip native arrays)
                 if (node->getVariableType() == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateClassExists(node->getClassName(), node->getLocation());
+                    std::string className = node->getClassName();
+                    // Skip validation for native array types (e.g., "int[]", "string[]", "T[]")
+                    if (className.find("[]") == std::string::npos) {
+                        // Skip validation for unresolved generic type parameters
+                        // If the class name contains type parameters like T, K, V, skip validation
+                        // since these should be resolved at instantiation time
+                        bool hasUnresolvedTypeParams = false;
+
+                        // Check for generic type parameter names
+                        // Handle single letter params (T, K, V, E, etc.) or longer names (Element, Type, etc.)
+                        auto isGenericTypeParameter = [](const std::string& name) {
+                            // Single uppercase letter is definitely a generic type parameter
+                            if (name.length() == 1 && std::isupper(name[0])) {
+                                return true;
+                            }
+                            // Common generic type parameter patterns
+                            if (name == "Element" || name == "Type" || name == "Key" || name == "Value" ||
+                                name == "Item" || name == "Data" || name == "Node" || name == "Entry") {
+                                return true;
+                            }
+                            // Uppercase name that's likely a generic parameter (heuristic)
+                            if (!name.empty() && std::isupper(name[0]) && name.length() <= 10) {
+                                // Additional heuristic: if it's all letters and starts with uppercase
+                                bool allLetters = std::all_of(name.begin(), name.end(), ::isalpha);
+                                if (allLetters) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        };
+
+                        if (isGenericTypeParameter(className)) {
+                            hasUnresolvedTypeParams = true;
+                        }
+                        // Handle array types containing generic parameters (T[], Element[], etc.)
+                        else if (className.find("[]") != std::string::npos) {
+                            std::string baseType = className.substr(0, className.find("[]"));
+                            if (isGenericTypeParameter(baseType)) {
+                                hasUnresolvedTypeParams = true;
+                            }
+                        }
+                        // Check for generic types with angle brackets
+                        else if (className.find('<') != std::string::npos) {
+                            // Check for common generic type parameter names
+                            if (className.find("<T>") != std::string::npos ||
+                                className.find("<T,") != std::string::npos ||
+                                className.find(",T>") != std::string::npos ||
+                                className.find(",T,") != std::string::npos ||
+                                className.find("<K,") != std::string::npos ||
+                                className.find(",V>") != std::string::npos ||
+                                className.find("<K>") != std::string::npos ||
+                                className.find("<V>") != std::string::npos) {
+                                hasUnresolvedTypeParams = true;
+                            }
+                        }
+
+                        if (!hasUnresolvedTypeParams) {
+                            validateClassExists(className, node->getLocation());
+                        }
+                    }
                 }
                 
                 // Validate type compatibility for new variable declarations
                 if (node->getVariableType() == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(), node->getLocation());
                 }
@@ -562,11 +699,18 @@ namespace evaluator
                 // If we reach here, it's valid scope shadowing (e.g., global -> method)
                 // Create new variable definition with the specified type
                 ValueType declaredType = node->getVariableType();
-                
+
                 // Validate type compatibility
                 if (declaredType == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(declaredType, newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(declaredType, newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(declaredType, newValue, node->getVariableName(), node->getLocation());
                 }
@@ -590,11 +734,18 @@ namespace evaluator
                 // This is valid scope shadowing (e.g., global -> method)
                 // Create new variable definition with the specified type
                 ValueType declaredType = node->getVariableType();
-                
+
                 // Validate type compatibility
                 if (declaredType == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(declaredType, newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(declaredType, newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(declaredType, newValue, node->getVariableName(), node->getLocation());
                 }
@@ -622,8 +773,15 @@ namespace evaluator
         
         // Validate type compatibility for existing variable assignments
         if (varDef->getType() == ValueType::OBJECT && !varDef->getClassName().empty()) {
-            validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(), 
-                                 node->getLocation(), varDef->getClassName());
+            // Resolve generic type parameters if present
+            std::string resolvedClassName = varDef->getClassName();
+            if (objEvaluator) {
+                std::string originalClassName = varDef->getClassName();
+                resolvedClassName = objEvaluator->resolveTypeParameterFromContext(varDef->getClassName());
+
+            }
+            validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(),
+                                 node->getLocation(), resolvedClassName);
         } else {
             validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(), node->getLocation());
         }
@@ -944,82 +1102,52 @@ namespace evaluator
             return std::monostate{}; // Already imported
         }
 
-        // Check if this is a .mtc import (from deserialized ImportNode)
-        if (filePath.ends_with(".mtc")) {
-            // This is a serialized import - load the .mtc file directly
-            // Mark as being evaluated to prevent circular imports
-            importManager->markAsBeingEvaluated(resolvedPath);
-
-            try {
-
-                // Load the .mtc file using our ImportManager
-                ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
-
-                if (!importedAST) {
-                    throw TypeException("Failed to load cached imported file: " + filePath);
-                }
-
-
-                // Set import evaluation context and evaluate the loaded AST
-                env->setImportEvaluation(true);
-                evaluateRecursively(importedAST);
-                env->setImportEvaluation(false);
-
-
-                // Mark as evaluated and no longer being evaluated
-                importManager->markAsEvaluated(resolvedPath);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-
-                return std::monostate{};
-            } catch (...) {
-                env->setImportEvaluation(false);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-                throw;
-            }
-        }
-        
         // Check for circular imports
         if (importManager->isBeingEvaluated(resolvedPath)) {
             throw TypeException("Circular import detected: " + filePath + " is already being imported");
         }
 
+        // Determine execution mode based on file extension
+        bool isCacheMode = filePath.ends_with(".mtc");
+
+        // Mark as being evaluated to prevent circular imports
+        importManager->markAsBeingEvaluated(resolvedPath);
+
         try {
-            // Parse and cache the AST (doesn't evaluate) - this now supports .mtc files
-            ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
+            ASTNode* importedAST = nullptr;
 
-            if (!importedAST) {
-                throw TypeException("Failed to parse imported file: " + filePath);
+            if (isCacheMode) {
+                // Cache mode: Load pre-compiled .mtc file
+                std::string resolvedMtcPath = importManager->resolvePath(filePath);
+                importedAST = importManager->loadFromMtcFile(resolvedMtcPath);
+
+                if (!importedAST) {
+                    throw TypeException("Failed to load cached imported file: " + resolvedMtcPath);
+                }
+            } else {
+                // Normal mode: Parse .mt file
+                importedAST = importManager->parseAndCacheAST(filePath);
+
+                if (!importedAST) {
+                    throw TypeException("Failed to parse imported file: " + filePath);
+                }
             }
 
-            // Mark as being evaluated to prevent circular imports (use resolved path for consistency)
-            importManager->markAsBeingEvaluated(resolvedPath);
-            
-            // Set import evaluation context
+            // Set import evaluation context and evaluate the loaded AST
             env->setImportEvaluation(true);
-            
-            try {
-                // Evaluate the imported AST in the current environment
-                // We need to recursively evaluate the AST using the appropriate evaluators
-                // Since we can't access the coordinator directly, we'll evaluate it ourselves
-                evaluateRecursively(importedAST);
-                
-                // Reset import evaluation context
-                env->setImportEvaluation(false);
-                
-                // Mark as evaluated and no longer being evaluated (use resolved path for consistency)
-                importManager->markAsEvaluated(resolvedPath);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
+            evaluateRecursively(importedAST);
+            env->setImportEvaluation(false);
 
-                return std::monostate{}; // Imports return void
+            // Mark as evaluated and no longer being evaluated
+            importManager->markAsEvaluated(resolvedPath);
+            importManager->unmarkAsBeingEvaluated(resolvedPath);
 
-            } catch (...) {
-                env->setImportEvaluation(false);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-                throw;
-            }
-            
-        } catch (const std::exception& e) {
-            throw TypeException("Error importing file '" + filePath + "': " + e.what());
+            return std::monostate{}; // Imports return void
+
+        } catch (...) {
+            env->setImportEvaluation(false);
+            importManager->unmarkAsBeingEvaluated(resolvedPath);
+            throw;
         }
     }
     
@@ -1082,9 +1210,14 @@ namespace evaluator
 
     value::Value StatementEvaluator::evaluateForEachNode(ForEachNode* node)
     {
+        // REMOVED: Collection-specific foreach implementation
+        // Collections are now mType objects and should implement iteration through method calls
+
+        /* Original collection-specific code removed - collections now implemented in mType
+
         // Evaluate the collection to iterate over
         value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
-        
+
         // Check if it's a collection type - handle Stack and Queue separately
         std::shared_ptr<runtimeTypes::collections::Collection> collection = nullptr;
         std::shared_ptr<runtimeTypes::collections::Stack> stack = nullptr;
@@ -1127,10 +1260,10 @@ namespace evaluator
                 // Validate type compatibility
                 value::ValueType actualType = evaluator::utils::ValueConverter::getValueType(currentElement);
                 if (actualType != varType && varType != value::ValueType::OBJECT) {
-                    throw TypeException("Type mismatch in for-each loop: expected " + 
-                                      evaluator::utils::ValueConverter::valueTypeToString(varType) + 
-                                      " but array contains " + 
-                                      evaluator::utils::ValueConverter::valueTypeToString(actualType));
+                    throw TypeException("Type mismatch in for-each loop: expected " +
+                                      evaluator::utils::ValueConverter::valueTypeToString(varType) +
+                                      " but array contains " +
+                                      evaluator::utils::ValueConverter::valueTypeToString(actualType), node->getLocation());
                 }
                 
                 // Create or update the loop variable
@@ -1304,7 +1437,125 @@ namespace evaluator
             // DEBUG: Force an error to see if this branch is taken
             throw ScriptException("DEBUG: For-each collection type not recognized - this should show if we reach here", node->getLocation());
         }
-        
-        return std::monostate{};
+
+        return std::monostate{}; */
+
+        // New implementation for mType collections and native arrays
+        if (!exprEvaluator) {
+            throw TypeException("Expression evaluator not available for foreach evaluation");
+        }
+
+        // Evaluate the collection to iterate over
+        value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
+        auto env = context->getEnvironment();
+
+        // Create a new scope for the loop
+        utils::ScopeGuard scope(env, "foreach", environment::manager::ScopeType::BLOCK);
+
+        // Handle native arrays first
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue)) {
+            auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
+
+            for (size_t i = 0; i < array->size(); ++i) {
+                value::Value element = array->get(i);
+
+                // Define the loop variable in this scope
+                auto varType = node->getVariableType();
+                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    node->getVariableName(), varType, element, false, "");
+
+                env->declareVariable(node->getVariableName(), variableDef);
+
+                // Execute the loop body
+                if (node->getBody()) {
+                    value::Value result = evaluate(node->getBody());
+
+                    // Handle control flow statements
+                    if (context->shouldReturn()) {
+                        return result;
+                    }
+                }
+            }
+            return std::monostate{};
+        }
+
+        // Handle mType collection objects
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(collectionValue)) {
+            auto collection = std::get<std::shared_ptr<ObjectInstance>>(collectionValue);
+            auto classDef = collection->getClassDefinition();
+
+            if (!classDef) {
+                throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
+            }
+
+            std::string className = classDef->getName();
+
+            // Check if this is a collection class by trying to get an array for iteration
+            std::shared_ptr<value::NativeArray> iterationArray = nullptr;
+
+            // For Map collections, iterate over values by default
+            if (className.find("Map<") == 0) {
+                // Call getValues() method
+                auto getValuesMethod = classDef->findMethod("getValues", 0);
+                if (getValuesMethod) {
+                    // Set current instance context for method call
+                    context->setCurrentInstance(collection);
+
+                    // Call getValues() method
+                    value::Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult)) {
+                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
+                    }
+
+                    context->clearCurrentInstance();
+                }
+            } else {
+                // For other collections (Set, List, Stack, Queue), try toArray() method
+                auto toArrayMethod = classDef->findMethod("toArray", 0);
+                if (toArrayMethod) {
+                    // Set current instance context for method call
+                    context->setCurrentInstance(collection);
+
+                    // Call toArray() method
+                    value::Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult)) {
+                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
+                    }
+
+                    context->clearCurrentInstance();
+                }
+            }
+
+            if (!iterationArray) {
+                throw ScriptException("Collection '" + className + "' does not support iteration (missing toArray() or getValues() method)", node->getLocation());
+            }
+
+            // Iterate through the array
+            for (size_t i = 0; i < iterationArray->size(); ++i) {
+                value::Value element = iterationArray->get(i);
+
+                // Define the loop variable in this scope
+                auto varType = node->getVariableType();
+                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    node->getVariableName(), varType, element, false, "");
+
+                env->declareVariable(node->getVariableName(), variableDef);
+
+                // Execute the loop body
+                if (node->getBody()) {
+                    value::Value result = evaluate(node->getBody());
+
+                    // Handle control flow statements
+                    if (context->shouldReturn()) {
+                        return result;
+                    }
+                }
+            }
+            return std::monostate{};
+        }
+
+        throw ScriptException("Value is not a valid collection for foreach iteration", node->getLocation());
     }
 }

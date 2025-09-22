@@ -1,0 +1,125 @@
+Testing collection interoperability with arrays
+
+=== Test 1: Arrays with Set Collections ===
+Testing arrays with integer sets:
+Integer array contents:
+intArray[0] = 10
+intArray[1] = 20
+intArray[2] = 30
+intArray[3] = 20
+intArray[4] = 40
+
+=== Test 2: Arrays with String Data ===
+String array contents:
+nameArray[0] = Alice
+nameArray[1] = Bob
+nameArray[2] = Charlie
+nameArray[3] = Alice
+
+=== Test 3: Multi-dimensional Arrays as Data ===
+Testing matrix-like array structure:
+Matrix contents:
+matrix[0][0] = 11
+matrix[0][1] = 12
+matrix[0][2] = 13
+matrix[1][0] = 21
+matrix[1][1] = 22
+matrix[1][2] = 23
+matrix[2][0] = 31
+matrix[2][1] = 32
+matrix[2][2] = 33
+
+=== Test 4: Arrays with Object-like Structures ===
+Simulating person records with parallel arrays:
+Person records:
+Person 0: John, age 25, active true
+Person 1: Jane, age 30, active false
+Person 2: Bob, age 35, active true
+
+=== Test 5: Array Data Aggregation Patterns ===
+Testing data aggregation from arrays:
+Data set: square numbers 1-10
+dataSet[0] = 1
+dataSet[1] = 4
+dataSet[2] = 9
+dataSet[3] = 16
+dataSet[4] = 25
+dataSet[5] = 36
+dataSet[6] = 49
+dataSet[7] = 64
+dataSet[8] = 81
+dataSet[9] = 100
+Sum of squares: 385
+
+=== Test 6: Array Sorting Patterns ===
+Testing manual sorting algorithms:
+Unsorted array:
+unsorted[0] = 64
+unsorted[1] = 34
+unsorted[2] = 25
+unsorted[3] = 12
+unsorted[4] = 22
+Sorted array:
+sorted[0] = 12
+sorted[1] = 22
+sorted[2] = 25
+sorted[3] = 34
+sorted[4] = 64
+
+=== Test 7: Array as Lookup Table ===
+Testing array as lookup table:
+Month lookup examples:
+Month 0: January
+Month 5: June
+Month 11: December
+
+=== Test 8: Sparse Array Collection Patterns ===
+Testing sparse array with collection-like usage:
+Sparse collection entries:
+Entry (10,20): 1020
+Entry (50,75): 5075
+Entry (150,180): 15180
+Entry (199,199): 19999
+Empty entries (should be 0):
+Entry (0,0): 0
+Entry (100,100): 0
+
+=== Test 9: Array Iteration Patterns ===
+Testing various iteration patterns:
+Row-major iteration:
+iterTest[0][0] = 0
+iterTest[0][1] = 1
+iterTest[0][2] = 2
+iterTest[0][3] = 3
+iterTest[0][4] = 4
+iterTest[1][0] = 5
+iterTest[1][1] = 6
+iterTest[1][2] = 7
+iterTest[1][3] = 8
+iterTest[1][4] = 9
+iterTest[2][0] = 10
+iterTest[2][1] = 11
+iterTest[2][2] = 12
+iterTest[2][3] = 13
+iterTest[2][4] = 14
+iterTest[3][0] = 15
+iterTest[3][1] = 16
+iterTest[3][2] = 17
+iterTest[3][3] = 18
+iterTest[3][4] = 19
+iterTest[4][0] = 20
+iterTest[4][1] = 21
+iterTest[4][2] = 22
+iterTest[4][3] = 23
+iterTest[4][4] = 24
+
+=== Test 10: Array Bounds and Collection Safety ===
+Testing array bounds in collection contexts:
+Safe iteration:
+boundTest[0] = 100
+boundTest[1] = 200
+boundTest[2] = 300
+Collection-like operations:
+Elements > 150: 2
+
+Collection interoperability tests completed
