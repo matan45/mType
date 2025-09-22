@@ -13,6 +13,7 @@ namespace value
 {
     class NativeArray;
     class FlatMultiArray;
+    class SparseMultiArray;
 }
 
 
@@ -35,12 +36,16 @@ namespace value
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
+                               std::shared_ptr<SparseMultiArray>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value
     inline ValueType getValueType(const Value& value) {
-        // Explicit check for FlatMultiArray before using std::visit
+        // Explicit check for multi-dimensional arrays before using std::visit
         if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(value)) {
+            return ValueType::OBJECT;
+        }
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
             return ValueType::OBJECT;
         }
 

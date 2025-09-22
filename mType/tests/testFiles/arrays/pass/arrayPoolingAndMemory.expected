@@ -1,0 +1,55 @@
+Testing array pooling and memory management
+
+=== Test 1: Dense vs Sparse Storage Thresholds ===
+Creating dense array (100x100 = 10,000 elements)
+Dense array[50][50] = 999
+Creating sparse array (101x101 = 10,201 elements)
+Sparse array[50][50] = 888
+
+=== Test 2: Memory Reuse Patterns ===
+Creating multiple arrays with same dimensions
+Array1[10][10] = 100
+Array2[20][20] = 200
+Array3[30][30] = 300
+Verifying array independence:
+Array1[20][20] = 0
+Array2[10][10] = 0
+
+=== Test 3: Large Array Allocation Patterns ===
+Creating very large sparse array (500x500 = 250,000 elements)
+Large array corners: [0][0] = 1, [499][499] = 2
+
+=== Test 4: Multi-dimensional with Varying Sizes ===
+Testing different dimensional configurations
+Small 2D[5][5] = 25
+Medium 2D[10][10] = 1000
+Cube 3D[2][2][2] = 222
+
+=== Test 5: Array Cleanup and Reallocation ===
+Temp array[0][0] = 0
+Temp array[1][1] = 10
+Temp array[2][2] = 20
+Temp array[3][3] = 30
+Temp array[4][4] = 40
+Creating new arrays after cleanup
+New array1[15][15] = 555
+New array2[25][25] = 777
+
+=== Test 6: Mixed Storage Type Usage ===
+Testing mixed dense and sparse arrays
+Dense1[25][25] = 2500
+Sparse1[75][75] = 7575
+Dense2[40][40] = 4040
+Sparse2[100][100] = 10000
+
+=== Test 7: Default Value Handling ===
+Testing default value consistency
+Int default [10][10] = 0
+String default [5][5] = ''
+Bool default [15][15] = false
+After assignment:
+Int [10][10] = 42, [11][11] = 0
+String [5][5] = 'test', [6][6] = ''
+Bool [15][15] = true, [16][16] = false
+
+Array pooling and memory management tests completed

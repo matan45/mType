@@ -22,6 +22,19 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Arrays",
                                   passPath + "genericArrays.mt");
 
+        // Add new comprehensive tests
+        addOutputVerificationTest("Array Pooling and Memory Management",
+                                  passPath + "arrayPoolingAndMemory.mt");
+
+        addOutputVerificationTest("Performance Characteristics",
+                                  passPath + "performanceCharacteristics.mt");
+
+        addOutputVerificationTest("Collection Interoperability",
+                                  passPath + "collectionInteroperability.mt");
+
+        addOutputVerificationTest("Multi-dimensional Edge Cases",
+                                  passPath + "multiDimensionalEdgeCases.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",
@@ -33,6 +46,19 @@ namespace tests::testSuite
 
         addTestFromFile("Type Mismatch",
                         errorPath + "typeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // Add new error tests
+        addTestFromFile("Large Array Out of Bounds",
+                        errorPath + "largeArrayOutOfBounds.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Sparse Array Bounds",
+                        errorPath + "sparseArrayBounds.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Multi-dimensional Bounds",
+                        errorPath + "multiDimensionalBounds.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

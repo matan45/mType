@@ -7,6 +7,7 @@
 #include "../errors/SourceLocation.hpp"
 #include "../parser/TypeParser.hpp"
 #include <memory>
+#include <optional>
 
 namespace evaluator
 {
@@ -89,5 +90,9 @@ namespace evaluator
         void validateFunctionReturnType(ValueType expectedType, const Value& returnValue,
                                         const std::string& functionName,
                                         const SourceLocation& location);
+
+        // Multi-dimensional array access helpers
+        std::optional<Value> extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices);
+        Value evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location);
     };
 }

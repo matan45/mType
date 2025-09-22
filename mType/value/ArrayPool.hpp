@@ -1,5 +1,6 @@
 #pragma once
 #include "FlatMultiArray.hpp"
+#include "SparseMultiArray.hpp"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -93,6 +94,30 @@ namespace value
         }
 
         /**
+         * @brief Determine if sparse storage should be used based on array characteristics
+         */
+        bool shouldUseSparseArray(const std::vector<size_t>& dimensions) const
+        {
+            if (dimensions.empty()) return false;
+
+            // Calculate total size
+            size_t totalSize = 1;
+            for (size_t dim : dimensions) {
+                totalSize *= dim;
+                if (totalSize > 100000) { // Arrays larger than 100K elements
+                    return true; // Use sparse for very large arrays
+                }
+            }
+
+            // Use sparse for large 2D+ arrays
+            if (dimensions.size() >= 2 && totalSize > 10000) {
+                return true;
+            }
+
+            return false; // Use dense for smaller arrays
+        }
+
+        /**
          * @brief Check if dimensions match common usage patterns
          */
         bool isCommonPattern(const std::vector<size_t>& dimensions) const
@@ -167,7 +192,7 @@ namespace value
         }
 
         /**
-         * @brief Acquire an array from pool or create new
+         * @brief Acquire an array from pool or create new (legacy FlatMultiArray)
          */
         std::shared_ptr<FlatMultiArray> acquire(const std::vector<size_t>& dimensions,
                                               const Value& defaultValue = std::monostate{})
@@ -186,23 +211,26 @@ namespace value
             pool.stats.totalAllocations++;
 
             if (!pool.available.empty()) {
-                // Reuse from pool
+                // Verify array integrity BEFORE removing from pool
                 auto array = pool.available.back();
+                if (!array || !array->hasDimensions(dimensions)) {
+                    // Pool corruption detected - remove corrupted array and create new one
+                    pool.available.pop_back();  // Remove corrupted array
+                    pool.stats.poolMisses++;
+                    globalStats.poolMisses++;
+                    pool.stats.poolDiscards++;  // Track as discard, not hit
+                    globalStats.poolDiscards++;
+                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                }
+
+                // Array is valid - now safe to remove from pool
                 pool.available.pop_back();
 
                 pool.stats.poolHits++;
                 globalStats.poolHits++;
                 pool.stats.currentPoolSize = pool.available.size();
 
-                // Verify the pooled array has correct dimensions (safety check)
-                if (!array || !array->hasDimensions(dimensions)) {
-                    // Pool corruption - create new array instead
-                    pool.stats.poolMisses++;
-                    globalStats.poolMisses++;
-                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                }
-
-                // Reset the pooled array with new default value
+                // Reset the validated pooled array with new default value
                 array->reset(defaultValue);
                 return array;  // Return the reused array, not a new one
             }
@@ -211,6 +239,66 @@ namespace value
                 pool.stats.poolMisses++;
                 globalStats.poolMisses++;
                 return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+            }
+        }
+
+        /**
+         * @brief Acquire an array with adaptive storage (new adaptive method)
+         */
+        Value acquireAdaptive(const std::vector<size_t>& dimensions,
+                             const Value& defaultValue = std::monostate{})
+        {
+            std::lock_guard<std::mutex> lock(poolMutex);
+
+            globalStats.totalAllocations++;
+
+            // Determine optimal array type based on size characteristics
+            bool useSparse = shouldUseSparseArray(dimensions);
+
+            if (useSparse) {
+                // For sparse arrays, don't use pooling yet (could be added later)
+                globalStats.poolMisses++;
+                return std::make_shared<SparseMultiArray>(dimensions, defaultValue);
+            } else {
+                // Use existing pooling logic for dense arrays
+                if (!shouldPool(dimensions)) {
+                    globalStats.poolMisses++;
+                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                }
+
+                std::string key = getDimensionKey(dimensions);
+                auto& pool = pools[key];
+                pool.stats.totalAllocations++;
+
+                if (!pool.available.empty()) {
+                    // Verify array integrity BEFORE removing from pool
+                    auto array = pool.available.back();
+                    if (!array || !array->hasDimensions(dimensions)) {
+                        // Pool corruption detected - remove corrupted array and create new one
+                        pool.available.pop_back();
+                        pool.stats.poolMisses++;
+                        globalStats.poolMisses++;
+                        pool.stats.poolDiscards++;
+                        globalStats.poolDiscards++;
+                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                    }
+
+                    // Array is valid - now safe to remove from pool
+                    pool.available.pop_back();
+
+                    pool.stats.poolHits++;
+                    globalStats.poolHits++;
+                    pool.stats.currentPoolSize = pool.available.size();
+
+                    // Reset the validated pooled array with new default value
+                    array->reset(defaultValue);
+                    return array;
+                } else {
+                    // Create new dense array
+                    pool.stats.poolMisses++;
+                    globalStats.poolMisses++;
+                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                }
             }
         }
 

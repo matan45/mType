@@ -2,6 +2,8 @@
 #include "../../errors/TypeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/FlatMultiArray.hpp"
+#include "../../value/SparseMultiArray.hpp"
 #include <sstream>
 
 namespace evaluator::utils
@@ -27,6 +29,15 @@ namespace evaluator::utils
                 return !val.empty();
             }
             else if constexpr (std::is_same_v<T, std::shared_ptr<ObjectInstance>>) {
+                return val != nullptr;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>) {
+                return val != nullptr;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>) {
+                return val != nullptr;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
                 return val != nullptr;
             }
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -64,6 +75,24 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<ObjectInstance>>) {
                 if (val) {
                     return "[object " + val->getTypeName() + "]";
+                }
+                return "null";
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>) {
+                if (val) {
+                    return "[array " + std::to_string(val->size()) + "]";
+                }
+                return "null";
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>) {
+                if (val) {
+                    return "[multi-array " + std::to_string(val->totalSize()) + "]";
+                }
+                return "null";
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
+                if (val) {
+                    return "[sparse-array " + std::to_string(val->totalSize()) + "]";
                 }
                 return "null";
             }
@@ -159,6 +188,9 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>) {
                 return ValueType::OBJECT;
             }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
+                return ValueType::OBJECT;
+            }
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 return ValueType::NULL_TYPE;
             }
@@ -204,6 +236,15 @@ namespace evaluator::utils
                 if constexpr (std::is_same_v<T1, T2>) {
                     if constexpr (std::is_same_v<T1, std::shared_ptr<ObjectInstance>>) {
                         // Object identity comparison
+                        return l.get() == r.get();
+                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::NativeArray>>) {
+                        // Array identity comparison
+                        return l.get() == r.get();
+                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::FlatMultiArray>>) {
+                        // Multi-array identity comparison
+                        return l.get() == r.get();
+                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::SparseMultiArray>>) {
+                        // Sparse array identity comparison
                         return l.get() == r.get();
                     } else if constexpr (std::is_same_v<T1, std::monostate>) {
                         // monostate values are always equal

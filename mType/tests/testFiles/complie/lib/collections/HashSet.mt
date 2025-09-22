@@ -18,6 +18,12 @@ class HashSet<T> {
     }
 
     function add(T item): bool {
+        // Null item validation
+        if (item == null) {
+            print("Error: HashSet.add() - item cannot be null");
+            return false;
+        }
+
         int bucketIndex = this.getBucketIndex(item);
 
         if (this.findItemInBucket(bucketIndex, item) >= 0) {
@@ -44,11 +50,23 @@ class HashSet<T> {
     }
 
     function contains(T item): bool {
+        // Null item validation
+        if (item == null) {
+            print("Error: HashSet.contains() - item cannot be null");
+            return false;
+        }
+
         int bucketIndex = this.getBucketIndex(item);
         return this.findItemInBucket(bucketIndex, item) >= 0;
     }
 
     function remove(T item): bool {
+        // Null item validation
+        if (item == null) {
+            print("Error: HashSet.remove() - item cannot be null");
+            return false;
+        }
+
         int bucketIndex = this.getBucketIndex(item);
         int itemIndex = this.findItemInBucket(bucketIndex, item);
 

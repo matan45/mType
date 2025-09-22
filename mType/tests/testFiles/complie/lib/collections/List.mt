@@ -13,6 +13,12 @@ class List<T> {
 
         // Core operations
         function add(T item): void {
+            // Null item validation
+            if (item == null) {
+                print("Error: List.add() - item cannot be null");
+                return;
+            }
+
             if (this.count >= this.capacity) {
                 this.resize();
             }
@@ -33,10 +39,21 @@ class List<T> {
                 // TODO: Error handling
                 return;
             }
+            // Null item validation
+            if (item == null) {
+                print("Error: List.set() - item cannot be null");
+                return;
+            }
             this.data[index] = item;
         }
 
         function contains(T item): bool {
+            // Null item validation
+            if (item == null) {
+                print("Error: List.contains() - item cannot be null");
+                return false;
+            }
+
             T[] currentData = this.toArray();
             for (T element : currentData) {
                 if (element.equals(item)) {
@@ -48,6 +65,12 @@ class List<T> {
 
         // Content-based comparison using equals() method
         function containsEquals(T item): bool {
+            // Null item validation
+            if (item == null) {
+                print("Error: List.containsEquals() - item cannot be null");
+                return false;
+            }
+
             T[] currentData = this.toArray();
             for (T element : currentData) {
                 if (element.equals(item)) {
@@ -86,6 +109,12 @@ class List<T> {
 
         // Remove first occurrence of item (content comparison)
         function remove(T item): bool {
+            // Null item validation
+            if (item == null) {
+                print("Error: List.remove() - item cannot be null");
+                return false;
+            }
+
             for (int i = 0; i < this.count; i++) {
                 if (this.data[i].equals(item)) {
                     return this.removeAt(i);
@@ -96,6 +125,12 @@ class List<T> {
 
         // Remove first occurrence of item (content comparison using equals)
         function removeEquals(T item): bool {
+            // Null item validation
+            if (item == null) {
+                print("Error: List.removeEquals() - item cannot be null");
+                return false;
+            }
+
             for (int i = 0; i < this.count; i++) {
                 if (this.data[i].equals(item)) {
                     return this.removeAt(i);

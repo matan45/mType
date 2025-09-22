@@ -4,6 +4,7 @@
 #include "utils/GenericTypeManager.hpp"
 #include "utils/ValueConverter.hpp"
 #include "../value/FlatMultiArray.hpp"
+#include "../value/SparseMultiArray.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include <iostream>
 #include "../errors/TypeException.hpp"
@@ -626,6 +627,14 @@ namespace evaluator
             throw TypeException("Expression evaluator not available for index assignment");
         }
 
+        // Try to extract multi-dimensional assignment (e.g., arr[i][j][k] = value)
+        auto multiDimResult = extractMultiDimensionalAssignment(node);
+        if (multiDimResult.has_value()) {
+            auto [baseArray, indices] = multiDimResult.value();
+            Value newValue = exprEvaluator->evaluate(node->getValue());
+            return performDirectMultiDimensionalAssignment(baseArray, indices, newValue, node->getLocation());
+        }
+
         // Check if this is a multi-dimensional assignment (e.g., arr2d[0][0] = value)
         // If node->getObject() is an IndexAccessNode, we might have a multi-dimensional assignment
         auto objectASTNode = node->getObject();
@@ -668,6 +677,41 @@ namespace evaluator
                         return newValue;
                     } catch (const std::out_of_range& e) {
                         throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
+                }
+            } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue)) {
+                auto baseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue);
+
+                // Get the first dimension index (e.g., 0 in arr2d[0][0])
+                Value firstIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+
+                // Get the second dimension index (e.g., 0 in arr2d[0][0])
+                Value secondIndexValue = exprEvaluator->evaluate(node->getIndex());
+
+                // Get the new value
+                Value newValue = exprEvaluator->evaluate(node->getValue());
+
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                    int firstIndex = std::get<int>(firstIndexValue);
+                    int secondIndex = std::get<int>(secondIndexValue);
+
+                    // Validate indices before conversion
+                    if (firstIndex < 0) {
+                        throw TypeException("Sparse multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    }
+                    if (secondIndex < 0) {
+                        throw TypeException("Sparse multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    }
+
+                    std::vector<size_t> indices;
+                    indices.push_back(static_cast<size_t>(firstIndex));
+                    indices.push_back(static_cast<size_t>(secondIndex));
+
+                    try {
+                        baseArray->set(indices, newValue);
+                        return newValue;
+                    } catch (const std::out_of_range& e) {
+                        throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
                     }
                 }
             }
@@ -738,6 +782,37 @@ namespace evaluator
                 // The parser should create nested IndexAssignmentNodes, but if we get here,
                 // it means we're assigning to a sub-array which isn't supported
                 throw TypeException("Cannot assign array to index position", node->getLocation());
+            }
+        }
+
+        // Check if object is a SparseMultiArray (for adaptive sparse arrays)
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue)) {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
+
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Sparse array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= sparseArray->size()) {
+                throw TypeException("Sparse array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+
+            // For single dimension sparse array
+            if (sparseArray->getRank() == 1) {
+                try {
+                    std::vector<size_t> indices = {static_cast<size_t>(index)};
+                    sparseArray->set(indices, newValue);
+                    return newValue;
+                } catch (const std::out_of_range& e) {
+                    throw TypeException("Sparse array assignment failed: " + std::string(e.what()), node->getLocation());
+                }
+            } else {
+                // For multi-dimensional sparse arrays, this should be handled differently
+                // The parser should create nested IndexAssignmentNodes
+                throw TypeException("Cannot assign array to index position in sparse array", node->getLocation());
             }
         }
 
@@ -1475,6 +1550,113 @@ namespace evaluator
 
         // If we can't resolve, return the original parameter
         return typeParam;
+    }
+
+    std::optional<std::pair<Value, std::vector<size_t>>> ObjectEvaluator::extractMultiDimensionalAssignment(IndexAssignmentNode* node)
+    {
+        auto objectASTNode = node->getObject();
+
+        // Check if this is a 2D assignment: arr[i][j] = value
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
+
+            // Check if this is a 3D assignment: arr[i][j][k] = value
+            // In this case, indexAccessNode->getCollection() would be another IndexAccessNode
+            if (auto innerIndexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(indexAccessNode->getCollection())) {
+
+                // This is a 3D assignment: arr[i][j][k] = value
+                // Structure: IndexAssignmentNode(IndexAccessNode(IndexAccessNode(arr, i), j), k) = value
+
+                Value baseArray = exprEvaluator->evaluate(innerIndexAccess->getCollection());
+
+                // Check if it's a 3D array
+                bool is3D = false;
+                if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+                    auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+                    is3D = flatArray->getRank() == 3;
+                } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+                    auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+                    is3D = sparseArray->getRank() == 3;
+                }
+
+                if (!is3D) {
+                    return std::nullopt;
+                }
+
+                // Extract the three indices: [i][j][k]
+                std::vector<size_t> indices;
+
+                // First index (i): from innerIndexAccess->getIndex()
+                Value firstIndexValue = exprEvaluator->evaluate(innerIndexAccess->getIndex());
+                if (!std::holds_alternative<int>(firstIndexValue)) {
+                    return std::nullopt;
+                }
+                int firstIndex = std::get<int>(firstIndexValue);
+                if (firstIndex < 0) {
+                    return std::nullopt;
+                }
+
+                // Second index (j): from indexAccessNode->getIndex()
+                Value secondIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+                if (!std::holds_alternative<int>(secondIndexValue)) {
+                    return std::nullopt;
+                }
+                int secondIndex = std::get<int>(secondIndexValue);
+                if (secondIndex < 0) {
+                    return std::nullopt;
+                }
+
+                // Third index (k): from node->getIndex()
+                Value thirdIndexValue = exprEvaluator->evaluate(node->getIndex());
+                if (!std::holds_alternative<int>(thirdIndexValue)) {
+                    return std::nullopt;
+                }
+                int thirdIndex = std::get<int>(thirdIndexValue);
+                if (thirdIndex < 0) {
+                    return std::nullopt;
+                }
+
+                indices.push_back(static_cast<size_t>(firstIndex));
+                indices.push_back(static_cast<size_t>(secondIndex));
+                indices.push_back(static_cast<size_t>(thirdIndex));
+
+                return std::make_pair(baseArray, indices);
+            } else {
+                // This is a 2D assignment: arr[i][j] = value
+                // Let the existing 2D logic handle this
+                return std::nullopt;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    Value ObjectEvaluator::performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location)
+    {
+        // Handle FlatMultiArray direct assignment
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+
+            try {
+                flatArray->set(indices, newValue);
+                return newValue;
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), location);
+            }
+        }
+
+        // Handle SparseMultiArray direct assignment
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+
+            try {
+                sparseArray->set(indices, newValue);
+                return newValue;
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), location);
+            }
+        }
+
+        throw TypeException("Unsupported array type for direct multi-dimensional assignment", location);
     }
 
     // Template instantiations not needed - template is now in header

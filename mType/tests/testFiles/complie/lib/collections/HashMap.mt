@@ -20,6 +20,12 @@ class HashMap<K,V> {
     }
 
     function put(K key, V value): void {
+        // Null key validation
+        if (key == null) {
+            print("Error: HashMap.put() - key cannot be null");
+            return;
+        }
+
         int bucketIndex = this.getBucketIndex(key);
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
@@ -46,6 +52,12 @@ class HashMap<K,V> {
     }
 
     function get(K key): V {
+        // Null key validation
+        if (key == null) {
+            print("Error: HashMap.get() - key cannot be null");
+            return null;
+        }
+
         int bucketIndex = this.getBucketIndex(key);
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
@@ -56,11 +68,23 @@ class HashMap<K,V> {
     }
 
     function containsKey(K key): bool {
+        // Null key validation
+        if (key == null) {
+            print("Error: HashMap.containsKey() - key cannot be null");
+            return false;
+        }
+
         int bucketIndex = this.getBucketIndex(key);
         return this.findKeyInBucket(bucketIndex, key) >= 0;
     }
 
     function remove(K key): bool {
+        // Null key validation
+        if (key == null) {
+            print("Error: HashMap.remove() - key cannot be null");
+            return false;
+        }
+
         int bucketIndex = this.getBucketIndex(key);
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 

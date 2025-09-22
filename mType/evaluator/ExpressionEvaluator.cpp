@@ -858,6 +858,22 @@ namespace evaluator
             }
         }
 
+        // Handle SparseMultiArray (adaptive sparse arrays)
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue))
+        {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                // For sparse multi-dimensional arrays, return the first dimension size
+                return static_cast<int>(sparseArray->size());
+            }
+            else
+            {
+                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
+                                         node->getLocation());
+            }
+        }
+
         throw TypeException("Cannot access member of non-object value", node->getLocation());
     }
 
@@ -1200,7 +1216,7 @@ namespace evaluator
         }
 
         // Determine default value based on element type
-        Value defaultValue = 0; // Hard-code to int default for debugging
+        Value defaultValue = getDefaultValueForType(node->getElementTypeInfo());
 
         // Create FlatMultiArray and add debug logging
         if (dimensions.size() == 1)
@@ -1215,34 +1231,64 @@ namespace evaluator
         }
         else
         {
-            // Use ArrayPool for efficient multi-dimensional array allocation
+            // Use adaptive ArrayPool for efficient multi-dimensional array allocation
             auto& pool = ArrayPool::getInstance();
-            auto flatArray = pool.acquire(dimensions, defaultValue);
+            Value adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
 
-            // Debug: Verify the flatArray is valid
-            if (!flatArray)
+            // Verify the array is valid (works for both FlatMultiArray and SparseMultiArray)
+            if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
             {
-                throw TypeException("DEBUG: FlatMultiArray is null", node->getLocation());
+                auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(adaptiveArray);
+                if (!flatArray)
+                {
+                    throw TypeException("Failed to create FlatMultiArray", node->getLocation());
+                }
+
+                // Verify size for dense arrays
+                size_t expectedSize = 1;
+                for (size_t dim : dimensions)
+                {
+                    expectedSize *= dim;
+                }
+                if (flatArray->totalSize() != expectedSize)
+                {
+                    throw TypeException("FlatMultiArray size mismatch", node->getLocation());
+                }
+            }
+            else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(adaptiveArray))
+            {
+                auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(adaptiveArray);
+                if (!sparseArray)
+                {
+                    throw TypeException("Failed to create SparseMultiArray", node->getLocation());
+                }
+
+                // Verify dimensions for sparse arrays
+                if (!sparseArray->hasDimensions(dimensions))
+                {
+                    throw TypeException("SparseMultiArray dimension mismatch", node->getLocation());
+                }
+            }
+            else
+            {
+                throw TypeException("Unknown array type returned from adaptive pool", node->getLocation());
             }
 
-            // Debug: Check that it's properly constructed
-            size_t expectedSize = 1;
-            for (size_t dim : dimensions)
-            {
-                expectedSize *= dim;
-            }
-            if (flatArray->totalSize() != expectedSize)
-            {
-                throw TypeException("DEBUG: FlatMultiArray size mismatch", node->getLocation());
-            }
-
-            // This should return a valid FlatMultiArray from pool or new allocation
-            return flatArray;
+            return adaptiveArray;
         }
     }
 
     Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
     {
+        // Check if this is a multi-dimensional access pattern (e.g., arr[i][j])
+        std::vector<size_t> indices;
+        auto baseArray = extractMultiDimensionalAccess(node, indices);
+
+        if (baseArray.has_value()) {
+            // Handle direct multi-dimensional access
+            return evaluateDirectMultiDimensionalAccess(baseArray.value(), indices, node->getLocation());
+        }
+
         // Evaluate the array expression
         Value arrayValue = evaluate(node->getCollection());
 
@@ -1325,6 +1371,143 @@ namespace evaluator
             }
         }
 
+        // Check if array is a SparseMultiArray (for adaptive sparse arrays)
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(arrayValue))
+        {
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(arrayValue);
+
+            // Check bounds with descriptive error message
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Sparse array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= sparseArray->size())
+            {
+                throw TypeException(
+                    "Sparse array index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            }
+
+            // For sparse multi-dimensional arrays, return a sub-array view
+            if (sparseArray->getRank() > 1)
+            {
+                auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
+                if (subArray)
+                {
+                    return subArray;
+                }
+                else
+                {
+                    throw TypeException("Cannot access sub-array in sparse array", node->getLocation());
+                }
+            }
+            else
+            {
+                // Single dimension sparse array
+                std::vector<size_t> indices = {static_cast<size_t>(index)};
+                try
+                {
+                    return sparseArray->get(indices);
+                }
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("Sparse array access failed: " + std::string(e.what()), node->getLocation());
+                }
+            }
+        }
+
         throw TypeException("Cannot index non-array value", node->getLocation());
+    }
+
+    std::optional<Value> ExpressionEvaluator::extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices)
+    {
+        // Traverse up the IndexAccessNode chain to collect all indices
+        std::vector<IndexAccessNode*> accessChain;
+        IndexAccessNode* current = node;
+
+        while (current != nullptr) {
+            accessChain.push_back(current);
+
+            // Check if the collection is also an IndexAccessNode
+            IndexAccessNode* nextAccess = dynamic_cast<IndexAccessNode*>(current->getCollection());
+            if (nextAccess != nullptr) {
+                current = nextAccess;
+            } else {
+                break;
+            }
+        }
+
+        // If we only have one level, this isn't multi-dimensional
+        if (accessChain.size() <= 1) {
+            return std::nullopt;
+        }
+
+        // Evaluate the base array (the deepest collection)
+        Value baseArray = evaluate(accessChain.back()->getCollection());
+
+        // Check if it's a multi-dimensional array type we can optimize
+        bool isMultiDimensional = false;
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray)) {
+            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
+            isMultiDimensional = flatArray->getRank() > 1;
+        } else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray)) {
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
+            isMultiDimensional = sparseArray->getRank() > 1;
+        }
+
+        if (!isMultiDimensional) {
+            return std::nullopt;
+        }
+
+        // Evaluate indices in reverse order (from base to leaf)
+        indices.clear();
+        indices.reserve(accessChain.size());
+
+        for (auto it = accessChain.rbegin(); it != accessChain.rend(); ++it) {
+            Value indexValue = evaluate((*it)->getIndex());
+
+            if (!std::holds_alternative<int>(indexValue)) {
+                return std::nullopt; // Fall back to regular handling
+            }
+
+            int index = std::get<int>(indexValue);
+            if (index < 0) {
+                return std::nullopt; // Let regular handling provide proper error
+            }
+
+            indices.push_back(static_cast<size_t>(index));
+        }
+
+        return baseArray;
+    }
+
+    Value ExpressionEvaluator::evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location)
+    {
+        // Handle FlatMultiArray direct access
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray)) {
+            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
+
+            try {
+                return flatArray->get(indices);
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Multi-dimensional array access failed: " + std::string(e.what()), location);
+            }
+        }
+
+        // Handle SparseMultiArray direct access
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray)) {
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
+
+            try {
+                return sparseArray->get(indices);
+            } catch (const std::out_of_range& e) {
+                throw TypeException("Sparse multi-dimensional array access failed: " + std::string(e.what()), location);
+            }
+        }
+
+        throw TypeException("Unsupported array type for direct multi-dimensional access", location);
     }
 }

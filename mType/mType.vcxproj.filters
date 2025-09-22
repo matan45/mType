@@ -564,6 +564,9 @@
     <ClInclude Include="value\NativeArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\SparseMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -883,10 +886,19 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\arrays\error\largeArrayOutOfBounds.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\multiDimensionalBounds.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\negativeArraySize.mt">
       <Filter>tests\testFiles\arrays\error</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\outOfBoundsAccess.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\sparseArrayBounds.mt">
       <Filter>tests\testFiles\arrays\error</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\typeMismatch.mt">
@@ -904,10 +916,22 @@
     <None Include="tests\testFiles\arrays\pass\arrayAsParameter.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\arrayPoolingAndMemory.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayPoolingAndMemory.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\basicArrayDeclaration.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\basicArrayDeclaration.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\collectionInteroperability.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\collectionInteroperability.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\genericArrays.expected">
@@ -916,10 +940,22 @@
     <None Include="tests\testFiles\arrays\pass\genericArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\multiDimensionalEdgeCases.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\multiDimensionalEdgeCases.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\multidimensionalArrays.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\multidimensionalArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">

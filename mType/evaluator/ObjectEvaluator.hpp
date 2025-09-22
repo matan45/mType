@@ -5,6 +5,7 @@
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
+#include <optional>
 
 
 namespace evaluator
@@ -85,5 +86,9 @@ namespace evaluator
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
+
+        // Multi-dimensional array assignment helpers
+        std::optional<std::pair<Value, std::vector<size_t>>> extractMultiDimensionalAssignment(IndexAssignmentNode* node);
+        Value performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location);
     };
 }
