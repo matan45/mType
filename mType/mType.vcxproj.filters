@@ -82,6 +82,15 @@
     <Filter Include="tests\testFiles">
       <UniqueIdentifier>{5A55F118-C6E0-5EDD-CFF1-E1D13BFCBADD}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\arrays">
+      <UniqueIdentifier>{DB312977-C72B-52C9-B098-E8D99C31B835}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\arrays\error">
+      <UniqueIdentifier>{7481A2A6-603C-9252-09F4-0A9DF58DDCE2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\arrays\pass">
+      <UniqueIdentifier>{C128FBA7-2D36-298E-B61C-25792229F544}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\class">
       <UniqueIdentifier>{1F45B5E4-8BB1-70DF-54A5-083DC0D09247}</UniqueIdentifier>
     </Filter>
@@ -91,17 +100,17 @@
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\collections">
-      <UniqueIdentifier>{68157CEE-D422-AAD4-5D09-A6BFC915768B}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\collections\error">
-      <UniqueIdentifier>{C11A271D-2D89-7C9C-7672-379CE21F7238}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\collections\pass">
-      <UniqueIdentifier>{6E4C7B4E-5A9D-6690-8301-55526FB1F9F9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\complie">
       <UniqueIdentifier>{D2F3F1EE-3E2B-3A86-4735-9EA9B3EB607F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\complie\lib">
+      <UniqueIdentifier>{F82BA73B-6439-D521-ED1F-D10C592CA1D8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\complie\lib\collections">
+      <UniqueIdentifier>{06C94A37-7258-0C22-7B54-ED39E762472E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\complie\lib\primitives">
+      <UniqueIdentifier>{F362B05C-DFB4-874C-C8D3-C45CB4C4A035}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\complie\pass">
       <UniqueIdentifier>{18BD8EB0-0478-7E5C-AD2F-F7A699C9C8EC}</UniqueIdentifier>
@@ -123,6 +132,15 @@
     </Filter>
     <Filter Include="tests\testFiles\error\pass">
       <UniqueIdentifier>{19B6CA9A-05C6-766B-6E7F-DB895AAE6504}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\generics">
+      <UniqueIdentifier>{99C7027E-85EC-51FE-AE37-378E9ABB501C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\generics\error">
+      <UniqueIdentifier>{B2ED5073-9E13-1BDA-8759-A0A5731E40A6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\generics\pass">
+      <UniqueIdentifier>{3F054E2A-AB1D-3554-74CA-C4EDE0A1C9ED}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\import">
       <UniqueIdentifier>{441E7789-3018-A0DB-1985-36EC051E0648}</UniqueIdentifier>
@@ -168,6 +186,12 @@
     <ClInclude Include="ast\ASTVisitor.hpp">
       <Filter>ast</Filter>
     </ClInclude>
+    <ClInclude Include="ast\GenericType.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\GenericTypeParameter.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
     <ClInclude Include="ast\NodeClassesDeclaration.hpp">
       <Filter>ast</Filter>
     </ClInclude>
@@ -192,7 +216,7 @@
     <ClInclude Include="ast\nodes\classes\NewNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
-    <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
+    <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
@@ -204,13 +228,13 @@
     <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\GenericTypeRefNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\nodes\expressions\MapLiteralNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\NullNode.hpp">
@@ -271,6 +295,9 @@
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\ImportNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\IndexAssignmentNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
@@ -378,13 +405,7 @@
     <ClInclude Include="evaluator\managers\InstanceManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
-    <ClInclude Include="evaluator\utils\CollectionMethodDispatcher.hpp">
-      <Filter>evaluator\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="evaluator\utils\CollectionMethodValidator.hpp">
-      <Filter>evaluator\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="evaluator\utils\CollectionTypeHelper.hpp">
+    <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
@@ -447,22 +468,7 @@
     <ClInclude Include="runtimeTypes\Definition.hpp">
       <Filter>runtimeTypes</Filter>
     </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Array.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
     <ClInclude Include="runtimeTypes\collections\Collection.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Map.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Queue.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Set.hpp">
-      <Filter>runtimeTypes\collections</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Stack.hpp">
       <Filter>runtimeTypes\collections</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
@@ -486,25 +492,34 @@
     <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
+    <ClInclude Include="services\Compiler.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
     <ClInclude Include="services\FileReader.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\ImportManager.hpp">
       <Filter>services</Filter>
     </ClInclude>
+    <ClInclude Include="services\Runtime.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
     <ClInclude Include="services\ScriptInterpreter.hpp">
       <Filter>services</Filter>
     </ClInclude>
-    <ClInclude Include="tests\suites\ClassTestSuite.hpp">
+    <ClInclude Include="tests\suites\ArrayTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
-    <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
+    <ClInclude Include="tests\suites\ClassTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\GenericsTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ImportTestSuite.hpp">
@@ -540,11 +555,23 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="value\FlatMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\NativeArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ast\GenericType.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\GenericTypeParameter.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
@@ -566,7 +593,7 @@
     <ClCompile Include="ast\nodes\classes\NewNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
-    <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+    <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
@@ -578,13 +605,13 @@
     <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\GenericTypeRefNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\nodes\expressions\MapLiteralNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\NullNode.cpp">
@@ -645,6 +672,9 @@
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\ImportNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\IndexAssignmentNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
@@ -715,6 +745,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\managers\InstanceManager.cpp">
       <Filter>evaluator\managers</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ParameterBinder.cpp">
       <Filter>evaluator\utils</Filter>
@@ -791,25 +824,34 @@
     <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
+    <ClCompile Include="services\Compiler.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\FileReader.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportManager.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="services\Runtime.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\ScriptInterpreter.cpp">
       <Filter>services</Filter>
     </ClCompile>
-    <ClCompile Include="tests\suites\ClassTestSuite.cpp">
+    <ClCompile Include="tests\suites\ArrayTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
-    <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
+    <ClCompile Include="tests\suites\ClassTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\GenericsTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ImportTestSuite.cpp">
@@ -838,6 +880,45 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\arrays\error\negativeArraySize.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\outOfBoundsAccess.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\typeMismatch.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayAsDataMember.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayAsDataMember.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayAsParameter.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayAsParameter.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\basicArrayDeclaration.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\basicArrayDeclaration.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\genericArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\genericArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\multidimensionalArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\multidimensionalArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -1036,194 +1117,38 @@
     <None Include="tests\testFiles\class\pass\staticMethods.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\arrayTypeMismatch.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\collections\HashMap.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\forEachTypeMismatch.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\collections\HashSet.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\mapKeyNotFound.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\collections\List.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\queueEmptyDequeue.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\collections\Queue.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\setTypeMismatch.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\collections\Stack.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
-    <None Include="tests\testFiles\collections\error\stackEmptyPop.mt">
-      <Filter>tests\testFiles\collections\error</Filter>
+    <None Include="tests\testFiles\complie\lib\primitives\Bool.mt">
+      <Filter>tests\testFiles\complie\lib\primitives</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\arrayAdvanced.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
+    <None Include="tests\testFiles\complie\lib\primitives\Float.mt">
+      <Filter>tests\testFiles\complie\lib\primitives</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\arrayAdvanced.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
+    <None Include="tests\testFiles\complie\lib\primitives\Int.mt">
+      <Filter>tests\testFiles\complie\lib\primitives</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\arrayBasic.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
+    <None Include="tests\testFiles\complie\lib\primitives\String.mt">
+      <Filter>tests\testFiles\complie\lib\primitives</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\arrayBasic.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
+    <None Include="tests\testFiles\complie\pass\classGenericSerialization.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\arrayLiteral.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\arrayLiteral.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\arrayObjects.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\arrayObjects.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\basicCollectionFunctionTest.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsDataMembers.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsDataMembers.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsParameters.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsParameters.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsReturnTypes.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsAsReturnTypes.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsInMethods.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsInMethods.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsWithSimpleFunctions.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\collectionsWithSimpleFunctions.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\comprehensiveIteration.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\comprehensiveIteration.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\comprehensiveNestedForEach.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\comprehensiveNestedForEach.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\forEachArray.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\forEachArray.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapAdvanced.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapAdvanced.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapBasic.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapBasic.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapLiteral.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapLiteral.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapObjects.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\mapObjects.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\nestedCollections.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\nestedCollections.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\nestedCollectionsAsMapValues.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\nestedCollectionsAsMapValues.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueBasic.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueBasic.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueIteration.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueIteration.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueObjects.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\queueObjects.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setBasic.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setBasic.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setIteration.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setIteration.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setObjects.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\setObjects.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackBasic.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackBasic.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackIteration.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackIteration.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackObjects.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\stackObjects.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\twoPhaseComparison.expected">
-      <Filter>tests\testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\twoPhaseComparison.mt">
-      <Filter>tests\testFiles\collections\pass</Filter>
+    <None Include="tests\testFiles\complie\pass\classGenericSerialization.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.expected">
       <Filter>tests\testFiles\complie\pass</Filter>
@@ -1231,16 +1156,31 @@
     <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.mt">
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
+    <None Include="tests\testFiles\complie\pass\genericClassCompilation.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\genericClassCompilation.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\genericImportSerialization.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\genericImportSerialization.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\genericLibrary.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\multiTypeGenericSerialization.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\multiTypeGenericSerialization.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
     <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.expected">
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\nestedCollectionsAsMapValues.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\nestedCollectionsAsMapValues.mt">
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\complie\pass\switchNestedInLoops.expected">
@@ -1361,6 +1301,12 @@
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\spacedOperators.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\spacedOperators.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\switchCaseDefault.expected">
@@ -1560,6 +1506,87 @@
     </None>
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.expected">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\invalidTypeArgumentCount.expected">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\invalidTypeArgumentCount.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.expected">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\typeMismatchInMethod.expected">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\typeMismatchInMethod.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\undefinedGenericClass.expected">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\undefinedGenericClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\basicGenericClass.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\basicGenericClass.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericConstructors.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericConstructors.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericImportTest.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericImportTest.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericMethodOverloading.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericMethodOverloading.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericNullHandling.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericNullHandling.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericUtils.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericWithPrimitiveTypes.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericWithPrimitiveTypes.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\multipleTypeParameters.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\multipleTypeParameters.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\error\circular_a.mt">
       <Filter>tests\testFiles\import\error</Filter>

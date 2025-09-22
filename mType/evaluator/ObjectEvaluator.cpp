@@ -2,6 +2,9 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/ValueConverter.hpp"
+#include "../value/FlatMultiArray.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
@@ -623,6 +626,39 @@ namespace evaluator
             throw TypeException("Expression evaluator not available for index assignment");
         }
 
+        // Check if this is a multi-dimensional assignment (e.g., arr2d[0][0] = value)
+        // If node->getObject() is an IndexAccessNode, we might have a multi-dimensional assignment
+        auto objectASTNode = node->getObject();
+
+        // Try to detect if this is an IndexAccessNode
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
+            // Get the base array (e.g., arr2d in arr2d[0][0] = value)
+            Value baseArrayValue = exprEvaluator->evaluate(indexAccessNode->getCollection());
+
+            if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue)) {
+                auto baseArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue);
+
+                // Get the first dimension index (e.g., 0 in arr2d[0][0])
+                Value firstIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+
+                // Get the second dimension index (e.g., 0 in arr2d[0][0])
+                Value secondIndexValue = exprEvaluator->evaluate(node->getIndex());
+
+                // Get the new value
+                Value newValue = exprEvaluator->evaluate(node->getValue());
+
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                    std::vector<size_t> indices;
+                    indices.push_back(static_cast<size_t>(std::get<int>(firstIndexValue)));
+                    indices.push_back(static_cast<size_t>(std::get<int>(secondIndexValue)));
+
+                    baseArray->set(indices, newValue);
+                    return newValue;
+                }
+            }
+        }
+
+        // Fall back to single-dimensional assignment
         // Evaluate the object expression (should be an array)
         Value objectValue = exprEvaluator->evaluate(node->getObject());
 
@@ -631,6 +667,7 @@ namespace evaluator
 
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
+
 
         // Check if index is an integer
         if (!std::holds_alternative<int>(indexValue)) {
@@ -650,6 +687,27 @@ namespace evaluator
 
             nativeArray->set(static_cast<size_t>(index), newValue);
             return newValue;
+        }
+
+        // Check if object is a FlatMultiArray (for multi-dimensional arrays)
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue)) {
+            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
+
+            // Check bounds
+            if (index < 0 || static_cast<size_t>(index) >= flatArray->size()) {
+                throw TypeException("Array index out of bounds", node->getLocation());
+            }
+
+            // For 1D FlatMultiArray, set directly
+            if (flatArray->getRank() == 1) {
+                flatArray->set(static_cast<size_t>(index), newValue);
+                return newValue;
+            } else {
+                // For multi-dimensional arrays, this should be handled differently
+                // The parser should create nested IndexAssignmentNodes, but if we get here,
+                // it means we're assigning to a sub-array which isn't supported
+                throw TypeException("Cannot assign array to index position", node->getLocation());
+            }
         }
 
         throw TypeException("Cannot assign to index of non-array value", node->getLocation());

@@ -156,6 +156,9 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>) {
                 return ValueType::OBJECT;
             }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>) {
+                return ValueType::OBJECT;
+            }
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 return ValueType::NULL_TYPE;
             }

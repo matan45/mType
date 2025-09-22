@@ -62,7 +62,6 @@ namespace ast::nodes::statements
 
     Value IndexAssignmentNode::accept(ASTVisitor<Value>& visitor)
     {
-        std::cout << "[DEBUG] IndexAssignmentNode::accept() called" << std::endl;
         return visitor.visitIndexAssignmentNode(this);
     }
 }

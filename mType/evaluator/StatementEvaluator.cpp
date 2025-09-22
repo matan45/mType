@@ -437,12 +437,11 @@ namespace evaluator
                                                            const SourceLocation& location,
                                                            const std::string& expectedClassName)
     {
-        // Extract object instance and get its class name
+        // Handle Object instances
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
             if (objInstance) {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
-
 
                 // Check if the actual class matches the expected class
                 if (!isGenericTypeCompatible(actualClassName, expectedClassName)) {
@@ -453,7 +452,35 @@ namespace evaluator
                 // TODO: In a full implementation, this would also check class hierarchies
                 // to allow assignments like Derived -> Base (inheritance compatibility)
             }
+            return;
         }
+
+        // Handle NativeArray (1D arrays)
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(value)) {
+            // NativeArray represents 1D arrays, expected type should be like "int[]"
+            if (expectedClassName.find("[]") != std::string::npos) {
+                // It's an array type, allow the assignment
+                return;
+            } else {
+                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
+                                  expectedClassName + " but got array type", location);
+            }
+        }
+
+        // Handle FlatMultiArray (multi-dimensional arrays)
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(value)) {
+            // FlatMultiArray represents N-dimensional arrays, expected type should be like "int[][]"
+            if (expectedClassName.find("[]") != std::string::npos) {
+                // It's an array type, allow the assignment
+                return;
+            } else {
+                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
+                                  expectedClassName + " but got multi-dimensional array type", location);
+            }
+        }
+
+        // If we get here, the value type is not compatible with object expectations
+        // This should not happen if called correctly, but add safety check
     }
     
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)
@@ -465,6 +492,8 @@ namespace evaluator
 
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
+
+        // Type detection is now working correctly
         
         auto env = context->getEnvironment();
         

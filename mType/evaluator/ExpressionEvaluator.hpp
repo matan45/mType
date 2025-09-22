@@ -73,6 +73,9 @@ namespace evaluator
                                          const ::parser::TypeInfo& elementType,
                                          size_t currentDimension);
 
+        // Helper method to get default value for type
+        Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
+
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);

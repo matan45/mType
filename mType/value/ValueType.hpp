@@ -12,6 +12,7 @@ namespace runtimeTypes::klass
 namespace value
 {
     class NativeArray;
+    class FlatMultiArray;
 }
 
 
@@ -33,10 +34,16 @@ namespace value
     using Value = std::variant<int, float, bool, std::string, std::monostate,
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                std::shared_ptr<NativeArray>,
+                               std::shared_ptr<FlatMultiArray>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value
     inline ValueType getValueType(const Value& value) {
+        // Explicit check for FlatMultiArray before using std::visit
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(value)) {
+            return ValueType::OBJECT;
+        }
+
         return std::visit([](const auto& v) -> ValueType {
             if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int>) {
                 return ValueType::INT;
