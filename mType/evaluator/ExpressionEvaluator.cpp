@@ -879,6 +879,21 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateMethodCallNode(MethodCallNode* node)
     {
+        // Check if this is a static method call first
+        if (node->getIsStaticCall())
+        {
+            // Delegate static method calls to ObjectEvaluator
+            if (objEvaluator)
+            {
+                return objEvaluator->evaluateMethodCallNode(node);
+            }
+            else
+            {
+                throw TypeException("Object evaluator not available for static method call");
+            }
+        }
+
+        // Handle instance method calls
         Value objectValue = evaluate(node->getObject());
 
         // Check if object is null

@@ -6,6 +6,7 @@
 #include "../../value/ValueType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericType.hpp"
+#include "../../ast/GenericTypeParameter.hpp"
 #include "../Definition.hpp"
 
 
@@ -26,6 +27,7 @@ namespace runtimeTypes::klass
         // NEW: Generic type information for runtime type resolution
         std::shared_ptr<ast::GenericType> genericReturnType;
         std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        std::vector<ast::GenericTypeParameter> genericTypeParameters;  // NEW: Store generic type parameter declarations (<T>, <K,V>)
         std::unordered_map<std::string, std::string> typeSubstitutionMap;  // For instantiated generic methods
 
     public:
@@ -46,9 +48,10 @@ namespace runtimeTypes::klass
                          std::shared_ptr<ASTNode> b, bool s,
                          std::shared_ptr<ast::GenericType> genRetType,
                          const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams,
+                         const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                          const std::unordered_map<std::string, std::string>& substitutions = {})
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              genericReturnType(genRetType), genericParameters(genParams), typeSubstitutionMap(substitutions)
+              genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
         {
         }
 
@@ -73,6 +76,9 @@ namespace runtimeTypes::klass
 
         const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& getGenericParameters() const { return genericParameters; }
         void setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams) { genericParameters = genParams; }
+
+        const std::vector<ast::GenericTypeParameter>& getGenericTypeParameters() const { return genericTypeParameters; }
+        void setGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& genTypeParams) { genericTypeParameters = genTypeParams; }
 
         const std::unordered_map<std::string, std::string>& getTypeSubstitutionMap() const { return typeSubstitutionMap; }
         void setTypeSubstitutionMap(const std::unordered_map<std::string, std::string>& substitutions) { typeSubstitutionMap = substitutions; }

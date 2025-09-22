@@ -918,11 +918,8 @@ namespace ast::serialization
             // Serialize the static flag
             writeBool(node->getIsStatic());
 
-            // Serialize generic type parameters (only for non-static methods as per requirements)
-            if (!node->getIsStatic())
-            {
-                writeGenericTypeParameters(node->getGenericTypeParameters());
-            }
+            // Serialize generic type parameters (for all methods)
+            writeGenericTypeParameters(node->getGenericTypeParameters());
 
             // Serialize whether there's a body
             bool hasBody = (node->getBodyPtr() != nullptr);
@@ -1040,6 +1037,14 @@ namespace ast::serialization
 
         // Serialize the static call flag
         writeBool(node->getIsStaticCall());
+
+        // Serialize generic type arguments
+        const auto& genericArgs = node->getGenericTypeArguments();
+        writeUInt32(static_cast<uint32_t>(genericArgs.size()));
+        for (const auto& typeArg : genericArgs)
+        {
+            writeString(typeArg);
+        }
 
         // Serialize the number of arguments
         const auto& arguments = node->getArguments();

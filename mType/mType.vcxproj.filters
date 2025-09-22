@@ -940,6 +940,12 @@
     <None Include="tests\testFiles\arrays\pass\genericArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\linkedListComprehensive.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\linkedListComprehensive.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\multiDimensionalEdgeCases.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
@@ -1160,6 +1166,9 @@
       <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
     <None Include="tests\testFiles\complie\lib\collections\HashSet.mt">
+      <Filter>tests\testFiles\complie\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\lib\collections\LinkedList.mt">
       <Filter>tests\testFiles\complie\lib\collections</Filter>
     </None>
     <None Include="tests\testFiles\complie\lib\collections\List.mt">
@@ -1564,6 +1573,12 @@
     <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\staticGenericWrongTypeArgCount.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\staticNonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\typeMismatchInMethod.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -1621,10 +1636,34 @@
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\mixedStaticGenericMethods.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\multipleTypeParameters.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\multipleTypeParameters.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericCollectionReturns.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericCollectionReturns.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericMethodParameterless.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericMethods.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericSimpleContainer.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericSimpleContainer.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\error\circular_a.mt">

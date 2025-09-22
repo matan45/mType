@@ -1004,12 +1004,9 @@ namespace ast::serialization
         // Read the static flag
         bool isStatic = readBool();
 
-        // Read generic type parameters (only for non-static methods)
+        // Read generic type parameters (for all methods)
         std::vector<ast::GenericTypeParameter> genericParameters;
-        if (!isStatic)
-        {
-            genericParameters = readGenericTypeParameters();
-        }
+        genericParameters = readGenericTypeParameters();
 
         // Read whether there's a body
         bool hasBody = readBool();
@@ -1037,8 +1034,8 @@ namespace ast::serialization
             location
         );
 
-        // Set generic type parameters if not static
-        if (!isStatic && !genericParameters.empty())
+        // Set generic type parameters for all methods
+        if (!genericParameters.empty())
         {
             methodNode->setGenericTypeParameters(genericParameters);
         }
@@ -1198,6 +1195,15 @@ namespace ast::serialization
         // Read the static call flag
         bool isStaticCall = readBool();
 
+        // Read generic type arguments
+        uint32_t genericArgCount = readUInt32();
+        std::vector<std::string> genericTypeArguments;
+        genericTypeArguments.reserve(genericArgCount);
+        for (uint32_t i = 0; i < genericArgCount; ++i)
+        {
+            genericTypeArguments.push_back(readString());
+        }
+
         // Read the number of arguments
         uint32_t argumentCount = readUInt32();
 
@@ -1220,7 +1226,7 @@ namespace ast::serialization
         location.setColumn(header.column);
 
         return std::make_unique<nodes::classes::MethodCallNode>(
-            std::move(object), methodName, std::move(arguments), isStaticCall, location);
+            std::move(object), methodName, std::move(arguments), isStaticCall, genericTypeArguments, location);
     }
 
     // Helper function to convert serialization ValueType to value::ValueType

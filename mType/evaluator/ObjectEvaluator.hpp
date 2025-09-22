@@ -64,6 +64,10 @@ namespace evaluator
         Value callStaticMethod(const std::string& className, const std::string& methodName,
                                const std::vector<Value>& args);
 
+        Value callStaticMethod(const std::string& className, const std::string& methodName,
+                               const std::vector<Value>& args,
+                               const std::vector<std::string>& genericTypeArguments);
+
         // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
                                                        const std::vector<Value>& constructorArgs);

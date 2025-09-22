@@ -281,18 +281,45 @@ namespace parser
                     // Use centralized qualified identifier chain parsing
                     auto parts = ParserUtils::parseQualifiedIdentifierChain(tokenStream, varNode->getName());
 
+                    // Parse generic type arguments if present (e.g., Box::method<String, Int>)
+                    std::vector<std::string> genericTypeArguments;
+                    if (tokenStream.current().type == TokenType::LESS)
+                    {
+                        tokenStream.advance(); // consume '<'
+                        genericTypeArguments = parseGenericTypeArguments();
+                        tokenStream.expect(TokenType::GREATER); // consume '>'
+                    }
+
                     // Check if this is a function call (e.g., MathUtils::max(10, 5))
                     if (tokenStream.current().type == TokenType::LPAREN)
                     {
-                        // Efficiently build the full function name
-                        std::string fullName = ParserUtils::buildQualifiedName(parts);
+                        // Check if we have generic type arguments - if so, treat as static generic method call
+                        if (!genericTypeArguments.empty() && parts.size() >= 2)
+                        {
+                            std::string className = parts[0];
+                            std::string methodName = parts[1];
 
-                        // Parse as function call using the same method as normal function calls
-                        tokenStream.advance(); // consume '('
-                        auto arguments = parseArguments();
-                        tokenStream.expect(TokenType::RPAREN);
+                            // Parse arguments
+                            tokenStream.advance(); // consume '('
+                            auto arguments = parseArguments();
+                            tokenStream.expect(TokenType::RPAREN);
 
-                        expr = std::make_unique<nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                            // Create MethodCallNode for static generic call
+                            auto classNode = std::make_unique<nodes::expressions::VariableNode>(className);
+                            expr = std::make_unique<nodes::classes::MethodCallNode>(
+                                std::move(classNode), methodName, std::move(arguments),
+                                true, genericTypeArguments, SourceLocation()); // isStatic = true
+                        }
+                        else
+                        {
+                            // Regular function call - use existing logic
+                            std::string fullName = ParserUtils::buildQualifiedName(parts);
+                            tokenStream.advance(); // consume '('
+                            auto arguments = parseArguments();
+                            tokenStream.expect(TokenType::RPAREN);
+
+                            expr = std::make_unique<nodes::functions::FunctionCallNode>(fullName, std::move(arguments));
+                        }
                     }
                     else
                     {
@@ -410,7 +437,7 @@ namespace parser
             tokenStream.advance();
             auto arguments = parseArguments();
             tokenStream.expect(TokenType::RPAREN);
-            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments), false, location);
+            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments), false, std::vector<std::string>(), location);
         }
         else
         {
@@ -432,5 +459,57 @@ namespace parser
         tokenStream.expect(TokenType::RBRACKET);
 
         return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index), location);
+    }
+
+    std::vector<std::string> ExpressionParser::parseGenericTypeArguments()
+    {
+        std::vector<std::string> typeArgs;
+
+        // Parse first type argument
+        typeArgs.push_back(parseGenericTypeArgument());
+
+        // Parse additional arguments separated by commas
+        while (tokenStream.check(TokenType::COMMA))
+        {
+            tokenStream.advance(); // consume ','
+            typeArgs.push_back(parseGenericTypeArgument());
+        }
+
+        return typeArgs;
+    }
+
+    std::string ExpressionParser::parseGenericTypeArgument()
+    {
+        std::string typeArg;
+
+        if (tokenStream.current().type == TokenType::IDENTIFIER)
+        {
+            typeArg = tokenStream.current().stringValue;
+            tokenStream.advance();
+
+            // Handle nested generics like Array<String>
+            if (tokenStream.check(TokenType::LESS))
+            {
+                typeArg += "<";
+                tokenStream.advance(); // consume '<'
+
+                // Recursively parse nested type arguments
+                auto nestedArgs = parseGenericTypeArguments();
+                for (size_t i = 0; i < nestedArgs.size(); ++i)
+                {
+                    if (i > 0) typeArg += ",";
+                    typeArg += nestedArgs[i];
+                }
+
+                tokenStream.expect(TokenType::GREATER); // consume '>'
+                typeArg += ">";
+            }
+
+            return typeArg;
+        }
+        else
+        {
+            throw ParseException("Expected type argument", tokenStream.current().location);
+        }
     }
 }

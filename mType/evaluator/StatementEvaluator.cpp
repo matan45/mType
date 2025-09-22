@@ -573,6 +573,15 @@ namespace evaluator
                                 className.find("<V>") != std::string::npos) {
                                 hasUnresolvedTypeParams = true;
                             }
+                            // Check if this is a concrete generic instantiation (e.g., HashMap<String, Int>)
+                            else if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+                                // For concrete instantiations, validate the base class exists
+                                auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+                                if (env->findClass(baseName)) {
+                                    // Base class exists, this is a valid generic instantiation
+                                    hasUnresolvedTypeParams = true; // Skip normal validation
+                                }
+                            }
                         }
 
                         if (!hasUnresolvedTypeParams) {

@@ -18,6 +18,7 @@
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/expressions/VariableNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/IndexAssignmentNode.hpp"
@@ -163,8 +164,8 @@ namespace evaluator
             // Create method definition with generic type information preserved
             std::shared_ptr<MethodDefinition> methodDef;
 
-            if (node->isGeneric()) {
-                // For generic classes, preserve the generic type information
+            if (methodNode->isGeneric()) {
+                // For generic methods, preserve the generic type information
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),               // Legacy ValueType for compatibility
@@ -173,11 +174,12 @@ namespace evaluator
                     bodyPtr,
                     methodNode->getIsStatic(),
                     methodNode->getGenericReturnType(),        // NEW: Preserve generic return type
-                    methodNode->getGenericParameters(),        // NEW: Preserve generic parameters
+                    methodNode->getGenericParameters(),        // NEW: Preserve generic method parameters
+                    methodNode->getGenericTypeParameters(),    // NEW: Preserve generic type parameter declarations
                     std::unordered_map<std::string, std::string>{} // Empty substitution map for template
                 );
             } else {
-                // For non-generic classes, use legacy constructor
+                // For non-generic methods, use legacy constructor
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),
@@ -475,6 +477,11 @@ namespace evaluator
                 auto prevInstance = context->getCurrentInstance();
                 context->setCurrentInstance(instance);
 
+                // Temporarily clear static method context for constructor execution
+                // Constructors always run in instance context regardless of where they're called from
+                bool wasInStaticMethod = context->isInStaticMethodContext();
+                context->setInStaticMethod(false);
+
                 // Use ScopeGuard for automatic scope management
                 {
                     utils::ScopeGuard scope(env, "constructor", environment::manager::ScopeType::FUNCTION);
@@ -502,11 +509,13 @@ namespace evaluator
                     catch (...)
                     {
                         context->setCurrentInstance(prevInstance);
+                        context->setInStaticMethod(wasInStaticMethod);
                         throw;
                     }
                     // Scope automatically exits via RAII
                 }
                 context->setCurrentInstance(prevInstance);
+                context->setInStaticMethod(wasInStaticMethod);
             }
         }
 
@@ -869,7 +878,35 @@ namespace evaluator
             throw TypeException("Expression evaluator not available for method call");
         }
 
-        // Evaluate the object expression - delegate to expression evaluator for variables, but handle NewNode ourselves
+        // Evaluate arguments first (needed for both static and instance calls)
+        std::vector<Value> args = evaluateArgumentList(node->getArguments());
+
+        // Handle static method calls
+        if (node->getIsStaticCall())
+        {
+            // For static calls, the object should be a VariableNode containing the class name
+            if (auto varNode = dynamic_cast<nodes::expressions::VariableNode*>(node->getObject()))
+            {
+                std::string className = varNode->getName();
+
+                // Call static method with or without generic type arguments
+                if (node->hasGenericTypeArguments())
+                {
+                    return callStaticMethod(className, node->getMethodName(), args,
+                                          node->getGenericTypeArguments());
+                }
+                else
+                {
+                    return callStaticMethod(className, node->getMethodName(), args);
+                }
+            }
+            else
+            {
+                throw TypeException("Invalid static method call - expected class name");
+            }
+        }
+
+        // Handle instance method calls
         Value objectValue;
         if (dynamic_cast<NewNode*>(node->getObject()))
         {
@@ -881,9 +918,6 @@ namespace evaluator
             // Delegate to expression evaluator for other nodes (like VariableNode)
             objectValue = exprEvaluator->evaluate(node->getObject());
         }
-
-        // Evaluate arguments
-        std::vector<Value> args = evaluateArgumentList(node->getArguments());
 
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
@@ -928,17 +962,30 @@ namespace evaluator
                 "'. Use class name instead.");
         }
 
-        // VALIDATION: Prevent instance method calls from static methods
+        // VALIDATION: Prevent instance method calls from static methods only when calling on 'this'
+        // Allow instance method calls on local objects and parameters within static methods
         if (context->isInStaticMethodContext() && !method->isStatic())
         {
-            throw TypeException("Cannot call instance method '" + methodName +
-                "' from static method context",
-                SourceLocation()); // TODO: Pass proper location if available
+            // Check if we're trying to call an instance method on the current instance ('this')
+            // In static methods, currentInstance should be null, so any valid object calls are allowed
+            auto currentInstance = context->getCurrentInstance();
+            if (currentInstance && currentInstance == object)
+            {
+                throw TypeException("Cannot call instance method '" + methodName +
+                    "' on 'this' from static method context",
+                    SourceLocation()); // TODO: Pass proper location if available
+            }
+            // Allow calls on other objects (local variables, parameters, newly created objects)
         }
 
         // Set current instance context
         auto prevInstance = context->getCurrentInstance();
         context->setCurrentInstance(object);
+
+        // Temporarily clear static method context for instance method execution
+        // Instance methods should run in instance context regardless of where they're called from
+        bool wasInStaticMethod = context->isInStaticMethodContext();
+        context->setInStaticMethod(false);
 
         // Use ScopeGuard and ParameterBinder utilities
         {
@@ -978,6 +1025,9 @@ namespace evaluator
                     stmtEvaluator->evaluate(method->getBody());
                 }
 
+                // Restore static method context
+                context->setInStaticMethod(wasInStaticMethod);
+
                 // Get return value if method returned
                 if (context->shouldReturn())
                 {
@@ -991,12 +1041,14 @@ namespace evaluator
             catch (const exception::ReturnException& e)
             {
                 // Handle return exception - extract return value
+                context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
                 context->setReturned(false); // Reset return state after handling exception
                 return e.returnValue;
             }
             catch (...)
             {
+                context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
                 throw;
             }
@@ -1042,6 +1094,9 @@ namespace evaluator
                                             const std::vector<Value>& args)
     {
         auto env = context->getEnvironment();
+
+        // Declare previousMethod for restoration in exception handlers
+        auto previousMethod = context->getCurrentMethod();
 
         // Try to resolve type parameters from current object context first
         std::string resolvedClassName = className;
@@ -1140,12 +1195,14 @@ namespace evaluator
 
                     // Restore previous static method state
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     return result;
                 }
                 catch (const exception::ReturnException& e)
                 {
                     // Handle return exception - extract return value
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     context->setReturned(false);
                     return e.returnValue;
                 }
@@ -1153,6 +1210,148 @@ namespace evaluator
                 {
                     // Ensure we restore state even if exception occurs
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    throw;
+                }
+            }
+            catch (...)
+            {
+                throw; // Re-throw any exceptions that weren't handled by inner try-catch
+            }
+            // Scope automatically exits via RAII
+        }
+    }
+
+    Value ObjectEvaluator::callStaticMethod(const std::string& className,
+                                            const std::string& methodName,
+                                            const std::vector<Value>& args,
+                                            const std::vector<std::string>& genericTypeArguments)
+    {
+        auto env = context->getEnvironment();
+
+        // Get the class definition
+        auto classDef = env->getClassRegistry()->findItem(className);
+        if (!classDef)
+        {
+            throw UndefinedException("Class '" + className + "' not found for static method call");
+        }
+
+        // Find the static method
+        auto method = classDef->getMethod(methodName);
+        if (!method)
+        {
+            throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
+        }
+
+        if (!method->isStatic())
+        {
+            throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
+        }
+
+        // Handle generic method instantiation
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> methodToCall = method;
+
+        if (!genericTypeArguments.empty())
+        {
+            // Validate that the method is actually generic
+            if (!method->hasGenericInformation())
+            {
+                throw TypeException("Method '" + methodName + "' is not generic but generic type arguments were provided");
+            }
+
+            // Validate type arguments
+            if (!utils::GenericTypeManager::validateStaticMethodTypeArguments(method, genericTypeArguments))
+            {
+                throw TypeException("Invalid type arguments for static generic method '" +
+                                  className + "::" + methodName + "'");
+            }
+
+            // Create a cache key for the instantiated method
+            std::string signatureKey = utils::GenericTypeManager::createStaticMethodSignatureKey(
+                className, methodName, genericTypeArguments);
+
+            // Check if we already have this instantiation cached
+            static std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::MethodDefinition>>
+                staticGenericMethodCache;
+
+            auto cacheIt = staticGenericMethodCache.find(signatureKey);
+            if (cacheIt != staticGenericMethodCache.end())
+            {
+                methodToCall = cacheIt->second;
+            }
+            else
+            {
+                // Instantiate the generic method
+                methodToCall = utils::GenericTypeManager::instantiateStaticGenericMethod(
+                    method, genericTypeArguments);
+
+                // Cache the instantiated method
+                staticGenericMethodCache[signatureKey] = methodToCall;
+            }
+        }
+
+        // Use ScopeGuard and ParameterBinder utilities
+        {
+            utils::ScopeGuard scope(env, methodName, environment::manager::ScopeType::FUNCTION);
+
+            try
+            {
+                // Use ParameterBinder utility for consistent parameter validation and binding
+                utils::ParameterBinder::bindAndValidateParameters(
+                    methodToCall->getParameters(),
+                    args,
+                    "static method '" + className + "::" + methodName + "'",
+                    env
+                );
+
+                // Store current class name for static field access
+                auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    "__current_class_name__", ValueType::STRING, className, false
+                );
+                env->declareVariable("__current_class_name__", classNameVar);
+
+                // Set static method context to prevent instance member access
+                bool previousStaticState = context->isInStaticMethodContext();
+                context->setInStaticMethod(true);
+
+                // Set current method context for generic type resolution
+                auto previousMethod = context->getCurrentMethod();
+                context->setCurrentMethod(methodToCall);
+
+                try
+                {
+                    // Execute method body (no instance context for static methods)
+                    Value result = std::monostate{}; // void default
+                    if (methodToCall->getBody() && stmtEvaluator)
+                    {
+                        stmtEvaluator->evaluate(methodToCall->getBody());
+                    }
+
+                    // Get return value if method returned
+                    if (context->shouldReturn())
+                    {
+                        result = context->getReturnValue();
+                        context->setReturned(false);
+                    }
+
+                    // Restore previous static method state
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    return result;
+                }
+                catch (const exception::ReturnException& e)
+                {
+                    // Handle return exception - extract return value
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    context->setReturned(false);
+                    return e.returnValue;
+                }
+                catch (...)
+                {
+                    // Ensure we restore state even if exception occurs
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     throw;
                 }
             }
@@ -1493,6 +1692,16 @@ namespace evaluator
 
     std::string ObjectEvaluator::resolveTypeParameterFromContext(const std::string& typeParam)
     {
+        // First try to resolve from current method context (for static generic methods)
+        auto currentMethod = context->getCurrentMethod();
+        if (currentMethod && currentMethod->hasGenericInformation()) {
+            const auto& substitutionMap = currentMethod->getTypeSubstitutionMap();
+            auto it = substitutionMap.find(typeParam);
+            if (it != substitutionMap.end()) {
+                return it->second;
+            }
+        }
+
         // Try to resolve type parameters from the current object instance context
         auto currentInstance = context->getCurrentInstance();
         if (!currentInstance) {
