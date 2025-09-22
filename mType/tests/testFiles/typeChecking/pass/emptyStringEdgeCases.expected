@@ -34,13 +34,13 @@ concatenate('', 'b'): 'b'
 Testing empty strings with loops:
 Loop result with empty: '02'
 
-Testing str::length function with various strings:
-str::length(''): 0
-str::length('a'): 1
-str::length('hello'): 5
-str::length(' '): 1
-str::length('\t'): 1
-str::length('\n'): 1
+Testing strLength function with various strings:
+strLength(''): 0
+strLength('a'): 1
+strLength('hello'): 5
+strLength(' '): 1
+strLength('\t'): 1
+strLength('\n'): 1
 
 Testing empty strings in conditional expressions:
 Ternary with empty: was empty

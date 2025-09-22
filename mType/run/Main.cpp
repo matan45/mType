@@ -5,7 +5,6 @@
 #include "../tests/suites/IntegrationTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
-#include "../tests/suites/CollectionsTestSuite.hpp"
 #include "../tests/suites/GenericsTestSuite.hpp"
 #include "../tests/suites/ArrayTestSuite.hpp"
 #include "../tests/suites/SerializationTestSuite.hpp"
@@ -58,10 +57,6 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<TypeCheckingTestSuite>();
     }
-    else if (suiteName == "collections" || suiteName == "collection")
-    {
-        return std::make_unique<CollectionsTestSuite>();
-    }
     else if (suiteName == "generics" || suiteName == "generic")
     {
         return std::make_unique<GenericsTestSuite>();
@@ -86,7 +81,6 @@ void printAvailableTestSuites()
     std::cout << "  error        - Error Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
-    std::cout << "  collections  - Collections Test Suite\n";
     std::cout << "  generics     - Generics Test Suite\n";
     std::cout << "  arrays       - Array Test Suite\n";
     std::cout << "  serialization- Serialization & Compilation Test Suite\n";
@@ -142,7 +136,6 @@ void runAllTests()
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
     suites.push_back(std::make_unique<GenericsTestSuite>());
     suites.push_back(std::make_unique<ArrayTestSuite>());
-    suites.push_back(std::make_unique<CollectionsTestSuite>());
 
     for (auto& suite : suites)
     {
