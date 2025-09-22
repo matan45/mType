@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <memory>
 #include <chrono>
+#include <algorithm>
 
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
@@ -38,19 +39,29 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
+        std::cout << "[LOG] ScriptInterpreter::runScript - Starting execution of: " << filename << std::endl;
+
         // Check for cached AST first
         std::filesystem::path sourcePath(filename);
         std::string cacheFile = sourcePath.string() + "c"; // .mt -> .mtc
 
+        std::cout << "[LOG] ScriptInterpreter::runScript - Cache file: " << cacheFile << std::endl;
+        std::cout << "[LOG] ScriptInterpreter::runScript - Cache exists: " << std::filesystem::exists(cacheFile) << std::endl;
+
         if (std::filesystem::exists(cacheFile) && isCacheValid(filename, cacheFile))
         {
+            std::cout << "[LOG] ScriptInterpreter::runScript - Cache is valid, attempting cached execution" << std::endl;
             // Use cached AST
             if (runCachedScript(cacheFile))
             {
+                std::cout << "[LOG] ScriptInterpreter::runScript - Cached execution succeeded" << std::endl;
                 return;
             }
+            std::cout << "[LOG] ScriptInterpreter::runScript - Cached execution failed, falling back to parsing" << std::endl;
             // If cache loading fails, fall back to parsing
         }
+
+        std::cout << "[LOG] ScriptInterpreter::runScript - Starting normal parsing execution" << std::endl;
 
         // Parse and execute
         lexer::Lexer lexer(filename);
@@ -89,14 +100,11 @@ namespace services
 
             // Set base directory to the directory of the script file
             std::filesystem::path scriptPath(filename);
-            importManager->setBaseDirectory(scriptPath.parent_path().string());
+            std::string baseDirectory = scriptPath.parent_path().string();
+            importManager->setBaseDirectory(baseDirectory);
 
             parser::Parser parser(lexer, std::move(importManager));
             auto ast = parser.parseProgram();
-
-            // Automatically compile import dependencies first
-            std::string baseDirectory = scriptPath.parent_path().string();
-            compileImportDependencies(ast.get(), baseDirectory);
 
             // Determine output path
             std::string outputFile = outputPath;
@@ -105,9 +113,9 @@ namespace services
                 outputFile = filename + "c"; // .mt -> .mtc
             }
 
-            // Serialize the AST
+            // *** NEW: Use import resolution to create self-contained .mtc files ***
             ast::serialization::ASTSerializer serializer;
-            return serializer.serialize(ast.get(), outputFile);
+            return serializer.serializeWithImportResolution(ast.get(), outputFile, baseDirectory);
         }
         catch (const std::exception& e)
         {
@@ -118,48 +126,39 @@ namespace services
 
     bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
     {
+        std::cout << "[LOG] ScriptInterpreter::runCachedScript - Starting cached execution: " << cachedPath << std::endl;
         try
         {
-            // Deserialize the AST
+            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Deserializing AST..." << std::endl;
+            // Deserialize the self-contained AST
             ast::serialization::ASTDeserializer deserializer;
             auto ast = deserializer.deserialize(cachedPath);
 
             if (!ast)
             {
-                std::cerr << "Failed to load cached AST from: " << cachedPath << std::endl;
+                std::cerr << "[LOG] ScriptInterpreter::runCachedScript - Failed to load cached AST from: " << cachedPath << std::endl;
                 return false;
             }
 
+            std::cout << "[LOG] ScriptInterpreter::runCachedScript - AST deserialized successfully" << std::endl;
 
-            // Create and configure ImportManager for cached script execution
-            auto importManager = std::make_unique<ImportManager>();
+            // *** NO ImportManager needed - AST is self-contained ***
+            // The cached AST should have all imports resolved and inlined
 
-            // Set base directory to the directory of the cached script file
-            std::filesystem::path scriptPath(cachedPath);
-            std::string baseDir = scriptPath.parent_path().string();
-            importManager->setBaseDirectory(baseDir);
-
-
-            // Keep a raw pointer for later use before setting on environment
-            ImportManager* importManagerPtr = importManager.get();
-            environment->setImportManager(importManagerPtr);
-
-
+            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Pre-registering class definitions..." << std::endl;
             // Pre-register all class definitions from the cached AST
             preRegisterClassDefinitions(ast.get());
 
-            // Execute the AST
+            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Starting AST evaluation..." << std::endl;
+            // Execute the self-contained AST directly
             evaluator->evaluate(ast.get());
 
-
-            // Clean up ImportManager reference
-            environment->setImportManager(nullptr);
-
+            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Cached execution completed successfully" << std::endl;
             return true;
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error running cached script: " << e.what() << std::endl;
+            std::cerr << "[LOG] ScriptInterpreter::runCachedScript - Error running cached script: " << e.what() << std::endl;
             return false;
         }
     }
@@ -682,4 +681,5 @@ namespace services
         }
         // Add other node types that may contain ClassNodes as needed
     }
+
 }

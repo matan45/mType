@@ -209,10 +209,22 @@ class HashSet<T> {
             this.bucketSizes[i] = 0;
         }
 
-        // Rehash all existing elements
+        // Rehash all existing elements without triggering further resizes
         for (int bucket = 0; bucket < oldCapacity; bucket++) {
             for (int i = 0; i < oldBucketSizes[bucket]; i++) {
-                this.add(oldBuckets[bucket][i]);
+                T item = oldBuckets[bucket][i];
+                int newBucketIndex = this.getBucketIndex(item);
+
+                // Resize new bucket if needed
+                if (this.bucketSizes[newBucketIndex] >= this.buckets[newBucketIndex].length) {
+                    this.resizeBucket(newBucketIndex);
+                }
+
+                // Add item directly without load factor check
+                int newIndex = this.bucketSizes[newBucketIndex];
+                this.buckets[newBucketIndex][newIndex] = item;
+                this.bucketSizes[newBucketIndex] = this.bucketSizes[newBucketIndex] + 1;
+                this.count++;
             }
         }
     }

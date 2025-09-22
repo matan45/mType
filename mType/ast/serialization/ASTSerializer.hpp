@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 // Forward declarations
 namespace token { enum class TokenType; }
@@ -41,6 +42,9 @@ namespace ast::serialization
 
         // Main serialization methods
         bool serialize(const ASTNode* root, const std::string& filePath);
+
+        // Self-contained serialization with import resolution
+        bool serializeWithImportResolution(const ASTNode* root, const std::string& filePath, const std::string& baseDir);
 
 
         // Node-specific serialization methods
@@ -115,5 +119,14 @@ namespace ast::serialization
         // Generic type parameter serialization methods
         void writeGenericTypeParameter(const ast::GenericTypeParameter& param);
         void writeGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& params);
+
+        // Import resolution for self-contained serialization
+        std::string baseDirectory;
+        std::unordered_set<std::string> processedImports;
+
+        void setBaseDirectory(const std::string& baseDir);
+        void processImportNode(const nodes::statements::ImportNode* node);
+        std::unique_ptr<ASTNode> loadImportedAST(const std::string& importPath);
+        void inlineImportedDeclarations(const ASTNode* importedAST);
     };
 }
