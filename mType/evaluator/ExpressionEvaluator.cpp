@@ -406,7 +406,6 @@ namespace evaluator
         case TokenType::DIVIDE:
         case TokenType::MODULO:
             return evaluateArithmetic(left, right, op);
-
         case TokenType::EQUALS:
         case TokenType::NOT_EQUALS:
         case TokenType::LESS:
