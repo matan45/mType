@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <numeric>
+#include <stdexcept>
 
 namespace value
 {
@@ -101,9 +102,14 @@ namespace value
          */
         void set(const std::vector<size_t>& indices, const Value& value) {
             size_t linearIndex = calculateLinearIndex(indices);
-            if (linearIndex != SIZE_MAX && linearIndex < data.size()) {
-                data[linearIndex] = value;
+            if (linearIndex == SIZE_MAX) {
+                // This indicates invalid indices (out of bounds or wrong number of dimensions)
+                throw std::out_of_range("Invalid multi-dimensional array indices");
             }
+            if (linearIndex >= data.size()) {
+                throw std::out_of_range("Calculated index exceeds array bounds");
+            }
+            data[linearIndex] = value;
         }
 
         /**
@@ -113,7 +119,8 @@ namespace value
          */
         Value get(size_t index) const {
             if (index >= data.size()) {
-                return std::monostate{};
+                throw std::out_of_range("Single-dimensional array index " + std::to_string(index) +
+                                      " exceeds array size of " + std::to_string(data.size()) + " elements");
             }
             return data[index];
         }
@@ -124,9 +131,11 @@ namespace value
          * @param value Value to set
          */
         void set(size_t index, const Value& value) {
-            if (index < data.size()) {
-                data[index] = value;
+            if (index >= data.size()) {
+                throw std::out_of_range("Single-dimensional array assignment index " + std::to_string(index) +
+                                      " exceeds array size of " + std::to_string(data.size()) + " elements");
             }
+            data[index] = value;
         }
 
         /**

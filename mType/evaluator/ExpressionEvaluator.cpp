@@ -1300,9 +1300,15 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue)) {
             auto nativeArray = std::get<std::shared_ptr<NativeArray>>(arrayValue);
 
-            // Check bounds
-            if (index < 0 || static_cast<size_t>(index) >= nativeArray->size()) {
-                throw TypeException("Array index out of bounds", node->getLocation());
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= nativeArray->size()) {
+                throw TypeException("Array index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
 
             return nativeArray->get(static_cast<size_t>(index));
@@ -1312,9 +1318,15 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue)) {
             auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(arrayValue);
 
-            // Check bounds
-            if (index < 0 || static_cast<size_t>(index) >= flatArray->size()) {
-                throw TypeException("Array index out of bounds", node->getLocation());
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= flatArray->size()) {
+                throw TypeException("Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
 
             // For multi-dimensional arrays, return a sub-array view
@@ -1327,7 +1339,11 @@ namespace evaluator
                 }
             } else {
                 // Single dimension, return the value directly
-                return flatArray->get(static_cast<size_t>(index));
+                try {
+                    return flatArray->get(static_cast<size_t>(index));
+                } catch (const std::out_of_range& e) {
+                    throw TypeException("Array access failed: " + std::string(e.what()), node->getLocation());
+                }
             }
         }
 

@@ -425,11 +425,12 @@ namespace parser
     std::unique_ptr<ASTNode> ExpressionParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)
     {
         // Parse index access: collection[index]
+        SourceLocation location = tokenStream.current().location;  // Capture location of the '[' token
         tokenStream.expect(TokenType::LBRACKET);
-        
+
         auto index = parseExpression();
         tokenStream.expect(TokenType::RBRACKET);
-        
-        return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index));
+
+        return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index), location);
     }
 }

@@ -648,12 +648,27 @@ namespace evaluator
                 Value newValue = exprEvaluator->evaluate(node->getValue());
 
                 if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
-                    std::vector<size_t> indices;
-                    indices.push_back(static_cast<size_t>(std::get<int>(firstIndexValue)));
-                    indices.push_back(static_cast<size_t>(std::get<int>(secondIndexValue)));
+                    int firstIndex = std::get<int>(firstIndexValue);
+                    int secondIndex = std::get<int>(secondIndexValue);
 
-                    baseArray->set(indices, newValue);
-                    return newValue;
+                    // Validate indices before conversion
+                    if (firstIndex < 0) {
+                        throw TypeException("Multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    }
+                    if (secondIndex < 0) {
+                        throw TypeException("Multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    }
+
+                    std::vector<size_t> indices;
+                    indices.push_back(static_cast<size_t>(firstIndex));
+                    indices.push_back(static_cast<size_t>(secondIndex));
+
+                    try {
+                        baseArray->set(indices, newValue);
+                        return newValue;
+                    } catch (const std::out_of_range& e) {
+                        throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
                 }
             }
         }
@@ -680,9 +695,15 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue)) {
             auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
 
-            // Check bounds
-            if (index < 0 || static_cast<size_t>(index) >= nativeArray->size()) {
-                throw TypeException("Array index out of bounds", node->getLocation());
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= nativeArray->size()) {
+                throw TypeException("Array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
 
             nativeArray->set(static_cast<size_t>(index), newValue);
@@ -693,15 +714,25 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue)) {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
 
-            // Check bounds
-            if (index < 0 || static_cast<size_t>(index) >= flatArray->size()) {
-                throw TypeException("Array index out of bounds", node->getLocation());
+            // Check bounds with descriptive error message
+            if (index < 0) {
+                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            }
+            if (static_cast<size_t>(index) >= flatArray->size()) {
+                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " exceeds array size of " +
+                                  std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
 
             // For 1D FlatMultiArray, set directly
             if (flatArray->getRank() == 1) {
-                flatArray->set(static_cast<size_t>(index), newValue);
-                return newValue;
+                try {
+                    flatArray->set(static_cast<size_t>(index), newValue);
+                    return newValue;
+                } catch (const std::out_of_range& e) {
+                    throw TypeException("Array assignment failed: " + std::string(e.what()), node->getLocation());
+                }
             } else {
                 // For multi-dimensional arrays, this should be handled differently
                 // The parser should create nested IndexAssignmentNodes, but if we get here,
