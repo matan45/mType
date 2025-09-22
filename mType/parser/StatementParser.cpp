@@ -199,6 +199,7 @@ namespace parser
         }
 
         std::string varName = tokenStream.current().stringValue;
+        SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> value = nullptr;
@@ -209,12 +210,13 @@ namespace parser
 
         tokenStream.expect(TokenType::SEMICOLON);
 
-        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic);
+        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className, isFinal, isStatic, varLocation);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseAssignment()
     {
         std::string varName = tokenStream.current().stringValue;
+        SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
         // Check for compound assignment operators
@@ -232,7 +234,7 @@ namespace parser
             // For compound assignments, create a binary expression
             if (opType != TokenType::ASSIGN)
             {
-                auto varNode = std::make_unique<ast::nodes::expressions::VariableNode>(varName);
+                auto varNode = std::make_unique<ast::nodes::expressions::VariableNode>(varName, varLocation);
                 TokenType binaryOp;
                 switch (opType)
                 {
@@ -250,11 +252,11 @@ namespace parser
                     break;
                 }
                 value = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
-                    std::move(varNode), binaryOp, std::move(value));
+                    std::move(varNode), binaryOp, std::move(value), varLocation);
             }
 
             tokenStream.expect(TokenType::SEMICOLON);
-            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false);
+            return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID, "", false, false, varLocation);
         }
         else
         {
@@ -363,8 +365,8 @@ namespace parser
                     {
                         value = context.parseExpression();
                     }
-                    
-                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false);
+
+                    init = std::make_unique<AssignmentNode>(varName, std::move(value), typeInfo.baseType, typeInfo.className, false, false, location);
                 }
             }
             else

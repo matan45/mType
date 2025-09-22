@@ -1,0 +1,42 @@
+Testing HashMap containsKey() optimization:
+HashMap size: 5
+Contains Alice: true
+Contains Bob: true
+Contains Frank: false
+
+HashMap with object keys:
+Roles map size: 3
+Contains Alice: true
+Contains Charlie: true
+Contains Diana: false
+
+==================================================
+Testing HashSet contains() optimization:
+HashSet size: 5
+Contains New York: true
+Contains London: true
+Contains Berlin: false
+
+HashSet with objects:
+People set size: 3
+Contains Alice: true
+Contains Bob: true
+Contains Diana: false
+Contains Alice2 (same content): true
+
+==================================================
+Testing large dataset performance:
+Large HashMap size: 100
+Large HashSet size: 100
+HashMap contains key 50: true
+HashMap contains key 150: false
+HashSet contains 75: true
+HashSet contains 200: false
+
+Testing hash collision handling:
+Collision test map size: 20
+Contains key 5: true
+Contains key 15: true
+Contains key 25: false
+
+HashMap and HashSet tests completed successfully!

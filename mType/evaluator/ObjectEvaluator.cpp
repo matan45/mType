@@ -1354,16 +1354,33 @@ namespace evaluator
         if (utils::GenericTypeManager::isGenericInstantiation(className)) {
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
 
-            // For simple cases like Set<T>, map T to the first type argument
-            if (typeParam == "T" && !typeArguments.empty()) {
-                return typeArguments[0];
-            }
-            // For Map<K,V> etc., we could extend this logic
-            if (typeParam == "K" && !typeArguments.empty()) {
-                return typeArguments[0];
-            }
-            if (typeParam == "V" && typeArguments.size() > 1) {
-                return typeArguments[1];
+            // Get the generic class definition to find its type parameter names
+            auto env = context->getEnvironment();
+            auto genericClass = env->findClass(baseName);
+            if (genericClass && genericClass->isGeneric()) {
+                auto genericParams = genericClass->getGenericParameters();
+
+                // Handle array types (T[], T[][], Element[], etc.)
+                if (typeParam.find("[]") != std::string::npos) {
+                    std::string baseType = typeParam.substr(0, typeParam.find("[]"));
+                    std::string arraySuffix = typeParam.substr(typeParam.find("[]"));
+
+                    // Find the position of baseType in the generic parameters
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
+                        if (genericParams[i].name == baseType) {
+                            return typeArguments[i] + arraySuffix;
+                        }
+                    }
+                }
+                // For simple cases like Set<T>, map any type parameter to its corresponding argument
+                else {
+                    // Find the position of typeParam in the generic parameters
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
+                        if (genericParams[i].name == typeParam) {
+                            return typeArguments[i];
+                        }
+                    }
+                }
             }
         }
 

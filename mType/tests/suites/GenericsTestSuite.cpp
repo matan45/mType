@@ -21,6 +21,8 @@ namespace tests::testSuite
                         passPath + "genericNullHandling.mt");
         addOutputVerificationTest("Generic Import Test",
                         passPath + "genericImportTest.mt");
+        addOutputVerificationTest("HashMap HashSet Optimization",
+                        passPath + "hashmapHashsetOptimization.mt");
 
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",

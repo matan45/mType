@@ -93,8 +93,6 @@ namespace evaluator
         bool isGenericTypeCompatible(const std::string& actualClassName,
                                    const std::string& expectedClassName);
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
-                                             const SourceLocation& location);
-        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
                                              const SourceLocation& location,
                                              const std::string& expectedClassName);
     };

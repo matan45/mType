@@ -547,20 +547,20 @@ namespace evaluator
             {
                 return -std::get<float>(operand);
             }
-            throw TypeException("Cannot apply unary minus to non-numeric value", SourceLocation{});
+            throw TypeException("Cannot apply unary minus to non-numeric value", node->getLocation());
 
         case TokenType::PLUS:
             if (std::holds_alternative<int>(operand) || std::holds_alternative<float>(operand))
             {
                 return operand; // Unary plus returns the value as-is
             }
-            throw TypeException("Cannot apply unary plus to non-numeric value", SourceLocation{});
+            throw TypeException("Cannot apply unary plus to non-numeric value", node->getLocation());
 
         case TokenType::NOT:
             return !isTruthy(operand);
 
         default:
-            throw TypeException("Unknown unary operator", SourceLocation{});
+            throw TypeException("Unknown unary operator", node->getLocation());
         }
     }
 

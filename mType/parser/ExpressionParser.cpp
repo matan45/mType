@@ -56,6 +56,7 @@ namespace parser
             }
 
             TokenType opType = tokenStream.current().type;
+            SourceLocation assignmentLocation = tokenStream.current().location;  // Capture location before advancing
             tokenStream.advance();
             auto rightExpr = parseAssignment(); // Right associative
 
@@ -68,13 +69,14 @@ namespace parser
                     return std::make_unique<MemberAssignmentNode>(
                         memberAccessNode->transferObjectOwnership(),
                         memberAccessNode->getMemberName(),
-                        std::move(rightExpr));
+                        std::move(rightExpr),
+                        assignmentLocation);
                 }
                 else
                 {
                     // Compound member assignment - not fully implemented yet
                     throw ParseException("Compound assignment to member not yet supported",
-                                         tokenStream.current().location);
+                                         assignmentLocation);
                 }
             }
             else if (indexAccessNode)
@@ -85,13 +87,14 @@ namespace parser
                     return std::make_unique<IndexAssignmentNode>(
                         indexAccessNode->transferCollectionOwnership(),
                         indexAccessNode->transferIndexOwnership(),
-                        std::move(rightExpr));
+                        std::move(rightExpr),
+                        assignmentLocation);
                 }
                 else
                 {
                     // Compound index assignment - not fully implemented yet
                     throw ParseException("Compound assignment to index not yet supported",
-                                         tokenStream.current().location);
+                                         assignmentLocation);
                 }
             }
             else if (variableNode)
@@ -102,7 +105,9 @@ namespace parser
                     // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
                     return std::make_unique<AssignmentNode>(variableNode->getName(),
                                                             std::move(rightExpr),
-                                                            ValueType::VOID, "");
+                                                            ValueType::VOID, "",
+                                                            false, false,
+                                                            assignmentLocation);
                 }
                 else
                 {
@@ -113,12 +118,14 @@ namespace parser
                     binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
                     // Create: var op right
-                    auto leftVar = std::make_unique<VariableNode>(variableNode->getName());
-                    expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr));
+                    auto leftVar = std::make_unique<VariableNode>(variableNode->getName(), assignmentLocation);
+                    expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr), assignmentLocation);
 
                     return std::make_unique<AssignmentNode>(variableNode->getName(),
                                                             std::move(expandedRight),
-                                                            ValueType::VOID, "");
+                                                            ValueType::VOID, "",
+                                                            false, false,
+                                                            assignmentLocation);
                 }
             }
         }

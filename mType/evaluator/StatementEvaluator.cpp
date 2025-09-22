@@ -403,15 +403,6 @@ namespace evaluator
         return false; // No other conversions allowed for now
     }
     
-    void StatementEvaluator::validateObjectTypeCompatibility(const Value& value, 
-                                                           const std::string& variableName, 
-                                                           const SourceLocation& location)
-    {
-        // This is the legacy version without expected class name
-        // For now, we'll skip validation since we don't have the expected class
-        // This should be used only when class name information is not available
-    }
-    
     bool StatementEvaluator::isGenericTypeCompatible(const std::string& actualClassName,
                                                      const std::string& expectedClassName)
     {
@@ -451,13 +442,14 @@ namespace evaluator
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
             if (objInstance) {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
-                
+
+
                 // Check if the actual class matches the expected class
                 if (!isGenericTypeCompatible(actualClassName, expectedClassName)) {
                     throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
                                       expectedClassName + " but got " + actualClassName, location);
                 }
-                
+
                 // TODO: In a full implementation, this would also check class hierarchies
                 // to allow assignments like Derived -> Base (inheritance compatibility)
             }
@@ -505,7 +497,42 @@ namespace evaluator
                         // If the class name contains type parameters like T, K, V, skip validation
                         // since these should be resolved at instantiation time
                         bool hasUnresolvedTypeParams = false;
-                        if (className.find('<') != std::string::npos) {
+
+                        // Check for generic type parameter names
+                        // Handle single letter params (T, K, V, E, etc.) or longer names (Element, Type, etc.)
+                        auto isGenericTypeParameter = [](const std::string& name) {
+                            // Single uppercase letter is definitely a generic type parameter
+                            if (name.length() == 1 && std::isupper(name[0])) {
+                                return true;
+                            }
+                            // Common generic type parameter patterns
+                            if (name == "Element" || name == "Type" || name == "Key" || name == "Value" ||
+                                name == "Item" || name == "Data" || name == "Node" || name == "Entry") {
+                                return true;
+                            }
+                            // Uppercase name that's likely a generic parameter (heuristic)
+                            if (!name.empty() && std::isupper(name[0]) && name.length() <= 10) {
+                                // Additional heuristic: if it's all letters and starts with uppercase
+                                bool allLetters = std::all_of(name.begin(), name.end(), ::isalpha);
+                                if (allLetters) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        };
+
+                        if (isGenericTypeParameter(className)) {
+                            hasUnresolvedTypeParams = true;
+                        }
+                        // Handle array types containing generic parameters (T[], Element[], etc.)
+                        else if (className.find("[]") != std::string::npos) {
+                            std::string baseType = className.substr(0, className.find("[]"));
+                            if (isGenericTypeParameter(baseType)) {
+                                hasUnresolvedTypeParams = true;
+                            }
+                        }
+                        // Check for generic types with angle brackets
+                        else if (className.find('<') != std::string::npos) {
                             // Check for common generic type parameter names
                             if (className.find("<T>") != std::string::npos ||
                                 className.find("<T,") != std::string::npos ||
@@ -527,8 +554,15 @@ namespace evaluator
                 
                 // Validate type compatibility for new variable declarations
                 if (node->getVariableType() == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(node->getVariableType(), newValue, node->getVariableName(), node->getLocation());
                 }
@@ -636,11 +670,18 @@ namespace evaluator
                 // If we reach here, it's valid scope shadowing (e.g., global -> method)
                 // Create new variable definition with the specified type
                 ValueType declaredType = node->getVariableType();
-                
+
                 // Validate type compatibility
                 if (declaredType == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(declaredType, newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(declaredType, newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(declaredType, newValue, node->getVariableName(), node->getLocation());
                 }
@@ -664,11 +705,18 @@ namespace evaluator
                 // This is valid scope shadowing (e.g., global -> method)
                 // Create new variable definition with the specified type
                 ValueType declaredType = node->getVariableType();
-                
+
                 // Validate type compatibility
                 if (declaredType == ValueType::OBJECT && !node->getClassName().empty()) {
-                    validateTypeAssignment(declaredType, newValue, node->getVariableName(), 
-                                         node->getLocation(), node->getClassName());
+                    // Resolve generic type parameters if present
+                    std::string resolvedClassName = node->getClassName();
+                    if (objEvaluator) {
+                        std::string originalClassName = node->getClassName();
+                        resolvedClassName = objEvaluator->resolveTypeParameterFromContext(node->getClassName());
+
+                    }
+                    validateTypeAssignment(declaredType, newValue, node->getVariableName(),
+                                         node->getLocation(), resolvedClassName);
                 } else {
                     validateTypeAssignment(declaredType, newValue, node->getVariableName(), node->getLocation());
                 }
@@ -696,8 +744,15 @@ namespace evaluator
         
         // Validate type compatibility for existing variable assignments
         if (varDef->getType() == ValueType::OBJECT && !varDef->getClassName().empty()) {
-            validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(), 
-                                 node->getLocation(), varDef->getClassName());
+            // Resolve generic type parameters if present
+            std::string resolvedClassName = varDef->getClassName();
+            if (objEvaluator) {
+                std::string originalClassName = varDef->getClassName();
+                resolvedClassName = objEvaluator->resolveTypeParameterFromContext(varDef->getClassName());
+
+            }
+            validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(),
+                                 node->getLocation(), resolvedClassName);
         } else {
             validateTypeAssignment(varDef->getType(), newValue, node->getVariableName(), node->getLocation());
         }
@@ -1176,10 +1231,10 @@ namespace evaluator
                 // Validate type compatibility
                 value::ValueType actualType = evaluator::utils::ValueConverter::getValueType(currentElement);
                 if (actualType != varType && varType != value::ValueType::OBJECT) {
-                    throw TypeException("Type mismatch in for-each loop: expected " + 
-                                      evaluator::utils::ValueConverter::valueTypeToString(varType) + 
-                                      " but array contains " + 
-                                      evaluator::utils::ValueConverter::valueTypeToString(actualType));
+                    throw TypeException("Type mismatch in for-each loop: expected " +
+                                      evaluator::utils::ValueConverter::valueTypeToString(varType) +
+                                      " but array contains " +
+                                      evaluator::utils::ValueConverter::valueTypeToString(actualType), node->getLocation());
                 }
                 
                 // Create or update the loop variable
