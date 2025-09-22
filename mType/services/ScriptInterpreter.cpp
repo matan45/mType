@@ -1,4 +1,6 @@
 ﻿#include "ScriptInterpreter.hpp"
+#include "Compiler.hpp"
+#include "Runtime.hpp"
 #include <iostream>
 #include <filesystem>
 #include <unordered_set>
@@ -14,7 +16,6 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../ast/serialization/ASTSerializer.hpp"
-#include "../ast/serialization/ASTDeserializer.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
@@ -80,76 +81,16 @@ namespace services
 
     bool ScriptInterpreter::compileScript(const std::string& filename, const std::string& outputPath)
     {
-        try
-        {
-            // Parse the script
-            lexer::Lexer lexer(filename);
-
-            // Create and configure ImportManager
-            auto importManager = std::make_unique<ImportManager>();
-
-            // Set base directory to the directory of the script file
-            std::filesystem::path scriptPath(filename);
-            std::string baseDirectory = scriptPath.parent_path().string();
-            importManager->setBaseDirectory(baseDirectory);
-
-            parser::Parser parser(lexer, std::move(importManager));
-            auto ast = parser.parseProgram();
-
-            // Determine output path
-            std::string outputFile = outputPath;
-            if (outputFile.empty())
-            {
-                outputFile = filename + "c"; // .mt -> .mtc
-            }
-
-            // *** NEW: Use import resolution to create self-contained .mtc files ***
-            ast::serialization::ASTSerializer serializer;
-            return serializer.serializeWithImportResolution(ast.get(), outputFile, baseDirectory);
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Error compiling script: " << e.what() << std::endl;
-            return false;
-        }
+        // Use stateless Compiler - no shared state
+        Compiler compiler;
+        return compiler.compile(filename, outputPath);
     }
 
     bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
     {
-        try
-        {
-            // Deserialize the cached AST
-            ast::serialization::ASTDeserializer deserializer;
-            auto ast = deserializer.deserialize(cachedPath);
-
-            if (!ast)
-            {
-                return false;
-            }
-
-            // Create and configure ImportManager for cached execution
-            auto importManager = std::make_unique<ImportManager>();
-
-            // Set base directory to the directory of the cached file
-            std::filesystem::path cachePath(cachedPath);
-            importManager->setBaseDirectory(cachePath.parent_path().string());
-
-            // Keep a raw pointer for later use before setting on environment
-            ImportManager* importManagerPtr = importManager.release();
-            environment->setImportManager(importManagerPtr);
-
-            // Pre-register all class definitions from the cached AST
-            preRegisterClassDefinitions(ast.get());
-
-            // Execute the cached AST with ImportManager support
-            evaluator->evaluate(ast.get());
-
-            return true;
-        }
-        catch (const std::exception&)
-        {
-            return false;
-        }
+        // Use isolated Runtime for execution - prevents state pollution
+        Runtime runtime;
+        return runtime.execute(cachedPath);
     }
 
     bool ScriptInterpreter::isCacheValid(const std::string& sourceFile, const std::string& cacheFile)

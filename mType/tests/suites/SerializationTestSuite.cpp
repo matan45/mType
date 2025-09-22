@@ -49,14 +49,15 @@ namespace tests::testSuite
         int passed = 0;
         int failed = 0;
 
+        // Use a single ScriptInterpreter instance to test the real fix
+        ScriptInterpreter interpreter;
+
         for (auto& testCase : testCases)
         {
             std::cout << "  Running: " << std::left << std::setw(60) << testCase.getName() << " ... ";
 
             try
             {
-                // Create a fresh ScriptInterpreter for each test to avoid state pollution
-                ScriptInterpreter interpreter;
 
                 std::string filePath = testCase.getFilePath();
                 std::string mtcPath = filePath + "c";
