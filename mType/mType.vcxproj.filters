@@ -555,6 +555,9 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="value\ArrayPool.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>

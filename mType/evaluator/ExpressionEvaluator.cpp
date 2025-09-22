@@ -19,6 +19,7 @@
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
+#include "../value/ArrayPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -1202,8 +1203,9 @@ namespace evaluator
             }
             return nativeArray;
         } else {
-            // Use FlatMultiArray for multi-dimensional and debug the issue
-            auto flatArray = std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+            // Use ArrayPool for efficient multi-dimensional array allocation
+            auto& pool = ArrayPool::getInstance();
+            auto flatArray = pool.acquire(dimensions, defaultValue);
 
             // Debug: Verify the flatArray is valid
             if (!flatArray) {
@@ -1219,7 +1221,7 @@ namespace evaluator
                 throw TypeException("DEBUG: FlatMultiArray size mismatch", node->getLocation());
             }
 
-            // This should return a valid FlatMultiArray
+            // This should return a valid FlatMultiArray from pool or new allocation
             return flatArray;
         }
     }
