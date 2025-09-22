@@ -183,15 +183,37 @@ class HashSet<T> {
     // Private helper methods
     function getBucketIndex(T item): int {
         int hash = hashCode(item);
+
+        // Apply secondary hash mixing using only basic arithmetic
+        // This is a simplified version of multiplicative hashing
+
+        // Handle negative values by taking absolute value
         if (hash < 0) {
-            hash = -hash; // Handle negative hash codes
+            hash = -hash;
+            if (hash < 0) { // Handle edge case of Integer.MIN_VALUE
+                hash = hash + 1;
+            }
         }
+
+        // Apply multiplicative hash with good distribution properties
+        // Using Knuth's multiplicative constant approximation
+        hash = hash * 2654435761; // Large prime-like constant for mixing
+
+        // Additional mixing to reduce clustering
+        hash = hash + (hash / this.capacity); // Simple avalanche effect
+
+        // Ensure positive and within bounds
+        if (hash < 0) {
+            hash = -hash;
+        }
+
         return hash % this.capacity;
     }
 
     function findItemInBucket(int bucketIndex, T item): int {
         for (int i = 0; i < this.bucketSizes[bucketIndex]; i++) {
-            if (this.buckets[bucketIndex][i].equals(item)) {
+            T storedItem = this.buckets[bucketIndex][i];
+            if (storedItem != null && storedItem.equals(item)) {
                 return i;
             }
         }

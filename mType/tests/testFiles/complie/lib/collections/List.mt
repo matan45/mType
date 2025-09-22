@@ -56,7 +56,7 @@ class List<T> {
 
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element.equals(item)) {
+                if (element != null && element.equals(item)) {
                     return true;
                 }
             }
@@ -73,7 +73,7 @@ class List<T> {
 
             T[] currentData = this.toArray();
             for (T element : currentData) {
-                if (element.equals(item)) {
+                if (element != null && element.equals(item)) {
                     return true;
                 }
             }
@@ -116,7 +116,7 @@ class List<T> {
             }
 
             for (int i = 0; i < this.count; i++) {
-                if (this.data[i].equals(item)) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
                     return this.removeAt(i);
                 }
             }
@@ -132,7 +132,7 @@ class List<T> {
             }
 
             for (int i = 0; i < this.count; i++) {
-                if (this.data[i].equals(item)) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
                     return this.removeAt(i);
                 }
             }

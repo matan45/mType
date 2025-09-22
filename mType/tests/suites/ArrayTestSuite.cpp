@@ -35,6 +35,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Multi-dimensional Edge Cases",
                                   passPath + "multiDimensionalEdgeCases.mt");
 
+        addOutputVerificationTest("LinkedList Comprehensive",
+                                  passPath + "linkedListComprehensive.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",

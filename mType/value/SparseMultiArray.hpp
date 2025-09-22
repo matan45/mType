@@ -15,8 +15,8 @@ namespace value
      *
      * Automatically switches between dense and sparse storage based on:
      * - Sparsity ratio (non-default elements / total elements)
-     * - Access patterns (scattered vs sequential)
      * - Memory usage thresholds
+     * - Array size constraints
      */
     class SparseMultiArray
     {
@@ -24,8 +24,7 @@ namespace value
         enum class StorageMode
         {
             DENSE, // Full contiguous storage (like current FlatMultiArray)
-            SPARSE, // Hash map for non-default values only
-            HYBRID // Combination of both for optimal performance
+            SPARSE // Hash map for non-default values only
         };
 
     private:
