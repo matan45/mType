@@ -67,12 +67,7 @@ namespace evaluator
         Value evaluateAssignmentExpression(AssignmentNode* node);
         Value evaluateArrayCreationNode(ArrayCreationNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
-
-        // Helper method for multidimensional arrays
-        Value createMultidimensionalArray(const std::vector<int>& sizes,
-                                         const ::parser::TypeInfo& elementType,
-                                         size_t currentDimension);
-
+        
         // Helper method to get default value for type
         Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
 

@@ -4,6 +4,7 @@
 #include <memory>
 #include <numeric>
 #include <stdexcept>
+#include <algorithm>
 
 namespace value
 {
@@ -204,6 +205,24 @@ namespace value
          */
         size_t size() const {
             return dimensions.empty() ? 0 : dimensions[0];
+        }
+
+        /**
+         * @brief Reset array with new default value (for pool reuse)
+         * @param newDefaultValue New value to fill the array with
+         */
+        void reset(const Value& newDefaultValue = std::monostate{}) {
+            defaultValue = newDefaultValue;
+            std::fill(data.begin(), data.end(), defaultValue);
+        }
+
+        /**
+         * @brief Check if array has same dimensions (for pool compatibility)
+         * @param dims Dimensions to compare against
+         * @return true if dimensions match exactly
+         */
+        bool hasDimensions(const std::vector<size_t>& dims) const {
+            return dimensions == dims;
         }
     };
 }

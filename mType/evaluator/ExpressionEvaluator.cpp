@@ -30,7 +30,6 @@
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include <cmath>
-#include <iostream>
 
 namespace evaluator
 {
@@ -473,8 +472,9 @@ namespace evaluator
                 }
                 else
                 {
-                    throw TypeException("Increment/decrement operators can only be applied to variables or member access",
-                                        node->getLocation());
+                    throw TypeException(
+                        "Increment/decrement operators can only be applied to variables or member access",
+                        node->getLocation());
                 }
             }
 
@@ -838,7 +838,8 @@ namespace evaluator
             }
             else
             {
-                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'", node->getLocation());
+                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
+                                         node->getLocation());
             }
         }
 
@@ -853,7 +854,8 @@ namespace evaluator
             }
             else
             {
-                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'", node->getLocation());
+                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
+                                         node->getLocation());
             }
         }
 
@@ -1151,41 +1153,48 @@ namespace evaluator
     }
 
     // Helper function to get default value for a given type
-    Value ExpressionEvaluator::getDefaultValueForType(const ::parser::TypeInfo& elementType) {
-        switch (elementType.baseType) {
-            case ValueType::INT:
-                return 0;
-            case ValueType::FLOAT:
-                return 0.0f;
-            case ValueType::STRING:
-                return std::string("");
-            case ValueType::BOOL:
-                return false;
-            default:
-                return std::monostate{}; // null for objects and generics
+    Value ExpressionEvaluator::getDefaultValueForType(const ::parser::TypeInfo& elementType)
+    {
+        switch (elementType.baseType)
+        {
+        case ValueType::INT:
+            return 0;
+        case ValueType::FLOAT:
+            return 0.0f;
+        case ValueType::STRING:
+            return std::string("");
+        case ValueType::BOOL:
+            return false;
+        default:
+            return std::monostate{}; // null for objects and generics
         }
     }
 
     // Collection-related method implementations
-    Value ExpressionEvaluator::evaluateArrayCreationNode(ArrayCreationNode* node) {
+    Value ExpressionEvaluator::evaluateArrayCreationNode(ArrayCreationNode* node)
+    {
         // Get all size expressions for multidimensional support
         const auto& sizeExpressions = node->getSizeExpressions();
 
-        if (sizeExpressions.empty()) {
+        if (sizeExpressions.empty())
+        {
             throw TypeException("Array creation must have at least one dimension", node->getLocation());
         }
 
         // Evaluate all size expressions
         std::vector<size_t> dimensions;
-        for (const auto& sizeExpr : sizeExpressions) {
+        for (const auto& sizeExpr : sizeExpressions)
+        {
             Value sizeValue = evaluate(sizeExpr.get());
 
-            if (!std::holds_alternative<int>(sizeValue)) {
+            if (!std::holds_alternative<int>(sizeValue))
+            {
                 throw TypeException("Array size must be an integer", node->getLocation());
             }
 
             int size = std::get<int>(sizeValue);
-            if (size < 0) {
+            if (size < 0)
+            {
                 throw TypeException("Array size cannot be negative", node->getLocation());
             }
             dimensions.push_back(static_cast<size_t>(size));
@@ -1195,29 +1204,36 @@ namespace evaluator
         Value defaultValue = 0; // Hard-code to int default for debugging
 
         // Create FlatMultiArray and add debug logging
-        if (dimensions.size() == 1) {
+        if (dimensions.size() == 1)
+        {
             // Use NativeArray for 1D (this works)
             auto nativeArray = std::make_shared<NativeArray>(dimensions[0]);
-            for (size_t i = 0; i < dimensions[0]; ++i) {
+            for (size_t i = 0; i < dimensions[0]; ++i)
+            {
                 nativeArray->set(i, defaultValue);
             }
             return nativeArray;
-        } else {
+        }
+        else
+        {
             // Use ArrayPool for efficient multi-dimensional array allocation
             auto& pool = ArrayPool::getInstance();
             auto flatArray = pool.acquire(dimensions, defaultValue);
 
             // Debug: Verify the flatArray is valid
-            if (!flatArray) {
+            if (!flatArray)
+            {
                 throw TypeException("DEBUG: FlatMultiArray is null", node->getLocation());
             }
 
             // Debug: Check that it's properly constructed
             size_t expectedSize = 1;
-            for (size_t dim : dimensions) {
+            for (size_t dim : dimensions)
+            {
                 expectedSize *= dim;
             }
-            if (flatArray->totalSize() != expectedSize) {
+            if (flatArray->totalSize() != expectedSize)
+            {
                 throw TypeException("DEBUG: FlatMultiArray size mismatch", node->getLocation());
             }
 
@@ -1226,63 +1242,8 @@ namespace evaluator
         }
     }
 
-    Value ExpressionEvaluator::createMultidimensionalArray(const std::vector<int>& sizes,
-                                                           const ::parser::TypeInfo& elementType,
-                                                           size_t currentDimension) {
-        if (currentDimension >= sizes.size()) {
-            // Base case - return default value for the element type
-            switch (elementType.baseType) {
-                case ValueType::INT:
-                    return 0;
-                case ValueType::FLOAT:
-                    return 0.0f;
-                case ValueType::STRING:
-                    return std::string("");
-                case ValueType::BOOL:
-                    return false;
-                default:
-                    return std::monostate{}; // null for objects and generics
-            }
-        }
-
-        int currentSize = sizes[currentDimension];
-        auto nativeArray = std::make_shared<NativeArray>(static_cast<size_t>(currentSize));
-
-        if (currentDimension == sizes.size() - 1) {
-            // Last dimension - fill with default values
-            Value defaultValue = std::monostate{};
-            switch (elementType.baseType) {
-                case ValueType::INT:
-                    defaultValue = 0;
-                    break;
-                case ValueType::FLOAT:
-                    defaultValue = 0.0f;
-                    break;
-                case ValueType::STRING:
-                    defaultValue = std::string("");
-                    break;
-                case ValueType::BOOL:
-                    defaultValue = false;
-                    break;
-                default:
-                    break;
-            }
-
-            for (int i = 0; i < currentSize; i++) {
-                nativeArray->set(i, defaultValue);
-            }
-        } else {
-            // Not the last dimension - recursively create sub-arrays
-            for (int i = 0; i < currentSize; i++) {
-                Value subArray = createMultidimensionalArray(sizes, elementType, currentDimension + 1);
-                nativeArray->set(i, subArray);
-            }
-        }
-
-        return nativeArray;
-    }
-
-    Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node) {
+    Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
+    {
         // Evaluate the array expression
         Value arrayValue = evaluate(node->getCollection());
 
@@ -1290,58 +1251,76 @@ namespace evaluator
         Value indexValue = evaluate(node->getIndex());
 
         // Check if index is an integer
-        if (!std::holds_alternative<int>(indexValue)) {
+        if (!std::holds_alternative<int>(indexValue))
+        {
             throw TypeException("Array index must be an integer", node->getLocation());
         }
 
         int index = std::get<int>(indexValue);
 
         // Check if array is a NativeArray
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue)) {
+        if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue))
+        {
             auto nativeArray = std::get<std::shared_ptr<NativeArray>>(arrayValue);
 
             // Check bounds with descriptive error message
-            if (index < 0) {
+            if (index < 0)
+            {
                 throw TypeException("Array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+                                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
-            if (static_cast<size_t>(index) >= nativeArray->size()) {
+            if (static_cast<size_t>(index) >= nativeArray->size())
+            {
                 throw TypeException("Array index " + std::to_string(index) + " exceeds array size of " +
-                                  std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
-                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+                                    std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
 
             return nativeArray->get(static_cast<size_t>(index));
         }
 
         // Check if array is a FlatMultiArray (for multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue)) {
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue))
+        {
             auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(arrayValue);
 
             // Check bounds with descriptive error message
-            if (index < 0) {
-                throw TypeException("Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
-            if (static_cast<size_t>(index) >= flatArray->size()) {
-                throw TypeException("Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
-                                  std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
-                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            if (static_cast<size_t>(index) >= flatArray->size())
+            {
+                throw TypeException(
+                    "Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
 
             // For multi-dimensional arrays, return a sub-array view
-            if (flatArray->getRank() > 1) {
+            if (flatArray->getRank() > 1)
+            {
                 auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
-                if (subArray) {
+                if (subArray)
+                {
                     return subArray;
-                } else {
+                }
+                else
+                {
                     throw TypeException("Cannot access sub-array", node->getLocation());
                 }
-            } else {
+            }
+            else
+            {
                 // Single dimension, return the value directly
-                try {
+                try
+                {
                     return flatArray->get(static_cast<size_t>(index));
-                } catch (const std::out_of_range& e) {
+                }
+                catch (const std::out_of_range& e)
+                {
                     throw TypeException("Array access failed: " + std::string(e.what()), node->getLocation());
                 }
             }

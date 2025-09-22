@@ -194,9 +194,17 @@ namespace value
                 globalStats.poolHits++;
                 pool.stats.currentPoolSize = pool.available.size();
 
-                // Reset the array with new default value if needed
-                // For efficiency, we could optimize this by checking if defaultValue changed
-                return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                // Verify the pooled array has correct dimensions (safety check)
+                if (!array || !array->hasDimensions(dimensions)) {
+                    // Pool corruption - create new array instead
+                    pool.stats.poolMisses++;
+                    globalStats.poolMisses++;
+                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                }
+
+                // Reset the pooled array with new default value
+                array->reset(defaultValue);
+                return array;  // Return the reused array, not a new one
             }
             else {
                 // Create new
