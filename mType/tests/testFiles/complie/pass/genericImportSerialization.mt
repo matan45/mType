@@ -18,8 +18,8 @@ function main(): void {
     // Test the containers
     print("Int container size: " + intContainer.size());
     print("String container size: " + stringContainer.size());
-    print("First int: " + intContainer.get(0).getValue());
-    print("First string: " + stringContainer.get(0).getValue());
+    print("First int: " + intContainer.getFirst().getValue());
+    print("First string: " + stringContainer.getFirst().getValue());
 
     // Test utility functions (type-specific since no generic functions)
     bool containsAnswer = containsIntItem(intContainer, new Int(42));

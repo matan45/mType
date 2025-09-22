@@ -39,29 +39,19 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        std::cout << "[LOG] ScriptInterpreter::runScript - Starting execution of: " << filename << std::endl;
-
         // Check for cached AST first
         std::filesystem::path sourcePath(filename);
         std::string cacheFile = sourcePath.string() + "c"; // .mt -> .mtc
 
-        std::cout << "[LOG] ScriptInterpreter::runScript - Cache file: " << cacheFile << std::endl;
-        std::cout << "[LOG] ScriptInterpreter::runScript - Cache exists: " << std::filesystem::exists(cacheFile) << std::endl;
-
         if (std::filesystem::exists(cacheFile) && isCacheValid(filename, cacheFile))
         {
-            std::cout << "[LOG] ScriptInterpreter::runScript - Cache is valid, attempting cached execution" << std::endl;
             // Use cached AST
             if (runCachedScript(cacheFile))
             {
-                std::cout << "[LOG] ScriptInterpreter::runScript - Cached execution succeeded" << std::endl;
                 return;
             }
-            std::cout << "[LOG] ScriptInterpreter::runScript - Cached execution failed, falling back to parsing" << std::endl;
             // If cache loading fails, fall back to parsing
         }
-
-        std::cout << "[LOG] ScriptInterpreter::runScript - Starting normal parsing execution" << std::endl;
 
         // Parse and execute
         lexer::Lexer lexer(filename);
@@ -126,39 +116,38 @@ namespace services
 
     bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
     {
-        std::cout << "[LOG] ScriptInterpreter::runCachedScript - Starting cached execution: " << cachedPath << std::endl;
         try
         {
-            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Deserializing AST..." << std::endl;
-            // Deserialize the self-contained AST
+            // Deserialize the cached AST
             ast::serialization::ASTDeserializer deserializer;
             auto ast = deserializer.deserialize(cachedPath);
 
             if (!ast)
             {
-                std::cerr << "[LOG] ScriptInterpreter::runCachedScript - Failed to load cached AST from: " << cachedPath << std::endl;
                 return false;
             }
 
-            std::cout << "[LOG] ScriptInterpreter::runCachedScript - AST deserialized successfully" << std::endl;
+            // Create and configure ImportManager for cached execution
+            auto importManager = std::make_unique<ImportManager>();
 
-            // *** NO ImportManager needed - AST is self-contained ***
-            // The cached AST should have all imports resolved and inlined
+            // Set base directory to the directory of the cached file
+            std::filesystem::path cachePath(cachedPath);
+            importManager->setBaseDirectory(cachePath.parent_path().string());
 
-            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Pre-registering class definitions..." << std::endl;
+            // Keep a raw pointer for later use before setting on environment
+            ImportManager* importManagerPtr = importManager.release();
+            environment->setImportManager(importManagerPtr);
+
             // Pre-register all class definitions from the cached AST
             preRegisterClassDefinitions(ast.get());
 
-            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Starting AST evaluation..." << std::endl;
-            // Execute the self-contained AST directly
+            // Execute the cached AST with ImportManager support
             evaluator->evaluate(ast.get());
 
-            std::cout << "[LOG] ScriptInterpreter::runCachedScript - Cached execution completed successfully" << std::endl;
             return true;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "[LOG] ScriptInterpreter::runCachedScript - Error running cached script: " << e.what() << std::endl;
             return false;
         }
     }
@@ -567,12 +556,14 @@ namespace services
             std::string mtcPath = resolvedPath + "c"; // .mt -> .mtc
 
             // Normalize path for consistent tracking
-            std::string normalizedPath = std::filesystem::canonical(std::filesystem::exists(resolvedPath) ? resolvedPath : fullPath).string();
+            std::string normalizedPath = std::filesystem::canonical(
+                std::filesystem::exists(resolvedPath) ? resolvedPath : fullPath).string();
 
             // Check for circular compilation dependency
             if (beingCompiled.find(normalizedPath) != beingCompiled.end())
             {
-                std::cerr << "Warning: Circular import detected during compilation: " << importPath << " (skipping recursive compilation)" << std::endl;
+                std::cerr << "Warning: Circular import detected during compilation: " << importPath <<
+                    " (skipping recursive compilation)" << std::endl;
                 continue;
             }
 
@@ -681,5 +672,4 @@ namespace services
         }
         // Add other node types that may contain ClassNodes as needed
     }
-
 }

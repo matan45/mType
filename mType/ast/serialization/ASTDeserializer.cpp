@@ -65,42 +65,33 @@ namespace ast::serialization
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserialize(const std::string& filePath)
     {
-        std::cout << "[LOG] ASTDeserializer::deserialize - Starting deserialization of: " << filePath << std::endl;
-
         stream.open(filePath, std::ios::binary | std::ios::in);
         if (!stream.is_open())
         {
-            std::cerr << "[LOG] ASTDeserializer::deserialize - Failed to open file for reading: " << filePath << std::endl;
             return nullptr;
         }
 
         try
         {
-            std::cout << "[LOG] ASTDeserializer::deserialize - Reading file header..." << std::endl;
             // Read and validate header
             FileHeader header;
             stream.read(reinterpret_cast<char*>(&header), sizeof(FileHeader));
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Validating magic number..." << std::endl;
             if (header.magic != MAGIC_NUMBER)
             {
-                std::cerr << "[LOG] ASTDeserializer::deserialize - Invalid file format: wrong magic number" << std::endl;
                 return nullptr;
             }
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Checking version..." << std::endl;
             if (header.version != CURRENT_VERSION)
             {
                 std::cerr << "Unsupported format version: " << header.version << std::endl;
                 return nullptr;
             }
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Reading content data (size: " << header.size << ")..." << std::endl;
             // Read content data for checksum validation
             std::vector<uint8_t> contentData(header.size);
             stream.read(reinterpret_cast<char*>(contentData.data()), header.size);
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Validating checksum..." << std::endl;
             // Validate checksum
             if (!validateChecksum(header.checksum, contentData))
             {
@@ -108,14 +99,11 @@ namespace ast::serialization
                 return nullptr;
             }
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Resetting stream position..." << std::endl;
             // Reset stream position to start of content for deserialization
             stream.seekg(sizeof(FileHeader));
 
-            std::cout << "[LOG] ASTDeserializer::deserialize - Starting root node deserialization..." << std::endl;
             // Deserialize the root node
             auto rootNode = deserializeNode();
-            std::cout << "[LOG] ASTDeserializer::deserialize - Root node deserialization completed" << std::endl;
             stream.close();
             return rootNode;
         }
@@ -129,45 +117,33 @@ namespace ast::serialization
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeNode()
     {
-        std::cout << "[LOG] ASTDeserializer::deserializeNode - Reading node header..." << std::endl;
         // Read node header
         NodeHeader header;
         stream.read(reinterpret_cast<char*>(&header), sizeof(NodeHeader));
 
         if (stream.eof() || stream.fail())
         {
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - End of file or read failure reached" << std::endl;
             return nullptr;
         }
-
-        std::cout << "[LOG] ASTDeserializer::deserializeNode - Processing node type: " << static_cast<int>(header.type) << std::endl;
 
         // Deserialize node based on type
         switch (header.type)
         {
         case NodeType::INTEGER_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing INTEGER_NODE" << std::endl;
             return deserializeIntegerNode(header);
         case NodeType::FLOAT_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing FLOAT_NODE" << std::endl;
             return deserializeFloatNode(header);
         case NodeType::STRING_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing STRING_NODE" << std::endl;
             return deserializeStringNode(header);
         case NodeType::BOOL_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing BOOL_NODE" << std::endl;
             return deserializeBoolNode(header);
         case NodeType::NULL_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing NULL_NODE" << std::endl;
             return deserializeNullNode(header);
         case NodeType::VARIABLE_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing VARIABLE_NODE" << std::endl;
             return deserializeVariableNode(header);
         case NodeType::PROGRAM_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing PROGRAM_NODE" << std::endl;
             return deserializeProgramNode(header);
         case NodeType::BLOCK_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing BLOCK_NODE" << std::endl;
             return deserializeBlockNode(header);
         case NodeType::CLASS_NODE:
             return deserializeClassNode(header);
@@ -196,7 +172,6 @@ namespace ast::serialization
         case NodeType::RETURN_NODE:
             return deserializeReturnNode(header);
         case NodeType::IMPORT_NODE:
-            std::cout << "[LOG] ASTDeserializer::deserializeNode - Deserializing IMPORT_NODE" << std::endl;
             return deserializeImportNode(header);
         case NodeType::IF_NODE:
             return deserializeIfNode(header);
@@ -356,25 +331,19 @@ namespace ast::serialization
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeProgramNode(const NodeHeader& header)
     {
-        std::cout << "[LOG] ASTDeserializer::deserializeProgramNode - Starting..." << std::endl;
         auto statements = deserializeChildNodes();
-        std::cout << "[LOG] ASTDeserializer::deserializeProgramNode - Child nodes deserialized, creating program node..." << std::endl;
         errors::SourceLocation location = createSourceLocation(header.line, header.column);
         auto programNode = std::make_unique<nodes::statements::ProgramNode>(location);
         programNode->setStatements(std::move(statements));
-        std::cout << "[LOG] ASTDeserializer::deserializeProgramNode - Completed" << std::endl;
         return std::move(programNode);
     }
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeBlockNode(const NodeHeader& header)
     {
-        std::cout << "[LOG] ASTDeserializer::deserializeBlockNode - Starting..." << std::endl;
         auto statements = deserializeChildNodes();
-        std::cout << "[LOG] ASTDeserializer::deserializeBlockNode - Child nodes deserialized, creating block node..." << std::endl;
         errors::SourceLocation location = createSourceLocation(header.line, header.column);
         auto blockNode = std::make_unique<nodes::statements::BlockNode>(location);
         blockNode->setStatements(std::move(statements));
-        std::cout << "[LOG] ASTDeserializer::deserializeBlockNode - Completed" << std::endl;
         return std::move(blockNode);
     }
 
@@ -530,29 +499,23 @@ namespace ast::serialization
 
     std::vector<std::unique_ptr<ASTNode>> ASTDeserializer::deserializeChildNodes()
     {
-        std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Starting..." << std::endl;
         uint32_t count = readUInt32();
-        std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Reading " << count << " child nodes" << std::endl;
         std::vector<std::unique_ptr<ASTNode>> children;
         children.reserve(count);
 
         for (uint32_t i = 0; i < count; ++i)
         {
-            std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Deserializing child " << (i + 1) << "/" << count << std::endl;
             auto child = deserializeNode();
             if (child)
             {
-                std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Child " << (i + 1) << " deserialized successfully" << std::endl;
                 children.push_back(std::move(child));
             }
             else
             {
-                std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Child " << (i + 1) << " returned null, breaking loop" << std::endl;
                 break; // Stop processing when we can't read more nodes
             }
         }
 
-        std::cout << "[LOG] ASTDeserializer::deserializeChildNodes - Completed with " << children.size() << " children" << std::endl;
         return children;
     }
 
@@ -661,18 +624,25 @@ namespace ast::serialization
         // Read whether size is dynamic
         bool isDynamicSize = readBool();
 
-        // Read the size expression
-        auto sizeExpression = deserializeNode();
+        // Read the number of dimensions
+        uint32_t dimensionCount = readUInt32();
+
+        // Read all size expressions for multidimensional arrays
+        std::vector<std::unique_ptr<ASTNode>> sizeExpressions;
+        for (uint32_t i = 0; i < dimensionCount; ++i) {
+            auto sizeExpr = deserializeNode();
+            sizeExpressions.push_back(std::move(sizeExpr));
+        }
 
         // Create source location
         SourceLocation location;
         location.setLine(header.line);
         location.setColumn(header.column);
 
-        // Create and return the ArrayCreationNode
+        // Create and return the ArrayCreationNode with all dimensions
         return std::make_unique<nodes::expressions::ArrayCreationNode>(
             elementTypeInfo,
-            std::move(sizeExpression),
+            std::move(sizeExpressions),
             location
         );
     }
@@ -973,10 +943,8 @@ namespace ast::serialization
 
     std::unique_ptr<ASTNode> ASTDeserializer::deserializeImportNode(const NodeHeader& header)
     {
-        std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Starting..." << std::endl;
         // Read the file path
         std::string filePath = readString();
-        std::cout << "[LOG] ASTDeserializer::deserializeImportNode - File path: " << filePath << std::endl;
 
         // Create the import node with the file path
         SourceLocation location;
@@ -986,26 +954,21 @@ namespace ast::serialization
 
         // Read the number of imported declarations
         uint32_t declarationCount = readUInt32();
-        std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Reading " << declarationCount << " imported declarations" << std::endl;
 
         // Read each imported declaration
         for (uint32_t i = 0; i < declarationCount; ++i)
         {
-            std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Deserializing declaration " << (i + 1) << "/" << declarationCount << std::endl;
             auto declaration = deserializeNode();
             if (declaration)
             {
-                std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Declaration " << (i + 1) << " deserialized successfully" << std::endl;
                 importNode->addImportedDeclaration(std::move(declaration));
             }
             else
             {
-                std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Declaration " << (i + 1) << " returned null, breaking loop" << std::endl;
                 break; // Stop processing when we can't read more nodes
             }
         }
 
-        std::cout << "[LOG] ASTDeserializer::deserializeImportNode - Completed" << std::endl;
         return importNode;
     }
 

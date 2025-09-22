@@ -1018,82 +1018,52 @@ namespace evaluator
             return std::monostate{}; // Already imported
         }
 
-
-        // Check if this is a .mtc import (from deserialized ImportNode)
-        if (filePath.ends_with(".mtc")) {
-            // This is a serialized import - load the .mtc file directly
-            // Mark as being evaluated to prevent circular imports
-            importManager->markAsBeingEvaluated(resolvedPath);
-
-            try {
-
-                // Load the .mtc file using our ImportManager
-                ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
-
-                if (!importedAST) {
-                    throw TypeException("Failed to load cached imported file: " + filePath);
-                }
-
-                // Set import evaluation context and evaluate the loaded AST
-                env->setImportEvaluation(true);
-                evaluateRecursively(importedAST);
-                env->setImportEvaluation(false);
-
-
-                // Mark as evaluated and no longer being evaluated
-                importManager->markAsEvaluated(resolvedPath);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-
-                return std::monostate{};
-            } catch (...) {
-                env->setImportEvaluation(false);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-                throw;
-            }
-        }
-        
         // Check for circular imports
         if (importManager->isBeingEvaluated(resolvedPath)) {
             throw TypeException("Circular import detected: " + filePath + " is already being imported");
         }
 
+        // Determine execution mode based on file extension
+        bool isCacheMode = filePath.ends_with(".mtc");
+
+        // Mark as being evaluated to prevent circular imports
+        importManager->markAsBeingEvaluated(resolvedPath);
+
         try {
-            // Parse and cache the AST (doesn't evaluate) - this now supports .mtc files
-            ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
+            ASTNode* importedAST = nullptr;
 
-            if (!importedAST) {
-                throw TypeException("Failed to parse imported file: " + filePath);
+            if (isCacheMode) {
+                // Cache mode: Load pre-compiled .mtc file
+                std::string resolvedMtcPath = importManager->resolvePath(filePath);
+                importedAST = importManager->loadFromMtcFile(resolvedMtcPath);
+
+                if (!importedAST) {
+                    throw TypeException("Failed to load cached imported file: " + resolvedMtcPath);
+                }
+            } else {
+                // Normal mode: Parse .mt file
+                importedAST = importManager->parseAndCacheAST(filePath);
+
+                if (!importedAST) {
+                    throw TypeException("Failed to parse imported file: " + filePath);
+                }
             }
 
-            // Mark as being evaluated to prevent circular imports (use resolved path for consistency)
-            importManager->markAsBeingEvaluated(resolvedPath);
-
-            // Set import evaluation context
+            // Set import evaluation context and evaluate the loaded AST
             env->setImportEvaluation(true);
-            
-            try {
-                // Evaluate the imported AST in the current environment
-                // We need to recursively evaluate the AST using the appropriate evaluators
-                // Since we can't access the coordinator directly, we'll evaluate it ourselves
-                evaluateRecursively(importedAST);
+            evaluateRecursively(importedAST);
+            env->setImportEvaluation(false);
 
-                // Reset import evaluation context
-                env->setImportEvaluation(false);
-                
-                // Mark as evaluated and no longer being evaluated (use resolved path for consistency)
-                importManager->markAsEvaluated(resolvedPath);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
+            // Mark as evaluated and no longer being evaluated
+            importManager->markAsEvaluated(resolvedPath);
+            importManager->unmarkAsBeingEvaluated(resolvedPath);
 
-                return std::monostate{}; // Imports return void
+            return std::monostate{}; // Imports return void
 
-            } catch (...) {
-                env->setImportEvaluation(false);
-                importManager->unmarkAsBeingEvaluated(resolvedPath);
-                throw;
-            }
-            
-        } catch (const std::exception& e) {
-            throw TypeException("Error importing file '" + filePath + "': " + e.what());
+        } catch (...) {
+            env->setImportEvaluation(false);
+            importManager->unmarkAsBeingEvaluated(resolvedPath);
+            throw;
         }
     }
     

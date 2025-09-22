@@ -219,19 +219,7 @@ namespace ast::serialization
             serializeReturnNode(dynamic_cast<const nodes::functions::ReturnNode*>(node));
             break;
         case NodeType::IMPORT_NODE:
-            {
-                auto importNode = dynamic_cast<const nodes::statements::ImportNode*>(node);
-                if (!baseDirectory.empty()) {
-                    // We're in import resolution mode - inline content directly without writing ImportNode header
-                    // First, undo the header write by seeking back
-                    stream.seekp(headerPos);
-                    // Inline the imported content directly
-                    processImportNode(importNode);
-                } else {
-                    // Normal mode - serialize the ImportNode normally
-                    serializeImportNode(importNode);
-                }
-            }
+            serializeImportNode(dynamic_cast<const nodes::statements::ImportNode*>(node));
             break;
         case NodeType::IF_NODE:
             serializeIfNode(dynamic_cast<const nodes::statements::IfNode*>(node));
@@ -555,6 +543,7 @@ namespace ast::serialization
         serializeNode(child.get());
     }
 
+
     NodeType ASTSerializer::getNodeType(const ASTNode* node)
     {
         // Use dynamic_cast to determine the actual type
@@ -713,8 +702,14 @@ namespace ast::serialization
             // Serialize whether size is dynamic
             writeBool(node->hasDynamicSize());
 
-            // Serialize the size expression
-            serializeNode(node->getSizeExpression().get());
+            // Serialize the number of dimensions
+            writeUInt32(static_cast<uint32_t>(node->getDimensionCount()));
+
+            // Serialize all size expressions for multidimensional arrays
+            const auto& sizeExpressions = node->getSizeExpressions();
+            for (const auto& sizeExpr : sizeExpressions) {
+                serializeNode(sizeExpr.get());
+            }
         }
     }
 
@@ -875,34 +870,25 @@ namespace ast::serialization
 
     void ASTSerializer::serializeImportNode(const nodes::statements::ImportNode* node)
     {
-        std::cout << "[LOG] ASTSerializer::serializeImportNode - Processing import: " << node->getFilePath() << std::endl;
-        std::cout << "[LOG] ASTSerializer::serializeImportNode - baseDirectory: '" << baseDirectory << "'" << std::endl;
+        std::string originalPath = node->getFilePath();
 
-        // *** NEW APPROACH: Inline imported content instead of serializing import references ***
-        if (!baseDirectory.empty()) {
-            std::cout << "[LOG] ASTSerializer::serializeImportNode - In import resolution mode, inlining content" << std::endl;
-            // We're in import resolution mode - inline the imported content
-            processImportNode(node);
-        } else {
-            std::cout << "[LOG] ASTSerializer::serializeImportNode - In normal mode, preserving import reference" << std::endl;
-            // *** REMOVED PATH MODIFICATION BUG ***
-            // Don't change .mt to .mtc - preserve original paths
-            std::string originalPath = node->getFilePath();
-
-            // Serialize the original file path (no modification)
-            writeString(originalPath);
-
-            // Serialize the number of imported declarations
-            const auto& declarations = node->getImportedDeclarations();
-            writeUInt32(static_cast<uint32_t>(declarations.size()));
-
-            // Serialize each imported declaration
-            for (const auto& declaration : declarations)
-            {
-                serializeNode(declaration.get());
-            }
+        // Convert .mt to .mtc for cached imports
+        if (!baseDirectory.empty() && originalPath.ends_with(".mt")) {
+            originalPath = originalPath.substr(0, originalPath.length() - 3) + ".mtc";
         }
-        std::cout << "[LOG] ASTSerializer::serializeImportNode - Completed processing import: " << node->getFilePath() << std::endl;
+
+        // Serialize the (possibly modified) file path
+        writeString(originalPath);
+
+        // Serialize the number of imported declarations
+        const auto& declarations = node->getImportedDeclarations();
+        writeUInt32(static_cast<uint32_t>(declarations.size()));
+
+        // Serialize each imported declaration
+        for (const auto& declaration : declarations)
+        {
+            serializeNode(declaration.get());
+        }
     }
 
     void ASTSerializer::serializeNativeFunctionNode(const nodes::statements::NativeFunctionNode* node)
@@ -1148,7 +1134,10 @@ namespace ast::serialization
         // Clear processed imports for this serialization
         processedImports.clear();
 
-        // Use the existing serialize method which will now resolve imports
+        // First, recursively compile all imported .mt files to .mtc files
+        compileImportsRecursively(root, baseDir);
+
+        // Then serialize the main file with .mt → .mtc path conversion
         return serialize(root, filePath);
     }
 
@@ -1157,43 +1146,59 @@ namespace ast::serialization
         baseDirectory = baseDir;
     }
 
-    void ASTSerializer::processImportNode(const nodes::statements::ImportNode* node)
+    void ASTSerializer::compileImportsRecursively(const ASTNode* root, const std::string& baseDir)
     {
-        std::string importPath = node->getFilePath();
-        std::cout << "[LOG] ASTSerializer::processImportNode - Processing import: " << importPath << std::endl;
+        // Find all ImportNodes in the AST and compile their targets
+        if (auto programNode = dynamic_cast<const nodes::statements::ProgramNode*>(root)) {
+            const auto& statements = programNode->getStatements();
+
+            for (const auto& stmt : statements) {
+                if (auto importNode = dynamic_cast<const nodes::statements::ImportNode*>(stmt.get())) {
+                    compileImportTarget(importNode, baseDir);
+                }
+            }
+        }
+    }
+
+    void ASTSerializer::compileImportTarget(const nodes::statements::ImportNode* importNode, const std::string& baseDir)
+    {
+        std::string importPath = importNode->getFilePath();
 
         // Convert relative path to absolute path
-        std::filesystem::path fullPath = std::filesystem::path(baseDirectory) / importPath;
+        std::filesystem::path fullPath = std::filesystem::path(baseDir) / importPath;
         std::string resolvedPath = fullPath.string();
-        std::cout << "[LOG] ASTSerializer::processImportNode - Resolved path: " << resolvedPath << std::endl;
 
         // Check if we've already processed this import to avoid infinite recursion
         if (processedImports.find(resolvedPath) != processedImports.end()) {
-            std::cout << "[LOG] ASTSerializer::processImportNode - Already processed, skipping: " << resolvedPath << std::endl;
             return; // Already processed
         }
 
         // Mark as processed
         processedImports.insert(resolvedPath);
-        std::cout << "[LOG] ASTSerializer::processImportNode - Marked as processed: " << resolvedPath << std::endl;
 
-        try {
-            std::cout << "[LOG] ASTSerializer::processImportNode - Loading imported AST..." << std::endl;
-            // Load the imported AST
-            auto importedAST = loadImportedAST(resolvedPath);
+        // Load and parse the imported file
+        auto importedAST = loadImportedAST(resolvedPath);
+        if (!importedAST) {
+            return; // Failed to load
+        }
 
-            if (importedAST) {
-                std::cout << "[LOG] ASTSerializer::processImportNode - Inlining imported declarations..." << std::endl;
-                // Inline the imported declarations into the current serialization
-                inlineImportedDeclarations(importedAST.get());
-                std::cout << "[LOG] ASTSerializer::processImportNode - Completed inlining for: " << importPath << std::endl;
-            } else {
-                std::cout << "[LOG] ASTSerializer::processImportNode - Failed to load AST for: " << importPath << std::endl;
-            }
-        }
-        catch (const std::exception& e) {
-            std::cerr << "[LOG] ASTSerializer::processImportNode - Error processing import " << importPath << ": " << e.what() << std::endl;
-        }
+        // Get the directory of the imported file for recursive imports
+        std::filesystem::path importedFilePath(resolvedPath);
+        std::string importedFileDir = importedFilePath.parent_path().string();
+
+        // Recursively compile imports in the imported file
+        compileImportsRecursively(importedAST.get(), importedFileDir);
+
+        // Compile the imported file itself
+        std::string outputPath = resolvedPath + "c"; // .mt -> .mtc
+        ASTSerializer importSerializer;
+        importSerializer.serializeWithImportResolution(importedAST.get(), outputPath, importedFileDir);
+    }
+
+    void ASTSerializer::processImportNode(const nodes::statements::ImportNode* node)
+    {
+        // This method is no longer used with the new approach
+        // Import processing is now handled by compileImportsRecursively
     }
 
     std::unique_ptr<ASTNode> ASTSerializer::loadImportedAST(const std::string& importPath)
@@ -1213,30 +1218,4 @@ namespace ast::serialization
         return importParser.parseProgram();
     }
 
-    void ASTSerializer::inlineImportedDeclarations(const ASTNode* importedAST)
-    {
-        std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Starting inlining process" << std::endl;
-        // Serialize all non-import declarations from the imported AST
-        if (auto programNode = dynamic_cast<const nodes::statements::ProgramNode*>(importedAST)) {
-            const auto& statements = programNode->getStatements();
-            std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Found " << statements.size() << " statements to process" << std::endl;
-
-            for (size_t i = 0; i < statements.size(); ++i) {
-                const auto& stmt = statements[i];
-                std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Processing statement " << (i+1) << "/" << statements.size() << std::endl;
-
-                // Check if this is an ImportNode
-                if (auto importNode = dynamic_cast<const nodes::statements::ImportNode*>(stmt.get())) {
-                    std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Found nested ImportNode: " << importNode->getFilePath() << std::endl;
-                    // Recursively process the import
-                    processImportNode(importNode);
-                } else {
-                    std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Serializing non-import statement" << std::endl;
-                    // Serialize the non-import declaration
-                    serializeNode(stmt.get());
-                }
-            }
-        }
-        std::cout << "[LOG] ASTSerializer::inlineImportedDeclarations - Completed inlining process" << std::endl;
-    }
 }

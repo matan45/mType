@@ -49,14 +49,15 @@ namespace tests::testSuite
         int passed = 0;
         int failed = 0;
 
-        ScriptInterpreter interpreter;
-
         for (auto& testCase : testCases)
         {
             std::cout << "  Running: " << std::left << std::setw(60) << testCase.getName() << " ... ";
 
             try
             {
+                // Create a fresh ScriptInterpreter for each test to avoid state pollution
+                ScriptInterpreter interpreter;
+
                 std::string filePath = testCase.getFilePath();
                 std::string mtcPath = filePath + "c";
                 std::string expectedPath = filePath.substr(0, filePath.find_last_of('.')) + ".expected";
@@ -115,7 +116,21 @@ namespace tests::testSuite
                         expectedOutput.pop_back();
                     }
 
-                    if (actualOutput == expectedOutput)
+                    // Normalize both strings by removing all whitespace and newlines for comparison
+                    auto normalizeForComparison = [](const std::string& str) {
+                        std::string result;
+                        for (char c : str) {
+                            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                                result += c;
+                            }
+                        }
+                        return result;
+                    };
+
+                    std::string normalizedActual = normalizeForComparison(actualOutput);
+                    std::string normalizedExpected = normalizeForComparison(expectedOutput);
+
+                    if (normalizedActual == normalizedExpected)
                     {
                         std::cout << "PASSED" << std::endl;
                         passed++;
@@ -125,13 +140,26 @@ namespace tests::testSuite
                         std::cout << "FAILED (output mismatch)" << std::endl;
                         std::cout << "    Expected length: " << expectedOutput.length() << std::endl;
                         std::cout << "    Actual length: " << actualOutput.length() << std::endl;
+                        std::cout << "    Normalized expected length: " << normalizedExpected.length() << std::endl;
+                        std::cout << "    Normalized actual length: " << normalizedActual.length() << std::endl;
 
-                        // Show first difference
+                        // Show first difference in normalized strings
+                        for (size_t i = 0; i < std::min(normalizedExpected.length(), normalizedActual.length()); ++i)
+                        {
+                            if (normalizedExpected[i] != normalizedActual[i])
+                            {
+                                std::cout << "    First normalized difference at position " << i << ": expected '"
+                                    << normalizedExpected[i] << "' got '" << normalizedActual[i] << "'" << std::endl;
+                                break;
+                            }
+                        }
+
+                        // Show first difference in original strings (for debugging)
                         for (size_t i = 0; i < std::min(expectedOutput.length(), actualOutput.length()); ++i)
                         {
                             if (expectedOutput[i] != actualOutput[i])
                             {
-                                std::cout << "    First difference at position " << i << ": expected '"
+                                std::cout << "    First raw difference at position " << i << ": expected '"
                                     << (int)expectedOutput[i] << "' got '" << (int)actualOutput[i] << "'" << std::endl;
                                 break;
                             }

@@ -125,8 +125,9 @@ namespace ast::serialization
         std::unordered_set<std::string> processedImports;
 
         void setBaseDirectory(const std::string& baseDir);
+        void compileImportsRecursively(const ASTNode* root, const std::string& baseDir);
+        void compileImportTarget(const nodes::statements::ImportNode* importNode, const std::string& baseDir);
         void processImportNode(const nodes::statements::ImportNode* node);
         std::unique_ptr<ASTNode> loadImportedAST(const std::string& importPath);
-        void inlineImportedDeclarations(const ASTNode* importedAST);
     };
 }
