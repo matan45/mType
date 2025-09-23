@@ -35,6 +35,9 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Generic Import Serialization",
                                   passPath + "genericImportSerialization.mt");
+
+        addOutputVerificationTest("Static Generic Methods Serialization",
+                                  passPath + "staticGenericMethodsSerialization.mt");
     }
 
     void SerializationTestSuite::run()
