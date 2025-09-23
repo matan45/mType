@@ -5,7 +5,7 @@ class NestedContainer {
     
     constructor(int containerLevel) {
         level = containerLevel;
-        data = "Level" + toString(level);
+        data = "Level" + level;
     }
     
     function processDeepNesting(int depth): int {

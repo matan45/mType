@@ -1,6 +1,7 @@
 #include "ParameterBinder.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "ValueConverter.hpp"
@@ -77,9 +78,19 @@ namespace evaluator::utils
             validateParameterType(actualType, expectedType, param.first, functionName, location);
 
             // Create and bind parameter variable
+            // For object types, preserve the actual object type to maintain method bindings
+            ValueType typeToUse = actualType;
+            if (actualType == ValueType::OBJECT && expectedType != ValueType::OBJECT) {
+                // If we have a concrete object but expect a generic type, keep the object type
+                typeToUse = actualType;
+            } else if (expectedType != ValueType::OBJECT) {
+                // For non-object types, use the expected type
+                typeToUse = expectedType;
+            }
+
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,
-                expectedType,  // Use resolved type
+                typeToUse,  // Use appropriate type to preserve object method bindings
                 arg,
                 false  // parameters are not final
             );

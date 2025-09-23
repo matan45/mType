@@ -1,5 +1,5 @@
-import "../../complie/lib/primitives/String.mt";
-import "../../complie/lib/primitives/Int.mt";
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Int.mt";
 
 class MixedClass {
     // Instance fields

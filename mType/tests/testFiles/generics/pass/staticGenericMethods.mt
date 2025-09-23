@@ -1,5 +1,5 @@
-import "../../complie/lib/primitives/String.mt";
-import "../../complie/lib/primitives/Int.mt";
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Int.mt";
 
 class Utils {
     // Single type parameter - identity function
@@ -9,12 +9,12 @@ class Utils {
 
     // Single type parameter - void return
     static function <T> process(T item): void {
-        print("Processing: " + item.toString());
+        print("Processing: " + item);
     }
 
     // Multiple type parameters
     static function <K, V> createPair(K key, V value): void {
-        print(key + " = " + value.toString());
+        print(key + " = " + value);
     }
 
     // Mixed static methods (generic and non-generic)

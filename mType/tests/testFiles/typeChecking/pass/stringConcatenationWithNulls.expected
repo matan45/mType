@@ -7,14 +7,14 @@ Ternary null check: Value: null
 Multiple nulls: null and null
 Function chain with null: Function result: null
 Null concatenation in loops:
-Item 0: unknown
+Item 0: first:1
 Item 1: null
-Item 2: unknown
+Item 2: third:3
 Accumulated string: Start null Middle null End
 Method with null: Processed: null
-Method combining null and valid: null combined with unknown
+Method combining null and valid: null combined with valid:100
 Nested concatenation: Outer: Inner: null with nested:50
-Mixed types with null: Mixed: 42, null, true, 3.140000
+Mixed types with null: Mixed: 42, null, true, 3.14
 Safe null handling: Object is null: null
 Switch-like null processing:
 Type: null object - null

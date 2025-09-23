@@ -154,6 +154,39 @@ namespace evaluator
 
     std::string ExpressionEvaluator::toString(const Value& value) const
     {
+        // Handle objects with potential toString() method
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(value))
+        {
+            auto objectInstance = std::get<std::shared_ptr<ObjectInstance>>(value);
+            if (!objectInstance)
+            {
+                return "null";
+            }
+
+            // Try to call toString() method if it exists
+            auto classDef = objectInstance->getClassDefinition();
+            if (classDef && classDef->hasMethod("toString"))
+            {
+                auto toStringMethod = classDef->findMethod("toString", 0);
+                if (toStringMethod && !toStringMethod->isStatic())
+                {
+                    try
+                    {
+                        Value result = objEvaluator->callMethod(objectInstance, "toString", {});
+                        if (std::holds_alternative<std::string>(result))
+                        {
+                            return std::get<std::string>(result);
+                        }
+                    }
+                    catch (...)
+                    {
+                        // If toString() fails, fall back to default representation
+                    }
+                }
+            }
+        }
+
+        // Fall back to ValueConverter for all other types or when toString() is not available
         return ValueConverter::toString(value);
     }
 
@@ -285,75 +318,48 @@ namespace evaluator
 
         auto env = context->getEnvironment();
 
+        // Check variables first (parameters, local variables, etc.)
         auto varDef = env->findVariable(varName);
-
-        if (!varDef)
+        if (varDef)
         {
-            // Check if this might be a field access on the current instance
-            auto currentInstance = context->getCurrentInstance();
-            if (currentInstance)
-            {
-                // VALIDATION: Prevent instance member access from static methods
-                if (context->isInStaticMethodContext())
-                {
-                    auto field = currentInstance->getField(varName);
-                    if (field && !field->isStatic())
-                    {
-                        throw TypeException("Cannot access instance field '" + varName +
-                                            "' from static method context", node->getLocation());
-                    }
-                }
+            return varDef->getValue();
+        }
 
+        // Check instance fields if no variable found
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance)
+        {
+            // VALIDATION: Prevent instance member access from static methods
+            if (context->isInStaticMethodContext())
+            {
                 auto field = currentInstance->getField(varName);
-                if (field)
+                if (field && !field->isStatic())
                 {
-                    return currentInstance->getFieldValue(varName);
+                    throw TypeException("Cannot access instance field '" + varName +
+                                        "' from static method context", node->getLocation());
                 }
             }
 
-            // Check if this might be a static field access
-            // First check if we're in a static method by looking for the current class name
-            // Note: env is already defined above
-            auto classRegistry = env->getClassRegistry();
-
-            // Check if we have a current class name stored (from static method execution)
-            auto currentClassVar = env->findVariable("__current_class_name__");
-            if (currentClassVar)
+            auto field = currentInstance->getField(varName);
+            if (field)
             {
-                auto currentClassValue = currentClassVar->getValue();
-                if (std::holds_alternative<std::string>(currentClassValue))
-                {
-                    std::string className = std::get<std::string>(currentClassValue);
-                    auto classDef = env->findClass(className);
-                    if (classDef)
-                    {
-                        auto field = classDef->getField(varName);
-                        if (field && field->isStatic())
-                        {
-                            return field->getValue();
-                        }
-                    }
-                }
+                return currentInstance->getFieldValue(varName);
             }
+        }
 
-            // Fallback: search all classes (for backward compatibility)
-            auto allClassNames = classRegistry->getAllItemNames();
-            std::string currentClassName;
-            if (currentClassVar)
+        // Check if this might be a static field access
+        // First check if we're in a static method by looking for the current class name
+        auto classRegistry = env->getClassRegistry();
+
+        // Check if we have a current class name stored (from static method execution)
+        auto currentClassVar = env->findVariable("__current_class_name__");
+        if (currentClassVar)
+        {
+            auto currentClassValue = currentClassVar->getValue();
+            if (std::holds_alternative<std::string>(currentClassValue))
             {
-                auto currentClassValue = currentClassVar->getValue();
-                if (std::holds_alternative<std::string>(currentClassValue))
-                {
-                    currentClassName = std::get<std::string>(currentClassValue);
-                }
-            }
-
-            for (const auto& className : allClassNames)
-            {
-                // Skip if we already checked this class above
-                if (!currentClassName.empty() && className == currentClassName) continue;
-
-                auto classDef = classRegistry->findClass(className);
+                std::string className = std::get<std::string>(currentClassValue);
+                auto classDef = env->findClass(className);
                 if (classDef)
                 {
                     auto field = classDef->getField(varName);
@@ -363,11 +369,37 @@ namespace evaluator
                     }
                 }
             }
-
-            throw UndefinedException("Undefined variable: " + varName, node->getLocation());
         }
 
-        return varDef->getValue();
+        // Fallback: search all classes (for backward compatibility)
+        auto allClassNames = classRegistry->getAllItemNames();
+        std::string currentClassName;
+        if (currentClassVar)
+        {
+            auto currentClassValue = currentClassVar->getValue();
+            if (std::holds_alternative<std::string>(currentClassValue))
+            {
+                currentClassName = std::get<std::string>(currentClassValue);
+            }
+        }
+
+        for (const auto& className : allClassNames)
+        {
+            // Skip if we already checked this class above
+            if (!currentClassName.empty() && className == currentClassName) continue;
+
+            auto classDef = classRegistry->findClass(className);
+            if (classDef)
+            {
+                auto field = classDef->getField(varName);
+                if (field && field->isStatic())
+                {
+                    return field->getValue();
+                }
+            }
+        }
+
+        throw UndefinedException("Undefined variable: " + varName, node->getLocation());
     }
 
     Value ExpressionEvaluator::evaluateBinaryExpNode(BinaryExpNode* node)

@@ -20,9 +20,9 @@ class LeakDetector {
         }
         
         static function getAllocationStats(): string {
-            return "Total: " + toString(totalAllocations) + 
-                   ", Current: " + toString(currentAllocations) + 
-                   ", Peak: " + toString(peakAllocations);
+            return "Total: " + totalAllocations +
+                   ", Current: " + currentAllocations +
+                   ", Peak: " + peakAllocations;
         }
         
         static function resetStats(): void {
@@ -42,13 +42,13 @@ class LeakDetector {
         
         // Test that objects created in loops are properly cleaned up
         for (int i = 0; i < 50; i++) {
-            LeakDetector obj = new LeakDetector("LoopObject" + toString(i));
+            LeakDetector obj = new LeakDetector("LoopObject" + i);
             
             // Do some work with the object
             string name = obj.getName();
             
             if (i % 10 == 0) {
-                print("Loop " + toString(i) + ": " + LeakDetector::getAllocationStats());
+                print("Loop " + i + ": " + LeakDetector::getAllocationStats());
             }
             
             // obj should be cleaned up at end of loop iteration
@@ -63,10 +63,10 @@ class LeakDetector {
         
         for (int i = 0; i < 20; i++) {
             if (i % 2 == 0) {
-                LeakDetector evenObj = new LeakDetector("Even" + toString(i));
+                LeakDetector evenObj = new LeakDetector("Even" + i);
                 print("Created even object: " + evenObj.getName());
             } else {
-                LeakDetector oddObj = new LeakDetector("Odd" + toString(i));
+                LeakDetector oddObj = new LeakDetector("Odd" + i);
                 print("Created odd object: " + oddObj.getName());
             }
             
@@ -88,14 +88,14 @@ class LeakDetector {
         function processMultiple(int count): string {
             string result = "";
             for (int i = 0; i < count; i++) {
-                string processed = createAndProcess("Batch" + toString(i));
+                string processed = createAndProcess("Batch" + i);
                 result = result + processed + " | ";
             }
             return result;
         }
         
         string batchResult = processMultiple(10);
-        print("Batch processing result length: " + toString(strLength(batchResult)));
+        print("Batch processing result length: " + strLength(batchResult));
         print("After batch processing: " + LeakDetector::getAllocationStats());
     }
     
@@ -175,16 +175,16 @@ class LeakDetector {
         final int NUM_BATCHES = 4;
         
         for (int batch = 0; batch < NUM_BATCHES; batch++) {
-            print("Starting batch " + toString(batch + 1) + "/" + toString(NUM_BATCHES));
+            print("Starting batch " + (batch + 1) + "/" + NUM_BATCHES);
             
             for (int i = 0; i < BATCH_SIZE; i++) {
-                LeakDetector obj = new LeakDetector("Batch" + toString(batch) + "_Item" + toString(i));
+                LeakDetector obj = new LeakDetector("Batch" + batch + "_Item" + i);
                 
                 // Simulate some work
                 string name = obj.getName();
             }
             
-            print("After batch " + toString(batch + 1) + ": " + LeakDetector::getAllocationStats());
+            print("After batch " + (batch + 1) + ": " + LeakDetector::getAllocationStats());
             
             // Potentially trigger cleanup between batches
             // In a real implementation, this might involve garbage collection

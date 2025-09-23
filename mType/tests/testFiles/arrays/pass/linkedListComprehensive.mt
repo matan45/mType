@@ -1,7 +1,7 @@
 // Test LinkedList functionality with proper output
-import "../../complie/lib/collections/LinkedList.mt";
-import "../../complie/lib/primitives/String.mt";
-import "../../complie/lib/primitives/Int.mt";
+import "../../lib/collections/LinkedList.mt";
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Int.mt";
 
 class TestObject {
     string name;

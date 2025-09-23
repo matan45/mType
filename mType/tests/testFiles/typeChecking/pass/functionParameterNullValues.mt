@@ -8,7 +8,7 @@ class Data {
 
 function processData(Data d): void {
     if (d != null) {
-        print("Data value: " + toString(d.value));
+        print("Data value: " + d.value);
     } else {
         print("Data is null");
     }

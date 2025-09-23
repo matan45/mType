@@ -53,13 +53,18 @@ namespace environment::registry
         return nativeFunctions.size();
     }
 
+    void NativeRegistry::setMethodCallHandler(MethodCallHandler handler)
+    {
+        methodCallHandler = handler;
+    }
+
     void NativeRegistry::registerBuiltinFunctions()
     {
-        registerNativeFunction("print", [](const std::vector<Value>& args) -> Value
+        registerNativeFunction("print", [this](const std::vector<Value>& args) -> Value
         {
             for (const auto& arg : args)
             {
-                std::visit([](const auto& value)
+                std::visit([this](const auto& value)
                 {
                     if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
                         std::cout << value;
@@ -73,17 +78,55 @@ namespace environment::registry
                         std::cout << "void";
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
                         std::cout << "null";
+                    else if constexpr (std::is_same_v<
+                        std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
+                    {
+                        if (!value)
+                        {
+                            std::cout << "null";
+                        }
+                        else
+                        {
+                            // Try to call toString() method if it exists
+                            if (methodCallHandler)
+                            {
+                                auto classDef = value->getClassDefinition();
+                                if (classDef && classDef->hasMethod("toString"))
+                                {
+                                    auto toStringMethod = classDef->findMethod("toString", 0);
+                                    if (toStringMethod && !toStringMethod->isStatic())
+                                    {
+                                        try
+                                        {
+                                            Value result = methodCallHandler(value, "toString", {});
+                                            if (std::holds_alternative<std::string>(result))
+                                            {
+                                                std::cout << std::get<std::string>(result);
+                                                return;
+                                            }
+                                        }
+                                        catch (...)
+                                        {
+                                            // If toString() fails, fall back to default representation
+                                        }
+                                    }
+                                }
+                            }
+                            // Default object representation
+                            std::cout << "[object " << value->getTypeName() << "]";
+                        }
+                    }
                 }, arg);
             }
             std::cout << std::endl;
             return std::monostate{};
         });
 
-        registerNativeFunction("toString", [](const std::vector<Value>& args) -> Value
+        registerNativeFunction("parsePrimitive", [](const std::vector<Value>& args) -> Value
         {
             if (args.size() != 1)
             {
-                throw std::runtime_error("toString expects exactly 1 argument");
+                throw std::runtime_error("parsePrimitive expects exactly 1 argument");
             }
 
             return std::visit([](const auto& value) -> Value
@@ -118,7 +161,7 @@ namespace environment::registry
                 }
             }, args[0]);
         });
-        
+
         registerNativeFunction("strLength", [](const std::vector<Value>& args) -> Value
         {
             if (args.size() != 1)
@@ -140,7 +183,7 @@ namespace environment::registry
         });
 
         // Add hashCode function for generating hash codes for any value
-        registerNativeFunction("hashCode", [](const std::vector<Value>& args) -> Value
+        registerNativeFunction("hashCode", [this](const std::vector<Value>& args) -> Value
         {
             if (args.size() != 1)
             {
@@ -175,7 +218,8 @@ namespace environment::registry
                 else if constexpr (std::is_same_v<
                     std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
                 {
-                    if (!value) {
+                    if (!value)
+                    {
                         return 0; // Null object hash
                     }
 

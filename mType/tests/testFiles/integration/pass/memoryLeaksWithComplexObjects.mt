@@ -11,7 +11,7 @@ class Resource {
     }
     
     function getInfo(): string {
-        return "Resource " + name + " [" + toString(id) + "]";
+        return "Resource " + name + " [" + id + "]";
     }
     
     static function getTotalResources(): int {
@@ -48,14 +48,14 @@ function createComplexObjectGraph(): string {
     final int NUM_MANAGERS = 5;
     
     for (int i = 0; i < NUM_MANAGERS; i++) {
-        Manager mgr = new Manager("Primary" + toString(i), "Secondary" + toString(i));
+        Manager mgr = new Manager("Primary" + i, "Secondary" + i);
         
         if (i % 2 == 0) {
             mgr.swapResources();
         }
         
         string info = mgr.processResources();
-        results = results + "Manager " + toString(i) + ": " + info + " | ";
+        results = results + "Manager " + i + ": " + info + " | ";
     }
     
     return results;

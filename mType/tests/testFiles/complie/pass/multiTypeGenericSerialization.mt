@@ -1,7 +1,7 @@
-import "../lib/collections/HashMap.mt";
-import "../lib/collections/HashSet.mt";
-import "../lib/primitives/Int.mt";
-import "../lib/primitives/String.mt";
+import "../../lib/collections/HashMap.mt";
+import "../../lib/collections/HashSet.mt";
+import "../../lib/primitives/Int.mt";
+import "../../lib/primitives/String.mt";
 
 // Test serialization with multiple generic collection types
 function testMultipleGenerics(): void {

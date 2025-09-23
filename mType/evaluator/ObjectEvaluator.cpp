@@ -978,6 +978,7 @@ namespace evaluator
             // Allow calls on other objects (local variables, parameters, newly created objects)
         }
 
+
         // Set current instance context
         auto prevInstance = context->getCurrentInstance();
         context->setCurrentInstance(object);
@@ -1034,6 +1035,7 @@ namespace evaluator
                     result = context->getReturnValue();
                     context->setReturned(false);
                 }
+
 
                 context->setCurrentInstance(prevInstance);
                 return result;
@@ -1297,12 +1299,23 @@ namespace evaluator
             try
             {
                 // Use ParameterBinder utility for consistent parameter validation and binding
-                utils::ParameterBinder::bindAndValidateParameters(
-                    methodToCall->getParameters(),
-                    args,
-                    "static method '" + className + "::" + methodName + "'",
-                    env
-                );
+                if (methodToCall->hasGenericInformation()) {
+                    // Use generic-aware parameter binding for instantiated generic methods
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        methodToCall,
+                        args,
+                        "static method '" + className + "::" + methodName + "'",
+                        env
+                    );
+                } else {
+                    // Use legacy parameter binding for non-generic methods
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        methodToCall->getParameters(),
+                        args,
+                        "static method '" + className + "::" + methodName + "'",
+                        env
+                    );
+                }
 
                 // Store current class name for static field access
                 auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(

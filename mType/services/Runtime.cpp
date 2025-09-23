@@ -8,6 +8,8 @@
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/NativeRegistry.hpp"
 #include <filesystem>
 #include <iostream>
 
@@ -30,6 +32,18 @@ namespace services
             environment::EnvironmentBuilder envBuilder;
             auto isolatedEnvironment = envBuilder.build();
             auto isolatedEvaluator = std::make_unique<evaluator::Evaluator>(isolatedEnvironment);
+
+            // Set up method call handler for native functions
+            auto nativeRegistry = isolatedEnvironment->getNativeRegistry();
+            if (nativeRegistry) {
+                nativeRegistry->setMethodCallHandler(
+                    [&isolatedEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args) -> value::Value {
+                        return isolatedEvaluator->callMethodOnInstance(instance, methodName, args);
+                    }
+                );
+            }
 
             // Create fresh ImportManager for this execution
             auto importManager = std::make_unique<ImportManager>();

@@ -41,7 +41,7 @@ class Vector3 {
 }
 
 function applyGravity(Entity entity): string {
-    return "Applying gravity " + toString(GRAVITY) + " to " + entity.name;
+    return "Applying gravity " + GRAVITY + " to " + entity.name;
 }
 
 final int MAX_VERTICES = 10000;
@@ -60,7 +60,7 @@ class Calculator {
 }
 
 Calculator calc = new Calculator();
-print("Test - Fibonacci(6): " + toString(calc.fibonacci(6)));
+print("Test - Fibonacci(6): " + calc.fibonacci(6));
 
 // Test complex interactions
 Entity player = new Entity("Player");

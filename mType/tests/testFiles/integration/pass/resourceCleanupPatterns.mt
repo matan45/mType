@@ -51,18 +51,18 @@ function testRAIIPattern(): void {
     FileHandle file1 = new FileHandle("config.txt");
     FileHandle file2 = new FileHandle("data.txt");
     
-    print("In scope - Open handles: " + toString(FileHandle::getOpenHandleCount()));
-    print("File1 open: " + toString(file1.isFileOpen()));
-    print("File2 open: " + toString(file2.isFileOpen()));
+    print("In scope - Open handles: " + FileHandle::getOpenHandleCount());
+    print("File1 open: " + file1.isFileOpen());
+    print("File2 open: " + file2.isFileOpen());
     
     // Explicit close for one file
     file1.close();
-    print("After explicit close - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After explicit close - Open handles: " + FileHandle::getOpenHandleCount());
     
     // file2 should be automatically cleaned up when scope ends
     }
     
-    print("After scope - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After scope - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
 }
 function testResourceTransferPattern(): void {
@@ -75,17 +75,17 @@ function testResourceTransferPattern(): void {
     }
     
     FileHandle original = new FileHandle("transfer.txt");
-    print("Before transfer - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("Before transfer - Open handles: " + FileHandle::getOpenHandleCount());
     
     FileHandle transferred = transferFile(original);
-    print("After transfer - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After transfer - Open handles: " + FileHandle::getOpenHandleCount());
     
     print("Original filename: " + original.getFilename());
     print("Transferred filename: " + transferred.getFilename());
-    print("Same object: " + toString(original.getFilename() == transferred.getFilename()));
+    print("Same object: " + (original.getFilename() == transferred.getFilename()));
     
     transferred.close();
-    print("After explicit close - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After explicit close - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
 function testExceptionSafeResource(): void {
@@ -108,20 +108,20 @@ function testExceptionSafeResource(): void {
     FileHandle safeFile = new FileHandle("safe.txt");
     FileHandle riskyFile = new FileHandle("risky.txt");
     
-    print("Before risky operations - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("Before risky operations - Open handles: " + FileHandle::getOpenHandleCount());
     
     {
         riskyOperation(safeFile);
         riskyOperation(riskyFile);
     }
     
-    print("After operations - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After operations - Open handles: " + FileHandle::getOpenHandleCount());
     
     // Explicit cleanup
     safeFile.close();
     riskyFile.close();
     
-    print("After explicit cleanup - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After explicit cleanup - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
 function testResourcePoolPattern(): void {
@@ -175,7 +175,7 @@ function testResourcePoolPattern(): void {
     }
     
     ResourcePool pool = new ResourcePool();
-    print("Pool created - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("Pool created - Open handles: " + FileHandle::getOpenHandleCount());
     
     FileHandle acquired1 = pool.getAvailableResource();
     FileHandle acquired2 = pool.getAvailableResource();
@@ -188,10 +188,10 @@ function testResourcePoolPattern(): void {
     }
     
     pool.releaseResource(acquired1);
-    print("After releasing one resource - Active: " + toString(pool.getActiveResourceCount()));
+    print("After releasing one resource - Active: " + pool.getActiveResourceCount());
     
     pool.cleanup();
-    print("After pool cleanup - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After pool cleanup - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
 function testNestedResourceCleanup(): void {
@@ -207,23 +207,23 @@ function testNestedResourceCleanup(): void {
             FileHandle inner2 = new FileHandle("inner2.txt");
             FileHandle inner3 = new FileHandle("inner3.txt");
             
-            print("Deepest level - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+            print("Deepest level - Open handles: " + FileHandle::getOpenHandleCount());
             
             inner2.close(); // Explicit close
             // inner3 should be auto-cleaned
         }
         
-        print("Middle level - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+        print("Middle level - Open handles: " + FileHandle::getOpenHandleCount());
         // inner1 should be auto-cleaned
         }
         
-        print("Outer level - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+        print("Outer level - Open handles: " + FileHandle::getOpenHandleCount());
         outer.close();
     }
     
     processWithNestedResources();
     
-    print("After nested processing - Open handles: " + toString(FileHandle::getOpenHandleCount()));
+    print("After nested processing - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
 }
 

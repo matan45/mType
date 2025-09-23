@@ -1,0 +1,7 @@
+Echo string: hello
+Echo int: 42
+Null string: null
+Null int: null
+Select first: first
+Select second: 456
+Static generic simple return tests passed

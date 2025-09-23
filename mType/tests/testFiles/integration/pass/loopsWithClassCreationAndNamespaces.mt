@@ -23,7 +23,7 @@ function createWorkerBatch(int count): int {
     int totalOutput = 0;
     
     for (int i = 0; i < count; i++) {
-        Worker worker = new Worker(i + 1, "Task" + toString(i));
+        Worker worker = new Worker(i + 1, "Task" + i);
         int output = worker.work();
         totalOutput = totalOutput + output;
         

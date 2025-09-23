@@ -28,7 +28,7 @@ class GameObject {
     }
 
     function getEntityInfo() : string {
-        return TYPE + " : " + entity.getName() + " [" + toString(entity.getId()) + "]";
+        return TYPE + " : " + entity.getName() + " [" + entity.getId() + "]";
     }
 }
 

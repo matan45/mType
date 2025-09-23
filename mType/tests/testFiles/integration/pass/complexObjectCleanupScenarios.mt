@@ -18,12 +18,12 @@ class ResourceManager {
     }
     
     function getResourceInfo(): string {
-        return resourceName + ": " + toString(resourceCount) + " units";
+        return resourceName + ": " + resourceCount + " units";
     }
     
     static function getResourceStats(): string {
-        return "Allocated: " + toString(totalResourcesAllocated) + 
-               ", Released: " + toString(totalResourcesReleased);
+        return "Allocated: " + totalResourcesAllocated +
+               ", Released: " + totalResourcesReleased;
     }
     
     static function resetStats(): void {

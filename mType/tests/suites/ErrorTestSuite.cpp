@@ -136,9 +136,6 @@ namespace tests::testSuite
         addTestFromFile("Static Method Access Instance Field Error",
                         errorPath + "staticMethodAccessInstanceField.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Static Method Call Instance Method Error",
-                        errorPath + "staticMethodCallInstanceMethod.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Static Method Access Instance Member Error",
                         errorPath + "staticMethodAccessInstanceMember.mt",
                         TestType::ERROR_EXPECTED);

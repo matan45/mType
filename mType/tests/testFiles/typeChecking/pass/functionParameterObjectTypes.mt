@@ -19,7 +19,7 @@ class Company {
 }
 
 function processPerson(Person p): string {
-    return p.name + " is " + toString(p.age) + " years old";
+    return p.name + " is " + p.age + " years old";
 }
 
 function processCompany(Company c, Person employee): string {

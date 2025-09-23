@@ -18,6 +18,8 @@
 #include "../ast/serialization/ASTSerializer.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/NativeRegistry.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
@@ -34,6 +36,18 @@ namespace services
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
+
+        // Set up method call handler for native functions
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry) {
+            nativeRegistry->setMethodCallHandler(
+                [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                       const std::string& methodName,
+                       const std::vector<value::Value>& args) -> value::Value {
+                    return evaluator->callMethodOnInstance(instance, methodName, args);
+                }
+            );
+        }
     }
 
     ScriptInterpreter::~ScriptInterpreter() = default;
@@ -415,6 +429,18 @@ namespace services
             if (method->getBody())
             {
                 auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
+
+                // Set up method call handler for this evaluator too
+                auto nativeRegistry = environment->getNativeRegistry();
+                if (nativeRegistry) {
+                    nativeRegistry->setMethodCallHandler(
+                        [&apiEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                       const std::string& methodName,
+                                       const std::vector<value::Value>& args) -> value::Value {
+                            return apiEvaluator->callMethodOnInstance(instance, methodName, args);
+                        }
+                    );
+                }
 
                 try
                 {

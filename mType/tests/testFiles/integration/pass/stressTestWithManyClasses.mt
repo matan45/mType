@@ -25,7 +25,7 @@
         final int NUM_WORKERS = 20;
         
         for (int i = 0; i < NUM_WORKERS; i++) {
-            Worker worker = new Worker(i, "Task" + toString(i));
+            Worker worker = new Worker(i, "Task" + i);
             int work = worker.doWork();
             totalWork = totalWork + work;
         }

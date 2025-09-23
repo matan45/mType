@@ -1,3 +1,6 @@
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Bool.mt";
+
 // Generic class with null handling
 class Optional<T> {
     T value;
@@ -10,8 +13,8 @@ class Optional<T> {
         return value;
     }
 
-    function hasValue(): bool {
-        return value != null;
+    function hasValue(): Bool {
+        return new Bool(value != null);
     }
 
     function clear(): void {
@@ -20,11 +23,11 @@ class Optional<T> {
 }
 
 function main(): void {
-    Optional<string> opt = new Optional<string>();
+    Optional<String> opt = new Optional<String>();
 
     print("Initially has value: " + opt.hasValue());
 
-    opt.setValue("Hello");
+    opt.setValue(new String("Hello"));
     print("After setting: " + opt.hasValue());
     print("Value: " + opt.getValue());
 

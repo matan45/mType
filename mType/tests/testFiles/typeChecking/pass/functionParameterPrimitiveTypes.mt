@@ -12,7 +12,7 @@ function testBool(bool flag): bool {
 
 function testMixed(int n, string s, bool b): string {
     if (b) {
-        return s + toString(n);
+        return s + n;
     }
     return s;
 }
@@ -23,7 +23,7 @@ string result2 = testString("Hello", " World");
 bool result3 = testBool(true);
 string result4 = testMixed(42, "Answer: ", true);
 
-print(toString(result1));
+print(result1);
 print(result2);
-print(toString(result3));
+print(result3);
 print(result4);

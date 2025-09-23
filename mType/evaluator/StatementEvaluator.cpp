@@ -981,14 +981,14 @@ namespace evaluator
     Value StatementEvaluator::evaluateReturnNode(ReturnNode* node)
     {
         Value returnValue = std::monostate{};
-        
+
         if (node->getReturnValue() && exprEvaluator) {
             returnValue = exprEvaluator->evaluate(node->getReturnValue());
         }
-        
+
         context->pushReturnValue(returnValue);
         context->setReturned(true);
-        
+
         throw ReturnException(returnValue);
     }
     

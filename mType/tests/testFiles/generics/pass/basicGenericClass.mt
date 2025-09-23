@@ -1,5 +1,7 @@
+import "../../lib/primitives/Int.mt";
+
 // Basic generic class definition and instantiation
-class Container<T> {
+class Box<T> {
     T value;
 
     function setValue(T newValue): void {
@@ -12,9 +14,9 @@ class Container<T> {
 }
 
 function main(): void {
-    Container<int> intContainer = new Container<int>();
-    intContainer.setValue(42);
-    int result = intContainer.getValue();
+    Box<Int> intBox = new Box<Int>();
+    intBox.setValue(new Int(42));
+    Int result = intBox.getValue();
     print("Result: " + result);
 }
 
