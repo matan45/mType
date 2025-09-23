@@ -218,6 +218,43 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Handle JSON compile mode for debugging
+    if (argc >= 3 && std::string(argv[1]) == "--compile-json")
+    {
+        std::string sourceFile = argv[2];
+        std::string outputFile = "";
+
+        if (argc >= 4)
+        {
+            outputFile = argv[3];
+        }
+        else
+        {
+            // Default JSON output file
+            outputFile = sourceFile.substr(0, sourceFile.find_last_of('.')) + ".json";
+        }
+
+        try
+        {
+            ScriptInterpreter interpreter;
+            if (interpreter.compileScriptToJSON(sourceFile, outputFile))
+            {
+                std::cout << "Successfully compiled " << sourceFile << " to JSON: " << outputFile << std::endl;
+                return 0;
+            }
+            else
+            {
+                std::cout << "Failed to compile " << sourceFile << " to JSON" << std::endl;
+                return 1;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "JSON compilation error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
     // Handle run-cached mode
     if (argc == 3 && std::string(argv[1]) == "--run-cached")
     {
@@ -244,6 +281,7 @@ int main(int argc, char* argv[])
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
         std::cout << "  " << argv[0] << " --compile <file.mt> [out]  - Compile script to AST cache\n";
+        std::cout << "  " << argv[0] << " --compile-json <file.mt> [out] - Compile script to JSON AST (debug)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled AST cache\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";

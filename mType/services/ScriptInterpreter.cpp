@@ -16,6 +16,7 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../ast/serialization/ASTSerializer.hpp"
+#include "../ast/serialization/CompleteJSONSerializer.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -82,6 +83,42 @@ namespace services
         // Use stateless Compiler - no shared state
         Compiler compiler;
         return compiler.compile(filename, outputPath);
+    }
+
+    bool ScriptInterpreter::compileScriptToJSON(const std::string& filename, const std::string& outputPath)
+    {
+        try
+        {
+            // Parse the script to get AST
+            lexer::Lexer lexer(filename);
+
+            // Create ImportManager for parsing
+            auto importManager = std::make_unique<ImportManager>();
+
+            // Set base directory to the directory of the script file (like regular compilation)
+            std::filesystem::path scriptPath(filename);
+            std::string baseDirectory = scriptPath.parent_path().string();
+            importManager->setBaseDirectory(baseDirectory);
+
+            parser::Parser parser(lexer, std::move(importManager));
+            auto ast = parser.parseProgram();
+
+            if (!ast)
+            {
+                std::cerr << "Failed to parse " << filename << std::endl;
+                return false;
+            }
+
+            // Use JSON serializer to output human-readable AST with import resolution
+            ast::serialization::CompleteJSONSerializer jsonSerializer;
+            std::shared_ptr<ast::ASTNode> sharedAst(ast.release());
+            return jsonSerializer.serializeToFileWithImports(sharedAst, outputPath, baseDirectory);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "JSON compilation error: " << e.what() << std::endl;
+            return false;
+        }
     }
 
     bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)

@@ -17,7 +17,10 @@ project "mType"
    -- Specify project files and their directory
    location "mType"
    files { "mType/**.hpp", "mType/**.cpp" ,"mType/tests/testFiles/**.mt", "mType/tests/testFiles/**.expected",}
-   
+
+   -- Include directories
+   includedirs { "nlohmann" }
+
     -- Set the target output directory using the shared variable
    targetdir (builddir)
 

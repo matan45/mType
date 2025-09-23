@@ -1,0 +1,7 @@
+Testing collections as data members...
+Number count: 3
+Alice age: 25
+Bob age: 30
+Has Alice: true
+Has Charlie: false
+Collections as data members test completed

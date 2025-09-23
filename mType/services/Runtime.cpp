@@ -1,5 +1,6 @@
 #include "Runtime.hpp"
 #include "../ast/serialization/ASTDeserializer.hpp"
+#include "../ast/serialization/CompleteJSONDeserializer.hpp"
 #include "../environment/Environment.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../evaluator/Evaluator.hpp"
@@ -19,11 +20,27 @@ namespace services
     {
         try
         {
-            std::cout << "[DEBUG] Runtime: Starting execution of " << compiledFile << std::endl;
 
-            // Deserialize the cached AST
-            ast::serialization::ASTDeserializer deserializer;
-            auto ast = deserializer.deserialize(compiledFile);
+            // Check file extension to determine deserializer type
+            std::filesystem::path filePath(compiledFile);
+            std::string extension = filePath.extension().string();
+
+            std::shared_ptr<ast::ASTNode> ast;
+
+            if (extension == ".json")
+            {
+                // Use JSON deserializer for .json files
+                // IMPORTANT: Keep deserializer alive to preserve import cache and prevent dangling pointers
+                static ast::serialization::CompleteJSONDeserializer jsonDeserializer;
+                ast = jsonDeserializer.deserializeFromFile(compiledFile);
+            }
+            else
+            {
+                // Use binary deserializer for .mtc files
+                ast::serialization::ASTDeserializer deserializer;
+                auto uniqueAst = deserializer.deserialize(compiledFile);
+                ast = std::shared_ptr<ast::ASTNode>(uniqueAst.release());
+            }
 
             if (!ast)
             {
@@ -31,7 +48,6 @@ namespace services
                 return false;
             }
 
-            std::cout << "[DEBUG] Runtime: AST deserialized successfully" << std::endl;
 
             // Create completely isolated execution environment
             environment::EnvironmentBuilder envBuilder;
@@ -50,32 +66,38 @@ namespace services
                 );
             }
 
-            // Create fresh ImportManager for this execution
-            auto importManager = std::make_unique<ImportManager>();
+            // For JSON files, imports are already resolved and embedded in the AST
+            // For binary files, we still need an ImportManager for runtime resolution
+            if (extension != ".json")
+            {
+                // Create fresh ImportManager for this execution
+                auto importManager = std::make_unique<ImportManager>();
 
-            // Set base directory to the release directory for cached execution
-            std::filesystem::path compiledPath(compiledFile);
-            std::string releaseDir = "release";
-            if (std::filesystem::exists(releaseDir)) {
-                importManager->setBaseDirectory(releaseDir);
-            } else {
-                // Fallback to the directory of the compiled file
-                importManager->setBaseDirectory(compiledPath.parent_path().string());
+                // Set base directory to the release directory for cached execution
+                std::filesystem::path compiledPath(compiledFile);
+                std::string releaseDir = "release";
+                if (std::filesystem::exists(releaseDir)) {
+                    importManager->setBaseDirectory(releaseDir);
+                } else {
+                    // Fallback to the directory of the compiled file
+                    importManager->setBaseDirectory(compiledPath.parent_path().string());
+                }
+
+                // Set ImportManager on isolated environment
+                ImportManager* importManagerPtr = importManager.release();
+                isolatedEnvironment->setImportManager(importManagerPtr);
             }
-
-            // Set ImportManager on isolated environment
-            ImportManager* importManagerPtr = importManager.release();
-            isolatedEnvironment->setImportManager(importManagerPtr);
+            else
+            {
+            }
 
             // Pre-register all class definitions in isolated environment
             preRegisterClassDefinitions(ast.get(), isolatedEvaluator.get());
 
-            std::cout << "[DEBUG] Runtime: About to execute AST" << std::endl;
 
             // Execute the cached AST with completely isolated evaluator
             isolatedEvaluator->evaluate(ast.get());
 
-            std::cout << "[DEBUG] Runtime: Execution completed successfully" << std::endl;
             return true;
         }
         catch (const std::exception& e)

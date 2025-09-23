@@ -1,0 +1,6 @@
+Person size: 1
+Employee size: 1
+Retrieved person: Alice (25 years old)
+Retrieved employee: John from Engineering
+Contains alice: true
+Contains john: true

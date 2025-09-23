@@ -206,7 +206,6 @@ namespace evaluator
 
     Value EvaluatorCoordinator::visitIndexAssignmentNode(IndexAssignmentNode* node)
     {
-        std::cout << "[DEBUG] EvaluatorCoordinator::visitIndexAssignmentNode called" << std::endl;
         return objEvaluator->evaluateIndexAssignmentNode(node);
     }
     

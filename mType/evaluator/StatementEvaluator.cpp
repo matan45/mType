@@ -1,6 +1,7 @@
 #include "StatementEvaluator.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
+#include <iostream>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
@@ -33,6 +34,7 @@
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
+#include "Evaluator.hpp"
 #include "../value/NativeArray.hpp"
 
 namespace evaluator
@@ -1091,6 +1093,23 @@ namespace evaluator
     
     Value StatementEvaluator::evaluateImportNode(ImportNode* node)
     {
+        // Check if import is already resolved (e.g., from JSON deserialization)
+        if (node->isResolved() && node->getImportedAST()) {
+
+            // Directly evaluate the embedded AST instead of resolving from files
+            ASTNode* importedAST = node->getImportedAST();
+
+            // Evaluate the embedded AST directly using the current evaluation context
+            // This should register all classes, functions, etc. from the import
+            if (importedAST) {
+                // Recursively evaluate the imported AST using the statement evaluator
+                Value result = this->evaluate(importedAST);
+            }
+
+            return std::monostate{}; // Import completed successfully
+        }
+
+        // Fall back to normal ImportManager-based resolution for non-resolved imports
         auto env = context->getEnvironment();
         auto importManager = env->getImportManager();
 

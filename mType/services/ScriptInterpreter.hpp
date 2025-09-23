@@ -40,6 +40,7 @@ namespace services
 
         // AST caching methods
         bool compileScript(const std::string& filename, const std::string& outputPath = "");
+        bool compileScriptToJSON(const std::string& filename, const std::string& outputPath = "");
         bool runCachedScript(const std::string& cachedPath);
         
         // Native function registration
