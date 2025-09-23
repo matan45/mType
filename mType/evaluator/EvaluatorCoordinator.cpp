@@ -206,7 +206,6 @@ namespace evaluator
 
     Value EvaluatorCoordinator::visitIndexAssignmentNode(IndexAssignmentNode* node)
     {
-        std::cout << "[DEBUG] EvaluatorCoordinator::visitIndexAssignmentNode called" << std::endl;
         return objEvaluator->evaluateIndexAssignmentNode(node);
     }
     
@@ -297,12 +296,6 @@ namespace evaluator
     {
         return exprEvaluator->evaluateArrayCreationNode(node);
     }
-
-    // REMOVED: MapLiteralNode no longer exists - collections now implemented in mType
-    /* Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
-    {
-        return exprEvaluator->evaluateMapLiteralNode(node);
-    } */
 
     Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
     {

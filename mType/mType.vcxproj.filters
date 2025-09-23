@@ -103,15 +103,6 @@
     <Filter Include="tests\testFiles\complie">
       <UniqueIdentifier>{D2F3F1EE-3E2B-3A86-4735-9EA9B3EB607F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\complie\lib">
-      <UniqueIdentifier>{F82BA73B-6439-D521-ED1F-D10C592CA1D8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\complie\lib\collections">
-      <UniqueIdentifier>{06C94A37-7258-0C22-7B54-ED39E762472E}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\complie\lib\primitives">
-      <UniqueIdentifier>{F362B05C-DFB4-874C-C8D3-C45CB4C4A035}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\complie\pass">
       <UniqueIdentifier>{18BD8EB0-0478-7E5C-AD2F-F7A699C9C8EC}</UniqueIdentifier>
     </Filter>
@@ -156,6 +147,15 @@
     </Filter>
     <Filter Include="tests\testFiles\integration\pass">
       <UniqueIdentifier>{F32F8641-DF80-7183-08E5-5F45F49404ED}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib">
+      <UniqueIdentifier>{80110C32-EC72-E93F-75E0-2FF2E14020FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\collections">
+      <UniqueIdentifier>{8E3AAC11-FA1D-BB51-0321-E98D6F8381A2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\primitives">
+      <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\native">
       <UniqueIdentifier>{D0DB4994-BCD5-72E6-A542-09F791DBD852}</UniqueIdentifier>
@@ -319,6 +319,12 @@
       <Filter>ast\serialization</Filter>
     </ClInclude>
     <ClInclude Include="ast\serialization\ASTSerializer.hpp">
+      <Filter>ast\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\serialization\CompleteJSONDeserializer.hpp">
+      <Filter>ast\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\serialization\CompleteJSONSerializer.hpp">
       <Filter>ast\serialization</Filter>
     </ClInclude>
     <ClInclude Include="ast\serialization\SerializationFormat.hpp">
@@ -702,6 +708,12 @@
       <Filter>ast\serialization</Filter>
     </ClCompile>
     <ClCompile Include="ast\serialization\ASTSerializer.cpp">
+      <Filter>ast\serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\serialization\CompleteJSONDeserializer.cpp">
+      <Filter>ast\serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\serialization\CompleteJSONSerializer.cpp">
       <Filter>ast\serialization</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
@@ -1162,36 +1174,6 @@
     <None Include="tests\testFiles\class\pass\staticMethods.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
-    <None Include="tests\testFiles\complie\lib\collections\HashMap.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\collections\HashSet.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\collections\LinkedList.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\collections\List.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\collections\Queue.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\collections\Stack.mt">
-      <Filter>tests\testFiles\complie\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\primitives\Bool.mt">
-      <Filter>tests\testFiles\complie\lib\primitives</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\primitives\Float.mt">
-      <Filter>tests\testFiles\complie\lib\primitives</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\primitives\Int.mt">
-      <Filter>tests\testFiles\complie\lib\primitives</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\lib\primitives\String.mt">
-      <Filter>tests\testFiles\complie\lib\primitives</Filter>
-    </None>
     <None Include="tests\testFiles\complie\pass\classGenericSerialization.expected">
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
@@ -1229,6 +1211,12 @@
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.mt">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\staticGenericMethodsSerialization.expected">
+      <Filter>tests\testFiles\complie\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\complie\pass\staticGenericMethodsSerialization.mt">
       <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\complie\pass\switchNestedInLoops.expected">
@@ -1501,9 +1489,6 @@
     <None Include="tests\testFiles\error\error\staticMethodAccessThis.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
-    <None Include="tests\testFiles\error\error\staticMethodCallInstanceMethod.mt">
-      <Filter>tests\testFiles\error\error</Filter>
-    </None>
     <None Include="tests\testFiles\error\error\syntaxInvalidFunctionName.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
@@ -1636,6 +1621,9 @@
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\mixedStaticGenericMethods.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\mixedStaticGenericMethods.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
@@ -1651,7 +1639,13 @@
     <None Include="tests\testFiles\generics\pass\staticGenericCollectionReturns.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericMethodParameterless.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\staticGenericMethodParameterless.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericMethods.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericMethods.mt">
@@ -1661,6 +1655,9 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericSimpleContainer.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.mt">
@@ -1702,10 +1699,22 @@
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\classGenericSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\classGenericSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\collectionsAsDataMembers.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\collectionsAsDataMembers.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\complexControlFlowPerformance.expected">
@@ -1762,6 +1771,21 @@
     <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\genericClassCompilation.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericClassCompilation.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericImportSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericImportSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericLibrary.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -1802,6 +1826,12 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\memoryUsageWithDeepNesting.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
@@ -1858,10 +1888,31 @@
     <None Include="tests\testFiles\integration\pass\returnWithNamespace.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\staticGenericMethodsSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\staticGenericMethodsSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\switchNestedInLoops.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_import_main.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_import_main.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_library.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.expected">
@@ -1869,6 +1920,36 @@
     </None>
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\HashMap.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\HashSet.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\LinkedList.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\List.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\Queue.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\Stack.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\primitives\Bool.mt">
+      <Filter>tests\testFiles\lib\primitives</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\primitives\Float.mt">
+      <Filter>tests\testFiles\lib\primitives</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\primitives\Int.mt">
+      <Filter>tests\testFiles\lib\primitives</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\primitives\String.mt">
+      <Filter>tests\testFiles\lib\primitives</Filter>
     </None>
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>

@@ -73,6 +73,23 @@ namespace tests::testSuite
                         passPath + "invalidCombinationsHandling.mt");
         addOutputVerificationTest("Corrupted State Recovery",
                         passPath + "corruptedStateRecovery.mt");
+        
+        addOutputVerificationTest("Class Generic Serialization",
+                        passPath + "classGenericSerialization.mt");
+        addOutputVerificationTest("Collections As Data Members",
+                        passPath + "collectionsAsDataMembers.mt");
+        addOutputVerificationTest("Generic Class Compilation",
+                        passPath + "genericClassCompilation.mt");
+        addOutputVerificationTest("Generic Import Serialization",
+                        passPath + "genericImportSerialization.mt");
+        addOutputVerificationTest("Multi Type Generic Serialization",
+                        passPath + "multiTypeGenericSerialization.mt");
+        addOutputVerificationTest("Static Generic Methods Serialization",
+                        passPath + "staticGenericMethodsSerialization.mt");
+        addOutputVerificationTest("Switch Nested In Loops",
+                        passPath + "switchNestedInLoops.mt");
+        addOutputVerificationTest("Test Import Main",
+                        passPath + "test_import_main.mt");
     }
 }
 
