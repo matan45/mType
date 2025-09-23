@@ -48,9 +48,9 @@ namespace services
         ASTNode* parseAndCacheAST(const std::string& rawPath);
 
         // Utility methods for .mtc support
-        std::string convertToMtcPath(const std::string& mtPath);
-        bool mtcFileExists(const std::string& mtPath);
-        ASTNode* loadFromMtcFile(const std::string& mtcPath);
+        //std::string convertToMtcPath(const std::string& mtPath);
+        /*bool mtcFileExists(const std::string& mtPath);
+        ASTNode* loadFromMtcFile(const std::string& mtcPath);*/
 
         // Clear import cache (useful for REPL or hot reload)
         void clearCache();

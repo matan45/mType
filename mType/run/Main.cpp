@@ -7,7 +7,7 @@
 #include "../tests/suites/ErrorTestSuite.hpp"
 #include "../tests/suites/GenericsTestSuite.hpp"
 #include "../tests/suites/ArrayTestSuite.hpp"
-#include "../tests/suites/SerializationTestSuite.hpp"
+//#include "../tests/suites/SerializationTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -65,10 +65,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ArrayTestSuite>();
     }
-    else if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
+    /*else if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
     {
         return std::make_unique<SerializationTestSuite>();
-    }
+    }*/
     return nullptr;
 }
 
@@ -100,13 +100,13 @@ void runSpecificTestSuite(const std::string& suiteName)
     }
 
     // Handle serialization test separately since it needs custom execution
-    if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
+   /* if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
     {
         std::cout << "Running Serialization Test Suite...\n\n";
         auto serializationTest = std::make_unique<SerializationTestSuite>();
         serializationTest->run();
         return;
-    }
+    }*/
 
     auto suite = createTestSuite(suiteName);
     if (!suite)
@@ -145,8 +145,8 @@ void runAllTests()
 
     // Run serialization tests separately
     std::cout << "\nRunning Serialization Test Suite...\n";
-    auto serializationTest = std::make_unique<SerializationTestSuite>();
-    serializationTest->run();
+   /* auto serializationTest = std::make_unique<SerializationTestSuite>();
+    serializationTest->run();*/
 
     // Run native tests separately
     std::cout << "\nRunning Native C++ Integration Test Suite...\n";
@@ -178,7 +178,7 @@ int main(int argc, char* argv[])
     }
 
     // Handle compile-only mode
-    if (argc >= 3 && std::string(argv[1]) == "--compile")
+    /*if (argc >= 3 && std::string(argv[1]) == "--compile")
     {
         std::string sourceFile = argv[2];
         std::string outputFile = "";
@@ -216,10 +216,10 @@ int main(int argc, char* argv[])
             std::cerr << "Error: " << e.what() << std::endl;
             return 1;
         }
-    }
+    }*/
 
     // Handle JSON compile mode for debugging
-    if (argc >= 3 && std::string(argv[1]) == "--compile-json")
+   /* if (argc >= 3 && std::string(argv[1]) == "--compile-json")
     {
         std::string sourceFile = argv[2];
         std::string outputFile = "";
@@ -253,10 +253,10 @@ int main(int argc, char* argv[])
             std::cout << "JSON compilation error: " << e.what() << std::endl;
             return 1;
         }
-    }
+    }*/
 
     // Handle run-cached mode
-    if (argc == 3 && std::string(argv[1]) == "--run-cached")
+   /* if (argc == 3 && std::string(argv[1]) == "--run-cached")
     {
         std::string cachedFile = argv[2];
 
@@ -274,15 +274,15 @@ int main(int argc, char* argv[])
             std::cerr << "Error: " << e.what() << std::endl;
             return 1;
         }
-    }
+    }*/
 
     if (argc == 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
-        std::cout << "  " << argv[0] << " --compile <file.mt> [out]  - Compile script to AST cache\n";
-        std::cout << "  " << argv[0] << " --compile-json <file.mt> [out] - Compile script to JSON AST (debug)\n";
-        std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled AST cache\n";
+        //std::cout << "  " << argv[0] << " --compile <file.mt> [out]  - Compile script to AST cache\n";
+       // std::cout << "  " << argv[0] << " --compile-json <file.mt> [out] - Compile script to JSON AST (debug)\n";
+        //std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled AST cache\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
@@ -293,7 +293,7 @@ int main(int argc, char* argv[])
     if (argc != 2)
     {
         std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
-        std::cout << "       " << argv[0] << " --compile <file.mt> [output] or --run-cached <file.mtc>" << std::endl;
+        //std::cout << "       " << argv[0] << " --compile <file.mt> [output] or --run-cached <file.mtc>" << std::endl;
         std::cout << "Use --help for detailed usage information" << std::endl;
         return 1;
     }

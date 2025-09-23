@@ -1,12 +1,8 @@
 ﻿#include "ScriptInterpreter.hpp"
-#include "Compiler.hpp"
-#include "Runtime.hpp"
 #include <iostream>
 #include <filesystem>
-#include <unordered_set>
 #include <stdexcept>
 #include <memory>
-#include <chrono>
 #include <algorithm>
 
 #include "ImportManager.hpp"
@@ -15,16 +11,14 @@
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
-#include "../ast/serialization/ASTSerializer.hpp"
-#include "../ast/serialization/CompleteJSONSerializer.hpp"
-#include "../ast/nodes/statements/ImportNode.hpp"
+//#include "../ast/serialization/CompleteJSONSerializer.hpp"
+//#include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -78,55 +72,55 @@ namespace services
         evaluator->evaluate(ast.get());
     }
 
-    bool ScriptInterpreter::compileScript(const std::string& filename, const std::string& outputPath)
-    {
-        // Use stateless Compiler - no shared state
-        Compiler compiler;
-        return compiler.compile(filename, outputPath);
-    }
-
-    bool ScriptInterpreter::compileScriptToJSON(const std::string& filename, const std::string& outputPath)
-    {
-        try
-        {
-            // Parse the script to get AST
-            lexer::Lexer lexer(filename);
-
-            // Create ImportManager for parsing
-            auto importManager = std::make_unique<ImportManager>();
-
-            // Set base directory to the directory of the script file (like regular compilation)
-            std::filesystem::path scriptPath(filename);
-            std::string baseDirectory = scriptPath.parent_path().string();
-            importManager->setBaseDirectory(baseDirectory);
-
-            parser::Parser parser(lexer, std::move(importManager));
-            auto ast = parser.parseProgram();
-
-            if (!ast)
-            {
-                std::cerr << "Failed to parse " << filename << std::endl;
-                return false;
-            }
-
-            // Use JSON serializer to output human-readable AST with import resolution
-            ast::serialization::CompleteJSONSerializer jsonSerializer;
-            std::shared_ptr<ast::ASTNode> sharedAst(ast.release());
-            return jsonSerializer.serializeToFileWithImports(sharedAst, outputPath, baseDirectory);
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "JSON compilation error: " << e.what() << std::endl;
-            return false;
-        }
-    }
-
-    bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
-    {
-        // Use isolated Runtime for execution - prevents state pollution
-        Runtime runtime;
-        return runtime.execute(cachedPath);
-    }
+    /* bool ScriptInterpreter::compileScript(const std::string& filename, const std::string& outputPath)
+     {
+         // Use stateless Compiler - no shared state
+         Compiler compiler;
+         return compiler.compile(filename, outputPath);
+     }
+ 
+     bool ScriptInterpreter::compileScriptToJSON(const std::string& filename, const std::string& outputPath)
+     {
+         try
+         {
+             // Parse the script to get AST
+             lexer::Lexer lexer(filename);
+ 
+             // Create ImportManager for parsing
+             auto importManager = std::make_unique<ImportManager>();
+ 
+             // Set base directory to the directory of the script file (like regular compilation)
+             std::filesystem::path scriptPath(filename);
+             std::string baseDirectory = scriptPath.parent_path().string();
+             importManager->setBaseDirectory(baseDirectory);
+ 
+             parser::Parser parser(lexer, std::move(importManager));
+             auto ast = parser.parseProgram();
+ 
+             if (!ast)
+             {
+                 std::cerr << "Failed to parse " << filename << std::endl;
+                 return false;
+             }
+ 
+             // Use JSON serializer to output human-readable AST with import resolution
+             ast::serialization::CompleteJSONSerializer jsonSerializer;
+             std::shared_ptr<ast::ASTNode> sharedAst(ast.release());
+             return jsonSerializer.serializeToFileWithImports(sharedAst, outputPath, baseDirectory);
+         }
+         catch (const std::exception& e)
+         {
+             std::cerr << "JSON compilation error: " << e.what() << std::endl;
+             return false;
+         }
+     }
+ 
+     bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
+     {
+         // Use isolated Runtime for execution - prevents state pollution
+         Runtime runtime;
+         return runtime.execute(cachedPath);
+     }*/
 
 
     void ScriptInterpreter::registerNativeFunction(const std::string& name, NativeFunction function)
@@ -507,7 +501,7 @@ namespace services
         return classDef->getName();
     }
 
-    void ScriptInterpreter::compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory)
+    /*void ScriptInterpreter::compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory)
     {
         static std::unordered_set<std::string> beingCompiled;
         std::vector<std::string> importPaths;
@@ -572,9 +566,9 @@ namespace services
             // Clean up tracking - remove from being compiled
             beingCompiled.erase(normalizedPath);
         }
-    }
+    }*/
 
-    void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports,
+   /* void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports,
                                                const std::string& baseDirectory)
     {
         if (!node) return;
@@ -607,7 +601,7 @@ namespace services
             }
         }
         // Note: ImportNodes are typically at the top level, so we mainly need to check ProgramNode and BlockNode
-    }
+    }*/
 
     void ScriptInterpreter::preRegisterClassDefinitions(ast::ASTNode* node)
     {

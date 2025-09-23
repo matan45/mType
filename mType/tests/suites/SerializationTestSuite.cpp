@@ -70,7 +70,8 @@ namespace tests::testSuite
                 std::filesystem::remove(mtcPath);
 
                 // Step 1: Compile .mt to .mtc
-                bool compileSuccess = interpreter.compileScript(filePath, mtcPath);
+                //bool compileSuccess = interpreter.compileScript(filePath, mtcPath);
+                bool compileSuccess = false;
                 if (!compileSuccess)
                 {
                     std::cout << "FAILED (compilation failed)" << std::endl;
@@ -83,7 +84,9 @@ namespace tests::testSuite
                 std::streambuf* oldCout = std::cout.rdbuf();
                 std::cout.rdbuf(outputBuffer.rdbuf());
 
-                bool runSuccess = interpreter.runCachedScript(mtcPath);
+                //bool runSuccess = interpreter.runCachedScript(mtcPath);
+                bool runSuccess = false
+                ;
 
                 std::cout.rdbuf(oldCout);
                 std::string actualOutput = outputBuffer.str();

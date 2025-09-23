@@ -69,7 +69,7 @@ namespace services
         return astPtr;
     }
 
-    std::string ImportManager::convertToMtcPath(const std::string& mtPath)
+   /* std::string ImportManager::convertToMtcPath(const std::string& mtPath)
     {
         fs::path path(mtPath);
 
@@ -81,15 +81,15 @@ namespace services
         // Convert .mt to .mtc
         path.replace_extension(".mtc");
         return path.string();
-    }
+    }*/
 
-    bool ImportManager::mtcFileExists(const std::string& mtPath)
+   /* bool ImportManager::mtcFileExists(const std::string& mtPath)
     {
         std::string mtcPath = convertToMtcPath(mtPath);
         return fs::exists(mtcPath) && fs::is_regular_file(mtcPath);
-    }
+    }*/
 
-    ASTNode* ImportManager::loadFromMtcFile(const std::string& mtcPath)
+   /* ASTNode* ImportManager::loadFromMtcFile(const std::string& mtcPath)
     {
         try {
             ast::serialization::ASTDeserializer deserializer;
@@ -103,7 +103,7 @@ namespace services
         }
 
         return nullptr;
-    }
+    }*/
     
     std::string ImportManager::resolvePathConsistently(const std::string& path)
     {

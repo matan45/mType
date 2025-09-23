@@ -435,7 +435,7 @@ namespace ast::serialization
 
     std::unique_ptr<ASTNode> CompleteJSONDeserializer::deserializeNodeUnique_Float(const json& nodeJson)
     {
-        double value = nodeJson["value"].get<double>();
+        float value = nodeJson["value"].get<float>();
         auto location = deserializeSourceLocation(nodeJson);
         return std::make_unique<nodes::expressions::FloatNode>(value, location);
     }
