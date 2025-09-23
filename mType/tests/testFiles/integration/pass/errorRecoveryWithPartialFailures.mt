@@ -12,11 +12,11 @@ class FailureProneOperation {
         attempt = attempt + 1;
         
         if (attempt <= 2) {
-            return "RETRY: " + operation + " attempt " + toString(attempt);
+            return "RETRY: " + operation + " attempt " + attempt;
         } else if (attempt == 3) {
-            return "SUCCESS: " + operation + " succeeded on attempt " + toString(attempt);
+            return "SUCCESS: " + operation + " succeeded on attempt " + attempt;
         } else {
-            return "FAILED: " + operation + " failed after " + toString(attempt) + " attempts";
+            return "FAILED: " + operation + " failed after " + attempt + " attempts";
         }
     }
 }
@@ -26,14 +26,14 @@ function batchOperationWithRecovery(): string {
     final int NUM_OPERATIONS = 3;
     
     for (int i = 0; i < NUM_OPERATIONS; i++) {
-        FailureProneOperation op = new FailureProneOperation("Op" + toString(i));
+        FailureProneOperation op = new FailureProneOperation("Op" + i);
         
         // Try operation multiple times
         for (int retry = 0; retry < 4; retry++) {
             string result = op.tryOperation();
             results = results + result + " | ";
             
-            if (result != "RETRY: Op" + toString(i) + " attempt " + toString(retry + 1)) {
+            if (result != "RETRY: Op" + i + " attempt " + (retry + 1)) {
                 break;
             }
         }

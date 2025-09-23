@@ -34,7 +34,7 @@
             int total = 0;
             
             for (int i = 0; i < 3; i++) {
-                Node node = new Node(i * 10, "node" + toString(i));
+                Node node = new Node(i * 10, "node" + i);
                 total = total + node.processNode(2);
             }
             

@@ -29,7 +29,7 @@ function batchOperation(): string {
         for (int j = 0; j < 2; j++) {
             int local = counter.increment();
             int global = counter.getGlobalCount();
-            result = result + toString(local) + ":" + toString(global) + " ";
+            result = result + local + ":" + global + " ";
         }
     }
     

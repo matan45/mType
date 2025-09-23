@@ -29,7 +29,7 @@ class AudioManager {
     final int CHANNELS = 32;
     
     function configure(): string {
-        return "Audio: " + toString(CHANNELS) + " channels, pitch: " + toString(DEFAULT_PITCH);
+        return "Audio: " + CHANNELS + " channels, pitch: " + DEFAULT_PITCH;
     }
 }
 

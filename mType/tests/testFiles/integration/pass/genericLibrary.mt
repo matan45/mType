@@ -1,6 +1,6 @@
-import "../lib/collections/HashSet.mt";
-import "../lib/primitives/Int.mt";
-import "../lib/primitives/String.mt";
+import "../../lib/collections/HashSet.mt";
+import "../../lib/primitives/Int.mt";
+import "../../lib/primitives/String.mt";
 
 // Generic library for testing imports with generics
 class GenericContainer<T> {

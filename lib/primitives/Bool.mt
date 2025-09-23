@@ -42,11 +42,7 @@ class Bool {
 
     // Utility
     function toString(): string {
-        if (this.value) {
-            return "true";
-        } else {
-            return "false";
-        }
+        return parsePrimitive(this.value);
     }
 
     function hashCode(): int {

@@ -295,6 +295,7 @@ namespace evaluator::utils
             originalMethod->isStatic(),
             originalMethod->getGenericReturnType(),   // Preserve generic return type
             originalMethod->getGenericParameters(),   // Preserve generic parameters
+            originalMethod->getGenericTypeParameters(), // Preserve generic type parameter declarations
             substitutionMap                           // Store substitution map for runtime resolution
         );
     }
@@ -318,5 +319,72 @@ namespace evaluator::utils
             newParams,
             originalConstructor->getBodyPtr()
         );
+    }
+
+    std::shared_ptr<runtimeTypes::klass::MethodDefinition> GenericTypeManager::instantiateStaticGenericMethod(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
+        const std::vector<std::string>& typeArguments)
+    {
+        if (!genericMethod->hasGenericInformation()) {
+            // Method is not generic, return as-is
+            return genericMethod;
+        }
+
+        // Get the actual generic type parameters (like <T>, <K,V>)
+        const auto& genericParams = genericMethod->getGenericTypeParameters();
+
+        // Create type substitution map
+        auto substitutionMap = createTypeSubstitutionMap(
+            genericParams,
+            typeArguments
+        );
+
+        // Create specialized method with type substitution
+        return substituteMethodTypes(genericMethod, substitutionMap);
+    }
+
+    std::string GenericTypeManager::createStaticMethodSignatureKey(
+        const std::string& className,
+        const std::string& methodName,
+        const std::vector<std::string>& typeArguments)
+    {
+        std::string key = className + "::" + methodName;
+
+        if (!typeArguments.empty()) {
+            key += "<";
+            for (size_t i = 0; i < typeArguments.size(); ++i) {
+                if (i > 0) key += ",";
+                key += typeArguments[i];
+            }
+            key += ">";
+        }
+
+        return key;
+    }
+
+    bool GenericTypeManager::validateStaticMethodTypeArguments(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
+        const std::vector<std::string>& typeArguments)
+    {
+        if (!genericMethod->hasGenericInformation()) {
+            // Non-generic method should not have type arguments
+            return typeArguments.empty();
+        }
+
+        // Check if type argument count matches generic type parameter count
+        const auto& genericTypeParams = genericMethod->getGenericTypeParameters();
+        if (typeArguments.size() != genericTypeParams.size()) {
+            return false;
+        }
+
+        // TODO: Add constraint checking when bounds are implemented
+        // For now, just check that all type arguments are non-empty
+        for (const auto& typeArg : typeArguments) {
+            if (typeArg.empty()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

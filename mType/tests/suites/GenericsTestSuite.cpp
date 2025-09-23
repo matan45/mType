@@ -24,6 +24,20 @@ namespace tests::testSuite
         addOutputVerificationTest("HashMap HashSet Optimization",
                         passPath + "hashmapHashsetOptimization.mt");
 
+        // Static generic method tests
+        addOutputVerificationTest("Static Generic Methods",
+                        passPath + "staticGenericMethods.mt");
+        addOutputVerificationTest("Static Generic Method Parameterless",
+                        passPath + "staticGenericMethodParameterless.mt");
+        addOutputVerificationTest("Mixed Static Generic Methods",
+                        passPath + "mixedStaticGenericMethods.mt");
+        addOutputVerificationTest("Static Generic Simple Returns",
+                        passPath + "staticGenericSimpleReturns.mt");
+        addOutputVerificationTest("Static Generic Simple Container",
+                        passPath + "staticGenericSimpleContainer.mt");
+        addOutputVerificationTest("Static Generic Collection Returns",
+                        passPath + "staticGenericCollectionReturns.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",
@@ -39,6 +53,14 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Invalid Return Type Assignment",
                     errorPath + "invalidReturnTypeAssignment.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Static generic method error tests
+        addTestFromFile("Static Generic Wrong Type Arg Count",
+                    errorPath + "staticGenericWrongTypeArgCount.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Non-Generic with Type Args",
+                    errorPath + "staticNonGenericWithTypeArgs.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

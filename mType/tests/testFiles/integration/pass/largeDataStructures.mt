@@ -45,11 +45,11 @@ class DataProcessor {
 
 function analyzeResults(int result, int processedCount): string {
     if (result > 100000) {
-        return "Large result: " + toString(result) + " from " + toString(processedCount) + " items";
+        return "Large result: " + result + " from " + processedCount + " items";
     } else if (result > 10000) {
-        return "Medium result: " + toString(result) + " from " + toString(processedCount) + " items";
+        return "Medium result: " + result + " from " + processedCount + " items";
     } else {
-        return "Small result: " + toString(result) + " from " + toString(processedCount) + " items";
+        return "Small result: " + result + " from " + processedCount + " items";
     }
 }
 

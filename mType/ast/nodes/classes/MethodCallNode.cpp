@@ -3,9 +3,10 @@
 namespace ast::nodes::classes
 {
     MethodCallNode::MethodCallNode(std::unique_ptr<ASTNode> obj, const std::string& method,
-                                   std::vector<std::unique_ptr<ASTNode>> args, bool isStatic, const SourceLocation& loc)
+                                   std::vector<std::unique_ptr<ASTNode>> args, bool isStatic,
+                                   const std::vector<std::string>& genericArgs, const SourceLocation& loc)
         : ASTNode(loc), object(std::move(obj)), methodName(method),
-          arguments(std::move(args)), isStaticCall(isStatic)
+          arguments(std::move(args)), isStaticCall(isStatic), genericTypeArguments(genericArgs)
     {
     }
 
@@ -29,6 +30,16 @@ namespace ast::nodes::classes
         return isStaticCall;
     }
 
+    const std::vector<std::string>& MethodCallNode::getGenericTypeArguments() const
+    {
+        return genericTypeArguments;
+    }
+
+    bool MethodCallNode::hasGenericTypeArguments() const
+    {
+        return !genericTypeArguments.empty();
+    }
+
     void MethodCallNode::setObject(std::unique_ptr<ASTNode> obj)
     {
         object = std::move(obj);
@@ -47,6 +58,11 @@ namespace ast::nodes::classes
     void MethodCallNode::setIsStaticCall(bool isStatic)
     {
         isStaticCall = isStatic;
+    }
+
+    void MethodCallNode::setGenericTypeArguments(const std::vector<std::string>& genericArgs)
+    {
+        genericTypeArguments = genericArgs;
     }
 
     void MethodCallNode::addArgument(std::unique_ptr<ASTNode> arg)

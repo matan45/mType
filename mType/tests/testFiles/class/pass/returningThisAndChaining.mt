@@ -25,7 +25,7 @@ class Vehicle {
     }
     
     function getInfo(): string {
-        return brand + " (" + toString(year) + ")";
+        return brand + " (" + year + ")";
     }
 }
 
@@ -43,7 +43,7 @@ class StringBuilder {
     }
     
     function appendNumber(int num): StringBuilder {
-        content = content + toString(num);
+        content = content + num;
         return this;
     }
     
@@ -86,7 +86,7 @@ class Config {
     
     function getConnectionString(): string {
         string protocol = secure ? "https" : "http";
-        return protocol + "://" + host + ":" + toString(port);
+        return protocol + "://" + host + ":" + port;
     }
 }
 

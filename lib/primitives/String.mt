@@ -36,7 +36,7 @@ class String {
     }
 
     function toString() : string {
-        return value;
+        return this.value;
     }
 
     function hashCode() : int {

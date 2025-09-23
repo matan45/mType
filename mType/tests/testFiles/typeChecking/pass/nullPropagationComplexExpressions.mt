@@ -19,7 +19,7 @@ class TestData {
     }
     
     function toString(): string {
-        return name + "(" + toString(value) + ")";
+        return name + "(" + value + ")";
     }
 }
 
@@ -30,7 +30,7 @@ TestData validData = new TestData(42, "valid");
 
 // Safe arithmetic with null checks
 int result1 = (nullData != null ? nullData.getValue() : 0) + (validData != null ? validData.getValue() : 0);
-print("Safe arithmetic result: " + toString(result1));  // Should be 42
+print("Safe arithmetic result: " + result1);  // Should be 42
 
 // Nested null checks in arithmetic
 int result2 = (nullData != null ? 
@@ -39,7 +39,7 @@ int result2 = (nullData != null ?
               (validData != null ? 
                 (validData.getValue() < 50 ? validData.getValue() + 5 : validData.getValue()) 
                 : 20);
-print("Nested null arithmetic result: " + toString(result2));  // Should be 57 (10 + 47)
+print("Nested null arithmetic result: " + result2);  // Should be 57 (10 + 47)
 
 // Test 2: Null propagation in ternary chains
 print("Test 2: Null propagation in ternary chains");
@@ -62,7 +62,7 @@ int deepTernary = nullData == null ?
                 (validData.getValue() > 30 ? 3 : 4))))
     : (nullData.getValue() == 0 ? 0 :
         (nullData.getValue() > 0 ? 100 : -100));
-print("Deep ternary result: " + toString(deepTernary));  // Should be 2
+print("Deep ternary result: " + deepTernary);  // Should be 2
 
 // Test 3: Null propagation in function calls
 print("Test 3: Null propagation in function calls");
@@ -80,8 +80,8 @@ int safeValue2 = safeGetValue(nullData);
 string safeName1 = safeGetName(validData);
 string safeName2 = safeGetName(nullData);
 
-print("Safe value 1: " + toString(safeValue1));  // 42
-print("Safe value 2: " + toString(safeValue2));  // -1
+print("Safe value 1: " + safeValue1);  // 42
+print("Safe value 2: " + safeValue2);  // -1
 print("Safe name 1: " + safeName1);              // "valid"
 print("Safe name 2: " + safeName2);              // "null"
 
@@ -98,9 +98,9 @@ for (int i = 0; i < 3; i++) {
     else if (i == 1) current = item2;
     else current = item3;
     
-    string result = current != null ? 
-        "Item " + toString(i) + ": " + current.toString() + " (valid)"
-        : "Item " + toString(i) + ": null (invalid)";
+    string result = current != null ?
+        "Item " + i + ": " + current.toString() + " (valid)"
+        : "Item " + i + ": null (invalid)";
     
     print(result);
 }
@@ -138,16 +138,16 @@ int sum2 = calculateSafeSum(nullData, nullData);
 int product1 = calculateSafeProduct(validData, nullData);
 int product2 = calculateSafeProduct(nullData, nullData);
 
-print("Sum with one null: " + toString(sum1));      // 42
-print("Sum with both null: " + toString(sum2));     // 0
-print("Product with one null: " + toString(product1)); // 42
-print("Product with both null: " + toString(product2)); // 1
+print("Sum with one null: " + sum1);      // 42
+print("Sum with both null: " + sum2);     // 0
+print("Product with one null: " + product1); // 42
+print("Product with both null: " + product2); // 1
 
 // Test 7: Null propagation in string operations
 print("Test 7: Null propagation in string operations");
 function createDescription(TestData data, string prefix): string {
-    return data != null ? 
-        prefix + data.getName() + " has value " + toString(data.getValue())
+    return data != null ?
+        prefix + data.getName() + " has value " + data.getValue()
         : prefix + "no data available";
 }
 
@@ -201,10 +201,10 @@ int chain2 = chainedOperations(nullData);    // -1
 int chain3 = chainedOperations(new TestData(150, "large")); // 150
 int chain4 = chainedOperations(new TestData(-10, "negative")); // 0
 
-print("Chain 1: " + toString(chain1));  // 84
-print("Chain 2: " + toString(chain2));  // -1
-print("Chain 3: " + toString(chain3));  // 150
-print("Chain 4: " + toString(chain4));  // 0
+print("Chain 1: " + chain1);  // 84
+print("Chain 2: " + chain2);  // -1
+print("Chain 3: " + chain3);  // 150
+print("Chain 4: " + chain4);  // 0
 
 // Test 10: Null propagation with boundary conditions
 print("Test 10: Null propagation with boundary conditions");

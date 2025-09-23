@@ -129,9 +129,9 @@ namespace parser
         }
         tokenStream.advance();
 
-        // Parse generic type parameters for generic methods (only for non-static methods)
+        // Parse generic type parameters for generic methods
         std::vector<ast::GenericTypeParameter> methodGenericParameters;
-        if (!isStatic && tokenStream.check(TokenType::LESS))
+        if (tokenStream.check(TokenType::LESS))
         {
             tokenStream.advance(); // consume '<'
             methodGenericParameters = parseGenericTypeParameters();
@@ -194,8 +194,14 @@ namespace parser
             // This is a static method, parse it here since we already have the modifiers
             tokenStream.advance(); // consume 'function'
 
-            // Static methods do not support generic type parameters
+            // Parse generic type parameters for static methods
             std::vector<ast::GenericTypeParameter> methodGenericParameters;
+            if (tokenStream.check(TokenType::LESS))
+            {
+                tokenStream.advance(); // consume '<'
+                methodGenericParameters = parseGenericTypeParameters();
+                tokenStream.expect(TokenType::GREATER); // consume '>'
+            }
 
             // Parse method name
             if (tokenStream.current().type != TokenType::IDENTIFIER)

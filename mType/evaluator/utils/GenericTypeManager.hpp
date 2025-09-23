@@ -108,6 +108,38 @@ namespace evaluator::utils
             const std::string& typeString,
             const std::unordered_map<std::string, std::string>& substitutionMap);
 
+        /**
+         * @brief Create a specialized method definition from a generic static method
+         * @param genericMethod The generic static method template
+         * @param typeArguments The concrete types to substitute
+         * @return Specialized method definition
+         */
+        static std::shared_ptr<runtimeTypes::klass::MethodDefinition> instantiateStaticGenericMethod(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
+            const std::vector<std::string>& typeArguments);
+
+        /**
+         * @brief Create a signature key for caching instantiated static generic methods
+         * @param className The class name containing the method
+         * @param methodName The method name
+         * @param typeArguments The type arguments used
+         * @return Unique signature key for caching
+         */
+        static std::string createStaticMethodSignatureKey(
+            const std::string& className,
+            const std::string& methodName,
+            const std::vector<std::string>& typeArguments);
+
+        /**
+         * @brief Validate that type arguments are compatible with static method constraints
+         * @param genericMethod The generic static method definition
+         * @param typeArguments The provided type arguments
+         * @return True if valid, false otherwise
+         */
+        static bool validateStaticMethodTypeArguments(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
+            const std::vector<std::string>& typeArguments);
+
     private:
         /**
          * @brief Parse type arguments from a generic instantiation

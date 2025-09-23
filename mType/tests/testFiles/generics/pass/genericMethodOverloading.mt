@@ -1,3 +1,6 @@
+import "../../lib/primitives/Int.mt";
+import "../../lib/primitives/Bool.mt";
+
 // Generic class with method overloading
 class Storage<T> {
     T data;
@@ -12,15 +15,15 @@ class Storage<T> {
         return data;
     }
 
-    function hasData(): bool {
-        return data != null;
+    function hasData(): Bool {
+        return new Bool(data != null);
     }
 }
 
 function main(): void {
-    Storage<int> intStorage = new Storage<int>();
-    intStorage.store(999);
-    int value = intStorage.retrieve();
+    Storage<Int> intStorage = new Storage<Int>();
+    intStorage.store(new Int(999));
+    Int value = intStorage.retrieve();
     print("Final value: " + value);
     print("Has data: " + intStorage.hasData());
 }

@@ -35,7 +35,7 @@ class StateMachine {
     }
     
     function getState(): string {
-        return state + ":" + toString(stateValue);
+        return state + ":" + stateValue;
     }
 }
 

@@ -13,7 +13,7 @@ class DeepClass {
     }
     
     function getDepthInfo(): string {
-        string info = "Depth: " + toString(depth);
+        string info = "Depth: " + depth;
         
         // Deep nested control flow
         for (int i = 0; i < 3; i++) {

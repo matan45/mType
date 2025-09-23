@@ -56,7 +56,7 @@ class Int {
 
     // Utility
     function toString(): string {
-        return toString(this.value);
+        return parsePrimitive(this.value);
     }
 
     function hashCode(): int {

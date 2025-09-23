@@ -5,16 +5,23 @@
 #include <vector>
 #include "../../value/ValueType.hpp"
 
+namespace runtimeTypes::klass
+{
+    class ObjectInstance;
+}
+
 namespace environment::registry
 {
     using namespace value;
     
     using NativeFunction = std::function<Value(const std::vector<Value>&)>;
+    using MethodCallHandler = std::function<Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>, const std::string&, const std::vector<Value>&)>;
 
     class NativeRegistry
     {
     private:
         std::unordered_map<std::string, NativeFunction> nativeFunctions;
+        MethodCallHandler methodCallHandler;
 
     public:
         explicit NativeRegistry() = default;
@@ -29,6 +36,8 @@ namespace environment::registry
         bool hasNativeFunction(const std::string& name) const;
         std::vector<std::string> getAllNativeFunctionNames() const;
         size_t getNativeFunctionCount() const;
+
+        void setMethodCallHandler(MethodCallHandler handler);
 
     private:
         void registerBuiltinFunctions();

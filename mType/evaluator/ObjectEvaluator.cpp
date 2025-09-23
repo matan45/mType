@@ -18,6 +18,7 @@
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/expressions/VariableNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/IndexAssignmentNode.hpp"
@@ -126,6 +127,7 @@ namespace evaluator
         auto env = context->getEnvironment();
 
         // Create class definition with generic parameters if present
+        const auto& genericParams = node->getGenericParameters();
         auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
         // Add fields
@@ -163,8 +165,8 @@ namespace evaluator
             // Create method definition with generic type information preserved
             std::shared_ptr<MethodDefinition> methodDef;
 
-            if (node->isGeneric()) {
-                // For generic classes, preserve the generic type information
+            if (methodNode->isGeneric()) {
+                // For generic methods, preserve the generic type information
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),               // Legacy ValueType for compatibility
@@ -173,11 +175,12 @@ namespace evaluator
                     bodyPtr,
                     methodNode->getIsStatic(),
                     methodNode->getGenericReturnType(),        // NEW: Preserve generic return type
-                    methodNode->getGenericParameters(),        // NEW: Preserve generic parameters
+                    methodNode->getGenericParameters(),        // NEW: Preserve generic method parameters
+                    methodNode->getGenericTypeParameters(),    // NEW: Preserve generic type parameter declarations
                     std::unordered_map<std::string, std::string>{} // Empty substitution map for template
                 );
             } else {
-                // For non-generic classes, use legacy constructor
+                // For non-generic methods, use legacy constructor
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),
@@ -229,6 +232,18 @@ namespace evaluator
         }
 
         std::string className = node->getClassName();
+
+        // Resolve generic types using current instance context if available
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance) {
+            std::string originalClassName = className;
+            className = currentInstance->resolveGenericType(className);
+            if (originalClassName != className) {
+                const auto& bindings = currentInstance->getGenericTypeBindings();
+                for (const auto& binding : bindings) {
+                }
+            }
+        }
 
         // REMOVED: Collection handling - collections now implemented in mType language
         // All collections (Array, Map, Set, Stack, Queue) will be handled as regular mType classes
@@ -463,7 +478,49 @@ namespace evaluator
         }
 
         std::string classNameForInstance = (resolvedClassName != className) ? resolvedClassName : className;
-        auto instance = createInstance(classNameForInstance, args);
+
+        // Extract generic type bindings for this instance
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = classNameForInstance;
+
+        if (utils::GenericTypeManager::isGenericInstantiation(classNameForInstance))
+        {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(classNameForInstance);
+
+            // Debug logging
+            for (size_t i = 0; i < typeArguments.size(); ++i) {
+            }
+
+            // Use the base class name for lookup (e.g., "LinkedList" instead of "LinkedList<String>")
+            baseClassName = baseName;
+
+            // Look up the generic template class
+            auto templateClassDef = env->findClass(baseClassName);
+            if (templateClassDef) {
+            }
+
+            if (templateClassDef && templateClassDef->isGeneric())
+            {
+                const auto& genericParams = templateClassDef->getGenericParameters();
+
+                // Map each generic parameter to its concrete type
+                for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+                {
+                    genericTypeBindings[genericParams[i].name] = typeArguments[i];
+                }
+
+                // Use the template class definition for creating the instance
+                classDef = templateClassDef;
+            }
+        }
+
+        auto instance = createInstanceWithTypeBindings(classNameForInstance, args, genericTypeBindings);
+
+        // Debug: Print the created instance's type bindings
+        if (!genericTypeBindings.empty()) {
+            for (const auto& binding : genericTypeBindings) {
+            }
+        }
 
         // Execute constructor if it exists
         if (classDef && !classDef->getConstructors().empty())
@@ -474,6 +531,11 @@ namespace evaluator
                 // Set the current instance for constructor execution
                 auto prevInstance = context->getCurrentInstance();
                 context->setCurrentInstance(instance);
+
+                // Temporarily clear static method context for constructor execution
+                // Constructors always run in instance context regardless of where they're called from
+                bool wasInStaticMethod = context->isInStaticMethodContext();
+                context->setInStaticMethod(false);
 
                 // Use ScopeGuard for automatic scope management
                 {
@@ -502,11 +564,13 @@ namespace evaluator
                     catch (...)
                     {
                         context->setCurrentInstance(prevInstance);
+                        context->setInStaticMethod(wasInStaticMethod);
                         throw;
                     }
                     // Scope automatically exits via RAII
                 }
                 context->setCurrentInstance(prevInstance);
+                context->setInStaticMethod(wasInStaticMethod);
             }
         }
 
@@ -537,6 +601,34 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
         return instanceManager->createInstance(className, constructorArgs, env);
+    }
+
+    std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstanceWithTypeBindings(
+        const std::string& className,
+        const std::vector<Value>& constructorArgs,
+        const std::unordered_map<std::string, std::string>& typeBindings)
+    {
+        auto env = context->getEnvironment();
+
+        if (!env) {
+            throw TypeException("Environment is null during object creation");
+        }
+
+        auto classDef = env->getClassRegistry()->findItem(className);
+        if (!classDef) {
+            throw UndefinedException("Class '" + className + "' is not defined");
+        }
+
+        // Create instance with generic type bindings
+        auto instance = std::make_shared<ObjectInstance>(classDef, typeBindings);
+
+        // Initialize fields with default values
+        for (const auto& fieldPair : classDef->getInstanceFields()) {
+            auto field = fieldPair.second;
+            instance->setField(field->getName(), field->getValue());
+        }
+
+        return instance;
     }
 
     Value ObjectEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
@@ -830,13 +922,11 @@ namespace evaluator
             }
             else
             {
-                std::cout << "[DEBUG] ERROR: Index is not an integer" << std::endl;
                 throw TypeException("Array index must be an integer");
             }
         }
         else
         {
-            std::cout << "[DEBUG] ERROR: Object is not an Array" << std::endl;
             throw TypeException("Cannot assign to index on non-array value");
         } */
     }
@@ -869,7 +959,35 @@ namespace evaluator
             throw TypeException("Expression evaluator not available for method call");
         }
 
-        // Evaluate the object expression - delegate to expression evaluator for variables, but handle NewNode ourselves
+        // Evaluate arguments first (needed for both static and instance calls)
+        std::vector<Value> args = evaluateArgumentList(node->getArguments());
+
+        // Handle static method calls
+        if (node->getIsStaticCall())
+        {
+            // For static calls, the object should be a VariableNode containing the class name
+            if (auto varNode = dynamic_cast<nodes::expressions::VariableNode*>(node->getObject()))
+            {
+                std::string className = varNode->getName();
+
+                // Call static method with or without generic type arguments
+                if (node->hasGenericTypeArguments())
+                {
+                    return callStaticMethod(className, node->getMethodName(), args,
+                                          node->getGenericTypeArguments());
+                }
+                else
+                {
+                    return callStaticMethod(className, node->getMethodName(), args);
+                }
+            }
+            else
+            {
+                throw TypeException("Invalid static method call - expected class name");
+            }
+        }
+
+        // Handle instance method calls
         Value objectValue;
         if (dynamic_cast<NewNode*>(node->getObject()))
         {
@@ -881,9 +999,6 @@ namespace evaluator
             // Delegate to expression evaluator for other nodes (like VariableNode)
             objectValue = exprEvaluator->evaluate(node->getObject());
         }
-
-        // Evaluate arguments
-        std::vector<Value> args = evaluateArgumentList(node->getArguments());
 
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
@@ -904,6 +1019,60 @@ namespace evaluator
                                       const std::vector<Value>& args)
     {
         auto env = context->getEnvironment();
+
+        // Debug: Print method call details
+        const auto& bindings = object->getGenericTypeBindings();
+
+        // Special debug for getNodeAt method
+        if (methodName == "getNodeAt") {
+            for (const auto& binding : object->getGenericTypeBindings()) {
+            }
+
+            // Check the count field of the LinkedList
+            Value countValue = object->getFieldValue("count");
+            std::visit([](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, int>) {
+                    std::cout << value;
+                } else if constexpr (std::is_same_v<T, std::monostate>) {
+                    std::cout << "uninitialized";
+                } else {
+                    std::cout << "not an int";
+                }
+            }, countValue);
+            std::cout << std::endl;
+
+            // Check the head field of the LinkedList
+            Value headValue = object->getFieldValue("head");
+            std::visit([](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                    if (value) {
+                        std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                    } else {
+                        std::cout << "null ObjectInstance";
+                    }
+                } else if constexpr (std::is_same_v<T, std::monostate>) {
+                    std::cout << "uninitialized";
+                } else {
+                    std::cout << "other type";
+                }
+            }, headValue);
+            std::cout << std::endl;
+
+            // Add method argument debugging for getNodeAt
+            if (args.size() > 0) {
+                std::visit([](const auto& value) {
+                    using T = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<T, int>) {
+                        std::cout << value;
+                    } else {
+                        std::cout << "not an int";
+                    }
+                }, args[0]);
+                std::cout << std::endl;
+            }
+        }
 
         // Get the class definition from the object
         auto classDef = object->getClassDefinition();
@@ -928,17 +1097,37 @@ namespace evaluator
                 "'. Use class name instead.");
         }
 
-        // VALIDATION: Prevent instance method calls from static methods
+        // VALIDATION: Prevent instance method calls from static methods only when calling on 'this'
+        // Allow instance method calls on local objects and parameters within static methods
         if (context->isInStaticMethodContext() && !method->isStatic())
         {
-            throw TypeException("Cannot call instance method '" + methodName +
-                "' from static method context",
-                SourceLocation()); // TODO: Pass proper location if available
+            // Check if we're trying to call an instance method on the current instance ('this')
+            // In static methods, currentInstance should be null, so any valid object calls are allowed
+            auto currentInstance = context->getCurrentInstance();
+            if (currentInstance && currentInstance == object)
+            {
+                throw TypeException("Cannot call instance method '" + methodName +
+                    "' on 'this' from static method context",
+                    SourceLocation()); // TODO: Pass proper location if available
+            }
+            // Allow calls on other objects (local variables, parameters, newly created objects)
         }
+
 
         // Set current instance context
         auto prevInstance = context->getCurrentInstance();
         context->setCurrentInstance(object);
+
+        // Set generic type bindings from the object instance for method execution
+        auto prevGenericBindings = context->getGenericTypeBindings();
+        if (object && !object->getGenericTypeBindings().empty()) {
+            context->setGenericTypeBindings(object->getGenericTypeBindings());
+        }
+
+        // Temporarily clear static method context for instance method execution
+        // Instance methods should run in instance context regardless of where they're called from
+        bool wasInStaticMethod = context->isInStaticMethodContext();
+        context->setInStaticMethod(false);
 
         // Use ScopeGuard and ParameterBinder utilities
         {
@@ -971,12 +1160,16 @@ namespace evaluator
                 );
                 env->declareVariable("__current_class_name__", classNameVar);
 
+
                 // Execute method body
                 Value result = std::monostate{}; // void default
                 if (method->getBody() && stmtEvaluator)
                 {
                     stmtEvaluator->evaluate(method->getBody());
                 }
+
+                // Restore static method context
+                context->setInStaticMethod(wasInStaticMethod);
 
                 // Get return value if method returned
                 if (context->shouldReturn())
@@ -985,19 +1178,79 @@ namespace evaluator
                     context->setReturned(false);
                 }
 
+
                 context->setCurrentInstance(prevInstance);
+
+                // Restore previous generic type bindings
+                context->setGenericTypeBindings(prevGenericBindings);
+
+                // Debug: Show method return value
+                if (methodName == "getNodeAt") {
+                    std::visit([](const auto& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, std::monostate>) {
+                            std::cout << "std::monostate (void/uninitialized)";
+                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                            if (value) {
+                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                            } else {
+                                std::cout << "null ObjectInstance";
+                            }
+                        } else if constexpr (std::is_same_v<T, int>) {
+                            std::cout << "int(" << value << ")";
+                        } else if constexpr (std::is_same_v<T, std::string>) {
+                            std::cout << "string(" << value << ")";
+                        } else {
+                            std::cout << "other type";
+                        }
+                    }, result);
+                    std::cout << std::endl;
+                }
+
                 return result;
             }
             catch (const exception::ReturnException& e)
             {
+                // Debug: Show method return value via exception
+                if (methodName == "getNodeAt") {
+                    std::visit([](const auto& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, std::monostate>) {
+                            std::cout << "std::monostate (void/uninitialized)";
+                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                            if (value) {
+                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                                // Show generic bindings of returned object
+                                std::cout << ", bindings: ";
+                                for (const auto& binding : value->getGenericTypeBindings()) {
+                                    std::cout << binding.first << "->" << binding.second << " ";
+                                }
+                            } else {
+                                std::cout << "null ObjectInstance";
+                            }
+                        } else if constexpr (std::is_same_v<T, int>) {
+                            std::cout << "int(" << value << ")";
+                        } else if constexpr (std::is_same_v<T, std::string>) {
+                            std::cout << "string(" << value << ")";
+                        } else {
+                            std::cout << "other type";
+                        }
+                    }, e.returnValue);
+                    std::cout << std::endl;
+                }
+
                 // Handle return exception - extract return value
+                context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
+                context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 context->setReturned(false); // Reset return state after handling exception
                 return e.returnValue;
             }
             catch (...)
             {
+                context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
+                context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 throw;
             }
             // Scope automatically exits via RAII
@@ -1042,6 +1295,9 @@ namespace evaluator
                                             const std::vector<Value>& args)
     {
         auto env = context->getEnvironment();
+
+        // Declare previousMethod for restoration in exception handlers
+        auto previousMethod = context->getCurrentMethod();
 
         // Try to resolve type parameters from current object context first
         std::string resolvedClassName = className;
@@ -1140,12 +1396,14 @@ namespace evaluator
 
                     // Restore previous static method state
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     return result;
                 }
                 catch (const exception::ReturnException& e)
                 {
                     // Handle return exception - extract return value
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     context->setReturned(false);
                     return e.returnValue;
                 }
@@ -1153,6 +1411,159 @@ namespace evaluator
                 {
                     // Ensure we restore state even if exception occurs
                     context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    throw;
+                }
+            }
+            catch (...)
+            {
+                throw; // Re-throw any exceptions that weren't handled by inner try-catch
+            }
+            // Scope automatically exits via RAII
+        }
+    }
+
+    Value ObjectEvaluator::callStaticMethod(const std::string& className,
+                                            const std::string& methodName,
+                                            const std::vector<Value>& args,
+                                            const std::vector<std::string>& genericTypeArguments)
+    {
+        auto env = context->getEnvironment();
+
+        // Get the class definition
+        auto classDef = env->getClassRegistry()->findItem(className);
+        if (!classDef)
+        {
+            throw UndefinedException("Class '" + className + "' not found for static method call");
+        }
+
+        // Find the static method
+        auto method = classDef->getMethod(methodName);
+        if (!method)
+        {
+            throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
+        }
+
+        if (!method->isStatic())
+        {
+            throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
+        }
+
+        // Handle generic method instantiation
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> methodToCall = method;
+
+        if (!genericTypeArguments.empty())
+        {
+            // Validate that the method is actually generic
+            if (!method->hasGenericInformation())
+            {
+                throw TypeException("Method '" + methodName + "' is not generic but generic type arguments were provided");
+            }
+
+            // Validate type arguments
+            if (!utils::GenericTypeManager::validateStaticMethodTypeArguments(method, genericTypeArguments))
+            {
+                throw TypeException("Invalid type arguments for static generic method '" +
+                                  className + "::" + methodName + "'");
+            }
+
+            // Create a cache key for the instantiated method
+            std::string signatureKey = utils::GenericTypeManager::createStaticMethodSignatureKey(
+                className, methodName, genericTypeArguments);
+
+            // Check if we already have this instantiation cached
+            static std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::MethodDefinition>>
+                staticGenericMethodCache;
+
+            auto cacheIt = staticGenericMethodCache.find(signatureKey);
+            if (cacheIt != staticGenericMethodCache.end())
+            {
+                methodToCall = cacheIt->second;
+            }
+            else
+            {
+                // Instantiate the generic method
+                methodToCall = utils::GenericTypeManager::instantiateStaticGenericMethod(
+                    method, genericTypeArguments);
+
+                // Cache the instantiated method
+                staticGenericMethodCache[signatureKey] = methodToCall;
+            }
+        }
+
+        // Use ScopeGuard and ParameterBinder utilities
+        {
+            utils::ScopeGuard scope(env, methodName, environment::manager::ScopeType::FUNCTION);
+
+            try
+            {
+                // Use ParameterBinder utility for consistent parameter validation and binding
+                if (methodToCall->hasGenericInformation()) {
+                    // Use generic-aware parameter binding for instantiated generic methods
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        methodToCall,
+                        args,
+                        "static method '" + className + "::" + methodName + "'",
+                        env
+                    );
+                } else {
+                    // Use legacy parameter binding for non-generic methods
+                    utils::ParameterBinder::bindAndValidateParameters(
+                        methodToCall->getParameters(),
+                        args,
+                        "static method '" + className + "::" + methodName + "'",
+                        env
+                    );
+                }
+
+                // Store current class name for static field access
+                auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    "__current_class_name__", ValueType::STRING, className, false
+                );
+                env->declareVariable("__current_class_name__", classNameVar);
+
+                // Set static method context to prevent instance member access
+                bool previousStaticState = context->isInStaticMethodContext();
+                context->setInStaticMethod(true);
+
+                // Set current method context for generic type resolution
+                auto previousMethod = context->getCurrentMethod();
+                context->setCurrentMethod(methodToCall);
+
+                try
+                {
+                    // Execute method body (no instance context for static methods)
+                    Value result = std::monostate{}; // void default
+                    if (methodToCall->getBody() && stmtEvaluator)
+                    {
+                        stmtEvaluator->evaluate(methodToCall->getBody());
+                    }
+
+                    // Get return value if method returned
+                    if (context->shouldReturn())
+                    {
+                        result = context->getReturnValue();
+                        context->setReturned(false);
+                    }
+
+                    // Restore previous static method state
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    return result;
+                }
+                catch (const exception::ReturnException& e)
+                {
+                    // Handle return exception - extract return value
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
+                    context->setReturned(false);
+                    return e.returnValue;
+                }
+                catch (...)
+                {
+                    // Ensure we restore state even if exception occurs
+                    context->setInStaticMethod(previousStaticState);
+                    context->setCurrentMethod(previousMethod);
                     throw;
                 }
             }
@@ -1493,6 +1904,16 @@ namespace evaluator
 
     std::string ObjectEvaluator::resolveTypeParameterFromContext(const std::string& typeParam)
     {
+        // First try to resolve from current method context (for static generic methods)
+        auto currentMethod = context->getCurrentMethod();
+        if (currentMethod && currentMethod->hasGenericInformation()) {
+            const auto& substitutionMap = currentMethod->getTypeSubstitutionMap();
+            auto it = substitutionMap.find(typeParam);
+            if (it != substitutionMap.end()) {
+                return it->second;
+            }
+        }
+
         // Try to resolve type parameters from the current object instance context
         auto currentInstance = context->getCurrentInstance();
         if (!currentInstance) {

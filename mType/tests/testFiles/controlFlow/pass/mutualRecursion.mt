@@ -108,18 +108,18 @@ function rightPath(int n,bool direction): int {
 print("Testing mutual recursion:");
 
 // Test even/odd functions
-print("isEven(4) = " + toString(isEven(4)));  // Should be true
-print("isOdd(4) = " + toString(isOdd(4)));    // Should be false
-print("isEven(7) = " + toString(isEven(7)));  // Should be false
-print("isOdd(7) = " + toString(isOdd(7)));    // Should be true
-print("isEven(-6) = " + toString(isEven(-6))); // Should be true
-print("isOdd(-3) = " + toString(isOdd(-3)));   // Should be true
+print("isEven(4) = " + isEven(4));  // Should be true
+print("isOdd(4) = " + isOdd(4));    // Should be false
+print("isEven(7) = " + isEven(7));  // Should be false
+print("isOdd(7) = " + isOdd(7));    // Should be true
+print("isEven(-6) = " + isEven(-6)); // Should be true
+print("isOdd(-3) = " + isOdd(-3));   // Should be true
 
 // Test Fibonacci-like sequences
-print("fibA(5) = " + toString(fibA(5)));
-print("fibB(5) = " + toString(fibB(5)));
-print("fibA(6) = " + toString(fibA(6)));
-print("fibB(6) = " + toString(fibB(6)));
+print("fibA(5) = " + fibA(5));
+print("fibB(5) = " + fibB(5));
+print("fibA(6) = " + fibA(6));
+print("fibB(6) = " + fibB(6));
 
 // Test string processing
 string result1 = processStringA("start", 3);
@@ -129,22 +129,22 @@ string result2 = processStringB("begin", 2);
 print("processStringB(\"begin\", 2) = " + result2);
 
 // Test three-way recursion
-print("countDownA(2) = " + toString(countDownA(2)));
-print("countDownB(2) = " + toString(countDownB(2)));
-print("countDownC(2) = " + toString(countDownC(2)));
+print("countDownA(2) = " + countDownA(2));
+print("countDownB(2) = " + countDownB(2));
+print("countDownC(2) = " + countDownC(2));
 
 // Test conditional mutual recursion
-print("leftPath(3, true) = " + toString(leftPath(3, true)));
-print("rightPath(3, false) = " + toString(rightPath(3, false)));
-print("leftPath(2, false) = " + toString(leftPath(2, false)));
-print("rightPath(2, true) = " + toString(rightPath(2, true)));
+print("leftPath(3, true) = " + leftPath(3, true));
+print("rightPath(3, false) = " + rightPath(3, false));
+print("leftPath(2, false) = " + leftPath(2, false));
+print("rightPath(2, true) = " + rightPath(2, true));
 
 // Test edge cases
 print("Edge cases:");
-print("isEven(0) = " + toString(isEven(0)));   // Should be true
-print("isOdd(0) = " + toString(isOdd(0)));     // Should be false
-print("fibA(0) = " + toString(fibA(0)));       // Should be 0
-print("fibB(0) = " + toString(fibB(0)));       // Should be 1
-print("countDownA(0) = " + toString(countDownA(0))); // Should be 100
+print("isEven(0) = " + isEven(0));   // Should be true
+print("isOdd(0) = " + isOdd(0));     // Should be false
+print("fibA(0) = " + fibA(0));       // Should be 0
+print("fibB(0) = " + fibB(0));       // Should be 1
+print("countDownA(0) = " + countDownA(0)); // Should be 100
 
 print("Mutual recursion tests completed successfully");

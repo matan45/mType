@@ -1,12 +1,8 @@
 ﻿#include "ScriptInterpreter.hpp"
-#include "Compiler.hpp"
-#include "Runtime.hpp"
 #include <iostream>
 #include <filesystem>
-#include <unordered_set>
 #include <stdexcept>
 #include <memory>
-#include <chrono>
 #include <algorithm>
 
 #include "ImportManager.hpp"
@@ -15,13 +11,12 @@
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
-#include "../ast/serialization/ASTSerializer.hpp"
-#include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/NativeRegistry.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -34,27 +29,27 @@ namespace services
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
+
+        // Set up method call handler for native functions
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry)
+        {
+            nativeRegistry->setMethodCallHandler(
+                [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                       const std::string& methodName,
+                       const std::vector<value::Value>& args) -> value::Value
+                {
+                    return evaluator->callMethodOnInstance(instance, methodName, args);
+                }
+            );
+        }
     }
 
     ScriptInterpreter::~ScriptInterpreter() = default;
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        // Check for cached AST first
-        std::filesystem::path sourcePath(filename);
-        std::string cacheFile = sourcePath.string() + "c"; // .mt -> .mtc
-
-        if (std::filesystem::exists(cacheFile) && isCacheValid(filename, cacheFile))
-        {
-            // Use cached AST
-            if (runCachedScript(cacheFile))
-            {
-                return;
-            }
-            // If cache loading fails, fall back to parsing
-        }
-
-        // Parse and execute
+        // Always parse and execute .mt files directly (no auto-caching)
         lexer::Lexer lexer(filename);
 
         // Create and configure ImportManager
@@ -72,49 +67,8 @@ namespace services
         // Set ImportManager on environment for clean architecture
         environment->setImportManager(importManagerPtr);
 
-        // Cache the AST for future use
-        ast::serialization::ASTSerializer serializer;
-        serializer.serialize(ast.get(), cacheFile);
-
         evaluator->evaluate(ast.get());
     }
-
-    bool ScriptInterpreter::compileScript(const std::string& filename, const std::string& outputPath)
-    {
-        // Use stateless Compiler - no shared state
-        Compiler compiler;
-        return compiler.compile(filename, outputPath);
-    }
-
-    bool ScriptInterpreter::runCachedScript(const std::string& cachedPath)
-    {
-        // Use isolated Runtime for execution - prevents state pollution
-        Runtime runtime;
-        return runtime.execute(cachedPath);
-    }
-
-    bool ScriptInterpreter::isCacheValid(const std::string& sourceFile, const std::string& cacheFile)
-    {
-        try
-        {
-            if (!std::filesystem::exists(sourceFile) || !std::filesystem::exists(cacheFile))
-            {
-                return false;
-            }
-
-            auto sourceTime = std::filesystem::last_write_time(sourceFile);
-            auto cacheTime = std::filesystem::last_write_time(cacheFile);
-
-            // Cache is valid if it's newer than the source file
-            return cacheTime >= sourceTime;
-        }
-        catch (const std::filesystem::filesystem_error& e)
-        {
-            std::cerr << "Error checking cache validity: " << e.what() << std::endl;
-            return false;
-        }
-    }
-
 
     void ScriptInterpreter::registerNativeFunction(const std::string& name, NativeFunction function)
     {
@@ -416,6 +370,20 @@ namespace services
             {
                 auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
 
+                // Set up method call handler for this evaluator too
+                auto nativeRegistry = environment->getNativeRegistry();
+                if (nativeRegistry)
+                {
+                    nativeRegistry->setMethodCallHandler(
+                        [&apiEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args) -> value::Value
+                        {
+                            return apiEvaluator->callMethodOnInstance(instance, methodName, args);
+                        }
+                    );
+                }
+
                 try
                 {
                     result = apiEvaluator->evaluate(method->getBody());
@@ -478,108 +446,6 @@ namespace services
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
         auto classDef = instance->getClassDefinition();
         return classDef->getName();
-    }
-
-    void ScriptInterpreter::compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory)
-    {
-        static std::unordered_set<std::string> beingCompiled;
-        std::vector<std::string> importPaths;
-        std::unordered_set<std::string> compiled;
-
-        // Collect all import paths from the AST
-        collectImportPaths(ast, importPaths, baseDirectory);
-
-        // Compile each dependency if not already compiled
-        for (const std::string& importPath : importPaths)
-        {
-            std::filesystem::path fullPath = std::filesystem::path(baseDirectory) / importPath;
-            std::string resolvedPath = fullPath.string();
-            std::string mtcPath = resolvedPath + "c"; // .mt -> .mtc
-
-            // Normalize path for consistent tracking
-            std::string normalizedPath = std::filesystem::canonical(
-                std::filesystem::exists(resolvedPath) ? resolvedPath : fullPath).string();
-
-            // Check for circular compilation dependency
-            if (beingCompiled.find(normalizedPath) != beingCompiled.end())
-            {
-                std::cerr << "Warning: Circular import detected during compilation: " << importPath <<
-                    " (skipping recursive compilation)" << std::endl;
-                continue;
-            }
-
-            // Skip if already compiled and up-to-date
-            if (compiled.find(resolvedPath) != compiled.end())
-            {
-                continue;
-            }
-
-            // Check if .mtc file exists and is newer than .mt file
-            if (std::filesystem::exists(mtcPath) && std::filesystem::exists(resolvedPath))
-            {
-                auto mtcTime = std::filesystem::last_write_time(mtcPath);
-                auto mtTime = std::filesystem::last_write_time(resolvedPath);
-
-                if (mtcTime >= mtTime)
-                {
-                    compiled.insert(resolvedPath);
-                    continue; // .mtc is up-to-date
-                }
-            }
-
-            // Mark as being compiled to prevent circular dependencies
-            beingCompiled.insert(normalizedPath);
-
-            try
-            {
-                if (compileScript(resolvedPath, mtcPath))
-                {
-                    compiled.insert(resolvedPath);
-                }
-            }
-            catch (const std::exception& e)
-            {
-                std::cerr << "Warning: Error compiling dependency " << resolvedPath << ": " << e.what() << std::endl;
-            }
-
-            // Clean up tracking - remove from being compiled
-            beingCompiled.erase(normalizedPath);
-        }
-    }
-
-    void ScriptInterpreter::collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports,
-                                               const std::string& baseDirectory)
-    {
-        if (!node) return;
-
-        // Check if this node is an ImportNode
-        if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
-        {
-            std::string importPath = importNode->getFilePath();
-
-            // Only collect .mt files (skip already processed .mtc files)
-            if (importPath.ends_with(".mt"))
-            {
-                imports.push_back(importPath);
-            }
-        }
-
-        // Recursively check child nodes
-        if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(node))
-        {
-            for (auto& child : programNode->getStatements())
-            {
-                collectImportPaths(child.get(), imports, baseDirectory);
-            }
-        }
-        else if (auto blockNode = dynamic_cast<ast::nodes::statements::BlockNode*>(node))
-        {
-            for (auto& child : blockNode->getStatements())
-            {
-                collectImportPaths(child.get(), imports, baseDirectory);
-            }
-        }
-        // Note: ImportNodes are typically at the top level, so we mainly need to check ProgramNode and BlockNode
     }
 
     void ScriptInterpreter::preRegisterClassDefinitions(ast::ASTNode* node)

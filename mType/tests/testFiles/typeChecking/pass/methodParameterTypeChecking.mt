@@ -10,7 +10,7 @@ class Calculator {
     }
     
     function concat(string s): string {
-        return toString(base) + s;
+        return base + s;
     }
     
     static function multiply(int a, int b): int {
@@ -25,6 +25,6 @@ int sum = calc.add(5);
 string text = calc.concat(" units");
 int product = Calculator::multiply(3, 4);
 
-print(toString(sum));
+print(sum);
 print(text);
-print(toString(product));
+print(product);
