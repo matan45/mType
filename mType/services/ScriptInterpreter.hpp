@@ -29,10 +29,6 @@ namespace services
         value::Value invokeStaticMethod(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
                                         const std::string& methodName, const std::vector<value::Value>& args);
 
-        // Import dependency compilation helpers
-        //void compileImportDependencies(ast::ASTNode* ast, const std::string& baseDirectory);
-        //void collectImportPaths(ast::ASTNode* node, std::vector<std::string>& imports,const std::string& baseDirectory);
-
         // Cached execution helpers
         void preRegisterClassDefinitions(ast::ASTNode* node);
 
@@ -40,12 +36,7 @@ namespace services
         ScriptInterpreter();
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
-
-        // AST caching methods
-       /* bool compileScript(const std::string& filename, const std::string& outputPath = "");
-        bool compileScriptToJSON(const std::string& filename, const std::string& outputPath = "");
-        bool runCachedScript(const std::string& cachedPath);*/
-
+        
         // Native function registration
         void registerNativeFunction(const std::string& name, NativeFunction function);
         void registerNativeVariable(const std::string& name, const value::Value& value);

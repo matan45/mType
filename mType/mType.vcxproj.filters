@@ -1699,10 +1699,22 @@
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\classGenericSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\classGenericSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\collectionsAsDataMembers.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\collectionsAsDataMembers.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\complexControlFlowPerformance.expected">
@@ -1759,6 +1771,21 @@
     <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\genericClassCompilation.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericClassCompilation.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericImportSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericImportSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\genericLibrary.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -1799,6 +1826,12 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\memoryUsageWithDeepNesting.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
@@ -1855,10 +1888,31 @@
     <None Include="tests\testFiles\integration\pass\returnWithNamespace.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\staticGenericMethodsSerialization.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\staticGenericMethodsSerialization.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\switchNestedInLoops.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_import_main.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_import_main.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_library.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.expected">

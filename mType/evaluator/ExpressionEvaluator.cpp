@@ -120,16 +120,7 @@ namespace evaluator
                 throw UndefinedException("Object evaluator not available for member assignment", node->getLocation());
             }
         }
-        // REMOVED: Collection literal nodes - collections now implemented in mType
-        /* if (auto arrayLiteralNode = dynamic_cast<ArrayLiteralNode*>(node)) {
-            return evaluateArrayLiteralNode(arrayLiteralNode);
-        }
-        if (auto arrayTypeNode = dynamic_cast<ArrayTypeNode*>(node)) {
-            return evaluateArrayTypeNode(arrayTypeNode);
-        }
-        if (auto mapLiteralNode = dynamic_cast<MapLiteralNode*>(node)) {
-            return evaluateMapLiteralNode(mapLiteralNode);
-        } */
+
         if (auto arrayCreationNode = dynamic_cast<ArrayCreationNode*>(node))
         {
             return evaluateArrayCreationNode(arrayCreationNode);
@@ -1331,7 +1322,8 @@ namespace evaluator
         std::vector<size_t> indices;
         auto baseArray = extractMultiDimensionalAccess(node, indices);
 
-        if (baseArray.has_value()) {
+        if (baseArray.has_value())
+        {
             // Handle direct multi-dimensional access
             return evaluateDirectMultiDimensionalAccess(baseArray.value(), indices, node->getLocation());
         }
@@ -1469,26 +1461,32 @@ namespace evaluator
         throw TypeException("Cannot index non-array value", node->getLocation());
     }
 
-    std::optional<Value> ExpressionEvaluator::extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices)
+    std::optional<Value> ExpressionEvaluator::extractMultiDimensionalAccess(
+        IndexAccessNode* node, std::vector<size_t>& indices)
     {
         // Traverse up the IndexAccessNode chain to collect all indices
         std::vector<IndexAccessNode*> accessChain;
         IndexAccessNode* current = node;
 
-        while (current != nullptr) {
+        while (current != nullptr)
+        {
             accessChain.push_back(current);
 
             // Check if the collection is also an IndexAccessNode
             IndexAccessNode* nextAccess = dynamic_cast<IndexAccessNode*>(current->getCollection());
-            if (nextAccess != nullptr) {
+            if (nextAccess != nullptr)
+            {
                 current = nextAccess;
-            } else {
+            }
+            else
+            {
                 break;
             }
         }
 
         // If we only have one level, this isn't multi-dimensional
-        if (accessChain.size() <= 1) {
+        if (accessChain.size() <= 1)
+        {
             return std::nullopt;
         }
 
@@ -1497,15 +1495,19 @@ namespace evaluator
 
         // Check if it's a multi-dimensional array type we can optimize
         bool isMultiDimensional = false;
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray)) {
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
+        {
             auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
             isMultiDimensional = flatArray->getRank() > 1;
-        } else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray)) {
+        }
+        else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
+        {
             auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
             isMultiDimensional = sparseArray->getRank() > 1;
         }
 
-        if (!isMultiDimensional) {
+        if (!isMultiDimensional)
+        {
             return std::nullopt;
         }
 
@@ -1513,15 +1515,18 @@ namespace evaluator
         indices.clear();
         indices.reserve(accessChain.size());
 
-        for (auto it = accessChain.rbegin(); it != accessChain.rend(); ++it) {
+        for (auto it = accessChain.rbegin(); it != accessChain.rend(); ++it)
+        {
             Value indexValue = evaluate((*it)->getIndex());
 
-            if (!std::holds_alternative<int>(indexValue)) {
+            if (!std::holds_alternative<int>(indexValue))
+            {
                 return std::nullopt; // Fall back to regular handling
             }
 
             int index = std::get<int>(indexValue);
-            if (index < 0) {
+            if (index < 0)
+            {
                 return std::nullopt; // Let regular handling provide proper error
             }
 
@@ -1531,26 +1536,36 @@ namespace evaluator
         return baseArray;
     }
 
-    Value ExpressionEvaluator::evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location)
+    Value ExpressionEvaluator::evaluateDirectMultiDimensionalAccess(const Value& baseArray,
+                                                                    const std::vector<size_t>& indices,
+                                                                    const SourceLocation& location)
     {
         // Handle FlatMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray)) {
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
+        {
             auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
 
-            try {
+            try
+            {
                 return flatArray->get(indices);
-            } catch (const std::out_of_range& e) {
+            }
+            catch (const std::out_of_range& e)
+            {
                 throw TypeException("Multi-dimensional array access failed: " + std::string(e.what()), location);
             }
         }
 
         // Handle SparseMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray)) {
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
+        {
             auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
 
-            try {
+            try
+            {
                 return sparseArray->get(indices);
-            } catch (const std::out_of_range& e) {
+            }
+            catch (const std::out_of_range& e)
+            {
                 throw TypeException("Sparse multi-dimensional array access failed: " + std::string(e.what()), location);
             }
         }

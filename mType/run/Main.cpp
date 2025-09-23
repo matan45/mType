@@ -7,7 +7,6 @@
 #include "../tests/suites/ErrorTestSuite.hpp"
 #include "../tests/suites/GenericsTestSuite.hpp"
 #include "../tests/suites/ArrayTestSuite.hpp"
-//#include "../tests/suites/SerializationTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -65,10 +64,6 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ArrayTestSuite>();
     }
-    /*else if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
-    {
-        return std::make_unique<SerializationTestSuite>();
-    }*/
     return nullptr;
 }
 
@@ -83,7 +78,6 @@ void printAvailableTestSuites()
     std::cout << "  type         - Type Checking Test Suite\n";
     std::cout << "  generics     - Generics Test Suite\n";
     std::cout << "  arrays       - Array Test Suite\n";
-    std::cout << "  serialization- Serialization & Compilation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -98,15 +92,6 @@ void runSpecificTestSuite(const std::string& suiteName)
         nativeTest->runCustomTests();
         return;
     }
-
-    // Handle serialization test separately since it needs custom execution
-   /* if (suiteName == "serialization" || suiteName == "serialize" || suiteName == "compile")
-    {
-        std::cout << "Running Serialization Test Suite...\n\n";
-        auto serializationTest = std::make_unique<SerializationTestSuite>();
-        serializationTest->run();
-        return;
-    }*/
 
     auto suite = createTestSuite(suiteName);
     if (!suite)
@@ -143,11 +128,6 @@ void runAllTests()
         suite->run(); // Run tests and generate reports
     }
 
-    // Run serialization tests separately
-    std::cout << "\nRunning Serialization Test Suite...\n";
-   /* auto serializationTest = std::make_unique<SerializationTestSuite>();
-    serializationTest->run();*/
-
     // Run native tests separately
     std::cout << "\nRunning Native C++ Integration Test Suite...\n";
     auto nativeTest = std::make_unique<NativeTest>();
@@ -177,112 +157,10 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // Handle compile-only mode
-    /*if (argc >= 3 && std::string(argv[1]) == "--compile")
-    {
-        std::string sourceFile = argv[2];
-        std::string outputFile = "";
-
-        if (argc >= 4)
-        {
-            outputFile = argv[3];
-        }
-
-        try
-        {
-            ScriptInterpreter interpreter;
-            if (interpreter.compileScript(sourceFile, outputFile))
-            {
-                std::cout << "Successfully compiled " << sourceFile;
-                if (!outputFile.empty())
-                {
-                    std::cout << " to " << outputFile;
-                }
-                else
-                {
-                    std::cout << " to " << sourceFile << "c";
-                }
-                std::cout << std::endl;
-                return 0;
-            }
-            else
-            {
-                std::cerr << "Failed to compile " << sourceFile << std::endl;
-                return 1;
-            }
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Error: " << e.what() << std::endl;
-            return 1;
-        }
-    }*/
-
-    // Handle JSON compile mode for debugging
-   /* if (argc >= 3 && std::string(argv[1]) == "--compile-json")
-    {
-        std::string sourceFile = argv[2];
-        std::string outputFile = "";
-
-        if (argc >= 4)
-        {
-            outputFile = argv[3];
-        }
-        else
-        {
-            // Default JSON output file
-            outputFile = sourceFile.substr(0, sourceFile.find_last_of('.')) + ".json";
-        }
-
-        try
-        {
-            ScriptInterpreter interpreter;
-            if (interpreter.compileScriptToJSON(sourceFile, outputFile))
-            {
-                std::cout << "Successfully compiled " << sourceFile << " to JSON: " << outputFile << std::endl;
-                return 0;
-            }
-            else
-            {
-                std::cout << "Failed to compile " << sourceFile << " to JSON" << std::endl;
-                return 1;
-            }
-        }
-        catch (const std::exception& e)
-        {
-            std::cout << "JSON compilation error: " << e.what() << std::endl;
-            return 1;
-        }
-    }*/
-
-    // Handle run-cached mode
-   /* if (argc == 3 && std::string(argv[1]) == "--run-cached")
-    {
-        std::string cachedFile = argv[2];
-
-        try
-        {
-            ScriptInterpreter interpreter;
-            if (!interpreter.runCachedScript(cachedFile))
-            {
-                return 1;
-            }
-            return 0;
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Error: " << e.what() << std::endl;
-            return 1;
-        }
-    }*/
-
     if (argc == 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
-        //std::cout << "  " << argv[0] << " --compile <file.mt> [out]  - Compile script to AST cache\n";
-       // std::cout << "  " << argv[0] << " --compile-json <file.mt> [out] - Compile script to JSON AST (debug)\n";
-        //std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled AST cache\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";

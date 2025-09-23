@@ -297,12 +297,6 @@ namespace evaluator
         return exprEvaluator->evaluateArrayCreationNode(node);
     }
 
-    // REMOVED: MapLiteralNode no longer exists - collections now implemented in mType
-    /* Value EvaluatorCoordinator::visitMapLiteralNode(MapLiteralNode* node)
-    {
-        return exprEvaluator->evaluateMapLiteralNode(node);
-    } */
-
     Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
     {
         return exprEvaluator->evaluateIndexAccessNode(node);
