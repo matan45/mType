@@ -71,6 +71,9 @@ namespace evaluator
         // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
                                                        const std::vector<Value>& constructorArgs);
+        std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
+                                                       const std::vector<Value>& constructorArgs,
+                                                       const std::unordered_map<std::string, std::string>& typeBindings);
         Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
                           const Value& value);

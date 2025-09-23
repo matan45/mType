@@ -872,13 +872,17 @@ namespace ast::serialization
     {
         std::string originalPath = node->getFilePath();
 
-        // Convert .mt to .mtc for cached imports
-        if (!baseDirectory.empty() && originalPath.ends_with(".mt")) {
+        // Always convert .mt to .mtc for cached imports during compilation
+        if (originalPath.ends_with(".mt")) {
             originalPath = originalPath.substr(0, originalPath.length() - 3) + ".mtc";
         }
 
-        // Serialize the (possibly modified) file path
-        writeString(originalPath);
+        // For release directory, use just the filename (flat structure)
+        std::filesystem::path importPath(originalPath);
+        std::string pathToSerialize = importPath.filename().string();
+
+        // Serialize the filename only (for release directory compatibility)
+        writeString(pathToSerialize);
 
         // Serialize the number of imported declarations
         const auto& declarations = node->getImportedDeclarations();
@@ -1139,11 +1143,21 @@ namespace ast::serialization
         // Clear processed imports for this serialization
         processedImports.clear();
 
+        // Create release directory and prepare for flat structure
+        createReleaseDirectory();
+
         // First, recursively compile all imported .mt files to .mtc files
         compileImportsRecursively(root, baseDir);
 
         // Then serialize the main file with .mt → .mtc path conversion
-        return serialize(root, filePath);
+        bool result = serialize(root, filePath);
+
+        // Copy the main .mtc file to release directory
+        if (result) {
+            copyToReleaseDirectory(filePath);
+        }
+
+        return result;
     }
 
     void ASTSerializer::setBaseDirectory(const std::string& baseDir)
@@ -1197,7 +1211,10 @@ namespace ast::serialization
         // Compile the imported file itself
         std::string outputPath = resolvedPath + "c"; // .mt -> .mtc
         ASTSerializer importSerializer;
-        importSerializer.serializeWithImportResolution(importedAST.get(), outputPath, importedFileDir);
+        if (importSerializer.serializeWithImportResolution(importedAST.get(), outputPath, importedFileDir)) {
+            // Copy the imported .mtc file to release directory
+            copyToReleaseDirectory(outputPath);
+        }
     }
 
     void ASTSerializer::processImportNode(const nodes::statements::ImportNode* node)
@@ -1221,6 +1238,30 @@ namespace ast::serialization
 
         parser::Parser importParser(importLexer, std::move(importManager));
         return importParser.parseProgram();
+    }
+
+    void ASTSerializer::createReleaseDirectory()
+    {
+        std::string releaseDir = getReleaseDirectory();
+        std::filesystem::create_directories(releaseDir);
+    }
+
+    std::string ASTSerializer::getReleaseDirectory()
+    {
+        return "release";
+    }
+
+    void ASTSerializer::copyToReleaseDirectory(const std::string& filePath)
+    {
+        std::filesystem::path sourcePath(filePath);
+        std::string releaseDir = getReleaseDirectory();
+        std::filesystem::path targetPath = std::filesystem::path(releaseDir) / sourcePath.filename();
+
+        try {
+            std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::overwrite_existing);
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Failed to copy " << filePath << " to release directory: " << e.what() << std::endl;
+        }
     }
 
 }

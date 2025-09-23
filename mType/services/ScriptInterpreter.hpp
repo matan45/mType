@@ -41,7 +41,6 @@ namespace services
         // AST caching methods
         bool compileScript(const std::string& filename, const std::string& outputPath = "");
         bool runCachedScript(const std::string& cachedPath);
-        bool isCacheValid(const std::string& sourceFile, const std::string& cacheFile);
         
         // Native function registration
         void registerNativeFunction(const std::string& name, NativeFunction function);

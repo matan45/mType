@@ -129,5 +129,10 @@ namespace ast::serialization
         void compileImportTarget(const nodes::statements::ImportNode* importNode, const std::string& baseDir);
         void processImportNode(const nodes::statements::ImportNode* node);
         std::unique_ptr<ASTNode> loadImportedAST(const std::string& importPath);
+
+        // Release directory management
+        void createReleaseDirectory();
+        std::string getReleaseDirectory();
+        void copyToReleaseDirectory(const std::string& filePath);
     };
 }

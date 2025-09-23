@@ -1,6 +1,6 @@
 #include "StatementEvaluator.hpp"
 #include "../services/ImportManager.hpp"
-#include <iostream>
+#include <filesystem>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
@@ -237,6 +237,7 @@ namespace evaluator
         validateVariableDeclaration(node);
 
         auto env = context->getEnvironment();
+
 
         // Evaluate initial value if present, otherwise use default
         Value initialValue = std::monostate{};
@@ -493,8 +494,9 @@ namespace evaluator
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
 
+
         // Type detection is now working correctly
-        
+
         auto env = context->getEnvironment();
         
         // PRIORITY: Check for implicit field assignment first when in a constructor/instance context
@@ -986,6 +988,7 @@ namespace evaluator
             returnValue = exprEvaluator->evaluate(node->getReturnValue());
         }
 
+
         context->pushReturnValue(returnValue);
         context->setReturned(true);
 
@@ -1097,14 +1100,25 @@ namespace evaluator
 
         std::string filePath = node->getFilePath();
 
-        // Convert .mtc paths back to .mt paths for consistent tracking
+        // Determine execution mode based on file extension
+        bool isCacheMode = filePath.ends_with(".mtc");
+
+        // For cache mode with release directory, keep .mtc paths for both tracking and resolution
+        // For normal mode, use .mt paths for tracking consistency
         std::string trackingPath = filePath;
-        if (filePath.ends_with(".mtc")) {
+        std::string resolutionPath = filePath;
+
+        if (!isCacheMode && filePath.ends_with(".mtc")) {
             trackingPath = filePath.substr(0, filePath.length() - 1); // Remove 'c' to get .mt
+            resolutionPath = trackingPath;
+        } else if (isCacheMode && !filePath.ends_with(".mtc")) {
+            // Convert .mt to .mtc for cache mode
+            resolutionPath = filePath + "c";
+            trackingPath = resolutionPath;
         }
 
-        // Use consistent path resolution for tracking (always use .mt path for cache keys)
-        std::string resolvedPath = importManager->resolvePath(trackingPath);
+        // Use appropriate path for resolution based on execution mode
+        std::string resolvedPath = importManager->resolvePath(resolutionPath);
 
         // Check if already evaluated to avoid re-evaluation
         if (importManager->isEvaluated(resolvedPath)) {
@@ -1116,9 +1130,6 @@ namespace evaluator
             throw TypeException("Circular import detected: " + filePath + " is already being imported");
         }
 
-        // Determine execution mode based on file extension
-        bool isCacheMode = filePath.ends_with(".mtc");
-
         // Mark as being evaluated to prevent circular imports
         importManager->markAsBeingEvaluated(resolvedPath);
 
@@ -1127,11 +1138,22 @@ namespace evaluator
 
             if (isCacheMode) {
                 // Cache mode: Load pre-compiled .mtc file
-                std::string resolvedMtcPath = importManager->resolvePath(filePath);
-                importedAST = importManager->loadFromMtcFile(resolvedMtcPath);
+                // First try the release directory
+                std::string releaseDir = "release";
+                std::filesystem::path filePath_obj(filePath);
+                std::string filename = filePath_obj.filename().string();
+                std::string releasePath = releaseDir + "/" + filename;
+
+                if (std::filesystem::exists(releasePath)) {
+                    importedAST = importManager->loadFromMtcFile(releasePath);
+                } else {
+                    // Fallback to original path resolution
+                    std::string resolvedMtcPath = importManager->resolvePath(filePath);
+                    importedAST = importManager->loadFromMtcFile(resolvedMtcPath);
+                }
 
                 if (!importedAST) {
-                    throw TypeException("Failed to load cached imported file: " + resolvedMtcPath);
+                    throw TypeException("Failed to load cached imported file: " + filePath);
                 }
             } else {
                 // Normal mode: Parse .mt file

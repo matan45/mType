@@ -39,11 +39,13 @@ namespace services
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
-        if (nativeRegistry) {
+        if (nativeRegistry)
+        {
             nativeRegistry->setMethodCallHandler(
                 [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                        const std::string& methodName,
-                       const std::vector<value::Value>& args) -> value::Value {
+                       const std::vector<value::Value>& args) -> value::Value
+                {
                     return evaluator->callMethodOnInstance(instance, methodName, args);
                 }
             );
@@ -54,21 +56,7 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        // Check for cached AST first
-        std::filesystem::path sourcePath(filename);
-        std::string cacheFile = sourcePath.string() + "c"; // .mt -> .mtc
-
-        if (std::filesystem::exists(cacheFile) && isCacheValid(filename, cacheFile))
-        {
-            // Use cached AST
-            if (runCachedScript(cacheFile))
-            {
-                return;
-            }
-            // If cache loading fails, fall back to parsing
-        }
-
-        // Parse and execute
+        // Always parse and execute .mt files directly (no auto-caching)
         lexer::Lexer lexer(filename);
 
         // Create and configure ImportManager
@@ -86,10 +74,6 @@ namespace services
         // Set ImportManager on environment for clean architecture
         environment->setImportManager(importManagerPtr);
 
-        // Cache the AST for future use
-        ast::serialization::ASTSerializer serializer;
-        serializer.serialize(ast.get(), cacheFile);
-
         evaluator->evaluate(ast.get());
     }
 
@@ -105,28 +89,6 @@ namespace services
         // Use isolated Runtime for execution - prevents state pollution
         Runtime runtime;
         return runtime.execute(cachedPath);
-    }
-
-    bool ScriptInterpreter::isCacheValid(const std::string& sourceFile, const std::string& cacheFile)
-    {
-        try
-        {
-            if (!std::filesystem::exists(sourceFile) || !std::filesystem::exists(cacheFile))
-            {
-                return false;
-            }
-
-            auto sourceTime = std::filesystem::last_write_time(sourceFile);
-            auto cacheTime = std::filesystem::last_write_time(cacheFile);
-
-            // Cache is valid if it's newer than the source file
-            return cacheTime >= sourceTime;
-        }
-        catch (const std::filesystem::filesystem_error& e)
-        {
-            std::cerr << "Error checking cache validity: " << e.what() << std::endl;
-            return false;
-        }
     }
 
 
@@ -432,11 +394,13 @@ namespace services
 
                 // Set up method call handler for this evaluator too
                 auto nativeRegistry = environment->getNativeRegistry();
-                if (nativeRegistry) {
+                if (nativeRegistry)
+                {
                     nativeRegistry->setMethodCallHandler(
                         [&apiEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                       const std::string& methodName,
-                                       const std::vector<value::Value>& args) -> value::Value {
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args) -> value::Value
+                        {
                             return apiEvaluator->callMethodOnInstance(instance, methodName, args);
                         }
                     );

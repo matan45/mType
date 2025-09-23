@@ -19,14 +19,19 @@ namespace services
     {
         try
         {
+            std::cout << "[DEBUG] Runtime: Starting execution of " << compiledFile << std::endl;
+
             // Deserialize the cached AST
             ast::serialization::ASTDeserializer deserializer;
             auto ast = deserializer.deserialize(compiledFile);
 
             if (!ast)
             {
+                std::cout << "[ERROR] Runtime: Failed to deserialize AST from " << compiledFile << std::endl;
                 return false;
             }
+
+            std::cout << "[DEBUG] Runtime: AST deserialized successfully" << std::endl;
 
             // Create completely isolated execution environment
             environment::EnvironmentBuilder envBuilder;
@@ -48,9 +53,15 @@ namespace services
             // Create fresh ImportManager for this execution
             auto importManager = std::make_unique<ImportManager>();
 
-            // Set base directory to the directory of the compiled file
+            // Set base directory to the release directory for cached execution
             std::filesystem::path compiledPath(compiledFile);
-            importManager->setBaseDirectory(compiledPath.parent_path().string());
+            std::string releaseDir = "release";
+            if (std::filesystem::exists(releaseDir)) {
+                importManager->setBaseDirectory(releaseDir);
+            } else {
+                // Fallback to the directory of the compiled file
+                importManager->setBaseDirectory(compiledPath.parent_path().string());
+            }
 
             // Set ImportManager on isolated environment
             ImportManager* importManagerPtr = importManager.release();
@@ -59,13 +70,17 @@ namespace services
             // Pre-register all class definitions in isolated environment
             preRegisterClassDefinitions(ast.get(), isolatedEvaluator.get());
 
+            std::cout << "[DEBUG] Runtime: About to execute AST" << std::endl;
+
             // Execute the cached AST with completely isolated evaluator
             isolatedEvaluator->evaluate(ast.get());
 
+            std::cout << "[DEBUG] Runtime: Execution completed successfully" << std::endl;
             return true;
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
+            std::cerr << "[ERROR] Runtime error: " << e.what() << std::endl;
             return false;
         }
     }

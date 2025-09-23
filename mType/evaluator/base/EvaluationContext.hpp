@@ -4,6 +4,8 @@
 #include "../../value/ValueType.hpp"
 #include <memory>
 #include <stack>
+#include <unordered_map>
+#include <string>
 
 namespace evaluator::base
 {
@@ -26,6 +28,9 @@ namespace evaluator::base
 
         // Current method execution context for generic type resolution
         std::shared_ptr<MethodDefinition> currentMethod;
+
+        // Generic type bindings from the current object instance (e.g., T -> String)
+        std::unordered_map<std::string, std::string> currentGenericTypeBindings;
 
         // Performance optimization: cache frequently accessed values
         mutable std::shared_ptr<Environment> cachedEnv;
@@ -62,6 +67,19 @@ namespace evaluator::base
         void setCurrentMethod(std::shared_ptr<MethodDefinition> method) { currentMethod = method; }
         std::shared_ptr<MethodDefinition> getCurrentMethod() const { return currentMethod; }
         void clearCurrentMethod() { currentMethod = nullptr; }
+
+        // Generic type binding management
+        void setGenericTypeBindings(const std::unordered_map<std::string, std::string>& bindings) {
+            currentGenericTypeBindings = bindings;
+        }
+        const std::unordered_map<std::string, std::string>& getGenericTypeBindings() const {
+            return currentGenericTypeBindings;
+        }
+        void clearGenericTypeBindings() { currentGenericTypeBindings.clear(); }
+        std::string resolveGenericType(const std::string& typeName) const {
+            auto it = currentGenericTypeBindings.find(typeName);
+            return (it != currentGenericTypeBindings.end()) ? it->second : typeName;
+        }
 
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;

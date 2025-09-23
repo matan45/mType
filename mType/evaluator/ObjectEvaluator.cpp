@@ -127,6 +127,12 @@ namespace evaluator
         auto env = context->getEnvironment();
 
         // Create class definition with generic parameters if present
+        const auto& genericParams = node->getGenericParameters();
+        std::cout << "[DEBUG] Creating ClassDefinition for " << node->getClassName()
+                  << " with " << genericParams.size() << " generic parameters" << std::endl;
+        for (const auto& param : genericParams) {
+            std::cout << "[DEBUG]   Generic parameter: " << param.name << std::endl;
+        }
         auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
         // Add fields
@@ -231,6 +237,20 @@ namespace evaluator
         }
 
         std::string className = node->getClassName();
+
+        // Resolve generic types using current instance context if available
+        auto currentInstance = context->getCurrentInstance();
+        if (currentInstance) {
+            std::string originalClassName = className;
+            className = currentInstance->resolveGenericType(className);
+            if (originalClassName != className) {
+                std::cout << "[DEBUG] Resolved generic type: " << originalClassName << " -> " << className << std::endl;
+                const auto& bindings = currentInstance->getGenericTypeBindings();
+                for (const auto& binding : bindings) {
+                    std::cout << "[DEBUG] Available binding: " << binding.first << " -> " << binding.second << std::endl;
+                }
+            }
+        }
 
         // REMOVED: Collection handling - collections now implemented in mType language
         // All collections (Array, Map, Set, Stack, Queue) will be handled as regular mType classes
@@ -465,7 +485,59 @@ namespace evaluator
         }
 
         std::string classNameForInstance = (resolvedClassName != className) ? resolvedClassName : className;
-        auto instance = createInstance(classNameForInstance, args);
+
+        // Extract generic type bindings for this instance
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = classNameForInstance;
+
+        std::cout << "[DEBUG] Checking if '" << classNameForInstance << "' is generic instantiation" << std::endl;
+        if (utils::GenericTypeManager::isGenericInstantiation(classNameForInstance))
+        {
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(classNameForInstance);
+
+            // Debug logging
+            std::cout << "[DEBUG] Creating generic instance: " << classNameForInstance << std::endl;
+            std::cout << "[DEBUG] Base name: " << baseName << std::endl;
+            for (size_t i = 0; i < typeArguments.size(); ++i) {
+                std::cout << "[DEBUG] Type argument " << i << ": " << typeArguments[i] << std::endl;
+            }
+
+            // Use the base class name for lookup (e.g., "LinkedList" instead of "LinkedList<String>")
+            baseClassName = baseName;
+
+            // Look up the generic template class
+            auto templateClassDef = env->findClass(baseClassName);
+            std::cout << "[DEBUG] Template class definition generic status: " << (templateClassDef ? "exists" : "null") << std::endl;
+            if (templateClassDef) {
+                std::cout << "[DEBUG] Template class is generic: " << templateClassDef->isGeneric() << std::endl;
+                std::cout << "[DEBUG] Template generic parameter count: " << templateClassDef->getGenericParameterCount() << std::endl;
+            }
+
+            if (templateClassDef && templateClassDef->isGeneric())
+            {
+                const auto& genericParams = templateClassDef->getGenericParameters();
+
+                // Map each generic parameter to its concrete type
+                for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+                {
+                    genericTypeBindings[genericParams[i].name] = typeArguments[i];
+                    std::cout << "[DEBUG] Generic binding: " << genericParams[i].name << " -> " << typeArguments[i] << std::endl;
+                }
+
+                // Use the template class definition for creating the instance
+                classDef = templateClassDef;
+            }
+        }
+
+        auto instance = createInstanceWithTypeBindings(classNameForInstance, args, genericTypeBindings);
+
+        // Debug: Print the created instance's type bindings
+        if (!genericTypeBindings.empty()) {
+            std::cout << "[DEBUG] Created instance with bindings:" << std::endl;
+            for (const auto& binding : genericTypeBindings) {
+                std::cout << "[DEBUG]   " << binding.first << " -> " << binding.second << std::endl;
+            }
+        }
 
         // Execute constructor if it exists
         if (classDef && !classDef->getConstructors().empty())
@@ -546,6 +618,34 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
         return instanceManager->createInstance(className, constructorArgs, env);
+    }
+
+    std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstanceWithTypeBindings(
+        const std::string& className,
+        const std::vector<Value>& constructorArgs,
+        const std::unordered_map<std::string, std::string>& typeBindings)
+    {
+        auto env = context->getEnvironment();
+
+        if (!env) {
+            throw TypeException("Environment is null during object creation");
+        }
+
+        auto classDef = env->getClassRegistry()->findItem(className);
+        if (!classDef) {
+            throw UndefinedException("Class '" + className + "' is not defined");
+        }
+
+        // Create instance with generic type bindings
+        auto instance = std::make_shared<ObjectInstance>(classDef, typeBindings);
+
+        // Initialize fields with default values
+        for (const auto& fieldPair : classDef->getInstanceFields()) {
+            auto field = fieldPair.second;
+            instance->setField(field->getName(), field->getValue());
+        }
+
+        return instance;
     }
 
     Value ObjectEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
@@ -939,6 +1039,74 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
+        // Debug: Print method call details
+        std::cout << "[DEBUG] Calling method '" << methodName << "' on object of type: "
+                  << object->getClassDefinition()->getName() << std::endl;
+        const auto& bindings = object->getGenericTypeBindings();
+        if (!bindings.empty()) {
+            std::cout << "[DEBUG] Object has generic bindings:" << std::endl;
+            for (const auto& binding : bindings) {
+                std::cout << "[DEBUG]   " << binding.first << " -> " << binding.second << std::endl;
+            }
+        }
+
+        // Special debug for getNodeAt method
+        if (methodName == "getNodeAt") {
+            std::cout << "[DEBUG] SPECIAL: getNodeAt method call detected on object class: " << object->getClassDefinition()->getName() << std::endl;
+            std::cout << "[DEBUG] SPECIAL: getNodeAt object generic bindings:" << std::endl;
+            for (const auto& binding : object->getGenericTypeBindings()) {
+                std::cout << "[DEBUG]   " << binding.first << " -> " << binding.second << std::endl;
+            }
+
+            // Check the count field of the LinkedList
+            Value countValue = object->getFieldValue("count");
+            std::cout << "[DEBUG] SPECIAL: LinkedList.count = ";
+            std::visit([](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, int>) {
+                    std::cout << value;
+                } else if constexpr (std::is_same_v<T, std::monostate>) {
+                    std::cout << "uninitialized";
+                } else {
+                    std::cout << "not an int";
+                }
+            }, countValue);
+            std::cout << std::endl;
+
+            // Check the head field of the LinkedList
+            Value headValue = object->getFieldValue("head");
+            std::cout << "[DEBUG] SPECIAL: LinkedList.head = ";
+            std::visit([](const auto& value) {
+                using T = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                    if (value) {
+                        std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                    } else {
+                        std::cout << "null ObjectInstance";
+                    }
+                } else if constexpr (std::is_same_v<T, std::monostate>) {
+                    std::cout << "uninitialized";
+                } else {
+                    std::cout << "other type";
+                }
+            }, headValue);
+            std::cout << std::endl;
+
+            // Add method argument debugging for getNodeAt
+            if (args.size() > 0) {
+                std::cout << "[DEBUG] SPECIAL: getNodeAt called with index = ";
+                std::visit([](const auto& value) {
+                    using T = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<T, int>) {
+                        std::cout << value;
+                    } else {
+                        std::cout << "not an int";
+                    }
+                }, args[0]);
+                std::cout << std::endl;
+            }
+        }
+
         // Get the class definition from the object
         auto classDef = object->getClassDefinition();
         if (!classDef)
@@ -983,6 +1151,12 @@ namespace evaluator
         auto prevInstance = context->getCurrentInstance();
         context->setCurrentInstance(object);
 
+        // Set generic type bindings from the object instance for method execution
+        auto prevGenericBindings = context->getGenericTypeBindings();
+        if (object && !object->getGenericTypeBindings().empty()) {
+            context->setGenericTypeBindings(object->getGenericTypeBindings());
+        }
+
         // Temporarily clear static method context for instance method execution
         // Instance methods should run in instance context regardless of where they're called from
         bool wasInStaticMethod = context->isInStaticMethodContext();
@@ -1019,11 +1193,28 @@ namespace evaluator
                 );
                 env->declareVariable("__current_class_name__", classNameVar);
 
+                // DEBUG: Method definition verification
+                if (methodName == "getNodeAt") {
+                    std::cout << "[METHOD-DEF-DEBUG] Method pointer: " << method.get() << std::endl;
+                    std::cout << "[METHOD-DEF-DEBUG] Method body exists: " << (method->getBody() ? "YES" : "NO") << std::endl;
+                    if (method->getBody()) {
+                        std::cout << "[METHOD-DEF-DEBUG] Method body type: " << typeid(*method->getBody()).name() << std::endl;
+                        std::cout << "[METHOD-DEF-DEBUG] Method body address: " << method->getBody() << std::endl;
+                    }
+                    std::cout << "[METHOD-DEF-DEBUG] StatementEvaluator exists: " << (stmtEvaluator ? "YES" : "NO") << std::endl;
+                }
+
                 // Execute method body
                 Value result = std::monostate{}; // void default
                 if (method->getBody() && stmtEvaluator)
                 {
+                    if (methodName == "getNodeAt") {
+                        std::cout << "[METHOD-EXEC-DEBUG] About to execute getNodeAt body" << std::endl;
+                    }
                     stmtEvaluator->evaluate(method->getBody());
+                    if (methodName == "getNodeAt") {
+                        std::cout << "[METHOD-EXEC-DEBUG] Finished executing getNodeAt body" << std::endl;
+                    }
                 }
 
                 // Restore static method context
@@ -1038,13 +1229,71 @@ namespace evaluator
 
 
                 context->setCurrentInstance(prevInstance);
+
+                // Restore previous generic type bindings
+                context->setGenericTypeBindings(prevGenericBindings);
+
+                // Debug: Show method return value
+                if (methodName == "getNodeAt") {
+                    std::cout << "[DEBUG] SPECIAL: getNodeAt returning value type: ";
+                    std::visit([](const auto& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, std::monostate>) {
+                            std::cout << "std::monostate (void/uninitialized)";
+                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                            if (value) {
+                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                            } else {
+                                std::cout << "null ObjectInstance";
+                            }
+                        } else if constexpr (std::is_same_v<T, int>) {
+                            std::cout << "int(" << value << ")";
+                        } else if constexpr (std::is_same_v<T, std::string>) {
+                            std::cout << "string(" << value << ")";
+                        } else {
+                            std::cout << "other type";
+                        }
+                    }, result);
+                    std::cout << std::endl;
+                }
+
                 return result;
             }
             catch (const exception::ReturnException& e)
             {
+                // Debug: Show method return value via exception
+                if (methodName == "getNodeAt") {
+                    std::cout << "[DEBUG] SPECIAL: getNodeAt returning via ReturnException, value type: ";
+                    std::visit([](const auto& value) {
+                        using T = std::decay_t<decltype(value)>;
+                        if constexpr (std::is_same_v<T, std::monostate>) {
+                            std::cout << "std::monostate (void/uninitialized)";
+                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                            if (value) {
+                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
+                                // Show generic bindings of returned object
+                                std::cout << ", bindings: ";
+                                for (const auto& binding : value->getGenericTypeBindings()) {
+                                    std::cout << binding.first << "->" << binding.second << " ";
+                                }
+                            } else {
+                                std::cout << "null ObjectInstance";
+                            }
+                        } else if constexpr (std::is_same_v<T, int>) {
+                            std::cout << "int(" << value << ")";
+                        } else if constexpr (std::is_same_v<T, std::string>) {
+                            std::cout << "string(" << value << ")";
+                        } else {
+                            std::cout << "other type";
+                        }
+                    }, e.returnValue);
+                    std::cout << std::endl;
+                }
+
                 // Handle return exception - extract return value
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
+                context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 context->setReturned(false); // Reset return state after handling exception
                 return e.returnValue;
             }
@@ -1052,6 +1301,7 @@ namespace evaluator
             {
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
+                context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 throw;
             }
             // Scope automatically exits via RAII

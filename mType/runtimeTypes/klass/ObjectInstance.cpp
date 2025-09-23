@@ -172,4 +172,53 @@ namespace runtimeTypes::klass
         
         return true;  // All fields match
     }
+
+    void ObjectInstance::setGenericTypeBinding(const std::string& parameter, const std::string& concreteType)
+    {
+        genericTypeBindings[parameter] = concreteType;
+    }
+
+    std::string ObjectInstance::resolveGenericType(const std::string& typeName) const
+    {
+        // Check if this is a generic type parameter that needs to be resolved
+        auto it = genericTypeBindings.find(typeName);
+        if (it != genericTypeBindings.end()) {
+            return it->second;
+        }
+
+        // Handle generic class names like "Node<T>" -> "Node<String>"
+        if (typeName.find('<') != std::string::npos) {
+            std::string resolved = typeName;
+
+            // Find and replace generic type parameters with their concrete bindings
+            for (const auto& binding : genericTypeBindings) {
+                const std::string& param = binding.first;
+                const std::string& concrete = binding.second;
+
+                // Replace <T> with <String>, etc.
+                size_t pos = 0;
+                while ((pos = resolved.find('<' + param + '>', pos)) != std::string::npos) {
+                    resolved.replace(pos + 1, param.length(), concrete);
+                    pos += 1 + concrete.length();
+                }
+
+                // Also handle cases like "Node<T," -> "Node<String,"
+                pos = 0;
+                while ((pos = resolved.find('<' + param + ',', pos)) != std::string::npos) {
+                    resolved.replace(pos + 1, param.length(), concrete);
+                    pos += 1 + concrete.length();
+                }
+            }
+
+            return resolved;
+        }
+
+        // If not a generic type, return as-is
+        return typeName;
+    }
+
+    const std::unordered_map<std::string, std::string>& ObjectInstance::getGenericTypeBindings() const
+    {
+        return genericTypeBindings;
+    }
 }
