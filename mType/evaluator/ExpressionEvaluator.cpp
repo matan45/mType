@@ -1,5 +1,7 @@
 ﻿#include "ExpressionEvaluator.hpp"
+#include <iostream>
 #include "utils/ParameterBinder.hpp"
+#include "../value/StringPool.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
@@ -21,6 +23,7 @@
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/ArrayPool.hpp"
+#include "../value/StringPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -173,6 +176,10 @@ namespace evaluator
                         {
                             return std::get<std::string>(result);
                         }
+                        else if (std::holds_alternative<InternedString>(result))
+                        {
+                            return std::get<InternedString>(result).getString();
+                        }
                     }
                     catch (...)
                     {
@@ -240,7 +247,11 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateStringNode(StringNode* node)
     {
-        return node->getValue();
+        // Intern the string value from the StringNode
+        auto& pool = StringPool::getInstance();
+        auto result = pool.intern(node->getValue());
+
+        return result;
     }
 
     Value ExpressionEvaluator::evaluateBoolNode(BoolNode* node)
@@ -638,6 +649,40 @@ namespace evaluator
                 std::string className = parts[0];
                 std::string methodName = parts[1];
 
+                // Handle 'this::methodName' syntax - resolve 'this' to current class
+                if (className == "this")
+                {
+                    // Try to get the current class from instance context first
+                    auto currentInstance = context->getCurrentInstance();
+                    if (currentInstance)
+                    {
+                        className = currentInstance->getClassDefinition()->getClassName();
+                    }
+                    // For static methods, get class name from the __current_class_name__ variable
+                    else
+                    {
+                        auto currentClassVar = env->findVariable("__current_class_name__");
+                        if (currentClassVar)
+                        {
+                            auto currentClassValue = currentClassVar->getValue();
+                            if (std::holds_alternative<std::string>(currentClassValue))
+                            {
+                                className = std::get<std::string>(currentClassValue);
+                            }
+                            else
+                            {
+                                throw UndefinedException("Cannot determine class context for 'this' qualifier",
+                                                         node->getLocation());
+                            }
+                        }
+                        else
+                        {
+                            throw UndefinedException("'this' qualifier can only be used within class methods",
+                                                     node->getLocation());
+                        }
+                    }
+                }
+
                 auto classRegistry = env->getClassRegistry();
                 auto classDef = classRegistry->findItem(className);
 
@@ -976,9 +1021,16 @@ namespace evaluator
     {
         // Handle string concatenation for PLUS operator
         if (op == TokenType::PLUS &&
-            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right)))
+            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
+             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right)))
         {
-            return toString(left) + toString(right);
+            std::string leftStr = toString(left);
+            std::string rightStr = toString(right);
+            std::string result = leftStr + rightStr;
+
+
+            auto& pool = StringPool::getInstance();
+            return pool.intern(result);
         }
 
         // Handle numeric operations
@@ -1060,6 +1112,47 @@ namespace evaluator
         {
             std::string leftStr = std::get<std::string>(left);
             std::string rightStr = std::get<std::string>(right);
+
+            switch (op)
+            {
+            case TokenType::EQUALS: return leftStr == rightStr;
+            case TokenType::NOT_EQUALS: return leftStr != rightStr;
+            case TokenType::LESS: return leftStr < rightStr;
+            case TokenType::LESS_EQUALS: return leftStr <= rightStr;
+            case TokenType::GREATER: return leftStr > rightStr;
+            case TokenType::GREATER_EQUALS: return leftStr >= rightStr;
+            default:
+                throw TypeException("Invalid comparison operator", SourceLocation{});
+            }
+        }
+
+        // Handle InternedString comparisons
+        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<value::InternedString>(right))
+        {
+            std::string leftStr = std::get<value::InternedString>(left).getString();
+            std::string rightStr = std::get<value::InternedString>(right).getString();
+
+            switch (op)
+            {
+            case TokenType::EQUALS: return leftStr == rightStr;
+            case TokenType::NOT_EQUALS: return leftStr != rightStr;
+            case TokenType::LESS: return leftStr < rightStr;
+            case TokenType::LESS_EQUALS: return leftStr <= rightStr;
+            case TokenType::GREATER: return leftStr > rightStr;
+            case TokenType::GREATER_EQUALS: return leftStr >= rightStr;
+            default:
+                throw TypeException("Invalid comparison operator", SourceLocation{});
+            }
+        }
+
+        // Handle mixed string and InternedString comparisons
+        if ((std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) ||
+            (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)))
+        {
+            std::string leftStr = std::holds_alternative<std::string>(left) ?
+                std::get<std::string>(left) : std::get<value::InternedString>(left).getString();
+            std::string rightStr = std::holds_alternative<std::string>(right) ?
+                std::get<std::string>(right) : std::get<value::InternedString>(right).getString();
 
             switch (op)
             {
@@ -1166,7 +1259,8 @@ namespace evaluator
     {
         if (op == TokenType::PLUS)
         {
-            return toString(left) + toString(right);
+            auto& pool = StringPool::getInstance();
+            return pool.intern(toString(left) + toString(right));
         }
         throw TypeException("Invalid string operator", SourceLocation{});
     }

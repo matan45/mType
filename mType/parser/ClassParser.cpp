@@ -29,7 +29,7 @@ namespace parser
             throw ParseException("Expected class name", tokenStream.current().location);
         }
 
-        std::string className = tokenStream.current().stringValue;
+        std::string className = tokenStream.current().stringValue.getString();
 
         // Validate class naming convention
         if (!ParserValidator::isValidClassName(className))
@@ -145,7 +145,7 @@ namespace parser
             throw ParseException("Expected method name", tokenStream.current().location);
         }
 
-        std::string methodName = tokenStream.current().stringValue;
+        std::string methodName = tokenStream.current().stringValue.getString();
         tokenStream.advance();
 
         // Parse parameter list using generic-aware utility
@@ -210,7 +210,7 @@ namespace parser
                 throw ParseException("Expected method name", tokenStream.current().location);
             }
             
-            std::string methodName = tokenStream.current().stringValue;
+            std::string methodName = tokenStream.current().stringValue.getString();
             tokenStream.advance();
             
             // Parse parameter list using generic-aware utility
@@ -241,7 +241,7 @@ namespace parser
             throw ParseException("Expected field name", tokenStream.current().location);
         }
 
-        std::string fieldName = tokenStream.current().stringValue;
+        std::string fieldName = tokenStream.current().stringValue.getString();
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> initialValue = nullptr;
@@ -276,7 +276,7 @@ namespace parser
 
         // Parse qualified class name (e.g., namespace::ClassName or collection type)
         std::vector<std::string> qualifiedParts;
-        qualifiedParts.push_back(tokenStream.current().stringValue);
+        qualifiedParts.push_back(tokenStream.current().stringValue.getString());
         tokenStream.advance();
 
         while (tokenStream.current().type == TokenType::SCOPE)
@@ -286,7 +286,7 @@ namespace parser
             {
                 throw ParseException("Expected identifier after '::'", tokenStream.current().location);
             }
-            qualifiedParts.push_back(tokenStream.current().stringValue);
+            qualifiedParts.push_back(tokenStream.current().stringValue.getString());
             tokenStream.advance();
         }
 
@@ -412,7 +412,7 @@ namespace parser
             tokenStream.current().type == TokenType::BOOL ||
             tokenStream.current().type == TokenType::STRING_TYPE)
         {
-            std::string paramType = tokenStream.current().stringValue;
+            std::string paramType = tokenStream.current().stringValue.getString();
             tokenStream.advance();
             
             // Check for nested generics (e.g., Array<int> inside Array<Array<int>>)
@@ -460,7 +460,7 @@ namespace parser
             throw ParseException("Expected generic type parameter name", tokenStream.current().location);
         }
 
-        std::string paramName = tokenStream.current().stringValue;
+        std::string paramName = tokenStream.current().stringValue.getString();
         auto location = tokenStream.current().location;
         tokenStream.advance();
 

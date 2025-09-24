@@ -151,6 +151,9 @@
     <Filter Include="tests\testFiles\native">
       <UniqueIdentifier>{D0DB4994-BCD5-72E6-A542-09F791DBD852}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\stringpool">
+      <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
     </Filter>
@@ -208,6 +211,9 @@
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
@@ -510,6 +516,9 @@
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\StringPoolTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -541,6 +550,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\SparseMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\StringPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\ValueType.hpp">
@@ -576,6 +588,9 @@
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
@@ -833,6 +848,9 @@
     <ClCompile Include="tests\suites\NativeTest.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\StringPoolTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -845,8 +863,23 @@
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
     </ClCompile>
+    <ClCompile Include="value\StringPool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\arrays\error\arrayLiteralMixedTypes.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\arrayLiteralNullMixed.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\arrayLiteralObjectTypeMismatch.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\arrayLiteralTypeMismatch.mt">
+      <Filter>tests\testFiles\arrays\error</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\largeArrayOutOfBounds.mt">
       <Filter>tests\testFiles\arrays\error</Filter>
     </None>
@@ -875,6 +908,30 @@
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\arrayAsParameter.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiterals4D.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiterals4D.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsBasic.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsBasic.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsMultiDimensional.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsMultiDimensional.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsObjects.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayLiteralsObjects.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\arrayPoolingAndMemory.expected">
@@ -928,6 +985,9 @@
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\conditionalScopingFail.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\constructorReturnTypes.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -952,7 +1012,16 @@
     <None Include="tests\testFiles\class\error\finalVariableReassignment.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\functionScopingFail.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\invalidConstructor.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\loopScopingFail.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\methodScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\nullPointerAccess.mt">
@@ -968,6 +1037,9 @@
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\staticReturnTypes.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\staticScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\undefinedClass.mt">
@@ -1033,6 +1105,12 @@
     <None Include="tests\testFiles\class\pass\complexExample.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\conditionalScopingPass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\conditionalScopingPass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\constructorWithParameters.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -1043,6 +1121,18 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\defaultConstructor.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\functionScopingPass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\functionScopingPass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\loopScopingPass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\loopScopingPass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\memberAccess.expected">
@@ -1061,6 +1151,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\methodCalls.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodScopingPass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodScopingPass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\mixedStaticAndInstance.expected">
@@ -1105,6 +1201,9 @@
     <None Include="tests\testFiles\class\pass\returningThisAndChaining.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\scopingBugTest.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\staticDataMembers.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -1121,6 +1220,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\staticMethods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticScopingPass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticScopingPass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
@@ -1854,6 +1959,51 @@
     </None>
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\basic_string_pool_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\basic_string_pool_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\debug_single_chars.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\debug_single_chars.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_comprehensive_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_comprehensive_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_efficiency_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_efficiency_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_integration_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_integration_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_performance_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_performance_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_stress_test.expected">
+      <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
+      <Filter>tests\testFiles\stringpool</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>

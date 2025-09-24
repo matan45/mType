@@ -1,0 +1,15 @@
+Testing basic string functionality
+hello
+world
+hello
+String comparison works correctly
+Combined: hello world
+Testing string literals
+Test
+Another
+Test
+This is a longer string that should still be interned by the pool
+Alice
+Hello Alice
+Bob
+Hello Bob

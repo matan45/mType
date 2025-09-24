@@ -2,6 +2,7 @@
 #include <cctype>
 #include <stdexcept>
 #include <limits>
+#include <iostream>
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
 
@@ -313,7 +314,7 @@ namespace lexer
             }
             advance(); // Skip closing quote
         }
-        
+
         return result;
     }
 

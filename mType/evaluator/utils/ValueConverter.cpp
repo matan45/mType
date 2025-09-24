@@ -4,6 +4,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../../value/StringPool.hpp"
 #include <sstream>
 
 namespace evaluator::utils
@@ -26,6 +27,9 @@ namespace evaluator::utils
                 return val != 0.0f && !std::isnan(val);
             }
             else if constexpr (std::is_same_v<T, std::string>) {
+                return !val.empty();
+            }
+            else if constexpr (std::is_same_v<T, value::InternedString>) {
                 return !val.empty();
             }
             else if constexpr (std::is_same_v<T, std::shared_ptr<ObjectInstance>>) {
@@ -56,9 +60,12 @@ namespace evaluator::utils
     {
         return std::visit([](const auto& val) -> std::string {
             using T = std::decay_t<decltype(val)>;
-            
+
             if constexpr (std::is_same_v<T, std::string>) {
                 return val;
+            }
+            else if constexpr (std::is_same_v<T, value::InternedString>) {
+                return val.getString();
             }
             else if constexpr (std::is_same_v<T, int>) {
                 return std::to_string(val);
@@ -174,6 +181,9 @@ namespace evaluator::utils
                 return ValueType::FLOAT;
             }
             else if constexpr (std::is_same_v<T, std::string>) {
+                return ValueType::STRING;
+            }
+            else if constexpr (std::is_same_v<T, value::InternedString>) {
                 return ValueType::STRING;
             }
             else if constexpr (std::is_same_v<T, bool>) {

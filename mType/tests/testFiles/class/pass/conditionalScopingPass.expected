@@ -1,0 +1,10 @@
+=== If-Else Scoping Test ===
+if block: ifVar = 111, outerVar = 500
+after if-else: outerVar = 500
+=== Nested If Test ===
+level1: level1Var = 111, outerVar = 600
+level2: level2Var = 222, level1Var = 111, outerVar = 600
+back to level1: level1Var = 111, outerVar = 600
+=== Switch Scoping Test ===
+case 1: case1Var = 111, outerVar = 700
+after switch: outerVar = 700

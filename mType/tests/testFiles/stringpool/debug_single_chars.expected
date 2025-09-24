@@ -1,0 +1,10 @@
+=== Testing single character literals ===
+Space: 'hello world'
+Underscore: 'hello_world'
+Dash: 'hello-world'
+Comma: 'hello,world'
+Pipe: 'hello|world'
+Dot: 'hello.world'
+At: 'hello@world'
+Two chars: 'helloabworld'
+Space+char: 'hello xworld'

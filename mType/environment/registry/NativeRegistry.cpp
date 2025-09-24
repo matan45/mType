@@ -5,6 +5,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../value/StringPool.hpp"
 
 namespace environment::registry
 {
@@ -70,6 +71,8 @@ namespace environment::registry
                 {
                     if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
                         std::cout << value;
+                    else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
+                        std::cout << value.getString();
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
                         std::cout << value;
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
@@ -137,6 +140,10 @@ namespace environment::registry
                 {
                     return value; // Already a string
                 }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
+                {
+                    return value.getString(); // Convert InternedString to string
+                }
                 else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
                 {
                     return std::to_string(value);
@@ -177,6 +184,10 @@ namespace environment::registry
                 {
                     return static_cast<int>(value.length());
                 }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
+                {
+                    return static_cast<int>(value.getString().length());
+                }
                 else
                 {
                     throw errors::RuntimeException("str::length can only be called on strings");
@@ -199,6 +210,12 @@ namespace environment::registry
                     // Hash string content
                     std::hash<std::string> hasher;
                     return static_cast<int>(hasher(value) & 0x7FFFFFFF); // Keep positive
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
+                {
+                    // Hash InternedString content
+                    std::hash<std::string> hasher;
+                    return static_cast<int>(hasher(value.getString()) & 0x7FFFFFFF); // Keep positive
                 }
                 else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
                 {

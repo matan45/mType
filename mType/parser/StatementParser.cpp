@@ -81,7 +81,7 @@ namespace parser
                     // 1. "int[] data" (array type declaration)
                     // 2. "data[0]" (array indexing/assignment)
 
-                    std::string identifier = tokenStream.current().stringValue;
+                    std::string identifier = tokenStream.current().stringValue.getString();
 
                     // Check if this identifier is a type name
                     if (identifier == "int" || identifier == "float" || identifier == "string" ||
@@ -199,7 +199,7 @@ namespace parser
             throw ParseException("Expected variable name", tokenStream.current().location);
         }
 
-        std::string varName = tokenStream.current().stringValue;
+        std::string varName = tokenStream.current().stringValue.getString();
         SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
@@ -216,7 +216,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> StatementParser::parseAssignment()
     {
-        std::string varName = tokenStream.current().stringValue;
+        std::string varName = tokenStream.current().stringValue.getString();
         SourceLocation varLocation = tokenStream.current().location;  // Capture variable location
         tokenStream.advance();
 
@@ -340,7 +340,7 @@ namespace parser
                     throw ParseException("Expected variable name", tokenStream.current().location);
                 }
                 
-                std::string varName = tokenStream.current().stringValue;
+                std::string varName = tokenStream.current().stringValue.getString();
                 SourceLocation location = tokenStream.current().location;
                 tokenStream.advance();
                 
@@ -412,7 +412,7 @@ namespace parser
             throw ParseException("Expected variable name in for-each loop", tokenStream.current().location);
         }
         
-        std::string variableName = tokenStream.current().stringValue;
+        std::string variableName = tokenStream.current().stringValue.getString();
         SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
         
@@ -446,7 +446,7 @@ namespace parser
             return nullptr;
         }
         
-        std::string variableName = tokenStream.current().stringValue;
+        std::string variableName = tokenStream.current().stringValue.getString();
         SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
         
@@ -675,7 +675,7 @@ namespace parser
             throw ParseException("Expected function name", tokenStream.current().location);
         }
 
-        std::string funcName = tokenStream.current().stringValue;
+        std::string funcName = tokenStream.current().stringValue.getString();
         tokenStream.advance();
 
         auto parameters = parseParameterList();
@@ -709,7 +709,7 @@ namespace parser
             throw ParseException("Expected string literal after 'import'", tokenStream.current().location);
         }
 
-        std::string filePath = tokenStream.current().stringValue;
+        std::string filePath = tokenStream.current().stringValue.getString();
         SourceLocation loc = tokenStream.current().location;
         tokenStream.advance();
 
@@ -740,7 +740,7 @@ namespace parser
             throw ParseException("Expected function name", tokenStream.current().location);
         }
 
-        std::string funcName = tokenStream.current().stringValue;
+        std::string funcName = tokenStream.current().stringValue.getString();
         tokenStream.advance();
 
         auto parameters = parseParameterList();

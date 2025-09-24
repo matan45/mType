@@ -1,4 +1,5 @@
 ﻿#include "ExpressionParser.hpp"
+#include <iostream>
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
@@ -363,7 +364,7 @@ namespace parser
             }
         case TokenType::STRING_LITERAL:
             {
-                std::string value = tokenStream.current().stringValue;
+                std::string value = tokenStream.current().stringValue.getString();
                 auto stringLocation = tokenStream.current().location;
                 tokenStream.advance();
                 return std::make_unique<StringNode>(value, stringLocation);
@@ -388,7 +389,7 @@ namespace parser
             }
         case TokenType::IDENTIFIER:
             {
-                std::string name = tokenStream.current().stringValue;
+                std::string name = tokenStream.current().stringValue.getString();
                 auto identifierLocation = tokenStream.current().location;
                 tokenStream.advance();
                 return std::make_unique<VariableNode>(name, identifierLocation);
@@ -441,7 +442,7 @@ namespace parser
             throw ParseException("Expected member name after '.'", tokenStream.current().location);
         }
 
-        std::string memberName = tokenStream.current().stringValue;
+        std::string memberName = tokenStream.current().stringValue.getString();
         SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
@@ -528,7 +529,7 @@ namespace parser
 
         if (tokenStream.current().type == TokenType::IDENTIFIER)
         {
-            typeArg = tokenStream.current().stringValue;
+            typeArg = tokenStream.current().stringValue.getString();
             tokenStream.advance();
 
             // Handle nested generics like Array<String>

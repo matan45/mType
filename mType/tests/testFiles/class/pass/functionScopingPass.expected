@@ -1,0 +1,25 @@
+=== Direct Function Calls ===
+mainFunction: localVar = 456
+mainFunction: globalVar = 999
+helperFunction: localVar = 123
+helperFunction: globalVar = 999
+mainFunction: result from helper = 123
+mainFunction: localVar still = 456
+outerVar = 111
+innerVar = 222, outerVar = 111
+loopVar = 0, innerVar = 222, outerVar = 111
+loopVar = 10, innerVar = 222, outerVar = 111
+back to function scope: outerVar = 111
+=== Function Calls from Class ===
+=== Calling Functions from Class ===
+mainFunction: localVar = 456
+mainFunction: globalVar = 999
+helperFunction: localVar = 123
+helperFunction: globalVar = 999
+mainFunction: result from helper = 123
+mainFunction: localVar still = 456
+outerVar = 111
+innerVar = 222, outerVar = 111
+loopVar = 0, innerVar = 222, outerVar = 111
+loopVar = 10, innerVar = 222, outerVar = 111
+back to function scope: outerVar = 111

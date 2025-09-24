@@ -2,6 +2,7 @@
 #include <string>
 #include "TokenType.hpp"
 #include "../errors/SourceLocation.hpp"
+#include "../value/StringPool.hpp"
 
 namespace token
 {
@@ -10,7 +11,7 @@ namespace token
         TokenType type;
         float floatValue;
         int intValue;
-        std::string stringValue;
+        value::InternedString stringValue;
         errors::SourceLocation location;
     };
 }

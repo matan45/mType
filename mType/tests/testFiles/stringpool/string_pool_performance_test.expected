@@ -1,0 +1,57 @@
+Testing repeated string usage
+Iteration: 0
+Value: value
+Result: result
+Data: data
+Iteration: 1
+Value: value
+Result: result
+Data: data
+Iteration: 2
+Value: value
+Result: result
+Data: data
+Iteration: 3
+Value: value
+Result: result
+Data: data
+Iteration: 4
+Value: value
+Result: result
+Data: data
+Iteration: 5
+Value: value
+Result: result
+Data: data
+Iteration: 6
+Value: value
+Result: result
+Data: data
+Iteration: 7
+Value: value
+Result: result
+Data: data
+Iteration: 8
+Value: value
+Result: result
+Data: data
+Iteration: 9
+Value: value
+Result: result
+Data: data
+Testing string operations with pooled strings
+Combined 0: base_suffix
+String equality check passed
+Combined 1: base_suffix
+String equality check passed
+Combined 2: base_suffix
+String equality check passed
+Combined 3: base_suffix
+String equality check passed
+Combined 4: base_suffix
+String equality check passed
+Testing string usage in class context
+TestType:username=alice
+TestType:username=bob
+Testing string comparison performance
+String comparison performance test completed

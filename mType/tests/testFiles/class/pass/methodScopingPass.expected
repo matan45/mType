@@ -1,0 +1,8 @@
+methodA: localVar = 42
+methodA: classField = 100
+methodB: localVar = 99
+methodB: classField = 100
+nested: outerVar = 10
+nested: innerVar = 20
+after nested: outerVar = 10
+Results: 42, 99

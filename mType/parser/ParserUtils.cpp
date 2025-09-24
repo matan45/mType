@@ -81,7 +81,7 @@ namespace parser
                 throw ParseException("Expected parameter name", stream.location());
             }
 
-            std::string paramName = stream.current().stringValue;
+            std::string paramName = stream.current().stringValue.getString();
             stream.advance();
 
             // Add parameter to list
@@ -132,7 +132,7 @@ namespace parser
                 throw ParseException("Expected parameter name", stream.location());
             }
 
-            std::string paramName = stream.current().stringValue;
+            std::string paramName = stream.current().stringValue.getString();
             stream.advance();
 
             // Add parameter to list
@@ -201,7 +201,7 @@ namespace parser
         
         // We expect the stream to be positioned at the first identifier after the initial ::
         // Add that identifier to the parts
-        parts.push_back(stream.current().stringValue);
+        parts.push_back(stream.current().stringValue.getString());
         stream.advance();
         
         // Continue parsing if there are more :: tokens
@@ -214,7 +214,7 @@ namespace parser
                 throw ParseException("Expected identifier after '::'", stream.location());
             }
             
-            parts.push_back(stream.current().stringValue);
+            parts.push_back(stream.current().stringValue.getString());
             stream.advance();
         }
         

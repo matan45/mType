@@ -7,6 +7,7 @@
 #include "../tests/suites/ErrorTestSuite.hpp"
 #include "../tests/suites/GenericsTestSuite.hpp"
 #include "../tests/suites/ArrayTestSuite.hpp"
+#include "../tests/suites/StringPoolTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -63,6 +64,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     else if (suiteName == "arrays" || suiteName == "array")
     {
         return std::make_unique<ArrayTestSuite>();
+    }
+    else if (suiteName == "stringpool" || suiteName == "string-pool" || suiteName == "strings")
+    {
+        return std::make_unique<StringPoolTestSuite>();
     }
     return nullptr;
 }
@@ -121,6 +126,7 @@ void runAllTests()
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
     suites.push_back(std::make_unique<GenericsTestSuite>());
     suites.push_back(std::make_unique<ArrayTestSuite>());
+    suites.push_back(std::make_unique<StringPoolTestSuite>());
 
     for (auto& suite : suites)
     {

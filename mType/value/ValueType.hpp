@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "StringPool.hpp"
 
 namespace runtimeTypes::klass
 {
@@ -32,7 +33,7 @@ namespace value
     };
 
     // Runtime value that can hold different types
-    using Value = std::variant<int, float, bool, std::string, std::monostate,
+    using Value = std::variant<int, float, bool, std::string, InternedString, std::monostate,
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
@@ -57,6 +58,8 @@ namespace value
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>) {
                 return ValueType::BOOL;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>) {
+                return ValueType::STRING;
+            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, InternedString>) {
                 return ValueType::STRING;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::monostate>) {
                 return ValueType::VOID;
