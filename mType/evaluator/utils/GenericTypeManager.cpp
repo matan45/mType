@@ -57,19 +57,20 @@ namespace evaluator::utils
         }
         instantiatedName += ">";
 
-        // Create cache key that includes the base class pointer to avoid collisions
-        // between different generic classes with the same name
-        std::string cacheKey = std::to_string(reinterpret_cast<uintptr_t>(genericClass.get())) + ":" + instantiatedName;
+        // Create comprehensive cache key that prevents collisions
+        std::string cacheKey = createComprehensiveCacheKey(genericClass, typeArguments);
 
         // Check generic class instantiation cache with thread safety
-        static std::mutex genericClassCacheMutex;
-        static std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> genericClassCache;
+        // Use function-local static to ensure same variables across method calls
+        auto cacheData = getGenericClassCache();
+        std::mutex& cacheMutex = cacheData.first;
+        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>& cache = cacheData.second;
 
         {
-            std::lock_guard<std::mutex> lock(genericClassCacheMutex);
+            std::lock_guard<std::mutex> lock(cacheMutex);
 
-            auto cacheIt = genericClassCache.find(cacheKey);
-            if (cacheIt != genericClassCache.end())
+            auto cacheIt = cache.find(cacheKey);
+            if (cacheIt != cache.end())
             {
                 return cacheIt->second;
             }
@@ -135,8 +136,8 @@ namespace evaluator::utils
 
         // Cache the instantiated class for future reuse
         {
-            std::lock_guard<std::mutex> lock(genericClassCacheMutex);
-            genericClassCache[cacheKey] = instantiatedClass;
+            std::lock_guard<std::mutex> lock(cacheMutex);
+            cache[cacheKey] = instantiatedClass;
         }
 
         return instantiatedClass;
@@ -442,8 +443,8 @@ namespace evaluator::utils
             return false;
         }
 
-        // TODO: Add constraint checking when bounds are implemented
-        // For now, just check that all type arguments are non-empty
+        // Validate type arguments for unbounded generics
+        // Constraint checking would go here when bounded generics are implemented
         for (const auto& typeArg : typeArguments)
         {
             if (typeArg.empty())
@@ -454,4 +455,63 @@ namespace evaluator::utils
 
         return true;
     }
+
+    std::pair<std::mutex&, std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>&>
+        GenericTypeManager::getGenericClassCache()
+    {
+        // Function-local static ensures same variables across all calls
+        static std::mutex genericClassCacheMutex;
+        static std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> genericClassCache;
+
+        return {genericClassCacheMutex, genericClassCache};
+    }
+
+    void GenericTypeManager::clearGenericClassCache()
+    {
+        auto cacheData = getGenericClassCache();
+        std::mutex& cacheMutex = cacheData.first;
+        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>& cache = cacheData.second;
+
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        cache.clear();
+    }
+
+    std::string GenericTypeManager::createComprehensiveCacheKey(
+        std::shared_ptr<ClassDefinition> genericClass,
+        const std::vector<std::string>& typeArguments)
+    {
+        if (!genericClass)
+        {
+            return "";
+        }
+
+        // Build comprehensive key: "className[genericParams]<typeArgs>"
+        std::string cacheKey = genericClass->getName();
+
+        // Add generic parameter signature to prevent collisions between different generic classes
+        // Even if class names are same, different generic parameter signatures make them different
+        if (genericClass->isGeneric())
+        {
+            cacheKey += "[";
+            const auto& genericParams = genericClass->getGenericParameters();
+            for (size_t i = 0; i < genericParams.size(); ++i)
+            {
+                if (i > 0) cacheKey += ",";
+                cacheKey += genericParams[i].name;
+            }
+            cacheKey += "]";
+        }
+
+        // Add the concrete type arguments
+        cacheKey += "<";
+        for (size_t i = 0; i < typeArguments.size(); ++i)
+        {
+            if (i > 0) cacheKey += ",";
+            cacheKey += typeArguments[i];
+        }
+        cacheKey += ">";
+
+        return cacheKey;
+    }
+
 }

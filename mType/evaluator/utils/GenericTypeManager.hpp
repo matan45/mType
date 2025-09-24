@@ -140,6 +140,12 @@ namespace evaluator::utils
             std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
             const std::vector<std::string>& typeArguments);
 
+        /**
+         * @brief Clear the generic class instantiation cache
+         * This is useful for test isolation and preventing cache contamination
+         */
+        static void clearGenericClassCache();
+
     private:
         /**
          * @brief Parse type arguments from a generic instantiation
@@ -187,5 +193,25 @@ namespace evaluator::utils
         static std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> substituteConstructorTypes(
             std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> originalConstructor,
             const std::unordered_map<std::string, std::string>& substitutionMap);
+
+        
+
+    private:
+        /**
+         * @brief Create a comprehensive cache key that prevents collisions
+         * @param genericClass The generic class definition
+         * @param typeArguments The concrete type arguments
+         * @return Collision-resistant cache key with namespace and parameter info
+         */
+        static std::string createComprehensiveCacheKey(
+            std::shared_ptr<ClassDefinition> genericClass,
+            const std::vector<std::string>& typeArguments);
+
+        /**
+         * @brief Get reference to the global generic class cache and mutex
+         * @return Tuple of mutex reference and cache reference
+         */
+        static std::pair<std::mutex&, std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>&>
+            getGenericClassCache();
     };
 }

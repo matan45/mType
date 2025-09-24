@@ -1467,7 +1467,6 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateNativeFunctionNode(NativeFunctionNode* node)
     {
-        // TODO: Implement native function evaluation
         throw TypeException("Native function evaluation not implemented in refactored version");
     }
 
