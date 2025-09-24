@@ -23,7 +23,7 @@ class Container<T> {
         return data;
     }
 
-    function HashSet(T value): void {
+    function hashSet(T value): void {
         data = value;
     }
 

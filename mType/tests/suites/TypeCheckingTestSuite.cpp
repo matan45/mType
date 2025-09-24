@@ -145,5 +145,22 @@ namespace tests::testSuite
         addTestFromFile("Incompatible Class Conversion Error",
                         errorPath + "incompatibleClassConversionError.mt",
                         TestType::ERROR_EXPECTED);
+
+        // Naming convention error tests
+        addTestFromFile("Function Naming Convention Error",
+                        errorPath + "functionNamingConventionError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Method Naming Convention Error",
+                        errorPath + "methodNamingConventionError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Naming Convention Error",
+                        errorPath + "staticMethodNamingConventionError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Native Function Naming Convention Error",
+                        errorPath + "nativeFunctionNamingConventionError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Mixed Naming Convention Errors",
+                        errorPath + "mixedNamingConventionErrors.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

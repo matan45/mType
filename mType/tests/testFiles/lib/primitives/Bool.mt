@@ -50,11 +50,11 @@ class Bool {
     }
 
     // Static factory methods
-    static function TRUE(): Bool {
+    static function bool_TRUE(): Bool {
         return new Bool(true);
     }
 
-    static function FALSE(): Bool {
+    static function bool_FALSE(): Bool {
         return new Bool(false);
     }
 }

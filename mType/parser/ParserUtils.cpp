@@ -51,6 +51,30 @@ namespace parser
         return true;
     }
 
+    void ParserUtils::validateFunctionNamingConvention(std::string_view name, bool isStatic,
+                                                      std::string_view context, const errors::SourceLocation& location)
+    {
+        using namespace errors;
+
+        if (name.empty()) {
+            throw ParseException(std::string(context) + " name cannot be empty", location);
+        }
+
+        // Check if first character is lowercase letter
+        if (!std::islower(name[0]) && name[0] != '_') {
+            std::string message = std::string(context) + " '" + std::string(name) +
+                                "' must start with a lowercase letter. " +
+                                (isStatic ? "Static methods" : "Functions and methods") +
+                                " should follow camelCase convention.";
+            throw ParseException(message, location);
+        }
+
+        // Additional validation: ensure it's a valid identifier
+        if (!isValidIdentifier(name)) {
+            throw ParseException(std::string(context) + " '" + std::string(name) + "' is not a valid identifier", location);
+        }
+    }
+
     std::vector<std::pair<std::string, value::ValueType>> ParserUtils::parseParameterList(TokenStream& stream, bool expectParentheses)
     {
         using namespace value;

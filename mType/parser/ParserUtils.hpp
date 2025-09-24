@@ -7,6 +7,7 @@
 #include <memory>
 #include "../value/ValueType.hpp"
 #include "../token/TokenType.hpp"
+#include "../errors/SourceLocation.hpp"
 
 // Forward declarations
 namespace ast {
@@ -31,6 +32,14 @@ namespace parser
         /// @param name String to validate
         /// @return true if valid identifier, false otherwise
         [[nodiscard]] static bool isValidIdentifier(std::string_view name) noexcept;
+
+        /// @brief Validate function/method naming convention (must start with lowercase)
+        /// @param name Function or method name to validate
+        /// @param isStatic Whether this is a static method
+        /// @param context Description for error message (e.g., "method", "function", "static method")
+        /// @throws ParseException if name doesn't follow lowercase convention
+        static void validateFunctionNamingConvention(std::string_view name, bool isStatic,
+                                                    std::string_view context, const errors::SourceLocation& location);
         
         /// @brief Parse parameter list with centralized logic
         /// Eliminates code duplication across ClassParser and StatementParser methods

@@ -676,6 +676,10 @@ namespace parser
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
+
+        // Validate function naming convention (must start with lowercase)
+        ParserUtils::validateFunctionNamingConvention(funcName, false, "Function", tokenStream.location());
+
         tokenStream.advance();
 
         auto parameters = parseParameterList();
@@ -741,6 +745,10 @@ namespace parser
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
+
+        // Validate function naming convention (must start with lowercase)
+        ParserUtils::validateFunctionNamingConvention(funcName, false, "Function", tokenStream.location());
+
         tokenStream.advance();
 
         auto parameters = parseParameterList();

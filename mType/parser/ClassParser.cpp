@@ -146,6 +146,10 @@ namespace parser
         }
 
         std::string methodName = tokenStream.current().stringValue.getString();
+
+        // Validate method naming convention (must start with lowercase)
+        ParserUtils::validateFunctionNamingConvention(methodName, isStatic, "Method", tokenStream.location());
+
         tokenStream.advance();
 
         // Parse parameter list using generic-aware utility
@@ -211,6 +215,10 @@ namespace parser
             }
             
             std::string methodName = tokenStream.current().stringValue.getString();
+
+            // Validate static method naming convention (must start with lowercase)
+            ParserUtils::validateFunctionNamingConvention(methodName, true, "Static method", tokenStream.location());
+
             tokenStream.advance();
             
             // Parse parameter list using generic-aware utility
