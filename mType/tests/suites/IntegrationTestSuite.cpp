@@ -73,6 +73,9 @@ namespace tests::testSuite
                         passPath + "invalidCombinationsHandling.mt");
         addOutputVerificationTest("Corrupted State Recovery",
                         passPath + "corruptedStateRecovery.mt");
+
+        addOutputVerificationTest("complex generic substitution",
+                        passPath + "test_type_substitution_edge_cases.mt");
         
         addOutputVerificationTest("Class Generic Serialization",
                         passPath + "classGenericSerialization.mt");
