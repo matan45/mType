@@ -211,14 +211,39 @@ namespace value
             pool.stats.totalAllocations++;
 
             if (!pool.available.empty()) {
-                // Verify array integrity BEFORE removing from pool
-                auto array = pool.available.back();
-                if (!array || !array->hasDimensions(dimensions)) {
-                    // Pool corruption detected - remove corrupted array and create new one
-                    pool.available.pop_back();  // Remove corrupted array
+                // SAFE: Check pool integrity before accessing elements
+                std::shared_ptr<FlatMultiArray> array = nullptr;
+
+                try {
+                    // Verify we can safely access the last element
+                    if (pool.available.size() == 0) {
+                        // Double-check in case of race condition
+                        pool.stats.poolMisses++;
+                        globalStats.poolMisses++;
+                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                    }
+
+                    // Safe access to back element after size verification
+                    array = pool.available.back();
+
+                    // Validate array integrity BEFORE using it
+                    if (!array || !array->hasDimensions(dimensions)) {
+                        // Pool corruption detected - safely remove corrupted array
+                        pool.available.pop_back();  // Now safe since we verified size > 0
+                        pool.stats.poolMisses++;
+                        globalStats.poolMisses++;
+                        pool.stats.poolDiscards++;  // Track as discard, not hit
+                        globalStats.poolDiscards++;
+                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+                    }
+                } catch (const std::exception&) {
+                    // Exception during pool access - treat as corruption
+                    if (!pool.available.empty()) {
+                        pool.available.pop_back();  // Safe cleanup if possible
+                    }
                     pool.stats.poolMisses++;
                     globalStats.poolMisses++;
-                    pool.stats.poolDiscards++;  // Track as discard, not hit
+                    pool.stats.poolDiscards++;
                     globalStats.poolDiscards++;
                     return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
                 }

@@ -180,18 +180,46 @@ namespace ast
 
     private:
         /**
-         * Internal substitute method with cycle detection
+         * @brief Context for tracking substitution chains and detecting mutual recursion
+         */
+        struct SubstitutionContext {
+            std::vector<std::string> substitutionChain;  // Current chain of substitutions: T->K->V->...
+            std::unordered_set<std::string> activeParameters;  // Currently active parameters in chain
+            std::unordered_map<std::string, int> parameterDepth;  // Depth tracking per parameter
+            int currentDepth;
+            int maxDepth;
+
+            SubstitutionContext(int maxDepth) : currentDepth(0), maxDepth(maxDepth) {}
+
+            /**
+             * @brief Enter a new substitution step
+             * @param paramName Parameter being substituted
+             * @return true if safe to proceed, false if cycle detected
+             */
+            bool enterSubstitution(const std::string& paramName);
+
+            /**
+             * @brief Exit current substitution step
+             * @param paramName Parameter being exited
+             */
+            void exitSubstitution(const std::string& paramName);
+
+            /**
+             * @brief Get current substitution path for error reporting
+             * @return String representation of substitution chain
+             */
+            std::string getChainString() const;
+        };
+
+        /**
+         * Internal substitute method with comprehensive cycle detection
          * @param substitutions Map from type parameter names to concrete types
-         * @param visitedTypes Set of types currently being processed (cycle detection)
-         * @param maxDepth Maximum recursion depth allowed
-         * @param currentDepth Current recursion depth
+         * @param context Substitution context with chain tracking
          * @return New GenericType with substitutions applied
          */
         std::shared_ptr<GenericType> substituteInternal(
             const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions,
-            std::unordered_set<std::string>& visitedTypes,
-            int maxDepth,
-            int currentDepth) const;
+            SubstitutionContext& context) const;
 
         /**
          * Static factory methods for common types

@@ -57,7 +57,26 @@ namespace evaluator::utils
         }
         instantiatedName += ">";
 
-        // Create comprehensive cache key that prevents collisions
+        // OPTIMIZATION: Check fast cache first for common patterns
+        if (isCommonPattern(genericClass->getName(), typeArguments)) {
+            auto fastCacheData = getFastGenericCache();
+            std::mutex& fastCacheMutex = fastCacheData.first;
+            auto& fastCache = fastCacheData.second;
+
+            FastCacheKey fastKey(genericClass->getName(), typeArguments);
+
+            {
+                std::lock_guard<std::mutex> lock(fastCacheMutex);
+                auto fastIt = fastCache.find(fastKey);
+                if (fastIt != fastCache.end()) {
+                    return fastIt->second;
+                }
+            }
+
+            // Not in fast cache, proceed to create and cache in both levels
+        }
+
+        // Fallback to comprehensive cache key for complex/uncommon patterns
         std::string cacheKey = createComprehensiveCacheKey(genericClass, typeArguments);
 
         // Check generic class instantiation cache with thread safety
@@ -134,10 +153,22 @@ namespace evaluator::utils
             instantiatedClass->addConstructor(newConstructor);
         }
 
-        // Cache the instantiated class for future reuse
+        // Cache the instantiated class for future reuse in both caches
         {
             std::lock_guard<std::mutex> lock(cacheMutex);
             cache[cacheKey] = instantiatedClass;
+        }
+
+        // OPTIMIZATION: Also cache in fast cache if common pattern
+        if (isCommonPattern(genericClass->getName(), typeArguments)) {
+            auto fastCacheData = getFastGenericCache();
+            std::mutex& fastCacheMutex = fastCacheData.first;
+            auto& fastCache = fastCacheData.second;
+
+            FastCacheKey fastKey(genericClass->getName(), typeArguments);
+
+            std::lock_guard<std::mutex> fastLock(fastCacheMutex);
+            fastCache[fastKey] = instantiatedClass;
         }
 
         return instantiatedClass;
@@ -468,12 +499,21 @@ namespace evaluator::utils
 
     void GenericTypeManager::clearGenericClassCache()
     {
+        // Clear both regular and fast caches
         auto cacheData = getGenericClassCache();
         std::mutex& cacheMutex = cacheData.first;
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>& cache = cacheData.second;
 
-        std::lock_guard<std::mutex> lock(cacheMutex);
+        auto fastCacheData = getFastGenericCache();
+        std::mutex& fastCacheMutex = fastCacheData.first;
+        auto& fastCache = fastCacheData.second;
+
+        // Use lock ordering to prevent deadlocks
+        std::lock_guard<std::mutex> lock1(cacheMutex);
+        std::lock_guard<std::mutex> lock2(fastCacheMutex);
+
         cache.clear();
+        fastCache.clear();
     }
 
     std::string GenericTypeManager::createComprehensiveCacheKey(
@@ -512,6 +552,75 @@ namespace evaluator::utils
         cacheKey += ">";
 
         return cacheKey;
+    }
+
+    GenericTypeManager::FastCacheKey::FastCacheKey(const std::string& name, const std::vector<std::string>& args)
+        : className(name), typeArgs(args)
+    {
+        // Pre-compute hash for O(1) comparison
+        std::hash<std::string> hasher;
+        hashValue = hasher(className);
+
+        // Combine with type argument hashes using a simple but effective method
+        for (const auto& arg : typeArgs) {
+            hashValue ^= hasher(arg) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+        }
+    }
+
+    std::pair<std::mutex&, std::unordered_map<GenericTypeManager::FastCacheKey, std::shared_ptr<ClassDefinition>, GenericTypeManager::FastCacheKeyHasher>&>
+        GenericTypeManager::getFastGenericCache()
+    {
+        // Separate fast cache with optimized keys
+        static std::mutex fastGenericCacheMutex;
+        static std::unordered_map<FastCacheKey, std::shared_ptr<ClassDefinition>, FastCacheKeyHasher> fastGenericCache;
+
+        return {fastGenericCacheMutex, fastGenericCache};
+    }
+
+    bool GenericTypeManager::isCommonPattern(const std::string& className, const std::vector<std::string>& typeArguments)
+    {
+        // Define common patterns that benefit from fast caching
+        static const std::unordered_set<std::string> commonClasses = {
+            "List", "Array", "Vector",           // Single-parameter containers
+            "Map", "HashMap", "Dictionary",      // Key-value containers
+            "Set", "HashSet",                    // Set containers
+            "Stack", "Queue",                    // LIFO/FIFO containers
+            "Optional", "Nullable",              // Wrapper types
+            "Pair", "Tuple"                      // Multi-value types
+        };
+
+        // Check if this is a commonly instantiated class
+        if (commonClasses.find(className) == commonClasses.end()) {
+            return false;
+        }
+
+        // Additional criteria for fast cache eligibility:
+        // 1. Reasonable type argument count (avoid extremely complex instantiations)
+        if (typeArguments.size() > 4) {
+            return false;
+        }
+
+        // 2. Avoid deeply nested generics in type arguments (these are complex)
+        for (const auto& arg : typeArguments) {
+            // Count angle brackets to detect nesting depth
+            size_t depth = 0;
+            for (char c : arg) {
+                if (c == '<') depth++;
+                if (c == '>') depth--;
+                if (depth > 2) {  // Max nesting depth for fast cache
+                    return false;
+                }
+            }
+        }
+
+        // 3. Avoid extremely long type argument names (indicates complexity)
+        for (const auto& arg : typeArguments) {
+            if (arg.length() > 50) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }

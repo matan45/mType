@@ -213,5 +213,45 @@ namespace evaluator::utils
          */
         static std::pair<std::mutex&, std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>&>
             getGenericClassCache();
+
+        /**
+         * @brief Fast cache for common generic instantiation patterns
+         * Uses numeric keys for O(1) lookup instead of string concatenation
+         */
+        struct FastCacheKey {
+            std::string className;
+            std::vector<std::string> typeArgs;
+
+            // Pre-computed hash for O(1) comparison
+            size_t hashValue;
+
+            FastCacheKey(const std::string& name, const std::vector<std::string>& args);
+
+            bool operator==(const FastCacheKey& other) const {
+                return hashValue == other.hashValue &&
+                       className == other.className &&
+                       typeArgs == other.typeArgs;
+            }
+        };
+
+        struct FastCacheKeyHasher {
+            size_t operator()(const FastCacheKey& key) const {
+                return key.hashValue;
+            }
+        };
+
+        /**
+         * @brief Get reference to fast cache for common patterns
+         */
+        static std::pair<std::mutex&, std::unordered_map<FastCacheKey, std::shared_ptr<ClassDefinition>, FastCacheKeyHasher>&>
+            getFastGenericCache();
+
+        /**
+         * @brief Check if a generic instantiation is a common pattern eligible for fast cache
+         * @param className The base class name
+         * @param typeArguments The type arguments
+         * @return true if this is a common pattern (List<T>, Map<K,V>, etc.)
+         */
+        static bool isCommonPattern(const std::string& className, const std::vector<std::string>& typeArguments);
     };
 }
