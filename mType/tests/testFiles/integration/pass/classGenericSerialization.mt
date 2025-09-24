@@ -27,7 +27,7 @@ class Person {
     }
 
     function hashCode(): int {
-        return name.hashCode() + age;
+        return hashCode(name) + age;
     }
 }
 
@@ -49,7 +49,7 @@ class Employee {
     }
 
     function hashCode(): int {
-        return name.hashCode() + department.hashCode();
+        return hashCode(name) + hashCode(department);
     }
 }
 

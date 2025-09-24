@@ -27,6 +27,21 @@ class Container<T, U, V> {
     function getThird(): V {
         return third;
     }
+
+    function hashCode(): int {
+        int hash = 7;
+        hash = hash * 31 + first.hashCode();
+        hash = hash * 31 + second.hashCode();
+        hash = hash * 31 + third.hashCode();
+        return hash;
+    }
+
+    function equals(Container<T, U, V> other): bool {
+        if (other == null) return false;
+        return first.equals(other.first) &&
+               second.equals(other.second) &&
+               third.equals(other.third);
+    }
 }
 
 class Wrapper<T> {
@@ -38,6 +53,15 @@ class Wrapper<T> {
 
     function getData(): T {
         return data;
+    }
+
+    function hashCode(): int {
+        return data.hashCode();
+    }
+
+    function equals(Wrapper<T> other): bool {
+        if (other == null) return false;
+        return data.equals(other.data);
     }
 }
 

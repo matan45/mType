@@ -182,7 +182,7 @@ class HashSet<T> {
 
     // Private helper methods
     function getBucketIndex(T item): int {
-        int hash = hashCode(item);
+        int hash = item.hashCode();
 
         // Apply secondary hash mixing using only basic arithmetic
         // This is a simplified version of multiplicative hashing
@@ -229,7 +229,9 @@ class HashSet<T> {
             newBucket[i] = this.buckets[bucketIndex][i];
         }
 
-        this.buckets[bucketIndex] = newBucket;
+        for (int i = 0; i < oldSize; i++) {
+            this.buckets[bucketIndex][i] = newBucket[i];
+        }
     }
 
     function resize(): void {

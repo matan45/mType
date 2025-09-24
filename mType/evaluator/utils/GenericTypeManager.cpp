@@ -6,6 +6,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 
 namespace evaluator::utils
 {
@@ -43,10 +44,6 @@ namespace evaluator::utils
             return nullptr;
         }
 
-        // Create substitution map
-        auto substitutionMap = createTypeSubstitutionMap(
-            genericClass->getGenericParameters(), typeArguments);
-
         // Create instantiated class name (e.g., "Box<int>")
         std::string instantiatedName = genericClass->getBaseName() + "<";
         for (size_t i = 0; i < typeArguments.size(); ++i) {
@@ -54,6 +51,22 @@ namespace evaluator::utils
             instantiatedName += typeArguments[i];
         }
         instantiatedName += ">";
+
+        // Create cache key that includes the base class pointer to avoid collisions
+        // between different generic classes with the same name
+        std::string cacheKey = std::to_string(reinterpret_cast<uintptr_t>(genericClass.get())) + ":" + instantiatedName;
+
+        // Check generic class instantiation cache
+        static std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> genericClassCache;
+
+        auto cacheIt = genericClassCache.find(cacheKey);
+        if (cacheIt != genericClassCache.end()) {
+            return cacheIt->second;
+        }
+
+        // Create substitution map
+        auto substitutionMap = createTypeSubstitutionMap(
+            genericClass->getGenericParameters(), typeArguments);
 
         // Create new class definition
         auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
@@ -102,6 +115,9 @@ namespace evaluator::utils
             auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
             instantiatedClass->addConstructor(newConstructor);
         }
+
+        // Cache the instantiated class for future reuse
+        genericClassCache[cacheKey] = instantiatedClass;
 
         return instantiatedClass;
     }

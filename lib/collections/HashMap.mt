@@ -159,7 +159,7 @@ class HashMap<K,V> {
 
     // Private helper methods
     function getBucketIndex(K key): int {
-        int hash = hashCode(key);
+        int hash = key.hashCode();
 
         // Apply secondary hash mixing using only basic arithmetic
         // This is a simplified version of multiplicative hashing
@@ -208,8 +208,10 @@ class HashMap<K,V> {
             newValues[i] = this.valueBuckets[bucketIndex][i];
         }
 
-        this.keyBuckets[bucketIndex] = newKeys;
-        this.valueBuckets[bucketIndex] = newValues;
+        for (int i = 0; i < oldSize; i++) {
+            this.keyBuckets[bucketIndex][i] = newKeys[i];
+            this.valueBuckets[bucketIndex][i] = newValues[i];
+        }
     }
 
     function resize(): void {

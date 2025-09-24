@@ -29,8 +29,8 @@ class Person {
     }
 
     function hashCode(): int {
-        int nameHash = hashCode(this.name);
-        int ageHash = hashCode(this.age);
+        int nameHash = this.name.hashCode();
+        int ageHash = this.age.hashCode();
         return nameHash + ageHash * 31; // Combine hash codes
     }
 }
