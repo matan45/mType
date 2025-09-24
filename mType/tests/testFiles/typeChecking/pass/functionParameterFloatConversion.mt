@@ -6,5 +6,5 @@ function processFloat(float f): float {
 float result1 = processFloat(5);      // int to float conversion
 float result2 = processFloat(3.14);   // direct float
 
-print(toString(result1));
-print(toString(result2));
+print(result1);
+print(result2);

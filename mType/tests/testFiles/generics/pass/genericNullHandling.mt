@@ -1,0 +1,38 @@
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Bool.mt";
+
+// Generic class with null handling
+class Optional<T> {
+    T value;
+
+    function setValue(T newValue): void {
+        value = newValue;
+    }
+
+    function getValue(): T {
+        return value;
+    }
+
+    function hasValue(): Bool {
+        return new Bool(value != null);
+    }
+
+    function clear(): void {
+        value = null;
+    }
+}
+
+function main(): void {
+    Optional<String> opt = new Optional<String>();
+
+    print("Initially has value: " + opt.hasValue());
+
+    opt.setValue(new String("Hello"));
+    print("After setting: " + opt.hasValue());
+    print("Value: " + opt.getValue());
+
+    opt.clear();
+    print("After clear: " + opt.hasValue());
+}
+
+main();

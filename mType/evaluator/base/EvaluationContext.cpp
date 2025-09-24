@@ -4,7 +4,7 @@ namespace evaluator::base
 {
     EvaluationContext::EvaluationContext(std::shared_ptr<Environment> env)
         : environment(env), currentInstance(nullptr), hasReturned(false),
-          isInStaticMethod(false), cachedEnv(nullptr), envCacheValid(false)
+          isInStaticMethod(false), currentMethod(nullptr), cachedEnv(nullptr), envCacheValid(false)
     {
     }
     

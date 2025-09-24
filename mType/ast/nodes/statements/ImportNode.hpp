@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <filesystem>
 
 namespace ast::nodes::statements
 {

@@ -1,0 +1,521 @@
+import * as vscode from 'vscode';
+
+export interface KeywordInfo {
+    keyword: string;
+    detail: string;
+    documentation: string;
+    insertText?: string;
+    kind: vscode.CompletionItemKind;
+    contexts?: string[]; // Where this keyword can be used
+    priority?: number; // Higher numbers = higher priority
+}
+
+export class MTypeKeywords {
+    // Core language keywords
+    static readonly CORE_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'class',
+            detail: 'class declaration',
+            documentation: 'Defines a new class',
+            insertText: 'class ${1:ClassName} {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['global', 'namespace'],
+            priority: 9
+        },
+        {
+            keyword: 'function',
+            detail: 'function declaration',
+            documentation: 'Defines a function or method',
+            insertText: 'function ${1:functionName}(${2:parameters}): ${3:returnType} {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class', 'global', 'global-function'],
+            priority: 9
+        },
+        {
+            keyword: 'constructor',
+            detail: 'constructor declaration',
+            documentation: 'Defines a class constructor',
+            insertText: 'constructor(${1:parameters}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class'],
+            priority: 9
+        },
+        {
+            keyword: 'constructor-simple',
+            detail: 'constructor (no parameters)',
+            documentation: 'Simple constructor with no parameters',
+            insertText: 'constructor() {\n\t${1:// Initialize object}\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
+            keyword: 'constructor-params',
+            detail: 'constructor (with parameters)',
+            documentation: 'Constructor with parameter initialization',
+            insertText: 'constructor(${1:type} ${2:param1}, ${3:type} ${4:param2}) {\n\t${5:// Initialize fields}\n\tthis.${6:field1} = ${2:param1};\n\tthis.${7:field2} = ${4:param2};\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
+            keyword: 'constructor-super',
+            detail: 'constructor (with super call)',
+            documentation: 'Constructor that calls parent constructor',
+            insertText: 'constructor(${1:parameters}) {\n\t${2:// Call parent constructor if needed}\n\t${3:// super(${4:parentParams});}\n\t${5:// Initialize this class}\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['class'],
+            priority: 7
+        },
+        {
+            keyword: 'static',
+            detail: 'static modifier',
+            documentation: 'Makes a member static (class-level)',
+            insertText: 'static ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
+            keyword: 'private',
+            detail: 'private modifier',
+            documentation: 'Makes a member private (accessible only within the class)',
+            insertText: 'private ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
+            keyword: 'final',
+            detail: 'final modifier',
+            documentation: 'Makes a variable immutable',
+            insertText: 'final ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class', 'function', 'global', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'new',
+            detail: 'object instantiation',
+            documentation: 'Creates a new instance of a class',
+            insertText: 'new ${1:ClassName}(${2:arguments})',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['expression', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'this',
+            detail: 'current instance reference',
+            documentation: 'Reference to the current object instance',
+            insertText: 'this',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class-method'],
+            priority: 8
+        },
+        {
+            keyword: 'return',
+            detail: 'return statement',
+            documentation: 'Returns a value from a function',
+            insertText: 'return ${1:value};',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'global-function'],
+            priority: 8
+        },
+        {
+            keyword: 'native',
+            detail: 'native modifier',
+            documentation: 'Marks a method as implemented in native code',
+            insertText: 'native ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class', 'function'],
+            priority: 7
+        }
+    ];
+
+    // Control flow keywords
+    static readonly CONTROL_FLOW_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'if',
+            detail: 'if statement',
+            documentation: 'Conditional execution',
+            insertText: 'if (${1:condition}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'else',
+            detail: 'else statement',
+            documentation: 'Alternative execution path',
+            insertText: 'else {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['after-if'],
+            priority: 9
+        },
+        {
+            keyword: 'while',
+            detail: 'while loop',
+            documentation: 'Repeats code while condition is true',
+            insertText: 'while (${1:condition}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'do',
+            detail: 'do-while loop',
+            documentation: 'Executes code at least once, then repeats while condition is true',
+            insertText: 'do {\n\t$0\n} while (${1:condition});',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'for',
+            detail: 'for loop (C-style)',
+            documentation: 'Repeats code with initialization, condition, and increment',
+            insertText: 'for (${1:int i = 0}; ${2:i < length}; ${3:i++}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'for',
+            detail: 'for loop (enhanced for)',
+            documentation: 'Iterates over collection elements',
+            insertText: 'for (${1:elementType} ${2:element} : ${3:collection}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'switch',
+            detail: 'switch statement',
+            documentation: 'Multi-way conditional execution',
+            insertText: 'switch (${1:expression}) {\n\tcase ${2:value}:\n\t\t$0\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'case',
+            detail: 'switch case',
+            documentation: 'Switch case label',
+            insertText: 'case ${1:value}:\n\t$0\n\tbreak;',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['switch'],
+            priority: 8
+        },
+        {
+            keyword: 'default',
+            detail: 'switch default case',
+            documentation: 'Default case in switch statement',
+            insertText: 'default:\n\t$0\n\tbreak;',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['switch'],
+            priority: 8
+        },
+        {
+            keyword: 'break',
+            detail: 'break statement',
+            documentation: 'Exits from loop or switch',
+            insertText: 'break;',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['loop', 'switch', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'continue',
+            detail: 'continue statement',
+            documentation: 'Skips to next iteration of loop',
+            insertText: 'continue;',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['loop', 'global-function'],
+            priority: 7
+        },
+        // Additional loop variations
+        {
+            keyword: 'while-simple',
+            detail: 'while loop (simple)',
+            documentation: 'Simple while loop template',
+            insertText: 'while (${1:condition}) {\n\t${2:// TODO: Add code here}\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'do-while',
+            detail: 'do-while loop (full)',
+            documentation: 'Do-while loop with descriptive placeholder',
+            insertText: 'do {\n\t${1:// Execute at least once}\n\t$0\n} while (${2:condition});',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'for-i',
+            detail: 'for loop (integer iterator)',
+            documentation: 'Standard for loop with integer iterator',
+            insertText: 'for (int ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'for-reverse',
+            detail: 'for loop (reverse)',
+            documentation: 'For loop iterating in reverse order',
+            insertText: 'for (int ${1:i} = ${2:length} - 1; ${1:i} >= 0; ${1:i}--) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'for-collection',
+            detail: 'for loop (Collection)',
+            documentation: 'Enhanced for loop for collections with generic type',
+            insertText: 'for (${1:T} ${2:item} : ${3:collection}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        // Additional switch variations
+        {
+            keyword: 'switch-int',
+            detail: 'switch statement (int)',
+            documentation: 'Switch statement for integer values',
+            insertText: 'switch (${1:intValue}) {\n\tcase ${2:1}:\n\t\t${3:// Handle case 1}\n\t\tbreak;\n\tcase ${4:2}:\n\t\t${5:// Handle case 2}\n\t\tbreak;\n\tdefault:\n\t\t${6:// Handle default case}\n\t\tbreak;\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'switch-string',
+            detail: 'switch statement (string)',
+            documentation: 'Switch statement for string values',
+            insertText: 'switch (${1:stringValue}) {\n\tcase "${2:option1}":\n\t\t${3:// Handle option1}\n\t\tbreak;\n\tcase "${4:option2}":\n\t\t${5:// Handle option2}\n\t\tbreak;\n\tdefault:\n\t\t${6:// Handle default case}\n\t\tbreak;\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'switch-simple',
+            detail: 'switch statement (simple)',
+            documentation: 'Simple switch statement with minimal cases',
+            insertText: 'switch (${1:expression}) {\n\tcase ${2:value1}:\n\t\t$0\n\t\tbreak;\n\tdefault:\n\t\tbreak;\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'case-fallthrough',
+            detail: 'switch case (fall-through)',
+            documentation: 'Switch case that falls through to next case',
+            insertText: 'case ${1:value}:\n\t${2:// Fall through to next case}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['switch'],
+            priority: 7
+        },
+        {
+            keyword: 'case-multiple',
+            detail: 'multiple switch cases',
+            documentation: 'Multiple switch cases with same handler',
+            insertText: 'case ${1:value1}:\ncase ${2:value2}:\ncase ${3:value3}:\n\t${4:// Handle multiple cases}\n\tbreak;',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['switch'],
+            priority: 7
+        }
+    ];
+
+    // Data types
+    static readonly TYPE_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'int',
+            detail: 'integer type',
+            documentation: 'Whole number data type',
+            insertText: 'int',
+            kind: vscode.CompletionItemKind.TypeParameter,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'float',
+            detail: 'floating-point type',
+            documentation: 'Decimal number data type',
+            insertText: 'float',
+            kind: vscode.CompletionItemKind.TypeParameter,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'string',
+            detail: 'string type',
+            documentation: 'Text data type',
+            insertText: 'string',
+            kind: vscode.CompletionItemKind.TypeParameter,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'bool',
+            detail: 'boolean type',
+            documentation: 'True/false data type',
+            insertText: 'bool',
+            kind: vscode.CompletionItemKind.TypeParameter,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'void',
+            detail: 'void type',
+            documentation: 'No return value',
+            insertText: 'void',
+            kind: vscode.CompletionItemKind.TypeParameter,
+            contexts: ['return-type', 'global-function'],
+            priority: 8
+        }
+    ];
+
+    // Collection types
+    static readonly COLLECTION_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'Array',
+            detail: 'Array<T> collection',
+            documentation: 'Dynamic array collection with indexed access',
+            insertText: 'Array<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'Set',
+            detail: 'Set<T> collection',
+            documentation: 'Collection of unique elements',
+            insertText: 'Set<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'Map',
+            detail: 'Map<K,V> collection',
+            documentation: 'Key-value pair collection',
+            insertText: 'Map<${1:K}, ${2:V}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'Stack',
+            detail: 'Stack<T> collection',
+            documentation: 'Last-in-first-out (LIFO) collection',
+            insertText: 'Stack<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'Queue',
+            detail: 'Queue<T> collection',
+            documentation: 'First-in-first-out (FIFO) collection',
+            insertText: 'Queue<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        }
+    ];
+
+    // Literals and values
+    static readonly LITERAL_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'true',
+            detail: 'boolean true',
+            documentation: 'Boolean true value',
+            insertText: 'true',
+            kind: vscode.CompletionItemKind.Value,
+            contexts: ['expression', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'false',
+            detail: 'boolean false',
+            documentation: 'Boolean false value',
+            insertText: 'false',
+            kind: vscode.CompletionItemKind.Value,
+            contexts: ['expression', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'null',
+            detail: 'null value',
+            documentation: 'Null reference value',
+            insertText: 'null',
+            kind: vscode.CompletionItemKind.Value,
+            contexts: ['expression', 'global-function', 'global'],
+            priority: 7
+        }
+    ];
+
+    // Operators (for completion in expressions)
+    static readonly OPERATOR_KEYWORDS: KeywordInfo[] = [
+        // Note: 'in' operator removed as mType now uses ':' syntax for enhanced for loops
+        // If you need other operators, add them here
+    ];
+
+    // Get all keywords
+    static getAllKeywords(): KeywordInfo[] {
+        return [
+            ...this.CORE_KEYWORDS,
+            ...this.CONTROL_FLOW_KEYWORDS,
+            ...this.TYPE_KEYWORDS,
+            ...this.COLLECTION_KEYWORDS,
+            ...this.LITERAL_KEYWORDS,
+            ...this.OPERATOR_KEYWORDS
+        ];
+    }
+
+    // Get keywords by context
+    static getKeywordsByContext(context: string): KeywordInfo[] {
+        return this.getAllKeywords().filter(keyword => {
+            if (!keyword.contexts) return true; // No context restriction
+
+            // Include if matches the context
+            if (keyword.contexts.includes(context)) return true;
+
+            // Include global keywords for any context
+            if (keyword.contexts.includes('global')) return true;
+
+            // Special case: include function keywords for global-function context
+            if (context === 'global-function' && keyword.contexts.includes('function')) return true;
+
+            // Special case: include block keywords for function contexts
+            if ((context === 'function' || context === 'global-function') && keyword.contexts.includes('block')) return true;
+
+            return false;
+        });
+    }
+
+    // Get type keywords only
+    static getTypeKeywords(): KeywordInfo[] {
+        return [...this.TYPE_KEYWORDS, ...this.COLLECTION_KEYWORDS];
+    }
+
+    // Convert to completion items
+    static toCompletionItems(keywords: KeywordInfo[]): vscode.CompletionItem[] {
+        return keywords.map(keyword => {
+            const item = new vscode.CompletionItem(keyword.keyword, keyword.kind);
+            item.detail = keyword.detail;
+            item.documentation = new vscode.MarkdownString(keyword.documentation);
+
+            if (keyword.insertText) {
+                item.insertText = new vscode.SnippetString(keyword.insertText);
+            }
+
+            // Set sort text based on priority
+            const priority = keyword.priority || 5;
+            item.sortText = `${10 - priority}_${keyword.keyword}`;
+
+            return item;
+        });
+    }
+}

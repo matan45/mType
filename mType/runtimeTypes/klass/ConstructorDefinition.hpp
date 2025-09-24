@@ -29,6 +29,7 @@ namespace runtimeTypes::klass
         // Getter methods
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
         ASTNode* getBody() const { return body.get(); }
+        std::shared_ptr<ASTNode> getBodyPtr() const { return body; }
         ASTNode* getInitializerList() const { return initializerList.get(); }
         size_t getParameterCount() const { return parameters.size(); }
         

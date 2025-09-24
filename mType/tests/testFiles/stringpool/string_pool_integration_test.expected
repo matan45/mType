@@ -1,0 +1,93 @@
+=== StringPool Integration Test Suite ===
+=== Namespace String Pooling Test ===
+Testing namespace and function names:
+Namespace: StringPoolTests
+Function: testNamespaceStringPooling
+Qualified name: StringPoolTests.testNamespaceStringPooling
+Namespace string pooling test completed
+=== Class String Pooling Test ===
+Method string testing:
+Class: TestClass1
+Member: member_TestClass1
+Method: testMethodStrings
+Local: local_variable
+Method string testing:
+Class: TestClass1
+Member: member_TestClass1
+Method: testMethodStrings
+Local: local_variable
+Object method results:
+Result 1: testMethodStrings completed
+Result 2: testMethodStrings completed
+Static method string testing:
+Method: testStaticMethodStrings
+Local: static_local_var
+Static method result: testStaticMethodStrings completed
+Return values:
+Return 1: string_return_value
+Return 2: string_return_value
+Returns match: true
+Class string pooling test completed
+=== Control Flow String Pooling Test ===
+Processing: condition1 -> result_for_condition1
+Processing: condition2 -> result_for_condition2
+Processing: condition3 -> default_result
+Switch-like result: matched_test_case
+Ternary result: ternary_true
+ Control flow string pooling test completed
+=== Array String Pooling Test ===
+String arrays created:
+Index 0: array_element_1
+   Array element 0 matches duplicate
+Index 1: array_element_2
+   Array element 1 matches duplicate
+Index 2: array_element_3
+   Array element 2 matches duplicate
+String matrix:
+  [0][0]: matrix_00
+  [0][1]: matrix_01
+  [1][0]: matrix_10
+  [1][1]: matrix_11
+ Array string pooling test completed
+=== Import/Using String Pooling Test ===
+Import simulation:
+Module: StringUtilities
+Function: formatString
+Qualified call: StringUtilities.formatString
+Using directive: using StringUtilities
+ Import string pooling test completed
+=== Exception String Pooling Test ===
+Throwing: TestException with message: test_error_message
+Exception handled: Handled TestException: test_error_message
+ Exception string handling completed
+ Exception string pooling test completed
+ All integration tests completed
+=== String Pool with Generics Test ===
+Created container: Container<int>
+Created container: Container<string>
+Created container: Container<Object>
+Generic containers:
+Int: Container<int>
+String: Container<string>
+Object: Container<Object>
+Created container: Container<int>
+ Generic type strings match correctly
+ String pool with generics test completed
+=== String Pool with Collections Test ===
+Collection type: List<string>
+Collection type: List<int>
+Collection type: List<Object>
+Collection type: Set<string>
+Collection type: Set<int>
+Collection type: Set<Object>
+Collection type: Map<string>
+Collection type: Map<int>
+Collection type: Map<Object>
+Collection type: Queue<string>
+Collection type: Queue<int>
+Collection type: Queue<Object>
+Collection type: Stack<string>
+Collection type: Stack<int>
+Collection type: Stack<Object>
+ String pool with collections test completed
+=== String Pool Integration Test Suite Completed ===

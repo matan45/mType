@@ -1,20 +1,26 @@
 ﻿#include "ScriptInterpreter.hpp"
+#include <iostream>
+#include <filesystem>
+#include <stdexcept>
+#include <memory>
+#include <algorithm>
+
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../exception/ReturnException.hpp"
-#include <iostream>
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/NativeRegistry.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
+#include "../ast/nodes/classes/ClassNode.hpp"
+#include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include <stdexcept>
-#include <memory>
-#include <filesystem>
 
 namespace services
 {
@@ -23,13 +29,27 @@ namespace services
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
+
+        // Set up method call handler for native functions
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry)
+        {
+            nativeRegistry->setMethodCallHandler(
+                [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                       const std::string& methodName,
+                       const std::vector<value::Value>& args) -> value::Value
+                {
+                    return evaluator->callMethodOnInstance(instance, methodName, args);
+                }
+            );
+        }
     }
 
     ScriptInterpreter::~ScriptInterpreter() = default;
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        // Parse and execute
+        // Always parse and execute .mt files directly (no auto-caching)
         lexer::Lexer lexer(filename);
 
         // Create and configure ImportManager
@@ -49,7 +69,6 @@ namespace services
 
         evaluator->evaluate(ast.get());
     }
-
 
     void ScriptInterpreter::registerNativeFunction(const std::string& name, NativeFunction function)
     {
@@ -262,7 +281,7 @@ namespace services
     }
 
     Value ScriptInterpreter::createObjectForReturn(const std::string& className,
-        const std::vector<Value>& constructorArgs)
+                                                   const std::vector<Value>& constructorArgs)
     {
         // Use the existing createObject method - it already handles object creation properly
         return createObject(className, constructorArgs);
@@ -313,21 +332,17 @@ namespace services
                                                 const std::string& methodName,
                                                 const std::vector<Value>& args)
     {
-        std::cout << "[DEBUG] invokeStaticMethod called: " << classDef->getName() << "::" << methodName << std::endl;
-        
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
             throw std::runtime_error("Static method not found: " + classDef->getName() + "::" + methodName);
         }
 
-        std::cout << "[DEBUG] Method found, entering scope..." << std::endl;
         // Set up method scope
         environment->enterScope(classDef->getName() + "::" + methodName, environment::ScopeType::FUNCTION);
 
         try
         {
-            std::cout << "[DEBUG] Binding parameters..." << std::endl;
             // Bind parameters
             auto params = method->getParameters();
             if (params.size() != args.size())
@@ -344,65 +359,63 @@ namespace services
                 environment->declareVariable(params[i].first, paramVar);
             }
 
-            std::cout << "[DEBUG] Starting method execution..." << std::endl;
-            
             // Store current class name for static field access (same as ObjectEvaluator does)
             auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
                 "__current_class_name__", ValueType::STRING, classDef->getName(), false);
             environment->declareVariable("__current_class_name__", classNameVar);
-            
+
             // Execute method body
             Value result = std::monostate{}; // void
             if (method->getBody())
             {
-                std::cout << "[DEBUG] Method has body, evaluating..." << std::endl;
-                std::cout << "[DEBUG] Method body AST type: " << typeid(*method->getBody()).name() << std::endl;
-                
-                // Create a fresh evaluator instance for API calls to avoid reentrancy issues
-                std::cout << "[DEBUG] Creating fresh evaluator for API call..." << std::endl;
                 auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
-                
+
+                // Set up method call handler for this evaluator too
+                auto nativeRegistry = environment->getNativeRegistry();
+                if (nativeRegistry)
+                {
+                    nativeRegistry->setMethodCallHandler(
+                        [&apiEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args) -> value::Value
+                        {
+                            return apiEvaluator->callMethodOnInstance(instance, methodName, args);
+                        }
+                    );
+                }
+
                 try
                 {
-                    std::cout << "[DEBUG] About to call apiEvaluator->evaluate()..." << std::endl;
                     result = apiEvaluator->evaluate(method->getBody());
-                    std::cout << "[DEBUG] apiEvaluator->evaluate() completed" << std::endl;
 
                     // Check if there was a return value
                     if (apiEvaluator->shouldReturn())
                     {
-                        std::cout << "[DEBUG] Getting return value..." << std::endl;
                         result = apiEvaluator->getReturnValue();
                     }
                 }
                 catch (const exception::ReturnException& returnEx)
                 {
-                    std::cout << "[DEBUG] Caught ReturnException" << std::endl;
                     // Handle explicit return statements - this is the normal case for static methods with return values
                     result = returnEx.returnValue;
                 }
                 catch (const std::exception& evalException)
                 {
-                    std::cout << "[DEBUG] Exception during API evaluation: " << evalException.what() << std::endl;
+                    std::cerr << "Warning: Error compiling dependency : " << evalException.what() << std::endl;
                     throw;
                 }
                 catch (...)
                 {
-                    std::cout << "[DEBUG] Unknown exception during API evaluation" << std::endl;
                     throw;
                 }
             }
-
-            std::cout << "[DEBUG] Method execution completed, cleaning up..." << std::endl;
             // Clean up and return
             environment->exitScope();
 
-            std::cout << "[DEBUG] Returning result from invokeStaticMethod" << std::endl;
             return result;
         }
         catch (...)
         {
-            std::cout << "[DEBUG] Exception in invokeStaticMethod, cleaning up..." << std::endl;
             // Clean up on exception
             environment->exitScope();
             throw;
@@ -433,5 +446,37 @@ namespace services
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
         auto classDef = instance->getClassDefinition();
         return classDef->getName();
+    }
+
+    void ScriptInterpreter::preRegisterClassDefinitions(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            // Pre-register class in environment
+
+            // Evaluate the ClassNode to register it in the environment
+            evaluator->evaluate(classNode);
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                preRegisterClassDefinitions(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                preRegisterClassDefinitions(statement.get());
+            }
+        }
+        // Add other node types that may contain ClassNodes as needed
     }
 }

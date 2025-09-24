@@ -50,15 +50,15 @@ function testRapidObjectCreationDestruction(): void {
         temp.setPhase("Processing");
         
         if (i % 10 == 0) {
-            print("Iteration " + toString(i) + ": Current count = " + 
-                  toString(LifecycleCounter::getCurrentCount()));
+            print("Iteration " + i + ": Current count = " +
+                  LifecycleCounter::getCurrentCount());
         }
         
         // temp goes out of scope and should be destroyed
     }
     
-    print("After rapid creation: Max count = " + toString(LifecycleCounter::getMaxCount()) +
-          ", Current count = " + toString(LifecycleCounter::getCurrentCount()));
+    print("After rapid creation: Max count = " + LifecycleCounter::getMaxCount() +
+          ", Current count = " + LifecycleCounter::getCurrentCount());
 }
 
 function testObjectArrayLifecycle(): void {
@@ -71,7 +71,7 @@ function testObjectArrayLifecycle(): void {
     LifecycleCounter obj2 = new LifecycleCounter();
     LifecycleCounter obj3 = new LifecycleCounter();
     
-    print("Created 3 objects: " + toString(LifecycleCounter::getCurrentCount()));
+    print("Created 3 objects: " + LifecycleCounter::getCurrentCount());
     
     obj1.setPhase("Active");
     obj2.setPhase("Inactive");
@@ -81,13 +81,13 @@ function testObjectArrayLifecycle(): void {
     obj1 = obj2; // Original obj1 should be destroyed
     obj3 = null; // obj3 should be destroyed
     
-    print("After reassignments: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After reassignments: " + LifecycleCounter::getCurrentCount());
     
     // Create new object and assign
     obj1 = new LifecycleCounter();
     obj1.setPhase("NewActive");
     
-    print("After new creation: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After new creation: " + LifecycleCounter::getCurrentCount());
 }
 
 function testFunctionParameterLifecycle(): void {
@@ -96,22 +96,22 @@ function testFunctionParameterLifecycle(): void {
     
     function processObject(LifecycleCounter obj): string {
         obj.setPhase("Processing");
-        return "Processed object " + toString(obj.getId()) + " in phase: " + obj.getPhase();
+        return "Processed object " + obj.getId() + " in phase: " + obj.getPhase();
     }
     
     LifecycleCounter mainObj = new LifecycleCounter();
-    print("Before function call: " + toString(LifecycleCounter::getCurrentCount()));
+    print("Before function call: " + LifecycleCounter::getCurrentCount());
     
     string result = processObject(mainObj);
     print(result);
     
-    print("After function call: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After function call: " + LifecycleCounter::getCurrentCount());
     
     // Test with temporary object
     string result2 = processObject(new LifecycleCounter());
     print(result2);
     
-    print("After temporary object: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After temporary object: " + LifecycleCounter::getCurrentCount());
 }
 
 function testRecursiveObjectCreation(): void {
@@ -124,7 +124,7 @@ function testRecursiveObjectCreation(): void {
         }
         
         LifecycleCounter obj = new LifecycleCounter();
-        obj.setPhase("Depth" + toString(depth));
+        obj.setPhase("Depth" + depth);
         
         int result = createObjectRecursively(depth - 1);
         
@@ -135,8 +135,8 @@ function testRecursiveObjectCreation(): void {
     print("Starting recursive creation...");
     int maxCount = createObjectRecursively(10);
     
-    print("Max objects during recursion: " + toString(maxCount));
-    print("Objects after recursion: " + toString(LifecycleCounter::getCurrentCount()));
+    print("Max objects during recursion: " + maxCount);
+    print("Objects after recursion: " + LifecycleCounter::getCurrentCount());
 }
 
 function testObjectSharingScenario(): void {
@@ -150,7 +150,7 @@ function testObjectSharingScenario(): void {
     LifecycleCounter ref2 = shared;
     LifecycleCounter ref3 = shared;
     
-    print("After sharing: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After sharing: " + LifecycleCounter::getCurrentCount());
     print("Shared object phase: " + shared.getPhase());
     
     // Modify through one reference
@@ -166,7 +166,7 @@ function testObjectSharingScenario(): void {
     ref2 = null;
     ref3 = null;
     
-    print("After clearing references: " + toString(LifecycleCounter::getCurrentCount()));
+    print("After clearing references: " + LifecycleCounter::getCurrentCount());
     print("Original object still accessible: " + shared.getPhase());
 }
 

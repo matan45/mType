@@ -66,6 +66,29 @@ namespace tests::testSuite
         addOutputVerificationTest("Circular Object References",
                         passPath + "circularObjectReferences.mt");
 
+        // === LEXICAL SCOPING TESTS ===
+        // These tests verify that mType implements proper lexical scoping
+
+        // Method scoping tests
+        addOutputVerificationTest("Method Scoping - Isolation",
+                        passPath + "methodScopingPass.mt");
+
+        // Static method and field scoping tests
+        addOutputVerificationTest("Static Method and Field Scoping",
+                        passPath + "staticScopingPass.mt");
+
+        // Loop scoping tests
+        addOutputVerificationTest("Loop Variable Scoping",
+                        passPath + "loopScopingPass.mt");
+
+        // Conditional scoping tests
+        addOutputVerificationTest("Conditional Block Scoping",
+                        passPath + "conditionalScopingPass.mt");
+
+        // Function scoping tests
+        addOutputVerificationTest("Function Lexical Scoping",
+                        passPath + "functionScopingPass.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Null Pointer Access Error",
                         errorPath + "nullPointerAccess.mt",
@@ -114,6 +137,25 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Final Variable Reassignment Error",
                         errorPath + "finalVariableReassignment.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === LEXICAL SCOPING ERROR TESTS ===
+        // These tests verify that improper scoping is correctly rejected
+
+        addTestFromFile("Method Cross-Scoping Error",
+                        errorPath + "methodScopingFail.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Instance Access Error",
+                        errorPath + "staticScopingFail.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Loop Variable Out-of-Scope Error",
+                        errorPath + "loopScopingFail.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Conditional Block Out-of-Scope Error",
+                        errorPath + "conditionalScopingFail.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Function Cross-Scoping Error",
+                        errorPath + "functionScopingFail.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

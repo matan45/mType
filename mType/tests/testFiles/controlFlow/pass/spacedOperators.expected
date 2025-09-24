@@ -1,0 +1,14 @@
+spaced equals works
+spaced not equals works
+spaced less equals works
+spaced greater equals works
+after spaced increment: 6
+after spaced decrement: 9
+after spaced plus assign: 11
+after spaced minus assign: 9
+after spaced multiply assign: 27
+after spaced divide assign: 13
+after spaced modulo assign: 1
+spaced AND works
+spaced OR works
+tab-spaced plus assign works

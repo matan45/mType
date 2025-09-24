@@ -1,0 +1,22 @@
+Testing basic array literals
+Integer array length: 5
+numbers[0] = 1
+numbers[1] = 2
+numbers[2] = 3
+numbers[3] = 4
+numbers[4] = 5
+String array length: 3
+names[0] = Alice
+names[1] = Bob
+names[2] = Charlie
+Float array length: 3
+prices[0] = 10.99
+prices[1] = 20.5
+prices[2] = 15.25
+Boolean array length: 4
+flags[0] = true
+flags[1] = false
+flags[2] = true
+flags[3] = false
+Empty array length: 0
+Basic array literals test completed

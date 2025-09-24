@@ -1,0 +1,16 @@
+Testing multiple generic types...
+Int array length: 3
+String array length: 2
+String->Int map size: 2
+Int->String map size: 2
+String set size: 2
+Int set size: 2
+HashMap size: 2
+HashSet size: 2
+First int: 1
+First string: hello
+String 'one' maps to: 1
+Int 10 maps to: ten
+HashMap key1: 100
+Contains hash1: true
+Multi-type generic serialization test completed

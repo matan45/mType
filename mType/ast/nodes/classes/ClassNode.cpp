@@ -2,8 +2,16 @@
 
 namespace ast::nodes::classes
 {
+    // Backward compatibility constructor
     ClassNode::ClassNode(const std::string& name, const SourceLocation& loc)
         : ASTNode(loc), className(name)
+    {
+    }
+
+    ClassNode::ClassNode(const std::string& name,
+                         const std::vector<GenericTypeParameter>& generics,
+                         const SourceLocation& loc)
+        : ASTNode(loc), className(name), genericParameters(generics)
     {
     }
 
@@ -60,6 +68,40 @@ namespace ast::nodes::classes
     size_t ClassNode::getMethodCount() const
     {
         return methods.size();
+    }
+
+    const std::vector<GenericTypeParameter>& ClassNode::getGenericParameters() const
+    {
+        return genericParameters;
+    }
+
+    void ClassNode::setGenericParameters(const std::vector<GenericTypeParameter>& generics)
+    {
+        genericParameters = generics;
+    }
+
+    void ClassNode::addGenericParameter(const GenericTypeParameter& param)
+    {
+        genericParameters.push_back(param);
+    }
+
+    size_t ClassNode::getGenericParameterCount() const
+    {
+        return genericParameters.size();
+    }
+
+    std::string ClassNode::getFullClassName() const
+    {
+        std::string fullName = className;
+        if (!genericParameters.empty()) {
+            fullName += "<";
+            for (size_t i = 0; i < genericParameters.size(); ++i) {
+                if (i > 0) fullName += ", ";
+                fullName += genericParameters[i].toString();
+            }
+            fullName += ">";
+        }
+        return fullName;
     }
 
     Value ClassNode::accept(ASTVisitor<Value>& visitor)

@@ -178,4 +178,30 @@ namespace runtimeTypes::klass
         }
         return nullptr;
     }
+
+    // NEW: Generic-related method implementations
+    std::string ClassDefinition::getGenericClassName() const
+    {
+        if (!isGeneric()) {
+            return getName();
+        }
+
+        std::string result = getName() + "<";
+        for (size_t i = 0; i < genericParameters.size(); ++i) {
+            if (i > 0) result += ", ";
+            result += genericParameters[i].name;
+        }
+        result += ">";
+        return result;
+    }
+
+    bool ClassDefinition::hasGenericParameter(const std::string& paramName) const
+    {
+        for (const auto& param : genericParameters) {
+            if (param.name == paramName) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

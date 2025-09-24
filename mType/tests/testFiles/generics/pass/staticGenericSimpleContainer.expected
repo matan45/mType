@@ -1,0 +1,5 @@
+String container created successfully
+Int container created successfully
+String result: hello
+Int result: 99
+Static generic simple container tests passed

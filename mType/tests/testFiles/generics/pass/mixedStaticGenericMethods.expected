@@ -1,0 +1,9 @@
+Regular instance method
+Instance generic: instance
+Instance result: instance
+Regular static method
+Static generic: static
+Static result: static
+Static generic: 123
+Static int result: 123
+Mixed static generic method tests passed

@@ -122,7 +122,7 @@ print(node3.getId() + " -> " + node3.getLink().getId());
 // Full circle traversal
 ChainNode current = node1;
 for (int i = 0; i < 6; i++) {
-    print("Step " + toString(i) + ": " + current.getId() + " (data=" + toString(current.getData()) + ")");
+    print("Step " + i + ": " + current.getId() + " (data=" + current.getData() + ")");
     current = current.getLink();
 }
 
@@ -420,7 +420,7 @@ class ModNode {
     }
     
     function getValue(): string {
-        return value + "(" + toString(counter) + ")";
+        return value + "(" + counter + ")";
     }
     
     function getNext(): ModNode {

@@ -54,6 +54,11 @@ namespace parser
         // All components are now fully initialized and consistent
     }
 
+    std::unique_ptr<services::ImportManager> Parser::getImportManager()
+    {
+        return std::move(importManager);
+    }
+
     std::unique_ptr<ASTNode> Parser::parseProgram()
     {
         auto program = std::make_unique<ProgramNode>(tokenStream->location());

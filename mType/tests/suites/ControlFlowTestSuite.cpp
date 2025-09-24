@@ -68,6 +68,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Compound Assignment Operators",
                         passPath + "compoundAssignmentOperators.mt");
 
+        // Spaced operator tests
+        addOutputVerificationTest("Spaced Operators",
+                        passPath + "spacedOperators.mt");
+
         // Arithmetic edge case tests
         addOutputVerificationTest("Modulo with Negative Operands",
                         passPath + "moduloNegativeOperands.mt");

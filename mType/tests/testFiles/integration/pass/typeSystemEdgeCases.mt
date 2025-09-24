@@ -17,14 +17,14 @@
             string result = "";
             
             // Test implicit conversions and operations
-            result = result + toString(intValue);
-            result = result + " | " + toString(floatValue);
+            result = result + intValue;
+            result = result + " | " + floatValue;
             result = result + " | " + stringValue;
-            result = result + " | " + toString(boolValue);
+            result = result + " | " + boolValue;
             
             // Test mixed type operations
             float mixedResult = intValue + floatValue;
-            result = result + " | Mixed: " + toString(mixedResult);
+            result = result + " | Mixed: " + mixedResult;
             
             return result;
         }

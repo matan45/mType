@@ -1,0 +1,8 @@
+Bool wrapper value: true
+Bool wrapper string: Wrapped: true
+String wrapper value: Hello
+String wrapper string: Wrapped: Hello
+Int wrapper value: 42
+Int wrapper string: Wrapped: 42
+Float wrapper value: 3.140000
+Float wrapper string: Wrapped: 3.140000

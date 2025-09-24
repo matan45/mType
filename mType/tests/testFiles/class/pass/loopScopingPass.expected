@@ -1,0 +1,22 @@
+=== For Loop Test ===
+for loop: i = 0, loopVar = 0, outerVar = 100
+for loop: i = 1, loopVar = 10, outerVar = 100
+for loop: i = 2, loopVar = 20, outerVar = 100
+after for loop: outerVar = 100
+=== While Loop Test ===
+while loop: counter = 0, loopVar = 0, outerVar = 200
+while loop: counter = 1, loopVar = 20, outerVar = 200
+while loop: counter = 2, loopVar = 40, outerVar = 200
+after while loop: outerVar = 200, counter = 3
+=== Do-While Loop Test ===
+do-while loop: counter = 0, loopVar = 0, outerVar = 300
+do-while loop: counter = 1, loopVar = 30, outerVar = 300
+do-while loop: counter = 2, loopVar = 60, outerVar = 300
+after do-while loop: outerVar = 300, counter = 3
+=== Nested Loop Test ===
+outer loop: i = 0, outerLoopVar = 0
+  inner loop: j = 0, innerLoopVar = 0, outerLoopVar = 0
+  inner loop: j = 1, innerLoopVar = 10, outerLoopVar = 0
+outer loop: i = 1, outerLoopVar = 100
+  inner loop: j = 0, innerLoopVar = 0, outerLoopVar = 100
+  inner loop: j = 1, innerLoopVar = 10, outerLoopVar = 100

@@ -1,0 +1,13 @@
+Testing basic array declaration
+Integer array created with length: 3
+String array created with length: 2
+numbers[0] = 10
+numbers[1] = 20
+numbers[2] = 30
+names[0] = Alice
+names[1] = Bob
+Testing arrays in loops:
+  numbers[0] = 10
+  numbers[1] = 20
+  numbers[2] = 30
+Basic array declaration test completed

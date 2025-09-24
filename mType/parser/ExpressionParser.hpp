@@ -35,17 +35,16 @@ namespace parser
 
         // Argument parsing (used by other parsers)
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
+
+        // Generic type argument parsing for static method calls
+        std::vector<std::string> parseGenericTypeArguments();
         
     private:
         // Helper methods
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
-        std::unique_ptr<ASTNode> parseArrayLiteral();
-        std::unique_ptr<ASTNode> parseMapLiteral();
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
-        
-        // Type inference helpers
-        ValueType inferArrayElementType();
-        ValueType inferElementTypeFromToken();
+        std::unique_ptr<ASTNode> parseArrayLiteral();
+        std::string parseGenericTypeArgument();
     
     };
 }

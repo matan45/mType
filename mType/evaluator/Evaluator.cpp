@@ -158,6 +158,11 @@ namespace evaluator
         return coordinator->visitMemberAssignmentNode(node);
     }
 
+    Value Evaluator::visitIndexAssignmentNode(IndexAssignmentNode* node)
+    {
+        return coordinator->visitIndexAssignmentNode(node);
+    }
+
     Value Evaluator::visitMethodCallNode(MethodCallNode* node)
     {
         return coordinator->visitMethodCallNode(node);
@@ -273,14 +278,14 @@ namespace evaluator
     }
 
     // Collection visitor methods - delegate to coordinator
+    Value Evaluator::visitArrayCreationNode(ArrayCreationNode* node)
+    {
+        return coordinator->visitArrayCreationNode(node);
+    }
+
     Value Evaluator::visitArrayLiteralNode(ArrayLiteralNode* node)
     {
         return coordinator->visitArrayLiteralNode(node);
-    }
-
-    Value Evaluator::visitMapLiteralNode(MapLiteralNode* node)
-    {
-        return coordinator->visitMapLiteralNode(node);
     }
 
     Value Evaluator::visitIndexAccessNode(IndexAccessNode* node)

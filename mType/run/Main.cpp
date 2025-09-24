@@ -5,11 +5,12 @@
 #include "../tests/suites/IntegrationTestSuite.hpp"
 #include "../tests/suites/TypeCheckingTestSuite.hpp"
 #include "../tests/suites/ErrorTestSuite.hpp"
-#include "../tests/suites/CollectionsTestSuite.hpp"
+#include "../tests/suites/GenericsTestSuite.hpp"
+#include "../tests/suites/ArrayTestSuite.hpp"
+#include "../tests/suites/StringPoolTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
-#include "../services/ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -56,9 +57,17 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<TypeCheckingTestSuite>();
     }
-    else if (suiteName == "collections" || suiteName == "collection")
+    else if (suiteName == "generics" || suiteName == "generic")
     {
-        return std::make_unique<CollectionsTestSuite>();
+        return std::make_unique<GenericsTestSuite>();
+    }
+    else if (suiteName == "arrays" || suiteName == "array")
+    {
+        return std::make_unique<ArrayTestSuite>();
+    }
+    else if (suiteName == "stringpool" || suiteName == "string-pool" || suiteName == "strings")
+    {
+        return std::make_unique<StringPoolTestSuite>();
     }
     return nullptr;
 }
@@ -72,7 +81,8 @@ void printAvailableTestSuites()
     std::cout << "  error        - Error Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
-    std::cout << "  collections  - Collections Test Suite\n";
+    std::cout << "  generics     - Generics Test Suite\n";
+    std::cout << "  arrays       - Array Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -87,7 +97,7 @@ void runSpecificTestSuite(const std::string& suiteName)
         nativeTest->runCustomTests();
         return;
     }
-    
+
     auto suite = createTestSuite(suiteName);
     if (!suite)
     {
@@ -114,14 +124,16 @@ void runAllTests()
     suites.push_back(std::make_unique<ErrorTestSuite>());
     suites.push_back(std::make_unique<IntegrationTestSuite>());
     suites.push_back(std::make_unique<TypeCheckingTestSuite>());
-    suites.push_back(std::make_unique<CollectionsTestSuite>());
+    suites.push_back(std::make_unique<GenericsTestSuite>());
+    suites.push_back(std::make_unique<ArrayTestSuite>());
+    suites.push_back(std::make_unique<StringPoolTestSuite>());
 
     for (auto& suite : suites)
     {
         suite->setupTests(); // Initialize test cases
         suite->run(); // Run tests and generate reports
     }
-    
+
     // Run native tests separately
     std::cout << "\nRunning Native C++ Integration Test Suite...\n";
     auto nativeTest = std::make_unique<NativeTest>();
@@ -132,6 +144,7 @@ void runAllTests()
     std::cout << "\n" << std::string(80, '=') << std::endl;
     std::cout << "ALL TEST SUITES COMPLETED" << std::endl;
     std::cout << "Reports generated in test_reports/ directory" << std::endl;
+
     std::cout << std::string(80, '=') << std::endl;
 }
 
@@ -148,25 +161,19 @@ int main(int argc, char* argv[])
     {
         std::string suiteName = argv[2];
         runSpecificTestSuite(suiteName);
+
         return 0;
     }
 
     if (argc == 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
-        std::cout << "  " << argv[0] << " <script_file.mt>     - Run a script file\n";
-        std::cout << "  " << argv[0] << " --tests             - Run all test suites\n";
-        std::cout << "  " << argv[0] << " --test <suite>      - Run specific test suite\n";
-        std::cout << "  " << argv[0] << " --help              - Show this help message\n\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
+        std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
+        std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         printAvailableTestSuites();
         return 0;
-    }
-
-    if (argc != 2)
-    {
-        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
-        std::cout << "Use --help for detailed usage information" << std::endl;
-        return 1;
     }
 
     std::string filename = argv[1];

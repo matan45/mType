@@ -1,0 +1,32 @@
+=== Deeply Nested Generics Stress Test ===
+
+Test 1: List<HashMap<String, HashSet<Int>>>
+Complex list size: 2
+First map size: 2
+Second map size: 1
+
+Test 2: HashMap<String, List<HashSet<String>>>
+Nested map size: 1
+String set list size: 2
+
+Test 3: List<List<List<String>>>
+Triple list size: 1
+Middle list size: 2
+Inner list 1 size: 2
+
+Test 4: HashMap<Int, HashMap<String, List<Int>>>
+Mega map size: 1
+Sub map size: 1
+Int list size: 2
+
+Test 5: Class names of nested generics
+Complex list class: List<HashMap<String, HashSet<Int>>>
+Nested map class: HashMap<String, List<HashSet<String>>>
+Triple list class: List<List<List<String>>>
+Mega map class: HashMap<Int, HashMap<String, List<Int>>>
+
+Test 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>
+Extreme nesting size: 1
+Extreme nesting class: List<HashMap<String, HashSet<HashMap<Int, String>>>>
+
+=== All deeply nested generic stress tests completed successfully! ===

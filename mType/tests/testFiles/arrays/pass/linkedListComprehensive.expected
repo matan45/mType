@@ -1,0 +1,89 @@
+Testing LinkedList functionality with proper output
+
+=== Test 1: Basic Operations ===
+Empty list size: 0
+Empty list is empty: true
+After adding 3 elements:
+Size: 3
+First: First
+Last: Third
+Get(0): First
+Get(1): Second
+Get(2): Third
+
+=== Test 2: Insert Operations ===
+After insertions:
+Size: 6
+Index 0: Before First
+Index 1: First
+Index 2: Inserted
+Index 3: Second
+Index 4: Third
+Index 5: After Last
+
+=== Test 3: Remove Operations ===
+Remove 'Second': true
+Size after removal: 5
+Removed first: Before First
+Removed last: After Last
+Size after removing first and last: 3
+
+=== Test 4: Integer LinkedList ===
+Integer list contents:
+  0: 10
+  1: 20
+  2: 30
+  3: 40
+  4: 50
+Before reverse:
+  0: 10
+  1: 20
+  2: 30
+  3: 40
+  4: 50
+After reverse:
+  0: 50
+  1: 40
+  2: 30
+  3: 20
+  4: 10
+
+=== Test 5: Object LinkedList ===
+Object list contents:
+  0: Alice(25)
+  1: Bob(30)
+  2: Charlie(35)
+Contains Alice: true
+Index of Bob: 1
+
+=== Test 6: Advanced Operations ===
+After addAll:
+  0: 0
+  1: 100
+  2: 200
+  3: 300
+  4: 400
+Sublist (1 to 4):
+  Sublist 0: 100
+  Sublist 1: 200
+  Sublist 2: 300
+Before removeAll:
+  0: Duplicate
+  1: Unique
+  2: Duplicate
+  3: Different
+  4: Duplicate
+Removed 3 duplicates
+After removeAll:
+  0: Unique
+  1: Different
+
+=== Test 7: Null Validation ===
+Testing null validation:
+Error: LinkedList.add() - item cannot be null
+Error: LinkedList.contains() - item cannot be null
+Contains null result: false
+List size after null error and valid add: 1
+Valid item: Valid Item
+
+LinkedList tests completed successfully!

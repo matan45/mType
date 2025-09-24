@@ -1,0 +1,9 @@
+Testing generic import serialization...
+Int container size: 2
+String container size: 2
+First int: 42
+First string: import
+Contains 42: true
+Contains 'test': true
+Contains 'missing': false
+Generic import serialization test completed

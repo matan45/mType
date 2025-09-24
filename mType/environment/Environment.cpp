@@ -102,7 +102,7 @@ namespace environment
 
     std::shared_ptr<VariableDefinition> Environment::findVariable(const std::string& name) const
     {
-        // First check scope manager (for local variables)
+        // First check scope manager (for local variables with proper lexical scoping)
         if (scopeManager)
         {
             if (auto var = scopeManager->findVariable(name))
@@ -111,8 +111,10 @@ namespace environment
             }
         }
 
-        // Then check global scope variables
-        if (variableManager)
+        // Only check global variables if we're in global scope
+        // This prevents dynamic scoping behavior where variables from active function calls
+        // become accessible to other functions
+        if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
         {
             return variableManager->findVariable(name);
         }
@@ -126,6 +128,9 @@ namespace environment
         {
             scopeManager->enterScope(scopeName, scopeType);
         }
+
+        // NOTE: We don't notify VariableManager for scope changes as it only handles
+        // global variables. All lexical scoping is handled by ScopeManager.
     }
 
     void Environment::exitScope()
@@ -134,6 +139,9 @@ namespace environment
         {
             scopeManager->exitScope();
         }
+
+        // NOTE: We don't notify VariableManager for scope changes as it only handles
+        // global variables. All lexical scoping is handled by ScopeManager.
     }
 
     std::string Environment::getCurrentScopeName() const

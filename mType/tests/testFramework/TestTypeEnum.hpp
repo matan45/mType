@@ -6,6 +6,7 @@ namespace tests::testFramework
         NORMAL,
         ERROR_EXPECTED,
         OUTPUT_EXPECTED,
-        PERFORMANCE
+        PERFORMANCE,
+        COMPILATION_TEST
     };
 }

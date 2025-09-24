@@ -8,15 +8,15 @@ string empty = "";
 string notEmpty = "content";
 
 // Test empty string initialization
-print("Empty string length: " + toString(str::length(empty)));
-print("Empty string is empty: " + toString(empty == ""));
-print("Empty string is not null: " + toString(empty != null));
+print("Empty string length: " + strLength(empty));
+print("Empty string is empty: " + (empty == ""));
+print("Empty string is not null: " + (empty != null));
 
 // Test 2: Empty string concatenation
 print("\nTesting empty string concatenation:");
 
 string result1 = empty + empty;
-print("Empty + Empty = '" + result1 + "' (length: " + toString(str::length(result1)) + ")");
+print("Empty + Empty = '" + result1 + "' (length: " + strLength(result1) + ")");
 
 string result2 = empty + notEmpty;
 print("Empty + NotEmpty = '" + result2 + "'");
@@ -35,7 +35,7 @@ print("\nTesting compound assignment with empty strings:");
 
 string accumulated = "";
 accumulated += "";
-print("After += empty: '" + accumulated + "' (length: " + toString(str::length(accumulated)) + ")");
+print("After += empty: '" + accumulated + "' (length: " + strLength(accumulated) + ")");
 
 accumulated += "first";
 print("After += 'first': '" + accumulated + "'");
@@ -50,22 +50,22 @@ print("After += 'second': '" + accumulated + "'");
 print("\nTesting empty string comparisons:");
 
 bool comp1 = empty == "";
-print("empty == '' : " + toString(comp1));
+print("empty == '' : " + comp1);
 
 bool comp2 = empty == " ";  // Space is not empty
-print("empty == ' ' : " + toString(comp2));
+print("empty == ' ' : " + comp2);
 
 bool comp3 = empty == null;
-print("empty == null : " + toString(comp3));
+print("empty == null : " + comp3);
 
 bool comp4 = empty != "";
-print("empty != '' : " + toString(comp4));
+print("empty != '' : " + comp4);
 
 bool comp5 = empty != " ";
-print("empty != ' ' : " + toString(comp5));
+print("empty != ' ' : " + comp5);
 
 bool comp6 = empty != null;
-print("empty != null : " + toString(comp6));
+print("empty != null : " + comp6);
 
 // Test 5: Empty string in functions
 print("\nTesting empty strings in functions:");
@@ -96,20 +96,20 @@ for (int i = 0; i < 3; i++) {
     if (i == 1) {
         loopResult += "";  // Add empty string in middle
     } else {
-        loopResult += toString(i);
+        loopResult += i;
     }
 }
 print("Loop result with empty: '" + loopResult + "'");
 
-// Test 7: Empty string with str::length function
-print("\nTesting str::length function with various strings:");
+// Test 7: Empty string with strLength function
+print("\nTesting strLength function with various strings:");
 
-print("str::length(''): " + toString(str::length("")));
-print("str::length('a'): " + toString(str::length("a")));
-print("str::length('hello'): " + toString(str::length("hello")));
-print("str::length(' '): " + toString(str::length(" ")));
-print("str::length('\\t'): " + toString(str::length("\t")));
-print("str::length('\\n'): " + toString(str::length("\n")));
+print("strLength(''): " + strLength(""));
+print("strLength('a'): " + strLength("a"));
+print("strLength('hello'): " + strLength("hello"));
+print("strLength(' '): " + strLength(" "));
+print("strLength('\\t'): " + strLength("\t"));
+print("strLength('\\n'): " + strLength("\n"));
 
 // Test 8: Empty string in conditional expressions
 print("\nTesting empty strings in conditional expressions:");
@@ -118,7 +118,7 @@ string conditionalResult = empty == "" ? "was empty" : "not empty";
 print("Ternary with empty: " + conditionalResult);
 
 string value = "";
-string conditionalResult2 = str::length(value) == 0 ? "zero length" : "has content";
+string conditionalResult2 = strLength(value) == 0 ? "zero length" : "has content";
 print("Length check: " + conditionalResult2);
 
 // Test 9: Empty string with whitespace variations
@@ -130,11 +130,11 @@ string newline = "\n";
 string multiSpace = "   ";
 string mixed = " \t\n ";
 
-print("Space == empty: " + toString(space == empty));
-print("Tab == empty: " + toString(tab == empty));
-print("Newline == empty: " + toString(newline == empty));
-print("MultiSpace == empty: " + toString(multiSpace == empty));
-print("Mixed whitespace == empty: " + toString(mixed == empty));
+print("Space == empty: " + (space == empty));
+print("Tab == empty: " + (tab == empty));
+print("Newline == empty: " + (newline == empty));
+print("MultiSpace == empty: " + (multiSpace == empty));
+print("Mixed whitespace == empty: " + (mixed == empty));
 
 // Test 10: Empty string in class contexts
 print("\nTesting empty strings in classes:");
@@ -169,18 +169,18 @@ class StringContainer {
 
 StringContainer container1 = new StringContainer();
 print("Default container value: '" + container1.getValue() + "'");
-print("Default container isEmpty: " + toString(container1.isEmpty()));
+print("Default container isEmpty: " + container1.isEmpty());
 
 container1.append("");
 print("After appending empty: '" + container1.getValue() + "'");
-print("Still isEmpty: " + toString(container1.isEmpty()));
+print("Still isEmpty: " + container1.isEmpty());
 
 container1.append("content");
 print("After appending content: '" + container1.getValue() + "'");
-print("Now isEmpty: " + toString(container1.isEmpty()));
+print("Now isEmpty: " + container1.isEmpty());
 
 StringContainer container2 = new StringContainer("");
-print("Container with empty string: isEmpty = " + toString(container2.isEmpty()));
+print("Container with empty string: isEmpty = " + container2.isEmpty());
 
 // Test 11: Empty string method chaining
 print("\nTesting method chaining with empty strings:");
@@ -211,7 +211,7 @@ print("\nTesting empty string with special characters:");
 
 string beforeSpecial = "";
 string afterSpecial = beforeSpecial + "x";  // Add a regular character
-print("Empty + 'x' length: " + toString(str::length(afterSpecial)));
+print("Empty + 'x' length: " + strLength(afterSpecial));
 
 string escapeEmpty = "";
 string withEscape = escapeEmpty + "\\";
@@ -234,10 +234,10 @@ print("Nested non-empty: " + outer("value"));
 print("\nTesting empty string with number conversions:");
 
 string emptyNum = "";
-string numStr = emptyNum + toString(0);
+string numStr = emptyNum + 0;
 print("Empty + toString(0): '" + numStr + "'");
 
-string numStr2 = toString(42) + emptyNum;
+string numStr2 = 42 + emptyNum;
 print("toString(42) + empty: '" + numStr2 + "'");
 
 // Test 15: Empty string in switch-like constructs
@@ -248,7 +248,7 @@ function processEmptyVariations(string s): string {
         return "exactly empty";
     } else if (s == " ") {
         return "single space";
-    } else if (str::length(s) == 0) {
+    } else if (strLength(s) == 0) {
         return "zero length";  // Should never reach here after first check
     } else {
         return "has content: " + s;
@@ -266,9 +266,9 @@ string ref1 = "";
 string ref2 = "";
 string ref3 = ref1;
 
-print("ref1 == ref2: " + toString(ref1 == ref2));
-print("ref1 == ref3: " + toString(ref1 == ref3));
-print("ref2 == ref3: " + toString(ref2 == ref3));
+print("ref1 == ref2: " + (ref1 == ref2));
+print("ref1 == ref3: " + (ref1 == ref3));
+print("ref2 == ref3: " + (ref2 == ref3));
 
 ref1 += "modified";
 print("After modifying ref1:");

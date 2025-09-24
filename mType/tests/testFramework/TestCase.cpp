@@ -7,6 +7,7 @@
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../evaluator/utils/GenericTypeManager.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -29,7 +30,10 @@ namespace tests::testFramework
     void TestCase::execute()
     {
         auto startTime = std::chrono::high_resolution_clock::now();
-        
+
+        // Clear generic class cache to prevent contamination between tests
+        evaluator::utils::GenericTypeManager::clearGenericClassCache();
+
         try
         {
             // Check if file exists

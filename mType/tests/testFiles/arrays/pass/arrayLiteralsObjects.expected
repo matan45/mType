@@ -1,0 +1,12 @@
+Testing array literals with objects
+People array length: 3
+people[0] = Alice (25)
+people[1] = Bob (30)
+people[2] = Charlie (35)
+First person's name: Alice
+Second person's age: 30
+Mixed people array length: 3
+mixedPeople[0] = David (28)
+mixedPeople[1] = Alice (25)
+mixedPeople[2] = Eve (32)
+Array literals with objects test completed

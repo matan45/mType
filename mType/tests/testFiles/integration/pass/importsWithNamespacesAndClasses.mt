@@ -56,13 +56,13 @@ class CalculationSession {
     }
     
     function getSessionInfo(): string {
-        return sessionName + ": " + toString(totalCalculations) + "/" + toString(MAX_CALCULATIONS);
+        return sessionName + ": " + totalCalculations + "/" + MAX_CALCULATIONS;
     }
 }
 
 function generateReport(CalculationSession session): string {
     string report = "Session Report for " + session.sessionName;
-    report = report + " | Operations: " + toString(Calculator::getOperationCount());
+    report = report + " | Operations: " + Calculator::getOperationCount();
     return report;
 }
 

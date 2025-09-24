@@ -4,6 +4,15 @@
   "description": "Syntax highlighting and code completion for mType programming language",
   "version": "1.0.0",
   "publisher": "mtype-team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mtype-lang/mtype"
+  },
+  "bugs": {
+    "url": "https://github.com/mtype-lang/mtype/issues"
+  },
+  "homepage": "https://github.com/mtype-lang/mtype#readme",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -19,9 +28,7 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
-    "onCommand:mtype.run",
-    "onCommand:mtype.runTests",
-    "onCommand:mtype.formatDocument"
+    "onLanguage:mtype-compiled"
   ],
   "contributes": {
     "languages": [
@@ -35,12 +42,28 @@
           ".mt"
         ],
         "configuration": "./language-configuration/mtype-configuration.json"
+      },
+      {
+        "id": "mtype-compiled",
+        "aliases": [
+          "mType Compiled",
+          "mtc"
+        ],
+        "extensions": [
+          ".mtc"
+        ],
+        "configuration": "./language-configuration/mtype-configuration.json"
       }
     ],
     "grammars": [
       {
         "language": "mtype",
         "scopeName": "source.mtype",
+        "path": "./syntaxes/mtype.tmGrammar.json"
+      },
+      {
+        "language": "mtype-compiled",
+        "scopeName": "source.mtype.compiled",
         "path": "./syntaxes/mtype.tmGrammar.json"
       }
     ],
@@ -68,32 +91,12 @@
         "command": "mtype.run",
         "title": "Run mType File",
         "category": "mType"
-      },
-      {
-        "command": "mtype.runTests",
-        "title": "Run mType Tests",
-        "category": "mType"
-      },
-      {
-        "command": "mtype.formatDocument",
-        "title": "Format mType Document",
-        "category": "mType"
       }
     ],
     "keybindings": [
       {
         "command": "mtype.run",
         "key": "f5",
-        "when": "editorTextFocus && resourceExtname == '.mt'"
-      },
-      {
-        "command": "mtype.runTests",
-        "key": "ctrl+f5",
-        "when": "editorTextFocus && resourceExtname == '.mt'"
-      },
-      {
-        "command": "mtype.formatDocument",
-        "key": "shift+alt+f",
         "when": "editorTextFocus && resourceExtname == '.mt'"
       }
     ],
@@ -113,13 +116,6 @@
       "commandPalette": [
         {
           "command": "mtype.run",
-          "when": "resourceExtname == '.mt'"
-        },
-        {
-          "command": "mtype.runTests"
-        },
-        {
-          "command": "mtype.formatDocument",
           "when": "resourceExtname == '.mt'"
         }
       ]
@@ -160,7 +156,7 @@
         },
         "mTypeFormatter.insertSpaceAroundOperators": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Insert spaces around operators (=, +, -, etc.)"
         }
       }

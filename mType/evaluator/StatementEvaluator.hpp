@@ -51,6 +51,14 @@ namespace evaluator
         void handleContinue();
         void resetLoopFlags();
 
+        // Loop depth management
+        void enterLoop();
+        void exitLoop();
+        bool isInLoop() const;
+        void enterBreakableContext(); // Generic method for entering any breakable context
+        void exitBreakableContext();  // Generic method for exiting any breakable context
+        bool isInBreakableContext() const; // Generic method for checking if break is valid
+
         // Statement evaluation methods
         Value evaluateProgramNode(ProgramNode* node);
         Value evaluateBlockNode(BlockNode* node);
@@ -90,8 +98,8 @@ namespace evaluator
                                     const std::string& expectedClassName);
         void validateClassExists(const std::string& className, const SourceLocation& location);
         bool isValidTypeConversion(ValueType from, ValueType to);
-        void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
-                                             const SourceLocation& location);
+        bool isGenericTypeCompatible(const std::string& actualClassName,
+                                   const std::string& expectedClassName);
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
                                              const SourceLocation& location,
                                              const std::string& expectedClassName);

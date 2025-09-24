@@ -11,10 +11,12 @@
     }
   },
   "fileExtensions": {
-    "mt": "mtype-file"
+    "mt": "mtype-file",
+    "mtc": "mtc-file"
   },
   "languageIds": {
-    "mtype": "mtype-file"
+    "mtype": "mtype-file",
+    "mtype-compiled": "mtc-file"
   },
   "folder": "mtype-folder",
   "folderExpanded": "mtype-folder-open"

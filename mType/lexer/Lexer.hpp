@@ -56,11 +56,6 @@ namespace lexer
             {"bool", TokenType::BOOL},
             {"string", TokenType::STRING_TYPE},
             {"void", TokenType::VOID},
-            {"Array", TokenType::ARRAY},
-            {"Map", TokenType::MAP},
-            {"Set", TokenType::SET},
-            {"Queue", TokenType::QUEUE},
-            {"Stack", TokenType::STACK},
             {"class", TokenType::CLASS},
             {"new", TokenType::NEW},
             {"static", TokenType::STATIC},
@@ -101,6 +96,7 @@ namespace lexer
         
         // Token creation helpers
         Token tryParseOperator();
+        Token tryParseSpacedOperator();
         TokenType findKeywordType(std::string_view identifier) const;
         
         // Error handling

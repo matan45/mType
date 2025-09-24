@@ -1,5 +1,7 @@
 #include "ParameterBinder.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "ValueConverter.hpp"
@@ -43,6 +45,55 @@ namespace evaluator::utils
                 false  // parameters are not final
             );
             
+            env->declareVariable(param.first, varDef);
+        }
+    }
+
+    void ParameterBinder::bindAndValidateParameters(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const SourceLocation& location)
+    {
+        auto params = method->getParameters();
+
+        // Validate parameter count
+        validateParameterCount(params.size(), args.size(), functionName);
+
+        // Bind and validate each parameter with runtime type resolution
+        for (size_t i = 0; i < params.size(); ++i)
+        {
+            const auto& param = params[i];
+            const Value& arg = args[i];
+
+            // Get actual argument type
+            ValueType actualType = ValueConverter::getValueType(arg);
+
+            // Get expected type with runtime resolution for generics
+            ValueType expectedType = method->resolveParameterType(i);
+
+            // Validate type compatibility
+            validateParameterType(actualType, expectedType, param.first, functionName, location);
+
+            // Create and bind parameter variable
+            // For object types, preserve the actual object type to maintain method bindings
+            ValueType typeToUse = actualType;
+            if (actualType == ValueType::OBJECT && expectedType != ValueType::OBJECT) {
+                // If we have a concrete object but expect a generic type, keep the object type
+                typeToUse = actualType;
+            } else if (expectedType != ValueType::OBJECT) {
+                // For non-object types, use the expected type
+                typeToUse = expectedType;
+            }
+
+            auto varDef = std::make_shared<VariableDefinition>(
+                param.first,
+                typeToUse,  // Use appropriate type to preserve object method bindings
+                arg,
+                false  // parameters are not final
+            );
+
             env->declareVariable(param.first, varDef);
         }
     }

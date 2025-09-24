@@ -1,5 +1,4 @@
 ﻿#include "ScopeManager.hpp"
-#include <iostream>
 
 namespace environment::manager
 {
@@ -74,8 +73,15 @@ namespace environment::manager
     void ScopeManager::enterScope(const std::string& scopeName, ScopeType scopeType)
     {
         scopeStack.push(currentScope);
-        
-        auto newScope = std::make_shared<Scope>(scopeName, scopeType, currentScope);
+
+        // For lexical scoping: function scopes should have global scope as parent,
+        // not the dynamically active scope
+        std::shared_ptr<Scope> parentScope = currentScope;
+        if (scopeType == ScopeType::FUNCTION) {
+            parentScope = globalScope; // Functions use lexical scoping - parent is global, not caller
+        }
+
+        auto newScope = std::make_shared<Scope>(scopeName, scopeType, parentScope);
         currentScope->addChild(newScope);
         currentScope = newScope;
     }

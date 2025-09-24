@@ -1,4 +1,5 @@
 ﻿#include "Scope.hpp"
+#include <iostream>
 #include <algorithm>
 
 namespace environment::manager
@@ -58,12 +59,12 @@ namespace environment::manager
         {
             return it->second;
         }
-        
+
         if (parent)
         {
             return parent->findVariable(varName);
         }
-        
+
         return nullptr;
     }
 
