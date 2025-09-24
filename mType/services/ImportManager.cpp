@@ -1,6 +1,6 @@
 #include "ImportManager.hpp"
-#include <iostream>
 #include <filesystem>
+#include <iostream>
 #include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"

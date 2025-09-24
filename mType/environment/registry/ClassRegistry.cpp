@@ -1,6 +1,5 @@
 ﻿#include "ClassRegistry.hpp"
 #include <algorithm>
-#include <iostream>
 
 namespace environment::registry
 {

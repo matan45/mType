@@ -1,6 +1,5 @@
 #include "Evaluator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include <iostream>
 
 namespace evaluator
 {

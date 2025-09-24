@@ -1,5 +1,4 @@
 ﻿#include "IndexAssignmentNode.hpp"
-#include <iostream>
 
 namespace ast::nodes::statements
 {

@@ -1,7 +1,6 @@
 ﻿#include "StatementParser.hpp"
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
-#include <iostream>
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/IndexAssignmentNode.hpp"

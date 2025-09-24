@@ -6,7 +6,6 @@
 #include "../../errors/TypeException.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
-#include <iostream>
 
 namespace evaluator::utils
 {

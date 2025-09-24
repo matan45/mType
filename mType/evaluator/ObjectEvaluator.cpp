@@ -2,11 +2,9 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
-#include "utils/ValueConverter.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
-#include <iostream>
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../exception/ReturnException.hpp"
@@ -27,7 +25,6 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
-// All collection includes removed - collections now implemented in mType language
 #include "../parser/TypeParser.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "ExpressionEvaluator.hpp"
@@ -165,21 +162,24 @@ namespace evaluator
             // Create method definition with generic type information preserved
             std::shared_ptr<MethodDefinition> methodDef;
 
-            if (methodNode->isGeneric()) {
+            if (methodNode->isGeneric())
+            {
                 // For generic methods, preserve the generic type information
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
-                    methodNode->getReturnType(),               // Legacy ValueType for compatibility
-                    methodNode->getParameters(),               // Legacy ValueType parameters for compatibility
+                    methodNode->getReturnType(), // Legacy ValueType for compatibility
+                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
                     methodNode->getIsStatic(),
-                    methodNode->getGenericReturnType(),        // NEW: Preserve generic return type
-                    methodNode->getGenericParameters(),        // NEW: Preserve generic method parameters
-                    methodNode->getGenericTypeParameters(),    // NEW: Preserve generic type parameter declarations
+                    methodNode->getGenericReturnType(), // NEW: Preserve generic return type
+                    methodNode->getGenericParameters(), // NEW: Preserve generic method parameters
+                    methodNode->getGenericTypeParameters(), // NEW: Preserve generic type parameter declarations
                     std::unordered_map<std::string, std::string>{} // Empty substitution map for template
                 );
-            } else {
+            }
+            else
+            {
                 // For non-generic methods, use legacy constructor
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
@@ -233,161 +233,6 @@ namespace evaluator
 
         std::string className = node->getClassName();
 
-        // Resolve generic types using current instance context if available
-        auto currentInstance = context->getCurrentInstance();
-        if (currentInstance) {
-            std::string originalClassName = className;
-            className = currentInstance->resolveGenericType(className);
-            if (originalClassName != className) {
-                const auto& bindings = currentInstance->getGenericTypeBindings();
-                for (const auto& binding : bindings) {
-                }
-            }
-        }
-
-        // REMOVED: Collection handling - collections now implemented in mType language
-        // All collections (Array, Map, Set, Stack, Queue) will be handled as regular mType classes
-
-        /* if (className.find("Array<") == 0)
-        {
-            // Parse the element type from Array<ElementType>
-            size_t start = className.find('<') + 1;
-            size_t end = className.rfind('>'); // Use rfind to get the last '>' to handle nested generics
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string elementTypeName = className.substr(start, end - start);
-                
-                // Check if element type is a collection (nested generic)
-                if (elementTypeName.find("Array<") == 0 || 
-                    elementTypeName.find("Map<") == 0 || elementTypeName.find("Set<") == 0 ||
-                    elementTypeName.find("Queue<") == 0 || elementTypeName.find("Stack<") == 0)
-                {
-                    // For nested collections, use OBJECT type and store the full type name
-                    return std::make_shared<runtimeTypes::collections::Array>(value::ValueType::OBJECT, elementTypeName);
-                }
-                else
-                {
-                    // For simple types, use the existing logic
-                    value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                    
-                    // If elementType is OBJECT, it means it's a class name - store the class name for validation
-                    if (elementType == value::ValueType::OBJECT) {
-                        return std::make_shared<runtimeTypes::collections::Array>(elementType, elementTypeName);
-                    } else {
-                        return std::make_shared<runtimeTypes::collections::Array>(elementType);
-                    }
-                }
-            }
-            else
-            {
-                // Fallback to default element type
-                return std::make_shared<runtimeTypes::collections::Array>(value::ValueType::OBJECT);
-            }
-        }
-        else if (className.find("Map<") == 0)
-        {
-            // Parse the key and value types from Map<KeyType, ValueType>
-            size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string typeParams = className.substr(start, end - start);
-                size_t commaPos = typeParams.find(',');
-                if (commaPos != std::string::npos)
-                {
-                    std::string keyTypeName = typeParams.substr(0, commaPos);
-                    std::string valueTypeName = typeParams.substr(commaPos + 1);
-                    // Remove leading/trailing spaces
-                    keyTypeName.erase(0, keyTypeName.find_first_not_of(' '));
-                    keyTypeName.erase(keyTypeName.find_last_not_of(' ') + 1);
-                    valueTypeName.erase(0, valueTypeName.find_first_not_of(' '));
-                    valueTypeName.erase(valueTypeName.find_last_not_of(' ') + 1);
-                    
-                    // Check if key type is a collection (nested generic)
-                    value::ValueType keyType;
-                    std::string keyClassName = "";
-                    if (keyTypeName.find("Array<") == 0 || 
-                        keyTypeName.find("Map<") == 0 || keyTypeName.find("Set<") == 0 ||
-                        keyTypeName.find("Queue<") == 0 || keyTypeName.find("Stack<") == 0) {
-                        keyType = value::ValueType::OBJECT;
-                        keyClassName = keyTypeName;
-                    } else {
-                        keyType = parser::TypeParser::stringToValueType(keyTypeName);
-                        if (keyType == value::ValueType::OBJECT) {
-                            keyClassName = keyTypeName;
-                        }
-                    }
-                    
-                    // Check if value type is a collection (nested generic)
-                    value::ValueType valueType;
-                    std::string valueClassName = "";
-                    if (valueTypeName.find("Array<") == 0 || 
-                        valueTypeName.find("Map<") == 0 || valueTypeName.find("Set<") == 0 ||
-                        valueTypeName.find("Queue<") == 0 || valueTypeName.find("Stack<") == 0) {
-                        valueType = value::ValueType::OBJECT;
-                        valueClassName = valueTypeName;
-                    } else {
-                        valueType = parser::TypeParser::stringToValueType(valueTypeName);
-                        if (valueType == value::ValueType::OBJECT) {
-                            valueClassName = valueTypeName;
-                        }
-                    }
-                    
-                    // Create Map with appropriate class name (currently only supports value type class names)
-                    if (!valueClassName.empty()) {
-                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType, valueClassName);
-                    } else {
-                        return std::make_shared<runtimeTypes::collections::Map>(keyType, valueType);
-                    }
-                }
-            }
-            return std::make_shared<runtimeTypes::collections::Map>(value::ValueType::STRING, value::ValueType::OBJECT);
-        }
-        else if (className.find("Set<") == 0)
-        {
-            size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string elementTypeName = className.substr(start, end - start);
-                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                return std::make_shared<runtimeTypes::collections::Set>(elementType);
-            }
-            else
-            {
-                return std::make_shared<runtimeTypes::collections::Set>(value::ValueType::OBJECT);
-            }
-        }
-        else if (className.find("Queue<") == 0)
-        {
-            size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string elementTypeName = className.substr(start, end - start);
-                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                return std::make_shared<runtimeTypes::collections::Queue>(elementType);
-            }
-            else
-            {
-                return std::make_shared<runtimeTypes::collections::Queue>(value::ValueType::OBJECT);
-            }
-        }
-        else if (className.find("Stack<") == 0)
-        {
-            size_t start = className.find('<') + 1;
-            size_t end = className.find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-            {
-                std::string elementTypeName = className.substr(start, end - start);
-                value::ValueType elementType = parser::TypeParser::stringToValueType(elementTypeName);
-                return std::make_shared<runtimeTypes::collections::Stack>(elementType);
-            }
-            else
-            {
-                return std::make_shared<runtimeTypes::collections::Stack>(value::ValueType::OBJECT);
-            }
-        } */
 
         // Handle regular class instantiation
         // className already declared above for collections
@@ -396,23 +241,28 @@ namespace evaluator
 
         // Try to resolve type parameters from current object context first
         std::string resolvedClassName = className;
-        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+        if (utils::GenericTypeManager::isGenericInstantiation(className))
+        {
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
 
             std::vector<std::string> resolvedTypeArguments;
             bool hasResolvedParams = false;
-            for (const std::string& typeArg : typeArguments) {
+            for (const std::string& typeArg : typeArguments)
+            {
                 std::string resolvedType = resolveTypeParameterFromContext(typeArg);
                 resolvedTypeArguments.push_back(resolvedType);
-                if (resolvedType != typeArg) {
+                if (resolvedType != typeArg)
+                {
                     hasResolvedParams = true;
                 }
             }
 
             // If we resolved any type parameters, construct the resolved class name
-            if (hasResolvedParams) {
+            if (hasResolvedParams)
+            {
                 resolvedClassName = baseName + "<" + resolvedTypeArguments[0];
-                for (size_t i = 1; i < resolvedTypeArguments.size(); ++i) {
+                for (size_t i = 1; i < resolvedTypeArguments.size(); ++i)
+                {
                     resolvedClassName += "," + resolvedTypeArguments[i];
                 }
                 resolvedClassName += ">";
@@ -420,12 +270,16 @@ namespace evaluator
         }
 
         // Check if we should use the resolved class name for direct instantiation
-        if (resolvedClassName != className) {
+        if (resolvedClassName != className)
+        {
             // We resolved type parameters - try to find the instantiated class directly
             auto instantiatedClass = env->findClass(resolvedClassName);
-            if (instantiatedClass) {
+            if (instantiatedClass)
+            {
                 classDef = instantiatedClass;
-            } else {
+            }
+            else
+            {
                 className = resolvedClassName; // Use resolved name for generic instantiation
             }
         }
@@ -488,7 +342,8 @@ namespace evaluator
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(classNameForInstance);
 
             // Debug logging
-            for (size_t i = 0; i < typeArguments.size(); ++i) {
+            for (size_t i = 0; i < typeArguments.size(); ++i)
+            {
             }
 
             // Use the base class name for lookup (e.g., "LinkedList" instead of "LinkedList<String>")
@@ -496,7 +351,8 @@ namespace evaluator
 
             // Look up the generic template class
             auto templateClassDef = env->findClass(baseClassName);
-            if (templateClassDef) {
+            if (templateClassDef)
+            {
             }
 
             if (templateClassDef && templateClassDef->isGeneric())
@@ -517,8 +373,10 @@ namespace evaluator
         auto instance = createInstanceWithTypeBindings(classNameForInstance, args, genericTypeBindings);
 
         // Debug: Print the created instance's type bindings
-        if (!genericTypeBindings.empty()) {
-            for (const auto& binding : genericTypeBindings) {
+        if (!genericTypeBindings.empty())
+        {
+            for (const auto& binding : genericTypeBindings)
+            {
             }
         }
 
@@ -526,6 +384,12 @@ namespace evaluator
         if (classDef && !classDef->getConstructors().empty())
         {
             auto constructor = classDef->findConstructor(args.size());
+            if (!constructor)
+            {
+                // Class has constructors but none match the provided arguments
+                throw TypeException("No matching constructor for class '" + node->getClassName() +
+                                  "' with " + std::to_string(args.size()) + " argument(s)");
+            }
             if (constructor && constructor->getBody())
             {
                 // Set the current instance for constructor execution
@@ -610,12 +474,14 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
-        if (!env) {
+        if (!env)
+        {
             throw TypeException("Environment is null during object creation");
         }
 
         auto classDef = env->getClassRegistry()->findItem(className);
-        if (!classDef) {
+        if (!classDef)
+        {
             throw UndefinedException("Class '" + className + "' is not defined");
         }
 
@@ -623,7 +489,8 @@ namespace evaluator
         auto instance = std::make_shared<ObjectInstance>(classDef, typeBindings);
 
         // Initialize fields with default values
-        for (const auto& fieldPair : classDef->getInstanceFields()) {
+        for (const auto& fieldPair : classDef->getInstanceFields())
+        {
             auto field = fieldPair.second;
             instance->setField(field->getName(), field->getValue());
         }
@@ -668,17 +535,20 @@ namespace evaluator
     Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object,
                                         const std::string& memberName)
     {
-        if (!object) {
+        if (!object)
+        {
             throw TypeException("Cannot access member '" + memberName + "' on null object");
         }
 
         // VALIDATION: Prevent instance member access from static methods
-        if (context->isInStaticMethodContext()) {
+        if (context->isInStaticMethodContext())
+        {
             auto field = object->getField(memberName);
-            if (field && !field->isStatic()) {
+            if (field && !field->isStatic())
+            {
                 throw TypeException("Cannot access instance field '" + memberName +
-                                  "' from static method context",
-                                  SourceLocation()); // TODO: Pass proper location if available
+                                    "' from static method context",
+                                    SourceLocation()); // TODO: Pass proper location if available
             }
         }
 
@@ -721,7 +591,8 @@ namespace evaluator
 
         // Try to extract multi-dimensional assignment (e.g., arr[i][j][k] = value)
         auto multiDimResult = extractMultiDimensionalAssignment(node);
-        if (multiDimResult.has_value()) {
+        if (multiDimResult.has_value())
+        {
             auto [baseArray, indices] = multiDimResult.value();
             Value newValue = exprEvaluator->evaluate(node->getValue());
             return performDirectMultiDimensionalAssignment(baseArray, indices, newValue, node->getLocation());
@@ -732,11 +603,13 @@ namespace evaluator
         auto objectASTNode = node->getObject();
 
         // Try to detect if this is an IndexAccessNode
-        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode))
+        {
             // Get the base array (e.g., arr2d in arr2d[0][0] = value)
             Value baseArrayValue = exprEvaluator->evaluate(indexAccessNode->getCollection());
 
-            if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue)) {
+            if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue))
+            {
                 auto baseArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArrayValue);
 
                 // Get the first dimension index (e.g., 0 in arr2d[0][0])
@@ -748,30 +621,43 @@ namespace evaluator
                 // Get the new value
                 Value newValue = exprEvaluator->evaluate(node->getValue());
 
-                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue))
+                {
                     int firstIndex = std::get<int>(firstIndexValue);
                     int secondIndex = std::get<int>(secondIndexValue);
 
                     // Validate indices before conversion
-                    if (firstIndex < 0) {
-                        throw TypeException("Multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    if (firstIndex < 0)
+                    {
+                        throw TypeException(
+                            "Multi-dimensional array first index " + std::to_string(firstIndex) + " is negative",
+                            node->getLocation());
                     }
-                    if (secondIndex < 0) {
-                        throw TypeException("Multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    if (secondIndex < 0)
+                    {
+                        throw TypeException(
+                            "Multi-dimensional array second index " + std::to_string(secondIndex) + " is negative",
+                            node->getLocation());
                     }
 
                     std::vector<size_t> indices;
                     indices.push_back(static_cast<size_t>(firstIndex));
                     indices.push_back(static_cast<size_t>(secondIndex));
 
-                    try {
+                    try
+                    {
                         baseArray->set(indices, newValue);
                         return newValue;
-                    } catch (const std::out_of_range& e) {
-                        throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
+                    catch (const std::out_of_range& e)
+                    {
+                        throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()),
+                                            node->getLocation());
                     }
                 }
-            } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue)) {
+            }
+            else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue))
+            {
                 auto baseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArrayValue);
 
                 // Get the first dimension index (e.g., 0 in arr2d[0][0])
@@ -783,27 +669,39 @@ namespace evaluator
                 // Get the new value
                 Value newValue = exprEvaluator->evaluate(node->getValue());
 
-                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue)) {
+                if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue))
+                {
                     int firstIndex = std::get<int>(firstIndexValue);
                     int secondIndex = std::get<int>(secondIndexValue);
 
                     // Validate indices before conversion
-                    if (firstIndex < 0) {
-                        throw TypeException("Sparse multi-dimensional array first index " + std::to_string(firstIndex) + " is negative", node->getLocation());
+                    if (firstIndex < 0)
+                    {
+                        throw TypeException(
+                            "Sparse multi-dimensional array first index " + std::to_string(firstIndex) + " is negative",
+                            node->getLocation());
                     }
-                    if (secondIndex < 0) {
-                        throw TypeException("Sparse multi-dimensional array second index " + std::to_string(secondIndex) + " is negative", node->getLocation());
+                    if (secondIndex < 0)
+                    {
+                        throw TypeException(
+                            "Sparse multi-dimensional array second index " + std::to_string(secondIndex) +
+                            " is negative", node->getLocation());
                     }
 
                     std::vector<size_t> indices;
                     indices.push_back(static_cast<size_t>(firstIndex));
                     indices.push_back(static_cast<size_t>(secondIndex));
 
-                    try {
+                    try
+                    {
                         baseArray->set(indices, newValue);
                         return newValue;
-                    } catch (const std::out_of_range& e) {
-                        throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), node->getLocation());
+                    }
+                    catch (const std::out_of_range& e)
+                    {
+                        throw TypeException(
+                            "Sparse multi-dimensional array assignment failed: " + std::string(e.what()),
+                            node->getLocation());
                     }
                 }
             }
@@ -821,25 +719,30 @@ namespace evaluator
 
 
         // Check if index is an integer
-        if (!std::holds_alternative<int>(indexValue)) {
+        if (!std::holds_alternative<int>(indexValue))
+        {
             throw TypeException("Array index must be an integer", node->getLocation());
         }
 
         int index = std::get<int>(indexValue);
 
         // Check if object is a NativeArray
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue)) {
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
+        {
             auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
 
             // Check bounds with descriptive error message
-            if (index < 0) {
-                throw TypeException("Array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
-            if (static_cast<size_t>(index) >= nativeArray->size()) {
+            if (static_cast<size_t>(index) >= nativeArray->size())
+            {
                 throw TypeException("Array assignment index " + std::to_string(index) + " exceeds array size of " +
-                                  std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
-                                  std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
+                                    std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
             }
 
             nativeArray->set(static_cast<size_t>(index), newValue);
@@ -847,29 +750,41 @@ namespace evaluator
         }
 
         // Check if object is a FlatMultiArray (for multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue)) {
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue))
+        {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
 
             // Check bounds with descriptive error message
-            if (index < 0) {
-                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Multi-dimensional array assignment index " + std::to_string(index) +
+                    " is negative (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
-            if (static_cast<size_t>(index) >= flatArray->size()) {
-                throw TypeException("Multi-dimensional array assignment index " + std::to_string(index) + " exceeds array size of " +
-                                  std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
-                                  std::to_string(flatArray->size() - 1) + ")", node->getLocation());
+            if (static_cast<size_t>(index) >= flatArray->size())
+            {
+                throw TypeException(
+                    "Multi-dimensional array assignment index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
             }
 
             // For 1D FlatMultiArray, set directly
-            if (flatArray->getRank() == 1) {
-                try {
+            if (flatArray->getRank() == 1)
+            {
+                try
+                {
                     flatArray->set(static_cast<size_t>(index), newValue);
                     return newValue;
-                } catch (const std::out_of_range& e) {
+                }
+                catch (const std::out_of_range& e)
+                {
                     throw TypeException("Array assignment failed: " + std::string(e.what()), node->getLocation());
                 }
-            } else {
+            }
+            else
+            {
                 // For multi-dimensional arrays, this should be handled differently
                 // The parser should create nested IndexAssignmentNodes, but if we get here,
                 // it means we're assigning to a sub-array which isn't supported
@@ -878,30 +793,42 @@ namespace evaluator
         }
 
         // Check if object is a SparseMultiArray (for adaptive sparse arrays)
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue)) {
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue))
+        {
             auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
 
             // Check bounds with descriptive error message
-            if (index < 0) {
-                throw TypeException("Sparse array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Sparse array assignment index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
             }
-            if (static_cast<size_t>(index) >= sparseArray->size()) {
-                throw TypeException("Sparse array assignment index " + std::to_string(index) + " exceeds array size of " +
-                                  std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
-                                  std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
+            if (static_cast<size_t>(index) >= sparseArray->size())
+            {
+                throw TypeException(
+                    "Sparse array assignment index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
             }
 
             // For single dimension sparse array
-            if (sparseArray->getRank() == 1) {
-                try {
+            if (sparseArray->getRank() == 1)
+            {
+                try
+                {
                     std::vector<size_t> indices = {static_cast<size_t>(index)};
                     sparseArray->set(indices, newValue);
                     return newValue;
-                } catch (const std::out_of_range& e) {
-                    throw TypeException("Sparse array assignment failed: " + std::string(e.what()), node->getLocation());
                 }
-            } else {
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("Sparse array assignment failed: " + std::string(e.what()),
+                                        node->getLocation());
+                }
+            }
+            else
+            {
                 // For multi-dimensional sparse arrays, this should be handled differently
                 // The parser should create nested IndexAssignmentNodes
                 throw TypeException("Cannot assign array to index position in sparse array", node->getLocation());
@@ -935,17 +862,20 @@ namespace evaluator
                                        const std::string& memberName,
                                        const Value& value)
     {
-        if (!object) {
+        if (!object)
+        {
             throw TypeException("Cannot assign to member '" + memberName + "' on null object");
         }
 
         // VALIDATION: Prevent instance member assignment from static methods
-        if (context->isInStaticMethodContext()) {
+        if (context->isInStaticMethodContext())
+        {
             auto field = object->getField(memberName);
-            if (field && !field->isStatic()) {
+            if (field && !field->isStatic())
+            {
                 throw TypeException("Cannot assign to instance field '" + memberName +
-                                  "' from static method context",
-                                  SourceLocation()); // TODO: Pass proper location if available
+                                    "' from static method context",
+                                    SourceLocation()); // TODO: Pass proper location if available
             }
         }
 
@@ -974,7 +904,7 @@ namespace evaluator
                 if (node->hasGenericTypeArguments())
                 {
                     return callStaticMethod(className, node->getMethodName(), args,
-                                          node->getGenericTypeArguments());
+                                            node->getGenericTypeArguments());
                 }
                 else
                 {
@@ -1020,60 +950,6 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
-        // Debug: Print method call details
-        const auto& bindings = object->getGenericTypeBindings();
-
-        // Special debug for getNodeAt method
-        if (methodName == "getNodeAt") {
-            for (const auto& binding : object->getGenericTypeBindings()) {
-            }
-
-            // Check the count field of the LinkedList
-            Value countValue = object->getFieldValue("count");
-            std::visit([](const auto& value) {
-                using T = std::decay_t<decltype(value)>;
-                if constexpr (std::is_same_v<T, int>) {
-                    std::cout << value;
-                } else if constexpr (std::is_same_v<T, std::monostate>) {
-                    std::cout << "uninitialized";
-                } else {
-                    std::cout << "not an int";
-                }
-            }, countValue);
-            std::cout << std::endl;
-
-            // Check the head field of the LinkedList
-            Value headValue = object->getFieldValue("head");
-            std::visit([](const auto& value) {
-                using T = std::decay_t<decltype(value)>;
-                if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    if (value) {
-                        std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
-                    } else {
-                        std::cout << "null ObjectInstance";
-                    }
-                } else if constexpr (std::is_same_v<T, std::monostate>) {
-                    std::cout << "uninitialized";
-                } else {
-                    std::cout << "other type";
-                }
-            }, headValue);
-            std::cout << std::endl;
-
-            // Add method argument debugging for getNodeAt
-            if (args.size() > 0) {
-                std::visit([](const auto& value) {
-                    using T = std::decay_t<decltype(value)>;
-                    if constexpr (std::is_same_v<T, int>) {
-                        std::cout << value;
-                    } else {
-                        std::cout << "not an int";
-                    }
-                }, args[0]);
-                std::cout << std::endl;
-            }
-        }
-
         // Get the class definition from the object
         auto classDef = object->getClassDefinition();
         if (!classDef)
@@ -1107,8 +983,8 @@ namespace evaluator
             if (currentInstance && currentInstance == object)
             {
                 throw TypeException("Cannot call instance method '" + methodName +
-                    "' on 'this' from static method context",
-                    SourceLocation()); // TODO: Pass proper location if available
+                                    "' on 'this' from static method context",
+                                    SourceLocation()); // TODO: Pass proper location if available
             }
             // Allow calls on other objects (local variables, parameters, newly created objects)
         }
@@ -1120,7 +996,8 @@ namespace evaluator
 
         // Set generic type bindings from the object instance for method execution
         auto prevGenericBindings = context->getGenericTypeBindings();
-        if (object && !object->getGenericTypeBindings().empty()) {
+        if (object && !object->getGenericTypeBindings().empty())
+        {
             context->setGenericTypeBindings(object->getGenericTypeBindings());
         }
 
@@ -1136,7 +1013,8 @@ namespace evaluator
             try
             {
                 // Use enhanced ParameterBinder for generic-aware parameter binding
-                if (method->hasGenericInformation()) {
+                if (method->hasGenericInformation())
+                {
                     // Use the new generic-aware parameter binding
                     utils::ParameterBinder::bindAndValidateParameters(
                         method,
@@ -1144,7 +1022,9 @@ namespace evaluator
                         "method '" + methodName + "'",
                         env
                     );
-                } else {
+                }
+                else
+                {
                     // Use legacy parameter binding for non-generic methods
                     utils::ParameterBinder::bindAndValidateParameters(
                         method->getParameters(),
@@ -1184,61 +1064,10 @@ namespace evaluator
                 // Restore previous generic type bindings
                 context->setGenericTypeBindings(prevGenericBindings);
 
-                // Debug: Show method return value
-                if (methodName == "getNodeAt") {
-                    std::visit([](const auto& value) {
-                        using T = std::decay_t<decltype(value)>;
-                        if constexpr (std::is_same_v<T, std::monostate>) {
-                            std::cout << "std::monostate (void/uninitialized)";
-                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                            if (value) {
-                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
-                            } else {
-                                std::cout << "null ObjectInstance";
-                            }
-                        } else if constexpr (std::is_same_v<T, int>) {
-                            std::cout << "int(" << value << ")";
-                        } else if constexpr (std::is_same_v<T, std::string>) {
-                            std::cout << "string(" << value << ")";
-                        } else {
-                            std::cout << "other type";
-                        }
-                    }, result);
-                    std::cout << std::endl;
-                }
-
                 return result;
             }
             catch (const exception::ReturnException& e)
             {
-                // Debug: Show method return value via exception
-                if (methodName == "getNodeAt") {
-                    std::visit([](const auto& value) {
-                        using T = std::decay_t<decltype(value)>;
-                        if constexpr (std::is_same_v<T, std::monostate>) {
-                            std::cout << "std::monostate (void/uninitialized)";
-                        } else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                            if (value) {
-                                std::cout << "ObjectInstance, class: " << value->getClassDefinition()->getName();
-                                // Show generic bindings of returned object
-                                std::cout << ", bindings: ";
-                                for (const auto& binding : value->getGenericTypeBindings()) {
-                                    std::cout << binding.first << "->" << binding.second << " ";
-                                }
-                            } else {
-                                std::cout << "null ObjectInstance";
-                            }
-                        } else if constexpr (std::is_same_v<T, int>) {
-                            std::cout << "int(" << value << ")";
-                        } else if constexpr (std::is_same_v<T, std::string>) {
-                            std::cout << "string(" << value << ")";
-                        } else {
-                            std::cout << "other type";
-                        }
-                    }, e.returnValue);
-                    std::cout << std::endl;
-                }
-
                 // Handle return exception - extract return value
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context
                 context->setCurrentInstance(prevInstance);
@@ -1302,22 +1131,29 @@ namespace evaluator
         // Try to resolve type parameters from current object context first
         std::string resolvedClassName = className;
         auto currentInstance = context->getCurrentInstance();
-        if (currentInstance) {
+        if (currentInstance)
+        {
             auto instanceClassDef = currentInstance->getClassDefinition();
-            if (instanceClassDef) {
+            if (instanceClassDef)
+            {
                 std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
 
                 // Check if the target className contains type parameters that need resolution
-                if (className.find('<') != std::string::npos && className.find('T') != std::string::npos) {
-                    if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName)) {
-                        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(instanceClassName);
+                if (className.find('<') != std::string::npos && className.find('T') != std::string::npos)
+                {
+                    if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName))
+                    {
+                        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(
+                            instanceClassName);
 
                         // Replace type parameters in className
                         resolvedClassName = className;
-                        if (className.find("T") != std::string::npos && !typeArguments.empty()) {
+                        if (className.find("T") != std::string::npos && !typeArguments.empty())
+                        {
                             // Simple T replacement - can be extended for multiple type parameters
                             size_t pos = resolvedClassName.find("T");
-                            while (pos != std::string::npos) {
+                            while (pos != std::string::npos)
+                            {
                                 resolvedClassName.replace(pos, 1, typeArguments[0]);
                                 pos = resolvedClassName.find("T", pos + typeArguments[0].length());
                             }
@@ -1457,14 +1293,15 @@ namespace evaluator
             // Validate that the method is actually generic
             if (!method->hasGenericInformation())
             {
-                throw TypeException("Method '" + methodName + "' is not generic but generic type arguments were provided");
+                throw TypeException(
+                    "Method '" + methodName + "' is not generic but generic type arguments were provided");
             }
 
             // Validate type arguments
             if (!utils::GenericTypeManager::validateStaticMethodTypeArguments(method, genericTypeArguments))
             {
                 throw TypeException("Invalid type arguments for static generic method '" +
-                                  className + "::" + methodName + "'");
+                    className + "::" + methodName + "'");
             }
 
             // Create a cache key for the instantiated method
@@ -1498,7 +1335,8 @@ namespace evaluator
             try
             {
                 // Use ParameterBinder utility for consistent parameter validation and binding
-                if (methodToCall->hasGenericInformation()) {
+                if (methodToCall->hasGenericInformation())
+                {
                     // Use generic-aware parameter binding for instantiated generic methods
                     utils::ParameterBinder::bindAndValidateParameters(
                         methodToCall,
@@ -1506,7 +1344,9 @@ namespace evaluator
                         "static method '" + className + "::" + methodName + "'",
                         env
                     );
-                } else {
+                }
+                else
+                {
                     // Use legacy parameter binding for non-generic methods
                     utils::ParameterBinder::bindAndValidateParameters(
                         methodToCall->getParameters(),
@@ -1593,8 +1433,8 @@ namespace evaluator
         // TODO: Implement constructor definition evaluation
         throw TypeException("Constructor definition evaluation not implemented in refactored version");
     }
-    
-    
+
+
     // REMOVED: Collection method dispatch - collections now implemented in mType language
     /* Value ObjectEvaluator::dispatchCollectionMethod(const Value& collectionValue,
                                                    const std::string& methodName,
@@ -1901,27 +1741,30 @@ namespace evaluator
     } */
 
 
-
     std::string ObjectEvaluator::resolveTypeParameterFromContext(const std::string& typeParam)
     {
         // First try to resolve from current method context (for static generic methods)
         auto currentMethod = context->getCurrentMethod();
-        if (currentMethod && currentMethod->hasGenericInformation()) {
+        if (currentMethod && currentMethod->hasGenericInformation())
+        {
             const auto& substitutionMap = currentMethod->getTypeSubstitutionMap();
             auto it = substitutionMap.find(typeParam);
-            if (it != substitutionMap.end()) {
+            if (it != substitutionMap.end())
+            {
                 return it->second;
             }
         }
 
         // Try to resolve type parameters from the current object instance context
         auto currentInstance = context->getCurrentInstance();
-        if (!currentInstance) {
+        if (!currentInstance)
+        {
             return typeParam;
         }
 
         auto classDef = currentInstance->getClassDefinition();
-        if (!classDef) {
+        if (!classDef)
+        {
             return typeParam;
         }
 
@@ -1931,37 +1774,46 @@ namespace evaluator
 
         // Check if the class name itself is a generic instantiation (e.g., "Set<int>")
         // This handles the case where we have an instantiated generic class
-        if (!classDef->isGeneric() && !utils::GenericTypeManager::isGenericInstantiation(className)) {
+        if (!classDef->isGeneric() && !utils::GenericTypeManager::isGenericInstantiation(className))
+        {
             return typeParam;
         }
 
         // Parse the generic instantiation to extract type parameters
-        if (utils::GenericTypeManager::isGenericInstantiation(className)) {
+        if (utils::GenericTypeManager::isGenericInstantiation(className))
+        {
             auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
 
             // Get the generic class definition to find its type parameter names
             auto env = context->getEnvironment();
             auto genericClass = env->findClass(baseName);
-            if (genericClass && genericClass->isGeneric()) {
+            if (genericClass && genericClass->isGeneric())
+            {
                 auto genericParams = genericClass->getGenericParameters();
 
                 // Handle array types (T[], T[][], Element[], etc.)
-                if (typeParam.find("[]") != std::string::npos) {
+                if (typeParam.find("[]") != std::string::npos)
+                {
                     std::string baseType = typeParam.substr(0, typeParam.find("[]"));
                     std::string arraySuffix = typeParam.substr(typeParam.find("[]"));
 
                     // Find the position of baseType in the generic parameters
-                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
-                        if (genericParams[i].name == baseType) {
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+                    {
+                        if (genericParams[i].name == baseType)
+                        {
                             return typeArguments[i] + arraySuffix;
                         }
                     }
                 }
                 // For simple cases like Set<T>, map any type parameter to its corresponding argument
-                else {
+                else
+                {
                     // Find the position of typeParam in the generic parameters
-                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i) {
-                        if (genericParams[i].name == typeParam) {
+                    for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+                    {
+                        if (genericParams[i].name == typeParam)
+                        {
                             return typeArguments[i];
                         }
                     }
@@ -1973,17 +1825,19 @@ namespace evaluator
         return typeParam;
     }
 
-    std::optional<std::pair<Value, std::vector<size_t>>> ObjectEvaluator::extractMultiDimensionalAssignment(IndexAssignmentNode* node)
+    std::optional<std::pair<Value, std::vector<size_t>>> ObjectEvaluator::extractMultiDimensionalAssignment(
+        IndexAssignmentNode* node)
     {
         auto objectASTNode = node->getObject();
 
         // Check if this is a 2D assignment: arr[i][j] = value
-        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode)) {
-
+        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode))
+        {
             // Check if this is a 3D assignment: arr[i][j][k] = value
             // In this case, indexAccessNode->getCollection() would be another IndexAccessNode
-            if (auto innerIndexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(indexAccessNode->getCollection())) {
-
+            if (auto innerIndexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(indexAccessNode->
+                getCollection()))
+            {
                 // This is a 3D assignment: arr[i][j][k] = value
                 // Structure: IndexAssignmentNode(IndexAccessNode(IndexAccessNode(arr, i), j), k) = value
 
@@ -1991,15 +1845,19 @@ namespace evaluator
 
                 // Check if it's a 3D array
                 bool is3D = false;
-                if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+                if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
+                {
                     auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
                     is3D = flatArray->getRank() == 3;
-                } else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+                }
+                else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
+                {
                     auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
                     is3D = sparseArray->getRank() == 3;
                 }
 
-                if (!is3D) {
+                if (!is3D)
+                {
                     return std::nullopt;
                 }
 
@@ -2008,31 +1866,37 @@ namespace evaluator
 
                 // First index (i): from innerIndexAccess->getIndex()
                 Value firstIndexValue = exprEvaluator->evaluate(innerIndexAccess->getIndex());
-                if (!std::holds_alternative<int>(firstIndexValue)) {
+                if (!std::holds_alternative<int>(firstIndexValue))
+                {
                     return std::nullopt;
                 }
                 int firstIndex = std::get<int>(firstIndexValue);
-                if (firstIndex < 0) {
+                if (firstIndex < 0)
+                {
                     return std::nullopt;
                 }
 
                 // Second index (j): from indexAccessNode->getIndex()
                 Value secondIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
-                if (!std::holds_alternative<int>(secondIndexValue)) {
+                if (!std::holds_alternative<int>(secondIndexValue))
+                {
                     return std::nullopt;
                 }
                 int secondIndex = std::get<int>(secondIndexValue);
-                if (secondIndex < 0) {
+                if (secondIndex < 0)
+                {
                     return std::nullopt;
                 }
 
                 // Third index (k): from node->getIndex()
                 Value thirdIndexValue = exprEvaluator->evaluate(node->getIndex());
-                if (!std::holds_alternative<int>(thirdIndexValue)) {
+                if (!std::holds_alternative<int>(thirdIndexValue))
+                {
                     return std::nullopt;
                 }
                 int thirdIndex = std::get<int>(thirdIndexValue);
-                if (thirdIndex < 0) {
+                if (thirdIndex < 0)
+                {
                     return std::nullopt;
                 }
 
@@ -2041,7 +1905,9 @@ namespace evaluator
                 indices.push_back(static_cast<size_t>(thirdIndex));
 
                 return std::make_pair(baseArray, indices);
-            } else {
+            }
+            else
+            {
                 // This is a 2D assignment: arr[i][j] = value
                 // Let the existing 2D logic handle this
                 return std::nullopt;
@@ -2051,34 +1917,45 @@ namespace evaluator
         return std::nullopt;
     }
 
-    Value ObjectEvaluator::performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location)
+    Value ObjectEvaluator::performDirectMultiDimensionalAssignment(const Value& baseArray,
+                                                                   const std::vector<size_t>& indices,
+                                                                   const Value& newValue,
+                                                                   const SourceLocation& location)
     {
         // Handle FlatMultiArray direct assignment
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray)) {
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
+        {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
 
-            try {
+            try
+            {
                 flatArray->set(indices, newValue);
                 return newValue;
-            } catch (const std::out_of_range& e) {
+            }
+            catch (const std::out_of_range& e)
+            {
                 throw TypeException("Multi-dimensional array assignment failed: " + std::string(e.what()), location);
             }
         }
 
         // Handle SparseMultiArray direct assignment
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) {
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
+        {
             auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
 
-            try {
+            try
+            {
                 sparseArray->set(indices, newValue);
                 return newValue;
-            } catch (const std::out_of_range& e) {
-                throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()), location);
+            }
+            catch (const std::out_of_range& e)
+            {
+                throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()),
+                                    location);
             }
         }
 
         throw TypeException("Unsupported array type for direct multi-dimensional assignment", location);
     }
-
-    // Template instantiations not needed - template is now in header
+    
 }
