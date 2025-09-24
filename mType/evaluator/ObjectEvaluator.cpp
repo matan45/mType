@@ -1325,10 +1325,6 @@ namespace evaluator
             {
                 std::lock_guard<std::mutex> lock(staticGenericMethodCacheMutex);
 
-                // Debug output
-                std::cout << "[DEBUG] Static Method Cache Check: " << signatureKey << std::endl;
-                std::cout << "[DEBUG] Cache size: " << staticGenericMethodCache.size() << std::endl;
-
                 auto cacheIt = staticGenericMethodCache.find(signatureKey);
                 if (cacheIt != staticGenericMethodCache.end())
                 {
