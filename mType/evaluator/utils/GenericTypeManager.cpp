@@ -6,7 +6,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
+#include <mutex>
 
 namespace evaluator::utils
 {
@@ -14,13 +14,15 @@ namespace evaluator::utils
         const std::string& instantiationName)
     {
         size_t anglePos = instantiationName.find('<');
-        if (anglePos == std::string::npos) {
+        if (anglePos == std::string::npos)
+        {
             // Not a generic instantiation
             return {instantiationName, {}};
         }
 
         size_t endPos = instantiationName.rfind('>');
-        if (endPos == std::string::npos || endPos <= anglePos) {
+        if (endPos == std::string::npos || endPos <= anglePos)
+        {
             // Malformed generic instantiation
             return {instantiationName, {}};
         }
@@ -36,17 +38,20 @@ namespace evaluator::utils
         std::shared_ptr<ClassDefinition> genericClass,
         const std::vector<std::string>& typeArguments)
     {
-        if (!genericClass || !genericClass->isGeneric()) {
+        if (!genericClass || !genericClass->isGeneric())
+        {
             return nullptr;
         }
 
-        if (!validateTypeArguments(genericClass, typeArguments)) {
+        if (!validateTypeArguments(genericClass, typeArguments))
+        {
             return nullptr;
         }
 
         // Create instantiated class name (e.g., "Box<int>")
         std::string instantiatedName = genericClass->getBaseName() + "<";
-        for (size_t i = 0; i < typeArguments.size(); ++i) {
+        for (size_t i = 0; i < typeArguments.size(); ++i)
+        {
             if (i > 0) instantiatedName += ", ";
             instantiatedName += typeArguments[i];
         }
@@ -56,13 +61,20 @@ namespace evaluator::utils
         // between different generic classes with the same name
         std::string cacheKey = std::to_string(reinterpret_cast<uintptr_t>(genericClass.get())) + ":" + instantiatedName;
 
-        // Check generic class instantiation cache
+        // Check generic class instantiation cache with thread safety
+        static std::mutex genericClassCacheMutex;
         static std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> genericClassCache;
 
-        auto cacheIt = genericClassCache.find(cacheKey);
-        if (cacheIt != genericClassCache.end()) {
-            return cacheIt->second;
+        {
+            std::lock_guard<std::mutex> lock(genericClassCacheMutex);
+
+            auto cacheIt = genericClassCache.find(cacheKey);
+            if (cacheIt != genericClassCache.end())
+            {
+                return cacheIt->second;
+            }
         }
+
 
         // Create substitution map
         auto substitutionMap = createTypeSubstitutionMap(
@@ -72,7 +84,8 @@ namespace evaluator::utils
         auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
 
         // Copy and substitute fields
-        for (const auto& [fieldName, field] : genericClass->getInstanceFields()) {
+        for (const auto& [fieldName, field] : genericClass->getInstanceFields())
+        {
             // Create a copy of the field with substituted type
             auto newField = std::make_shared<FieldDefinition>(
                 field->getName(),
@@ -84,7 +97,8 @@ namespace evaluator::utils
             instantiatedClass->addInstanceField(fieldName, newField);
         }
 
-        for (const auto& [fieldName, field] : genericClass->getStaticFields()) {
+        for (const auto& [fieldName, field] : genericClass->getStaticFields())
+        {
             // Create a copy of the field with substituted type
             auto newField = std::make_shared<FieldDefinition>(
                 field->getName(),
@@ -97,27 +111,33 @@ namespace evaluator::utils
         }
 
         // Copy and substitute methods
-        for (const auto& [methodName, method] : genericClass->getInstanceMethods()) {
+        for (const auto& [methodName, method] : genericClass->getInstanceMethods())
+        {
             // Create a copy of the method with substituted types
             auto newMethod = substituteMethodTypes(method, substitutionMap);
             instantiatedClass->addInstanceMethod(methodName, newMethod);
         }
 
-        for (const auto& [methodName, method] : genericClass->getStaticMethods()) {
+        for (const auto& [methodName, method] : genericClass->getStaticMethods())
+        {
             // Create a copy of the method with substituted types
             auto newMethod = substituteMethodTypes(method, substitutionMap);
             instantiatedClass->addStaticMethod(methodName, newMethod);
         }
 
         // Copy constructors
-        for (const auto& constructor : genericClass->getConstructors()) {
+        for (const auto& constructor : genericClass->getConstructors())
+        {
             // Create a copy of the constructor with substituted parameter types
             auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
             instantiatedClass->addConstructor(newConstructor);
         }
 
         // Cache the instantiated class for future reuse
-        genericClassCache[cacheKey] = instantiatedClass;
+        {
+            std::lock_guard<std::mutex> lock(genericClassCacheMutex);
+            genericClassCache[cacheKey] = instantiatedClass;
+        }
 
         return instantiatedClass;
     }
@@ -135,13 +155,14 @@ namespace evaluator::utils
     bool GenericTypeManager::isGenericInstantiation(const std::string& typeName)
     {
         return typeName.find('<') != std::string::npos &&
-               typeName.find('>') != std::string::npos;
+            typeName.find('>') != std::string::npos;
     }
 
     std::string GenericTypeManager::getBaseClassName(const std::string& instantiationName)
     {
         size_t anglePos = instantiationName.find('<');
-        if (anglePos == std::string::npos) {
+        if (anglePos == std::string::npos)
+        {
             return instantiationName;
         }
         return instantiationName.substr(0, anglePos);
@@ -154,7 +175,8 @@ namespace evaluator::utils
         std::unordered_map<std::string, std::string> substitutionMap;
 
         size_t minSize = std::min(genericParameters.size(), typeArguments.size());
-        for (size_t i = 0; i < minSize; ++i) {
+        for (size_t i = 0; i < minSize; ++i)
+        {
             substitutionMap[genericParameters[i].name] = typeArguments[i];
         }
 
@@ -168,25 +190,32 @@ namespace evaluator::utils
         std::string result = typeString;
 
         // Simple substitution - replace each type parameter with its concrete type
-        for (const auto& [parameter, concreteType] : substitutionMap) {
+        for (const auto& [parameter, concreteType] : substitutionMap)
+        {
             // TODO: Implement more sophisticated substitution that handles complex types
             // For now, just do simple string replacement
             size_t pos = 0;
-            while ((pos = result.find(parameter, pos)) != std::string::npos) {
+            while ((pos = result.find(parameter, pos)) != std::string::npos)
+            {
                 // Make sure we're replacing a whole word, not part of another identifier
                 bool isWholeWord = true;
-                if (pos > 0 && (std::isalnum(result[pos - 1]) || result[pos - 1] == '_')) {
+                if (pos > 0 && (std::isalnum(result[pos - 1]) || result[pos - 1] == '_'))
+                {
                     isWholeWord = false;
                 }
                 if (pos + parameter.length() < result.length() &&
-                    (std::isalnum(result[pos + parameter.length()]) || result[pos + parameter.length()] == '_')) {
+                    (std::isalnum(result[pos + parameter.length()]) || result[pos + parameter.length()] == '_'))
+                {
                     isWholeWord = false;
                 }
 
-                if (isWholeWord) {
+                if (isWholeWord)
+                {
                     result.replace(pos, parameter.length(), concreteType);
                     pos += concreteType.length();
-                } else {
+                }
+                else
+                {
                     pos += parameter.length();
                 }
             }
@@ -204,24 +233,33 @@ namespace evaluator::utils
         int depth = 0;
         std::string currentArg;
 
-        for (char c : typeArgsString) {
-            if (c == '<') {
+        for (char c : typeArgsString)
+        {
+            if (c == '<')
+            {
                 depth++;
                 currentArg += c;
-            } else if (c == '>') {
+            }
+            else if (c == '>')
+            {
                 depth--;
                 currentArg += c;
-            } else if (c == ',' && depth == 0) {
+            }
+            else if (c == ',' && depth == 0)
+            {
                 // Top-level comma - this separates type arguments
                 // Trim whitespace
                 currentArg.erase(0, currentArg.find_first_not_of(" \t"));
                 currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
 
-                if (!currentArg.empty()) {
+                if (!currentArg.empty())
+                {
                     typeArgs.push_back(currentArg);
                 }
                 currentArg.clear();
-            } else {
+            }
+            else
+            {
                 currentArg += c;
             }
         }
@@ -229,7 +267,8 @@ namespace evaluator::utils
         // Add the last argument
         currentArg.erase(0, currentArg.find_first_not_of(" \t"));
         currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-        if (!currentArg.empty()) {
+        if (!currentArg.empty())
+        {
             typeArgs.push_back(currentArg);
         }
 
@@ -254,17 +293,20 @@ namespace evaluator::utils
         std::shared_ptr<ast::GenericType> genericType,
         const std::unordered_map<std::string, std::string>& substitutionMap)
     {
-        if (!genericType) {
+        if (!genericType)
+        {
             return value::ValueType::VOID;
         }
 
         // Check if this is a type parameter that needs substitution
-        if (genericType->isGenericParameter()) {
+        if (genericType->isGenericParameter())
+        {
             std::string typeName = genericType->getGenericName();
 
             // Look up the substitution
             auto it = substitutionMap.find(typeName);
-            if (it != substitutionMap.end()) {
+            if (it != substitutionMap.end())
+            {
                 // Convert the substituted type string to ValueType
                 return parser::TypeParser::stringToValueType(it->second);
             }
@@ -274,7 +316,8 @@ namespace evaluator::utils
         }
 
         // If it's a concrete type, convert it directly
-        if (!genericType->isGenericParameter()) {
+        if (!genericType->isGenericParameter())
+        {
             return genericType->getConcreteType();
         }
 
@@ -295,7 +338,8 @@ namespace evaluator::utils
         std::vector<std::pair<std::string, value::ValueType>> newParams;
         newParams.reserve(originalParams.size());
 
-        for (const auto& [paramName, paramType] : originalParams) {
+        for (const auto& [paramName, paramType] : originalParams)
+        {
             value::ValueType newParamType = substituteFieldType(paramType, substitutionMap);
             newParams.emplace_back(paramName, newParamType);
         }
@@ -308,10 +352,10 @@ namespace evaluator::utils
             std::vector<std::pair<std::string, value::Value>>{}, // empty arguments
             originalMethod->getBodyPtr(),
             originalMethod->isStatic(),
-            originalMethod->getGenericReturnType(),   // Preserve generic return type
-            originalMethod->getGenericParameters(),   // Preserve generic parameters
+            originalMethod->getGenericReturnType(), // Preserve generic return type
+            originalMethod->getGenericParameters(), // Preserve generic parameters
             originalMethod->getGenericTypeParameters(), // Preserve generic type parameter declarations
-            substitutionMap                           // Store substitution map for runtime resolution
+            substitutionMap // Store substitution map for runtime resolution
         );
     }
 
@@ -324,7 +368,8 @@ namespace evaluator::utils
         std::vector<std::pair<std::string, value::ValueType>> newParams;
         newParams.reserve(originalParams.size());
 
-        for (const auto& [paramName, paramType] : originalParams) {
+        for (const auto& [paramName, paramType] : originalParams)
+        {
             value::ValueType newParamType = substituteFieldType(paramType, substitutionMap);
             newParams.emplace_back(paramName, newParamType);
         }
@@ -340,7 +385,8 @@ namespace evaluator::utils
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
         const std::vector<std::string>& typeArguments)
     {
-        if (!genericMethod->hasGenericInformation()) {
+        if (!genericMethod->hasGenericInformation())
+        {
             // Method is not generic, return as-is
             return genericMethod;
         }
@@ -365,9 +411,11 @@ namespace evaluator::utils
     {
         std::string key = className + "::" + methodName;
 
-        if (!typeArguments.empty()) {
+        if (!typeArguments.empty())
+        {
             key += "<";
-            for (size_t i = 0; i < typeArguments.size(); ++i) {
+            for (size_t i = 0; i < typeArguments.size(); ++i)
+            {
                 if (i > 0) key += ",";
                 key += typeArguments[i];
             }
@@ -381,21 +429,25 @@ namespace evaluator::utils
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
         const std::vector<std::string>& typeArguments)
     {
-        if (!genericMethod->hasGenericInformation()) {
+        if (!genericMethod->hasGenericInformation())
+        {
             // Non-generic method should not have type arguments
             return typeArguments.empty();
         }
 
         // Check if type argument count matches generic type parameter count
         const auto& genericTypeParams = genericMethod->getGenericTypeParameters();
-        if (typeArguments.size() != genericTypeParams.size()) {
+        if (typeArguments.size() != genericTypeParams.size())
+        {
             return false;
         }
 
         // TODO: Add constraint checking when bounds are implemented
         // For now, just check that all type arguments are non-empty
-        for (const auto& typeArg : typeArguments) {
-            if (typeArg.empty()) {
+        for (const auto& typeArg : typeArguments)
+        {
+            if (typeArg.empty())
+            {
                 return false;
             }
         }

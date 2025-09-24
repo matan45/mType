@@ -76,7 +76,7 @@ namespace tests::testSuite
             std::cout << "Script loaded successfully from nativeExample.mt." << std::endl;
         }
         catch (const std::exception& e) {
-            std::cout << "✗ Failed to load script: " << e.what() << std::endl;
+            std::cout << "Failed to load script: " << e.what() << std::endl;
             return;
         }
         
@@ -86,11 +86,11 @@ namespace tests::testSuite
         try {
             Value universityName = interpreter->getStaticField("University", "universityName");
             std::string name = std::get<std::string>(universityName);
-            std::cout << "✓ University name: " << name << std::endl;
-            std::cout << "✓ Non-namespaced static field access works!" << std::endl;
+            std::cout << "University name: " << name << std::endl;
+            std::cout << "Non-namespaced static field access works!" << std::endl;
         }
         catch (const std::exception& e) {
-            std::cout << "✗ Failed in Test 1: " << e.what() << std::endl;
+            std::cout << "Failed in Test 1: " << e.what() << std::endl;
         }
         
         std::cout << "Test 1 completed, moving to Test 2..." << std::endl;
@@ -106,17 +106,17 @@ namespace tests::testSuite
             if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(result)) {
                 auto obj = std::get<std::shared_ptr<ObjectInstance>>(result);
                 if (obj) {
-                    std::cout << "✓ Successfully created " << obj->getTypeName() << " object from native function!" << std::endl;
-                    std::cout << "✓ Native createPoint now returns actual graphics::Point object!" << std::endl;
+                    std::cout << "Successfully created " << obj->getTypeName() << " object from native function!" << std::endl;
+                    std::cout << "Native createPoint now returns actual graphics::Point object!" << std::endl;
                 } else {
-                    std::cout << "✗ Got null object from createPoint" << std::endl;
+                    std::cout << "Got null object from createPoint" << std::endl;
                 }
             } else {
-                std::cout << "✗ createPoint returned unexpected type instead of Point object" << std::endl;
+                std::cout << "createPoint returned unexpected type instead of Point object" << std::endl;
             }
         }
         catch (const std::exception& e) {
-            std::cout << "✗ Failed in Test 2: " << e.what() << std::endl;
+            std::cout << "Failed in Test 2: " << e.what() << std::endl;
         }
         
         std::cout << "Test 2 completed, moving to Test 3..." << std::endl;
@@ -133,8 +133,8 @@ namespace tests::testSuite
             auto graphicsPoint = classRegistry->findClass("Point");
             
             if (mathVector && graphicsPoint) {
-                std::cout << "✓ Successfully found Vector class!" << std::endl;
-                std::cout << "✓ Successfully found Point class!" << std::endl;
+                std::cout << "Successfully found Vector class!" << std::endl;
+                std::cout << "Successfully found Point class!" << std::endl;
                 
                 // Now test the problematic API call with debugging
                 std::cout << "Step 3b: Testing callStaticMethod API..." << std::endl;
@@ -157,10 +157,10 @@ namespace tests::testSuite
                     std::vector<value::Value> emptyArgs;
                     std::cout << "Testing simpler method first..." << std::endl;
                     value::Value simpleResult = interpreter->callStaticMethod("Vector", "simpleTest", emptyArgs);
-                    std::cout << "✓ Simple method call works: " << std::get<int>(simpleResult) << std::endl;
+                    std::cout << "Simple method call works: " << std::get<int>(simpleResult) << std::endl;
                 }
                 catch (const std::exception& e) {
-                    std::cout << "✗ Simple method failed: " << e.what() << std::endl;
+                    std::cout << "Simple method failed: " << e.what() << std::endl;
                 }
                 
                 // Now test the problematic object-returning method
@@ -168,27 +168,27 @@ namespace tests::testSuite
                     std::vector<value::Value> emptyArgs;
                     std::cout << "About to call Vector::zero() via C++ API..." << std::endl;
                     value::Value result = interpreter->callStaticMethod("Vector", "zero", emptyArgs);
-                    std::cout << "✓ API call completed without segfault!" << std::endl;
+                    std::cout << "API call completed without segfault!" << std::endl;
                 }
                 catch (const exception::ReturnException& returnEx) {
                     // This is expected - the method returns a value, so we get a ReturnException
                     if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(returnEx.returnValue)) {
                         auto vectorObj = std::get<std::shared_ptr<ObjectInstance>>(returnEx.returnValue);
-                        std::cout << "✓ Successfully called math::Vector::zero() - returned " << vectorObj->getTypeName() << " object!" << std::endl;
-                        std::cout << "✓ FIXED: Complex C++ API calls with new NamespacedClass() now work!" << std::endl;
+                        std::cout << "Successfully called math::Vector::zero() - returned " << vectorObj->getTypeName() << " object!" << std::endl;
+                        std::cout << "FIXED: Complex C++ API calls with new NamespacedClass() now work!" << std::endl;
                     } else {
-                        std::cout << "✓ Successfully called math::Vector::zero() - got return value!" << std::endl;
+                        std::cout << "Successfully called math::Vector::zero() - got return value!" << std::endl;
                     }
                 }
                 catch (const std::exception& e) {
-                    std::cout << "✗ Exception: " << e.what() << std::endl;
+                    std::cout << "Exception: " << e.what() << std::endl;
                 }
             } else {
-                std::cout << "✗ Failed to find namespaced classes" << std::endl;
+                std::cout << "Failed to find namespaced classes" << std::endl;
             }
         }
         catch (const std::exception& e) {
-            std::cout << "✗ Exception in namespace test: " << e.what() << std::endl;
+            std::cout << "Exception in namespace test: " << e.what() << std::endl;
         }
         
         std::cout << "Test 3 completed, moving to Test 4..." << std::endl;
@@ -201,23 +201,23 @@ namespace tests::testSuite
             
             try {
                 Value square25 = interpreter->callStaticMethod("MathUtils", "square", {5});
-                std::cout << "✓ MathUtils::square(5) = " << std::get<int>(square25) << std::endl;
+                std::cout << "MathUtils::square(5) = " << std::get<int>(square25) << std::endl;
             }
             catch (const exception::ReturnException& returnEx) {
                 if (std::holds_alternative<int>(returnEx.returnValue)) {
                     int result = std::get<int>(returnEx.returnValue);
-                    std::cout << "✓ MathUtils::square(5) = " << result << std::endl;
+                    std::cout << "MathUtils::square(5) = " << result << std::endl;
                 }
             }
             
             try {
                 Value opCount = interpreter->callStaticMethod("MathUtils", "getOperationCount", {});
-                std::cout << "✓ Operation count: " << std::get<int>(opCount) << std::endl;
+                std::cout << "Operation count: " << std::get<int>(opCount) << std::endl;
             }
             catch (const exception::ReturnException& returnEx) {
                 if (std::holds_alternative<int>(returnEx.returnValue)) {
                     int count = std::get<int>(returnEx.returnValue);
-                    std::cout << "✓ Operation count: " << count << std::endl;
+                    std::cout << "Operation count: " << count << std::endl;
                 }
             }
             
@@ -225,46 +225,46 @@ namespace tests::testSuite
             std::cout << "Step 4b: Testing StringUtils static methods..." << std::endl;
             try {
                 Value reversed = interpreter->callStaticMethod("StringUtils", "reverse", {std::string("hello")});
-                std::cout << "✓ StringUtils::reverse(\"hello\") = " << std::get<std::string>(reversed) << std::endl;
+                std::cout << "StringUtils::reverse(\"hello\") = " << std::get<std::string>(reversed) << std::endl;
             }
             catch (const exception::ReturnException& returnEx) {
                 if (std::holds_alternative<std::string>(returnEx.returnValue)) {
                     std::string result = std::get<std::string>(returnEx.returnValue);
-                    std::cout << "✓ StringUtils::reverse(\"hello\") = " << result << std::endl;
+                    std::cout << "StringUtils::reverse(\"hello\") = " << result << std::endl;
                 }
             }
             
-            std::cout << "✓ Additional nativeExample.mt functionality works!" << std::endl;
+            std::cout << "Additional nativeExample.mt functionality works!" << std::endl;
         }
         catch (const std::exception& e) {
-            std::cout << "✗ Exception in additional functionality test: " << e.what() << std::endl;
+            std::cout << "Exception in additional functionality test: " << e.what() << std::endl;
         }
         
         std::cout << "Test 4 completed, moving to Test 5..." << std::endl;
         
         // Test 5: Summary of fixes
         std::cout << "\nTest 5: Namespace Operations Summary" << std::endl;
-        std::cout << "✅ FIXES IMPLEMENTED:" << std::endl;
+        std::cout << "FIXES IMPLEMENTED:" << std::endl;
         std::cout << "   - Fixed namespace class registration in ObjectEvaluator::evaluateClassNode()" << std::endl;
         std::cout << "   - Classes in namespace blocks now properly registered in namespacedClasses map" << std::endl;
         std::cout << "   - Qualified static method calls (math::Vector::zero()) work in script language" << std::endl;
         std::cout << "   - Qualified return types (graphics::Point) work in static methods" << std::endl;
         std::cout << "   - Fixed 'Qualified class not found' error" << std::endl;
         
-        std::cout << "\n✅ TEST RESULTS:" << std::endl;
-        std::cout << "   ✅ Non-namespaced static field access: WORKS (University::universityName)" << std::endl;
-        std::cout << "   ✅ Native function registration: WORKS (createPoint)" << std::endl;
-        std::cout << "   ✅ Namespace class registration: FIXED" << std::endl;
-        std::cout << "   ✅ Qualified static method calls: WORKS in script language" << std::endl;
-        std::cout << "   ✅ Return Types with Namespaces: WORKS" << std::endl;
+        std::cout << "\nTEST RESULTS:" << std::endl;
+        std::cout << "   Non-namespaced static field access: WORKS (University::universityName)" << std::endl;
+        std::cout << "   Native function registration: WORKS (createPoint)" << std::endl;
+        std::cout << "   Namespace class registration: FIXED" << std::endl;
+        std::cout << "   Qualified static method calls: WORKS in script language" << std::endl;
+        std::cout << "   Return Types with Namespaces: WORKS" << std::endl;
         
-        std::cout << "\n📝 FIXES COMPLETED:" << std::endl;
-        std::cout << "   ✅ FIXED: ScriptInterpreter::callStaticMethod() segfault for complex methods" << std::endl;
-        std::cout << "   ✅ FIXED: AST node lifetime management in MethodDefinition and ConstructorDefinition" << std::endl;
-        std::cout << "   ✅ FIXED: Changed from raw ASTNode* pointers to std::shared_ptr<ASTNode> for proper ownership" << std::endl;
-        std::cout << "   ✅ FIXED: Memory corruption when calling methods containing 'new NamespacedClass()' expressions" << std::endl;
-        std::cout << "   ✅ RESULT: Complex C++ API calls now work without segfaults or memory corruption" << std::endl;
-        std::cout << "   ✅ RESULT: All namespace static method calls work via both C++ API and script execution" << std::endl;
+        std::cout << "\n FIXES COMPLETED:" << std::endl;
+        std::cout << "   FIXED: ScriptInterpreter::callStaticMethod() segfault for complex methods" << std::endl;
+        std::cout << "   FIXED: AST node lifetime management in MethodDefinition and ConstructorDefinition" << std::endl;
+        std::cout << "   FIXED: Changed from raw ASTNode* pointers to std::shared_ptr<ASTNode> for proper ownership" << std::endl;
+        std::cout << "   FIXED: Memory corruption when calling methods containing 'new NamespacedClass()' expressions" << std::endl;
+        std::cout << "   RESULT: Complex C++ API calls now work without segfaults or memory corruption" << std::endl;
+        std::cout << "   RESULT: All namespace static method calls work via both C++ API and script execution" << std::endl;
         
         std::cout << "\n=== Native Test Suite Complete ===" << std::endl;
     }

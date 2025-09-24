@@ -144,6 +144,7 @@ void runAllTests()
     std::cout << "\n" << std::string(80, '=') << std::endl;
     std::cout << "ALL TEST SUITES COMPLETED" << std::endl;
     std::cout << "Reports generated in test_reports/ directory" << std::endl;
+
     std::cout << std::string(80, '=') << std::endl;
 }
 
@@ -160,6 +161,7 @@ int main(int argc, char* argv[])
     {
         std::string suiteName = argv[2];
         runSpecificTestSuite(suiteName);
+
         return 0;
     }
 
@@ -172,14 +174,6 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         printAvailableTestSuites();
         return 0;
-    }
-
-    if (argc != 2)
-    {
-        std::cout << "Usage: " << argv[0] << " <script_file.mt> or --tests or --test <suite>" << std::endl;
-        //std::cout << "       " << argv[0] << " --compile <file.mt> [output] or --run-cached <file.mtc>" << std::endl;
-        std::cout << "Use --help for detailed usage information" << std::endl;
-        return 1;
     }
 
     std::string filename = argv[1];

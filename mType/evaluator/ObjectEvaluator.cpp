@@ -2,6 +2,8 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include <mutex>
+#include <iostream>
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
@@ -388,7 +390,7 @@ namespace evaluator
             {
                 // Class has constructors but none match the provided arguments
                 throw TypeException("No matching constructor for class '" + node->getClassName() +
-                                  "' with " + std::to_string(args.size()) + " argument(s)", node->getLocation());
+                                    "' with " + std::to_string(args.size()) + " argument(s)", node->getLocation());
             }
             if (constructor && constructor->getBody())
             {
@@ -1316,22 +1318,36 @@ namespace evaluator
                 className, methodName, genericTypeArguments);
 
             // Check if we already have this instantiation cached
+            static std::mutex staticGenericMethodCacheMutex;
             static std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::MethodDefinition>>
                 staticGenericMethodCache;
 
-            auto cacheIt = staticGenericMethodCache.find(signatureKey);
-            if (cacheIt != staticGenericMethodCache.end())
             {
-                methodToCall = cacheIt->second;
-            }
-            else
-            {
-                // Instantiate the generic method
-                methodToCall = utils::GenericTypeManager::instantiateStaticGenericMethod(
-                    method, genericTypeArguments);
+                std::lock_guard<std::mutex> lock(staticGenericMethodCacheMutex);
 
-                // Cache the instantiated method
-                staticGenericMethodCache[signatureKey] = methodToCall;
+                // Debug output
+                std::cout << "[DEBUG] Static Method Cache Check: " << signatureKey << std::endl;
+                std::cout << "[DEBUG] Cache size: " << staticGenericMethodCache.size() << std::endl;
+
+                auto cacheIt = staticGenericMethodCache.find(signatureKey);
+                if (cacheIt != staticGenericMethodCache.end())
+                {
+                    methodToCall = cacheIt->second;
+                }
+                else
+                {
+                    // Instantiate the generic method
+                    methodToCall = utils::GenericTypeManager::instantiateStaticGenericMethod(
+                        method, genericTypeArguments);
+
+                    // Estimate memory usage for the instantiated method
+                    size_t estimatedMemory = sizeof(runtimeTypes::klass::MethodDefinition) +
+                        signatureKey.size() +
+                        (methodToCall->getParameters().size() * sizeof(std::pair<std::string, value::ValueType>));
+
+                    // Cache the instantiated method
+                    staticGenericMethodCache[signatureKey] = methodToCall;
+                }
             }
         }
 
@@ -1966,5 +1982,4 @@ namespace evaluator
 
         throw TypeException("Unsupported array type for direct multi-dimensional assignment", location);
     }
-    
 }
