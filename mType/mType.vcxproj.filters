@@ -19,9 +19,6 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ast\serialization">
-      <UniqueIdentifier>{3A4A67FD-A660-6593-EFD7-F0B45B2D361B}</UniqueIdentifier>
-    </Filter>
     <Filter Include="environment">
       <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
     </Filter>
@@ -99,12 +96,6 @@
     </Filter>
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\complie">
-      <UniqueIdentifier>{D2F3F1EE-3E2B-3A86-4735-9EA9B3EB607F}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\complie\pass">
-      <UniqueIdentifier>{18BD8EB0-0478-7E5C-AD2F-F7A699C9C8EC}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
@@ -315,21 +306,6 @@
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
-    <ClInclude Include="ast\serialization\ASTDeserializer.hpp">
-      <Filter>ast\serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\serialization\ASTSerializer.hpp">
-      <Filter>ast\serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\serialization\CompleteJSONDeserializer.hpp">
-      <Filter>ast\serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\serialization\CompleteJSONSerializer.hpp">
-      <Filter>ast\serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\serialization\SerializationFormat.hpp">
-      <Filter>ast\serialization</Filter>
-    </ClInclude>
     <ClInclude Include="environment\Environment.hpp">
       <Filter>environment</Filter>
     </ClInclude>
@@ -373,6 +349,9 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ParseException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\RuntimeException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ScriptException.hpp">
@@ -498,16 +477,10 @@
     <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
-    <ClInclude Include="services\Compiler.hpp">
-      <Filter>services</Filter>
-    </ClInclude>
     <ClInclude Include="services\FileReader.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\ImportManager.hpp">
-      <Filter>services</Filter>
-    </ClInclude>
-    <ClInclude Include="services\Runtime.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\ScriptInterpreter.hpp">
@@ -535,9 +508,6 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\NativeTest.hpp">
-      <Filter>tests\suites</Filter>
-    </ClInclude>
-    <ClInclude Include="tests\suites\SerializationTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
@@ -704,18 +674,6 @@
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
-    <ClCompile Include="ast\serialization\ASTDeserializer.cpp">
-      <Filter>ast\serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\serialization\ASTSerializer.cpp">
-      <Filter>ast\serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\serialization\CompleteJSONDeserializer.cpp">
-      <Filter>ast\serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\serialization\CompleteJSONSerializer.cpp">
-      <Filter>ast\serialization</Filter>
-    </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
       <Filter>environment</Filter>
     </ClCompile>
@@ -842,16 +800,10 @@
     <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
-    <ClCompile Include="services\Compiler.cpp">
-      <Filter>services</Filter>
-    </ClCompile>
     <ClCompile Include="services\FileReader.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportManager.cpp">
-      <Filter>services</Filter>
-    </ClCompile>
-    <ClCompile Include="services\Runtime.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ScriptInterpreter.cpp">
@@ -879,9 +831,6 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
-      <Filter>tests\suites</Filter>
-    </ClCompile>
-    <ClCompile Include="tests\suites\SerializationTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
@@ -1173,66 +1122,6 @@
     </None>
     <None Include="tests\testFiles\class\pass\staticMethods.mt">
       <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\classGenericSerialization.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\classGenericSerialization.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\collectionsAsDataMembers.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\genericClassCompilation.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\genericClassCompilation.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\genericImportSerialization.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\genericImportSerialization.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\genericLibrary.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\multiTypeGenericSerialization.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\multiTypeGenericSerialization.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\namespaceClassNameCollisions.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\staticGenericMethodsSerialization.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\staticGenericMethodsSerialization.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\switchNestedInLoops.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\switchNestedInLoops.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\test_import_main.expected">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\test_import_main.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\complie\pass\test_library.mt">
-      <Filter>tests\testFiles\complie\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
@@ -1580,6 +1469,18 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\basicGenericClass.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\deeplyNestedGenericsStressTest.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\deeplyNestedGenericsStressTest.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericComplexityStressTest.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericComplexityStressTest.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\genericConstructors.expected">

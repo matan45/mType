@@ -12,6 +12,7 @@
 #include "../ast/nodes/expressions/NullNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
@@ -304,10 +305,11 @@ namespace parser
                             tokenStream.expect(TokenType::RPAREN);
 
                             // Create MethodCallNode for static generic call
-                            auto classNode = std::make_unique<nodes::expressions::VariableNode>(className);
+                            auto classNodeLocation = varNode->getLocation(); // Use location from the original variable node
+                            auto classNode = std::make_unique<nodes::expressions::VariableNode>(className, classNodeLocation);
                             expr = std::make_unique<nodes::classes::MethodCallNode>(
                                 std::move(classNode), methodName, std::move(arguments),
-                                true, genericTypeArguments, SourceLocation()); // isStatic = true
+                                true, genericTypeArguments, classNodeLocation); // isStatic = true
                         }
                         else
                         {
@@ -327,7 +329,8 @@ namespace parser
                         std::string fullName = ParserUtils::buildQualifiedName(parts);
 
                         // Create a VariableNode with the qualified name
-                        expr = std::make_unique<nodes::expressions::VariableNode>(fullName);
+                        auto qualifiedVarLocation = varNode->getLocation(); // Use location from the original variable node
+                        expr = std::make_unique<nodes::expressions::VariableNode>(fullName, qualifiedVarLocation);
                     }
                 }
             }
@@ -347,41 +350,48 @@ namespace parser
         case TokenType::INT_NUMBER:
             {
                 int value = tokenStream.current().intValue;
+                auto intLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<IntegerNode>(value);
+                return std::make_unique<IntegerNode>(value, intLocation);
             }
         case TokenType::FLOAT_NUMBER:
             {
                 float value = tokenStream.current().floatValue;
+                auto floatLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<FloatNode>(value);
+                return std::make_unique<FloatNode>(value, floatLocation);
             }
         case TokenType::STRING_LITERAL:
             {
                 std::string value = tokenStream.current().stringValue;
+                auto stringLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<StringNode>(value);
+                return std::make_unique<StringNode>(value, stringLocation);
             }
         case TokenType::TRUE:
             {
+                auto trueLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<BoolNode>(true);
+                return std::make_unique<BoolNode>(true, trueLocation);
             }
         case TokenType::FALSE:
             {
+                auto falseLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<BoolNode>(false);
+                return std::make_unique<BoolNode>(false, falseLocation);
             }
         case TokenType::NULL_LITERAL:
             {
+                auto nullLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<NullNode>();
+                return std::make_unique<NullNode>(nullLocation);
             }
         case TokenType::IDENTIFIER:
             {
                 std::string name = tokenStream.current().stringValue;
+                auto identifierLocation = tokenStream.current().location;
                 tokenStream.advance();
-                return std::make_unique<VariableNode>(name);
+                return std::make_unique<VariableNode>(name, identifierLocation);
             }
         case TokenType::LPAREN:
             {
@@ -394,6 +404,11 @@ namespace parser
             {
                 // Delegate to ClassParser for proper separation of concerns
                 return context.parseNewExpression();
+            }
+        case TokenType::LBRACKET:
+            {
+                // Parse array literal: [1, 2, 3]
+                return parseArrayLiteral();
             }
         default:
             throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
@@ -458,6 +473,36 @@ namespace parser
         tokenStream.expect(TokenType::RBRACKET);
 
         return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index), location);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseArrayLiteral()
+    {
+        // Parse array literal: [element1, element2, element3, ...]
+        SourceLocation location = tokenStream.current().location;  // Capture location of the '[' token
+        tokenStream.expect(TokenType::LBRACKET);
+
+        std::vector<std::unique_ptr<ASTNode>> elements;
+
+        // Handle empty array: []
+        if (tokenStream.check(TokenType::RBRACKET))
+        {
+            tokenStream.advance(); // consume ']'
+            return std::make_unique<ArrayLiteralNode>(std::move(elements), location);
+        }
+
+        // Parse first element
+        elements.push_back(parseExpression());
+
+        // Parse additional elements separated by commas
+        while (tokenStream.check(TokenType::COMMA))
+        {
+            tokenStream.advance(); // consume ','
+            elements.push_back(parseExpression());
+        }
+
+        tokenStream.expect(TokenType::RBRACKET);
+
+        return std::make_unique<ArrayLiteralNode>(std::move(elements), location);
     }
 
     std::vector<std::string> ExpressionParser::parseGenericTypeArguments()

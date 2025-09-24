@@ -3,6 +3,8 @@
 #include <iostream>
 #include <functional>
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../errors/ArgumentException.hpp"
+#include "../../errors/RuntimeException.hpp"
 
 namespace environment::registry
 {
@@ -126,7 +128,7 @@ namespace environment::registry
         {
             if (args.size() != 1)
             {
-                throw std::runtime_error("parsePrimitive expects exactly 1 argument");
+                throw errors::ArgumentException("parsePrimitive expects exactly 1 argument");
             }
 
             return std::visit([](const auto& value) -> Value
@@ -166,7 +168,7 @@ namespace environment::registry
         {
             if (args.size() != 1)
             {
-                throw std::runtime_error("str::length expects exactly 1 argument");
+                throw errors::ArgumentException("str::length expects exactly 1 argument");
             }
 
             return std::visit([](const auto& value) -> Value
@@ -177,7 +179,7 @@ namespace environment::registry
                 }
                 else
                 {
-                    throw std::runtime_error("str::length can only be called on strings");
+                    throw errors::RuntimeException("str::length can only be called on strings");
                 }
             }, args[0]);
         });
@@ -187,7 +189,7 @@ namespace environment::registry
         {
             if (args.size() != 1)
             {
-                throw std::runtime_error("hashCode expects exactly 1 argument");
+                throw errors::ArgumentException("hashCode expects exactly 1 argument");
             }
 
             return std::visit([](const auto& value) -> Value
@@ -244,7 +246,7 @@ namespace environment::registry
         {
             if (args.size() != 1)
             {
-                throw std::runtime_error("classNameObj expects exactly 1 argument");
+                throw errors::ArgumentException("classNameObj expects exactly 1 argument");
             }
 
             return std::visit([](const auto& value) -> Value

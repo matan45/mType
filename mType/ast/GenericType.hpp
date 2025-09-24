@@ -6,6 +6,7 @@
 #include <variant>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ast
 {
@@ -176,6 +177,21 @@ namespace ast
          */
         std::shared_ptr<GenericType> substitute(
             const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions) const;
+
+    private:
+        /**
+         * Internal substitute method with cycle detection
+         * @param substitutions Map from type parameter names to concrete types
+         * @param visitedTypes Set of types currently being processed (cycle detection)
+         * @param maxDepth Maximum recursion depth allowed
+         * @param currentDepth Current recursion depth
+         * @return New GenericType with substitutions applied
+         */
+        std::shared_ptr<GenericType> substituteInternal(
+            const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions,
+            std::unordered_set<std::string>& visitedTypes,
+            int maxDepth,
+            int currentDepth) const;
 
         /**
          * Static factory methods for common types

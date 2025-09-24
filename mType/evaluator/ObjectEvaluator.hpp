@@ -62,11 +62,13 @@ namespace evaluator
         void assignStaticMember(const std::string& className, const std::string& memberName,
                                 const Value& value);
         Value callStaticMethod(const std::string& className, const std::string& methodName,
-                               const std::vector<Value>& args);
+                               const std::vector<Value>& args,
+                               const errors::SourceLocation& location = errors::SourceLocation{});
 
         Value callStaticMethod(const std::string& className, const std::string& methodName,
                                const std::vector<Value>& args,
-                               const std::vector<std::string>& genericTypeArguments);
+                               const std::vector<std::string>& genericTypeArguments,
+                               const errors::SourceLocation& location = errors::SourceLocation{});
 
         // Instance operations
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
@@ -78,7 +80,8 @@ namespace evaluator
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
                           const Value& value);
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                         const std::vector<Value>& args);
+                         const std::vector<Value>& args,
+                         const errors::SourceLocation& location = errors::SourceLocation{});
 
 
         // Dependency injection for cross-evaluator communication

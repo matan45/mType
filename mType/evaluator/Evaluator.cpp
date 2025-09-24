@@ -283,6 +283,11 @@ namespace evaluator
         return coordinator->visitArrayCreationNode(node);
     }
 
+    Value Evaluator::visitArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        return coordinator->visitArrayLiteralNode(node);
+    }
+
     Value Evaluator::visitIndexAccessNode(IndexAccessNode* node)
     {
         return coordinator->visitIndexAccessNode(node);

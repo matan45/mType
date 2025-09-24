@@ -296,6 +296,11 @@ namespace evaluator
         return exprEvaluator->evaluateArrayCreationNode(node);
     }
 
+    Value EvaluatorCoordinator::visitArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        return exprEvaluator->evaluateArrayLiteralNode(node);
+    }
+
     Value EvaluatorCoordinator::visitIndexAccessNode(IndexAccessNode* node)
     {
         return exprEvaluator->evaluateIndexAccessNode(node);

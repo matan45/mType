@@ -48,6 +48,7 @@ namespace ast
         virtual T visitFieldNode(FieldNode* node) = 0;
         virtual T visitClassNode(ClassNode* node) = 0;
         virtual T visitArrayCreationNode(ArrayCreationNode* node) = 0;
+        virtual T visitArrayLiteralNode(ArrayLiteralNode* node) = 0;
         virtual T visitIndexAccessNode(IndexAccessNode* node) = 0;
         virtual T visitForEachNode(ForEachNode* node) = 0;
     };

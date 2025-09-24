@@ -38,6 +38,19 @@ namespace tests::testSuite
         addOutputVerificationTest("LinkedList Comprehensive",
                                   passPath + "linkedListComprehensive.mt");
 
+        // Add array literal tests
+        addOutputVerificationTest("Array Literals Basic",
+                                  passPath + "arrayLiteralsBasic.mt");
+
+        addOutputVerificationTest("Array Literals with Objects",
+                                  passPath + "arrayLiteralsObjects.mt");
+
+        addOutputVerificationTest("Array Literals Multi-dimensional",
+                                  passPath + "arrayLiteralsMultiDimensional.mt");
+
+        addOutputVerificationTest("Array Literals 4D",
+                                  passPath + "arrayLiterals4D.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",
@@ -62,6 +75,23 @@ namespace tests::testSuite
 
         addTestFromFile("Multi-dimensional Bounds",
                         errorPath + "multiDimensionalBounds.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // Add array literal error tests
+        addTestFromFile("Array Literal Type Mismatch",
+                        errorPath + "arrayLiteralTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Array Literal Mixed Types",
+                        errorPath + "arrayLiteralMixedTypes.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Array Literal Object Type Mismatch",
+                        errorPath + "arrayLiteralObjectTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Array Literal Null Mixed",
+                        errorPath + "arrayLiteralNullMixed.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

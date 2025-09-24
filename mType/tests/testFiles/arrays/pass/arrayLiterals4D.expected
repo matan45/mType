@@ -1,0 +1,40 @@
+Testing 4D jagged arrays
+4D array created with length: 2
+4D array populated with different sized sub-arrays
+4D array contents:
+Dimension 1[0]:
+  Dimension 2[0]:
+    Dimension 3[0] length: 2
+      hyperCube[0][0][0][0] = 1
+      hyperCube[0][0][0][1] = 2
+    Dimension 3[1] length: 3
+      hyperCube[0][0][1][0] = 3
+      hyperCube[0][0][1][1] = 4
+      hyperCube[0][0][1][2] = 5
+  Dimension 2[1]:
+    Dimension 3[0] length: 1
+      hyperCube[0][1][0][0] = 6
+    Dimension 3[1] length: 4
+      hyperCube[0][1][1][0] = 7
+      hyperCube[0][1][1][1] = 8
+      hyperCube[0][1][1][2] = 9
+      hyperCube[0][1][1][3] = 10
+Dimension 1[1]:
+  Dimension 2[0]:
+    Dimension 3[0] length: 3
+      hyperCube[1][0][0][0] = 11
+      hyperCube[1][0][0][1] = 12
+      hyperCube[1][0][0][2] = 13
+    Dimension 3[1] length: 2
+      hyperCube[1][0][1][0] = 14
+      hyperCube[1][0][1][1] = 15
+  Dimension 2[1]:
+    Dimension 3[0] length: 5
+      hyperCube[1][1][0][0] = 16
+      hyperCube[1][1][0][1] = 17
+      hyperCube[1][1][0][2] = 18
+      hyperCube[1][1][0][3] = 19
+      hyperCube[1][1][0][4] = 20
+    Dimension 3[1] length: 1
+      hyperCube[1][1][1][0] = 21
+4D jagged array test completed

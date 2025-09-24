@@ -127,8 +127,9 @@ namespace parser
 
     std::unique_ptr<ASTNode> StatementParser::parseBlock()
     {
+        auto blockLocation = tokenStream.current().location; // Capture location before expecting LBRACE
         tokenStream.expect(TokenType::LBRACE);
-        auto block = std::make_unique<BlockNode>();
+        auto block = std::make_unique<BlockNode>(blockLocation);
 
         while (!tokenStream.check(TokenType::RBRACE) && !tokenStream.isAtEnd())
         {
@@ -161,6 +162,7 @@ namespace parser
         }
 
         // Parse the complete type information using the new parseTypeInfo method
+        auto typeLocation = tokenStream.current().location; // Capture location before type parsing
         parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
         ValueType type = typeInfo.baseType;
         std::string className = typeInfo.className;
@@ -192,7 +194,7 @@ namespace parser
                 tokenStream.expect(TokenType::SEMICOLON);
                 
                 // Create a FunctionCallNode with the qualified name
-                return std::make_unique<ast::nodes::functions::FunctionCallNode>(className, std::move(arguments));
+                return std::make_unique<ast::nodes::functions::FunctionCallNode>(className, std::move(arguments), typeLocation);
             }
             throw ParseException("Expected variable name", tokenStream.current().location);
         }
@@ -504,10 +506,11 @@ namespace parser
             }
             else if (tokenStream.current().type == TokenType::DEFAULT)
             {
+                auto defaultLocation = tokenStream.current().location; // Capture location before advancing
                 tokenStream.advance();
                 tokenStream.expect(TokenType::COLON);
 
-                auto defaultNode = std::make_unique<DefaultCaseNode>();
+                auto defaultNode = std::make_unique<DefaultCaseNode>(defaultLocation);
                 while (!tokenStream.check(TokenType::CASE) &&
                     tokenStream.current().type != TokenType::DEFAULT &&
                     !tokenStream.check(TokenType::RBRACE) &&
@@ -536,16 +539,18 @@ namespace parser
 
     std::unique_ptr<ASTNode> StatementParser::parseBreakStatement()
     {
+        auto breakLocation = tokenStream.current().location; // Capture location before advancing
         tokenStream.advance(); // Skip 'break'
         tokenStream.expect(TokenType::SEMICOLON);
-        return std::make_unique<BreakNode>();
+        return std::make_unique<BreakNode>(breakLocation);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseContinueStatement()
     {
+        auto continueLocation = tokenStream.current().location; // Capture location before advancing
         tokenStream.advance(); // Skip 'continue'
         tokenStream.expect(TokenType::SEMICOLON);
-        return std::make_unique<ContinueNode>();
+        return std::make_unique<ContinueNode>(continueLocation);
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseReturnStatement()

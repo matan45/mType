@@ -67,6 +67,7 @@ namespace evaluator
         Value evaluateNewNode(NewNode* node);
         Value evaluateAssignmentExpression(AssignmentNode* node);
         Value evaluateArrayCreationNode(ArrayCreationNode* node);
+        Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
         
         // Helper method to get default value for type
@@ -94,5 +95,10 @@ namespace evaluator
         // Multi-dimensional array access helpers
         std::optional<Value> extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices);
         Value evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location);
+
+        // Type validation helpers
+        std::string getTypeNameForError(ValueType type) const;
+        bool validateObjectTypeCompatibility(const Value& expected, const Value& actual) const;
+        std::string getObjectClassName(const Value& objectValue) const;
     };
 }

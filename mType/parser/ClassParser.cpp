@@ -101,6 +101,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseConstructor()
     {
+        auto constructorLocation = tokenStream.current().location; // Capture location before advancing
         tokenStream.expect(TokenType::CONSTRUCTOR);
 
         // Parse parameter list using centralized utility
@@ -108,7 +109,7 @@ namespace parser
 
         auto body = context.parseStatement();
 
-        return std::make_unique<ConstructorNode>(std::move(parameters), std::move(body));
+        return std::make_unique<ConstructorNode>(std::move(parameters), std::move(body), constructorLocation);
     }
 
     std::unique_ptr<ASTNode> ClassParser::parseMethod()
@@ -258,6 +259,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseNewExpression()
     {
+        auto newLocation = tokenStream.current().location; // Capture NEW token location
         tokenStream.expect(TokenType::NEW);
 
         // Check for valid type names - identifiers, primitive types, and collection types
@@ -321,9 +323,18 @@ namespace parser
             {
                 tokenStream.advance(); // consume '['
 
-                // Parse the size expression for this dimension
-                auto sizeExpression = context.parseExpression();
-                sizeExpressions.push_back(std::move(sizeExpression));
+                // Check for empty brackets (jagged arrays like new int[2][])
+                if (tokenStream.check(TokenType::RBRACKET))
+                {
+                    // Empty brackets - add null expression to indicate jagged dimension
+                    sizeExpressions.push_back(nullptr);
+                }
+                else
+                {
+                    // Parse the size expression for this dimension
+                    auto sizeExpression = context.parseExpression();
+                    sizeExpressions.push_back(std::move(sizeExpression));
+                }
 
                 tokenStream.expect(TokenType::RBRACKET); // consume ']'
             }
@@ -345,7 +356,7 @@ namespace parser
                 elementTypeInfo = TypeInfo(ValueType::OBJECT, className);
             }
 
-            return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(sizeExpressions));
+            return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(sizeExpressions), newLocation);
         }
         else
         {
@@ -370,7 +381,7 @@ namespace parser
             }
             tokenStream.expect(TokenType::RPAREN);
 
-            return std::make_unique<NewNode>(className, std::move(arguments));
+            return std::make_unique<NewNode>(className, std::move(arguments), newLocation);
         }
     }
 

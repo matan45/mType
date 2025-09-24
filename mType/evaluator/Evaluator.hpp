@@ -65,6 +65,7 @@ namespace evaluator
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
         Value visitArrayCreationNode(ArrayCreationNode* node) override;
+        Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
         

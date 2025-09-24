@@ -24,6 +24,12 @@ namespace tests::testSuite
         addOutputVerificationTest("HashMap HashSet Optimization",
                         passPath + "hashmapHashsetOptimization.mt");
 
+        // Stress tests for deeply nested generics
+        addOutputVerificationTest("Deeply Nested Generics Stress Test",
+                        passPath + "deeplyNestedGenericsStressTest.mt");
+        addOutputVerificationTest("Generic Complexity Stress Test",
+                        passPath + "genericComplexityStressTest.mt");
+
         // Static generic method tests
         addOutputVerificationTest("Static Generic Methods",
                         passPath + "staticGenericMethods.mt");

@@ -43,6 +43,7 @@ namespace parser
         // Helper methods
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
+        std::unique_ptr<ASTNode> parseArrayLiteral();
         std::string parseGenericTypeArgument();
     
     };

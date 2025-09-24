@@ -388,7 +388,7 @@ namespace evaluator
             {
                 // Class has constructors but none match the provided arguments
                 throw TypeException("No matching constructor for class '" + node->getClassName() +
-                                  "' with " + std::to_string(args.size()) + " argument(s)");
+                                  "' with " + std::to_string(args.size()) + " argument(s)", node->getLocation());
             }
             if (constructor && constructor->getBody())
             {
@@ -412,7 +412,8 @@ namespace evaluator
                             constructor->getParameters(),
                             args,
                             "constructor for class '" + node->getClassName() + "'",
-                            env
+                            env,
+                            node->getLocation()
                         );
 
                         // Execute constructor body
@@ -904,11 +905,11 @@ namespace evaluator
                 if (node->hasGenericTypeArguments())
                 {
                     return callStaticMethod(className, node->getMethodName(), args,
-                                            node->getGenericTypeArguments());
+                                            node->getGenericTypeArguments(), node->getLocation());
                 }
                 else
                 {
-                    return callStaticMethod(className, node->getMethodName(), args);
+                    return callStaticMethod(className, node->getMethodName(), args, node->getLocation());
                 }
             }
             else
@@ -933,7 +934,7 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            return callMethod(instance, node->getMethodName(), args);
+            return callMethod(instance, node->getMethodName(), args, node->getLocation());
         }
         // Collection method dispatch removed - collections now implemented in mType language
         // Collections will be handled as regular object method calls
@@ -946,7 +947,8 @@ namespace evaluator
 
     Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object,
                                       const std::string& methodName,
-                                      const std::vector<Value>& args)
+                                      const std::vector<Value>& args,
+                                      const errors::SourceLocation& location)
     {
         auto env = context->getEnvironment();
 
@@ -1020,7 +1022,8 @@ namespace evaluator
                         method,
                         args,
                         "method '" + methodName + "'",
-                        env
+                        env,
+                        location
                     );
                 }
                 else
@@ -1030,7 +1033,8 @@ namespace evaluator
                         method->getParameters(),
                         args,
                         "method '" + methodName + "'",
-                        env
+                        env,
+                        location
                     );
                 }
 
@@ -1121,7 +1125,8 @@ namespace evaluator
 
     Value ObjectEvaluator::callStaticMethod(const std::string& className,
                                             const std::string& methodName,
-                                            const std::vector<Value>& args)
+                                            const std::vector<Value>& args,
+                                            const errors::SourceLocation& location)
     {
         auto env = context->getEnvironment();
 
@@ -1201,7 +1206,8 @@ namespace evaluator
                     method->getParameters(),
                     args,
                     "static method '" + className + "::" + methodName + "'",
-                    env
+                    env,
+                    location
                 );
 
                 // Store current class name for static field access
@@ -1262,7 +1268,8 @@ namespace evaluator
     Value ObjectEvaluator::callStaticMethod(const std::string& className,
                                             const std::string& methodName,
                                             const std::vector<Value>& args,
-                                            const std::vector<std::string>& genericTypeArguments)
+                                            const std::vector<std::string>& genericTypeArguments,
+                                            const errors::SourceLocation& location)
     {
         auto env = context->getEnvironment();
 
@@ -1342,7 +1349,8 @@ namespace evaluator
                         methodToCall,
                         args,
                         "static method '" + className + "::" + methodName + "'",
-                        env
+                        env,
+                        location
                     );
                 }
                 else
@@ -1352,7 +1360,8 @@ namespace evaluator
                         methodToCall->getParameters(),
                         args,
                         "static method '" + className + "::" + methodName + "'",
-                        env
+                        env,
+                        location
                     );
                 }
 

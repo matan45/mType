@@ -16,6 +16,7 @@
 #include "../ast/nodes/expressions/StringNode.hpp"
 #include "../ast/nodes/expressions/BoolNode.hpp"
 #include "../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
@@ -125,6 +126,10 @@ namespace evaluator
         {
             return evaluateArrayCreationNode(arrayCreationNode);
         }
+        if (auto arrayLiteralNode = dynamic_cast<ArrayLiteralNode*>(node))
+        {
+            return evaluateArrayLiteralNode(arrayLiteralNode);
+        }
         if (auto indexAccessNode = dynamic_cast<IndexAccessNode*>(node))
         {
             return evaluateIndexAccessNode(indexAccessNode);
@@ -219,6 +224,7 @@ namespace evaluator
             dynamic_cast<AssignmentNode*>(node) ||
             dynamic_cast<MemberAssignmentNode*>(node) ||
             dynamic_cast<ArrayCreationNode*>(node) ||
+            dynamic_cast<ArrayLiteralNode*>(node) ||
             dynamic_cast<IndexAccessNode*>(node);
     }
 
@@ -651,7 +657,7 @@ namespace evaluator
                         // Call static method through ObjectEvaluator
                         if (objEvaluator)
                         {
-                            return objEvaluator->callStaticMethod(className, methodName, args);
+                            return objEvaluator->callStaticMethod(className, methodName, args, node->getLocation());
                         }
                         else
                         {
@@ -697,7 +703,7 @@ namespace evaluator
 
                 if (objEvaluator)
                 {
-                    return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args);
+                    return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args, node->getLocation());
                 }
                 else
                 {
@@ -944,7 +950,7 @@ namespace evaluator
         // Delegate to ObjectEvaluator
         if (objEvaluator)
         {
-            return objEvaluator->callMethod(object, node->getMethodName(), args);
+            return objEvaluator->callMethod(object, node->getMethodName(), args, node->getLocation());
         }
         else
         {
@@ -1234,29 +1240,40 @@ namespace evaluator
             throw TypeException("Array creation must have at least one dimension", node->getLocation());
         }
 
-        // Evaluate all size expressions
+        // Evaluate size expressions and handle jagged arrays
         std::vector<size_t> dimensions;
+        bool hasJaggedDimensions = false;
+
         for (const auto& sizeExpr : sizeExpressions)
         {
-            Value sizeValue = evaluate(sizeExpr.get());
-
-            if (!std::holds_alternative<int>(sizeValue))
+            if (sizeExpr == nullptr)
             {
-                throw TypeException("Array size must be an integer", node->getLocation());
+                // Null expression indicates jagged dimension (e.g., new int[2][])
+                hasJaggedDimensions = true;
+                dimensions.push_back(0); // Use 0 to indicate unspecified size
             }
-
-            int size = std::get<int>(sizeValue);
-            if (size < 0)
+            else
             {
-                throw TypeException("Array size cannot be negative", node->getLocation());
+                Value sizeValue = evaluate(sizeExpr.get());
+
+                if (!std::holds_alternative<int>(sizeValue))
+                {
+                    throw TypeException("Array size must be an integer", node->getLocation());
+                }
+
+                int size = std::get<int>(sizeValue);
+                if (size < 0)
+                {
+                    throw TypeException("Array size cannot be negative", node->getLocation());
+                }
+                dimensions.push_back(static_cast<size_t>(size));
             }
-            dimensions.push_back(static_cast<size_t>(size));
         }
 
         // Determine default value based on element type
         Value defaultValue = getDefaultValueForType(node->getElementTypeInfo());
 
-        // Create FlatMultiArray and add debug logging
+        // Handle different array creation scenarios
         if (dimensions.size() == 1)
         {
             // Use NativeArray for 1D (this works)
@@ -1266,6 +1283,39 @@ namespace evaluator
                 nativeArray->set(i, defaultValue);
             }
             return nativeArray;
+        }
+        else if (hasJaggedDimensions)
+        {
+            // Handle jagged arrays (e.g., new int[2][] or new int[2][][])
+            // Find the first specified dimension
+            size_t firstDimension = 0;
+            bool foundSpecifiedDimension = false;
+
+            for (size_t dim : dimensions)
+            {
+                if (dim != 0)
+                {
+                    firstDimension = dim;
+                    foundSpecifiedDimension = true;
+                    break;
+                }
+            }
+
+            if (!foundSpecifiedDimension)
+            {
+                throw TypeException("Jagged arrays must have at least one specified dimension", node->getLocation());
+            }
+
+            // Create an array with the first specified dimension
+            auto jaggedArray = std::make_shared<NativeArray>(firstDimension);
+
+            // Initialize each element to null (will be assigned later)
+            for (size_t i = 0; i < firstDimension; ++i)
+            {
+                jaggedArray->set(i, std::monostate{}); // null until assigned
+            }
+
+            return jaggedArray;
         }
         else
         {
@@ -1314,6 +1364,87 @@ namespace evaluator
 
             return adaptiveArray;
         }
+    }
+
+    Value ExpressionEvaluator::evaluateArrayLiteralNode(ArrayLiteralNode* node)
+    {
+        const auto& elements = node->getElements();
+
+        if (elements.empty())
+        {
+            // Create empty array with size 0
+            auto emptyArray = std::make_shared<value::NativeArray>(0);
+            return emptyArray;
+        }
+
+        // First evaluate all elements to determine array size and validate types
+        std::vector<Value> evaluatedElements;
+        evaluatedElements.reserve(elements.size());
+        ValueType expectedType = ValueType::VOID; // Will be set from first element
+        bool isFirstElement = true;
+
+        for (const auto& element : elements)
+        {
+            Value elementValue = evaluate(element.get());
+            ValueType currentType = getValueType(elementValue);
+
+            if (isFirstElement)
+            {
+                // Set expected type from first element
+                expectedType = currentType;
+                isFirstElement = false;
+            }
+            else
+            {
+                // Validate that all subsequent elements have the same type
+                if (currentType != expectedType)
+                {
+                    // Special case: allow int in float arrays (implicit conversion)
+                    if (expectedType == ValueType::FLOAT && currentType == ValueType::INT)
+                    {
+                        // Convert int to float
+                        elementValue = static_cast<float>(std::get<int>(elementValue));
+                    }
+                    // Special case: null is not allowed in primitive arrays
+                    else if (currentType == ValueType::VOID || currentType == ValueType::NULL_TYPE)
+                    {
+                        throw TypeException("Cannot mix null values with primitive types in array literals", node->getLocation());
+                    }
+                    else
+                    {
+                        // Get readable type names for error message
+                        std::string expectedTypeName = getTypeNameForError(expectedType);
+                        std::string actualTypeName = getTypeNameForError(currentType);
+                        throw TypeException("Array literal type mismatch: expected " + expectedTypeName +
+                                           " but found " + actualTypeName, node->getLocation());
+                    }
+                }
+                else if (currentType == ValueType::OBJECT && expectedType == ValueType::OBJECT)
+                {
+                    // For objects, we need to validate the class types are compatible
+                    if (!validateObjectTypeCompatibility(evaluatedElements[0], elementValue))
+                    {
+                        std::string expectedClassName = getObjectClassName(evaluatedElements[0]);
+                        std::string actualClassName = getObjectClassName(elementValue);
+                        throw TypeException("Array literal object type mismatch: expected " + expectedClassName +
+                                           " but found " + actualClassName, node->getLocation());
+                    }
+                }
+            }
+
+            evaluatedElements.push_back(elementValue);
+        }
+
+        // Create NativeArray with the correct size
+        auto array = std::make_shared<value::NativeArray>(evaluatedElements.size());
+
+        // Populate the array using set method
+        for (size_t i = 0; i < evaluatedElements.size(); ++i)
+        {
+            array->set(i, evaluatedElements[i]);
+        }
+
+        return array;
     }
 
     Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
@@ -1571,5 +1702,65 @@ namespace evaluator
         }
 
         throw TypeException("Unsupported array type for direct multi-dimensional access", location);
+    }
+
+    std::string ExpressionEvaluator::getTypeNameForError(ValueType type) const
+    {
+        switch (type)
+        {
+        case ValueType::INT:
+            return "int";
+        case ValueType::FLOAT:
+            return "float";
+        case ValueType::BOOL:
+            return "bool";
+        case ValueType::STRING:
+            return "string";
+        case ValueType::OBJECT:
+            return "object";
+        case ValueType::VOID:
+            return "void";
+        case ValueType::NULL_TYPE:
+            return "null";
+        default:
+            return "unknown";
+        }
+    }
+
+    bool ExpressionEvaluator::validateObjectTypeCompatibility(const Value& expected, const Value& actual) const
+    {
+        // Both values should be objects
+        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(expected) ||
+            !std::holds_alternative<std::shared_ptr<ObjectInstance>>(actual))
+        {
+            return false;
+        }
+
+        auto expectedObj = std::get<std::shared_ptr<ObjectInstance>>(expected);
+        auto actualObj = std::get<std::shared_ptr<ObjectInstance>>(actual);
+
+        if (!expectedObj || !actualObj)
+        {
+            return false;
+        }
+
+        // Compare class names
+        std::string expectedClassName = expectedObj->getClassDefinition()->getName();
+        std::string actualClassName = actualObj->getClassDefinition()->getName();
+
+        return expectedClassName == actualClassName;
+    }
+
+    std::string ExpressionEvaluator::getObjectClassName(const Value& objectValue) const
+    {
+        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
+        {
+            auto obj = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+            if (obj)
+            {
+                return obj->getClassDefinition()->getName();
+            }
+        }
+        return "unknown";
     }
 }

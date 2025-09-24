@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ast
 {
@@ -84,21 +85,65 @@ namespace ast
     std::shared_ptr<GenericType> GenericType::substitute(
         const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions) const
     {
+        // Start with empty visited set and reasonable max depth
+        std::unordered_set<std::string> visitedTypes;
+        const int MAX_SUBSTITUTION_DEPTH = 50; // Prevent extremely deep recursion
+
+        return substituteInternal(substitutions, visitedTypes, MAX_SUBSTITUTION_DEPTH, 0);
+    }
+
+    std::shared_ptr<GenericType> GenericType::substituteInternal(
+        const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions,
+        std::unordered_set<std::string>& visitedTypes,
+        int maxDepth,
+        int currentDepth) const
+    {
+        // Prevent excessive recursion depth
+        if (currentDepth >= maxDepth) {
+            throw std::runtime_error("Maximum type substitution depth exceeded. Possible circular generic type dependency.");
+        }
+
         // If this is a generic parameter, check for substitution
         if (isGenericParameter()) {
             std::string paramName = getGenericName();
+
+            // Check for circular reference before substitution
+            if (visitedTypes.find(paramName) != visitedTypes.end()) {
+                throw std::runtime_error("Circular generic type dependency detected: " + paramName +
+                    " references itself directly or indirectly during substitution.");
+            }
+
             auto it = substitutions.find(paramName);
             if (it != substitutions.end()) {
-                return std::make_shared<GenericType>(*it->second);
+                // Add this parameter to visited set to detect cycles
+                visitedTypes.insert(paramName);
+
+                try {
+                    // Recursively substitute the replacement type
+                    auto result = it->second->substituteInternal(substitutions, visitedTypes, maxDepth, currentDepth + 1);
+
+                    // Remove from visited set when done
+                    visitedTypes.erase(paramName);
+
+                    return result;
+                }
+                catch (...) {
+                    // Ensure we clean up visited set even on exception
+                    visitedTypes.erase(paramName);
+                    throw;
+                }
             }
+
             // No substitution found, return copy of this parameter
             return std::make_shared<GenericType>(*this);
         }
 
         // For concrete types, create new instance with substituted type arguments
         std::vector<std::shared_ptr<GenericType>> substitutedArgs;
+        substitutedArgs.reserve(typeArguments.size()); // Optimize memory allocation
+
         for (const auto& arg : typeArguments) {
-            substitutedArgs.push_back(arg->substitute(substitutions));
+            substitutedArgs.push_back(arg->substituteInternal(substitutions, visitedTypes, maxDepth, currentDepth + 1));
         }
 
         return std::make_shared<GenericType>(getConcreteType(), substitutedArgs);

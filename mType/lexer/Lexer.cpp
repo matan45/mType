@@ -198,7 +198,7 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw std::runtime_error("Invalid integer format: " + std::string(floatView));
+            throw errors::ParseException("Invalid float format: " + std::string(floatView), locationTracker->getCurrentLocation());
         }
         
     }
@@ -238,7 +238,7 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw std::runtime_error("Invalid integer format: " + std::string(intView));
+            throw errors::ParseException("Invalid integer format: " + std::string(intView), locationTracker->getCurrentLocation());
         }
     }
 
