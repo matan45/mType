@@ -140,6 +140,7 @@ void runAllTests()
     suites.push_back(std::make_unique<ArrayTestSuite>());
     suites.push_back(std::make_unique<StringPoolTestSuite>());
     suites.push_back(std::make_unique<InterfaceTestSuite>());
+    suites.push_back(std::make_unique<LambdaTestSuite>());
 
     for (auto& suite : suites)
     {
