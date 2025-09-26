@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <set>
 
 // Forward declarations
 namespace ast::nodes::expressions {
@@ -81,5 +82,6 @@ namespace value
         void captureCurrentEnvironment();
         std::vector<std::string> analyzeVariableReferences() const;
         void validateArguments(const std::vector<Value>& arguments) const;
+        void traverseForVariables(const ast::ASTNode* node, std::set<std::string>& variables) const;
     };
 }

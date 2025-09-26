@@ -1,5 +1,14 @@
 #include "LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
+#include "../ast/nodes/expressions/VariableNode.hpp"
+#include "../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
+#include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/DeclarationNode.hpp"
+#include "../ast/nodes/statements/IfNode.hpp"
+#include "../ast/nodes/statements/WhileNode.hpp"
+#include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../environment/Environment.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -158,10 +167,12 @@ namespace value
 
     std::vector<std::string> LambdaValue::analyzeVariableReferences() const
     {
-        // This is a simplified implementation - in a real implementation,
-        // we would traverse the AST to find all variable references
-        // For now, return an empty vector (no closure capture)
-        return {};
+        std::set<std::string> referencedVars;
+
+        // Traverse the lambda body to find all variable references
+        traverseForVariables(lambdaNode->getBody(), referencedVars);
+
+        return std::vector<std::string>(referencedVars.begin(), referencedVars.end());
     }
 
     void LambdaValue::validateArguments(const std::vector<Value>& arguments) const
@@ -176,5 +187,79 @@ namespace value
         }
 
         // Additional type validation could be added here
+    }
+
+    void LambdaValue::traverseForVariables(const ast::ASTNode* node, std::set<std::string>& variables) const
+    {
+        if (!node) return;
+
+        // Check for variable nodes (variable references)
+        if (auto varNode = dynamic_cast<const ast::nodes::expressions::VariableNode*>(node)) {
+            variables.insert(varNode->getName());
+            return;
+        }
+
+        // Handle binary operations
+        if (auto binOpNode = dynamic_cast<const ast::nodes::expressions::BinaryExpNode*>(node)) {
+            traverseForVariables(binOpNode->getLeft(), variables);
+            traverseForVariables(binOpNode->getRight(), variables);
+            return;
+        }
+
+        // Handle unary operations
+        if (auto unaryNode = dynamic_cast<const ast::nodes::expressions::UnaryExpNode*>(node)) {
+            traverseForVariables(unaryNode->getOperand(), variables);
+            return;
+        }
+
+        // Handle block statements
+        if (auto blockNode = dynamic_cast<const ast::nodes::statements::BlockNode*>(node)) {
+            for (const auto& statement : blockNode->getStatements()) {
+                traverseForVariables(statement.get(), variables);
+            }
+            return;
+        }
+
+        // Handle assignments
+        if (auto assignNode = dynamic_cast<const ast::nodes::statements::AssignmentNode*>(node)) {
+            traverseForVariables(assignNode->getValue(), variables);
+            return;
+        }
+
+        // Handle declarations (only traverse initializer)
+        if (auto declNode = dynamic_cast<const ast::nodes::statements::DeclarationNode*>(node)) {
+            if (declNode->getInitializer()) {
+                traverseForVariables(declNode->getInitializer(), variables);
+            }
+            return;
+        }
+
+        // Handle if statements
+        if (auto ifNode = dynamic_cast<const ast::nodes::statements::IfNode*>(node)) {
+            traverseForVariables(ifNode->getCondition(), variables);
+            traverseForVariables(ifNode->getThenStatement(), variables);
+            if (ifNode->hasElseStatement()) {
+                traverseForVariables(ifNode->getElseStatement(), variables);
+            }
+            return;
+        }
+
+        // Handle while loops
+        if (auto whileNode = dynamic_cast<const ast::nodes::statements::WhileNode*>(node)) {
+            traverseForVariables(whileNode->getCondition(), variables);
+            traverseForVariables(whileNode->getBody(), variables);
+            return;
+        }
+
+        // Handle return statements
+        if (auto returnNode = dynamic_cast<const ast::nodes::functions::ReturnNode*>(node)) {
+            if (returnNode->hasReturnValue()) {
+                traverseForVariables(returnNode->getReturnValue(), variables);
+            }
+            return;
+        }
+
+        // For other node types, we would need to add specific handling
+        // This covers the most common cases for variable references in lambdas
     }
 }

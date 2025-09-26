@@ -148,6 +148,15 @@
     <Filter Include="tests\testFiles\interface\pass">
       <UniqueIdentifier>{2024644E-0C4A-2EB5-F58F-B380E1545381}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lambda">
+      <UniqueIdentifier>{CA939B8F-B68D-C4E1-9FFA-5AF28B932A4E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lambda\error">
+      <UniqueIdentifier>{A35A387B-8F15-2827-38CD-A071246772B7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lambda\pass">
+      <UniqueIdentifier>{10189349-7C25-C12F-050C-BD1A71188DE6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib">
       <UniqueIdentifier>{80110C32-EC72-E93F-75E0-2FF2E14020FF}</UniqueIdentifier>
     </Filter>
@@ -2079,6 +2088,90 @@
     </None>
     <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaParameterCountMismatch.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaParameterTypeMismatch.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaReturnTypeMismatch.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaSyntaxError.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaToNonFunctionalInterface.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaToUndefinedInterface.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\basicBlockLambda.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\basicBlockLambda.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\basicExpressionLambda.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\basicExpressionLambda.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\closureBlockLambda.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\closureBlockLambda.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\closureCapture.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\closureCapture.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\complexBlockLambda.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\complexBlockLambda.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\consumerInterface.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\consumerInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\multiParameterLambda.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\multiParameterLambda.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\nestedClosure.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\nestedClosure.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\predicateInterface.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\predicateInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\runnableInterface.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\runnableInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\supplierInterface.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\supplierInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
