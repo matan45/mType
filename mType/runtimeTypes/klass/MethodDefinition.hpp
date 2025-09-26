@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include "../../value/ValueType.hpp"
+#include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
@@ -19,7 +20,7 @@ namespace runtimeTypes::klass
     {
     private:
         ValueType returnType;
-        std::vector<std::pair<std::string, ValueType>> parameters;
+        std::vector<std::pair<std::string, ParameterType>> parameters;
         std::vector<std::pair<std::string, Value>> arguments;
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
@@ -31,9 +32,19 @@ namespace runtimeTypes::klass
         std::unordered_map<std::string, std::string> typeSubstitutionMap;  // For instantiated generic methods
 
     public:
-        // Legacy constructor for backward compatibility
+        // Legacy constructor for backward compatibility with ValueType
         explicit MethodDefinition(const std::string& n, ValueType rt,
                          const std::vector<std::pair<std::string, ValueType>>& params,
+                         const std::vector<std::pair<std::string, Value>>&args,
+                         std::shared_ptr<ASTNode> b, bool s)
+            : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args), body(b), isStaticMethod(s),
+              genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
+        {
+        }
+
+        // New constructor with ParameterType
+        explicit MethodDefinition(const std::string& n, ValueType rt,
+                         const std::vector<std::pair<std::string, ParameterType>>& params,
                          const std::vector<std::pair<std::string, Value>>&args,
                          std::shared_ptr<ASTNode> b, bool s)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
@@ -41,9 +52,23 @@ namespace runtimeTypes::klass
         {
         }
 
-        // NEW: Constructor with generic type information
+        // NEW: Constructor with generic type information (ValueType legacy)
         explicit MethodDefinition(const std::string& n, ValueType rt,
                          const std::vector<std::pair<std::string, ValueType>>& params,
+                         const std::vector<std::pair<std::string, Value>>&args,
+                         std::shared_ptr<ASTNode> b, bool s,
+                         std::shared_ptr<ast::GenericType> genRetType,
+                         const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams,
+                         const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
+                         const std::unordered_map<std::string, std::string>& substitutions = {})
+            : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args), body(b), isStaticMethod(s),
+              genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+        {
+        }
+
+        // NEW: Constructor with generic type information (ParameterType)
+        explicit MethodDefinition(const std::string& n, ValueType rt,
+                         const std::vector<std::pair<std::string, ParameterType>>& params,
                          const std::vector<std::pair<std::string, Value>>&args,
                          std::shared_ptr<ASTNode> b, bool s,
                          std::shared_ptr<ast::GenericType> genRetType,
@@ -60,8 +85,16 @@ namespace runtimeTypes::klass
         const ValueType& getReturnType() const { return returnType; }
         void setReturnType(const ValueType& rt) { returnType = rt; }
         
-        const std::vector<std::pair<std::string, ValueType>>& getParameters() const { return parameters; }
-        void setParameters(const std::vector<std::pair<std::string, ValueType>>& params) { parameters = params; }
+        const std::vector<std::pair<std::string, ParameterType>>& getParameters() const { return parameters; }
+        void setParameters(const std::vector<std::pair<std::string, ParameterType>>& params) { parameters = params; }
+
+        // Backward compatibility methods for ValueType
+        std::vector<std::pair<std::string, ValueType>> getParametersAsValueType() const {
+            return ParameterType::toValueTypeVector(parameters);
+        }
+        void setParameters(const std::vector<std::pair<std::string, ValueType>>& params) {
+            parameters = ParameterType::fromValueTypeVector(params);
+        }
         
         ASTNode* getBody() const { return body.get(); }
         std::shared_ptr<ASTNode> getBodyPtr() const { return body; }

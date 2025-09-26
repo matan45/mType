@@ -6,6 +6,7 @@
 #include "../../errors/TypeException.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
+#include <iostream>
 
 namespace evaluator::utils
 {
@@ -15,7 +16,7 @@ namespace evaluator::utils
     using namespace runtimeTypes::global;
 
     void ParameterBinder::bindAndValidateParameters(
-        const std::vector<std::pair<std::string, ValueType>>& params,
+        const std::vector<std::pair<std::string, ParameterType>>& params,
         const std::vector<Value>& args,
         const std::string& functionName,
         std::shared_ptr<Environment> env,
@@ -29,24 +30,33 @@ namespace evaluator::utils
         {
             const auto& param = params[i];
             const Value& arg = args[i];
-            
-            // Get actual argument type
-            ValueType actualType = ValueConverter::getValueType(arg);
-            ValueType expectedType = param.second;
-            
-            // Validate type compatibility
-            validateParameterType(actualType, expectedType, param.first, functionName, location);
-            
+
+            // Enhanced validation with interface support
+            validateParameterType(arg, param.second, param.first, functionName, env, location);
+
             // Create and bind parameter variable
             auto varDef = std::make_shared<VariableDefinition>(
-                param.first, 
-                expectedType, 
-                arg, 
+                param.first,
+                param.second.basicType,  // Use basic type for storage
+                arg,
                 false  // parameters are not final
             );
-            
+
             env->declareVariable(param.first, varDef);
         }
+    }
+
+    // Backward compatibility method for old ValueType parameters
+    void ParameterBinder::bindAndValidateParameters(
+        const std::vector<std::pair<std::string, ValueType>>& params,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const SourceLocation& location)
+    {
+        // Convert old format to new format and delegate
+        auto newParams = ParameterType::fromValueTypeVector(params);
+        bindAndValidateParameters(newParams, args, functionName, env, location);
     }
 
     void ParameterBinder::bindAndValidateParameters(
@@ -56,40 +66,24 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
-        auto params = method->getParameters();
+        auto params = method->getParameters();  // Now returns vector<pair<string, ParameterType>>
 
         // Validate parameter count
         validateParameterCount(params.size(), args.size(), functionName);
 
-        // Bind and validate each parameter with runtime type resolution
+        // Bind and validate each parameter with enhanced interface type checking
         for (size_t i = 0; i < params.size(); ++i)
         {
             const auto& param = params[i];
             const Value& arg = args[i];
 
-            // Get actual argument type
-            ValueType actualType = ValueConverter::getValueType(arg);
-
-            // Get expected type with runtime resolution for generics
-            ValueType expectedType = method->resolveParameterType(i);
-
-            // Validate type compatibility
-            validateParameterType(actualType, expectedType, param.first, functionName, location);
+            // Enhanced validation with interface support
+            validateParameterType(arg, param.second, param.first, functionName, env, location);
 
             // Create and bind parameter variable
-            // For object types, preserve the actual object type to maintain method bindings
-            ValueType typeToUse = actualType;
-            if (actualType == ValueType::OBJECT && expectedType != ValueType::OBJECT) {
-                // If we have a concrete object but expect a generic type, keep the object type
-                typeToUse = actualType;
-            } else if (expectedType != ValueType::OBJECT) {
-                // For non-object types, use the expected type
-                typeToUse = expectedType;
-            }
-
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,
-                typeToUse,  // Use appropriate type to preserve object method bindings
+                param.second.basicType,  // Use basic type for storage (object for interfaces/classes)
                 arg,
                 false  // parameters are not final
             );
@@ -158,5 +152,109 @@ namespace evaluator::utils
             << "expected " << ValueConverter::valueTypeToString(expected)
             << " but got " << ValueConverter::valueTypeToString(actual);
         return oss.str();
+    }
+
+    // New enhanced validation methods
+    bool ParameterBinder::isValidParameterConversion(
+        const Value& actualValue,
+        const ParameterType& expectedType,
+        std::shared_ptr<Environment> env)
+    {
+        ValueType actualType = ValueConverter::getValueType(actualValue);
+
+        // Handle non-object types with existing logic
+        if (!expectedType.isInterface() && !expectedType.isClass()) {
+            return isValidParameterConversion(actualType, expectedType.basicType);
+        }
+
+        // For interface/class parameters, actual value must be an object
+        if (actualType != ValueType::OBJECT) {
+            // Allow null for object types
+            return actualType == ValueType::NULL_TYPE;
+        }
+
+        // Get the object instance
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue)) {
+            return false; // Not an object instance
+        }
+
+        auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue);
+        if (!objectInstance) {
+            return false; // Null object
+        }
+
+        // Check interface implementation
+        if (expectedType.isInterface()) {
+            std::string interfaceName = expectedType.getInterfaceName();
+
+            // Check if the object's class implements the required interface
+            auto classDefinition = objectInstance->getClassDefinition();
+            if (!classDefinition) {
+                return false;
+            }
+
+            // Check if class implements the interface
+            return classDefinition->implementsInterface(interfaceName);
+        }
+
+        // Check class type (exact class or inheritance)
+        if (expectedType.isClass()) {
+            std::string expectedClassName = expectedType.getClassName();
+
+            auto classDefinition = objectInstance->getClassDefinition();
+            if (!classDefinition) {
+                return false;
+            }
+
+            // Check exact class match or inheritance
+            return classDefinition->getName() == expectedClassName ||
+                   classDefinition->isSubclassOf(expectedClassName);
+        }
+
+        return false;
+    }
+
+    void ParameterBinder::validateParameterType(
+        const Value& actualValue,
+        const ParameterType& expectedType,
+        const std::string& paramName,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const SourceLocation& location)
+    {
+        bool isValid = isValidParameterConversion(actualValue, expectedType, env);
+
+        if (!isValid)
+        {
+            // Enhanced error message for interface/class mismatches
+            std::ostringstream oss;
+            oss << "Parameter type mismatch for '" << paramName
+                << "' in function/method '" << functionName << "': ";
+
+            if (expectedType.isInterface()) {
+                oss << "expected object implementing interface '" << expectedType.getInterfaceName() << "'";
+            } else if (expectedType.isClass()) {
+                oss << "expected object of class '" << expectedType.getClassName() << "'";
+            } else {
+                oss << "expected " << expectedType.toString();
+            }
+
+            ValueType actualType = ValueConverter::getValueType(actualValue);
+            oss << " but got ";
+
+            if (actualType == ValueType::OBJECT &&
+                std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue)) {
+                auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue);
+                if (objectInstance && objectInstance->getClassDefinition()) {
+                    oss << "object of class '" << objectInstance->getClassDefinition()->getName() << "'";
+                } else {
+                    oss << "object";
+                }
+            } else {
+                oss << ValueConverter::valueTypeToString(actualType);
+            }
+
+            throw TypeException(oss.str(), location);
+        }
     }
 }

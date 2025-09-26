@@ -214,4 +214,12 @@ namespace runtimeTypes::klass
         }
         return false;
     }
+
+    bool ClassDefinition::isSubclassOf(const std::string& className) const
+    {
+        // TODO: Implement proper inheritance hierarchy checking
+        // For now, return false since mType doesn't support class inheritance yet
+        // This would need to traverse the inheritance chain when inheritance is implemented
+        return false;
+    }
 }

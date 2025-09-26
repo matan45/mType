@@ -177,6 +177,65 @@ namespace parser
         return parameters;
     }
 
+    std::vector<std::pair<std::string, value::ParameterType>> ParserUtils::parseParameterListWithTypes(TokenStream& stream, bool expectParentheses)
+    {
+        using namespace value;
+        using namespace errors;
+        using namespace token;
+
+        std::vector<std::pair<std::string, ParameterType>> parameters;
+
+        if (expectParentheses) {
+            stream.expect(TokenType::LPAREN);
+        }
+
+        // Handle empty parameter list
+        if (stream.current().type == TokenType::RPAREN) {
+            if (expectParentheses) {
+                stream.advance(); // consume ')'
+            }
+            return parameters;
+        }
+
+        // Parse first parameter
+        do {
+            // Parse parameter type using TypeParser::parseTypeInfo to get interface information
+            TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
+
+            // Convert TypeInfo to ParameterType
+            ParameterType paramType(typeInfo.baseType);  // Initialize with base type
+            if (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty()) {
+                // This could be an interface or class type
+                // For now, we'll assume it's an interface if it's an identifier we don't recognize as a built-in type
+                paramType = ParameterType::forInterface(typeInfo.className);
+            }
+
+            // Expect parameter name
+            if (stream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected parameter name", stream.location());
+            }
+
+            std::string paramName = stream.current().stringValue.getString();
+            stream.advance();
+
+            // Add parameter to list
+            parameters.emplace_back(paramName, paramType);
+
+            // Check for more parameters
+            if (stream.current().type == TokenType::COMMA) {
+                stream.advance(); // consume ','
+            } else {
+                break; // End of parameter list
+            }
+        } while (stream.current().type != TokenType::RPAREN);
+
+        if (expectParentheses) {
+            stream.expect(TokenType::RPAREN);
+        }
+
+        return parameters;
+    }
+
     std::unique_ptr<ast::ASTNode> ParserUtils::parseBinaryOperators(
         TokenStream& stream,
         std::function<std::unique_ptr<ast::ASTNode>()> parseNext,

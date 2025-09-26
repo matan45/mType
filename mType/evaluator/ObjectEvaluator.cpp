@@ -1,5 +1,6 @@
 #include "ObjectEvaluator.hpp"
 #include "../value/LambdaValue.hpp"
+#include "../value/ParameterType.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
@@ -175,13 +176,72 @@ namespace evaluator
             // Create method definition with generic type information preserved
             std::shared_ptr<MethodDefinition> methodDef;
 
+            // Convert MethodNode parameters to ParameterType for interface support
+            auto convertToParameterTypes = [env, methodNode]() -> std::vector<std::pair<std::string, ParameterType>> {
+                std::vector<std::pair<std::string, ParameterType>> newParams;
+
+                // Get generic parameters which contain the actual type names (including interfaces)
+                auto genericParams = methodNode->getGenericParameters();
+                auto legacyParams = methodNode->getParameters();
+
+                for (size_t i = 0; i < legacyParams.size(); ++i) {
+                    const std::string& paramName = legacyParams[i].first;
+                    ValueType baseType = legacyParams[i].second;
+
+                    ParameterType paramType(baseType);  // Initialize with base type
+
+                    // If we have generic parameter information, extract interface name
+                    if (i < genericParams.size() && genericParams[i].second) {
+                        auto genericType = genericParams[i].second;
+                        if (genericType->isGenericParameter()) {
+                            // This might be a generic parameter OR an interface/class name
+                            std::string typeName = genericType->getGenericName();
+
+                            // Check if it's a known interface or class first
+                            if (env->findInterface(typeName) != nullptr) {
+                                paramType = ParameterType::forInterface(typeName);
+                            }
+                            else if (env->findClass(typeName) != nullptr) {
+                                paramType = ParameterType::forClass(typeName);
+                            }
+                            else {
+                                // This is actually a generic parameter like T, E, etc.
+                                paramType = ParameterType(baseType);
+                            }
+                        } else if (baseType == ValueType::OBJECT) {
+                            // This might be an interface or class - check environment to determine
+                            std::string typeName = genericType->getBaseTypeName();
+
+                            // Check if it's a registered interface
+                            if (env->findInterface(typeName) != nullptr) {
+                                paramType = ParameterType::forInterface(typeName);
+                            }
+                            // Check if it's a registered class
+                            else if (env->findClass(typeName) != nullptr) {
+                                paramType = ParameterType::forClass(typeName);
+                            }
+                            else {
+                                // Unknown type - default to basic object type
+                                paramType = ParameterType(baseType);
+                            }
+                        }
+                    }
+
+                    newParams.emplace_back(paramName, paramType);
+                }
+
+                return newParams;
+            };
+
+            auto parameterTypes = convertToParameterTypes();
+
             if (methodNode->isGeneric())
             {
                 // For generic methods, preserve the generic type information
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(), // Legacy ValueType for compatibility
-                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
+                    parameterTypes, // NEW: Use ParameterType instead of ValueType
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
                     methodNode->getIsStatic(),
@@ -197,7 +257,7 @@ namespace evaluator
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(), // Legacy ValueType for compatibility
-                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
+                    parameterTypes, // NEW: Use ParameterType instead of ValueType
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
                     methodNode->getIsStatic(),
