@@ -303,4 +303,9 @@ namespace evaluator
         return coordinator->visitForEachNode(node);
     }
 
+    Value Evaluator::visitLambdaNode(LambdaNode* node)
+    {
+        return coordinator->visitLambdaNode(node);
+    }
+
 }

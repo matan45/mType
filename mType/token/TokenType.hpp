@@ -43,6 +43,7 @@ namespace token
         INTERFACE, // interface keyword
         IMPLEMENTS, // implements keyword
         EXTENDS, // extends keyword
+        ARROW,        // -> for lambda expressions
         END // End of input
     };
 }

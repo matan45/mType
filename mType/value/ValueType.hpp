@@ -15,6 +15,7 @@ namespace value
     class NativeArray;
     class FlatMultiArray;
     class SparseMultiArray;
+    class LambdaValue;
 }
 
 
@@ -29,6 +30,7 @@ namespace value
         STRING,
         VOID,
         OBJECT,
+        LAMBDA,
         NULL_TYPE
     };
 
@@ -38,6 +40,7 @@ namespace value
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,
+                               std::shared_ptr<LambdaValue>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value
@@ -48,6 +51,9 @@ namespace value
         }
         if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
             return ValueType::OBJECT;
+        }
+        if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {
+            return ValueType::LAMBDA;
         }
 
         return std::visit([](const auto& v) -> ValueType {

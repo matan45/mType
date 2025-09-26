@@ -69,7 +69,8 @@ namespace evaluator
         Value evaluateArrayCreationNode(ArrayCreationNode* node);
         Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
-        
+        Value evaluateLambdaNode(LambdaNode* node);
+
         // Helper method to get default value for type
         Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
 

@@ -69,7 +69,8 @@ namespace evaluator
         Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
-        
+        Value visitLambdaNode(LambdaNode* node) override;
+
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;
         bool shouldReturn() const;

@@ -39,7 +39,7 @@ namespace lexer
         };
 
         // Operator lookup table declarations
-        static const std::array<OperatorInfo, 14> TWO_CHAR_OPERATORS;
+        static const std::array<OperatorInfo, 15> TWO_CHAR_OPERATORS;
         static const std::array<OperatorInfo, 20> SINGLE_CHAR_OPERATORS;
 
         // List of keywords and their corresponding TokenType

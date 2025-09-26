@@ -2,6 +2,7 @@
 #include <iostream>
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
+#include "LambdaParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
@@ -37,7 +38,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseAssignment()
     {
-        auto expr = parseTernary();
+        auto expr = parseLambda();
 
         // Check if this is an assignment expression
         if (tokenStream.current().type == TokenType::ASSIGN ||
@@ -132,6 +133,18 @@ namespace parser
         }
 
         return expr;
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseLambda()
+    {
+        // Check if this looks like a lambda expression
+        if (isLambdaStart()) {
+            LambdaParser lambdaParser(tokenStream, context);
+            return lambdaParser.parseLambda();
+        }
+
+        // Not a lambda, delegate to next precedence level
+        return parseTernary();
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseTernary()
@@ -556,5 +569,29 @@ namespace parser
         {
             throw ParseException("Expected type argument", tokenStream.current().location);
         }
+    }
+
+    bool ExpressionParser::isLambdaStart() const
+    {
+        // Pattern 1: identifier -> (single parameter without parentheses)
+        if (tokenStream.current().type == TokenType::IDENTIFIER) {
+            if (!tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::ARROW) {
+                return true;
+            }
+        }
+
+        // Pattern 2: ( ... ) -> (parenthesized parameters or empty)
+        if (tokenStream.current().type == TokenType::LPAREN) {
+            // Check for empty parameter list: () ->
+            Token next = tokenStream.peek();
+            if (next.type == TokenType::RPAREN) {
+                return true; // Likely () -> pattern
+            }
+            // For more complex cases, we'll be optimistic and let the LambdaParser handle it
+            // This prevents false positives with grouped expressions like (a + b) * c
+            return false; // Conservative approach for now
+        }
+
+        return false;
     }
 }

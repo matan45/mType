@@ -2,6 +2,7 @@
 #include <iostream>
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
+#include "../value/LambdaValue.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
@@ -1856,5 +1857,12 @@ namespace evaluator
             }
         }
         return "unknown";
+    }
+
+    Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
+    {
+        // Create a LambdaValue with the current evaluation context
+        // The LambdaValue will capture the current environment for closure support
+        return std::make_shared<value::LambdaValue>(node, context);
     }
 }

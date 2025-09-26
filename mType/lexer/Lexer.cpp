@@ -9,7 +9,7 @@
 namespace lexer
 {
     // Static operator lookup table definitions
-    const std::array<Lexer::OperatorInfo, 14> Lexer::TWO_CHAR_OPERATORS = {{
+    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {{
         {"++", TokenType::INCREMENT, 2},
         {"--", TokenType::DECREMENT, 2},
         {"==", TokenType::EQUALS, 2},
@@ -23,7 +23,8 @@ namespace lexer
         {"*=", TokenType::MULTIPLY_ASSIGN, 2},
         {"/=", TokenType::DIVIDE_ASSIGN, 2},
         {"%=", TokenType::MODULO_ASSIGN, 2},
-        {"::", TokenType::SCOPE, 2}
+        {"::", TokenType::SCOPE, 2},
+        {"->", TokenType::ARROW, 2}
     }};
 
     const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {{

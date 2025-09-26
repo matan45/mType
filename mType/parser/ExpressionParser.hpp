@@ -22,6 +22,7 @@ namespace parser
         // Expression parsing methods (precedence climbing)
         std::unique_ptr<ASTNode> parseExpression();
         std::unique_ptr<ASTNode> parseAssignment();
+        std::unique_ptr<ASTNode> parseLambda();
         std::unique_ptr<ASTNode> parseTernary();
         std::unique_ptr<ASTNode> parseLogicalOr();
         std::unique_ptr<ASTNode> parseLogicalAnd();
@@ -45,6 +46,9 @@ namespace parser
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
         std::unique_ptr<ASTNode> parseArrayLiteral();
         std::string parseGenericTypeArgument();
+
+        // Lambda detection helper
+        bool isLambdaStart() const;
     
     };
 }

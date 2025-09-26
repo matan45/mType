@@ -1,11 +1,18 @@
 ﻿#pragma once
-
-#pragma once
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/GenericType.hpp"
 #include <vector>
 #include <memory>
+
+// Forward declarations
+namespace runtimeTypes::klass {
+    class ClassDefinition;
+}
+
+namespace ast::nodes::expressions {
+    class LambdaNode;
+}
 
 namespace runtimeTypes::klass {
     
@@ -45,6 +52,30 @@ namespace runtimeTypes::klass {
             }
             return false;
         }
+
+        /**
+     * Check if this is a functional interface (SAM - Single Abstract Method)
+     */
+        bool isFunctionalInterface() const {
+            return methodSignatures.size() == 1;
+        }
+    
+        /**
+         * Get the single method signature for functional interface
+         * Returns nullptr if not a functional interface
+         */
+        const MethodSignature* getFunctionalMethod() const {
+            if (isFunctionalInterface()) {
+                return &methodSignatures[0];
+            }
+            return nullptr;
+        }
+    
+        /**
+         * Create anonymous class from lambda for this interface
+         */
+        std::shared_ptr<ClassDefinition> createLambdaImplementation(
+            ast::nodes::expressions::LambdaNode* lambda) const;
 
         // Interface inheritance support
         void addExtendedInterface(const std::string& interfaceName) {
