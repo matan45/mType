@@ -1539,93 +1539,92 @@ namespace evaluator
     std::optional<std::pair<Value, std::vector<size_t>>> ObjectEvaluator::extractMultiDimensionalAssignment(
         IndexAssignmentNode* node)
     {
-        auto objectASTNode = node->getObject();
+        // Recursively extract all indices from nested IndexAccessNode chain
+        std::vector<ASTNode*> indexNodes;
+        ASTNode* currentNode = node->getObject();
 
-        // Check if this is a 2D assignment: arr[i][j] = value
-        if (auto indexAccessNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(objectASTNode))
+        // Traverse the chain of IndexAccessNode to collect all index expressions
+        // For arr[i][j][k] = value, we traverse from outer to inner, inserting at beginning for correct order
+        while (auto indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(currentNode))
         {
-            // Check if this is a 3D assignment: arr[i][j][k] = value
-            // In this case, indexAccessNode->getCollection() would be another IndexAccessNode
-            if (auto innerIndexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(indexAccessNode->
-                getCollection()))
-            {
-                // This is a 3D assignment: arr[i][j][k] = value
-                // Structure: IndexAssignmentNode(IndexAccessNode(IndexAccessNode(arr, i), j), k) = value
-
-                Value baseArray = exprEvaluator->evaluate(innerIndexAccess->getCollection());
-
-                // Check if it's a 3D array
-                bool is3D = false;
-                if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
-                {
-                    auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
-                    is3D = flatArray->getRank() == 3;
-                }
-                else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
-                {
-                    auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
-                    is3D = sparseArray->getRank() == 3;
-                }
-
-                if (!is3D)
-                {
-                    return std::nullopt;
-                }
-
-                // Extract the three indices: [i][j][k]
-                std::vector<size_t> indices;
-
-                // First index (i): from innerIndexAccess->getIndex()
-                Value firstIndexValue = exprEvaluator->evaluate(innerIndexAccess->getIndex());
-                if (!std::holds_alternative<int>(firstIndexValue))
-                {
-                    return std::nullopt;
-                }
-                int firstIndex = std::get<int>(firstIndexValue);
-                if (firstIndex < 0)
-                {
-                    return std::nullopt;
-                }
-
-                // Second index (j): from indexAccessNode->getIndex()
-                Value secondIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
-                if (!std::holds_alternative<int>(secondIndexValue))
-                {
-                    return std::nullopt;
-                }
-                int secondIndex = std::get<int>(secondIndexValue);
-                if (secondIndex < 0)
-                {
-                    return std::nullopt;
-                }
-
-                // Third index (k): from node->getIndex()
-                Value thirdIndexValue = exprEvaluator->evaluate(node->getIndex());
-                if (!std::holds_alternative<int>(thirdIndexValue))
-                {
-                    return std::nullopt;
-                }
-                int thirdIndex = std::get<int>(thirdIndexValue);
-                if (thirdIndex < 0)
-                {
-                    return std::nullopt;
-                }
-
-                indices.push_back(static_cast<size_t>(firstIndex));
-                indices.push_back(static_cast<size_t>(secondIndex));
-                indices.push_back(static_cast<size_t>(thirdIndex));
-
-                return std::make_pair(baseArray, indices);
-            }
-            else
-            {
-                // This is a 2D assignment: arr[i][j] = value
-                // Let the existing 2D logic handle this
-                return std::nullopt;
-            }
+            indexNodes.insert(indexNodes.begin(), indexAccess->getIndex());
+            currentNode = indexAccess->getCollection();
         }
 
-        return std::nullopt;
+        // Add the final index from the IndexAssignmentNode itself
+        indexNodes.push_back(node->getIndex());
+
+        // We need at least 3 indices for enhanced multi-dimensional assignment
+        // 2D assignments should continue using the existing logic
+        if (indexNodes.size() < 3)
+        {
+            return std::nullopt;
+        }
+
+        // Evaluate the base array (the deepest collection)
+        Value baseArray = exprEvaluator->evaluate(currentNode);
+
+        // Determine the expected dimensions based on array type
+        size_t expectedRank = 0;
+        bool isMultiDimensional = false;
+
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
+        {
+            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+            expectedRank = flatArray->getRank();
+            isMultiDimensional = true;
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
+        {
+            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+            expectedRank = sparseArray->getRank();
+            isMultiDimensional = true;
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(baseArray))
+        {
+            // For jagged arrays, we support arbitrary nesting depth
+            // The number of indices should match the nesting depth
+            expectedRank = indexNodes.size();
+            isMultiDimensional = true;
+        }
+
+        if (!isMultiDimensional)
+        {
+            return std::nullopt;
+        }
+
+        // For fixed-dimension arrays, verify index count matches expected rank
+        if ((std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray) ||
+             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray)) &&
+            indexNodes.size() != expectedRank)
+        {
+            return std::nullopt;
+        }
+
+        // Extract and validate all indices
+        std::vector<size_t> indices;
+        indices.reserve(indexNodes.size());
+
+        // Process indices in forward order (they are now in correct order due to insert-at-beginning)
+        for (auto it = indexNodes.begin(); it != indexNodes.end(); ++it)
+        {
+            Value indexValue = exprEvaluator->evaluate(*it);
+
+            if (!std::holds_alternative<int>(indexValue))
+            {
+                return std::nullopt;
+            }
+
+            int index = std::get<int>(indexValue);
+            if (index < 0)
+            {
+                return std::nullopt;
+            }
+
+            indices.push_back(static_cast<size_t>(index));
+        }
+
+        return std::make_pair(baseArray, indices);
     }
 
     Value ObjectEvaluator::performDirectMultiDimensionalAssignment(const Value& baseArray,
@@ -1663,6 +1662,74 @@ namespace evaluator
             {
                 throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()),
                                     location);
+            }
+        }
+
+        // Handle NativeArray (jagged arrays) multi-dimensional assignment
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(baseArray))
+        {
+            if (indices.empty())
+            {
+                throw TypeException("No indices provided for jagged array assignment", location);
+            }
+
+            try
+            {
+                // Navigate through nested NativeArrays for all but the last index
+                Value currentArray = baseArray;
+                for (size_t i = 0; i < indices.size() - 1; ++i)
+                {
+                    if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(currentArray))
+                    {
+                        throw TypeException("Expected nested array at dimension " + std::to_string(i) +
+                                          " but found different type", location);
+                    }
+
+                    auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(currentArray);
+                    size_t index = indices[i];
+
+                    if (index >= nativeArray->size())
+                    {
+                        throw TypeException("Index " + std::to_string(index) + " out of bounds for dimension " +
+                                          std::to_string(i) + " (size: " + std::to_string(nativeArray->size()) + ")",
+                                          location);
+                    }
+
+                    currentArray = nativeArray->get(index);
+
+                    // Check if we got null at an intermediate level
+                    if (std::holds_alternative<std::monostate>(currentArray))
+                    {
+                        throw TypeException("Null array encountered at dimension " + std::to_string(i) +
+                                          ". Initialize sub-array before assignment.", location);
+                    }
+                }
+
+                // Handle the final assignment
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(currentArray))
+                {
+                    throw TypeException("Expected array for final assignment but found different type", location);
+                }
+
+                auto finalArray = std::get<std::shared_ptr<value::NativeArray>>(currentArray);
+                size_t finalIndex = indices.back();
+
+                if (finalIndex >= finalArray->size())
+                {
+                    throw TypeException("Final index " + std::to_string(finalIndex) + " out of bounds " +
+                                      "(size: " + std::to_string(finalArray->size()) + ")", location);
+                }
+
+                finalArray->set(finalIndex, newValue);
+                return newValue;
+            }
+            catch (const TypeException&)
+            {
+                throw; // Re-throw TypeExceptions as-is
+            }
+            catch (const std::exception& e)
+            {
+                throw TypeException("Jagged array assignment failed: " + std::string(e.what()), location);
             }
         }
 

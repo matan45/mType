@@ -1,0 +1,28 @@
+Testing enhanced n-dimensional array assignment
+
+=== 3D FlatMultiArray ===
+flat3d[0][0][0] = 111
+flat3d[1][1][1] = 222
+flat3d[0][1][0] = 333
+
+=== 4D FlatMultiArray ===
+flat4d[0][0][0][1] = 444
+flat4d[1][1][1][0] = 555
+flat4d[0][1][0][1] = 666
+
+=== 3D Jagged Array ===
+jagged3d[0][0][1] = 777
+jagged3d[0][1][0] = 888
+jagged3d[1][0][2] = 999
+
+=== 5D FlatMultiArray ===
+flat5d[0][1][0][1][0] = 1000
+flat5d[1][0][1][0][1] = 2000
+flat5d[0][0][1][1][0] = 3000
+
+=== 3D String Array ===
+str3d[0][0][1] = Hello
+str3d[1][1][0] = World
+str3d[0][1][1] = NDimensional
+
+All n-dimensional array assignment tests completed successfully!
