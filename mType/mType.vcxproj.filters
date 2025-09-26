@@ -198,6 +198,9 @@
     <ClInclude Include="ast\nodes\classes\FieldNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\classes\InterfaceNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\classes\MemberAccessNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
@@ -435,6 +438,9 @@
     <ClInclude Include="parser\ExpressionParser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
+    <ClInclude Include="parser\InterfaceParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ParseContext.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -475,6 +481,12 @@
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\klass\FieldDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\InterfaceDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\InterfaceRegistry.hpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\klass\MethodDefinition.hpp">
@@ -573,6 +585,9 @@
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\FieldNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\InterfaceNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\MemberAccessNode.cpp">
@@ -767,6 +782,9 @@
     <ClCompile Include="parser\ExpressionParser.cpp">
       <Filter>parser</Filter>
     </ClCompile>
+    <ClCompile Include="parser\InterfaceParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
     <ClCompile Include="parser\ParseContext.cpp">
       <Filter>parser</Filter>
     </ClCompile>
@@ -807,6 +825,12 @@
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
     <ClCompile Include="runtimeTypes\klass\FieldDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\InterfaceDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\InterfaceRegistry.cpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
     <ClCompile Include="runtimeTypes\klass\MethodDefinition.cpp">
@@ -974,6 +998,12 @@
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\multidimensionalArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\nDimensionalArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\nDimensionalArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.expected">
@@ -1921,6 +1951,12 @@
     <None Include="tests\testFiles\integration\pass\test_library.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\test_type_substitution_edge_cases.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_type_substitution_edge_cases.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -2026,6 +2062,9 @@
     <None Include="tests\testFiles\typeChecking\error\differentTypeAssignmentError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\functionNamingConventionError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\functionParameterFloatConversionStringError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
@@ -2068,7 +2107,13 @@
     <None Include="tests\testFiles\typeChecking\error\invalidReassignmentChains.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\methodNamingConventionError.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\methodParameterTypeCheckingWrong.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\mixedNamingConventionErrors.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\mixedTypeChainAssignmentError.mt">
@@ -2078,6 +2123,9 @@
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\namespaceReturnTypesWrongClass.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\nativeFunctionNamingConventionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\nullToNonNullableConversionError.mt">
@@ -2093,6 +2141,9 @@
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\objectReturnTypesWrongObjectType.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\staticMethodNamingConventionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\typeConversionFailureBoundaryTests.mt">

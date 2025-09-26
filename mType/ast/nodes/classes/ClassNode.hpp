@@ -15,14 +15,15 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> fields;
         std::vector<std::unique_ptr<ASTNode>> constructors;
         std::vector<std::unique_ptr<ASTNode>> methods;
-
+        std::vector<std::string> implementedInterfaces; // NEW
     public:
         // Backward compatibility constructor (most common usage)
         explicit ClassNode(const std::string& name, const SourceLocation& loc = SourceLocation());
 
         // NEW: Primary constructor with generic parameters
-        ClassNode(const std::string& name,
+        explicit ClassNode(const std::string& name,
                  const std::vector<GenericTypeParameter>& generics,
+                 const std::vector<std::string>& interfaces = {},
                  const SourceLocation& loc = SourceLocation());
 
         const std::string& getClassName() const;
@@ -49,6 +50,8 @@ namespace ast::nodes::classes
         size_t getFieldCount() const;
         size_t getConstructorCount() const;
         size_t getMethodCount() const;
+
+        const std::vector<std::string>& getImplementedInterfaces() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         

@@ -16,6 +16,8 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
+#include "../ast/nodes/classes/InterfaceNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
@@ -55,6 +57,10 @@ namespace evaluator
         if (auto classNode = dynamic_cast<ClassNode*>(node))
         {
             return evaluateClassNode(classNode);
+        }
+        if (auto interfaceNode = dynamic_cast<InterfaceNode*>(node))
+        {
+            return evaluateInterfaceNode(interfaceNode);
         }
         if (auto methodNode = dynamic_cast<MethodNode*>(node))
         {
@@ -111,6 +117,7 @@ namespace evaluator
     bool ObjectEvaluator::isObjectNode(ASTNode* node) const
     {
         return dynamic_cast<ClassNode*>(node) ||
+            dynamic_cast<InterfaceNode*>(node) ||
             dynamic_cast<MethodNode*>(node) ||
             dynamic_cast<FieldNode*>(node) ||
             dynamic_cast<ConstructorNode*>(node) ||
@@ -215,6 +222,54 @@ namespace evaluator
 
         // Register class
         registerClass(classDef);
+
+        return std::monostate{};
+    }
+
+    Value ObjectEvaluator::evaluateInterfaceNode(InterfaceNode* node)
+    {
+        auto env = context->getEnvironment();
+
+        // Create interface definition with generic parameters if present
+        const auto& genericParams = node->getGenericParameters();
+        const auto& extendsInterfaces = node->getExtendedInterfaces();
+
+        auto interfaceDef = std::make_shared<runtimeTypes::klass::InterfaceDefinition>(
+            node->getName(), genericParams, extendsInterfaces);
+
+        // Process method signatures
+        for (const auto& methodPtr : node->getMethods())
+        {
+            auto functionNode = dynamic_cast<ast::nodes::functions::FunctionNode*>(methodPtr.get());
+            if (!functionNode) continue;
+
+            // Create method signature from function node
+            runtimeTypes::klass::MethodSignature signature;
+            signature.name = functionNode->getName();
+            signature.returnType = functionNode->getGenericReturnType();
+
+            // Add parameters
+            const auto& parameters = functionNode->getGenericParameters();
+            for (const auto& param : parameters) {
+                signature.parameters.emplace_back(param.first, param.second);
+            }
+
+            // Add generic parameters if method is generic
+            if (functionNode->isGeneric()) {
+                signature.genericParameters = functionNode->getGenericTypeParameters();
+            }
+
+            interfaceDef->addMethodSignature(signature);
+        }
+
+        // Validate interface hierarchy (prevent circular inheritance)
+        if (!env->getInterfaceRegistry()->validateInterfaceHierarchy(node->getName())) {
+            throw std::runtime_error("Circular interface inheritance detected for interface '" +
+                                   node->getName() + "'");
+        }
+
+        // Register interface
+        env->registerInterface(node->getName(), interfaceDef);
 
         return std::monostate{};
     }

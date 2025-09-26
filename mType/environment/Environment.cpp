@@ -14,6 +14,7 @@ namespace environment
         variableManager(varMgr),
         scopeManager(scopeMgr),
         nativeRegistry(nativeReg),
+        interfaceRegistry(std::make_shared<runtimeTypes::klass::InterfaceRegistry>()),
         importEvaluationActive(false),
         importManager(nullptr)
     {
@@ -56,6 +57,11 @@ namespace environment
     std::shared_ptr<NativeRegistry> Environment::getNativeRegistry() const
     {
         return nativeRegistry;
+    }
+
+    std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> Environment::getInterfaceRegistry() const
+    {
+        return interfaceRegistry;
     }
 
     void Environment::registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition)
@@ -120,6 +126,19 @@ namespace environment
         }
 
         return nullptr;
+    }
+
+    void Environment::registerInterface(const std::string& name, std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDefinition)
+    {
+        if (interfaceRegistry) {
+            interfaceRegistry->registerInterface(name, interfaceDefinition);
+        }
+    }
+
+    std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> Environment::findInterface(const std::string& name) const
+    {
+        if (!interfaceRegistry) return nullptr;
+        return interfaceRegistry->findInterface(name);
     }
 
     void Environment::enterScope(const std::string& scopeName, ScopeType scopeType)

@@ -10,8 +10,9 @@ namespace ast::nodes::classes
 
     ClassNode::ClassNode(const std::string& name,
                          const std::vector<GenericTypeParameter>& generics,
+                         const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
-        : ASTNode(loc), className(name), genericParameters(generics)
+        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces)
     {
     }
 
@@ -68,6 +69,11 @@ namespace ast::nodes::classes
     size_t ClassNode::getMethodCount() const
     {
         return methods.size();
+    }
+
+    const std::vector<std::string>& ClassNode::getImplementedInterfaces() const
+    {
+        return implementedInterfaces;
     }
 
     const std::vector<GenericTypeParameter>& ClassNode::getGenericParameters() const

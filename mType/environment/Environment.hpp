@@ -6,6 +6,7 @@
 #include "manager/ScopeManager.hpp"
 
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include <memory>
@@ -34,6 +35,7 @@ namespace environment
         std::shared_ptr<VariableManager> variableManager;
         std::shared_ptr<ScopeManager> scopeManager;
         std::shared_ptr<NativeRegistry> nativeRegistry;
+        std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry;
 
         // Import evaluation tracking
         bool importEvaluationActive;
@@ -63,6 +65,7 @@ namespace environment
         std::shared_ptr<VariableManager> getVariableManager() const;
         std::shared_ptr<ScopeManager> getScopeManager() const;
         std::shared_ptr<NativeRegistry> getNativeRegistry() const;
+        std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> getInterfaceRegistry() const;
 
         // Import management
         void setImportManager(services::ImportManager* importManager);
@@ -77,10 +80,12 @@ namespace environment
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);
         void declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable);
+        void registerInterface(const std::string& name, std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDefinition);
 
         std::shared_ptr<ClassDefinition> findClass(const std::string& name) const;
         std::shared_ptr<FunctionDefinition> findFunction(const std::string& name) const;
         std::shared_ptr<VariableDefinition> findVariable(const std::string& name) const;
+        std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> findInterface(const std::string& name) const;
 
         void enterScope(const std::string& scopeName = "", ScopeType scopeType = ScopeType::BLOCK);
         void exitScope();

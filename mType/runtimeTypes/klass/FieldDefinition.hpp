@@ -1,6 +1,5 @@
 #pragma once
 #include "../../value/ValueType.hpp"
-#include "../../ast/ASTNode.hpp"
 #include "../Definition.hpp"
 
 namespace runtimeTypes::klass

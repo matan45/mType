@@ -48,6 +48,7 @@ namespace evaluator
 
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
+        Value evaluateInterfaceNode(InterfaceNode* node);
         Value evaluateMethodNode(MethodNode* node);
         Value evaluateFieldNode(FieldNode* node);
         Value evaluateConstructorNode(ConstructorNode* node);
