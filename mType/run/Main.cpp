@@ -8,6 +8,7 @@
 #include "../tests/suites/GenericsTestSuite.hpp"
 #include "../tests/suites/ArrayTestSuite.hpp"
 #include "../tests/suites/StringPoolTestSuite.hpp"
+#include "../tests/suites/InterfaceTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -69,6 +70,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<StringPoolTestSuite>();
     }
+    else if (suiteName == "interface" || suiteName == "interfaces")
+    {
+        return std::make_unique<InterfaceTestSuite>();
+    }
     return nullptr;
 }
 
@@ -78,6 +83,7 @@ void printAvailableTestSuites()
     std::cout << "  control      - Control Flow Test Suite\n";
     std::cout << "  import       - Import Test Suite\n";
     std::cout << "  class        - Class Test Suite\n";
+    std::cout << "  interface    - Interface Test Suite\n";
     std::cout << "  error        - Error Test Suite\n";
     std::cout << "  integration  - Integration Test Suite\n";
     std::cout << "  type         - Type Checking Test Suite\n";
@@ -127,6 +133,7 @@ void runAllTests()
     suites.push_back(std::make_unique<GenericsTestSuite>());
     suites.push_back(std::make_unique<ArrayTestSuite>());
     suites.push_back(std::make_unique<StringPoolTestSuite>());
+    suites.push_back(std::make_unique<InterfaceTestSuite>());
 
     for (auto& suite : suites)
     {

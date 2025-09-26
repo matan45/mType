@@ -139,6 +139,15 @@
     <Filter Include="tests\testFiles\integration\pass">
       <UniqueIdentifier>{F32F8641-DF80-7183-08E5-5F45F49404ED}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\interface">
+      <UniqueIdentifier>{DAD58043-4698-B4CD-8F48-435AFB498DAB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\interface\error">
+      <UniqueIdentifier>{B3E82A1A-1FCC-395A-28CF-6796943100AB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\interface\pass">
+      <UniqueIdentifier>{2024644E-0C4A-2EB5-F58F-B380E1545381}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib">
       <UniqueIdentifier>{80110C32-EC72-E93F-75E0-2FF2E14020FF}</UniqueIdentifier>
     </Filter>
@@ -525,6 +534,9 @@
     <ClInclude Include="tests\suites\IntegrationTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\InterfaceTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -867,6 +879,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\IntegrationTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\InterfaceTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
@@ -1962,6 +1977,84 @@
     </None>
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\incompleteInterfaceImplementation.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\interfaceInstantiation.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\invalidInterfaceName.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\missingMultipleMethods.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\undefinedInterface.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\wrongParameterCount.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\wrongParameterType.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\wrongReturnType.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\basicInterfaceDefinition.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\basicInterfaceDefinition.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\classImplementsInterface.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\classImplementsInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericClassImplementsGenericInterface.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericClassImplementsGenericInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericConstraints.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericConstraints.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericInterface.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericInterfaceInheritance.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\genericInterfaceInheritance.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\interfaceAsType.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\interfaceAsType.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\interfaceInheritance.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\interfaceInheritance.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">
       <Filter>tests\testFiles\lib\collections</Filter>

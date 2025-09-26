@@ -204,4 +204,14 @@ namespace runtimeTypes::klass
         }
         return false;
     }
+
+    bool ClassDefinition::implementsInterface(const std::string& interfaceName) const
+    {
+        for (const auto& implementedInterface : implementedInterfaces) {
+            if (implementedInterface == interfaceName) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

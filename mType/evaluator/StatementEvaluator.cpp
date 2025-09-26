@@ -530,11 +530,16 @@ namespace evaluator
             {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
 
-                // Check if the actual class matches the expected class
+                // Check if the actual class matches the expected class or implements the expected interface
                 if (!isGenericTypeCompatible(actualClassName, expectedClassName))
                 {
-                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
-                                        expectedClassName + " but got " + actualClassName, location);
+                    // Check if expectedClassName is an interface that the actual class implements
+                    auto classDefinition = objInstance->getClassDefinition();
+                    if (!classDefinition->implementsInterface(expectedClassName))
+                    {
+                        throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
+                                            expectedClassName + " but got " + actualClassName, location);
+                    }
                 }
 
                 // TODO: In a full implementation, this would also check class hierarchies

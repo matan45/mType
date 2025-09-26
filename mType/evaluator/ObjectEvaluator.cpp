@@ -136,6 +136,9 @@ namespace evaluator
         const auto& genericParams = node->getGenericParameters();
         auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
+        // Set implemented interfaces
+        classDef->setImplementedInterfaces(node->getImplementedInterfaces());
+
         // Add fields
         for (const auto& fieldPtr : node->getFields())
         {
@@ -189,14 +192,18 @@ namespace evaluator
             }
             else
             {
-                // For non-generic methods, use legacy constructor
+                // For non-generic methods, also preserve type information for object parameters
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
-                    methodNode->getReturnType(),
-                    methodNode->getParameters(),
+                    methodNode->getReturnType(), // Legacy ValueType for compatibility
+                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
-                    methodNode->getIsStatic()
+                    methodNode->getIsStatic(),
+                    methodNode->getGenericReturnType(), // NEW: Preserve return type for object types
+                    methodNode->getGenericParameters(), // NEW: Preserve parameter types for object types
+                    std::vector<ast::GenericTypeParameter>{}, // No generic type parameters for non-generic methods
+                    std::unordered_map<std::string, std::string>{} // Empty substitution map
                 );
             }
 
@@ -219,6 +226,9 @@ namespace evaluator
 
             classDef->addConstructor(ctorDef);
         }
+
+        // Validate interface implementations
+        validateInterfaceImplementations(classDef, node);
 
         // Register class
         registerClass(classDef);
@@ -1789,5 +1799,175 @@ namespace evaluator
         }
 
         throw TypeException("Unsupported array type for direct multi-dimensional assignment", location);
+    }
+
+    void ObjectEvaluator::validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node)
+    {
+        auto env = context->getEnvironment();
+        auto interfaceRegistry = env->getInterfaceRegistry();
+
+        for (const auto& interfaceName : classDef->getImplementedInterfaces())
+        {
+            // Parse interface name and extract generic type arguments
+            auto [baseInterfaceName, typeArguments] = parseGenericInterfaceName(interfaceName);
+
+            // Get interface definition
+            auto interfaceDef = interfaceRegistry->findInterface(baseInterfaceName);
+            if (!interfaceDef)
+            {
+                throw TypeException("Interface '" + baseInterfaceName + "' not found");
+            }
+
+            // Create type substitution map for generic resolution
+            std::unordered_map<std::string, std::string> typeSubstitutions;
+            const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
+
+            if (typeArguments.size() != interfaceGenericParams.size())
+            {
+                throw TypeException("Interface '" + baseInterfaceName + "' expects " +
+                    std::to_string(interfaceGenericParams.size()) + " type arguments but got " +
+                    std::to_string(typeArguments.size()));
+            }
+
+            // Map generic parameters to concrete types
+            for (size_t i = 0; i < interfaceGenericParams.size(); ++i)
+            {
+                typeSubstitutions[interfaceGenericParams[i].name] = typeArguments[i];
+            }
+
+            // Check that all interface methods are implemented
+            const auto& methodSignatures = interfaceDef->getMethodSignatures();
+            for (const auto& signature : methodSignatures)
+            {
+                auto method = classDef->getMethod(signature.name);
+                if (!method)
+                {
+                    throw TypeException("Class '" + classDef->getName() +
+                        "' must implement method '" + signature.name +
+                        "' from interface '" + interfaceName + "'");
+                }
+
+                // Resolve return type with substitutions
+                std::string resolvedReturnType = resolveGenericType(signature.returnType->getBaseTypeName(), typeSubstitutions);
+                std::string methodReturnType;
+
+                // Use generic return type if available, otherwise fall back to basic ValueType
+                if (method->getGenericReturnType())
+                {
+                    methodReturnType = method->getGenericReturnType()->getBaseTypeName();
+                }
+                else
+                {
+                    methodReturnType = valueTypeToString(method->getReturnType());
+                }
+
+                if (methodReturnType != resolvedReturnType)
+                {
+                    throw TypeException("Method '" + signature.name + "' in class '" + classDef->getName() +
+                        "' has return type '" + methodReturnType +
+                        "' but interface '" + interfaceName + "' requires '" +
+                        resolvedReturnType + "'");
+                }
+
+                // Validate parameter count matches
+                if (method->getParameters().size() != signature.parameters.size())
+                {
+                    throw TypeException("Method '" + signature.name + "' in class '" + classDef->getName() +
+                        "' has " + std::to_string(method->getParameters().size()) + " parameters" +
+                        " but interface '" + interfaceName + "' requires " +
+                        std::to_string(signature.parameters.size()) + " parameters");
+                }
+
+                // Validate parameter types with generic resolution
+                const auto& methodParams = method->getParameters();
+                const auto& methodGenericParams = method->getGenericParameters();
+                for (size_t i = 0; i < signature.parameters.size(); ++i)
+                {
+                    std::string methodParamType;
+
+                    // Use generic parameter type if available, otherwise fall back to basic ValueType
+                    if (i < methodGenericParams.size() && methodGenericParams[i].second)
+                    {
+                        methodParamType = methodGenericParams[i].second->getBaseTypeName();
+                    }
+                    else
+                    {
+                        methodParamType = valueTypeToString(methodParams[i].second);
+                    }
+
+                    std::string resolvedParamType = resolveGenericType(signature.parameters[i].second->getBaseTypeName(), typeSubstitutions);
+
+                    if (methodParamType != resolvedParamType)
+                    {
+                        throw TypeException("Method '" + signature.name + "' parameter " + std::to_string(i + 1) +
+                            " in class '" + classDef->getName() + "' has type '" +
+                            methodParamType + "' but interface '" + interfaceName +
+                            "' requires '" + resolvedParamType + "'");
+                    }
+                }
+            }
+        }
+    }
+
+    std::pair<std::string, std::vector<std::string>> ObjectEvaluator::parseGenericInterfaceName(const std::string& interfaceName)
+    {
+        // Check if this is a generic interface (contains '<' and '>')
+        size_t openBracket = interfaceName.find('<');
+        if (openBracket == std::string::npos) {
+            // Non-generic interface
+            return {interfaceName, {}};
+        }
+
+        size_t closeBracket = interfaceName.find('>', openBracket);
+        if (closeBracket == std::string::npos) {
+            throw TypeException("Malformed generic interface name: " + interfaceName);
+        }
+
+        std::string baseInterfaceName = interfaceName.substr(0, openBracket);
+        std::string typeArgsStr = interfaceName.substr(openBracket + 1, closeBracket - openBracket - 1);
+
+        std::vector<std::string> typeArguments;
+
+        // Parse type arguments (simple comma-separated parsing)
+        if (!typeArgsStr.empty()) {
+            std::stringstream ss(typeArgsStr);
+            std::string typeArg;
+            while (std::getline(ss, typeArg, ',')) {
+                // Trim whitespace
+                typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+                if (!typeArg.empty()) {
+                    typeArguments.push_back(typeArg);
+                }
+            }
+        }
+
+        return {baseInterfaceName, typeArguments};
+    }
+
+    std::string ObjectEvaluator::resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions)
+    {
+        // Check if this type needs to be substituted
+        auto it = typeSubstitutions.find(typeName);
+        if (it != typeSubstitutions.end()) {
+            return it->second;
+        }
+
+        // If no substitution found, return the original type name
+        return typeName;
+    }
+
+    std::string ObjectEvaluator::valueTypeToString(const value::ValueType& type)
+    {
+        switch (type) {
+            case value::ValueType::INT: return "int";
+            case value::ValueType::FLOAT: return "float";
+            case value::ValueType::BOOL: return "bool";
+            case value::ValueType::STRING: return "string";
+            case value::ValueType::VOID: return "void";
+            case value::ValueType::OBJECT: return "object";
+            case value::ValueType::NULL_TYPE: return "null";
+            default: return "unknown";
+        }
     }
 }

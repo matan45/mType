@@ -63,28 +63,43 @@ namespace parser
                 }
 
                 std::string interfaceName = tokenStream.current().stringValue.getString();
-                implementedInterfaces.push_back(interfaceName);
                 tokenStream.advance();
 
                 // Handle generic parameters for interface if present
                 if (tokenStream.check(TokenType::LESS))
                 {
-                    // Skip generic parameters for now - will enhance later
+                    // Capture the full generic interface name including type arguments
+                    interfaceName += "<";
+                    tokenStream.advance(); // consume '<'
+
                     int depth = 1;
-                    tokenStream.advance();
                     while (depth > 0 && !tokenStream.isAtEnd())
                     {
                         if (tokenStream.current().type == TokenType::LESS)
                         {
                             depth++;
+                            interfaceName += "<";
                         }
                         else if (tokenStream.current().type == TokenType::GREATER)
                         {
                             depth--;
+                            interfaceName += ">";
                         }
+                        else if (tokenStream.current().type == TokenType::IDENTIFIER)
+                        {
+                            interfaceName += tokenStream.current().stringValue.getString();
+                        }
+                        else if (tokenStream.current().type == TokenType::COMMA)
+                        {
+                            interfaceName += ", ";
+                        }
+                        // Skip other tokens but don't add them to the name
+
                         tokenStream.advance();
                     }
                 }
+
+                implementedInterfaces.push_back(interfaceName);
 
                 // Check for comma (multiple interfaces)
                 if (tokenStream.check(TokenType::COMMA))

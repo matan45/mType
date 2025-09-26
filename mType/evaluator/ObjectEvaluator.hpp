@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 #include <optional>
+#include <unordered_map>
+#include <sstream>
 
 
 namespace evaluator
@@ -97,6 +99,10 @@ namespace evaluator
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
+        void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
+        std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(const std::string& interfaceName);
+        std::string resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions);
+        std::string valueTypeToString(const value::ValueType& type);
 
         // Multi-dimensional array assignment helpers
         std::optional<std::pair<Value, std::vector<size_t>>> extractMultiDimensionalAssignment(IndexAssignmentNode* node);
