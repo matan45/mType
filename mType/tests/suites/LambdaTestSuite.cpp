@@ -21,6 +21,8 @@ namespace tests::testSuite
                         passPath + "consumerInterface.mt");
         addOutputVerificationTest("Predicate Interface",
                         passPath + "predicateInterface.mt");
+        addOutputVerificationTest("Interface as Parameter",
+                        passPath + "interfaceAsParameter.mt");
 
         // Advanced lambda tests
         addOutputVerificationTest("Multi-Parameter Lambda",

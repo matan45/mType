@@ -1,0 +1,48 @@
+=== Interface as Parameter Test ===
+Process doubler (5): 10
+Process squarer (4): 16
+Process doubler object (6): 12
+Process tripler object (4): 12
+Process quintupler object (3): 15
+Process adder (3, 7): 10
+Process multiplier (4, 6): 24
+Process calculator object (2, 3): 8
+Filter even (8): true
+Filter even (7): false
+Filter positive (5): true
+Filter positive (-3): false
+Filter even checker (10): true
+Filter even checker (9): false
+Consumed value: 42
+Double consumed: 30
+Task 1 executed!
+Task 2 executed!
+Complex operation (6): 18
+Complex operation (5): -1
+Apply twice doubler (3): 12
+Apply twice squarer (3): 81
+Combine operations (4): 24
+Apply twice doubler object (2): 8
+Apply twice tripler object (2): 18
+Combine class objects (3): 15
+Condition met - task executed!
+=== Testing Functions Returning Interface Objects ===
+Factory doubler (7): 14
+Factory multiplier (6): 24
+Factory calculator (3, 5): 13
+Factory even checker (12): true
+Factory even checker (13): false
+Conditional function type 1 (8): 16
+Conditional function type 5 (8): 40
+Static factory doubler (9): 18
+Static factory multiplier (4): 24
+Static factory calculator (2, 7): 16
+Static factory even checker (16): true
+Static factory even checker (17): false
+Optimal small input (3): 6
+Optimal large input (3): 9
+Using factory objects as parameters:
+Apply twice factory doubler (2): 8
+Apply twice static multiplier (2): 72
+Combine factory objects (5): 40
+Interface as parameter test completed
