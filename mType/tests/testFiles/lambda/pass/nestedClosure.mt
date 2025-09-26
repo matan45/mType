@@ -1,11 +1,11 @@
 // Nested closure test
 interface Function {
-    function apply(x: int) : int;
+    function apply(int x) : int;
 }
 
 print("=== Nested Closure Test ===");
 
-function createMultiplier(factor: int) : Function {
+function createMultiplier(int factor) : Function {
     Function multiplier = x -> x * factor;
     return multiplier;
 }

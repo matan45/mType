@@ -47,8 +47,9 @@ namespace parser
         std::unique_ptr<ASTNode> parseArrayLiteral();
         std::string parseGenericTypeArgument();
 
-        // Lambda detection helper
+        // Lambda detection helpers
         bool isLambdaStart() const;
+        bool isLikelyLambdaParameterList() const;
     
     };
 }

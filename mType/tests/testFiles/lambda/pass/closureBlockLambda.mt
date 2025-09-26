@@ -1,11 +1,11 @@
 // Closure with block lambda test
 interface Processor {
-    function process(n: int) : int;
+    function process(int n) : int;
 }
 
 print("=== Closure Block Lambda Test ===");
 
-function createAccumulator(initial: int) : Processor {
+function createAccumulator(int initial) : Processor {
     Processor accumulator = n -> {
         int result = initial + n;
         if (result > 100) {

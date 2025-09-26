@@ -1,10 +1,10 @@
 // Multi-parameter lambda test
 interface BinaryFunction {
-    function apply(a: int, b: int) : int;
+    function apply(int a,int b) : int;
 }
 
 interface Comparator {
-    function compare(a: int, b: int) : bool;
+    function compare(int a,int b) : bool;
 }
 
 print("=== Multi-Parameter Lambda Test ===");

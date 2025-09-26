@@ -464,8 +464,8 @@ namespace evaluator
             }
         }
 
-        // Check if the class is defined
-        if (!env->findClass(resolvedClassName))
+        // Check if the class or interface is defined
+        if (!env->findClass(resolvedClassName) && !env->findInterface(resolvedClassName))
         {
             throw UndefinedException("Class '" + resolvedClassName + "' is not defined", location);
         }

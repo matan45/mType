@@ -25,6 +25,9 @@ namespace parser
         std::optional<std::reference_wrapper<InterfaceParser>> interfaceParser;
         std::optional<std::reference_wrapper<TokenStream>> tokenStream;
 
+        // Context flags
+        bool insideLambdaBody = false;
+
     public:
         /// @brief Default constructor for delayed initialization
         ParseContext() = default;

@@ -15,6 +15,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../evaluator/ExpressionEvaluator.hpp"
 #include "../evaluator/StatementEvaluator.hpp"
+#include "../exception/ReturnException.hpp"
 #include <set>
 
 namespace value
@@ -58,8 +59,19 @@ namespace value
             return evaluator.evaluate(lambdaNode->getBody());
         } else {
             // Block lambda - execute statements and get return value
-            evaluator::StatementEvaluator evaluator(lambdaContext);
-            evaluator.evaluate(lambdaNode->getBody());
+            // Create both evaluators and link them
+            evaluator::StatementEvaluator stmtEvaluator(lambdaContext);
+            evaluator::ExpressionEvaluator exprEvaluator(lambdaContext);
+
+            // Set up dependencies so StatementEvaluator can delegate to ExpressionEvaluator
+            stmtEvaluator.setExpressionEvaluator(&exprEvaluator);
+
+            try {
+                stmtEvaluator.evaluate(lambdaNode->getBody());
+            } catch (const exception::ReturnException& e) {
+                // Return statements in lambdas are normal - extract the return value
+                return e.returnValue;
+            }
 
             // Check if a return value was set
             if (lambdaContext->shouldReturn()) {

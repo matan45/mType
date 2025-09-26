@@ -4,6 +4,7 @@
 #include <memory>
 #include <array>
 #include <string_view>
+#include <vector>
 #include "../token/TokenType.hpp"
 #include "../token/Token.hpp"
 #include "../services/FileReader.hpp"
@@ -24,6 +25,9 @@ namespace lexer
         // Separated concerns
         std::unique_ptr<SourceLocationTracker> locationTracker;
         std::unique_ptr<BracketBalancer> bracketBalancer;
+
+        // Note: Deep lookahead implemented via position save/restore
+        // More complex buffering could be added later for performance
 
         // Operator information structure
         struct OperatorInfo
@@ -88,6 +92,10 @@ namespace lexer
 
         Token getNextToken();
         Token peekNextToken();
+
+        // Deep lookahead support for complex parsing scenarios
+        Token peekAhead(size_t offset);
+        std::vector<Token> peekMultiple(size_t count);
 
     private:
         // Core parsing methods

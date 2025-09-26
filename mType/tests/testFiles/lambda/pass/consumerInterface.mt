@@ -1,6 +1,6 @@
 // Consumer interface lambda test
 interface Consumer {
-    function accept(value: int) : void;
+    function accept(int value) : void;
 }
 
 print("=== Consumer Interface Test ===");

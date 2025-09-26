@@ -1,6 +1,6 @@
 // Basic block lambda test
 interface Function {
-    function apply(x: int) : int;
+    function apply(int x) : int;
 }
 
 print("=== Basic Block Lambda Test ===");

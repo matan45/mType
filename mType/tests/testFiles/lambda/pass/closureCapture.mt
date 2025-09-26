@@ -1,6 +1,6 @@
 // Closure variable capture test
 interface Function {
-    function apply(x: int) : int;
+    function apply(int x) : int;
 }
 
 print("=== Closure Variable Capture Test ===");

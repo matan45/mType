@@ -1,6 +1,6 @@
 // Complex block lambda with control flow
 interface Processor {
-    function process(n: int) : int;
+    function process(int n) : int;
 }
 
 print("=== Complex Block Lambda Test ===");

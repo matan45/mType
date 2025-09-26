@@ -29,6 +29,9 @@ namespace parser
         // Parse lambda parameter list
         std::vector<Parameter> parseLambdaParameters();
 
+        // Parse single parameter with optional type annotation
+        Parameter parseParameter();
+
         // Parse lambda body (expression or block)
         std::pair<std::unique_ptr<ASTNode>, BodyType> parseLambdaBody();
 

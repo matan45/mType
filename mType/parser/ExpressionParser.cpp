@@ -153,9 +153,9 @@ namespace parser
 
         if (tokenStream.match(TokenType::QUESTION))
         {
-            auto trueExpr = parseExpression();
+            auto trueExpr = parseTernary(); // Use same level to avoid recursion
             tokenStream.expect(TokenType::COLON);
-            auto falseExpr = parseExpression();
+            auto falseExpr = parseTernary(); // Use same level to avoid recursion
             return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr));
         }
 
@@ -410,7 +410,7 @@ namespace parser
         case TokenType::LPAREN:
             {
                 tokenStream.advance();
-                auto expr = parseExpression();
+                auto expr = parseTernary(); // Skip lambda parsing to avoid recursion
                 tokenStream.expect(TokenType::RPAREN);
                 return expr;
             }
@@ -587,11 +587,77 @@ namespace parser
             if (next.type == TokenType::RPAREN) {
                 return true; // Likely () -> pattern
             }
-            // For more complex cases, we'll be optimistic and let the LambdaParser handle it
-            // This prevents false positives with grouped expressions like (a + b) * c
-            return false; // Conservative approach for now
+
+            // For multi-parameter lambdas, use more sophisticated heuristic
+            if (next.type == TokenType::IDENTIFIER) {
+                // This could be either:
+                // 1. (param1, param2) -> ... (lambda parameters)
+                // 2. (variable + expression) ... (parenthesized expression)
+
+                // Heuristic: lambda parameters are more likely if we're at assignment context
+                // For now, be conservative - assume it's a parenthesized expression unless
+                // we have stronger evidence it's lambda parameters
+
+                // Look for lambda-like patterns: identifier followed by comma or colon
+                return isLikelyLambdaParameterList();
+            }
+
+            // Otherwise it's likely a parenthesized expression, not lambda parameters
+            return false;
         }
 
         return false;
+    }
+
+    bool ExpressionParser::isLikelyLambdaParameterList() const
+    {
+        // Look for very specific lambda patterns only:
+        // Pattern 1: (a, b) -> ... (comma-separated identifiers)
+        // Pattern 2: (a : int, b : int) -> ... (typed parameters)
+        // Pattern 3: (a) -> ... (single parameter)
+
+        Token token1 = tokenStream.peek(); // First token after (
+        if (token1.type != TokenType::IDENTIFIER) {
+            return false;
+        }
+
+        // Check if we can look ahead safely
+        if (tokenStream.isAtEnd()) {
+            return false;
+        }
+
+        // Look for the pattern (identifier, ...)
+        // If we see (identifier, identifier) or (identifier :) it's likely lambda
+        // If we see (identifier +) or (identifier *) it's likely expression
+
+        // Use the safe peekAhead for just the next couple tokens
+        try {
+            Token token2 = tokenStream.peekAhead(2); // Second token after identifier
+
+            // Pattern: (identifier, ...) suggests lambda parameters
+            if (token2.type == TokenType::COMMA) {
+                return true;
+            }
+
+            // Pattern: (identifier : ...) suggests typed parameter
+            if (token2.type == TokenType::COLON) {
+                return true;
+            }
+
+            // Pattern: (identifier ) -> suggests single parameter lambda
+            if (token2.type == TokenType::RPAREN) {
+                Token token3 = tokenStream.peekAhead(3);
+                if (token3.type == TokenType::ARROW) {
+                    return true;
+                }
+            }
+
+            // Otherwise assume it's a parenthesized expression
+            return false;
+
+        } catch (...) {
+            // If peekAhead fails, assume it's not a lambda
+            return false;
+        }
     }
 }

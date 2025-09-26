@@ -1,7 +1,9 @@
 ﻿#include "LambdaParser.hpp"
+#include "ExpressionParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../errors/ParseException.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace parser
 {
@@ -49,6 +51,8 @@ namespace parser
     {
         std::vector<Parameter> parameters;
 
+        // Parse lambda parameters
+
         if (tokenStream.current().type == TokenType::IDENTIFIER &&
             !tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::ARROW) {
             // Single parameter without parentheses: param ->
@@ -56,53 +60,57 @@ namespace parser
             tokenStream.advance();
             parameters.emplace_back(paramName);
         }
-        else if (tokenStream.current().type == TokenType::LPAREN) {
+        else if (tokenStream.match(TokenType::LPAREN)) {
             // Parenthesized parameter list: () or (params)
-            tokenStream.advance(); // consume '('
 
-            if (tokenStream.current().type != TokenType::RPAREN) {
-                // Parse parameter list
-                do {
-                    if (tokenStream.current().type != TokenType::IDENTIFIER) {
-                        throw ParseException("Expected parameter name", tokenStream.current().location);
-                    }
-
-                    std::string paramName = tokenStream.current().stringValue.getString();
-                    tokenStream.advance();
-
-                    std::shared_ptr<ast::GenericType> paramType = nullptr;
-
-                    // Optional type annotation: param : Type
-                    if (tokenStream.current().type == TokenType::COLON) {
-                        tokenStream.advance(); // consume ':'
-                        // For now, we'll handle basic type parsing
-                        // This should be enhanced to use a proper type parser
-                        if (tokenStream.current().type == TokenType::IDENTIFIER) {
-                            std::string typeName = tokenStream.current().stringValue.getString();
-                            tokenStream.advance();
-                            // Create a simple type - this should be enhanced later
-                            paramType = std::make_shared<ast::GenericType>(typeName);
-                        } else {
-                            throw ParseException("Expected type name after ':'", tokenStream.current().location);
-                        }
-                    }
-
-                    parameters.emplace_back(paramName, paramType);
-
-                } while (tokenStream.current().type == TokenType::COMMA &&
-                        (tokenStream.advance(), true)); // consume comma and continue
+            // Check for empty parameter list: ()
+            if (tokenStream.check(TokenType::RPAREN)) {
+                tokenStream.advance(); // consume ')'
+                return parameters; // empty parameter list
             }
 
-            if (tokenStream.current().type != TokenType::RPAREN) {
-                throw ParseException("Expected ')' after parameter list", tokenStream.current().location);
-            }
-            tokenStream.advance(); // consume ')'
+            // Parse comma-separated parameter list
+            do {
+                parameters.push_back(parseParameter());
+            } while (tokenStream.match(TokenType::COMMA));
+
+            // Expect closing parenthesis
+            tokenStream.expect(TokenType::RPAREN);
         }
         else {
             throw ParseException("Expected parameter list or identifier before '->'", tokenStream.current().location);
         }
 
         return parameters;
+    }
+
+    Parameter LambdaParser::parseParameter()
+    {
+        // Expect parameter name
+        if (tokenStream.current().type != TokenType::IDENTIFIER) {
+            throw ParseException("Expected parameter name", tokenStream.current().location);
+        }
+
+        std::string paramName = tokenStream.current().stringValue.getString();
+        tokenStream.advance();
+
+        std::shared_ptr<ast::GenericType> paramType = nullptr;
+
+        // Optional type annotation: param : Type
+        if (tokenStream.match(TokenType::COLON)) {
+            // Parse type name
+            if (tokenStream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected type name after ':'", tokenStream.current().location);
+            }
+
+            std::string typeName = tokenStream.current().stringValue.getString();
+            tokenStream.advance();
+
+            // Create a simple type - this should be enhanced later for complex types
+            paramType = std::make_shared<ast::GenericType>(typeName);
+        }
+
+        return Parameter(paramName, paramType);
     }
 
     std::pair<std::unique_ptr<ASTNode>, BodyType> LambdaParser::parseLambdaBody()
@@ -112,8 +120,11 @@ namespace parser
             auto blockNode = context.parseStatement();
             return {std::move(blockNode), BodyType::BLOCK};
         } else {
-            // Expression lambda: expression
-            auto exprNode = context.parseExpression();
+            // Expression lambda: parse expression until natural boundary
+            // The expression should stop at terminators like ';', ')', '}', ','
+            // Use lower precedence parsing to avoid consuming assignment operators
+            ExpressionParser exprParser(tokenStream, context);
+            auto exprNode = exprParser.parseTernary(); // Skip assignment level to avoid conflicts
             return {std::move(exprNode), BodyType::EXPRESSION};
         }
     }

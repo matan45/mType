@@ -2,6 +2,7 @@
 #include "../token/Token.hpp"
 #include "../token/TokenType.hpp"
 #include "../lexer/Lexer.hpp"
+#include <vector>
 
 namespace parser
 {
@@ -16,6 +17,7 @@ namespace parser
     private:
         Lexer& lexer;
         Token currentToken;
+        mutable std::vector<Token> lookaheadBuffer;
 
     public:
         explicit TokenStream(Lexer& lex);
@@ -44,5 +46,8 @@ namespace parser
         
         /// @brief Peek at next token without advancing
         [[nodiscard]] Token peek() const;
+
+        /// @brief Peek ahead multiple tokens without advancing
+        [[nodiscard]] Token peekAhead(size_t offset) const;
     };
 }

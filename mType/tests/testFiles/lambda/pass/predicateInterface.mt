@@ -1,6 +1,6 @@
 // Predicate interface lambda test
 interface Predicate {
-    function test(x: int) : bool;
+    function test(int x) : bool;
 }
 
 print("=== Predicate Interface Test ===");
