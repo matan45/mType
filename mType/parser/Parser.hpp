@@ -7,6 +7,7 @@
 #include "StatementParser.hpp"
 #include "ExpressionParser.hpp"
 #include "ClassParser.hpp"
+#include "InterfaceParser.hpp"
 #include <memory>
 
 namespace services
@@ -33,6 +34,7 @@ namespace parser
         std::unique_ptr<StatementParser> statementParser;
         std::unique_ptr<ExpressionParser> expressionParser;
         std::unique_ptr<ClassParser> classParser;
+        std::unique_ptr<InterfaceParser> interfaceParser;
         
         // Helper for atomic initialization
         struct ParserComponents {
@@ -40,6 +42,7 @@ namespace parser
             std::unique_ptr<StatementParser> statementParser;
             std::unique_ptr<ExpressionParser> expressionParser;
             std::unique_ptr<ClassParser> classParser;
+            std::unique_ptr<InterfaceParser> interfaceParser;
             std::unique_ptr<ParseContext> context;
         };
         static ParserComponents createComponents(Lexer& lex);

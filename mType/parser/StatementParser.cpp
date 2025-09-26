@@ -40,6 +40,8 @@ namespace parser
         {
         case TokenType::CLASS:
             return context.parseClass();
+        case TokenType::INTERFACE:
+            return context.parseInterface();
         case TokenType::FUNCTION:
             return parseFunction();
         case TokenType::INT:

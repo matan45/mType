@@ -139,11 +139,21 @@ namespace parser {
         // Parse parameter list
         while (tokenStream.current().type != TokenType::RPAREN && !tokenStream.isAtEnd()) {
             // Parse parameter type
-            if (tokenStream.current().type != TokenType::IDENTIFIER) {
+            std::string paramType;
+            if (tokenStream.current().type == TokenType::IDENTIFIER) {
+                paramType = tokenStream.current().stringValue.getString();
+            } else if (tokenStream.current().type == TokenType::INT) {
+                paramType = "int";
+            } else if (tokenStream.current().type == TokenType::FLOAT) {
+                paramType = "float";
+            } else if (tokenStream.current().type == TokenType::BOOL) {
+                paramType = "bool";
+            } else if (tokenStream.current().type == TokenType::STRING_TYPE) {
+                paramType = "string";
+            } else {
                 throw ParseException("Expected parameter type", tokenStream.current().location);
             }
 
-            std::string paramType = tokenStream.current().stringValue.getString();
             tokenStream.advance();
 
             // Parse parameter name
@@ -177,11 +187,23 @@ namespace parser {
         if (tokenStream.current().type == TokenType::COLON) {
             tokenStream.advance();
 
-            if (tokenStream.current().type != TokenType::IDENTIFIER) {
+            std::string returnTypeName;
+            if (tokenStream.current().type == TokenType::IDENTIFIER) {
+                returnTypeName = tokenStream.current().stringValue.getString();
+            } else if (tokenStream.current().type == TokenType::VOID) {
+                returnTypeName = "void";
+            } else if (tokenStream.current().type == TokenType::INT) {
+                returnTypeName = "int";
+            } else if (tokenStream.current().type == TokenType::FLOAT) {
+                returnTypeName = "float";
+            } else if (tokenStream.current().type == TokenType::BOOL) {
+                returnTypeName = "bool";
+            } else if (tokenStream.current().type == TokenType::STRING_TYPE) {
+                returnTypeName = "string";
+            } else {
                 throw ParseException("Expected return type after ':'", tokenStream.current().location);
             }
 
-            std::string returnTypeName = tokenStream.current().stringValue.getString();
             returnType = std::make_shared<ast::GenericType>(returnTypeName);
             tokenStream.advance();
         } else {
@@ -226,17 +248,41 @@ namespace parser {
             // Create generic type parameter
             ast::GenericTypeParameter param(paramName, tokenStream.current().location);
 
-            // Parse optional constraints (implements SomeInterface)
-            if (tokenStream.current().type == TokenType::IMPLEMENTS) {
+            // Parse optional constraints (extends/implements SomeInterface)
+            if (tokenStream.current().type == TokenType::EXTENDS || tokenStream.current().type == TokenType::IMPLEMENTS) {
                 tokenStream.advance();
 
                 if (tokenStream.current().type != TokenType::IDENTIFIER) {
-                    throw ParseException("Expected interface name after 'implements'",
+                    throw ParseException("Expected interface name after constraint keyword",
                                         tokenStream.current().location);
                 }
 
-                param.constraints.push_back(tokenStream.current().stringValue.getString());
+                std::string constraintName = tokenStream.current().stringValue.getString();
                 tokenStream.advance();
+
+                // Handle generic parameters in constraints (e.g., Comparable<T>)
+                if (tokenStream.current().type == TokenType::LESS) {
+                    constraintName += "<";
+                    int depth = 1;
+                    tokenStream.advance();
+
+                    while (depth > 0 && !tokenStream.isAtEnd()) {
+                        if (tokenStream.current().type == TokenType::LESS) {
+                            depth++;
+                            constraintName += "<";
+                        } else if (tokenStream.current().type == TokenType::GREATER) {
+                            depth--;
+                            constraintName += ">";
+                        } else if (tokenStream.current().type == TokenType::IDENTIFIER) {
+                            constraintName += tokenStream.current().stringValue.getString();
+                        } else if (tokenStream.current().type == TokenType::COMMA) {
+                            constraintName += ",";
+                        }
+                        tokenStream.advance();
+                    }
+                }
+
+                param.constraints.push_back(constraintName);
             }
 
             genericParams.push_back(param);

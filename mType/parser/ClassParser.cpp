@@ -49,10 +49,59 @@ namespace parser
             tokenStream.expect(TokenType::GREATER); // consume '>'
         }
 
+        // NEW: Parse implements clause if present (e.g., implements Drawable, Resizable)
+        std::vector<std::string> implementedInterfaces;
+        if (tokenStream.check(TokenType::IMPLEMENTS))
+        {
+            tokenStream.advance(); // consume 'implements'
+
+            do {
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected interface name after 'implements'",
+                                        tokenStream.current().location);
+                }
+
+                std::string interfaceName = tokenStream.current().stringValue.getString();
+                implementedInterfaces.push_back(interfaceName);
+                tokenStream.advance();
+
+                // Handle generic parameters for interface if present
+                if (tokenStream.check(TokenType::LESS))
+                {
+                    // Skip generic parameters for now - will enhance later
+                    int depth = 1;
+                    tokenStream.advance();
+                    while (depth > 0 && !tokenStream.isAtEnd())
+                    {
+                        if (tokenStream.current().type == TokenType::LESS)
+                        {
+                            depth++;
+                        }
+                        else if (tokenStream.current().type == TokenType::GREATER)
+                        {
+                            depth--;
+                        }
+                        tokenStream.advance();
+                    }
+                }
+
+                // Check for comma (multiple interfaces)
+                if (tokenStream.check(TokenType::COMMA))
+                {
+                    tokenStream.advance();
+                }
+                else
+                {
+                    break;
+                }
+            } while (true);
+        }
+
         tokenStream.expect(TokenType::LBRACE);
 
-        // Create class node with generic parameters
-        auto classNode = std::make_unique<ClassNode>(className, genericParameters);
+        // Create class node with generic parameters and implemented interfaces
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters, implementedInterfaces);
 
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {
