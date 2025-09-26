@@ -41,6 +41,9 @@ namespace value
         // Closure storage - captured variable values at lambda creation time
         std::unordered_map<std::string, CapturedVariable> capturedVariables;
 
+        // Captured 'this' instance for class member access
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> capturedThisInstance;
+
         // Interface implementation info
         std::string implementedInterface;
         std::string implementedMethod;

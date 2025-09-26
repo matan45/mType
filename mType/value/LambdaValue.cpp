@@ -15,6 +15,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../evaluator/ExpressionEvaluator.hpp"
 #include "../evaluator/StatementEvaluator.hpp"
+#include "../evaluator/ObjectEvaluator.hpp"
 #include "../exception/ReturnException.hpp"
 #include <set>
 
@@ -24,6 +25,9 @@ namespace value
                            std::shared_ptr<evaluator::base::EvaluationContext> context)
         : lambdaNode(node), capturedContext(context), isInterfaceImplementation(false)
     {
+        // Capture 'this' instance if available (for class context lambdas)
+        capturedThisInstance = context->getCurrentInstance();
+
         // Capture the current environment for closure support
         captureCurrentEnvironment();
     }
@@ -37,6 +41,13 @@ namespace value
         // Create a new environment that inherits from the captured context
         auto lambdaEnv = std::make_shared<environment::Environment>(*capturedContext->getEnvironment());
         auto lambdaContext = std::make_shared<evaluator::base::EvaluationContext>(lambdaEnv);
+
+        // Preserve important context from the original captured context
+        // Use the captured 'this' instance (which was captured at lambda creation time)
+        lambdaContext->setCurrentInstance(capturedThisInstance);
+        lambdaContext->setInStaticMethod(capturedContext->isInStaticMethodContext());
+        lambdaContext->setCurrentMethod(capturedContext->getCurrentMethod());
+        lambdaContext->setGenericTypeBindings(capturedContext->getGenericTypeBindings());
 
         // Restore captured variables to lambda scope
         for (const auto& [name, captured] : capturedVariables) {
@@ -55,16 +66,31 @@ namespace value
         // Execute lambda body
         if (lambdaNode->isExpressionLambda()) {
             // Expression lambda - evaluate and return the expression
-            evaluator::ExpressionEvaluator evaluator(lambdaContext);
-            return evaluator.evaluate(lambdaNode->getBody());
+            // Create all evaluators for proper context support
+            evaluator::ExpressionEvaluator exprEvaluator(lambdaContext);
+            evaluator::StatementEvaluator stmtEvaluator(lambdaContext);
+            evaluator::ObjectEvaluator objEvaluator(lambdaContext);
+
+            // Set up evaluator dependencies
+            exprEvaluator.setStatementEvaluator(&stmtEvaluator);
+            exprEvaluator.setObjectEvaluator(&objEvaluator);
+
+            return exprEvaluator.evaluate(lambdaNode->getBody());
         } else {
             // Block lambda - execute statements and get return value
-            // Create both evaluators and link them
+            // Create all three evaluators and link them properly
             evaluator::StatementEvaluator stmtEvaluator(lambdaContext);
             evaluator::ExpressionEvaluator exprEvaluator(lambdaContext);
+            evaluator::ObjectEvaluator objEvaluator(lambdaContext);
 
-            // Set up dependencies so StatementEvaluator can delegate to ExpressionEvaluator
+            // Set up evaluator dependencies (same as EvaluatorCoordinator)
+            exprEvaluator.setStatementEvaluator(&stmtEvaluator);
+            exprEvaluator.setObjectEvaluator(&objEvaluator);
+
             stmtEvaluator.setExpressionEvaluator(&exprEvaluator);
+            stmtEvaluator.setObjectEvaluator(&objEvaluator);
+
+            objEvaluator.setExpressionEvaluator(&exprEvaluator);
 
             try {
                 stmtEvaluator.evaluate(lambdaNode->getBody());
@@ -170,8 +196,21 @@ namespace value
             if (!isParameter) {
                 auto varDef = environment->findVariable(varName);
                 if (varDef) {
+                    // Found as local/environment variable
                     ValueType type = getValueType(varDef->getValue());
                     addCapturedVariable(varName, varDef->getValue(), type);
+                } else {
+                    // Not found in environment, check if it's a class field
+                    auto currentInstance = capturedContext->getCurrentInstance();
+                    if (currentInstance) {
+                        auto field = currentInstance->getField(varName);
+                        if (field) {
+                            // Found as instance field - capture its current value
+                            Value fieldValue = currentInstance->getFieldValue(varName);
+                            ValueType type = getValueType(fieldValue);
+                            addCapturedVariable(varName, fieldValue, type);
+                        }
+                    }
                 }
             }
         }

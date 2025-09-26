@@ -1,0 +1,6 @@
+Testing lambda with 'this' keyword
+This lambda (5): 30
+Multiple this (3, 2): 32
+Block this (7): 25
+Mixed access (6): 20
+Lambda 'this' keyword test completed

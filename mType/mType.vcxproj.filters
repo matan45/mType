@@ -2119,6 +2119,36 @@
     <None Include="tests\testFiles\lambda\pass\basicExpressionLambda.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\pass\classComplexIntegration.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classComplexIntegration.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classInstanceFieldAccess.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classInstanceFieldAccess.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classMethodParameters.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classMethodParameters.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classStaticAccess.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classStaticAccess.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classThisKeyword.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\classThisKeyword.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\pass\closureBlockLambda.expected">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>

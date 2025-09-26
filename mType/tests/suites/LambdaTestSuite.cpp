@@ -36,6 +36,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Closure Block Lambda",
                         passPath + "closureBlockLambda.mt");
 
+        // Class integration tests
+        addOutputVerificationTest("Lambda Instance Field Access",
+                        passPath + "classInstanceFieldAccess.mt");
+        addOutputVerificationTest("Lambda This Keyword Access",
+                        passPath + "classThisKeyword.mt");
+        addOutputVerificationTest("Lambda Static Field Access",
+                        passPath + "classStaticAccess.mt");
+        addOutputVerificationTest("Lambda Method Parameter Capture",
+                        passPath + "classMethodParameters.mt");
+        addOutputVerificationTest("Lambda Complex Class Integration",
+                        passPath + "classComplexIntegration.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Lambda Parameter Type Mismatch",
                         errorPath + "lambdaParameterTypeMismatch.mt",

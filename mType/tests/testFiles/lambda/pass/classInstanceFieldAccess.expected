@@ -1,0 +1,5 @@
+Testing lambda instance field access
+Multiplier lambda (4): 12
+Complex lambda (2): 21
+Block lambda (6): 38
+Lambda instance field access test completed
