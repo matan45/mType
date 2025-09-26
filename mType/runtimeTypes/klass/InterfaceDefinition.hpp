@@ -2,6 +2,7 @@
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/GenericType.hpp"
+#include "../../value/ValueType.hpp"
 #include <vector>
 #include <memory>
 
@@ -108,5 +109,9 @@ namespace runtimeTypes::klass {
         const std::vector<ast::GenericTypeParameter>& getGenericParameters() const {
             return genericParameters;
         }
+
+    private:
+        // Helper method to convert GenericType to ValueType
+        value::ValueType convertGenericTypeToValueType(std::shared_ptr<ast::GenericType> genericType) const;
     };
 }

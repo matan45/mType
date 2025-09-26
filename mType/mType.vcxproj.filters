@@ -246,6 +246,9 @@
     <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\LambdaNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\NullNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
@@ -450,6 +453,9 @@
     <ClInclude Include="parser\InterfaceParser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
+    <ClInclude Include="parser\LambdaParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ParseContext.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -537,6 +543,9 @@
     <ClInclude Include="tests\suites\InterfaceTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\LambdaTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -568,6 +577,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\LambdaValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\NativeArray.hpp">
@@ -636,6 +648,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\LambdaNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\NullNode.cpp">
@@ -797,6 +812,9 @@
     <ClCompile Include="parser\InterfaceParser.cpp">
       <Filter>parser</Filter>
     </ClCompile>
+    <ClCompile Include="parser\LambdaParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
     <ClCompile Include="parser\ParseContext.cpp">
       <Filter>parser</Filter>
     </ClCompile>
@@ -884,6 +902,9 @@
     <ClCompile Include="tests\suites\InterfaceTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\LambdaTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -901,6 +922,9 @@
     </ClCompile>
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="value\LambdaValue.cpp">
+      <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
       <Filter>value</Filter>

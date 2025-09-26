@@ -1,4 +1,5 @@
 #include "ObjectEvaluator.hpp"
+#include "../value/LambdaValue.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
@@ -1001,6 +1002,21 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+
+            // Check if this is a lambda-backed interface (has __lambda field)
+            auto lambdaField = instance->getField("__lambda");
+            if (lambdaField)
+            {
+                Value lambdaValue = lambdaField->getValue();
+                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
+                {
+                    auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                    // Invoke the lambda with the method arguments
+                    Value result = lambda->invoke(args, context);
+                    return result;
+                }
+            }
+
             return callMethod(instance, node->getMethodName(), args, node->getLocation());
         }
         // Collection method dispatch removed - collections now implemented in mType language
@@ -1017,6 +1033,19 @@ namespace evaluator
                                       const std::vector<Value>& args,
                                       const errors::SourceLocation& location)
     {
+        // Check if this is a lambda-backed interface (has __lambda field)
+        Value lambdaValue = object->getFieldValue("__lambda");
+        if (!std::holds_alternative<std::monostate>(lambdaValue))
+        {
+            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
+            {
+                auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                // Invoke the lambda with the method arguments
+                Value result = lambda->invoke(args, context);
+                return result;
+            }
+        }
+
         auto env = context->getEnvironment();
 
         // Get the class definition from the object

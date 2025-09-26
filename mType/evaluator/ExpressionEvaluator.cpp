@@ -3,6 +3,7 @@
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
+#include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
@@ -56,6 +57,8 @@ namespace evaluator
             return std::monostate{};
         }
 
+        // std::cout << "[DEBUG] ExpressionEvaluator::evaluate called with node type: " << typeid(*node).name() << std::endl;
+
         // Dispatch to appropriate evaluation method based on node type
         if (auto intNode = dynamic_cast<IntegerNode*>(node))
         {
@@ -76,6 +79,10 @@ namespace evaluator
         if (auto nullNode = dynamic_cast<NullNode*>(node))
         {
             return evaluateNullNode(nullNode);
+        }
+        if (auto lambdaNode = dynamic_cast<LambdaNode*>(node))
+        {
+            return evaluateLambdaNode(lambdaNode);
         }
         if (auto varNode = dynamic_cast<VariableNode*>(node))
         {
@@ -221,6 +228,7 @@ namespace evaluator
             dynamic_cast<StringNode*>(node) ||
             dynamic_cast<BoolNode*>(node) ||
             dynamic_cast<NullNode*>(node) ||
+            dynamic_cast<LambdaNode*>(node) ||
             dynamic_cast<VariableNode*>(node) ||
             dynamic_cast<BinaryExpNode*>(node) ||
             dynamic_cast<TernaryExpNode*>(node) ||
@@ -1861,8 +1869,11 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
     {
+
         // Create a LambdaValue with the current evaluation context
         // The LambdaValue will capture the current environment for closure support
-        return std::make_shared<value::LambdaValue>(node, context);
+        auto lambdaValue = std::make_shared<value::LambdaValue>(node, context);
+
+        return lambdaValue;
     }
 }
