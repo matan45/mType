@@ -656,7 +656,6 @@ namespace parser
             return false;
 
         } catch (...) {
-            // If peekAhead fails, assume it's not a lambda
             return false;
         }
     }
