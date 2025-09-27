@@ -2,6 +2,7 @@
 #include "ValueType.hpp"
 #include <string>
 #include <optional>
+#include "../exceptions/DomainExceptions.hpp"
 
 namespace value {
     /**
@@ -47,7 +48,7 @@ namespace value {
         // Get the interface name (throws if not an interface)
         const std::string& getInterfaceName() const {
             if (!interfaceName.has_value()) {
-                throw std::runtime_error("Parameter is not an interface type");
+                throw mtype::exceptions::TypeResolutionException("Parameter is not an interface type");
             }
             return interfaceName.value();
         }
@@ -55,7 +56,7 @@ namespace value {
         // Get the class name (throws if not a class)
         const std::string& getClassName() const {
             if (!className.has_value()) {
-                throw std::runtime_error("Parameter is not a class type");
+                throw mtype::exceptions::TypeResolutionException("Parameter is not a class type");
             }
             return className.value();
         }

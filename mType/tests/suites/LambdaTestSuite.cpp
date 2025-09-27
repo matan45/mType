@@ -56,6 +56,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Lambda Interface Memory Management",
                         passPath + "test_lambda_interface_memory_mgmt.mt");
 
+        // Lambda lifecycle edge case tests
+        addOutputVerificationTest("Lambda Lifecycle Basic",
+                        passPath + "lambdaLifecycleBasic.mt");
+        addOutputVerificationTest("Lambda Lifecycle Scope",
+                        passPath + "lambdaLifecycleScope.mt");
+        addOutputVerificationTest("Lambda Lifecycle Stress",
+                        passPath + "lambdaLifecycleStress.mt");
+        addOutputVerificationTest("Lambda Lifecycle Expired",
+                        passPath + "lambdaLifecycleExpired.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Lambda Parameter Type Mismatch",
                         errorPath + "lambdaParameterTypeMismatch.mt",

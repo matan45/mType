@@ -36,6 +36,11 @@ namespace services
         ScriptInterpreter();
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+
+        // Memory management methods
+        void cleanupRegistries();
+        size_t cleanupUnusedInterfaces();
+        std::vector<std::string> findUnusedInterfaces() const;
         
         // Native function registration
         void registerNativeFunction(const std::string& name, NativeFunction function);

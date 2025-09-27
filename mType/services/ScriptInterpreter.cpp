@@ -46,7 +46,11 @@ namespace services
         }
     }
 
-    ScriptInterpreter::~ScriptInterpreter() = default;
+    ScriptInterpreter::~ScriptInterpreter()
+    {
+        // Clean up registries to prevent memory leaks in long-running programs
+        cleanupRegistries();
+    }
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
@@ -69,6 +73,39 @@ namespace services
         environment->setImportManager(importManagerPtr);
 
         evaluator->evaluate(ast.get());
+
+        // Automatic cleanup after script execution to prevent memory growth
+        // Only clean up interfaces that are no longer referenced
+        size_t cleanedUp = cleanupUnusedInterfaces();
+        if (cleanedUp > 0) {
+            // Optional: Log cleanup activity for debugging
+            // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
+        }
+    }
+
+    void ScriptInterpreter::cleanupRegistries()
+    {
+        if (environment) {
+            // Clean up unused interfaces to prevent memory growth
+            environment->cleanupUnusedInterfaces();
+            // Clear interface validation cache to free memory
+            auto interfaceRegistry = environment->getInterfaceRegistry();
+            if (interfaceRegistry) {
+                interfaceRegistry->clearValidationCache();
+            }
+        }
+    }
+
+    size_t ScriptInterpreter::cleanupUnusedInterfaces()
+    {
+        if (!environment) return 0;
+        return environment->cleanupUnusedInterfaces();
+    }
+
+    std::vector<std::string> ScriptInterpreter::findUnusedInterfaces() const
+    {
+        if (!environment) return {};
+        return environment->findUnusedInterfaces();
     }
 
     void ScriptInterpreter::registerNativeFunction(const std::string& name, NativeFunction function)
@@ -158,7 +195,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw std::runtime_error("Class not found: " + className);
+            throw mtype::exceptions::ClassNotFoundException(className);
         }
 
         return invokeStaticMethod(classDef, methodName, args);
@@ -171,13 +208,13 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw std::runtime_error("Class not found: " + className);
+            throw mtype::exceptions::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw std::runtime_error("Static field not found: " + className + "::" + fieldName);
+            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
         }
 
         return field->getValue();
@@ -189,18 +226,18 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw std::runtime_error("Class not found: " + className);
+            throw mtype::exceptions::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw std::runtime_error("Static field not found: " + className + "::" + fieldName);
+            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
         }
 
         if (field->isFinal())
         {
-            throw std::runtime_error("Cannot modify final field: " + className + "::" + fieldName);
+            throw mtype::exceptions::FinalModificationException(fieldName, className);
         }
 
         field->setValue(value);
@@ -212,7 +249,7 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw std::runtime_error("Variable not found: " + variableName);
+            throw mtype::exceptions::FieldNotFoundException(variableName);
         }
 
         return varDef->getValue();
@@ -223,12 +260,12 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw std::runtime_error("Variable not found: " + variableName);
+            throw mtype::exceptions::FieldNotFoundException(variableName);
         }
 
         if (varDef->isFinal())
         {
-            throw std::runtime_error("Cannot modify final variable: " + variableName);
+            throw mtype::exceptions::FinalModificationException(variableName);
         }
 
         varDef->setValue(value);
@@ -240,7 +277,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw std::runtime_error("Class not found: " + className);
+            throw mtype::exceptions::ClassNotFoundException(className);
         }
 
         // Create the object instance
@@ -257,7 +294,7 @@ namespace services
             if (params.size() != constructorArgs.size())
             {
                 environment->exitScope();
-                throw std::runtime_error("Constructor parameter count mismatch");
+                throw mtype::exceptions::ParameterMismatchException("constructor", static_cast<int>(params.size()), static_cast<int>(constructorArgs.size()));
             }
 
             // Bind parameters
@@ -300,7 +337,7 @@ namespace services
         if (params.size() != args.size())
         {
             environment->exitScope();
-            throw std::runtime_error("Function parameter count mismatch for " + funcDef->getName());
+            throw mtype::exceptions::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()), static_cast<int>(args.size()));
         }
 
         for (size_t i = 0; i < params.size(); ++i)
@@ -336,7 +373,7 @@ namespace services
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
-            throw std::runtime_error("Static method not found: " + classDef->getName() + "::" + methodName);
+            throw mtype::exceptions::MethodNotFoundException(methodName, classDef->getName());
         }
 
         // Set up method scope
@@ -348,8 +385,8 @@ namespace services
             auto params = method->getParameters();
             if (params.size() != args.size())
             {
-                throw std::runtime_error(
-                    "Method parameter count mismatch for " + classDef->getName() + "::" + methodName);
+                throw mtype::exceptions::ParameterMismatchException(
+                    classDef->getName() + "::" + methodName, static_cast<int>(params.size()), static_cast<int>(args.size()));
             }
 
             for (size_t i = 0; i < params.size(); ++i)
@@ -441,7 +478,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw std::runtime_error("Value is not an object");
+            throw mtype::exceptions::TypeConversionException("Value is not an object", "unknown", "object");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);

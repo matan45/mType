@@ -9,6 +9,7 @@
 #include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../exceptions/CircularDependencyDetector.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,10 +41,13 @@ namespace environment
         // Import evaluation tracking
         bool importEvaluationActive;
 
-        // Import manager for clean architecture  
+        // Import manager for clean architecture
         services::ImportManager* importManager;
 
-        // Evaluation-level import stack for circular dependency detection
+        // Enhanced circular dependency detection for imports
+        std::shared_ptr<mtype::exceptions::CircularDependencyDetector> importDependencyDetector;
+
+        // Legacy import stack for backward compatibility (can be removed after migration)
         std::stack<std::string> evaluationImportStack;
 
     public:
@@ -71,8 +75,17 @@ namespace environment
         void setImportManager(services::ImportManager* importManager);
         services::ImportManager* getImportManager() const;
 
-        // Evaluation-level circular dependency detection
+        // Enhanced circular dependency detection for imports
         bool wouldCauseCircularImport(const std::string& filePath);
+        bool enterImportDependency(const std::string& filePath, const std::string& location = "");
+        void exitImportDependency(const std::string& filePath);
+        std::vector<std::string> getImportDependencyChain() const;
+
+        // Configuration for import dependency limits
+        void setImportDependencyConfig(const mtype::exceptions::CircularDependencyConfig& config);
+        mtype::exceptions::CircularDependencyConfig getImportDependencyConfig() const;
+
+        // Legacy methods for backward compatibility (deprecated)
         void pushEvaluationImport(const std::string& filePath);
         void popEvaluationImport();
         std::string getCircularImportChain(const std::string& filePath);
@@ -86,6 +99,12 @@ namespace environment
         std::shared_ptr<FunctionDefinition> findFunction(const std::string& name) const;
         std::shared_ptr<VariableDefinition> findVariable(const std::string& name) const;
         std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> findInterface(const std::string& name) const;
+
+        // Interface registry cleanup methods
+        void clearInterfaces();
+        bool removeInterface(const std::string& name);
+        size_t cleanupUnusedInterfaces();
+        std::vector<std::string> findUnusedInterfaces() const;
 
         void enterScope(const std::string& scopeName = "", ScopeType scopeType = ScopeType::BLOCK);
         void exitScope();

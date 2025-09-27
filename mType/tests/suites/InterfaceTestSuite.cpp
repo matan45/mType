@@ -37,6 +37,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Interface As Type",
                         passPath + "interfaceAsType.mt");
 
+        // Advanced interface tests - Edge cases
+        addOutputVerificationTest("Deeply Nested Interface Inheritance",
+                        passPath + "deeplyNestedInheritance.mt");
+
+        addOutputVerificationTest("Multiple Interface Inheritance Chains",
+                        passPath + "multipleInheritanceChains.mt");
+
+        addOutputVerificationTest("Interface with Many Generic Parameters",
+                        passPath + "manyGenericParameters.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Invalid Interface Name Error",
                         errorPath + "invalidInterfaceName.mt",
@@ -97,6 +107,15 @@ namespace tests::testSuite
 
         addTestFromFile("Assignment Type Mismatch Error",
                         errorPath + "assignmentTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // Advanced error tests - Edge cases
+        addTestFromFile("Circular Interface Inheritance Deep Error",
+                        errorPath + "circularInheritanceDeep.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Too Many Generic Parameters Error",
+                        errorPath + "tooManyGenericParameters.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

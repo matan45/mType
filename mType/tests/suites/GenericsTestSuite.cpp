@@ -68,5 +68,25 @@ namespace tests::testSuite
         addTestFromFile("Static Non-Generic with Type Args",
                     errorPath + "staticNonGenericWithTypeArgs.mt",
                     TestType::ERROR_EXPECTED);
+
+        // Primitive type validation error tests
+        addTestFromFile("Primitive String Type Rejected",
+                    errorPath + "primitiveStringType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Primitive Int Type Rejected",
+                    errorPath + "primitiveIntType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Primitive Float Type Rejected",
+                    errorPath + "primitiveFloatType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Primitive Bool Type Rejected",
+                    errorPath + "primitiveBoolType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Primitive Void Type Rejected",
+                    errorPath + "primitiveVoidType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Multiple Primitive Types Rejected",
+                    errorPath + "multiplePrimitiveTypes.mt",
+                    TestType::ERROR_EXPECTED);
     }
 }

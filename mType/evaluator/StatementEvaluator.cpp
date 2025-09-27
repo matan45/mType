@@ -1,4 +1,5 @@
 #include "StatementEvaluator.hpp"
+#include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
 #include <iostream>
@@ -1214,31 +1215,9 @@ namespace evaluator
         {
             returnValue = exprEvaluator->evaluate(node->getReturnValue());
 
-            // Check for lambda-to-interface conversion on return
-            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(returnValue))
-            {
-                // Try to convert lambda to common functional interfaces
-                auto env = context->getEnvironment();
-
-                // List of common functional interfaces to try
-                std::vector<std::string> commonInterfaces = {"Processor", "Action", "Function", "Validator"};
-
-                for (const std::string& interfaceName : commonInterfaces)
-                {
-                    auto interfaceDef = env->findInterface(interfaceName);
-                    if (interfaceDef && interfaceDef->isFunctionalInterface())
-                    {
-                        // Try to convert the lambda to this interface
-                        Value converted = convertLambdaToInterface(returnValue, interfaceName);
-                        if (!std::holds_alternative<std::shared_ptr<value::LambdaValue>>(converted))
-                        {
-                            // Conversion succeeded - use the converted value
-                            returnValue = converted;
-                            break;
-                        }
-                    }
-                }
-            }
+            // Note: Lambda-to-interface conversion for function returns should be handled
+            // at the call site where we know the expected return type, not here.
+            // For now, we leave lambda returns as-is and let the caller handle conversion.
         }
 
         context->pushReturnValue(returnValue);
@@ -1492,13 +1471,32 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
+        // Create function definition with interface support
+        auto genericRetType = node->getGenericReturnType();
+        std::string returnClassName = "";
 
-        // Create function definition
+        if (genericRetType && node->getReturnType() == ValueType::OBJECT) {
+            // For object types, try to get the specific class/interface name
+            std::string typeName = genericRetType->getBaseTypeName();
+            if (typeName != "object") {
+                returnClassName = typeName;
+            } else if (genericRetType->isGenericParameter()) {
+                // It's a generic parameter, get its name
+                returnClassName = genericRetType->getGenericName();
+            }
+        }
+
+        // Use backward compatibility constructor, then set return class name
         auto funcDef = std::make_shared<FunctionDefinition>(
             node->getName(),
             node->getReturnType(),
             node->getParameters()
         );
+
+        // Set the return class name if we found one
+        if (!returnClassName.empty()) {
+            funcDef->setReturnClassName(returnClassName);
+        }
 
         // Set the function body
         funcDef->setBody(node->getBody());
@@ -1800,7 +1798,7 @@ namespace evaluator
         auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
 
         // Store the lambda in a special field that the implementation can access
-        instance->setField("__lambda", lambdaValue);
+        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, lambdaValue);
 
         return instance;
     }

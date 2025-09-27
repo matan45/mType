@@ -1,0 +1,30 @@
+Testing lambda lifecycle error scenarios...
+=== Testing callback expiration scenarios ===
+Test 1: Immediate callback
+Stored callback for later execution with value: 10
+Delayed execution result: 60
+Test 2: Temporary callback from function
+Stored callback for later execution with value: 20
+Temporary callback executing with: 20
+Delayed execution result: 2000
+Test 3: Callback from nested scope
+Stored callback for later execution with value: 30
+Nested callback with: 30
+Delayed execution result: 15
+Test 4: Rapid callback replacement
+Stored callback for later execution with value: 0
+Stored callback for later execution with value: 10
+Stored callback for later execution with value: 20
+Stored callback for later execution with value: 30
+Stored callback for later execution with value: 40
+Delayed execution result: 200
+=== Testing potential circular references ===
+Lambda1 processing: 3
+Lambda2 processing: 2
+Lambda1 processing: 1
+Lambda2 processing: 0
+Circular reference test result: 0
+=== Testing massive callback cleanup ===
+Massive array results: 50, 250, 450
+Lambda lifecycle error test completed!
+Note: Some errors might be expected in this test as it explores edge cases

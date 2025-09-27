@@ -1,0 +1,15 @@
+Testing interface with 12 generic parameters...
+Processing DataA: DataA(A)
+Processing DataB: DataB(B)
+Processing DataC: DataC(C)
+Processing DataD: DataD(D)
+Processing DataE: DataE(E)
+Processing DataF: DataF(F)
+Processing DataG: DataG(G)
+Processing DataH: DataH(H)
+Processing DataI: DataI(I)
+Processing DataJ: DataJ(J)
+Processing DataK: DataK(K)
+Processing DataL: DataL(L)
+Combined: DataA(A), DataB(B), DataC(C), DataD(D), DataE(E), DataF(F), DataG(G), DataH(H), DataI(I), DataJ(J), DataK(K), DataL(L)
+12-parameter interface test completed successfully!

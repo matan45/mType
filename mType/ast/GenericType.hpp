@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
+#include "../exceptions/CircularDependencyDetector.hpp"
 #include <string>
 #include <vector>
 #include <variant>
@@ -180,29 +181,43 @@ namespace ast
 
     private:
         /**
-         * @brief Context for tracking substitution chains and detecting mutual recursion
+         * @brief Enhanced context for tracking substitution chains with robust circular dependency detection
          */
         struct SubstitutionContext {
-            std::vector<std::string> substitutionChain;  // Current chain of substitutions: T->K->V->...
-            std::unordered_set<std::string> activeParameters;  // Currently active parameters in chain
-            std::unordered_map<std::string, int> parameterDepth;  // Depth tracking per parameter
-            int currentDepth;
-            int maxDepth;
+            std::shared_ptr<mtype::exceptions::CircularDependencyDetector> detector;
+            std::string currentLocation;  // For error reporting
 
-            SubstitutionContext(int maxDepth) : currentDepth(0), maxDepth(maxDepth) {}
+            SubstitutionContext()
+                : detector(std::make_shared<mtype::exceptions::CircularDependencyDetector>()) {}
+
+            explicit SubstitutionContext(const mtype::exceptions::CircularDependencyConfig& config)
+                : detector(std::make_shared<mtype::exceptions::CircularDependencyDetector>(config)) {}
 
             /**
-             * @brief Enter a new substitution step
+             * @brief Enter a new substitution step with enhanced detection
              * @param paramName Parameter being substituted
-             * @return true if safe to proceed, false if cycle detected
+             * @param location Optional source location for error reporting
+             * @return true if safe to proceed, throws exception if circular dependency detected
              */
-            bool enterSubstitution(const std::string& paramName);
+            bool enterSubstitution(const std::string& paramName, const std::string& location = "");
 
             /**
              * @brief Exit current substitution step
              * @param paramName Parameter being exited
              */
             void exitSubstitution(const std::string& paramName);
+
+            /**
+             * @brief Get current substitution chain
+             * @return Current dependency chain
+             */
+            std::vector<std::string> getCurrentChain() const;
+
+            /**
+             * @brief Get current substitution depth
+             * @return Current depth
+             */
+            int getCurrentDepth() const;
 
             /**
              * @brief Get current substitution path for error reporting

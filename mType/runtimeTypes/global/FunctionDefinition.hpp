@@ -15,21 +15,29 @@ namespace runtimeTypes::global
     {
     private:
         ValueType returnType;
+        std::string returnClassName;  // For object return types, stores the class/interface name
         std::vector<std::pair<std::string, ParameterType>> parameters;
         std::shared_ptr<ASTNode> body;
         
     public:
-        explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), body(nullptr) {}
-        
+        explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), returnClassName(""), body(nullptr) {}
+
         explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ParameterType>>& params)
-            : Definition(name), returnType(retType), parameters(params), body(nullptr) {}
+            : Definition(name), returnType(retType), returnClassName(""), parameters(params), body(nullptr) {}
+
+        // Constructor with return class name support
+        explicit FunctionDefinition(const std::string& name, ValueType retType, const std::string& retClassName, const std::vector<std::pair<std::string, ParameterType>>& params)
+            : Definition(name), returnType(retType), returnClassName(retClassName), parameters(params), body(nullptr) {}
 
         // Backward compatibility constructor for old ValueType parameters
         explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
-            : Definition(name), returnType(retType), parameters(ParameterType::fromValueTypeVector(params)), body(nullptr) {}
+            : Definition(name), returnType(retType), returnClassName(""), parameters(ParameterType::fromValueTypeVector(params)), body(nullptr) {}
 
         ValueType getReturnType() const { return returnType; }
         void setReturnType(ValueType type) { returnType = type; }
+
+        const std::string& getReturnClassName() const { return returnClassName; }
+        void setReturnClassName(const std::string& className) { returnClassName = className; }
         
         const std::vector<std::pair<std::string, ParameterType>>& getParameters() const { return parameters; }
         void setParameters(const std::vector<std::pair<std::string, ParameterType>>& params) { parameters = params; }

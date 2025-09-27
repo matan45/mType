@@ -19,6 +19,9 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="constants">
+      <UniqueIdentifier>{6215F996-CE7F-AD0D-17BE-5EB383678B62}</UniqueIdentifier>
+    </Filter>
     <Filter Include="environment">
       <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
     </Filter>
@@ -345,6 +348,9 @@
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="constants\LambdaConstants.hpp">
+      <Filter>constants</Filter>
+    </ClInclude>
     <ClInclude Include="environment\Environment.hpp">
       <Filter>environment</Filter>
     </ClInclude>
@@ -449,6 +455,12 @@
     </ClInclude>
     <ClInclude Include="exception\ReturnException.hpp">
       <Filter>exception</Filter>
+    </ClInclude>
+    <ClInclude Include="exceptions\CircularDependencyDetection.hpp">
+      <Filter>exceptions</Filter>
+    </ClInclude>
+    <ClInclude Include="exceptions\CircularDependencyDetector.hpp">
+      <Filter>exceptions</Filter>
     </ClInclude>
     <ClInclude Include="exceptions\DomainExceptions.hpp">
       <Filter>exceptions</Filter>
@@ -823,6 +835,12 @@
     </ClCompile>
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="exceptions\CircularDependencyDetection.cpp">
+      <Filter>exceptions</Filter>
+    </ClCompile>
+    <ClCompile Include="exceptions\CircularDependencyDetector.cpp">
+      <Filter>exceptions</Filter>
     </ClCompile>
     <ClCompile Include="lexer\BracketBalancer.cpp">
       <Filter>lexer</Filter>
@@ -1654,10 +1672,28 @@
     <None Include="tests\testFiles\generics\error\invalidTypeArgumentCount.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\multiplePrimitiveTypes.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveBoolType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveFloatType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveIntType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveStringType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveVoidType.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\staticGenericWrongTypeArgCount.mt">
@@ -2068,6 +2104,9 @@
     <None Include="tests\testFiles\interface\error\assignmentTypeMismatch.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
+    <None Include="tests\testFiles\interface\error\circularInheritanceDeep.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
     <None Include="tests\testFiles\interface\error\incompleteInterfaceImplementation.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
@@ -2098,6 +2137,9 @@
     <None Include="tests\testFiles\interface\error\staticReturnMismatch.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
+    <None Include="tests\testFiles\interface\error\tooManyGenericParameters.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
     <None Include="tests\testFiles\interface\error\undefinedInterface.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
@@ -2120,6 +2162,12 @@
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\classImplementsInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\genericClassImplementsGenericInterface.expected">
@@ -2156,6 +2204,18 @@
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\interfaceInheritance.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\manyGenericParameters.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\manyGenericParameters.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\multipleInheritanceChains.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\multipleInheritanceChains.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.expected">
@@ -2261,6 +2321,30 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\interfaceAsParameter.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleBasic.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleBasic.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleExpired.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleExpired.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleScope.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleScope.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleStress.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaLifecycleStress.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\multiParameterLambda.expected">

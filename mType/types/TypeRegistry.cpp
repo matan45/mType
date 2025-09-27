@@ -313,6 +313,10 @@ namespace types {
         return {baseName, typeArgs};
     }
 
+    bool TypeRegistry::isPrimitiveType(const std::string& typeName) const {
+        return primitiveTypes.find(typeName) != primitiveTypes.end();
+    }
+
     bool TypeRegistry::validateTypeArguments(const std::string& genericType, const std::vector<std::string>& typeArgs) const {
         auto paramIt = genericTypeParameters.find(genericType);
         if (paramIt == genericTypeParameters.end()) {
@@ -329,8 +333,14 @@ namespace types {
             if (typeArg.empty()) {
                 return false;
             }
-            // Type arguments can be primitives, generics, or other valid types
-            // For now, accept any non-empty string
+
+            // Reject primitive types as generic type arguments
+            if (isPrimitiveType(typeArg)) {
+                return false;
+            }
+
+            // Type arguments must be object types (classes, interfaces, or other generic types)
+            // For now, accept any non-empty, non-primitive string
         }
 
         return true;

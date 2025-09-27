@@ -1,4 +1,5 @@
 #include "ObjectEvaluator.hpp"
+#include "../constants/LambdaConstants.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../value/ParameterType.hpp"
 #include "utils/ParameterBinder.hpp"
@@ -136,6 +137,17 @@ namespace evaluator
 
         // Create class definition with generic parameters if present
         const auto& genericParams = node->getGenericParameters();
+
+        // Validate generic parameter count limit
+        if (genericParams.size() > MAX_GENERIC_PARAMETERS) {
+            throw mtype::exceptions::TypeException(
+                "Class '" + node->getClassName() + "' has too many generic parameters (" +
+                std::to_string(genericParams.size()) + "). Maximum allowed: " +
+                std::to_string(MAX_GENERIC_PARAMETERS),
+                node->getLocation().toString()
+            );
+        }
+
         auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
         // Set implemented interfaces
@@ -305,6 +317,16 @@ namespace evaluator
         const auto& genericParams = node->getGenericParameters();
         const auto& extendsInterfaces = node->getExtendedInterfaces();
 
+        // Validate generic parameter count limit
+        if (genericParams.size() > MAX_GENERIC_PARAMETERS) {
+            throw mtype::exceptions::TypeException(
+                "Interface '" + node->getName() + "' has too many generic parameters (" +
+                std::to_string(genericParams.size()) + "). Maximum allowed: " +
+                std::to_string(MAX_GENERIC_PARAMETERS),
+                node->getLocation().toString()
+            );
+        }
+
         auto interfaceDef = std::make_shared<runtimeTypes::klass::InterfaceDefinition>(
             node->getName(), genericParams, extendsInterfaces);
 
@@ -333,14 +355,19 @@ namespace evaluator
             interfaceDef->addMethodSignature(signature);
         }
 
+        // Register interface first (needed for hierarchy validation)
+        env->registerInterface(node->getName(), interfaceDef);
+
         // Validate interface hierarchy (prevent circular inheritance)
         if (!env->getInterfaceRegistry()->validateInterfaceHierarchy(node->getName())) {
-            throw std::runtime_error("Circular interface inheritance detected for interface '" +
-                                   node->getName() + "'");
+            // Unregister the interface since validation failed
+            env->getInterfaceRegistry()->removeInterface(node->getName());
+            throw mtype::exceptions::CircularDependencyException(
+                "Circular interface inheritance detected for interface '" + node->getName() + "'",
+                {node->getName()}, // dependency chain
+                node->getLocation().toString()
+            );
         }
-
-        // Register interface
-        env->registerInterface(node->getName(), interfaceDef);
 
         return std::monostate{};
     }
@@ -427,20 +454,23 @@ namespace evaluator
 
             if (!genericClass->isGeneric())
             {
-                throw TypeException("Class '" + baseName + "' is not generic but used with type arguments");
+                throw TypeException("Class '" + baseName + "' is not generic but used with type arguments",
+                                   node->getLocation());
             }
 
             // Validate type arguments
             if (!utils::GenericTypeManager::validateTypeArguments(genericClass, typeArguments))
             {
-                throw TypeException("Invalid type arguments for generic class '" + baseName + "'");
+                throw TypeException("Invalid type arguments for generic class '" + baseName + "'",
+                                   node->getLocation());
             }
 
             // Create instantiated class
             classDef = utils::GenericTypeManager::instantiateGenericClass(genericClass, typeArguments);
             if (!classDef)
             {
-                throw TypeException("Failed to instantiate generic class '" + className + "'");
+                throw TypeException("Failed to instantiate generic class '" + className + "'",
+                                   node->getLocation());
             }
 
             // Register the instantiated class for future use
@@ -846,6 +876,25 @@ namespace evaluator
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
 
+        // Check for lambda-to-interface conversion for array assignments
+        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(newValue)) {
+            // Try to determine the array element type to convert lambda accordingly
+            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue)) {
+                auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
+
+                // Check if the array has element type information
+                if (nativeArray->getElementType() == ValueType::OBJECT && !nativeArray->getElementTypeName().empty()) {
+                    // Try to convert lambda to the array's element interface type
+                    if (stmtEvaluator) {
+                        try {
+                            newValue = stmtEvaluator->convertLambdaToInterface(newValue, nativeArray->getElementTypeName());
+                        } catch (...) {
+                            // If conversion fails, keep original lambda value
+                        }
+                    }
+                }
+            }
+        }
 
         // Check if index is an integer
         if (!std::holds_alternative<int>(indexValue))
@@ -1063,8 +1112,8 @@ namespace evaluator
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
 
-            // Check if this is a lambda-backed interface (has __lambda field)
-            auto lambdaField = instance->getField("__lambda");
+            // Check if this is a lambda-backed interface (has lambda field)
+            auto lambdaField = instance->getField(constants::lambda::LAMBDA_FIELD_NAME);
             if (lambdaField)
             {
                 Value lambdaValue = lambdaField->getValue();
@@ -1093,8 +1142,8 @@ namespace evaluator
                                       const std::vector<Value>& args,
                                       const errors::SourceLocation& location)
     {
-        // Check if this is a lambda-backed interface (has __lambda field)
-        Value lambdaValue = object->getFieldValue("__lambda");
+        // Check if this is a lambda-backed interface (has lambda field)
+        Value lambdaValue = object->getFieldValue(constants::lambda::LAMBDA_FIELD_NAME);
         if (!std::holds_alternative<std::monostate>(lambdaValue))
         {
             if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
@@ -1123,6 +1172,38 @@ namespace evaluator
                 classDef->getName() + "'");
         }
 
+        // Convert lambda arguments to interface implementations if needed
+        std::vector<Value> convertedArgs = args;
+        if (stmtEvaluator) {
+            const auto& parameters = method->getParameters();
+            for (size_t i = 0; i < convertedArgs.size() && i < parameters.size(); i++) {
+                // Check if argument is a lambda and parameter expects an interface
+                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(convertedArgs[i])) {
+                    const auto& param = parameters[i];
+                    const auto& paramType = param.second; // ParameterType
+                    if (paramType.basicType == ValueType::OBJECT) {
+                        // Try to convert lambda to interface implementation
+                        std::string targetName;
+                        if (paramType.interfaceName.has_value()) {
+                            targetName = paramType.interfaceName.value();
+                        } else if (paramType.className.has_value()) {
+                            targetName = paramType.className.value();
+                        }
+
+                        if (!targetName.empty()) {
+                            try {
+                                convertedArgs[i] = stmtEvaluator->convertLambdaToInterface(
+                                    convertedArgs[i], targetName);
+                            } catch (...) {
+                                // If conversion fails, keep original lambda value
+                                // The error will be caught during parameter validation
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Check if this method has a lambda implementation (lambda-to-interface scenario)
         if (method->hasLambdaNode())
         {
@@ -1138,7 +1219,7 @@ namespace evaluator
 
                 // Invoke the lambda with proper parameter mapping
                 try {
-                    Value result = lambdaValue->invoke(args, context);
+                    Value result = lambdaValue->invoke(convertedArgs, context);
                     return result;
                 } catch (const std::exception& e) {
                     throw TypeException("Lambda invocation failed: " + std::string(e.what()));
@@ -1199,7 +1280,7 @@ namespace evaluator
                     // Use the new generic-aware parameter binding
                     utils::ParameterBinder::bindAndValidateParameters(
                         method,
-                        args,
+                        convertedArgs,
                         "method '" + methodName + "'",
                         env,
                         location
@@ -1210,7 +1291,7 @@ namespace evaluator
                     // Use legacy parameter binding for non-generic methods
                     utils::ParameterBinder::bindAndValidateParameters(
                         method->getParameters(),
-                        args,
+                        convertedArgs,
                         "method '" + methodName + "'",
                         env,
                         location

@@ -30,6 +30,10 @@ namespace evaluator
      */
     class ObjectEvaluator
     {
+    public:
+        // Configuration constants
+        static constexpr size_t MAX_GENERIC_PARAMETERS = 20;
+
     private:
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;

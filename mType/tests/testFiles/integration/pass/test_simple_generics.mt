@@ -4,6 +4,7 @@ import "../../lib/primitives/Int.mt";
 import "../../lib/primitives/Bool.mt";
 import "../../lib/primitives/Float.mt";
 import "../../lib/primitives/String.mt";
+import "../../lib/collections/List.mt";
 
 class GenericBox<T> {
     T value;
@@ -119,24 +120,24 @@ function testArraysWithGenerics():void {
     print("=== Testing Arrays with Generics ===");
 
     // Test array of generic boxes
-    GenericBox<Int>[] boxes = new GenericBox<Int>[3];
-    boxes[0] = new GenericBox<Int>(new Int(10));
-    boxes[1] = new GenericBox<int>(new Int(20));
-    boxes[2] = new GenericBox<int>(new Int(30));
+    List<GenericBox<Int>> boxes = new List<GenericBox<Int>>();
+    boxes.add(new GenericBox<Int>(new Int(10)));
+    boxes.add(new GenericBox<Int>(new Int(20)));
+    boxes.add(new GenericBox<Int>(new Int(30)));
 
     print("Array of generic boxes:");
-    for (int i = 0; i < boxes.length; i++) {
-        print("  [" + i + "] = " + boxes[i].toString());
+    for (int i = 0; i < boxes.size(); i++) {
+        print("  [" + i + "] = " + boxes.get(i).toString());
     }
 
     // Test array of pairs
-    Pair<String, Int>[] pairs = new Pair<String, Int>[2];
-    pairs[0] = new Pair<string, int>(new String("First"), new Int(1));
-    pairs[1] = new Pair<string, int>(new String("Second"), new Int(2));
+    List<Pair<String, Int>> pairs = new List<Pair<String, Int>>();
+    pairs.add(new Pair<String, Int>(new String("First"), new Int(1)));
+    pairs.add(new Pair<String, Int>(new String("Second"), new Int(2)));
 
     print("Array of pairs:");
-    for (int i = 0; i < pairs.length; i++) {
-        print("  [" + i + "] = " + pairs[i].toString());
+    for (int i = 0; i < pairs.size(); i++) {
+        print("  [" + i + "] = " + pairs.get(i).toString());
     }
 }
 

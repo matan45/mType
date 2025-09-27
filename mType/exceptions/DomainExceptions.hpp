@@ -461,7 +461,7 @@ namespace mtype::exceptions {
      * Thrown when circular dependency is detected
      */
     class CircularDependencyException : public MTypeException {
-    private:
+    protected:
         std::vector<std::string> dependencyChain_;
 
     public:

@@ -88,67 +88,61 @@ namespace ast
     std::shared_ptr<GenericType> GenericType::substitute(
         const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions) const
     {
-        // Start with fresh substitution context
-        const int MAX_SUBSTITUTION_DEPTH = 50; // Prevent extremely deep recursion
-        SubstitutionContext context(MAX_SUBSTITUTION_DEPTH);
+        // Start with enhanced substitution context
+        mtype::exceptions::CircularDependencyConfig config;
+        config.maxGenericDepth = 50;  // Configurable depth limit
+        config.enableEarlyDetection = true;  // Enable pattern detection
+        config.enablePerformanceMetrics = true;  // Track performance
+
+        SubstitutionContext context(config);
+        context.currentLocation = "generic type substitution";
 
         return substituteInternal(substitutions, context);
     }
 
-    bool GenericType::SubstitutionContext::enterSubstitution(const std::string& paramName)
+    bool GenericType::SubstitutionContext::enterSubstitution(const std::string& paramName, const std::string& location)
     {
-        // Check depth limit
-        if (currentDepth >= maxDepth) {
-            std::vector<std::string> chain;
-            for (const auto& param : substitutionChain) {
-                chain.push_back(param);
-            }
-            throw mtype::exceptions::CircularDependencyException(
-                "Maximum type substitution depth exceeded", chain, __FUNCTION__);
+        // Use enhanced circular dependency detection
+        std::string fullLocation = currentLocation;
+        if (!location.empty()) {
+            fullLocation += " at " + location;
         }
 
-        // Check for cycle - if parameter is already active in current chain
-        if (activeParameters.find(paramName) != activeParameters.end()) {
-            std::vector<std::string> chain;
-            for (const auto& param : substitutionChain) {
-                chain.push_back(param);
-            }
-            chain.push_back(paramName);
-            throw mtype::exceptions::CircularDependencyException(
-                "Circular generic type dependency detected", chain, __FUNCTION__);
-        }
-
-        // Track this substitution step
-        substitutionChain.push_back(paramName);
-        activeParameters.insert(paramName);
-        parameterDepth[paramName] = currentDepth;
-        currentDepth++;
-
-        return true;
+        return detector->enterDependency(
+            mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION,
+            paramName,
+            fullLocation
+        );
     }
 
     void GenericType::SubstitutionContext::exitSubstitution(const std::string& paramName)
     {
-        // Remove from active set
-        activeParameters.erase(paramName);
+        detector->exitDependency(
+            mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION,
+            paramName
+        );
+    }
 
-        // Remove from chain (should be at the end)
-        if (!substitutionChain.empty() && substitutionChain.back() == paramName) {
-            substitutionChain.pop_back();
-        }
+    std::vector<std::string> GenericType::SubstitutionContext::getCurrentChain() const
+    {
+        return detector->getDependencyChain(mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION);
+    }
 
-        currentDepth--;
+    int GenericType::SubstitutionContext::getCurrentDepth() const
+    {
+        return detector->getCurrentDepth(mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION);
     }
 
     std::string GenericType::SubstitutionContext::getChainString() const
     {
-        if (substitutionChain.empty()) {
+        auto chain = getCurrentChain();
+        if (chain.empty()) {
             return "(empty)";
         }
 
-        std::string result = substitutionChain[0];
-        for (size_t i = 1; i < substitutionChain.size(); ++i) {
-            result += " -> " + substitutionChain[i];
+        std::string result = chain[0];
+        for (size_t i = 1; i < chain.size(); ++i) {
+            result += " -> " + chain[i];
         }
         return result;
     }

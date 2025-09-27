@@ -163,6 +163,11 @@ namespace types {
          */
         void clear();
 
+        /**
+         * Check if a type is a primitive type
+         */
+        bool isPrimitiveType(const std::string& typeName) const;
+
     private:
         /**
          * Initialize built-in primitive types

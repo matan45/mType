@@ -183,7 +183,19 @@ namespace evaluator::utils
         if (!genericClass) return false;
 
         // Check that the number of type arguments matches the number of generic parameters
-        return typeArguments.size() == genericClass->getGenericParameterCount();
+        if (typeArguments.size() != genericClass->getGenericParameterCount()) {
+            return false;
+        }
+
+        // Check that none of the type arguments are primitive types
+        auto& registry = types::getGlobalTypeRegistry();
+        for (const auto& typeArg : typeArguments) {
+            if (typeArg.empty() || registry.isPrimitiveType(typeArg)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     bool GenericTypeManager::isGenericInstantiation(const std::string& typeName)

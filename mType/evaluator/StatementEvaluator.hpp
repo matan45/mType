@@ -104,7 +104,8 @@ namespace evaluator
                                              const SourceLocation& location,
                                              const std::string& expectedClassName);
 
-        // Lambda-to-interface conversion
+    public:
+        // Lambda-to-interface conversion (moved to public for ObjectEvaluator access)
         Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName);
     };
 }

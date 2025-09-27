@@ -2,6 +2,7 @@
 #include "ValueType.hpp"
 #include <vector>
 #include <memory>
+#include <string>
 
 namespace value
 {
@@ -13,9 +14,14 @@ namespace value
     {
     private:
         std::vector<Value> data;
+        ValueType elementType;
+        std::string elementTypeName;  // For object types, stores class/interface name
 
     public:
-        explicit NativeArray(size_t size) : data(size) {}
+        explicit NativeArray(size_t size) : data(size), elementType(ValueType::VOID), elementTypeName("") {}
+
+        explicit NativeArray(size_t size, ValueType elemType, const std::string& elemTypeName = "")
+            : data(size), elementType(elemType), elementTypeName(elemTypeName) {}
 
         // Index access
         Value& operator[](size_t index) { return data[index]; }
@@ -36,5 +42,13 @@ namespace value
         }
 
         size_t size() const { return data.size(); }
+
+        // Element type information
+        ValueType getElementType() const { return elementType; }
+        const std::string& getElementTypeName() const { return elementTypeName; }
+        void setElementType(ValueType elemType, const std::string& elemTypeName = "") {
+            elementType = elemType;
+            elementTypeName = elemTypeName;
+        }
     };
 }
