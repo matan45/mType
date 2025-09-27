@@ -1213,8 +1213,33 @@ namespace evaluator
         if (node->getReturnValue() && exprEvaluator)
         {
             returnValue = exprEvaluator->evaluate(node->getReturnValue());
-        }
 
+            // Check for lambda-to-interface conversion on return
+            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(returnValue))
+            {
+                // Try to convert lambda to common functional interfaces
+                auto env = context->getEnvironment();
+
+                // List of common functional interfaces to try
+                std::vector<std::string> commonInterfaces = {"Processor", "Action", "Function", "Validator"};
+
+                for (const std::string& interfaceName : commonInterfaces)
+                {
+                    auto interfaceDef = env->findInterface(interfaceName);
+                    if (interfaceDef && interfaceDef->isFunctionalInterface())
+                    {
+                        // Try to convert the lambda to this interface
+                        Value converted = convertLambdaToInterface(returnValue, interfaceName);
+                        if (!std::holds_alternative<std::shared_ptr<value::LambdaValue>>(converted))
+                        {
+                            // Conversion succeeded - use the converted value
+                            returnValue = converted;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         context->pushReturnValue(returnValue);
         context->setReturned(true);

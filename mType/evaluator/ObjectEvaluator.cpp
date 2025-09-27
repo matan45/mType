@@ -1123,6 +1123,29 @@ namespace evaluator
                 classDef->getName() + "'");
         }
 
+        // Check if this method has a lambda implementation (lambda-to-interface scenario)
+        if (method->hasLambdaNode())
+        {
+            auto lambdaNode = method->getLambdaNode();
+            if (lambdaNode && method->isLambdaNodeValid())
+            {
+                // Create LambdaValue with current evaluation context
+                // Convert shared_ptr to raw pointer for LambdaValue constructor
+                auto lambdaValue = std::make_shared<value::LambdaValue>(lambdaNode.get(), context);
+
+                // Set interface implementation info
+                lambdaValue->setInterfaceImplementation(classDef->getName(), methodName);
+
+                // Invoke the lambda with proper parameter mapping
+                try {
+                    Value result = lambdaValue->invoke(args, context);
+                    return result;
+                } catch (const std::exception& e) {
+                    throw TypeException("Lambda invocation failed: " + std::string(e.what()));
+                }
+            }
+        }
+
         // Check if trying to call static method on instance
         if (method->isStatic())
         {

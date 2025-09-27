@@ -1,4 +1,5 @@
 ﻿#include "ScriptInterpreter.hpp"
+#include "../exceptions/DomainExceptions.hpp"
 #include <iostream>
 #include <filesystem>
 #include <stdexcept>
@@ -134,7 +135,7 @@ namespace services
             }
         }
 
-        throw std::runtime_error("Function not found: " + functionName);
+        throw mtype::exceptions::MethodNotFoundException(functionName, "", __FUNCTION__);
     }
 
     // Method calling on objects
@@ -143,7 +144,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw std::runtime_error("Cannot call method on non-object value");
+            throw mtype::exceptions::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);

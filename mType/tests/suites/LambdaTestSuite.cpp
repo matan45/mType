@@ -37,6 +37,8 @@ namespace tests::testSuite
                         passPath + "nestedClosure.mt");
         addOutputVerificationTest("Closure Block Lambda",
                         passPath + "closureBlockLambda.mt");
+        addOutputVerificationTest("Closure Capture Edge Cases",
+                        passPath + "closureCaptureEdgeCases.mt");
 
         // Class integration tests
         addOutputVerificationTest("Lambda Instance Field Access",
@@ -49,6 +51,10 @@ namespace tests::testSuite
                         passPath + "classMethodParameters.mt");
         addOutputVerificationTest("Lambda Complex Class Integration",
                         passPath + "classComplexIntegration.mt");
+
+        // Memory management and advanced tests
+        addOutputVerificationTest("Lambda Interface Memory Management",
+                        passPath + "test_lambda_interface_memory_mgmt.mt");
 
         // Error tests (expected to fail)
         addTestFromFile("Lambda Parameter Type Mismatch",
@@ -68,6 +74,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Syntax Error",
                         errorPath + "lambdaSyntaxError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Reassignment Not Allowed",
+                        errorPath + "lambdaReassignmentNotAllowed.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

@@ -46,6 +46,9 @@
     <Filter Include="exception">
       <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="exceptions">
+      <UniqueIdentifier>{67C00D32-5378-4F7F-BC7F-28DBA856EA6F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -187,6 +190,9 @@
     <Filter Include="token">
       <UniqueIdentifier>{46CD7010-B2E1-98C1-7B63-3C21E73695F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="types">
+      <UniqueIdentifier>{5A5E7610-C672-9EC1-8FF4-4121FBC79AF2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
@@ -253,6 +259,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\LambdaInterfaceInvocationNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\LambdaNode.hpp">
@@ -441,6 +450,9 @@
     <ClInclude Include="exception\ReturnException.hpp">
       <Filter>exception</Filter>
     </ClInclude>
+    <ClInclude Include="exceptions\DomainExceptions.hpp">
+      <Filter>exceptions</Filter>
+    </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
     </ClInclude>
@@ -582,6 +594,12 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="types\TypeConversionUtils.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeRegistry.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
     <ClInclude Include="value\ArrayPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -592,6 +610,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\NativeArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ParameterType.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\SparseMultiArray.hpp">
@@ -657,6 +678,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\LambdaInterfaceInvocationNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\LambdaNode.cpp">
@@ -931,6 +955,12 @@
     </ClCompile>
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConversionUtils.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeRegistry.cpp">
+      <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="value\LambdaValue.cpp">
       <Filter>value</Filter>
@@ -1990,6 +2020,18 @@
     <None Include="tests\testFiles\integration\pass\switchNestedInLoops.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\test_array_types.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_array_types.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_error_handling.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_error_handling.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\test_import_main.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -1997,6 +2039,18 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\test_library.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_simple_generics.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_simple_generics.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_type_conversion_basic.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test_type_conversion_basic.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\test_type_substitution_edge_cases.expected">
@@ -2011,6 +2065,9 @@
     <None Include="tests\testFiles\integration\pass\typeSystemEdgeCases.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interface\error\assignmentTypeMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
     <None Include="tests\testFiles\interface\error\incompleteInterfaceImplementation.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
@@ -2021,6 +2078,24 @@
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\missingMultipleMethods.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\multipleParameterMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\parameterTypeMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\returnTypeMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\staticMethodParameterMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\staticParameterMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\staticReturnMismatch.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\undefinedInterface.mt">
@@ -2095,6 +2170,9 @@
     <None Include="tests\testFiles\lambda\error\lambdaParameterTypeMismatch.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\error\lambdaReassignmentNotAllowed.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\lambdaReturnTypeMismatch.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -2161,6 +2239,12 @@
     <None Include="tests\testFiles\lambda\pass\closureCapture.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\pass\closureCaptureEdgeCases.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\closureCaptureEdgeCases.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\pass\complexBlockLambda.expected">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
@@ -2171,6 +2255,12 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\consumerInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\interfaceAsParameter.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\interfaceAsParameter.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\multiParameterLambda.expected">
@@ -2201,6 +2291,12 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\supplierInterface.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\test_lambda_interface_memory_mgmt.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\test_lambda_interface_memory_mgmt.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">

@@ -2,6 +2,7 @@
 #include "ClassDefinition.hpp"
 #include "MethodDefinition.hpp"
 #include "../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../../value/LambdaValue.hpp"
 
 namespace runtimeTypes::klass
@@ -47,19 +48,62 @@ namespace runtimeTypes::klass
 
         // Create method definition that wraps the lambda
         value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
-        auto methodDef = std::make_shared<MethodDefinition>(
+
+        // Create the specialized lambda interface invocation node
+        std::vector<value::ValueType> paramTypes;
+        for (const auto& [paramName, paramType] : methodParams) {
+            paramTypes.push_back(paramType);
+        }
+
+        // Convert raw lambda pointer to shared_ptr for memory safety
+        // NOTE: This assumes the lambda is managed elsewhere and we're creating a shared ownership
+        auto lambdaSharedPtr = std::shared_ptr<ast::nodes::expressions::LambdaNode>(lambda, [](ast::nodes::expressions::LambdaNode*){
+            // Custom deleter that does nothing - lambda lifetime is managed by AST
+            // This prevents double deletion while allowing shared_ptr semantics
+        });
+
+        auto lambdaInvocationNode = std::make_shared<ast::nodes::expressions::LambdaInterfaceInvocationNode>(
+            lambdaSharedPtr,
+            std::vector<std::shared_ptr<ast::ASTNode>>(), // Arguments will be provided at runtime
+            getName(),
             samMethod->name,
-            returnType, // Use the interface method's return type
-            methodParams,
-            methodArgs,
-            nullptr, // We'll set a custom body that invokes the lambda
-            false    // Not static
+            paramTypes,
+            returnType
         );
 
-        // Store reference to the lambda for later invocation
-        // This is a simplified approach - in a full implementation,
-        // we would create a method body that properly invokes the lambda
-        // methodDef->setLambdaImplementation(lambda);  // Commented out for now
+        auto methodDef = std::make_shared<MethodDefinition>(
+            samMethod->name,
+            returnType,
+            methodParams,
+            methodArgs,
+            lambdaInvocationNode, // Use our specialized node as the method body
+            false
+        );
+
+        // Store the lambda node with memory-safe shared ownership
+        methodDef->setLambdaNode(lambdaSharedPtr);
+
+        // TODO: CRITICAL - Complete lambda-to-interface implementation (Priority: HIGH)
+        // TIMELINE: Should be completed within 1-2 sprints
+        //
+        // MISSING COMPONENTS:
+        // 1. Create a specialized AST node (LambdaInterfaceInvocationNode) that:
+        //    - Handles parameter mapping from interface method to lambda
+        //    - Creates proper LambdaValue with runtime evaluation context
+        //    - Manages type conversion between interface types and lambda types
+        //
+        // 2. Update the interpreter to recognize methods with lambda implementations:
+        //    - Check MethodDefinition::hasLambdaNode() during method invocation
+        //    - Create LambdaValue with current evaluation context
+        //    - Invoke lambda with proper parameter mapping
+        //
+        // 3. Memory safety improvements:
+        //    - Ensure lambda node lifetime is managed properly
+        //    - Add weak_ptr mechanism if circular references become an issue
+        //    - Implement proper cleanup when interface instances are destroyed
+        //
+        // CURRENT STATE: Interface creation works, but method invocation will fail
+        // RISK: Runtime errors when calling lambda-backed interface methods
 
         // Add method to class
         classDefinition->addMethod(methodDef);

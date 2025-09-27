@@ -10,6 +10,15 @@
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../Definition.hpp"
 
+// Forward declarations to avoid circular dependency
+namespace value {
+    class LambdaValue;
+}
+
+namespace ast::nodes::expressions {
+    class LambdaNode;
+}
+
 
 namespace runtimeTypes::klass
 {
@@ -25,6 +34,12 @@ namespace runtimeTypes::klass
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
 
+        // Lambda implementation storage for interface methods
+        std::shared_ptr<value::LambdaValue> lambdaImplementation;
+
+        // Store lambda node for deferred LambdaValue creation with smart pointer for memory safety
+        std::weak_ptr<ast::nodes::expressions::LambdaNode> lambdaNode;
+
         // NEW: Generic type information for runtime type resolution
         std::shared_ptr<ast::GenericType> genericReturnType;
         std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
@@ -38,7 +53,7 @@ namespace runtimeTypes::klass
                          const std::vector<std::pair<std::string, Value>>&args,
                          std::shared_ptr<ASTNode> b, bool s)
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args), body(b), isStaticMethod(s),
-              genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
+              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
         {
         }
 
@@ -48,7 +63,7 @@ namespace runtimeTypes::klass
                          const std::vector<std::pair<std::string, Value>>&args,
                          std::shared_ptr<ASTNode> b, bool s)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
+              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(), typeSubstitutionMap()
         {
         }
 
@@ -62,7 +77,7 @@ namespace runtimeTypes::klass
                          const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                          const std::unordered_map<std::string, std::string>& substitutions = {})
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args), body(b), isStaticMethod(s),
-              genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
         {
         }
 
@@ -76,7 +91,7 @@ namespace runtimeTypes::klass
                          const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                          const std::unordered_map<std::string, std::string>& substitutions = {})
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
         {
         }
 
@@ -115,6 +130,26 @@ namespace runtimeTypes::klass
 
         const std::unordered_map<std::string, std::string>& getTypeSubstitutionMap() const { return typeSubstitutionMap; }
         void setTypeSubstitutionMap(const std::unordered_map<std::string, std::string>& substitutions) { typeSubstitutionMap = substitutions; }
+
+        // Lambda implementation methods
+        std::shared_ptr<value::LambdaValue> getLambdaImplementation() const { return lambdaImplementation; }
+        void setLambdaImplementation(std::shared_ptr<value::LambdaValue> lambda) { lambdaImplementation = lambda; }
+        bool hasLambdaImplementation() const { return lambdaImplementation != nullptr; }
+
+        // Lambda node storage for deferred LambdaValue creation
+        // Memory-safe lambda node access using weak_ptr to prevent dangling references
+        std::shared_ptr<ast::nodes::expressions::LambdaNode> getLambdaNode() const {
+            return lambdaNode.lock(); // Returns shared_ptr or nullptr if expired
+        }
+        void setLambdaNode(std::shared_ptr<ast::nodes::expressions::LambdaNode> node) {
+            lambdaNode = node; // Store as weak_ptr to avoid circular references
+        }
+        bool hasLambdaNode() const { return !lambdaNode.expired(); }
+
+        // Memory safety check for lambda node validity
+        bool isLambdaNodeValid() const {
+            return !lambdaNode.expired(); // Check if weak_ptr is still valid
+        }
 
         // NEW: Runtime type resolution methods
         ValueType resolveParameterType(size_t paramIndex) const;
