@@ -56,9 +56,6 @@ namespace evaluator
         {
             return std::monostate{};
         }
-
-        // std::cout << "[DEBUG] ExpressionEvaluator::evaluate called with node type: " << typeid(*node).name() << std::endl;
-
         // Dispatch to appropriate evaluation method based on node type
         if (auto intNode = dynamic_cast<IntegerNode*>(node))
         {
