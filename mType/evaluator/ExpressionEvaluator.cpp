@@ -35,6 +35,7 @@
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
+#include "utils/ValueConverter.hpp"
 #include <cmath>
 
 namespace evaluator
@@ -1038,7 +1039,8 @@ namespace evaluator
         // Delegate to ObjectEvaluator
         if (objEvaluator)
         {
-            return objEvaluator->callMethod(object, node->getMethodName(), args, node->getLocation());
+            Value result = objEvaluator->callMethod(object, node->getMethodName(), args, node->getLocation());
+            return result;
         }
         else
         {

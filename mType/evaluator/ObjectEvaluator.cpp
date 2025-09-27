@@ -5,6 +5,7 @@
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/ValueConverter.hpp"
 #include <mutex>
 #include <iostream>
 #include "../value/FlatMultiArray.hpp"
@@ -2023,9 +2024,10 @@ namespace evaluator
                 throw TypeException("Interface '" + baseInterfaceName + "' not found");
             }
 
+            const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
+
             // Create type substitution map for generic resolution
             std::unordered_map<std::string, std::string> typeSubstitutions;
-            const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
 
             if (typeArguments.size() != interfaceGenericParams.size())
             {

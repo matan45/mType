@@ -11,6 +11,10 @@
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 
+namespace runtimeTypes::klass
+{
+    class InterfaceRegistry; // Forward declaration
+}
 
 namespace runtimeTypes::klass
 {
@@ -105,6 +109,7 @@ namespace runtimeTypes::klass
         void setImplementedInterfaces(const std::vector<std::string>& interfaces) { implementedInterfaces = interfaces; }
         void addImplementedInterface(const std::string& interfaceName) { implementedInterfaces.push_back(interfaceName); }
         bool implementsInterface(const std::string& interfaceName) const;
+        bool implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const;
 
         // NEW: Inheritance-related methods
         bool isSubclassOf(const std::string& className) const;
@@ -117,5 +122,9 @@ namespace runtimeTypes::klass
         bool implementsInterfaceTransitive(const std::string& interfaceName,
                                          std::unordered_set<std::string>& visited,
                                          int depth) const;
+        bool implementsInterfaceTransitive(const std::string& interfaceName,
+                                         std::unordered_set<std::string>& visited,
+                                         int depth,
+                                         std::shared_ptr<InterfaceRegistry> registry) const;
     };
 }

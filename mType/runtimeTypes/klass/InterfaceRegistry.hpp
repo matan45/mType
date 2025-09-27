@@ -55,18 +55,41 @@ namespace runtimeTypes::klass {
             clearValidationCache();
         }
 
-        // Interface lookup
+        // Interface lookup with generic type support
         std::shared_ptr<InterfaceDefinition> findInterface(const std::string& name) const {
+            // First try direct lookup (for non-generic interfaces)
             auto it = interfaces.find(name);
             if (it != interfaces.end()) {
                 updateInterfaceAccess(name);
                 return it->second;
             }
+
+            // If not found and name contains generic parameters, try base name lookup
+            if (name.find('<') != std::string::npos) {
+                std::string baseName = extractBaseTypeName(name);
+                auto baseIt = interfaces.find(baseName);
+                if (baseIt != interfaces.end()) {
+                    updateInterfaceAccess(baseName);
+                    return baseIt->second;
+                }
+            }
+
             return nullptr;
         }
 
         bool hasInterface(const std::string& name) const {
-            return interfaces.find(name) != interfaces.end();
+            // First try direct lookup
+            if (interfaces.find(name) != interfaces.end()) {
+                return true;
+            }
+
+            // If not found and name contains generic parameters, try base name lookup
+            if (name.find('<') != std::string::npos) {
+                std::string baseName = extractBaseTypeName(name);
+                return interfaces.find(baseName) != interfaces.end();
+            }
+
+            return false;
         }
 
         // Get all registered interfaces
@@ -273,5 +296,15 @@ namespace runtimeTypes::klass {
         void evictLRUValidations() const;
         bool shouldEvictInterfaces() const;
         void performAutomaticCleanup() const;
+
+        // Generic type helper method
+        std::string extractBaseTypeName(const std::string& typeName) const {
+            // Extract base type name from generic instantiation (e.g., "Predicate<Person>" -> "Predicate")
+            size_t anglePos = typeName.find('<');
+            if (anglePos != std::string::npos) {
+                return typeName.substr(0, anglePos);
+            }
+            return typeName;
+        }
     };
 }

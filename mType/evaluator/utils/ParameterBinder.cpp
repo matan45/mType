@@ -193,8 +193,13 @@ namespace evaluator::utils
                 return false;
             }
 
-            // Check if class implements the interface
-            return classDefinition->implementsInterface(interfaceName);
+            // Check if class implements the interface using registry for transitive checks
+            auto interfaceRegistry = env->getInterfaceRegistry();
+            if (interfaceRegistry) {
+                return classDefinition->implementsInterface(interfaceName, interfaceRegistry);
+            } else {
+                return classDefinition->implementsInterface(interfaceName);
+            }
         }
 
         // Check class type (exact class or inheritance)

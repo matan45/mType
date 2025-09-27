@@ -164,7 +164,8 @@ namespace evaluator::utils
                 }
             }
             else {
-                throw TypeException("Cannot convert " + valueTypeToString(getValueType(Value{val})) + " to int");
+                std::string fromType = valueTypeToString(getValueType(Value{val}));
+                throw TypeException("Cannot convert " + fromType + " to int");
             }
         }, value);
     }

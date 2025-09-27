@@ -89,6 +89,26 @@ namespace parser
                         {
                             interfaceName += tokenStream.current().stringValue.getString();
                         }
+                        else if (tokenStream.current().type == TokenType::STRING_TYPE)
+                        {
+                            interfaceName += "string";
+                        }
+                        else if (tokenStream.current().type == TokenType::INT)
+                        {
+                            interfaceName += "int";
+                        }
+                        else if (tokenStream.current().type == TokenType::FLOAT)
+                        {
+                            interfaceName += "float";
+                        }
+                        else if (tokenStream.current().type == TokenType::BOOL)
+                        {
+                            interfaceName += "bool";
+                        }
+                        else if (tokenStream.current().type == TokenType::VOID)
+                        {
+                            interfaceName += "void";
+                        }
                         else if (tokenStream.current().type == TokenType::COMMA)
                         {
                             interfaceName += ", ";

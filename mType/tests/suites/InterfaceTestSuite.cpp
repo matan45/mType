@@ -10,6 +10,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Basic Interface Definition",
                         passPath + "basicInterfaceDefinition.mt");
 
+        // Basic interface functionality tests
+        addOutputVerificationTest("Complex Interface Import Inheritance Generics",
+                        passPath + "complexInterfaceImportInheritanceGenerics.mt");
+
         addOutputVerificationTest("Interface Inheritance",
                         passPath + "interfaceInheritance.mt");
 

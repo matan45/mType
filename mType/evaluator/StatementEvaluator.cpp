@@ -498,6 +498,31 @@ namespace evaluator
             return true;
         }
 
+        // Handle lambda implementation classes (e.g., "$Lambda$Predicate$123" should be compatible with "Predicate<T>")
+        if (actualClassName.find("$Lambda$") == 0)
+        {
+            // Extract the interface name from lambda class name: "$Lambda$Predicate$123" -> "Predicate"
+            size_t prefixEnd = actualClassName.find('$', 8); // Skip "$Lambda$"
+            if (prefixEnd != std::string::npos)
+            {
+                std::string lambdaInterfaceName = actualClassName.substr(8, prefixEnd - 8);
+
+                // Extract base interface name from expected class (e.g., "Predicate<Person>" -> "Predicate")
+                std::string expectedBase = expectedClassName;
+                size_t anglePos = expectedClassName.find('<');
+                if (anglePos != std::string::npos)
+                {
+                    expectedBase = expectedClassName.substr(0, anglePos);
+                }
+
+                // Check if the lambda implements the expected interface
+                if (lambdaInterfaceName == expectedBase)
+                {
+                    return true;
+                }
+            }
+        }
+
         // Handle generic type compatibility
         // Extract base class name (e.g., "Set" from "Set<T>" or "Set<int>")
         auto extractBaseClassName = [](const std::string& className) -> std::string
@@ -540,11 +565,23 @@ namespace evaluator
                 {
                     // Check if expectedClassName is an interface that the actual class implements
                     auto classDefinition = objInstance->getClassDefinition();
-                    if (!classDefinition->implementsInterface(expectedClassName))
+
+                    // Extract base interface name from generic type (e.g., "Repository<Int, String>" -> "Repository")
+                    std::string baseExpectedName = expectedClassName;
+                    size_t anglePos = expectedClassName.find('<');
+                    if (anglePos != std::string::npos) {
+                        baseExpectedName = expectedClassName.substr(0, anglePos);
+                    }
+
+                    // Get the interface registry from the environment
+                    auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
+
+                    if (!classDefinition->implementsInterface(baseExpectedName, interfaceRegistry))
                     {
                         throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
                                             expectedClassName + " but got " + actualClassName, location);
                     }
+
                 }
 
                 // TODO: In a full implementation, this would also check class hierarchies
@@ -605,8 +642,8 @@ namespace evaluator
         // Check for lambda-to-interface conversion
         if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(newValue) &&
             node->getVariableType() == ValueType::OBJECT &&
-            !node->getClassName().empty()) {
-
+            !node->getClassName().empty())
+        {
             // Try to convert lambda to interface implementation
             newValue = convertLambdaToInterface(newValue, node->getClassName());
         }
@@ -1418,33 +1455,6 @@ namespace evaluator
 
         try
         {
-            /* if (isCacheMode) {
-                 // Cache mode: Load pre-compiled .mtc file
-                 // First try the release directory
-                 std::string releaseDir = "release";
-                 std::filesystem::path filePath_obj(filePath);
-                 std::string filename = filePath_obj.filename().string();
-                 std::string releasePath = releaseDir + "/" + filename;
- 
-                 if (std::filesystem::exists(releasePath)) {
-                     importedAST = importManager->loadFromMtcFile(releasePath);
-                 } else {
-                     // Fallback to original path resolution
-                     std::string resolvedMtcPath = importManager->resolvePath(filePath);
-                     importedAST = importManager->loadFromMtcFile(resolvedMtcPath);
-                 }
- 
-                 if (!importedAST) {
-                     throw TypeException("Failed to load cached imported file: " + filePath);
-                 }
-             } else {
-                 // Normal mode: Parse .mt file
-                 importedAST = importManager->parseAndCacheAST(filePath);
- 
-                 if (!importedAST) {
-                     throw TypeException("Failed to parse imported file: " + filePath);
-                 }
-             }*/
             // Normal mode: Parse .mt file
             ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
 
@@ -1475,12 +1485,16 @@ namespace evaluator
         auto genericRetType = node->getGenericReturnType();
         std::string returnClassName = "";
 
-        if (genericRetType && node->getReturnType() == ValueType::OBJECT) {
+        if (genericRetType && node->getReturnType() == ValueType::OBJECT)
+        {
             // For object types, try to get the specific class/interface name
             std::string typeName = genericRetType->getBaseTypeName();
-            if (typeName != "object") {
+            if (typeName != "object")
+            {
                 returnClassName = typeName;
-            } else if (genericRetType->isGenericParameter()) {
+            }
+            else if (genericRetType->isGenericParameter())
+            {
                 // It's a generic parameter, get its name
                 returnClassName = genericRetType->getGenericName();
             }
@@ -1494,7 +1508,8 @@ namespace evaluator
         );
 
         // Set the return class name if we found one
-        if (!returnClassName.empty()) {
+        if (!returnClassName.empty())
+        {
             funcDef->setReturnClassName(returnClassName);
         }
 
@@ -1570,185 +1585,186 @@ namespace evaluator
         resetLoopFlags();
         enterLoop(); // Mark that we're entering a loop
 
-        try {
+        try
+        {
             // Handle native arrays first
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue))
-        {
-            auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
-
-            for (size_t i = 0; i < array->size(); ++i)
+            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue))
             {
-                value::Value element = array->get(i);
+                auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
 
-                // Define the loop variable in this scope
-                auto varType = node->getVariableType();
-                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    node->getVariableName(), varType, element, false, "");
-
-                env->declareVariable(node->getVariableName(), variableDef);
-
-                // Execute the loop body
-                if (node->getBody())
+                for (size_t i = 0; i < array->size(); ++i)
                 {
-                    try
-                    {
-                        value::Value result = evaluate(node->getBody());
+                    value::Value element = array->get(i);
 
-                        // Handle control flow statements
-                        if (context->shouldReturn())
+                    // Define the loop variable in this scope
+                    auto varType = node->getVariableType();
+                    auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                        node->getVariableName(), varType, element, false, "");
+
+                    env->declareVariable(node->getVariableName(), variableDef);
+
+                    // Execute the loop body
+                    if (node->getBody())
+                    {
+                        try
                         {
+                            value::Value result = evaluate(node->getBody());
+
+                            // Handle control flow statements
+                            if (context->shouldReturn())
+                            {
+                                exitLoop();
+                                return result;
+                            }
+                        }
+                        catch (const BreakException&)
+                        {
+                            // Break caught - exit foreach loop
+                            resetLoopFlags();
                             exitLoop();
-                            return result;
+                            return std::monostate{};
+                        }
+                        catch (const ContinueException&)
+                        {
+                            // Continue caught - reset flags and continue to next iteration
+                            resetLoopFlags();
+                            continue;
+                        }
+
+                        // Check for other control flow interruptions
+                        if (flowManager->isBreaking())
+                        {
+                            break;
+                        }
+                        if (flowManager->isContinuing())
+                        {
+                            resetLoopFlags();
                         }
                     }
-                    catch (const BreakException&)
-                    {
-                        // Break caught - exit foreach loop
-                        resetLoopFlags();
-                        exitLoop();
-                        return std::monostate{};
-                    }
-                    catch (const ContinueException&)
-                    {
-                        // Continue caught - reset flags and continue to next iteration
-                        resetLoopFlags();
-                        continue;
-                    }
-
-                    // Check for other control flow interruptions
-                    if (flowManager->isBreaking())
-                    {
-                        break;
-                    }
-                    if (flowManager->isContinuing())
-                    {
-                        resetLoopFlags();
-                    }
                 }
-            }
-            exitLoop();
-            return std::monostate{};
-        }
-
-        // Handle mType collection objects
-        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(collectionValue))
-        {
-            auto collection = std::get<std::shared_ptr<ObjectInstance>>(collectionValue);
-            auto classDef = collection->getClassDefinition();
-
-            if (!classDef)
-            {
-                throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
+                exitLoop();
+                return std::monostate{};
             }
 
-            std::string className = classDef->getName();
-
-            // Check if this is a collection class by trying to get an array for iteration
-            std::shared_ptr<value::NativeArray> iterationArray = nullptr;
-
-            // For Map collections, iterate over values by default
-            if (className.find("Map<") == 0)
+            // Handle mType collection objects
+            if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(collectionValue))
             {
-                // Call getValues() method
-                auto getValuesMethod = classDef->findMethod("getValues", 0);
-                if (getValuesMethod)
+                auto collection = std::get<std::shared_ptr<ObjectInstance>>(collectionValue);
+                auto classDef = collection->getClassDefinition();
+
+                if (!classDef)
                 {
-                    // Set current instance context for method call
-                    context->setCurrentInstance(collection);
+                    throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
+                }
 
+                std::string className = classDef->getName();
+
+                // Check if this is a collection class by trying to get an array for iteration
+                std::shared_ptr<value::NativeArray> iterationArray = nullptr;
+
+                // For Map collections, iterate over values by default
+                if (className.find("Map<") == 0)
+                {
                     // Call getValues() method
-                    value::Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
-
-                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult))
+                    auto getValuesMethod = classDef->findMethod("getValues", 0);
+                    if (getValuesMethod)
                     {
-                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
-                    }
+                        // Set current instance context for method call
+                        context->setCurrentInstance(collection);
 
-                    context->clearCurrentInstance();
-                }
-            }
-            else
-            {
-                // For other collections (Set, List, Stack, Queue), try toArray() method
-                auto toArrayMethod = classDef->findMethod("toArray", 0);
-                if (toArrayMethod)
-                {
-                    // Set current instance context for method call
-                    context->setCurrentInstance(collection);
+                        // Call getValues() method
+                        value::Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
 
-                    // Call toArray() method
-                    value::Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
-
-                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult))
-                    {
-                        iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
-                    }
-
-                    context->clearCurrentInstance();
-                }
-            }
-
-            if (!iterationArray)
-            {
-                throw ScriptException(
-                    "Collection '" + className +
-                    "' does not support iteration (missing toArray() or getValues() method)", node->getLocation());
-            }
-
-            // Iterate through the array
-            for (size_t i = 0; i < iterationArray->size(); ++i)
-            {
-                value::Value element = iterationArray->get(i);
-
-                // Define the loop variable in this scope
-                auto varType = node->getVariableType();
-                auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    node->getVariableName(), varType, element, false, "");
-
-                env->declareVariable(node->getVariableName(), variableDef);
-
-                // Execute the loop body
-                if (node->getBody())
-                {
-                    try
-                    {
-                        value::Value result = evaluate(node->getBody());
-
-                        // Handle control flow statements
-                        if (context->shouldReturn())
+                        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult))
                         {
+                            iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
+                        }
+
+                        context->clearCurrentInstance();
+                    }
+                }
+                else
+                {
+                    // For other collections (Set, List, Stack, Queue), try toArray() method
+                    auto toArrayMethod = classDef->findMethod("toArray", 0);
+                    if (toArrayMethod)
+                    {
+                        // Set current instance context for method call
+                        context->setCurrentInstance(collection);
+
+                        // Call toArray() method
+                        value::Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
+
+                        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult))
+                        {
+                            iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
+                        }
+
+                        context->clearCurrentInstance();
+                    }
+                }
+
+                if (!iterationArray)
+                {
+                    throw ScriptException(
+                        "Collection '" + className +
+                        "' does not support iteration (missing toArray() or getValues() method)", node->getLocation());
+                }
+
+                // Iterate through the array
+                for (size_t i = 0; i < iterationArray->size(); ++i)
+                {
+                    value::Value element = iterationArray->get(i);
+
+                    // Define the loop variable in this scope
+                    auto varType = node->getVariableType();
+                    auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                        node->getVariableName(), varType, element, false, "");
+
+                    env->declareVariable(node->getVariableName(), variableDef);
+
+                    // Execute the loop body
+                    if (node->getBody())
+                    {
+                        try
+                        {
+                            value::Value result = evaluate(node->getBody());
+
+                            // Handle control flow statements
+                            if (context->shouldReturn())
+                            {
+                                exitLoop();
+                                return result;
+                            }
+                        }
+                        catch (const BreakException&)
+                        {
+                            // Break caught - exit foreach loop
+                            resetLoopFlags();
                             exitLoop();
-                            return result;
+                            return std::monostate{};
+                        }
+                        catch (const ContinueException&)
+                        {
+                            // Continue caught - reset flags and continue to next iteration
+                            resetLoopFlags();
+                            continue;
+                        }
+
+                        // Check for other control flow interruptions
+                        if (flowManager->isBreaking())
+                        {
+                            break;
+                        }
+                        if (flowManager->isContinuing())
+                        {
+                            resetLoopFlags();
                         }
                     }
-                    catch (const BreakException&)
-                    {
-                        // Break caught - exit foreach loop
-                        resetLoopFlags();
-                        exitLoop();
-                        return std::monostate{};
-                    }
-                    catch (const ContinueException&)
-                    {
-                        // Continue caught - reset flags and continue to next iteration
-                        resetLoopFlags();
-                        continue;
-                    }
-
-                    // Check for other control flow interruptions
-                    if (flowManager->isBreaking())
-                    {
-                        break;
-                    }
-                    if (flowManager->isContinuing())
-                    {
-                        resetLoopFlags();
-                    }
                 }
+                exitLoop();
+                return std::monostate{};
             }
-            exitLoop();
-            return std::monostate{};
-        }
 
             throw ScriptException("Value is not a valid collection for foreach iteration", node->getLocation());
         }
@@ -1779,18 +1795,21 @@ namespace evaluator
         auto env = context->getEnvironment();
         auto interfaceDef = env->findInterface(interfaceName);
 
-        if (!interfaceDef) {
+        if (!interfaceDef)
+        {
             return lambdaValue;
         }
 
         // Check if the interface is functional (has exactly one method)
-        if (!interfaceDef->isFunctionalInterface()) {
+        if (!interfaceDef->isFunctionalInterface())
+        {
             return lambdaValue;
         }
 
         // Create the lambda implementation class
         auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
-        if (!implClass) {
+        if (!implClass)
+        {
             return lambdaValue;
         }
 

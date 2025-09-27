@@ -2152,6 +2152,12 @@
     <None Include="tests\testFiles\interface\error\wrongReturnType.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
+    <None Include="tests\testFiles\interface\pass\BaseInterfaces.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\ExtendedInterfaces.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interface\pass\basicInterfaceDefinition.expected">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
@@ -2162,6 +2168,15 @@
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\classImplementsInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\complexGenericParameterTest.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\complexInterfaceImportInheritanceGenerics.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\complexInterfaceImportInheritanceGenerics.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.expected">

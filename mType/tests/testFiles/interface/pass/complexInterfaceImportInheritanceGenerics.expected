@@ -1,0 +1,30 @@
+=== Complex Interface Import, Inheritance & Generics Test ===
+
+--- Testing CacheStore (multiple inheritance) ---
+Caching user1 -> 100 [active]
+Evicting user2
+Metadata: metadata-user1
+Hash code: 123
+
+--- Testing SortableMap (single inheritance) ---
+Put test -> 42
+Size: 5
+Value: 100
+Comparison result: 2
+
+--- Testing Lambda with Multiple Generic Types ---
+String length > 5: false
+String length > 1: true
+Strings equal: true
+Strings equal: false
+
+--- Testing Complex Type Assignments ---
+Repository save: 999
+Hash code: 123
+Repository equals check: false
+
+--- Testing Multiple Generic Interface Usage ---
+10 > 5: true
+5 == 5: true
+
+=== All Tests Completed Successfully ===

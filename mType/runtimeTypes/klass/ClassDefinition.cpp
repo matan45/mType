@@ -1,4 +1,7 @@
 #include "ClassDefinition.hpp"
+#include "InterfaceRegistry.hpp"
+#include "InterfaceDefinition.hpp"
+#include <iostream>
 
 namespace runtimeTypes::klass
 {
@@ -219,6 +222,27 @@ namespace runtimeTypes::klass
         return implementsInterfaceTransitive(interfaceName, visited, 0);
     }
 
+    bool ClassDefinition::implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const
+    {
+        // Check direct interfaces first
+        for (const auto& implementedInterface : implementedInterfaces) {
+            // Extract base name from generic interface (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
+            std::string baseImplementedName = implementedInterface;
+            size_t anglePos = implementedInterface.find('<');
+            if (anglePos != std::string::npos) {
+                baseImplementedName = implementedInterface.substr(0, anglePos);
+            }
+
+            if (baseImplementedName == interfaceName) {
+                return true;
+            }
+        }
+
+        // Check transitive interface inheritance with depth protection and registry access
+        std::unordered_set<std::string> visited;
+        return implementsInterfaceTransitive(interfaceName, visited, 0, registry);
+    }
+
     bool ClassDefinition::implementsInterfaceTransitive(const std::string& interfaceName,
                                                        std::unordered_set<std::string>& visited,
                                                        int depth) const
@@ -243,6 +267,83 @@ namespace runtimeTypes::klass
             // Full implementation would require dependency injection of InterfaceRegistry
 
             visited.erase(implementedInterface);
+        }
+
+        return false;
+    }
+
+    bool ClassDefinition::implementsInterfaceTransitive(const std::string& interfaceName,
+                                                       std::unordered_set<std::string>& visited,
+                                                       int depth,
+                                                       std::shared_ptr<InterfaceRegistry> registry) const
+    {
+        // Depth protection - prevent stack overflow attacks
+        if (depth > MAX_INTERFACE_DEPTH) {
+            return false;
+        }
+
+        if (!registry) {
+            return false;
+        }
+
+        // Check all directly implemented interfaces for transitive inheritance
+        for (const auto& implementedInterface : implementedInterfaces) {
+            // Extract base interface name (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
+            std::string baseImplementedName = implementedInterface;
+            size_t anglePos = implementedInterface.find('<');
+            if (anglePos != std::string::npos) {
+                baseImplementedName = implementedInterface.substr(0, anglePos);
+            }
+
+            // Avoid infinite recursion (circular inheritance)
+            if (visited.find(baseImplementedName) != visited.end()) {
+                continue;
+            }
+
+            visited.insert(baseImplementedName);
+
+            // Look up the interface definition in the registry
+            auto interfaceDef = registry->findInterface(baseImplementedName);
+            if (interfaceDef) {
+                // Check what interfaces this interface extends
+                const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+                for (const auto& extendedInterface : extendedInterfaces) {
+                    // Extract base name from extended interface
+                    std::string baseExtendedName = extendedInterface;
+                    size_t extAnglePos = extendedInterface.find('<');
+                    if (extAnglePos != std::string::npos) {
+                        baseExtendedName = extendedInterface.substr(0, extAnglePos);
+                    }
+
+                    // Check if this extended interface matches what we're looking for
+                    if (baseExtendedName == interfaceName) {
+                        visited.erase(baseImplementedName);
+                        return true;
+                    }
+
+                    // Recursively check if the extended interface implements our target
+                    // We need to check if the extended interface (e.g., "Repository") extends our target (e.g., "Hashable")
+                    auto extendedInterfaceDef = registry->findInterface(baseExtendedName);
+                    if (extendedInterfaceDef) {
+                        // Check if the extended interface directly or transitively extends our target
+                        const auto& furtherExtended = extendedInterfaceDef->getExtendedInterfaces();
+                        for (const auto& furtherInterface : furtherExtended) {
+                            std::string furtherBaseName = furtherInterface;
+                            size_t furtherAnglePos = furtherInterface.find('<');
+                            if (furtherAnglePos != std::string::npos) {
+                                furtherBaseName = furtherInterface.substr(0, furtherAnglePos);
+                            }
+
+                            if (furtherBaseName == interfaceName) {
+                                visited.erase(baseImplementedName);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            visited.erase(baseImplementedName);
         }
 
         return false;

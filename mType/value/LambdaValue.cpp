@@ -17,7 +17,9 @@
 #include "../evaluator/StatementEvaluator.hpp"
 #include "../evaluator/ObjectEvaluator.hpp"
 #include "../exception/ReturnException.hpp"
+#include "../evaluator/utils/ValueConverter.hpp"
 #include <set>
+#include <iostream>
 
 namespace value
 {
@@ -42,6 +44,7 @@ namespace value
     Value LambdaValue::invoke(const std::vector<Value>& arguments,
                              std::shared_ptr<evaluator::base::EvaluationContext> callContext)
     {
+
         // Validate lambda state
         if (!lambdaNode) {
             throw errors::RuntimeException("Lambda node is null - invalid lambda state");
@@ -86,7 +89,7 @@ namespace value
         // Bind parameters to arguments
         const auto& parameters = lambdaNode->getParameters();
         for (size_t i = 0; i < parameters.size() && i < arguments.size(); ++i) {
-            ValueType argType = getValueType(arguments[i]);
+            ValueType argType = evaluator::utils::ValueConverter::getValueType(arguments[i]);
             lambdaEnv->declareVariable(parameters[i].name,
                 std::make_shared<runtimeTypes::global::VariableDefinition>(parameters[i].name, argType, arguments[i]));
         }
@@ -99,16 +102,25 @@ namespace value
 
         if (lambdaNode->isExpressionLambda()) {
             // Expression lambda - evaluate and return the expression
+
             // Create all evaluators for proper context support
             evaluator::ExpressionEvaluator exprEvaluator(lambdaContext);
             evaluator::StatementEvaluator stmtEvaluator(lambdaContext);
             evaluator::ObjectEvaluator objEvaluator(lambdaContext);
 
-            // Set up evaluator dependencies
+            // Set up evaluator dependencies (same as EvaluatorCoordinator)
             exprEvaluator.setStatementEvaluator(&stmtEvaluator);
             exprEvaluator.setObjectEvaluator(&objEvaluator);
 
-            return exprEvaluator.evaluate(lambdaBody);
+            stmtEvaluator.setExpressionEvaluator(&exprEvaluator);
+            stmtEvaluator.setObjectEvaluator(&objEvaluator);
+
+            objEvaluator.setExpressionEvaluator(&exprEvaluator);
+            objEvaluator.setStatementEvaluator(&stmtEvaluator);
+
+            Value result = exprEvaluator.evaluate(lambdaBody);
+
+            return result;
         } else {
             // Block lambda - execute statements and get return value
             // Create all three evaluators and link them properly
@@ -124,6 +136,7 @@ namespace value
             stmtEvaluator.setObjectEvaluator(&objEvaluator);
 
             objEvaluator.setExpressionEvaluator(&exprEvaluator);
+            objEvaluator.setStatementEvaluator(&stmtEvaluator);
 
             try {
                 stmtEvaluator.evaluate(lambdaBody);
@@ -230,7 +243,7 @@ namespace value
                 auto varDef = environment->findVariable(varName);
                 if (varDef) {
                     // Found as local/environment variable - use optimized capture
-                    ValueType type = getValueType(varDef->getValue());
+                    ValueType type = evaluator::utils::ValueConverter::getValueType(varDef->getValue());
                     addCapturedVariableOptimized(varName, varDef->getValue(), type);
                 } else {
                     // Not found in environment, check if it's a class field
@@ -240,7 +253,7 @@ namespace value
                         if (field) {
                             // Found as instance field - capture its current value with optimization
                             Value fieldValue = currentInstance->getFieldValue(varName);
-                            ValueType type = getValueType(fieldValue);
+                            ValueType type = evaluator::utils::ValueConverter::getValueType(fieldValue);
                             addCapturedVariableOptimized(varName, fieldValue, type);
                         }
                     }
