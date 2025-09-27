@@ -1,0 +1,6 @@
+Testing comprehensive lambda-class integration
+Comprehensive lambda (4): 174
+Nested context (6): 177
+Static context (3, 8): 114
+Dynamic generator (5): 150
+Complex integration test completed

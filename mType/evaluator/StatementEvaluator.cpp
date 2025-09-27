@@ -1,6 +1,8 @@
 #include "StatementEvaluator.hpp"
+#include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
+#include <iostream>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
@@ -33,6 +35,9 @@
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/LambdaValue.hpp"
+#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
 
 namespace evaluator
 {
@@ -460,8 +465,8 @@ namespace evaluator
             }
         }
 
-        // Check if the class is defined
-        if (!env->findClass(resolvedClassName))
+        // Check if the class or interface is defined
+        if (!env->findClass(resolvedClassName) && !env->findInterface(resolvedClassName))
         {
             throw UndefinedException("Class '" + resolvedClassName + "' is not defined", location);
         }
@@ -530,11 +535,16 @@ namespace evaluator
             {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
 
-                // Check if the actual class matches the expected class
+                // Check if the actual class matches the expected class or implements the expected interface
                 if (!isGenericTypeCompatible(actualClassName, expectedClassName))
                 {
-                    throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
-                                        expectedClassName + " but got " + actualClassName, location);
+                    // Check if expectedClassName is an interface that the actual class implements
+                    auto classDefinition = objInstance->getClassDefinition();
+                    if (!classDefinition->implementsInterface(expectedClassName))
+                    {
+                        throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
+                                            expectedClassName + " but got " + actualClassName, location);
+                    }
                 }
 
                 // TODO: In a full implementation, this would also check class hierarchies
@@ -583,12 +593,23 @@ namespace evaluator
     {
         if (!exprEvaluator)
         {
-            throw TypeException("Expression evaluator not available for assignment evaluation");
+            // This can happen during initialization phase before dependencies are set up
+            // Log the error but don't throw to avoid breaking the initialization process
+            std::cerr << "Warning: Expression evaluator not available for assignment evaluation" << std::endl;
+            return std::monostate{};
         }
 
         // Evaluate the new value
         Value newValue = exprEvaluator->evaluate(node->getValue());
 
+        // Check for lambda-to-interface conversion
+        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(newValue) &&
+            node->getVariableType() == ValueType::OBJECT &&
+            !node->getClassName().empty()) {
+
+            // Try to convert lambda to interface implementation
+            newValue = convertLambdaToInterface(newValue, node->getClassName());
+        }
 
         // Type detection is now working correctly
 
@@ -1193,8 +1214,11 @@ namespace evaluator
         if (node->getReturnValue() && exprEvaluator)
         {
             returnValue = exprEvaluator->evaluate(node->getReturnValue());
-        }
 
+            // Note: Lambda-to-interface conversion for function returns should be handled
+            // at the call site where we know the expected return type, not here.
+            // For now, we leave lambda returns as-is and let the caller handle conversion.
+        }
 
         context->pushReturnValue(returnValue);
         context->setReturned(true);
@@ -1447,13 +1471,32 @@ namespace evaluator
     {
         auto env = context->getEnvironment();
 
+        // Create function definition with interface support
+        auto genericRetType = node->getGenericReturnType();
+        std::string returnClassName = "";
 
-        // Create function definition
+        if (genericRetType && node->getReturnType() == ValueType::OBJECT) {
+            // For object types, try to get the specific class/interface name
+            std::string typeName = genericRetType->getBaseTypeName();
+            if (typeName != "object") {
+                returnClassName = typeName;
+            } else if (genericRetType->isGenericParameter()) {
+                // It's a generic parameter, get its name
+                returnClassName = genericRetType->getGenericName();
+            }
+        }
+
+        // Use backward compatibility constructor, then set return class name
         auto funcDef = std::make_shared<FunctionDefinition>(
             node->getName(),
             node->getReturnType(),
             node->getParameters()
         );
+
+        // Set the return class name if we found one
+        if (!returnClassName.empty()) {
+            funcDef->setReturnClassName(returnClassName);
+        }
 
         // Set the function body
         funcDef->setBody(node->getBody());
@@ -1724,5 +1767,39 @@ namespace evaluator
         // Normal completion - clean up loop state
         exitLoop();
         return std::monostate{};
+    }
+
+    Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName)
+    {
+        // Extract the lambda value
+        auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+        auto* lambdaNode = lambdaPtr->getLambda();
+
+        // Get the interface definition from the environment
+        auto env = context->getEnvironment();
+        auto interfaceDef = env->findInterface(interfaceName);
+
+        if (!interfaceDef) {
+            return lambdaValue;
+        }
+
+        // Check if the interface is functional (has exactly one method)
+        if (!interfaceDef->isFunctionalInterface()) {
+            return lambdaValue;
+        }
+
+        // Create the lambda implementation class
+        auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
+        if (!implClass) {
+            return lambdaValue;
+        }
+
+        // Create an instance of the implementation class
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
+
+        // Store the lambda in a special field that the implementation can access
+        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, lambdaValue);
+
+        return instance;
     }
 }

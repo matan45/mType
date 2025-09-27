@@ -103,5 +103,9 @@ namespace evaluator
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
                                              const SourceLocation& location,
                                              const std::string& expectedClassName);
+
+    public:
+        // Lambda-to-interface conversion (moved to public for ObjectEvaluator access)
+        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName);
     };
 }

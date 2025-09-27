@@ -2,6 +2,8 @@
 #include <iostream>
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
+#include "../value/LambdaValue.hpp"
+#include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
@@ -54,7 +56,6 @@ namespace evaluator
         {
             return std::monostate{};
         }
-
         // Dispatch to appropriate evaluation method based on node type
         if (auto intNode = dynamic_cast<IntegerNode*>(node))
         {
@@ -75,6 +76,10 @@ namespace evaluator
         if (auto nullNode = dynamic_cast<NullNode*>(node))
         {
             return evaluateNullNode(nullNode);
+        }
+        if (auto lambdaNode = dynamic_cast<LambdaNode*>(node))
+        {
+            return evaluateLambdaNode(lambdaNode);
         }
         if (auto varNode = dynamic_cast<VariableNode*>(node))
         {
@@ -220,6 +225,7 @@ namespace evaluator
             dynamic_cast<StringNode*>(node) ||
             dynamic_cast<BoolNode*>(node) ||
             dynamic_cast<NullNode*>(node) ||
+            dynamic_cast<LambdaNode*>(node) ||
             dynamic_cast<VariableNode*>(node) ||
             dynamic_cast<BinaryExpNode*>(node) ||
             dynamic_cast<TernaryExpNode*>(node) ||
@@ -844,6 +850,24 @@ namespace evaluator
                         result = context->getReturnValue();
                         context->setReturned(false);
 
+                        // Check for lambda-to-interface conversion before validation
+                        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(result) &&
+                            funcDef->getReturnType() == ValueType::OBJECT) {
+
+                            // Try to convert lambda to the expected interface type
+                            if (stmtEvaluator) {
+                                // Get the expected class/interface name from function definition
+                                std::string expectedTypeName = funcDef->getReturnClassName();
+                                if (!expectedTypeName.empty()) {
+                                    try {
+                                        result = stmtEvaluator->convertLambdaToInterface(result, expectedTypeName);
+                                    } catch (...) {
+                                        // If conversion fails, keep original lambda value and let validation handle it
+                                    }
+                                }
+                            }
+                        }
+
                         // Validate return type matches function's declared return type
                         validateFunctionReturnType(funcDef->getReturnType(), result, node->getFunctionName(),
                                                    node->getLocation());
@@ -861,11 +885,30 @@ namespace evaluator
                 // Reset return state since this was a function return, not a program return
                 context->setReturned(false);
 
+                // Check for lambda-to-interface conversion before validation
+                Value returnValue = e.returnValue;
+                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(returnValue) &&
+                    funcDef->getReturnType() == ValueType::OBJECT) {
+
+                    // Try to convert lambda to the expected interface type
+                    if (stmtEvaluator) {
+                        // Get the expected class/interface name from function definition
+                        std::string expectedTypeName = funcDef->getReturnClassName();
+                        if (!expectedTypeName.empty()) {
+                            try {
+                                returnValue = stmtEvaluator->convertLambdaToInterface(returnValue, expectedTypeName);
+                            } catch (...) {
+                                // If conversion fails, keep original lambda value and let validation handle it
+                            }
+                        }
+                    }
+                }
+
                 // Validate return type matches function's declared return type
-                validateFunctionReturnType(funcDef->getReturnType(), e.returnValue, node->getFunctionName(),
+                validateFunctionReturnType(funcDef->getReturnType(), returnValue, node->getFunctionName(),
                                            node->getLocation());
 
-                return e.returnValue;
+                return returnValue;
             }
             catch (...)
             {
@@ -1371,7 +1414,8 @@ namespace evaluator
         if (dimensions.size() == 1)
         {
             // Use NativeArray for 1D (this works)
-            auto nativeArray = std::make_shared<NativeArray>(dimensions[0]);
+            auto elementTypeInfo = node->getElementTypeInfo();
+            auto nativeArray = std::make_shared<NativeArray>(dimensions[0], elementTypeInfo.baseType, elementTypeInfo.className);
             for (size_t i = 0; i < dimensions[0]; ++i)
             {
                 nativeArray->set(i, defaultValue);
@@ -1401,7 +1445,8 @@ namespace evaluator
             }
 
             // Create an array with the first specified dimension
-            auto jaggedArray = std::make_shared<NativeArray>(firstDimension);
+            auto elementTypeInfo = node->getElementTypeInfo();
+            auto jaggedArray = std::make_shared<NativeArray>(firstDimension, elementTypeInfo.baseType, elementTypeInfo.className);
 
             // Initialize each element to null (will be assigned later)
             for (size_t i = 0; i < firstDimension; ++i)
@@ -1856,5 +1901,15 @@ namespace evaluator
             }
         }
         return "unknown";
+    }
+
+    Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
+    {
+
+        // Create a LambdaValue with the current evaluation context
+        // The LambdaValue will capture the current environment for closure support
+        auto lambdaValue = std::make_shared<value::LambdaValue>(node, context);
+
+        return lambdaValue;
     }
 }

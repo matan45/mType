@@ -6,6 +6,7 @@
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../exceptions/DomainExceptions.hpp"
 
 namespace environment::registry
 {
@@ -273,14 +274,14 @@ namespace environment::registry
                 {
                     if (!value)
                     {
-                        throw std::runtime_error("classNameObj cannot be called on null object");
+                        throw mtype::exceptions::NullPointerException("classNameObj function call");
                     }
                     // Return the class name of the object
                     return value->getTypeName();
                 }
                 else
                 {
-                    throw std::runtime_error("classNameObj can only be called on objects");
+                    throw mtype::exceptions::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
                 }
             }, args[0]);
         });

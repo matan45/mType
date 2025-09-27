@@ -198,6 +198,11 @@ namespace evaluator
         return coordinator->visitClassNode(node);
     }
 
+    Value Evaluator::visitInterfaceNode(InterfaceNode* node)
+    {
+        return coordinator->visitInterfaceNode(node);
+    }
+
     // Helper method implementations - delegate to coordinator
     std::shared_ptr<Environment> Evaluator::getEnvironment() const
     {
@@ -296,6 +301,11 @@ namespace evaluator
     Value Evaluator::visitForEachNode(ForEachNode* node)
     {
         return coordinator->visitForEachNode(node);
+    }
+
+    Value Evaluator::visitLambdaNode(LambdaNode* node)
+    {
+        return coordinator->visitLambdaNode(node);
     }
 
 }

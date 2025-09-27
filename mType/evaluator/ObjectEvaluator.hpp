@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 #include <optional>
+#include <unordered_map>
+#include <sstream>
 
 
 namespace evaluator
@@ -28,6 +30,10 @@ namespace evaluator
      */
     class ObjectEvaluator
     {
+    public:
+        // Configuration constants
+        static constexpr size_t MAX_GENERIC_PARAMETERS = 20;
+
     private:
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;
@@ -48,6 +54,7 @@ namespace evaluator
 
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
+        Value evaluateInterfaceNode(InterfaceNode* node);
         Value evaluateMethodNode(MethodNode* node);
         Value evaluateFieldNode(FieldNode* node);
         Value evaluateConstructorNode(ConstructorNode* node);
@@ -96,6 +103,10 @@ namespace evaluator
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
+        void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
+        std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(const std::string& interfaceName);
+        std::string resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions);
+        std::string valueTypeToString(const value::ValueType& type);
 
         // Multi-dimensional array assignment helpers
         std::optional<std::pair<Value, std::vector<size_t>>> extractMultiDimensionalAssignment(IndexAssignmentNode* node);

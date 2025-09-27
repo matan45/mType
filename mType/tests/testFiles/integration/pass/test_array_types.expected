@@ -1,0 +1,34 @@
+Starting Array Type Tests...
+=== Testing Single Dimension Arrays ===
+Int array created with 5 elements
+intArray[0] = 10
+intArray[1] = 20
+intArray[2] = 30
+String array:
+  [0] = First
+  [1] = Second
+  [2] = Third
+Bool array:
+  [0] = true
+  [1] = false
+=== Testing Multi Dimension Arrays ===
+2D Matrix (3x3):
+  1 2 3
+  4 5 6
+  7 8 9
+=== Testing Array Assignments ===
+Array assignment test:
+  Original: [100, 200, 300]
+  Assigned: [100, 200, 300]
+After modification:
+  Original: [100, 999, 300]
+  Assigned: [100, 999, 300]
+=== Testing Arrays with Objects ===
+Person array:
+  [0] = Alice(25)
+  [1] = Bob(30)
+  [2] = Charlie(35)
+Nullable array:
+  [0] = David(40)
+  [1] = null
+Array type tests completed!

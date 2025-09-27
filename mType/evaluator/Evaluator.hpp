@@ -64,11 +64,13 @@ namespace evaluator
         Value visitConstructorNode(ConstructorNode* node) override;
         Value visitFieldNode(FieldNode* node) override;
         Value visitClassNode(ClassNode* node) override;
+        Value visitInterfaceNode(InterfaceNode* node) override;
         Value visitArrayCreationNode(ArrayCreationNode* node) override;
         Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
-        
+        Value visitLambdaNode(LambdaNode* node) override;
+
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;
         bool shouldReturn() const;

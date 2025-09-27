@@ -1,0 +1,5 @@
+=== Predicate Interface Test ===
+Is 4 even? true
+Is 7 even? false
+Is 10 positive? true
+Is -5 positive? false

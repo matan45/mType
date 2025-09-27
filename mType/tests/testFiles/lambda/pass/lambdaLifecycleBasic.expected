@@ -1,0 +1,21 @@
+Testing basic lambda lifecycle...
+=== Test 1: Immediate lambda use ===
+Processing value: 10
+Callback returned: 20
+Result 1: 20
+=== Test 2: Lambda in variable ===
+Processing value: 15
+Callback returned: 30
+Result 2: 30
+=== Test 3: Multiple lambdas ===
+Processing value: 5
+Callback returned: 105
+Processing value: 5
+Callback returned: 15
+Result 3a: 105
+Result 3b: 15
+=== Test 4: Nested lambda processing ===
+Processing value: 7
+Callback returned: 34
+Result 4: 34
+Basic lambda lifecycle test completed!

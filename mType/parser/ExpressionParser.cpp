@@ -2,6 +2,7 @@
 #include <iostream>
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
+#include "LambdaParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
@@ -37,7 +38,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseAssignment()
     {
-        auto expr = parseTernary();
+        auto expr = parseLambda();
 
         // Check if this is an assignment expression
         if (tokenStream.current().type == TokenType::ASSIGN ||
@@ -134,15 +135,27 @@ namespace parser
         return expr;
     }
 
+    std::unique_ptr<ASTNode> ExpressionParser::parseLambda()
+    {
+        // Check if this looks like a lambda expression
+        if (isLambdaStart()) {
+            LambdaParser lambdaParser(tokenStream, context);
+            return lambdaParser.parseLambda();
+        }
+
+        // Not a lambda, delegate to next precedence level
+        return parseTernary();
+    }
+
     std::unique_ptr<ASTNode> ExpressionParser::parseTernary()
     {
         auto expr = parseLogicalOr();
 
         if (tokenStream.match(TokenType::QUESTION))
         {
-            auto trueExpr = parseExpression();
+            auto trueExpr = parseTernary(); // Use same level to avoid recursion
             tokenStream.expect(TokenType::COLON);
-            auto falseExpr = parseExpression();
+            auto falseExpr = parseTernary(); // Use same level to avoid recursion
             return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr));
         }
 
@@ -397,7 +410,7 @@ namespace parser
         case TokenType::LPAREN:
             {
                 tokenStream.advance();
-                auto expr = parseExpression();
+                auto expr = parseTernary(); // Skip lambda parsing to avoid recursion
                 tokenStream.expect(TokenType::RPAREN);
                 return expr;
             }
@@ -555,6 +568,96 @@ namespace parser
         else
         {
             throw ParseException("Expected type argument", tokenStream.current().location);
+        }
+    }
+
+    bool ExpressionParser::isLambdaStart() const
+    {
+        // Pattern 1: identifier -> (single parameter without parentheses)
+        if (tokenStream.current().type == TokenType::IDENTIFIER) {
+            if (!tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::ARROW) {
+                return true;
+            }
+        }
+
+        // Pattern 2: ( ... ) -> (parenthesized parameters or empty)
+        if (tokenStream.current().type == TokenType::LPAREN) {
+            // Check for empty parameter list: () ->
+            Token next = tokenStream.peek();
+            if (next.type == TokenType::RPAREN) {
+                return true; // Likely () -> pattern
+            }
+
+            // For multi-parameter lambdas, use more sophisticated heuristic
+            if (next.type == TokenType::IDENTIFIER) {
+                // This could be either:
+                // 1. (param1, param2) -> ... (lambda parameters)
+                // 2. (variable + expression) ... (parenthesized expression)
+
+                // Heuristic: lambda parameters are more likely if we're at assignment context
+                // For now, be conservative - assume it's a parenthesized expression unless
+                // we have stronger evidence it's lambda parameters
+
+                // Look for lambda-like patterns: identifier followed by comma or colon
+                return isLikelyLambdaParameterList();
+            }
+
+            // Otherwise it's likely a parenthesized expression, not lambda parameters
+            return false;
+        }
+
+        return false;
+    }
+
+    bool ExpressionParser::isLikelyLambdaParameterList() const
+    {
+        // Look for very specific lambda patterns only:
+        // Pattern 1: (a, b) -> ... (comma-separated identifiers)
+        // Pattern 2: (a : int, b : int) -> ... (typed parameters)
+        // Pattern 3: (a) -> ... (single parameter)
+
+        Token token1 = tokenStream.peek(); // First token after (
+        if (token1.type != TokenType::IDENTIFIER) {
+            return false;
+        }
+
+        // Check if we can look ahead safely
+        if (tokenStream.isAtEnd()) {
+            return false;
+        }
+
+        // Look for the pattern (identifier, ...)
+        // If we see (identifier, identifier) or (identifier :) it's likely lambda
+        // If we see (identifier +) or (identifier *) it's likely expression
+
+        // Use the safe peekAhead for just the next couple tokens
+        try {
+            Token token2 = tokenStream.peekAhead(2); // Second token after identifier
+
+            // Pattern: (identifier, ...) suggests lambda parameters
+            if (token2.type == TokenType::COMMA) {
+                return true;
+            }
+
+            // Pattern: (identifier : ...) suggests typed parameter
+            if (token2.type == TokenType::COLON) {
+                return true;
+            }
+
+            // Pattern: (identifier ) -> suggests single parameter lambda
+            if (token2.type == TokenType::RPAREN) {
+                Token token3 = tokenStream.peekAhead(3);
+                if (token3.type == TokenType::ARROW) {
+                    return true;
+                }
+            }
+
+            // Otherwise assume it's a parenthesized expression
+            return false;
+
+        } catch (...) {
+            // If peekAhead fails, assume it's not a lambda
+            return false;
         }
     }
 }

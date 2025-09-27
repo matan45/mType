@@ -9,7 +9,7 @@
 namespace lexer
 {
     // Static operator lookup table definitions
-    const std::array<Lexer::OperatorInfo, 14> Lexer::TWO_CHAR_OPERATORS = {{
+    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {{
         {"++", TokenType::INCREMENT, 2},
         {"--", TokenType::DECREMENT, 2},
         {"==", TokenType::EQUALS, 2},
@@ -23,7 +23,8 @@ namespace lexer
         {"*=", TokenType::MULTIPLY_ASSIGN, 2},
         {"/=", TokenType::DIVIDE_ASSIGN, 2},
         {"%=", TokenType::MODULO_ASSIGN, 2},
-        {"::", TokenType::SCOPE, 2}
+        {"::", TokenType::SCOPE, 2},
+        {"->", TokenType::ARROW, 2}
     }};
 
     const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {{
@@ -570,6 +571,45 @@ namespace lexer
         }
         
         return TokenType::IDENTIFIER; // Not a keyword
+    }
+
+    Token Lexer::peekAhead(size_t offset)
+    {
+        if (offset == 0) {
+            return peekNextToken(); // Use existing method for offset 0
+        }
+
+        // Simple approach: save state, advance, restore
+        // This is less efficient but more reliable than complex buffering
+        size_t originalPos = pos;
+
+        // Advance to the target token
+        Token result;
+        for (size_t i = 0; i < offset; ++i) {
+            result = getNextToken();
+
+            // Check if we hit end of input
+            if (result.type == TokenType::END) {
+                break;
+            }
+        }
+
+        // Restore original position
+        pos = originalPos;
+
+        return result;
+    }
+
+    std::vector<Token> Lexer::peekMultiple(size_t count)
+    {
+        std::vector<Token> tokens;
+        tokens.reserve(count);
+
+        for (size_t i = 0; i < count; ++i) {
+            tokens.push_back(peekAhead(i));
+        }
+
+        return tokens;
     }
 
 }

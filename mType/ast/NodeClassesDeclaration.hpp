@@ -21,6 +21,7 @@ namespace ast
             class ArrayTypeNode;
             class MapLiteralNode;
             class IndexAccessNode;
+            class LambdaNode;
         }
         
         namespace statements
@@ -61,6 +62,7 @@ namespace ast
             class NewNode;
             class MemberAccessNode;
             class MethodCallNode;
+            class InterfaceNode;
         }
     }
     
@@ -96,6 +98,7 @@ namespace ast
     using NewNode = nodes::classes::NewNode;
     using MemberAccessNode = nodes::classes::MemberAccessNode;
     using MethodCallNode = nodes::classes::MethodCallNode;
+    using InterfaceNode = nodes::classes::InterfaceNode;
     using MemberAssignmentNode = nodes::statements::MemberAssignmentNode;
     using IndexAssignmentNode = nodes::statements::IndexAssignmentNode;
     using NullNode = nodes::expressions::NullNode;
@@ -106,5 +109,6 @@ namespace ast
     using ArrayTypeNode = nodes::expressions::ArrayTypeNode;
     using MapLiteralNode = nodes::expressions::MapLiteralNode;
     using IndexAccessNode = nodes::expressions::IndexAccessNode;
+    using LambdaNode = nodes::expressions::LambdaNode;
     using ForEachNode = nodes::statements::ForEachNode;
 }

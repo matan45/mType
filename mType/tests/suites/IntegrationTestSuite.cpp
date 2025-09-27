@@ -6,6 +6,15 @@ namespace tests::testSuite
     
     void IntegrationTestSuite::setupTests()
     {
+
+        addOutputVerificationTest("Conversion basic",
+                        passPath + "test_type_conversion_basic.mt");
+        addOutputVerificationTest("Generics simple",
+                        passPath + "test_simple_generics.mt");
+        addOutputVerificationTest("Arrays simple",
+                        passPath + "test_array_types.mt");
+        addOutputVerificationTest("Error Handling comprehensive",
+                        passPath + "test_error_handling.mt");
         // Complex Feature Integration tests
         addOutputVerificationTest("Namespaces with Classes and Imports",
                         passPath + "namespacesWithClassesAndImports.mt");

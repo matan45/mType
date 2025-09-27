@@ -49,4 +49,10 @@ namespace parser
     {
         return lexer.peekNextToken();
     }
+
+    Token TokenStream::peekAhead(size_t offset) const
+    {
+        // Use the lexer's new deep lookahead capability
+        return lexer.peekAhead(offset);
+    }
 }

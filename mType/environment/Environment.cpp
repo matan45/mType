@@ -14,9 +14,17 @@ namespace environment
         variableManager(varMgr),
         scopeManager(scopeMgr),
         nativeRegistry(nativeReg),
+        interfaceRegistry(std::make_shared<runtimeTypes::klass::InterfaceRegistry>()),
         importEvaluationActive(false),
         importManager(nullptr)
     {
+        // Initialize enhanced import dependency detection
+        mtype::exceptions::CircularDependencyConfig config;
+        config.maxImportDepth = 100;  // Allow deeper import chains than generic substitution
+        config.enableEarlyDetection = true;
+        config.enablePerformanceMetrics = true;
+
+        importDependencyDetector = std::make_shared<mtype::exceptions::CircularDependencyDetector>(config);
     }
 
     void Environment::initialize()
@@ -56,6 +64,11 @@ namespace environment
     std::shared_ptr<NativeRegistry> Environment::getNativeRegistry() const
     {
         return nativeRegistry;
+    }
+
+    std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> Environment::getInterfaceRegistry() const
+    {
+        return interfaceRegistry;
     }
 
     void Environment::registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition)
@@ -120,6 +133,45 @@ namespace environment
         }
 
         return nullptr;
+    }
+
+    void Environment::registerInterface(const std::string& name, std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDefinition)
+    {
+        if (interfaceRegistry) {
+            interfaceRegistry->registerInterface(name, interfaceDefinition);
+        }
+    }
+
+    std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> Environment::findInterface(const std::string& name) const
+    {
+        if (!interfaceRegistry) return nullptr;
+        return interfaceRegistry->findInterface(name);
+    }
+
+    void Environment::clearInterfaces()
+    {
+        if (interfaceRegistry) {
+            interfaceRegistry->clearValidationCache();
+            interfaceRegistry->clear();
+        }
+    }
+
+    bool Environment::removeInterface(const std::string& name)
+    {
+        if (!interfaceRegistry) return false;
+        return interfaceRegistry->removeInterface(name);
+    }
+
+    size_t Environment::cleanupUnusedInterfaces()
+    {
+        if (!interfaceRegistry) return 0;
+        return interfaceRegistry->cleanupUnusedInterfaces();
+    }
+
+    std::vector<std::string> Environment::findUnusedInterfaces() const
+    {
+        if (!interfaceRegistry) return {};
+        return interfaceRegistry->findUnusedInterfaces();
     }
 
     void Environment::enterScope(const std::string& scopeName, ScopeType scopeType)
@@ -213,17 +265,59 @@ namespace environment
 
     bool Environment::wouldCauseCircularImport(const std::string& filePath)
     {
-        // Check if this file is already in the evaluation import stack
-        std::stack<std::string> tempStack = evaluationImportStack;
-        while (!tempStack.empty())
-        {
-            if (tempStack.top() == filePath)
-            {
-                return true;
-            }
-            tempStack.pop();
+        // Check using enhanced circular dependency detection
+        try {
+            // Temporarily enter the dependency to see if it would cause a cycle
+            importDependencyDetector->enterDependency(
+                mtype::exceptions::DependencyType::IMPORT_CHAIN,
+                filePath,
+                "import validation"
+            );
+            // If no exception, exit immediately and return false
+            importDependencyDetector->exitDependency(
+                mtype::exceptions::DependencyType::IMPORT_CHAIN,
+                filePath
+            );
+            return false;
         }
-        return false;
+        catch (const mtype::exceptions::TrueCyclicException&) {
+            return true;  // True circular dependency
+        }
+        catch (const mtype::exceptions::DepthLimitException&) {
+            return true;  // Depth limit - treat as circular for safety
+        }
+    }
+
+    bool Environment::enterImportDependency(const std::string& filePath, const std::string& location)
+    {
+        return importDependencyDetector->enterDependency(
+            mtype::exceptions::DependencyType::IMPORT_CHAIN,
+            filePath,
+            location
+        );
+    }
+
+    void Environment::exitImportDependency(const std::string& filePath)
+    {
+        importDependencyDetector->exitDependency(
+            mtype::exceptions::DependencyType::IMPORT_CHAIN,
+            filePath
+        );
+    }
+
+    std::vector<std::string> Environment::getImportDependencyChain() const
+    {
+        return importDependencyDetector->getDependencyChain(mtype::exceptions::DependencyType::IMPORT_CHAIN);
+    }
+
+    void Environment::setImportDependencyConfig(const mtype::exceptions::CircularDependencyConfig& config)
+    {
+        importDependencyDetector->setConfig(config);
+    }
+
+    mtype::exceptions::CircularDependencyConfig Environment::getImportDependencyConfig() const
+    {
+        return importDependencyDetector->getConfig();
     }
 
     void Environment::pushEvaluationImport(const std::string& filePath)

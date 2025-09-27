@@ -9,6 +9,7 @@ namespace parser
     class StatementParser;
     class ExpressionParser;
     class ClassParser;
+    class InterfaceParser;
     class TokenStream;
     
     using namespace ast;
@@ -21,14 +22,18 @@ namespace parser
         std::optional<std::reference_wrapper<StatementParser>> statementParser;
         std::optional<std::reference_wrapper<ExpressionParser>> expressionParser;
         std::optional<std::reference_wrapper<ClassParser>> classParser;
+        std::optional<std::reference_wrapper<InterfaceParser>> interfaceParser;
         std::optional<std::reference_wrapper<TokenStream>> tokenStream;
+
+        // Context flags
+        bool insideLambdaBody = false;
 
     public:
         /// @brief Default constructor for delayed initialization
         ParseContext() = default;
         
         /// @brief Constructor with immediate initialization
-        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, TokenStream& stream);
+        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface, TokenStream& stream);
         
         ~ParseContext() = default;
 
@@ -40,7 +45,10 @@ namespace parser
         
         /// @brief Parse a class using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseClass();
-        
+
+        /// @brief Parse an interface using InterfaceParser
+        [[nodiscard]] std::unique_ptr<ASTNode> parseInterface();
+
         /// @brief Parse a new expression using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
         
@@ -48,6 +56,7 @@ namespace parser
         void setStatementParser(StatementParser& parser) { statementParser = std::ref(parser); }
         void setExpressionParser(ExpressionParser& parser) { expressionParser = std::ref(parser); }
         void setClassParser(ClassParser& parser) { classParser = std::ref(parser); }
+        void setInterfaceParser(InterfaceParser& parser) { interfaceParser = std::ref(parser); }
         void setTokenStream(TokenStream& stream) { tokenStream = std::ref(stream); }
     };
 }

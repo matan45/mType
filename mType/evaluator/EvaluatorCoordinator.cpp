@@ -242,7 +242,12 @@ namespace evaluator
     {
         return objEvaluator->evaluateClassNode(node);
     }
-    
+
+    Value EvaluatorCoordinator::visitInterfaceNode(InterfaceNode* node)
+    {
+        return objEvaluator->evaluateInterfaceNode(node);
+    }
+
     // Helper methods (delegate to appropriate evaluator)
     bool EvaluatorCoordinator::isTruthy(const Value& value) const
     {
@@ -309,5 +314,10 @@ namespace evaluator
     Value EvaluatorCoordinator::visitForEachNode(ForEachNode* node)
     {
         return stmtEvaluator->evaluateForEachNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitLambdaNode(LambdaNode* node)
+    {
+        return exprEvaluator->evaluateLambdaNode(node);
     }
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace  token
+namespace token
 {
     enum class TokenType
     {
@@ -40,6 +40,10 @@ namespace  token
         NATIVE, // Add this for native function declarations
         SCOPE, // :: scope resolution operator
         SWITCH, CASE, DEFAULT, // Switch-case keywords
+        INTERFACE, // interface keyword
+        IMPLEMENTS, // implements keyword
+        EXTENDS, // extends keyword
+        ARROW,        // -> for lambda expressions
         END // End of input
     };
 }

@@ -49,10 +49,74 @@ namespace parser
             tokenStream.expect(TokenType::GREATER); // consume '>'
         }
 
+        // NEW: Parse implements clause if present (e.g., implements Drawable, Resizable)
+        std::vector<std::string> implementedInterfaces;
+        if (tokenStream.check(TokenType::IMPLEMENTS))
+        {
+            tokenStream.advance(); // consume 'implements'
+
+            do {
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
+                {
+                    throw ParseException("Expected interface name after 'implements'",
+                                        tokenStream.current().location);
+                }
+
+                std::string interfaceName = tokenStream.current().stringValue.getString();
+                tokenStream.advance();
+
+                // Handle generic parameters for interface if present
+                if (tokenStream.check(TokenType::LESS))
+                {
+                    // Capture the full generic interface name including type arguments
+                    interfaceName += "<";
+                    tokenStream.advance(); // consume '<'
+
+                    int depth = 1;
+                    while (depth > 0 && !tokenStream.isAtEnd())
+                    {
+                        if (tokenStream.current().type == TokenType::LESS)
+                        {
+                            depth++;
+                            interfaceName += "<";
+                        }
+                        else if (tokenStream.current().type == TokenType::GREATER)
+                        {
+                            depth--;
+                            interfaceName += ">";
+                        }
+                        else if (tokenStream.current().type == TokenType::IDENTIFIER)
+                        {
+                            interfaceName += tokenStream.current().stringValue.getString();
+                        }
+                        else if (tokenStream.current().type == TokenType::COMMA)
+                        {
+                            interfaceName += ", ";
+                        }
+                        // Skip other tokens but don't add them to the name
+
+                        tokenStream.advance();
+                    }
+                }
+
+                implementedInterfaces.push_back(interfaceName);
+
+                // Check for comma (multiple interfaces)
+                if (tokenStream.check(TokenType::COMMA))
+                {
+                    tokenStream.advance();
+                }
+                else
+                {
+                    break;
+                }
+            } while (true);
+        }
+
         tokenStream.expect(TokenType::LBRACE);
 
-        // Create class node with generic parameters
-        auto classNode = std::make_unique<ClassNode>(className, genericParameters);
+        // Create class node with generic parameters and implemented interfaces
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters, implementedInterfaces);
 
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {

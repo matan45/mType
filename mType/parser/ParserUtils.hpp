@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include "../value/ValueType.hpp"
+#include "../value/ParameterType.hpp"
 #include "../token/TokenType.hpp"
 #include "../errors/SourceLocation.hpp"
 
@@ -56,6 +57,14 @@ namespace parser
         /// @return Vector of parameter name-GenericType pairs
         [[nodiscard]] static std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>
             parseGenericParameterList(class TokenStream& stream, bool expectParentheses = true);
+
+        /// @brief Parse parameter list with interface type support (NEW)
+        /// Parses function/method parameters with interface/class type information preserved
+        /// @param stream Token stream to parse from
+        /// @param expectParentheses Whether to expect and consume parentheses
+        /// @return Vector of parameter name-ParameterType pairs
+        [[nodiscard]] static std::vector<std::pair<std::string, value::ParameterType>>
+            parseParameterListWithTypes(class TokenStream& stream, bool expectParentheses = true);
             
         /// @brief Parse binary operators with left-associative precedence
         /// Eliminates code duplication across ExpressionParser binary operator methods

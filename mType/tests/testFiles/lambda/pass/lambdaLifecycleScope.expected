@@ -1,0 +1,16 @@
+Testing lambda lifecycle across scopes...
+=== Test 1: Lambda from function scope ===
+Addition result: 30
+=== Test 2: Inline lambda return ===
+Multiplication result: 42
+=== Test 3: Lambda with captured context ===
+Complex result 1 (factor 2): 18
+Complex result 2 (factor 3): 27
+=== Test 4: Lambda from nested scope ===
+Difference result 1: 5
+Difference result 2: 4
+=== Test 5: Repeated lambda usage ===
+Squares sum for 1: 5
+Squares sum for 2: 13
+Squares sum for 3: 25
+Scope lifecycle test completed!

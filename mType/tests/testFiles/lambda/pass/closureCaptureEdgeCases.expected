@@ -1,0 +1,26 @@
+=== Closure Capture Edge Cases and Semantics Test ===
+=== Static Member Capture Edge Cases ===
+Static to static: 105
+After modification: 205
+Final capture: 84
+=== Instance Method Capturing Static ===
+Instance to static: 211
+After dual modification: 211
+=== Nested Lambda Capture ===
+Nested capture result: 97
+Chained capture: 61
+=== Mutable vs Immutable Capture ===
+Initial capture: 30
+After mutable change: 30
+Loop iteration 0: 5
+Loop iteration 1: 7
+Loop iteration 2: 10
+=== Complex Capture Scenarios ===
+Complex capture - Static: 1, Instance: 1, Local: 10
+After creating another instance, static counter: 2
+Complex capture - Static: 2, Instance: 1, Local: 10
+=== Scope Capture Edge Cases ===
+Function scope: 80
+Block scope: 167
+Nested block: 177
+=== All Closure Capture Edge Cases Completed ===

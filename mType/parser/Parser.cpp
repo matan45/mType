@@ -28,11 +28,13 @@ namespace parser
         components.statementParser = std::make_unique<StatementParser>(*components.tokenStream, *components.context);
         components.expressionParser = std::make_unique<ExpressionParser>(*components.tokenStream, *components.context);
         components.classParser = std::make_unique<ClassParser>(*components.tokenStream, *components.context);
+        components.interfaceParser = std::make_unique<InterfaceParser>(*components.tokenStream, *components.context);
         
         // Step 4: Atomically set all parser references in context
         components.context->setStatementParser(*components.statementParser);
         components.context->setExpressionParser(*components.expressionParser);
         components.context->setClassParser(*components.classParser);
+        components.context->setInterfaceParser(*components.interfaceParser);
         components.context->setTokenStream(*components.tokenStream);
         
         return components;
@@ -50,6 +52,7 @@ namespace parser
         statementParser = std::move(components.statementParser);
         expressionParser = std::move(components.expressionParser);
         classParser = std::move(components.classParser);
+        interfaceParser = std::move(components.interfaceParser);
         
         // All components are now fully initialized and consistent
     }

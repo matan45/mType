@@ -8,6 +8,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../evaluator/utils/GenericTypeManager.hpp"
+#include "../../services/ScriptInterpreter.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -31,8 +32,18 @@ namespace tests::testFramework
     {
         auto startTime = std::chrono::high_resolution_clock::now();
 
-        // Clear generic class cache to prevent contamination between tests
+        // Clear caches to prevent contamination between tests
         evaluator::utils::GenericTypeManager::clearGenericClassCache();
+
+        // Clear interface validation cache as well
+        services::ScriptInterpreter interpreter;
+        auto env = interpreter.getEnvironment();
+        if (env) {
+            auto interfaceRegistry = env->getInterfaceRegistry();
+            if (interfaceRegistry) {
+                interfaceRegistry->clearValidationCache();
+            }
+        }
 
         try
         {

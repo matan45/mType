@@ -1,5 +1,7 @@
 #include "ObjectInstance.hpp"
+#include "../../constants/LambdaConstants.hpp"
 #include <algorithm>
+#include <iostream>
 #include <vector>
 
 namespace runtimeTypes::klass
@@ -24,6 +26,12 @@ namespace runtimeTypes::klass
             }
             // Return default value if not set
             return field->getValue(); // This will be the initial value from class definition
+        } else {
+            // Check for dynamic fields like lambda backing fields
+            auto it = fieldValues.find(fieldName);
+            if (it != fieldValues.end()) {
+                return it->second;
+            }
         }
         return std::monostate{};
     }
@@ -44,6 +52,10 @@ namespace runtimeTypes::klass
                 // For instance fields, set value in this instance's storage
                 fieldValues[fieldName] = value;
             }
+        } else {
+            // Allow setting dynamic fields that aren't part of the class definition
+            // This is needed for lambda backing fields
+            fieldValues[fieldName] = value;
         }
     }
 

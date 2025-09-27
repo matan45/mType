@@ -31,6 +31,9 @@ namespace runtimeTypes::klass
         std::vector<ast::GenericTypeParameter> genericParameters;
         bool isGenericClass;
 
+        // NEW: Interface support
+        std::vector<std::string> implementedInterfaces;
+
     public:
         explicit ClassDefinition(const std::string& n)
             : Definition(n), isGenericClass(false)
@@ -95,5 +98,14 @@ namespace runtimeTypes::klass
 
         // Check if a type parameter exists
         bool hasGenericParameter(const std::string& paramName) const;
+
+        // NEW: Interface-related methods
+        const std::vector<std::string>& getImplementedInterfaces() const { return implementedInterfaces; }
+        void setImplementedInterfaces(const std::vector<std::string>& interfaces) { implementedInterfaces = interfaces; }
+        void addImplementedInterface(const std::string& interfaceName) { implementedInterfaces.push_back(interfaceName); }
+        bool implementsInterface(const std::string& interfaceName) const;
+
+        // NEW: Inheritance-related methods
+        bool isSubclassOf(const std::string& className) const;
     };
 }

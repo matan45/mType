@@ -40,6 +40,8 @@ namespace parser
         {
         case TokenType::CLASS:
             return context.parseClass();
+        case TokenType::INTERFACE:
+            return context.parseInterface();
         case TokenType::FUNCTION:
             return parseFunction();
         case TokenType::INT:
@@ -685,7 +687,9 @@ namespace parser
         auto parameters = parseParameterList();
 
         tokenStream.expect(TokenType::COLON);
-        ValueType returnType = TypeParser::parseType(tokenStream);
+
+        // Parse return type using generic-aware parsing to preserve interface names
+        auto genericReturnType = TypeParser::parseGenericType(tokenStream);
 
         std::unique_ptr<ASTNode> body = nullptr;
 
@@ -699,7 +703,15 @@ namespace parser
             body = parseBlock();
         }
 
-        auto funcNode = std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters), std::move(body));
+        // Convert parameters to generic format for consistency
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        for (const auto& [name, valueType] : parameters) {
+            auto genericType = std::make_shared<ast::GenericType>(valueType);
+            genericParameters.emplace_back(name, genericType);
+        }
+
+        // Use new generic-aware constructor
+        auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType, genericParameters, std::move(body));
         // Note: Would need to add isNative flag to FunctionNode
         return funcNode;
     }
