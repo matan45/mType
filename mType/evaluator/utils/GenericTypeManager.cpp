@@ -3,6 +3,8 @@
 #include "../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../../types/TypeRegistry.hpp"
+#include "../../types/TypeConversionUtils.hpp"
 #include <sstream>
 #include <algorithm>
 #include <cctype>
@@ -311,13 +313,29 @@ namespace evaluator::utils
         value::ValueType originalType,
         const std::unordered_map<std::string, std::string>& substitutionMap)
     {
-        // For generic methods, parameters of type OBJECT represent generic type parameters
-        // The issue is that we can't know which specific type parameter this OBJECT represents
-        // without more context. However, for the runtime resolution to work properly,
-        // we need to preserve the OBJECT type and let the runtime resolveParameterType
-        // method handle the substitution using the generic parameter information.
+        // If the original type is OBJECT, it likely represents a generic type parameter
+        // that needs to be substituted based on the substitution map
+        if (originalType == value::ValueType::OBJECT) {
+            // For single type parameter generics, check if we have a substitution
+            if (substitutionMap.size() == 1) {
+                auto it = substitutionMap.begin();
+                const std::string& substitutedTypeName = it->second;
 
-        // Return the original type without substitution - let runtime resolution handle it
+                // Use TypeRegistry to convert the substituted type name to ValueType
+                auto& registry = types::getGlobalTypeRegistry();
+                if (registry.hasType(substitutedTypeName)) {
+                    if (registry.isArrayType(substitutedTypeName)) {
+                        return value::ValueType::ARRAY;
+                    }
+                    return registry.getValueType(substitutedTypeName);
+                }
+            }
+
+            // If we can't determine the substitution, preserve OBJECT type
+            return originalType;
+        }
+
+        // For non-OBJECT types, return as-is (they don't need substitution)
         return originalType;
     }
 
@@ -325,37 +343,24 @@ namespace evaluator::utils
         std::shared_ptr<ast::GenericType> genericType,
         const std::unordered_map<std::string, std::string>& substitutionMap)
     {
-        if (!genericType)
-        {
-            return value::ValueType::VOID;
-        }
+        try {
+            // Use the enhanced type conversion utility with proper error handling
+            types::TypeConversionContext context("GenericTypeManager::convertGenericTypeToValueType",
+                                                "generic type conversion");
 
-        // Check if this is a type parameter that needs substitution
-        if (genericType->isGenericParameter())
-        {
-            std::string typeName = genericType->getGenericName();
+            return types::TypeConversionUtils::convertWithContext(
+                genericType, substitutionMap, context);
 
-            // Look up the substitution
-            auto it = substitutionMap.find(typeName);
-            if (it != substitutionMap.end())
-            {
-                // Convert the substituted type string to ValueType
-                return parser::TypeParser::stringToValueType(it->second);
-            }
+        } catch (const types::TypeConversionException&) {
+            // Log detailed error information if needed
+            // For now, maintain backward compatibility by returning OBJECT
+            // In the future, this could be configured to throw or log errors
+            return value::ValueType::OBJECT;
 
-            // If no substitution found, default to OBJECT
+        } catch (...) {
+            // Handle unexpected errors gracefully
             return value::ValueType::OBJECT;
         }
-
-        // If it's a concrete type, convert it directly
-        if (!genericType->isGenericParameter())
-        {
-            return genericType->getConcreteType();
-        }
-
-        // For complex generic types (like Array<T>), we'd need more sophisticated handling
-        // For now, default to OBJECT
-        return value::ValueType::OBJECT;
     }
 
     std::shared_ptr<runtimeTypes::klass::MethodDefinition> GenericTypeManager::substituteMethodTypes(

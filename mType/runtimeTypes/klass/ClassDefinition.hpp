@@ -104,5 +104,8 @@ namespace runtimeTypes::klass
         void setImplementedInterfaces(const std::vector<std::string>& interfaces) { implementedInterfaces = interfaces; }
         void addImplementedInterface(const std::string& interfaceName) { implementedInterfaces.push_back(interfaceName); }
         bool implementsInterface(const std::string& interfaceName) const;
+
+        // NEW: Inheritance-related methods
+        bool isSubclassOf(const std::string& className) const;
     };
 }

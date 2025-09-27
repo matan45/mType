@@ -21,6 +21,7 @@ namespace ast
             class ArrayTypeNode;
             class MapLiteralNode;
             class IndexAccessNode;
+            class LambdaNode;
         }
         
         namespace statements
@@ -108,5 +109,6 @@ namespace ast
     using ArrayTypeNode = nodes::expressions::ArrayTypeNode;
     using MapLiteralNode = nodes::expressions::MapLiteralNode;
     using IndexAccessNode = nodes::expressions::IndexAccessNode;
+    using LambdaNode = nodes::expressions::LambdaNode;
     using ForEachNode = nodes::statements::ForEachNode;
 }

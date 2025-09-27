@@ -1,0 +1,6 @@
+Testing lambda static field access
+Static field (3): 15
+Qualified static (2): 316
+Complex static (4): 311
+Static method lambda (1): 319
+Lambda static access test completed

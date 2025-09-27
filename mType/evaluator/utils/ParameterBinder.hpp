@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include "../../value/ValueType.hpp"
+#include "../../value/ParameterType.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../errors/SourceLocation.hpp"
 
@@ -24,6 +25,17 @@ namespace evaluator::utils
          * @param functionName Name of function/method for error messages
          * @param env Environment to bind variables in
          * @param location Source location for error reporting
+         */
+        static void bindAndValidateParameters(
+            const std::vector<std::pair<std::string, value::ParameterType>>& params,
+            const std::vector<value::Value>& args,
+            const std::string& functionName,
+            std::shared_ptr<environment::Environment> env,
+            const errors::SourceLocation& location = errors::SourceLocation{}
+        );
+
+        /**
+         * Backward compatibility: Binds and validates parameters with old ValueType format
          */
         static void bindAndValidateParameters(
             const std::vector<std::pair<std::string, value::ValueType>>& params,
@@ -63,12 +75,33 @@ namespace evaluator::utils
          */
         static bool isValidParameterConversion(value::ValueType from, value::ValueType to);
 
+        /**
+         * Enhanced type validation that checks interface implementation
+         */
+        static bool isValidParameterConversion(
+            const value::Value& actualValue,
+            const value::ParameterType& expectedType,
+            std::shared_ptr<environment::Environment> env
+        );
+
     private:
         static void validateParameterType(
             value::ValueType expected,
             value::ValueType actual,
             const std::string& paramName,
             const std::string& functionName,
+            const errors::SourceLocation& location
+        );
+
+        /**
+         * Enhanced parameter type validation with interface support
+         */
+        static void validateParameterType(
+            const value::Value& actualValue,
+            const value::ParameterType& expectedType,
+            const std::string& paramName,
+            const std::string& functionName,
+            std::shared_ptr<environment::Environment> env,
             const errors::SourceLocation& location
         );
 

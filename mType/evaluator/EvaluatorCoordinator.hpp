@@ -79,7 +79,8 @@ namespace evaluator
         Value visitArrayLiteralNode(ArrayLiteralNode* node) override;
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
-        
+        Value visitLambdaNode(LambdaNode* node) override;
+
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }
         ExpressionEvaluator* getExpressionEvaluator() const { return exprEvaluator.get(); }

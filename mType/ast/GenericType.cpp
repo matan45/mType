@@ -1,4 +1,5 @@
 #include "GenericType.hpp"
+#include "../exceptions/DomainExceptions.hpp"
 #include <stdexcept>
 #include <sstream>
 #include <unordered_map>
@@ -9,7 +10,8 @@ namespace ast
     value::ValueType GenericType::getConcreteType() const
     {
         if (isGenericParameter()) {
-            throw std::runtime_error("Cannot get concrete type from generic parameter: " + std::get<std::string>(baseType));
+            throw mtype::exceptions::TypeException("Cannot get concrete type from generic parameter",
+                                                  std::get<std::string>(baseType), __FUNCTION__);
         }
         return std::get<value::ValueType>(baseType);
     }
@@ -17,7 +19,8 @@ namespace ast
     std::string GenericType::getGenericName() const
     {
         if (!isGenericParameter()) {
-            throw std::runtime_error("Cannot get generic name from concrete type");
+            throw mtype::exceptions::TypeException("Cannot get generic name from concrete type",
+                                                  "", __FUNCTION__);
         }
         return std::get<std::string>(baseType);
     }
@@ -96,13 +99,23 @@ namespace ast
     {
         // Check depth limit
         if (currentDepth >= maxDepth) {
-            throw std::runtime_error("Maximum type substitution depth exceeded. Substitution chain: " + getChainString());
+            std::vector<std::string> chain;
+            for (const auto& param : substitutionChain) {
+                chain.push_back(param);
+            }
+            throw mtype::exceptions::CircularDependencyException(
+                "Maximum type substitution depth exceeded", chain, __FUNCTION__);
         }
 
         // Check for cycle - if parameter is already active in current chain
         if (activeParameters.find(paramName) != activeParameters.end()) {
-            throw std::runtime_error("Circular generic type dependency detected. Substitution chain: " +
-                getChainString() + " -> " + paramName);
+            std::vector<std::string> chain;
+            for (const auto& param : substitutionChain) {
+                chain.push_back(param);
+            }
+            chain.push_back(paramName);
+            throw mtype::exceptions::CircularDependencyException(
+                "Circular generic type dependency detected", chain, __FUNCTION__);
         }
 
         // Track this substitution step

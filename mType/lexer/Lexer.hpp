@@ -4,6 +4,7 @@
 #include <memory>
 #include <array>
 #include <string_view>
+#include <vector>
 #include "../token/TokenType.hpp"
 #include "../token/Token.hpp"
 #include "../services/FileReader.hpp"
@@ -25,6 +26,9 @@ namespace lexer
         std::unique_ptr<SourceLocationTracker> locationTracker;
         std::unique_ptr<BracketBalancer> bracketBalancer;
 
+        // Note: Deep lookahead implemented via position save/restore
+        // More complex buffering could be added later for performance
+
         // Operator information structure
         struct OperatorInfo
         {
@@ -39,7 +43,7 @@ namespace lexer
         };
 
         // Operator lookup table declarations
-        static const std::array<OperatorInfo, 14> TWO_CHAR_OPERATORS;
+        static const std::array<OperatorInfo, 15> TWO_CHAR_OPERATORS;
         static const std::array<OperatorInfo, 20> SINGLE_CHAR_OPERATORS;
 
         // List of keywords and their corresponding TokenType
@@ -88,6 +92,10 @@ namespace lexer
 
         Token getNextToken();
         Token peekNextToken();
+
+        // Deep lookahead support for complex parsing scenarios
+        Token peekAhead(size_t offset);
+        std::vector<Token> peekMultiple(size_t count);
 
     private:
         // Core parsing methods

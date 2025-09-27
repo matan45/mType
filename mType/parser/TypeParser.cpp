@@ -1,6 +1,7 @@
 #include "TypeParser.hpp"
 #include "../errors/ParseException.hpp"
 #include "../ast/GenericType.hpp"
+#include "../types/TypeRegistry.hpp"
 
 namespace parser
 {
@@ -20,7 +21,10 @@ namespace parser
         {"float", ValueType::FLOAT},
         {"bool", ValueType::BOOL},
         {"string", ValueType::STRING},
-        {"void", ValueType::VOID}
+        {"void", ValueType::VOID},
+        {"array", ValueType::ARRAY},
+        {"null", ValueType::NULL_TYPE},
+        {"lambda", ValueType::LAMBDA}
     };
 
     const std::unordered_set<TokenType> TypeParser::assignmentOperators = {
@@ -289,8 +293,20 @@ namespace parser
 
     ValueType TypeParser::stringToValueType(std::string_view typeName) noexcept
     {
+        // First check the static map for primitive types (fast path)
         auto it = stringTypeMap.find(typeName);
-        return it != stringTypeMap.end() ? it->second : ValueType::OBJECT;
+        if (it != stringTypeMap.end()) {
+            return it->second;
+        }
+
+        // Use the global registry for comprehensive type resolution
+        try {
+            auto& registry = types::getGlobalTypeRegistry();
+            return registry.getValueType(std::string(typeName));
+        } catch (...) {
+            // If registry fails, fallback to OBJECT (maintains backward compatibility)
+            return ValueType::OBJECT;
+        }
     }
 
     std::string TypeParser::parseQualifiedName(TokenStream& stream)

@@ -1,4 +1,6 @@
 #include "ObjectEvaluator.hpp"
+#include "../value/LambdaValue.hpp"
+#include "../value/ParameterType.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
@@ -174,13 +176,72 @@ namespace evaluator
             // Create method definition with generic type information preserved
             std::shared_ptr<MethodDefinition> methodDef;
 
+            // Convert MethodNode parameters to ParameterType for interface support
+            auto convertToParameterTypes = [env, methodNode]() -> std::vector<std::pair<std::string, ParameterType>> {
+                std::vector<std::pair<std::string, ParameterType>> newParams;
+
+                // Get generic parameters which contain the actual type names (including interfaces)
+                auto genericParams = methodNode->getGenericParameters();
+                auto legacyParams = methodNode->getParameters();
+
+                for (size_t i = 0; i < legacyParams.size(); ++i) {
+                    const std::string& paramName = legacyParams[i].first;
+                    ValueType baseType = legacyParams[i].second;
+
+                    ParameterType paramType(baseType);  // Initialize with base type
+
+                    // If we have generic parameter information, extract interface name
+                    if (i < genericParams.size() && genericParams[i].second) {
+                        auto genericType = genericParams[i].second;
+                        if (genericType->isGenericParameter()) {
+                            // This might be a generic parameter OR an interface/class name
+                            std::string typeName = genericType->getGenericName();
+
+                            // Check if it's a known interface or class first
+                            if (env->findInterface(typeName) != nullptr) {
+                                paramType = ParameterType::forInterface(typeName);
+                            }
+                            else if (env->findClass(typeName) != nullptr) {
+                                paramType = ParameterType::forClass(typeName);
+                            }
+                            else {
+                                // This is actually a generic parameter like T, E, etc.
+                                paramType = ParameterType(baseType);
+                            }
+                        } else if (baseType == ValueType::OBJECT) {
+                            // This might be an interface or class - check environment to determine
+                            std::string typeName = genericType->getBaseTypeName();
+
+                            // Check if it's a registered interface
+                            if (env->findInterface(typeName) != nullptr) {
+                                paramType = ParameterType::forInterface(typeName);
+                            }
+                            // Check if it's a registered class
+                            else if (env->findClass(typeName) != nullptr) {
+                                paramType = ParameterType::forClass(typeName);
+                            }
+                            else {
+                                // Unknown type - default to basic object type
+                                paramType = ParameterType(baseType);
+                            }
+                        }
+                    }
+
+                    newParams.emplace_back(paramName, paramType);
+                }
+
+                return newParams;
+            };
+
+            auto parameterTypes = convertToParameterTypes();
+
             if (methodNode->isGeneric())
             {
                 // For generic methods, preserve the generic type information
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(), // Legacy ValueType for compatibility
-                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
+                    parameterTypes, // NEW: Use ParameterType instead of ValueType
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
                     methodNode->getIsStatic(),
@@ -196,7 +257,7 @@ namespace evaluator
                 methodDef = std::make_shared<MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(), // Legacy ValueType for compatibility
-                    methodNode->getParameters(), // Legacy ValueType parameters for compatibility
+                    parameterTypes, // NEW: Use ParameterType instead of ValueType
                     std::vector<std::pair<std::string, Value>>{}, // empty arguments
                     bodyPtr,
                     methodNode->getIsStatic(),
@@ -1001,6 +1062,21 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
+
+            // Check if this is a lambda-backed interface (has __lambda field)
+            auto lambdaField = instance->getField("__lambda");
+            if (lambdaField)
+            {
+                Value lambdaValue = lambdaField->getValue();
+                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
+                {
+                    auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                    // Invoke the lambda with the method arguments
+                    Value result = lambda->invoke(args, context);
+                    return result;
+                }
+            }
+
             return callMethod(instance, node->getMethodName(), args, node->getLocation());
         }
         // Collection method dispatch removed - collections now implemented in mType language
@@ -1017,6 +1093,19 @@ namespace evaluator
                                       const std::vector<Value>& args,
                                       const errors::SourceLocation& location)
     {
+        // Check if this is a lambda-backed interface (has __lambda field)
+        Value lambdaValue = object->getFieldValue("__lambda");
+        if (!std::holds_alternative<std::monostate>(lambdaValue))
+        {
+            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
+            {
+                auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                // Invoke the lambda with the method arguments
+                Value result = lambda->invoke(args, context);
+                return result;
+            }
+        }
+
         auto env = context->getEnvironment();
 
         // Get the class definition from the object
@@ -1032,6 +1121,29 @@ namespace evaluator
         {
             throw UndefinedException("Method '" + methodName + "' not found in class '" +
                 classDef->getName() + "'");
+        }
+
+        // Check if this method has a lambda implementation (lambda-to-interface scenario)
+        if (method->hasLambdaNode())
+        {
+            auto lambdaNode = method->getLambdaNode();
+            if (lambdaNode && method->isLambdaNodeValid())
+            {
+                // Create LambdaValue with current evaluation context
+                // Convert shared_ptr to raw pointer for LambdaValue constructor
+                auto lambdaValue = std::make_shared<value::LambdaValue>(lambdaNode.get(), context);
+
+                // Set interface implementation info
+                lambdaValue->setInterfaceImplementation(classDef->getName(), methodName);
+
+                // Invoke the lambda with proper parameter mapping
+                try {
+                    Value result = lambdaValue->invoke(args, context);
+                    return result;
+                } catch (const std::exception& e) {
+                    throw TypeException("Lambda invocation failed: " + std::string(e.what()));
+                }
+            }
         }
 
         // Check if trying to call static method on instance

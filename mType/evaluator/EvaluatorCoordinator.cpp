@@ -315,4 +315,9 @@ namespace evaluator
     {
         return stmtEvaluator->evaluateForEachNode(node);
     }
+
+    Value EvaluatorCoordinator::visitLambdaNode(LambdaNode* node)
+    {
+        return exprEvaluator->evaluateLambdaNode(node);
+    }
 }

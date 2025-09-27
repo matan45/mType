@@ -1,0 +1,31 @@
+Starting Simple Generic Type Tests...
+=== Testing Basic Generics ===
+Int box: Box(42)
+Int box value: 42
+String box: Box(Hello Generics!)
+String box value: Hello Generics!
+Bool box: Box(true)
+Bool box value: true
+=== Testing Generic Pairs ===
+Name-Age pair: (Alice, 25)
+Name: Alice
+Age: 25
+ID-Name pair: (101, Bob)
+ID: 101
+Name: Bob
+Status-Score pair: (true, 95.500000)
+Status: true
+Score: 95.500000
+=== Testing Generics with Custom Objects ===
+Student box: Box(Alice (Grade: 90))
+Retrieved student: Alice (Grade: 90)
+Student-Score pair: (Bob (Grade: 85), 1000)
+=== Testing Arrays with Generics ===
+Array of generic boxes:
+  [0] = Box(10)
+  [1] = Box(20)
+  [2] = Box(30)
+Array of pairs:
+  [0] = (First, 1)
+  [1] = (Second, 2)
+Simple generic type tests completed!

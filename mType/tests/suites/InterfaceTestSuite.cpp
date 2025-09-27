@@ -69,5 +69,34 @@ namespace tests::testSuite
         addTestFromFile("Undefined Interface Error",
                         errorPath + "undefinedInterface.mt",
                         TestType::ERROR_EXPECTED);
+
+        // Interface compatibility error tests
+        addTestFromFile("Parameter Type Mismatch Error",
+                        errorPath + "parameterTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Return Type Mismatch Error",
+                        errorPath + "returnTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Static Parameter Mismatch Error",
+                        errorPath + "staticParameterMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Static Method Parameter Mismatch Error",
+                        errorPath + "staticMethodParameterMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Static Return Mismatch Error",
+                        errorPath + "staticReturnMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Multiple Parameter Mismatch Error",
+                        errorPath + "multipleParameterMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Assignment Type Mismatch Error",
+                        errorPath + "assignmentTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

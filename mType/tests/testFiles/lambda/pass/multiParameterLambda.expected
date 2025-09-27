@@ -1,0 +1,5 @@
+=== Multi-Parameter Lambda Test ===
+3 + 5 = 8
+4 * 6 = 24
+Is 10 > 5? true
+Is 3 > 8? false

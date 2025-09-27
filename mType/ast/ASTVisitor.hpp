@@ -51,6 +51,7 @@ namespace ast
         virtual T visitArrayCreationNode(ArrayCreationNode* node) = 0;
         virtual T visitArrayLiteralNode(ArrayLiteralNode* node) = 0;
         virtual T visitIndexAccessNode(IndexAccessNode* node) = 0;
+        virtual T visitLambdaNode(LambdaNode* node) = 0;
         virtual T visitForEachNode(ForEachNode* node) = 0;
     };
 }

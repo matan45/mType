@@ -1,0 +1,6 @@
+Testing lambda method parameter capture
+Parameter capture (3): 21
+Mixed capture (4): 118
+Complex capture (2, 5): 126
+Block parameter capture (6): 132
+Lambda parameter capture test completed

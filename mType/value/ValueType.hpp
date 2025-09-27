@@ -15,6 +15,7 @@ namespace value
     class NativeArray;
     class FlatMultiArray;
     class SparseMultiArray;
+    class LambdaValue;
 }
 
 
@@ -29,6 +30,8 @@ namespace value
         STRING,
         VOID,
         OBJECT,
+        ARRAY,
+        LAMBDA,
         NULL_TYPE
     };
 
@@ -38,16 +41,20 @@ namespace value
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,
+                               std::shared_ptr<LambdaValue>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value
     inline ValueType getValueType(const Value& value) {
         // Explicit check for multi-dimensional arrays before using std::visit
         if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(value)) {
-            return ValueType::OBJECT;
+            return ValueType::ARRAY;
         }
         if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
-            return ValueType::OBJECT;
+            return ValueType::ARRAY;
+        }
+        if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {
+            return ValueType::LAMBDA;
         }
 
         return std::visit([](const auto& v) -> ValueType {
@@ -66,7 +73,7 @@ namespace value
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
                 return ValueType::OBJECT;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<NativeArray>>) {
-                return ValueType::OBJECT; // Arrays are treated as objects
+                return ValueType::ARRAY; // Arrays now have their own type
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, nullptr_t>) {
                 return ValueType::NULL_TYPE;
             } else {

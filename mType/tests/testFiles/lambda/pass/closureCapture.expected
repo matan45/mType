@@ -1,0 +1,4 @@
+=== Closure Variable Capture Test ===
+Captured localVar (10): 15
+Complex capture: 25
+Final result: 10
