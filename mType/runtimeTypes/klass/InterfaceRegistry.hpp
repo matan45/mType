@@ -10,11 +10,24 @@ namespace runtimeTypes::klass {
 
     class InterfaceRegistry {
     private:
-        std::unordered_map<std::string, std::shared_ptr<InterfaceDefinition>> interfaces;
+        // Configuration for memory management
+        static constexpr size_t MAX_INTERFACES = 10000;         // Maximum stored interfaces
+        static constexpr size_t MAX_VALIDATION_CACHE = 5000;    // Maximum validation cache entries
+        static constexpr size_t CLEANUP_THRESHOLD = 8000;       // Start cleanup at 80% capacity
+        static constexpr size_t EVICTION_BATCH_SIZE = 1000;     // Evict this many at once
+
+        // Interface storage with access tracking
+        mutable std::unordered_map<std::string, std::shared_ptr<InterfaceDefinition>> interfaces;
+        mutable std::unordered_map<std::string, std::chrono::steady_clock::time_point> interfaceAccessTimes;
+        mutable std::list<std::string> interfaceAccessOrder; // LRU tracking
+        mutable std::unordered_map<std::string, std::list<std::string>::iterator> interfaceOrderMap;
+
         std::shared_ptr<mtype::exceptions::CircularDependencyDetector> dependencyDetector;
 
-        // Validation cache for performance optimization
+        // Bounded validation cache for performance optimization
         mutable std::unordered_set<std::string> validatedInterfaces;
+        mutable std::list<std::string> validationAccessOrder; // LRU tracking for validation cache
+        mutable std::unordered_map<std::string, std::list<std::string>::iterator> validationOrderMap;
 
     public:
         InterfaceRegistry() {
@@ -30,15 +43,26 @@ namespace runtimeTypes::klass {
 
         // Interface registration
         void registerInterface(const std::string& name, std::shared_ptr<InterfaceDefinition> interface) {
+            // Check if we need to evict before adding
+            if (shouldEvictInterfaces()) {
+                performAutomaticCleanup();
+            }
+
             interfaces[name] = interface;
+            updateInterfaceAccess(name);
+
             // Clear validation cache since interface hierarchy may have changed
-            validatedInterfaces.clear();
+            clearValidationCache();
         }
 
         // Interface lookup
         std::shared_ptr<InterfaceDefinition> findInterface(const std::string& name) const {
             auto it = interfaces.find(name);
-            return (it != interfaces.end()) ? it->second : nullptr;
+            if (it != interfaces.end()) {
+                updateInterfaceAccess(name);
+                return it->second;
+            }
+            return nullptr;
         }
 
         bool hasInterface(const std::string& name) const {
@@ -53,7 +77,10 @@ namespace runtimeTypes::klass {
         // Clear all interfaces (useful for testing)
         void clear() {
             interfaces.clear();
-            validatedInterfaces.clear();
+            interfaceAccessTimes.clear();
+            interfaceAccessOrder.clear();
+            interfaceOrderMap.clear();
+            clearValidationCache();
         }
 
         // Remove specific interface
@@ -61,8 +88,17 @@ namespace runtimeTypes::klass {
             auto it = interfaces.find(name);
             if (it != interfaces.end()) {
                 interfaces.erase(it);
+
+                // Clean up interface LRU tracking
+                interfaceAccessTimes.erase(name);
+                auto orderIt = interfaceOrderMap.find(name);
+                if (orderIt != interfaceOrderMap.end()) {
+                    interfaceAccessOrder.erase(orderIt->second);
+                    interfaceOrderMap.erase(orderIt);
+                }
+
                 // Clear validation cache since interface structure changed
-                validatedInterfaces.clear();
+                clearValidationCache();
                 return true;
             }
             return false;
@@ -72,18 +108,32 @@ namespace runtimeTypes::klass {
         template<typename Predicate>
         size_t removeInterfacesIf(Predicate pred) {
             size_t removedCount = 0;
-            auto it = interfaces.begin();
-            while (it != interfaces.end()) {
+            std::vector<std::string> toRemove;
+
+            // First, collect interfaces to remove
+            for (auto it = interfaces.begin(); it != interfaces.end(); ++it) {
                 if (pred(it->first, it->second)) {
-                    it = interfaces.erase(it);
-                    removedCount++;
-                } else {
-                    ++it;
+                    toRemove.push_back(it->first);
                 }
             }
+
+            // Then remove them and clean up LRU tracking
+            for (const auto& name : toRemove) {
+                interfaces.erase(name);
+
+                // Clean up interface LRU tracking
+                interfaceAccessTimes.erase(name);
+                auto orderIt = interfaceOrderMap.find(name);
+                if (orderIt != interfaceOrderMap.end()) {
+                    interfaceAccessOrder.erase(orderIt->second);
+                    interfaceOrderMap.erase(orderIt);
+                }
+                removedCount++;
+            }
+
             // Clear validation cache if any interfaces were removed
             if (removedCount > 0) {
-                validatedInterfaces.clear();
+                clearValidationCache();
             }
             return removedCount;
         }
@@ -116,14 +166,22 @@ namespace runtimeTypes::klass {
         bool validateInterfaceHierarchy(const std::string& interfaceName) const {
             // Check cache first - O(1) lookup for previously validated interfaces
             if (validatedInterfaces.find(interfaceName) != validatedInterfaces.end()) {
+                updateValidationAccess(interfaceName);
                 return true; // Already validated successfully
             }
 
             // Perform validation only if not cached
             try {
                 validateInterfaceHierarchyEnhanced(interfaceName);
-                // Cache successful validation result
+
+                // Check if we need to evict before adding to cache
+                if (validatedInterfaces.size() >= MAX_VALIDATION_CACHE) {
+                    evictLRUValidations();
+                }
+
+                // Cache successful validation result with LRU tracking
                 validatedInterfaces.insert(interfaceName);
+                updateValidationAccess(interfaceName);
                 return true;
             }
             catch (const mtype::exceptions::TrueCyclicException&) {
@@ -153,6 +211,8 @@ namespace runtimeTypes::klass {
         // Cache management
         void clearValidationCache() {
             validatedInterfaces.clear();
+            validationAccessOrder.clear();
+            validationOrderMap.clear();
         }
 
         size_t getValidationCacheSize() const {
@@ -205,5 +265,13 @@ namespace runtimeTypes::klass {
             visited.erase(interfaceName);
             return true;
         }
+
+        // Memory management helper methods
+        void updateInterfaceAccess(const std::string& name) const;
+        void evictLRUInterfaces() const;
+        void updateValidationAccess(const std::string& name) const;
+        void evictLRUValidations() const;
+        bool shouldEvictInterfaces() const;
+        void performAutomaticCleanup() const;
     };
 }

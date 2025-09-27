@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <chrono>
+#include <list>
 
 namespace mtype::exceptions {
 
@@ -29,8 +30,17 @@ namespace mtype::exceptions {
         // Performance metrics
         mutable DependencyDetectionMetrics metrics_;
 
-        // Validation cache for performance
-        mutable std::unordered_map<std::string, bool> validationCache_;
+        // LRU cache implementation for validation results
+        struct CacheEntry {
+            bool isValid;
+            std::chrono::steady_clock::time_point lastUsed;
+
+            CacheEntry(bool valid) : isValid(valid), lastUsed(std::chrono::steady_clock::now()) {}
+        };
+
+        mutable std::unordered_map<std::string, CacheEntry> validationCache_;
+        mutable std::list<std::string> cacheAccessOrder_; // For LRU tracking
+        mutable std::unordered_map<std::string, std::list<std::string>::iterator> cacheOrderMap_; // Fast access to list positions
 
     public:
         /**
@@ -156,6 +166,12 @@ namespace mtype::exceptions {
          * @brief Get dependency type name for error messages
          */
         static std::string getDependencyTypeName(DependencyType type);
+
+        // LRU cache management helpers
+        void updateCacheAccess(const std::string& key) const;
+        void evictLRUEntries() const;
+        bool getCachedResult(const std::string& key) const;
+        void setCachedResult(const std::string& key, bool result) const;
     };
 
     /**

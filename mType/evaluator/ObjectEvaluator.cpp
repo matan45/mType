@@ -1120,6 +1120,10 @@ namespace evaluator
                 if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
                 {
                     auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                    if (!lambda) {
+                        throw TypeException("Lambda value is null - cannot invoke method '" +
+                                          node->getMethodName() + "'");
+                    }
                     // Invoke the lambda with the method arguments
                     Value result = lambda->invoke(args, context);
                     return result;
@@ -1149,6 +1153,10 @@ namespace evaluator
             if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(lambdaValue))
             {
                 auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
+                if (!lambda) {
+                    throw TypeException("Lambda value is null - cannot invoke interface method '" +
+                                      methodName + "'");
+                }
                 // Invoke the lambda with the method arguments
                 Value result = lambda->invoke(args, context);
                 return result;
@@ -1212,7 +1220,11 @@ namespace evaluator
             {
                 // Create LambdaValue with current evaluation context
                 // Convert shared_ptr to raw pointer for LambdaValue constructor
-                auto lambdaValue = std::make_shared<value::LambdaValue>(lambdaNode.get(), context);
+                auto rawLambdaNode = lambdaNode.get();
+                if (!rawLambdaNode) {
+                    throw TypeException("Lambda node is null - cannot create lambda for method '" + methodName + "'");
+                }
+                auto lambdaValue = std::make_shared<value::LambdaValue>(rawLambdaNode, context);
 
                 // Set interface implementation info
                 lambdaValue->setInterfaceImplementation(classDef->getName(), methodName);

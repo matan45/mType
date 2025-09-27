@@ -94,11 +94,21 @@ namespace runtimeTypes::klass {
             return false;
         }
 
-        // Method signature compatibility checking
-        MethodSignature* findMethod(const std::string& methodName, size_t paramCount) const {
+        // Method signature compatibility checking - const version
+        const MethodSignature* findMethod(const std::string& methodName, size_t paramCount) const {
             for (const auto& sig : methodSignatures) {
                 if (sig.name == methodName && sig.parameters.size() == paramCount) {
-                    return const_cast<MethodSignature*>(&sig);
+                    return &sig;
+                }
+            }
+            return nullptr;
+        }
+
+        // Method signature compatibility checking - non-const version
+        MethodSignature* findMethod(const std::string& methodName, size_t paramCount) {
+            for (auto& sig : methodSignatures) {
+                if (sig.name == methodName && sig.parameters.size() == paramCount) {
+                    return &sig;
                 }
             }
             return nullptr;

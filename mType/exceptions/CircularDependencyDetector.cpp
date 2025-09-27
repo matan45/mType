@@ -37,8 +37,9 @@ namespace mtype::exceptions {
 
                 auto cacheIt = validationCache_.find(cacheKey);
                 if (cacheIt != validationCache_.end()) {
+                    updateCacheAccess(cacheKey);
                     metrics_.addCacheHit();
-                    if (!cacheIt->second) {
+                    if (!cacheIt->second.isValid) {
                         // Previously detected as problematic
                         throw TrueCyclicException(type, identifier, chain, location);
                     }
@@ -54,6 +55,12 @@ namespace mtype::exceptions {
                 auto chain = dependencyChains_[type];
                 chain.push_back(identifier);
 
+                // Cache negative result
+                if (config_.enableCaching) {
+                    std::string cacheKey = createCacheKey(type, chain);
+                    setCachedResult(cacheKey, false);
+                }
+
                 auto endTime = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
                 recordDetection(false, true, false, duration);
@@ -65,6 +72,12 @@ namespace mtype::exceptions {
             if (currentDepths_[type] >= config_.getMaxDepth(type)) {
                 auto chain = dependencyChains_[type];
                 chain.push_back(identifier);
+
+                // Cache negative result for depth limit violation
+                if (config_.enableCaching) {
+                    std::string cacheKey = createCacheKey(type, chain);
+                    setCachedResult(cacheKey, false);
+                }
 
                 auto endTime = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
@@ -79,6 +92,12 @@ namespace mtype::exceptions {
                 currentChain.push_back(identifier);
 
                 if (patternAnalyzer_->detectAnyPattern(currentChain)) {
+                    // Cache negative result for pattern detection
+                    if (config_.enableCaching) {
+                        std::string cacheKey = createCacheKey(type, currentChain);
+                        setCachedResult(cacheKey, false);
+                    }
+
                     auto endTime = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
                     recordDetection(false, false, true, duration);
@@ -97,9 +116,7 @@ namespace mtype::exceptions {
             // Update cache
             if (config_.enableCaching) {
                 std::string cacheKey = createCacheKey(type, dependencyChains_[type]);
-                if (validationCache_.size() < static_cast<size_t>(config_.cacheMaxSize)) {
-                    validationCache_[cacheKey] = true;
-                }
+                setCachedResult(cacheKey, true);
             }
 
             auto endTime = std::chrono::high_resolution_clock::now();
@@ -213,6 +230,60 @@ namespace mtype::exceptions {
 
     void CircularDependencyDetector::clearCache() const {
         validationCache_.clear();
+        cacheAccessOrder_.clear();
+        cacheOrderMap_.clear();
+    }
+
+    void CircularDependencyDetector::updateCacheAccess(const std::string& key) const {
+        // Update access time
+        auto cacheIt = validationCache_.find(key);
+        if (cacheIt != validationCache_.end()) {
+            cacheIt->second.lastUsed = std::chrono::steady_clock::now();
+
+            // Move to front of LRU list (most recently used)
+            auto orderIt = cacheOrderMap_.find(key);
+            if (orderIt != cacheOrderMap_.end()) {
+                cacheAccessOrder_.erase(orderIt->second);
+            }
+            cacheAccessOrder_.push_front(key);
+            cacheOrderMap_[key] = cacheAccessOrder_.begin();
+        }
+    }
+
+    void CircularDependencyDetector::evictLRUEntries() const {
+        // Evict entries until we're under the cache size limit
+        while (validationCache_.size() > static_cast<size_t>(config_.cacheMaxSize * 0.8)) {
+            if (cacheAccessOrder_.empty()) break;
+
+            // Remove least recently used entry
+            const std::string& lruKey = cacheAccessOrder_.back();
+            validationCache_.erase(lruKey);
+            cacheOrderMap_.erase(lruKey);
+            cacheAccessOrder_.pop_back();
+        }
+    }
+
+    bool CircularDependencyDetector::getCachedResult(const std::string& key) const {
+        auto cacheIt = validationCache_.find(key);
+        if (cacheIt != validationCache_.end()) {
+            updateCacheAccess(key);
+            metrics_.addCacheHit();
+            return cacheIt->second.isValid;
+        }
+        metrics_.addCacheMiss();
+        return false; // Not found - caller should check if key exists
+    }
+
+    void CircularDependencyDetector::setCachedResult(const std::string& key, bool result) const {
+        // Check if we need to evict entries first
+        if (validationCache_.size() >= static_cast<size_t>(config_.cacheMaxSize)) {
+            evictLRUEntries();
+        }
+
+        // Add new entry
+        validationCache_.emplace(key, CacheEntry(result));
+        cacheAccessOrder_.push_front(key);
+        cacheOrderMap_[key] = cacheAccessOrder_.begin();
     }
 
     bool CircularDependencyDetector::checkTrueCycle(DependencyType type, const std::string& identifier) const {

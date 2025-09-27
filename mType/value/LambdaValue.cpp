@@ -25,6 +25,13 @@ namespace value
                            std::shared_ptr<evaluator::base::EvaluationContext> context)
         : lambdaNode(node), capturedContext(context), isInterfaceImplementation(false)
     {
+        if (!node) {
+            throw errors::RuntimeException("Lambda node cannot be null");
+        }
+        if (!context) {
+            throw errors::RuntimeException("Evaluation context cannot be null");
+        }
+
         // Capture 'this' instance if available (for class context lambdas)
         capturedThisInstance = context->getCurrentInstance();
 
@@ -35,11 +42,23 @@ namespace value
     Value LambdaValue::invoke(const std::vector<Value>& arguments,
                              std::shared_ptr<evaluator::base::EvaluationContext> callContext)
     {
+        // Validate lambda state
+        if (!lambdaNode) {
+            throw errors::RuntimeException("Lambda node is null - invalid lambda state");
+        }
+        if (!capturedContext) {
+            throw errors::RuntimeException("Captured context is null - invalid lambda state");
+        }
+        auto capturedEnv = capturedContext->getEnvironment();
+        if (!capturedEnv) {
+            throw errors::RuntimeException("Captured environment is null - invalid lambda state");
+        }
+
         // Validate argument count and basic types
         validateArguments(arguments);
 
         // Create a new environment that inherits from the captured context
-        auto lambdaEnv = std::make_shared<environment::Environment>(*capturedContext->getEnvironment());
+        auto lambdaEnv = std::make_shared<environment::Environment>(*capturedEnv);
         auto lambdaContext = std::make_shared<evaluator::base::EvaluationContext>(lambdaEnv);
 
         // Preserve important context from the original captured context
@@ -51,8 +70,17 @@ namespace value
 
         // Restore captured variables to lambda scope
         for (const auto& [name, captured] : capturedVariables) {
+            // Get the current value based on capture strategy
+            Value currentValue = captured.getValue();
+
+            // Check if reference is still valid (for reference captures)
+            if (!captured.isCapturedByValue && std::holds_alternative<std::monostate>(currentValue)) {
+                throw errors::RuntimeException("Lambda references captured variable '" + name +
+                                             "' which is no longer accessible");
+            }
+
             lambdaEnv->declareVariable(name,
-                std::make_shared<runtimeTypes::global::VariableDefinition>(name, captured.originalType, captured.value));
+                std::make_shared<runtimeTypes::global::VariableDefinition>(name, captured.originalType, currentValue));
         }
 
         // Bind parameters to arguments
@@ -64,6 +92,11 @@ namespace value
         }
 
         // Execute lambda body
+        auto lambdaBody = lambdaNode->getBody();
+        if (!lambdaBody) {
+            throw errors::RuntimeException("Lambda body is null - malformed lambda AST");
+        }
+
         if (lambdaNode->isExpressionLambda()) {
             // Expression lambda - evaluate and return the expression
             // Create all evaluators for proper context support
@@ -75,7 +108,7 @@ namespace value
             exprEvaluator.setStatementEvaluator(&stmtEvaluator);
             exprEvaluator.setObjectEvaluator(&objEvaluator);
 
-            return exprEvaluator.evaluate(lambdaNode->getBody());
+            return exprEvaluator.evaluate(lambdaBody);
         } else {
             // Block lambda - execute statements and get return value
             // Create all three evaluators and link them properly
@@ -93,7 +126,7 @@ namespace value
             objEvaluator.setExpressionEvaluator(&exprEvaluator);
 
             try {
-                stmtEvaluator.evaluate(lambdaNode->getBody());
+                stmtEvaluator.evaluate(lambdaBody);
             } catch (const exception::ReturnException& e) {
                 // Return statements in lambdas are normal - extract the return value
                 return e.returnValue;
@@ -196,19 +229,19 @@ namespace value
             if (!isParameter) {
                 auto varDef = environment->findVariable(varName);
                 if (varDef) {
-                    // Found as local/environment variable
+                    // Found as local/environment variable - use optimized capture
                     ValueType type = getValueType(varDef->getValue());
-                    addCapturedVariable(varName, varDef->getValue(), type);
+                    addCapturedVariableOptimized(varName, varDef->getValue(), type);
                 } else {
                     // Not found in environment, check if it's a class field
                     auto currentInstance = capturedContext->getCurrentInstance();
                     if (currentInstance) {
                         auto field = currentInstance->getField(varName);
                         if (field) {
-                            // Found as instance field - capture its current value
+                            // Found as instance field - capture its current value with optimization
                             Value fieldValue = currentInstance->getFieldValue(varName);
                             ValueType type = getValueType(fieldValue);
-                            addCapturedVariable(varName, fieldValue, type);
+                            addCapturedVariableOptimized(varName, fieldValue, type);
                         }
                     }
                 }
@@ -312,5 +345,74 @@ namespace value
 
         // For other node types, we would need to add specific handling
         // This covers the most common cases for variable references in lambdas
+    }
+
+    bool LambdaValue::shouldCaptureByValue(const Value& value, ValueType type) const
+    {
+        // Always capture primitives by value (they're small)
+        if (type == ValueType::INT || type == ValueType::FLOAT ||
+            type == ValueType::BOOL || type == ValueType::VOID) {
+            return true;
+        }
+
+        // Estimate the size and decide based on threshold
+        size_t estimatedSize = estimateValueSize(value, type);
+        return estimatedSize <= MAX_VALUE_CAPTURE_SIZE;
+    }
+
+    size_t LambdaValue::estimateValueSize(const Value& value, ValueType type) const
+    {
+        switch (type) {
+            case ValueType::INT:
+                return sizeof(int);
+            case ValueType::FLOAT:
+                return sizeof(float);
+            case ValueType::BOOL:
+                return sizeof(bool);
+            case ValueType::STRING:
+                if (std::holds_alternative<std::string>(value)) {
+                    const auto& str = std::get<std::string>(value);
+                    return str.size() + sizeof(std::string); // String data + overhead
+                }
+                return sizeof(std::string);
+            case ValueType::OBJECT:
+                // Objects are generally large - estimate conservatively
+                return LARGE_OBJECT_THRESHOLD;
+            case ValueType::ARRAY:
+                // Arrays can be very large - estimate conservatively
+                return LARGE_OBJECT_THRESHOLD;
+            default:
+                return LARGE_OBJECT_THRESHOLD; // Conservative estimate for unknown types
+        }
+    }
+
+    void LambdaValue::addCapturedVariableOptimized(const std::string& name, const Value& value, ValueType type)
+    {
+        bool captureByValue = shouldCaptureByValue(value, type);
+
+        if (captureByValue) {
+            // Small values - capture by value for performance
+            capturedVariables.emplace(name, CapturedVariable(name, value, type));
+        } else {
+            // Large values - capture by reference to save memory
+            addCapturedVariableByReference(name, value, type);
+        }
+    }
+
+    void LambdaValue::addCapturedVariableByReference(const std::string& name, const Value& value, ValueType type)
+    {
+        // Try to find the variable definition in the current environment
+        auto environment = capturedContext->getEnvironment();
+        auto varDef = environment->findVariable(name);
+
+        if (varDef) {
+            // Create weak reference to the variable definition
+            std::weak_ptr<runtimeTypes::global::VariableDefinition> weakRef = varDef;
+            capturedVariables.emplace(name, CapturedVariable(name, weakRef, type));
+        } else {
+            // Fallback: if we can't find the variable definition, capture by value
+            // This can happen with temporary values or complex expressions
+            capturedVariables.emplace(name, CapturedVariable(name, value, type));
+        }
     }
 }

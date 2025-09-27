@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -107,5 +108,14 @@ namespace runtimeTypes::klass
 
         // NEW: Inheritance-related methods
         bool isSubclassOf(const std::string& className) const;
+
+    private:
+        // Depth protection for interface inheritance chains
+        static constexpr int MAX_INTERFACE_DEPTH = 20;
+
+        // Helper method for transitive interface checking with depth protection
+        bool implementsInterfaceTransitive(const std::string& interfaceName,
+                                         std::unordered_set<std::string>& visited,
+                                         int depth) const;
     };
 }

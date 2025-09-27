@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "../evaluator/base/EvaluationContext.hpp"
 #include "../value/ValueType.hpp"
+#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include <memory>
 #include <vector>
 #include <unordered_map>
@@ -18,14 +19,89 @@ namespace runtimeTypes::klass {
 
 namespace value
 {
-    // Captured variable representation for closures
+    // Captured variable representation for closures with memory optimization
     struct CapturedVariable {
         std::string name;
-        Value value;
         ValueType originalType;
+        bool isCapturedByValue;  // true for value capture, false for reference
 
+        // Union to store either value or reference efficiently
+        union CaptureStorage {
+            Value capturedValue;                                           // For by-value capture
+            std::weak_ptr<runtimeTypes::global::VariableDefinition> weakRef; // For by-reference capture
+
+            CaptureStorage() {}
+            ~CaptureStorage() {}
+        } storage;
+
+        // Constructor for value-based capture (small objects)
         CapturedVariable(const std::string& n, const Value& v, ValueType t)
-            : name(n), value(v), originalType(t) {}
+            : name(n), originalType(t), isCapturedByValue(true) {
+            new(&storage.capturedValue) Value(v);
+        }
+
+        // Constructor for reference-based capture (large objects)
+        CapturedVariable(const std::string& n, std::weak_ptr<runtimeTypes::global::VariableDefinition> ref, ValueType t)
+            : name(n), originalType(t), isCapturedByValue(false) {
+            new(&storage.weakRef) std::weak_ptr<runtimeTypes::global::VariableDefinition>(ref);
+        }
+
+        // Destructor
+        ~CapturedVariable() {
+            if (isCapturedByValue) {
+                storage.capturedValue.~Value();
+            } else {
+                storage.weakRef.~weak_ptr();
+            }
+        }
+
+        // Copy constructor
+        CapturedVariable(const CapturedVariable& other)
+            : name(other.name), originalType(other.originalType), isCapturedByValue(other.isCapturedByValue) {
+            if (isCapturedByValue) {
+                new(&storage.capturedValue) Value(other.storage.capturedValue);
+            } else {
+                new(&storage.weakRef) std::weak_ptr<runtimeTypes::global::VariableDefinition>(other.storage.weakRef);
+            }
+        }
+
+        // Assignment operator
+        CapturedVariable& operator=(const CapturedVariable& other) {
+            if (this != &other) {
+                // Destroy current storage
+                if (isCapturedByValue) {
+                    storage.capturedValue.~Value();
+                } else {
+                    storage.weakRef.~weak_ptr();
+                }
+
+                // Copy new data
+                name = other.name;
+                originalType = other.originalType;
+                isCapturedByValue = other.isCapturedByValue;
+
+                if (isCapturedByValue) {
+                    new(&storage.capturedValue) Value(other.storage.capturedValue);
+                } else {
+                    new(&storage.weakRef) std::weak_ptr<runtimeTypes::global::VariableDefinition>(other.storage.weakRef);
+                }
+            }
+            return *this;
+        }
+
+        // Get the current value based on capture strategy
+        Value getValue() const {
+            if (isCapturedByValue) {
+                return storage.capturedValue;
+            } else {
+                // Reference capture - get current value from variable
+                if (auto varDef = storage.weakRef.lock()) {
+                    return varDef->getValue();
+                }
+                // Reference expired - return default value
+                return std::monostate{};
+            }
+        }
     };
 
     /**
@@ -81,10 +157,20 @@ namespace value
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> createInterfaceProxy() const;
 
     private:
+        // Memory optimization constants
+        static constexpr size_t MAX_VALUE_CAPTURE_SIZE = 256; // bytes
+        static constexpr size_t LARGE_OBJECT_THRESHOLD = 1024; // bytes
+
         // Helper methods
         void captureCurrentEnvironment();
         std::vector<std::string> analyzeVariableReferences() const;
         void validateArguments(const std::vector<Value>& arguments) const;
         void traverseForVariables(const ast::ASTNode* node, std::set<std::string>& variables) const;
+
+        // Memory optimization helpers
+        bool shouldCaptureByValue(const Value& value, ValueType type) const;
+        size_t estimateValueSize(const Value& value, ValueType type) const;
+        void addCapturedVariableOptimized(const std::string& name, const Value& value, ValueType type);
+        void addCapturedVariableByReference(const std::string& name, const Value& value, ValueType type);
     };
 }
