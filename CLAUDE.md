@@ -561,10 +561,32 @@ mtype/
 - **Namespaces**: lowercase (e.g., `mtype`, `utils`)
 
 ### File Organization
-- **Header Files**: `.h` extension with include guards or `#pragma once`
+- **Header Files**: `.hpp` extension with `#pragma once`
 - **Implementation Files**: `.cpp` extension
-- **One Class per File**: Each major class should have its own header/implementation pair
+- **One Class per File**: Each class should have its own header/implementation pair
 - **Forward Declarations**: Use forward declarations to minimize header dependencies
+- **Contextual Grouping**: Classes should be grouped together in the same context folder
+
+### Class Structure Guidelines
+- **Small Classes**: Maximum 500 lines in `.cpp` files
+- **Small Functions**: Maximum 50 lines per function implementation
+- **Helper Classes**: Use helper classes to break down complex functionality
+- **No Code Duplication**: Extract common functionality into shared utilities
+- **Single Responsibility**: Each class should have one clear purpose
+- **Composition over Inheritance**: Prefer composition when possible
+
+### Code Organization Principles
+- **Context-Based Folders**: Group related classes in appropriate directories
+  - `lexer/` - Tokenization and lexical analysis
+  - `parser/` - Syntax analysis and AST construction
+  - `evaluator/` - Runtime evaluation and execution
+  - `environment/` - Variable scoping and symbol management
+  - `runtimeTypes/` - Type definitions and runtime objects
+  - `services/` - High-level service classes
+  - `errors/` - Exception and error handling
+- **Helper Class Strategy**: Break large classes into smaller, focused helpers
+- **Utility Functions**: Extract common operations into utility classes
+- **Clear Dependencies**: Minimize coupling between components
 
 ### Code Formatting
 - **Indentation**: 4 spaces (no tabs)
@@ -766,6 +788,68 @@ public:
 - **Dependency Flow**: Dependencies flow inward toward domain core
 - **Interface Boundaries**: Clear interfaces between major components
 - **Module Cohesion**: High cohesion within modules, loose coupling between modules
+
+#### Class Design Best Practices
+- **File Structure**: Each class in its own `.hpp/.cpp` file pair
+- **Function Size Limit**: Maximum 50 lines per function implementation
+- **Class Size Limit**: Maximum 500 lines in `.cpp` implementation files
+- **Helper Classes**: Extract complex logic into focused helper classes
+- **Utility Extraction**: Move common operations to utility classes
+- **Context Grouping**: Organize classes by functional context in folder structure
+
+**Example Class Structure:**
+```cpp
+// TokenValidator.hpp - Small, focused helper class
+#pragma once
+#include "Token.hpp"
+
+class TokenValidator {
+public:
+    static bool isValidIdentifier(const Token& token);
+    static bool isKeyword(const std::string& text);
+    static bool isOperator(const Token& token);
+};
+
+// Lexer.hpp - Main class using helpers
+#pragma once
+#include "TokenValidator.hpp"
+#include "TokenFactory.hpp"
+
+class Lexer {
+private:
+    std::unique_ptr<TokenFactory> tokenFactory;
+    std::unique_ptr<SourceLocationTracker> locationTracker;
+
+public:
+    std::vector<Token> tokenize(const std::string& source);
+
+private:
+    Token createNextToken();  // < 50 lines
+    void skipWhitespace();    // < 50 lines
+    Token parseString();      // < 50 lines
+};
+```
+
+**Helper Class Examples:**
+```cpp
+// evaluator/managers/ControlFlowManager.hpp
+class ControlFlowManager {
+public:
+    bool handleBreakStatement(const BreakNode& node);
+    bool handleContinueStatement(const ContinueNode& node);
+    void enterLoop();
+    void exitLoop();
+};
+
+// parser/utils/ParseContext.hpp
+class ParseContext {
+public:
+    void pushScope();
+    void popScope();
+    bool isInFunction() const;
+    bool isInClass() const;
+};
+```
 
 #### Quality Assurance
 - **Unit Testing**: Comprehensive unit tests for all components
