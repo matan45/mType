@@ -8,7 +8,7 @@ mType is a modern programming language implementation with a focus on type safet
 ### Core Language Features
 - **Static Type System**: Strong type checking with compile-time error detection
 - **Object-Oriented Programming**: Full support for classes, inheritance, encapsulation
-- **Namespace Support**: Hierarchical organization of code with nested namespaces
+- **Native Function Support**: Integration with C++ native functions and libraries
 - **Function Overloading**: Multiple functions with the same name but different signatures
 - **Control Flow**: Complete set of control structures (if/else, loops, switch statements)
 - **Memory Management**: Automatic memory management with garbage collection
@@ -131,10 +131,36 @@ mType is a modern programming language implementation with a focus on type safet
   import "math_utils.mt";
   import "string_utils.mt";
   ```
-- **Namespace Imports**: Import specific namespaces
 - **Circular Dependency Detection**: Prevents infinite import loops
 - **Module Resolution**: Automatic resolution of import paths
 - **Dependency Management**: Handles complex import hierarchies
+
+### Native Function Integration
+- **C++ Function Registration**: Register C++ functions to be callable from mType
+  ```cpp
+  interpreter->registerNativeFunction("createPoint", [](const std::vector<Value>& args) -> Value {
+      // Extract arguments and create Point object
+      float x = std::get<float>(args[0]);
+      float y = std::get<float>(args[1]);
+
+      // Create and return Point object instance
+      auto pointInstance = std::make_shared<ObjectInstance>(pointClass);
+      pointInstance->setField("x", x);
+      pointInstance->setField("y", y);
+      return pointInstance;
+  });
+  ```
+- **Object Creation**: Native functions can create and return mType objects
+- **Type Conversion**: Automatic conversion between C++ and mType types
+- **Library Integration**: Seamless integration with existing C++ libraries
+- **Performance**: Direct C++ execution for performance-critical operations
+
+**Native Function Usage:**
+```mtype
+// Call native function from mType code
+Point pt = createPoint(4.0, 5.0);  // Native C++ creates Point object
+float distance = pt.distanceFromOrigin();  // Call mType method on native-created object
+```
 
 ### Classes and Object-Oriented Programming
 
@@ -302,8 +328,83 @@ All features are thoroughly tested with comprehensive test suites located in:
 - `tests/testFiles/generics/` - Generic type testing
 - `tests/testFiles/stringpool/` - String optimization testing
 - `tests/testFiles/lambda/` - Functional programming testing
+- `tests/testFiles/native/` - Native function integration testing
 - `tests/testFiles/integration/` - Complex integration scenarios
 - `tests/testFiles/error/` - Error handling and edge cases
+
+### Native Function Testing
+The `NativeTest` class demonstrates comprehensive testing of native function integration:
+
+**Test Coverage:**
+- **Native Function Registration**: Testing `registerNativeFunction()` API
+- **Object Creation**: Native functions creating mType objects
+- **Static Method Calls**: C++ API calling mType static methods
+- **Type Conversion**: Automatic conversion between C++ and mType types
+- **Memory Management**: Proper object lifetime and memory safety
+
+**Example Test (from `NativeTest.cpp`):**
+```cpp
+// Register native createPoint function
+interpreter->registerNativeFunction("createPoint", [this](const std::vector<Value>& args) -> Value {
+    // Extract and convert arguments
+    float x = std::holds_alternative<int>(args[0]) ?
+              static_cast<float>(std::get<int>(args[0])) :
+              std::get<float>(args[0]);
+    float y = std::holds_alternative<int>(args[1]) ?
+              static_cast<float>(std::get<int>(args[1])) :
+              std::get<float>(args[1]);
+
+    // Create Point object from C++
+    auto pointClass = classRegistry->findClass("Point");
+    auto pointInstance = std::make_shared<ObjectInstance>(pointClass);
+    pointInstance->setField("x", x);
+    pointInstance->setField("y", y);
+
+    return pointInstance;
+});
+
+// Test usage from mType
+Point pt = createPoint(4, 5);  // Native C++ creates Point object
+```
+
+**Native Test Example (`nativeExample.mt`):**
+```mtype
+class Point {
+    float x;
+    float y;
+
+    constructor(float px, float py) {
+        x = px;
+        y = py;
+    }
+
+    function distanceFromOrigin(): float {
+        return sqrt(x * x + y * y);
+    }
+
+    static function createOrigin(): Point {
+        return new Point(0.0, 0.0);
+    }
+}
+
+class MathUtils {
+    static final float PI = 3.14159;
+    static int operationCount = 0;
+
+    static function square(int x): int {
+        operationCount = operationCount + 1;
+        return x * x;
+    }
+
+    static function circleArea(float radius): float {
+        operationCount = operationCount + 1;
+        return PI * radius * radius;
+    }
+}
+
+// Native function usage
+Point pt = createPoint(4,5);  // Native C++ creates Point object
+```
 
 ## Project Structure
 
@@ -793,29 +894,109 @@ public:
 
 ### Visitor Pattern with std::variant
 ```cpp
-// Modern visitor using std::variant
-using ASTVariant = std::variant<
-    IntegerNode, StringNode, BinaryOpNode, FunctionCallNode
->;
+// Value type system using std::variant for runtime values
+using Value = std::variant<int, float, bool, std::string, InternedString, std::monostate,
+                          std::shared_ptr<ObjectInstance>,
+                          std::shared_ptr<NativeArray>,
+                          std::shared_ptr<FlatMultiArray>,
+                          std::shared_ptr<SparseMultiArray>,
+                          std::shared_ptr<LambdaValue>,
+                          nullptr_t>;
 
-struct ASTVisitor {
-    template<typename T>
-    auto operator()(const T& node) {
-        if constexpr (std::is_same_v<T, IntegerNode>) {
-            return visitInteger(node);
-        } else if constexpr (std::is_same_v<T, StringNode>) {
-            return visitString(node);
-        } else if constexpr (std::is_same_v<T, BinaryOpNode>) {
-            return visitBinaryOp(node);
-        }
-        // ... other cases
+// Helper function using std::visit with if constexpr
+inline ValueType getValueType(const Value& value) {
+    // Explicit checks for complex types before std::visit
+    if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(value)) {
+        return ValueType::ARRAY;
+    }
+    if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
+        return ValueType::ARRAY;
+    }
+    if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {
+        return ValueType::LAMBDA;
     }
 
+    // Generic visitor with compile-time type dispatch
+    return std::visit([](const auto& v) -> ValueType {
+        if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int>) {
+            return ValueType::INT;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, float>) {
+            return ValueType::FLOAT;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>) {
+            return ValueType::BOOL;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>) {
+            return ValueType::STRING;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, InternedString>) {
+            return ValueType::STRING;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::monostate>) {
+            return ValueType::VOID;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<ObjectInstance>>) {
+            return ValueType::OBJECT;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<NativeArray>>) {
+            return ValueType::ARRAY;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, nullptr_t>) {
+            return ValueType::NULL_TYPE;
+        } else {
+            return ValueType::VOID;
+        }
+    }, value);
+}
+
+// Generic type system using std::variant for type representation
+class GenericType {
 private:
-    auto visitInteger(const IntegerNode& node) { /* implementation */ }
-    auto visitString(const StringNode& node) { /* implementation */ }
-    auto visitBinaryOp(const BinaryOpNode& node) { /* implementation */ }
+    // Either a concrete type or a generic type parameter name
+    std::variant<value::ValueType, std::string> baseType;
+    // Type arguments for parameterized types (e.g., Array<T> has [T])
+    std::vector<std::shared_ptr<GenericType>> typeArguments;
+
+public:
+    // Constructor for concrete types
+    explicit GenericType(value::ValueType type) : baseType(type) {}
+
+    // Constructor for generic type parameters
+    explicit GenericType(const std::string& genericName) : baseType(genericName) {}
+
+    // Check if this represents a generic type parameter using std::holds_alternative
+    bool isGenericParameter() const {
+        return std::holds_alternative<std::string>(baseType);
+    }
+
+    // Get base type name using std::visit
+    std::string getBaseTypeName() const {
+        return std::visit([](const auto& type) -> std::string {
+            if constexpr (std::is_same_v<std::decay_t<decltype(type)>, value::ValueType>) {
+                return valueTypeToString(type);
+            } else {
+                return type; // string case
+            }
+        }, baseType);
+    }
 };
+
+// Example of processing values with visitor pattern
+template<typename Processor>
+auto processValue(const Value& value, Processor&& processor) {
+    return std::visit([&processor](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+
+        if constexpr (std::is_same_v<T, int>) {
+            return processor.processInt(v);
+        } else if constexpr (std::is_same_v<T, float>) {
+            return processor.processFloat(v);
+        } else if constexpr (std::is_same_v<T, bool>) {
+            return processor.processBool(v);
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            return processor.processString(v);
+        } else if constexpr (std::is_same_v<T, std::shared_ptr<ObjectInstance>>) {
+            return processor.processObject(v);
+        } else if constexpr (std::is_same_v<T, std::shared_ptr<NativeArray>>) {
+            return processor.processArray(v);
+        } else {
+            return processor.processDefault();
+        }
+    }, value);
+}
 ```
 
 ### CPU Cache Optimization
@@ -984,13 +1165,32 @@ public:
 "bin\mType\Debug\x64\mType.exe" --tests
 
 # Run specific test categories
-"bin\mType\Debug\x64\mType.exe" --test class
-"bin\mType\Debug\x64\mType.exe" --test namespace
-"bin\mType\Debug\x64\mType.exe" --test import
-"bin\mType\Debug\x64\mType.exe" --test collections
+"bin\mType\Debug\x64\mType.exe" --test control       # Control Flow Test Suite
+"bin\mType\Debug\x64\mType.exe" --test import        # Import Test Suite
+"bin\mType\Debug\x64\mType.exe" --test class         # Class Test Suite
+"bin\mType\Debug\x64\mType.exe" --test interface     # Interface Test Suite
+"bin\mType\Debug\x64\mType.exe" --test lambda        # Lambda Test Suite
+"bin\mType\Debug\x64\mType.exe" --test error         # Error Test Suite
+"bin\mType\Debug\x64\mType.exe" --test integration   # Integration Test Suite
+"bin\mType\Debug\x64\mType.exe" --test type          # Type Checking Test Suite
+"bin\mType\Debug\x64\mType.exe" --test generics      # Generics Test Suite
+"bin\mType\Debug\x64\mType.exe" --test arrays        # Array Test Suite
+"bin\mType\Debug\x64\mType.exe" --test stringpool    # String Pool Test Suite
+"bin\mType\Debug\x64\mType.exe" --test native        # Native C++ Integration Test Suite
 
-# Run with optimization
-"bin\mType\Debug\x64\mType.exe" -O2 --tests
+# Alternative names for some test suites
+"bin\mType\Debug\x64\mType.exe" --test controlflow   # Same as control
+"bin\mType\Debug\x64\mType.exe" --test classes       # Same as class
+"bin\mType\Debug\x64\mType.exe" --test interfaces    # Same as interface
+"bin\mType\Debug\x64\mType.exe" --test lambdas       # Same as lambda
+"bin\mType\Debug\x64\mType.exe" --test errors        # Same as error
+"bin\mType\Debug\x64\mType.exe" --test typechecking  # Same as type
+"bin\mType\Debug\x64\mType.exe" --test generic       # Same as generics
+"bin\mType\Debug\x64\mType.exe" --test array         # Same as arrays
+"bin\mType\Debug\x64\mType.exe" --test strings       # Same as stringpool
+
+# Get help and see available test suites
+"bin\mType\Debug\x64\mType.exe" --help
 ```
 
 ### Running Individual Files
