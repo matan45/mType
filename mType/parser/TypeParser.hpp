@@ -1,13 +1,12 @@
 #pragma once
+#include "TokenStream.hpp"
 #include "../value/ValueType.hpp"
 #include "../token/TokenType.hpp"
-#include "TokenStream.hpp"
 #include "../ast/GenericType.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
 #include <string_view>
-#include <optional>
 
 namespace parser
 {
@@ -55,22 +54,22 @@ namespace parser
     public:
         /// @brief Parse ValueType from token stream (legacy method)
         [[nodiscard]] static ValueType parseType(TokenStream& stream);
-        
+
         /// @brief Parse complete type information including generics
         [[nodiscard]] static TypeInfo parseTypeInfo(TokenStream& stream);
 
         /// @brief Parse type information and convert to GenericType (for new generic system)
         [[nodiscard]] static std::shared_ptr<ast::GenericType> parseGenericType(TokenStream& stream);
-        
+
         /// @brief Parse type with class name for object types (legacy method)
         [[nodiscard]] static std::pair<ValueType, std::string> parseTypeWithClassName(TokenStream& stream);
-        
+
         /// @brief Check if token is assignment operator
         [[nodiscard]] static bool isAssignmentOperator(TokenType tokenType) noexcept;
-        
+
         /// @brief Convert TokenType to ValueType (for built-in types only)
         [[nodiscard]] static ValueType tokenToValueType(TokenType tokenType) noexcept;
-        
+
         /// @brief Convert string to ValueType (for identifier-based types)
         [[nodiscard]] static ValueType stringToValueType(std::string_view typeName) noexcept;
 

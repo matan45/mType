@@ -38,6 +38,5 @@ namespace parser
         // Helper methods
         bool isLambdaParameterPattern() const;
         bool hasArrowAhead() const;
-        int findMatchingParen() const;
     };
 }

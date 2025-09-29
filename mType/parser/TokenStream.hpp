@@ -25,25 +25,25 @@ namespace parser
 
         /// @brief Get current token without advancing
         [[nodiscard]] const Token& current() const noexcept { return currentToken; }
-        
+
         /// @brief Get current token location
         [[nodiscard]] const errors::SourceLocation& location() const noexcept { return currentToken.location; }
-        
+
         /// @brief Advance to next token
         void advance();
-        
+
         /// @brief Check if current token matches type without advancing
         [[nodiscard]] bool check(TokenType type) const noexcept;
-        
+
         /// @brief Check if at end of input
         [[nodiscard]] bool isAtEnd() const noexcept;
-        
+
         /// @brief Match current token type and advance if matches
         bool match(TokenType type);
-        
+
         /// @brief Expect specific token type, advance if matches, throw if not
         void expect(TokenType type);
-        
+
         /// @brief Peek at next token without advancing
         [[nodiscard]] Token peek() const;
 

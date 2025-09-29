@@ -13,7 +13,7 @@ namespace parser
     using namespace errors;
 
     // Static helper for atomic initialization
-    Parser::ParserComponents Parser::createComponents(Lexer& lex)
+    ParserComponents Parser::createComponents(Lexer& lex)
     {
         ParserComponents components;
         

@@ -2,8 +2,6 @@
 #include "ExpressionParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../errors/ParseException.hpp"
-#include <stdexcept>
-#include <iostream>
 
 namespace parser
 {
@@ -165,12 +163,5 @@ namespace parser
         }
 
         return false;
-    }
-
-    int LambdaParser::findMatchingParen() const
-    {
-        // Simplified version - we'll handle paren matching differently
-        // This method is not currently used but kept for potential future use
-        return -1;
     }
 }

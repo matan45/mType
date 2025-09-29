@@ -11,7 +11,7 @@ namespace parser
     class ClassParser;
     class InterfaceParser;
     class TokenStream;
-    
+
     using namespace ast;
 
     /// @brief Enables inter-parser communication without circular dependencies
@@ -31,18 +31,19 @@ namespace parser
     public:
         /// @brief Default constructor for delayed initialization
         ParseContext() = default;
-        
+
         /// @brief Constructor with immediate initialization
-        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface, TokenStream& stream);
-        
+        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
+                     TokenStream& stream);
+
         ~ParseContext() = default;
 
         /// @brief Parse a statement using StatementParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseStatement();
-        
+
         /// @brief Parse an expression using ExpressionParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseExpression();
-        
+
         /// @brief Parse a class using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseClass();
 
@@ -51,7 +52,7 @@ namespace parser
 
         /// @brief Parse a new expression using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
-        
+
         // Setters for delayed initialization with memory-safe references
         void setStatementParser(StatementParser& parser) { statementParser = std::ref(parser); }
         void setExpressionParser(ExpressionParser& parser) { expressionParser = std::ref(parser); }
