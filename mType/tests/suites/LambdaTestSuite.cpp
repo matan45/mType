@@ -24,6 +24,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Interface as Parameter",
                         passPath + "interfaceAsParameter.mt");
 
+        addOutputVerificationTest("lambda interface test",
+                        passPath + "lambda_interface_test.mt");
+
         // Advanced lambda tests
         addOutputVerificationTest("Multi-Parameter Lambda",
                         passPath + "multiParameterLambda.mt");

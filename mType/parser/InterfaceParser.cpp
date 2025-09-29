@@ -1,5 +1,6 @@
 ﻿#include "InterfaceParser.hpp"
 #include "class/GenericParameterParser.hpp"
+#include "TypeParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
@@ -177,73 +178,8 @@ namespace parser
         // Parse parameter list
         while (tokenStream.current().type != TokenType::RPAREN && !tokenStream.isAtEnd())
         {
-            // Parse parameter type (with support for generic types)
-            std::string paramType;
-            if (tokenStream.current().type == TokenType::IDENTIFIER)
-            {
-                paramType = tokenStream.current().stringValue.getString();
-                tokenStream.advance();
-
-                // Handle generic type parameters (e.g., Repository<T, ID>)
-                if (tokenStream.current().type == TokenType::LESS)
-                {
-                    paramType += "<";
-                    int depth = 1;
-                    tokenStream.advance();
-
-                    while (depth > 0 && !tokenStream.isAtEnd())
-                    {
-                        if (tokenStream.current().type == TokenType::LESS)
-                        {
-                            depth++;
-                            paramType += "<";
-                        }
-                        else if (tokenStream.current().type == TokenType::GREATER)
-                        {
-                            depth--;
-                            paramType += ">";
-                        }
-                        else if (tokenStream.current().type == TokenType::IDENTIFIER)
-                        {
-                            paramType += tokenStream.current().stringValue.getString();
-                        }
-                        else if (tokenStream.current().type == TokenType::COMMA)
-                        {
-                            paramType += ", ";
-                        }
-                        else
-                        {
-                            // Add other tokens as-is (for complex generic expressions)
-                            paramType += tokenStream.current().stringValue.getString();
-                        }
-                        tokenStream.advance();
-                    }
-                }
-            }
-            else if (tokenStream.current().type == TokenType::INT)
-            {
-                paramType = "int";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::FLOAT)
-            {
-                paramType = "float";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::BOOL)
-            {
-                paramType = "bool";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::STRING_TYPE)
-            {
-                paramType = "string";
-                tokenStream.advance();
-            }
-            else
-            {
-                throw ParseException("Expected parameter type", tokenStream.current().location);
-            }
+            // Parse parameter type using TypeParser (supports generic types and arrays)
+            auto genericType = TypeParser::parseGenericType(tokenStream);
 
             // Parse parameter name
             if (tokenStream.current().type != TokenType::IDENTIFIER)
@@ -254,8 +190,7 @@ namespace parser
             std::string paramName = tokenStream.current().stringValue.getString();
             tokenStream.advance();
 
-            // Create GenericType for parameter
-            auto genericType = std::make_shared<ast::GenericType>(paramType);
+            // Add parameter to list
             parameters.emplace_back(paramName, genericType);
 
             // Check for comma
@@ -282,84 +217,13 @@ namespace parser
         {
             tokenStream.advance();
 
-            std::string returnTypeName;
-            if (tokenStream.current().type == TokenType::IDENTIFIER)
-            {
-                returnTypeName = tokenStream.current().stringValue.getString();
-                tokenStream.advance();
-
-                // Handle generic return types (e.g., CacheStore<K, V, M>)
-                if (tokenStream.current().type == TokenType::LESS)
-                {
-                    returnTypeName += "<";
-                    int depth = 1;
-                    tokenStream.advance();
-
-                    while (depth > 0 && !tokenStream.isAtEnd())
-                    {
-                        if (tokenStream.current().type == TokenType::LESS)
-                        {
-                            depth++;
-                            returnTypeName += "<";
-                        }
-                        else if (tokenStream.current().type == TokenType::GREATER)
-                        {
-                            depth--;
-                            returnTypeName += ">";
-                        }
-                        else if (tokenStream.current().type == TokenType::IDENTIFIER)
-                        {
-                            returnTypeName += tokenStream.current().stringValue.getString();
-                        }
-                        else if (tokenStream.current().type == TokenType::COMMA)
-                        {
-                            returnTypeName += ", ";
-                        }
-                        else
-                        {
-                            // Add other tokens as-is (for complex generic expressions)
-                            returnTypeName += tokenStream.current().stringValue.getString();
-                        }
-                        tokenStream.advance();
-                    }
-                }
-            }
-            else if (tokenStream.current().type == TokenType::VOID)
-            {
-                returnTypeName = "void";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::INT)
-            {
-                returnTypeName = "int";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::FLOAT)
-            {
-                returnTypeName = "float";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::BOOL)
-            {
-                returnTypeName = "bool";
-                tokenStream.advance();
-            }
-            else if (tokenStream.current().type == TokenType::STRING_TYPE)
-            {
-                returnTypeName = "string";
-                tokenStream.advance();
-            }
-            else
-            {
-                throw ParseException("Expected return type after ':'", tokenStream.current().location);
-            }
-
-            returnType = std::make_shared<ast::GenericType>(returnTypeName);
+            // Parse return type using TypeParser (supports generic types and arrays)
+            returnType = TypeParser::parseGenericType(tokenStream);
         }
         else
         {
             // Default to void if no return type specified
-            returnType = std::make_shared<ast::GenericType>("void");
+            returnType = std::make_shared<ast::GenericType>(value::ValueType::VOID);
         }
 
         // Expect semicolon to end method signature

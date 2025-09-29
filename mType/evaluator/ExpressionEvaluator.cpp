@@ -7,6 +7,7 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
+#include "../errors/RuntimeException.hpp"
 #include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -141,6 +142,10 @@ namespace evaluator
         if (auto indexAccessNode = dynamic_cast<IndexAccessNode*>(node))
         {
             return evaluateIndexAccessNode(indexAccessNode);
+        }
+        if (auto lambdaInterfaceNode = dynamic_cast<LambdaInterfaceInvocationNode*>(node))
+        {
+            return evaluateLambdaInterfaceInvocationNode(lambdaInterfaceNode);
         }
 
         return std::monostate{};
@@ -1912,5 +1917,70 @@ namespace evaluator
         auto lambdaValue = std::make_shared<value::LambdaValue>(node, context);
 
         return lambdaValue;
+    }
+
+    Value ExpressionEvaluator::evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node)
+    {
+        if (!node) {
+            throw UndefinedException("LambdaInterfaceInvocationNode is null");
+        }
+
+        // Enhanced lambda accessibility check with debugging
+        if (!node->isLambdaAccessible()) {
+            std::string lifecycleStatus = node->getLambdaLifecycleStatus();
+            throw RuntimeException("Lambda is not accessible - cannot invoke interface method '" +
+                                   node->getMethodName() + "' on interface '" + node->getInterfaceName() +
+                                   "'. Lifecycle status: " + lifecycleStatus);
+        }
+
+        // Get the lambda node
+        auto lambda = node->getLambdaNode();
+        if (!lambda) {
+            throw RuntimeException("Lambda node is null - cannot create lambda for interface method '" +
+                                   node->getMethodName() + "'");
+        }
+
+        // Create LambdaValue with current evaluation context
+        auto lambdaValue = std::make_shared<value::LambdaValue>(lambda.get(), context);
+
+        // Set interface implementation info for better debugging and type checking
+        lambdaValue->setInterfaceImplementation(node->getInterfaceName(), node->getMethodName());
+
+        // Evaluate arguments in current context
+        std::vector<Value> evaluatedArgs;
+        evaluatedArgs.reserve(node->getArguments().size());
+
+        for (const auto& argNode : node->getArguments()) {
+            if (argNode) {
+                evaluatedArgs.push_back(evaluate(argNode.get()));
+            }
+        }
+
+        // Validate parameter types before invocation with detailed error message
+        std::string errorMessage;
+        if (!node->validateParameterTypes(evaluatedArgs, &errorMessage)) {
+            throw TypeException("Parameter validation failed when invoking lambda for interface method '" +
+                                node->getMethodName() + "' on interface '" + node->getInterfaceName() + "': " + errorMessage);
+        }
+
+        // Invoke the lambda with the evaluated arguments
+        try {
+            Value result = lambdaValue->invoke(evaluatedArgs, context);
+
+            // Validate return type compatibility
+            std::string returnErrorMessage;
+            if (!node->validateReturnType(result, &returnErrorMessage)) {
+                throw TypeException("Return type validation failed for interface method '" +
+                                    node->getMethodName() + "' on interface '" + node->getInterfaceName() + "': " + returnErrorMessage);
+            }
+
+            return result;
+        } catch (const TypeException&) {
+            // Re-throw TypeException as-is
+            throw;
+        } catch (const std::exception& e) {
+            throw RuntimeException("Lambda invocation failed for interface method '" +
+                                   node->getMethodName() + "': " + std::string(e.what()));
+        }
     }
 }

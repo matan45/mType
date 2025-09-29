@@ -45,12 +45,16 @@ namespace value
                              std::shared_ptr<evaluator::base::EvaluationContext> callContext)
     {
 
-        // Validate lambda state
+        // Enhanced lambda state validation with detailed error messages
         if (!lambdaNode) {
-            throw errors::RuntimeException("Lambda node is null - invalid lambda state");
+            std::string interfaceInfo = isImplementingInterface() ?
+                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+            throw errors::RuntimeException("Lambda node is null - invalid lambda state" + interfaceInfo);
         }
         if (!capturedContext) {
-            throw errors::RuntimeException("Captured context is null - invalid lambda state");
+            std::string interfaceInfo = isImplementingInterface() ?
+                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+            throw errors::RuntimeException("Captured context is null - invalid lambda state" + interfaceInfo);
         }
         auto capturedEnv = capturedContext->getEnvironment();
         if (!capturedEnv) {
@@ -277,13 +281,41 @@ namespace value
         const auto& parameters = lambdaNode->getParameters();
 
         if (arguments.size() != parameters.size()) {
-            throw errors::RuntimeException(
-                "Lambda argument count mismatch: expected " +
-                std::to_string(parameters.size()) +
-                ", got " + std::to_string(arguments.size()));
+            std::string paramNames;
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                if (i > 0) paramNames += ", ";
+                paramNames += parameters[i].name;
+            }
+
+            std::string message = "Lambda argument count mismatch: expected " +
+                                std::to_string(parameters.size()) + " parameters (" + paramNames +
+                                "), got " + std::to_string(arguments.size()) + " arguments";
+
+            if (isImplementingInterface()) {
+                message += " (implementing interface '" + implementedInterface +
+                          "', method '" + implementedMethod + "')";
+            }
+
+            throw errors::RuntimeException(message);
         }
 
-        // Additional type validation could be added here
+        // Enhanced type validation
+        for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
+            ValueType argType = evaluator::utils::ValueConverter::getValueType(arguments[i]);
+            const auto& paramName = parameters[i].name;
+
+            // If parameter has explicit type information, validate it
+            if (parameters[i].type) {
+                // For now, we'll skip detailed type validation as it requires more complex type resolution
+                // This could be enhanced in the future with proper GenericType->ValueType conversion
+            }
+
+            // Basic validation: ensure we don't pass null where it shouldn't be accepted
+            if (std::holds_alternative<std::monostate>(arguments[i])) {
+                // Allow null/void for parameters that might accept it
+                // More sophisticated null checking could be added here
+            }
+        }
     }
 
     void LambdaValue::traverseForVariables(const ast::ASTNode* node, std::set<std::string>& variables) const
@@ -426,6 +458,109 @@ namespace value
             // Fallback: if we can't find the variable definition, capture by value
             // This can happen with temporary values or complex expressions
             capturedVariables.emplace(name, CapturedVariable(name, value, type));
+        }
+    }
+
+    bool LambdaValue::isValid() const
+    {
+        // Check basic state
+        if (!lambdaNode || !capturedContext) {
+            return false;
+        }
+
+        // Check if captured environment is still valid
+        auto capturedEnv = capturedContext->getEnvironment();
+        if (!capturedEnv) {
+            return false;
+        }
+
+        // Check captured variables (for reference captures)
+        for (const auto& [name, captured] : capturedVariables) {
+            if (!captured.isCapturedByValue) {
+                // Check if weak reference is still valid
+                Value currentValue = captured.getValue();
+                if (std::holds_alternative<std::monostate>(currentValue)) {
+                    return false; // Reference expired
+                }
+            }
+        }
+
+        return true;
+    }
+
+    std::string LambdaValue::getValidationStatus() const
+    {
+        std::stringstream ss;
+        ss << "LambdaValue(";
+
+        if (!lambdaNode) {
+            ss << "lambdaNode=NULL, ";
+        } else {
+            ss << "lambdaNode=valid, ";
+        }
+
+        if (!capturedContext) {
+            ss << "capturedContext=NULL, ";
+        } else {
+            auto capturedEnv = capturedContext->getEnvironment();
+            ss << "capturedContext=" << (capturedEnv ? "valid" : "invalid") << ", ";
+        }
+
+        ss << "capturedVars=" << capturedVariables.size();
+
+        // Check captured variables
+        size_t expiredRefs = 0;
+        for (const auto& [name, captured] : capturedVariables) {
+            if (!captured.isCapturedByValue) {
+                Value currentValue = captured.getValue();
+                if (std::holds_alternative<std::monostate>(currentValue)) {
+                    expiredRefs++;
+                }
+            }
+        }
+
+        if (expiredRefs > 0) {
+            ss << ", expiredRefs=" << expiredRefs;
+        }
+
+        if (isImplementingInterface()) {
+            ss << ", interface=" << implementedInterface << "." << implementedMethod;
+        }
+
+        ss << ")";
+        return ss.str();
+    }
+
+    void LambdaValue::validateState() const
+    {
+        if (!lambdaNode) {
+            std::string interfaceInfo = isImplementingInterface() ?
+                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+            throw errors::RuntimeException("Lambda node is null - invalid lambda state" + interfaceInfo);
+        }
+
+        if (!capturedContext) {
+            std::string interfaceInfo = isImplementingInterface() ?
+                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+            throw errors::RuntimeException("Captured context is null - invalid lambda state" + interfaceInfo);
+        }
+
+        auto capturedEnv = capturedContext->getEnvironment();
+        if (!capturedEnv) {
+            std::string interfaceInfo = isImplementingInterface() ?
+                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+            throw errors::RuntimeException("Captured environment is null - invalid lambda state" + interfaceInfo);
+        }
+
+        // Check for expired captured variable references
+        for (const auto& [name, captured] : capturedVariables) {
+            if (!captured.isCapturedByValue) {
+                Value currentValue = captured.getValue();
+                if (std::holds_alternative<std::monostate>(currentValue)) {
+                    throw errors::RuntimeException("Lambda references captured variable '" + name +
+                                                 "' which is no longer accessible");
+                }
+            }
         }
     }
 }

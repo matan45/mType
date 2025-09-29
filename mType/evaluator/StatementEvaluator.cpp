@@ -1803,7 +1803,13 @@ namespace evaluator
         // Check if the interface is functional (has exactly one method)
         if (!interfaceDef->isFunctionalInterface())
         {
-            return lambdaValue;
+            auto methodSignatures = interfaceDef->getMethodSignatures();
+            throw errors::TypeException(
+                "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
+                "Lambdas can only be assigned to interfaces with exactly one method. " +
+                "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
+                "Consider using a functional interface (single method) or implement the interface explicitly."
+            );
         }
 
         // Create the lambda implementation class

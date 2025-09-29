@@ -4,6 +4,7 @@
 #include "../token/TokenType.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
+#include "../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../errors/SourceLocation.hpp"
 #include "../parser/TypeParser.hpp"
 #include <memory>
@@ -70,6 +71,7 @@ namespace evaluator
         Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
         Value evaluateLambdaNode(LambdaNode* node);
+        Value evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node);
 
         // Helper method to get default value for type
         Value getDefaultValueForType(const ::parser::TypeInfo& elementType);

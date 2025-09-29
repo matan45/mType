@@ -23,10 +23,32 @@ namespace ast::nodes::expressions
 
     value::Value LambdaInterfaceInvocationNode::accept(ast::ASTVisitor<value::Value>& visitor)
     {
-        // For now, return a placeholder Value
-        // The actual implementation will be handled by the interpreter
-        // when it recognizes this special node type
-        return value::Value(); // Default constructed value
+        // LambdaInterfaceInvocationNode is primarily intended to be handled through
+        // the MethodDefinition::hasLambdaNode() path in ObjectEvaluator.
+        // However, if this method is called directly, we should handle it gracefully.
+
+        // Check if lambda node is still valid
+        if (!isLambdaValid()) {
+            throw std::runtime_error("Lambda node expired - cannot invoke interface method '" +
+                                   methodName + "' on interface '" + interfaceName + "'");
+        }
+
+        // Get the lambda node
+        auto lambda = lambdaNode.lock();
+        if (!lambda) {
+            throw std::runtime_error("Lambda node is null - cannot create lambda for interface method '" +
+                                   methodName + "'");
+        }
+
+        // We need to delegate to a proper evaluator that can handle lambda evaluation
+        // The challenge is that we don't have direct access to the evaluation context here.
+        // As a fallback, we'll invoke the lambda's accept method directly.
+        try {
+            return lambda->accept(visitor);
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Failed to evaluate lambda for interface method '" +
+                                   methodName + "': " + std::string(e.what()));
+        }
     }
 
     std::string LambdaInterfaceInvocationNode::toString() const
@@ -56,16 +78,41 @@ namespace ast::nodes::expressions
 
     bool LambdaInterfaceInvocationNode::validateParameterTypes(const std::vector<value::Value>& actualArgs) const
     {
+        return validateParameterTypes(actualArgs, nullptr);
+    }
+
+    bool LambdaInterfaceInvocationNode::validateParameterTypes(const std::vector<value::Value>& actualArgs,
+                                                              std::string* errorMessage) const
+    {
         auto lambda = lambdaNode.lock();
         if (!lambda) {
-            return false; // Lambda has been destroyed
+            if (errorMessage) {
+                *errorMessage = "Lambda node has been destroyed for interface method '" + methodName +
+                               "' in interface '" + interfaceName + "'";
+            }
+            return false;
         }
 
         const auto& lambdaParams = lambda->getParameters();
 
-        if (actualArgs.size() != lambdaParams.size() ||
-            actualArgs.size() != interfaceParameterTypes.size()) {
-            return false; // Parameter count mismatch
+        // Check parameter count mismatch
+        if (actualArgs.size() != lambdaParams.size()) {
+            if (errorMessage) {
+                *errorMessage = "Parameter count mismatch for interface method '" + methodName +
+                               "': interface expects " + std::to_string(interfaceParameterTypes.size()) +
+                               " parameters, lambda has " + std::to_string(lambdaParams.size()) +
+                               " parameters, but got " + std::to_string(actualArgs.size()) + " arguments";
+            }
+            return false;
+        }
+
+        if (actualArgs.size() != interfaceParameterTypes.size()) {
+            if (errorMessage) {
+                *errorMessage = "Interface parameter count mismatch for method '" + methodName +
+                               "': expected " + std::to_string(interfaceParameterTypes.size()) +
+                               " arguments, got " + std::to_string(actualArgs.size());
+            }
+            return false;
         }
 
         // Check type compatibility for each parameter
@@ -75,6 +122,13 @@ namespace ast::nodes::expressions
 
             // Use the enhanced type conversion utils for compatibility checking
             if (!types::TypeConversionUtils::areTypesCompatible(actualType, interfaceType)) {
+                if (errorMessage) {
+                    *errorMessage = "Parameter type mismatch at position " + std::to_string(i) +
+                                   " for interface method '" + methodName + "': " +
+                                   "expected " + getValueTypeName(interfaceType) +
+                                   ", got " + getValueTypeName(actualType) +
+                                   " (parameter name: '" + lambdaParams[i].name + "')";
+                }
                 return false;
             }
         }
@@ -87,5 +141,115 @@ namespace ast::nodes::expressions
         value::ValueType lambdaType) const
     {
         return types::TypeConversionUtils::areTypesCompatible(lambdaType, interfaceType);
+    }
+
+    void LambdaInterfaceInvocationNode::setGenericTypeBinding(const std::string& typeParam, value::ValueType actualType)
+    {
+        genericTypeBindings[typeParam] = actualType;
+    }
+
+    value::ValueType LambdaInterfaceInvocationNode::resolveGenericType(const std::string& typeParam) const
+    {
+        auto it = genericTypeBindings.find(typeParam);
+        if (it != genericTypeBindings.end()) {
+            return it->second;
+        }
+
+        // If no binding found, default to object type
+        // In a more sophisticated implementation, this might throw an error
+        return value::ValueType::OBJECT;
+    }
+
+    bool LambdaInterfaceInvocationNode::validateReturnType(const value::Value& returnValue) const
+    {
+        return validateReturnType(returnValue, nullptr);
+    }
+
+    bool LambdaInterfaceInvocationNode::validateReturnType(const value::Value& returnValue, std::string* errorMessage) const
+    {
+        value::ValueType actualReturnType = value::getValueType(returnValue);
+
+        if (!isReturnTypeCompatible(actualReturnType)) {
+            if (errorMessage) {
+                *errorMessage = "Return type mismatch for interface method '" + methodName +
+                               "': expected " + getValueTypeName(interfaceReturnType) +
+                               ", got " + getValueTypeName(actualReturnType);
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    bool LambdaInterfaceInvocationNode::isReturnTypeCompatible(value::ValueType actualReturnType) const
+    {
+        // Use the same compatibility logic as parameter types
+        return types::TypeConversionUtils::areTypesCompatible(actualReturnType, interfaceReturnType);
+    }
+
+    bool LambdaInterfaceInvocationNode::isLambdaAccessible() const
+    {
+        ++accessCount; // Track access attempts
+
+        if (markedAsInvalid) {
+            return false;
+        }
+
+        return !lambdaNode.expired();
+    }
+
+    void LambdaInterfaceInvocationNode::markAsInvalid()
+    {
+        markedAsInvalid = true;
+        lambdaNode.reset(); // Clear the weak_ptr
+    }
+
+    std::string LambdaInterfaceInvocationNode::getLambdaLifecycleStatus() const
+    {
+        std::stringstream ss;
+        ss << "LambdaInterfaceInvocationNode(interface=" << interfaceName
+           << ", method=" << methodName << ", accessCount=" << accessCount;
+
+        if (markedAsInvalid) {
+            ss << ", status=MARKED_INVALID";
+        } else if (lambdaNode.expired()) {
+            ss << ", status=LAMBDA_EXPIRED";
+        } else {
+            ss << ", status=ACTIVE";
+        }
+
+        ss << ")";
+        return ss.str();
+    }
+
+    void LambdaInterfaceInvocationNode::cleanup()
+    {
+        // Clear references
+        lambdaNode.reset();
+        arguments.clear();
+        genericTypeBindings.clear();
+
+        // Mark as cleaned up
+        markedAsInvalid = true;
+    }
+
+    bool LambdaInterfaceInvocationNode::needsCleanup() const
+    {
+        return !markedAsInvalid && lambdaNode.expired();
+    }
+
+    std::string LambdaInterfaceInvocationNode::getValueTypeName(value::ValueType type) const
+    {
+        switch (type) {
+            case value::ValueType::INT: return "int";
+            case value::ValueType::FLOAT: return "float";
+            case value::ValueType::STRING: return "string";
+            case value::ValueType::BOOL: return "bool";
+            case value::ValueType::VOID: return "void";
+            case value::ValueType::OBJECT: return "object";
+            case value::ValueType::LAMBDA: return "lambda";
+            case value::ValueType::ARRAY: return "array";
+            default: return "unknown";
+        }
     }
 }

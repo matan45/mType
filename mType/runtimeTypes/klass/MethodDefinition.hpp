@@ -151,6 +151,11 @@ namespace runtimeTypes::klass
             return !lambdaNode.expired(); // Check if weak_ptr is still valid
         }
 
+        // Enhanced memory safety and cleanup
+        void cleanupLambdaResources();
+        bool needsLambdaCleanup() const;
+        std::string getLambdaLifecycleStatus() const;
+
         // NEW: Runtime type resolution methods
         ValueType resolveParameterType(size_t paramIndex) const;
         ValueType resolveParameterType(const std::string& paramName) const;

@@ -1216,6 +1216,13 @@ namespace evaluator
         // Check if this method has a lambda implementation (lambda-to-interface scenario)
         if (method->hasLambdaNode())
         {
+            // Enhanced debugging and validation
+            if (method->needsLambdaCleanup()) {
+                std::string status = method->getLambdaLifecycleStatus();
+                throw TypeException("Method '" + methodName + "' has invalid lambda state and needs cleanup. " +
+                                  "Status: " + status);
+            }
+
             auto lambdaNode = method->getLambdaNode();
             if (lambdaNode && method->isLambdaNodeValid())
             {
