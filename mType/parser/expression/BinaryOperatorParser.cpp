@@ -1,8 +1,7 @@
 #include "BinaryOperatorParser.hpp"
+#include "../ExpressionParser.hpp"
 #include "../ParserUtils.hpp"
-#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../ast/nodes/expressions/TernaryExpNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -81,7 +80,14 @@ namespace parser::expression
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseMultiplicative()
     {
         return parseBinaryLevel(
-            [this]() { return context.parseExpression(); }, // Delegate to unary parser
+            [this]() {
+                if (!expressionParser)
+                {
+                    reportError("ExpressionParser not set in BinaryOperatorParser", getParserName());
+                    throw errors::ParseException("ExpressionParser not initialized in BinaryOperatorParser");
+                }
+                return expressionParser->parseUnary();
+            },
             {TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO}
         );
     }

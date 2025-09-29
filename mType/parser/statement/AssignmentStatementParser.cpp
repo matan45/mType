@@ -1,4 +1,5 @@
 #include "AssignmentStatementParser.hpp"
+#include "../ExpressionParser.hpp"
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/MemberAssignmentNode.hpp"
@@ -7,8 +8,8 @@
 #include "../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
+#include <iostream>
 
 namespace parser::statement
 {
@@ -47,7 +48,12 @@ namespace parser::statement
         if (isAssignmentOperator(opType))
         {
             tokenStream.advance();
-            auto value = context.parseExpression();
+            if (!expressionParser)
+            {
+                reportError("ExpressionParser not set in AssignmentStatementParser", getParserName());
+                throw errors::ParseException("ExpressionParser not initialized");
+            }
+            auto value = expressionParser->parseExpression();
 
             // For compound assignments, create a binary expression
             if (opType != TokenType::ASSIGN)
@@ -70,7 +76,12 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> AssignmentStatementParser::parseExpressionStatement()
     {
-        auto expr = context.parseExpression();
+        if (!expressionParser)
+        {
+            reportError("ExpressionParser not set in AssignmentStatementParser", getParserName());
+            throw errors::ParseException("ExpressionParser not initialized");
+        }
+        auto expr = expressionParser->parseExpression();
 
         // Check if this is a member assignment (obj.field = value)
         if (auto memberAccess = dynamic_cast<MemberAccessNode*>(expr.get()))
@@ -79,7 +90,7 @@ namespace parser::statement
             if (isAssignmentOperator(opType))
             {
                 tokenStream.advance(); // consume assignment operator
-                auto value = context.parseExpression();
+                auto value = expressionParser->parseExpression();
 
                 // For compound assignments, create a binary expression
                 if (opType != TokenType::ASSIGN)
@@ -108,7 +119,7 @@ namespace parser::statement
             if (isAssignmentOperator(opType))
             {
                 tokenStream.advance(); // consume assignment operator
-                auto value = context.parseExpression();
+                auto value = expressionParser->parseExpression();
 
                 // For compound assignments, create a binary expression
                 if (opType != TokenType::ASSIGN)

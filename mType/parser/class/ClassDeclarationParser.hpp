@@ -5,14 +5,18 @@
 #include "../../ast/GenericTypeParameter.hpp"
 #include <vector>
 #include <string>
+#include <memory>
 
 namespace parser
 {
+    class GenericParameterParser; // Forward declaration
+
     class ClassDeclarationParser : public core::IParser
     {
     private:
         TokenStream& tokenStream;
         ParseContext& context;
+        std::unique_ptr<GenericParameterParser> genericParameterParser;
 
     public:
         ClassDeclarationParser(TokenStream& tokenStream, ParseContext& context);

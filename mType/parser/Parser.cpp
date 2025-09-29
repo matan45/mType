@@ -3,6 +3,7 @@
 #include "ParseContext.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include <iostream>
 
 namespace parser
 {
@@ -36,6 +37,9 @@ namespace parser
         components.context->setClassParser(*components.classParser);
         components.context->setInterfaceParser(*components.interfaceParser);
         components.context->setTokenStream(*components.tokenStream);
+
+        // Step 5: Set ExpressionParser reference in StatementParser to break circular dependency
+        components.statementParser->setExpressionParser(*components.expressionParser);
         
         return components;
     }
@@ -83,7 +87,6 @@ namespace parser
 
     std::unique_ptr<ASTNode> Parser::parseStatement()
     {
-        // Delegate to StatementParser
         return statementParser->parseStatement();
     }
 

@@ -16,6 +16,7 @@
 namespace parser
 {
     class ParseContext;
+    class ExpressionParser; // Forward declaration
     using namespace ast;
     using namespace parser::statement;
     using namespace parser::utilities;
@@ -25,6 +26,7 @@ namespace parser
     private:
         TokenStream& tokenStream;
         ParseContext& context;
+        ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
         std::shared_ptr<error::ErrorHandler> errorHandler;
 
         // Specialized parser helpers
@@ -37,9 +39,20 @@ namespace parser
 
     public:
         explicit StatementParser(TokenStream& stream, ParseContext& ctx)
-            : tokenStream(stream), context(ctx), errorHandler(std::make_shared<error::ErrorHandler>())
+            : tokenStream(stream), context(ctx), expressionParser(nullptr), errorHandler(std::make_shared<error::ErrorHandler>())
         {
             initializeHelperParsers();
+        }
+
+        // Method to set ExpressionParser reference after construction
+        void setExpressionParser(ExpressionParser& exprParser)
+        {
+            expressionParser = &exprParser;
+            // Also set it in the assignment parser to break circular dependency
+            if (assignmentParser)
+            {
+                assignmentParser->setExpressionParser(exprParser);
+            }
         }
 
         // Statement parsing methods

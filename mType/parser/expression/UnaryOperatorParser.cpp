@@ -1,6 +1,8 @@
 #include "UnaryOperatorParser.hpp"
+#include "../ExpressionParser.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 
 namespace parser::expression
 {
@@ -30,7 +32,12 @@ namespace parser::expression
         }
 
         // If not a unary operator, delegate to postfix parsing
-        return context.parseExpression(); // This should delegate to PostfixOperatorParser
+        if (!expressionParser)
+        {
+            reportError("ExpressionParser not set in UnaryOperatorParser", getParserName());
+            throw errors::ParseException("ExpressionParser not initialized in UnaryOperatorParser");
+        }
+        return expressionParser->parsePostfix();
     }
 
     bool UnaryOperatorParser::isPrefixUnaryOperator(TokenType type) const noexcept

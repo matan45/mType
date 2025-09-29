@@ -43,6 +43,11 @@ namespace parser
         postfixOpParser = std::make_unique<PostfixOperatorParser>(tokenStream, context, errorHandler);
         literalParser = std::make_unique<LiteralParser>(tokenStream, context, errorHandler);
         argumentParser = std::make_unique<ArgumentParser>(tokenStream, context, errorHandler);
+
+        // Set ExpressionParser reference in parsers to break circular dependencies
+        binaryOpParser->setExpressionParser(*this);
+        unaryOpParser->setExpressionParser(*this);
+        postfixOpParser->setExpressionParser(*this);
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseExpression()

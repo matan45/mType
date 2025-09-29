@@ -1,4 +1,5 @@
 #include "ClassDeclarationParser.hpp"
+#include "GenericParameterParser.hpp"
 #include "../ParserValidator.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -12,6 +13,7 @@ namespace parser
     ClassDeclarationParser::ClassDeclarationParser(TokenStream& tokenStream, ParseContext& context)
         : tokenStream(tokenStream), context(context)
     {
+        genericParameterParser = std::make_unique<GenericParameterParser>(tokenStream, context);
     }
 
     std::unique_ptr<ASTNode> ClassDeclarationParser::parse()
@@ -42,16 +44,12 @@ namespace parser
         validateClassName(className, tokenStream.current().location);
         tokenStream.advance();
 
-        // Parse generic type parameters if present (for now, skip this complex parsing)
+        // Parse generic type parameters if present
         std::vector<ast::GenericTypeParameter> genericParameters;
         if (tokenStream.check(TokenType::LESS))
         {
             tokenStream.advance(); // consume '<'
-            // Skip generic parameters for now - this needs GenericParameterParser
-            while (!tokenStream.check(TokenType::GREATER) && !tokenStream.isAtEnd())
-            {
-                tokenStream.advance();
-            }
+            genericParameters = genericParameterParser->parseGenericTypeParameters();
             tokenStream.expect(TokenType::GREATER); // consume '>'
         }
 

@@ -1,4 +1,5 @@
 #include "PostfixOperatorParser.hpp"
+#include "../ExpressionParser.hpp"
 #include "../ParserUtils.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
@@ -26,7 +27,12 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parsePostfix()
     {
-        auto expr = context.parseExpression(); // Delegate to ExpressionParser for primary parsing
+        if (!expressionParser)
+        {
+            reportError("ExpressionParser not set in PostfixOperatorParser", getParserName());
+            throw errors::ParseException("ExpressionParser not initialized in PostfixOperatorParser");
+        }
+        auto expr = expressionParser->parsePrimary(); // Delegate to ExpressionParser for primary parsing
         return parsePostfixOperations(std::move(expr));
     }
 

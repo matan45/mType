@@ -4,6 +4,7 @@
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../exceptions/DomainExceptions.hpp"
 #include "../errors/ParseException.hpp"
+#include <iostream>
 
 namespace parser
 {
