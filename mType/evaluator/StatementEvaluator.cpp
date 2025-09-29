@@ -645,7 +645,7 @@ namespace evaluator
             !node->getClassName().empty())
         {
             // Try to convert lambda to interface implementation
-            newValue = convertLambdaToInterface(newValue, node->getClassName());
+            newValue = convertLambdaToInterface(newValue, node->getClassName(), node->getLocation());
         }
 
         // Type detection is now working correctly
@@ -1785,7 +1785,7 @@ namespace evaluator
         return std::monostate{};
     }
 
-    Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName)
+    Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location)
     {
         // Extract the lambda value
         auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
@@ -1808,7 +1808,8 @@ namespace evaluator
                 "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
                 "Lambdas can only be assigned to interfaces with exactly one method. " +
                 "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
-                "Consider using a functional interface (single method) or implement the interface explicitly."
+                "Consider using a functional interface (single method) or implement the interface explicitly.",
+                location
             );
         }
 

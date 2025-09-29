@@ -99,14 +99,24 @@ namespace evaluator::utils
             const std::vector<std::string>& typeArguments);
 
         /**
-         * @brief Substitute generic type parameters in a type string
-         * @param typeString Original type string (may contain T, K, etc.)
-         * @param substitutionMap Map of type parameter to concrete type
-         * @return Type string with substitutions applied
+         * @brief Substitute generic type parameters using AST-based approach
+         * @param genericType The generic type AST node to substitute
+         * @param substitutionMap Map of type parameter names to concrete GenericType objects
+         * @return New GenericType with substitutions applied
          */
-        static std::string substituteTypeParameters(
-            const std::string& typeString,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+        static std::shared_ptr<ast::GenericType> substituteTypeParameters(
+            std::shared_ptr<ast::GenericType> genericType,
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
+
+        /**
+         * @brief Create a GenericType substitution map from string type arguments
+         * @param genericParameters The generic type parameters (T, K, V, etc.)
+         * @param typeArguments The concrete type argument strings (int, string, etc.)
+         * @return Map for AST-based type substitution
+         */
+        static std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> createASTSubstitutionMap(
+            const std::vector<GenericTypeParameter>& genericParameters,
+            const std::vector<std::string>& typeArguments);
 
         /**
          * @brief Create a specialized method definition from a generic static method

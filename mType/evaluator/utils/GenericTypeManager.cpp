@@ -229,47 +229,6 @@ namespace evaluator::utils
         return substitutionMap;
     }
 
-    std::string GenericTypeManager::substituteTypeParameters(
-        const std::string& typeString,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
-    {
-        std::string result = typeString;
-
-        // Simple substitution - replace each type parameter with its concrete type
-        for (const auto& [parameter, concreteType] : substitutionMap)
-        {
-            // TODO: Implement more sophisticated substitution that handles complex types
-            // For now, just do simple string replacement
-            size_t pos = 0;
-            while ((pos = result.find(parameter, pos)) != std::string::npos)
-            {
-                // Make sure we're replacing a whole word, not part of another identifier
-                bool isWholeWord = true;
-                if (pos > 0 && (std::isalnum(result[pos - 1]) || result[pos - 1] == '_'))
-                {
-                    isWholeWord = false;
-                }
-                if (pos + parameter.length() < result.length() &&
-                    (std::isalnum(result[pos + parameter.length()]) || result[pos + parameter.length()] == '_'))
-                {
-                    isWholeWord = false;
-                }
-
-                if (isWholeWord)
-                {
-                    result.replace(pos, parameter.length(), concreteType);
-                    pos += concreteType.length();
-                }
-                else
-                {
-                    pos += parameter.length();
-                }
-            }
-        }
-
-        return result;
-    }
-
     std::vector<std::string> GenericTypeManager::parseTypeArguments(const std::string& typeArgsString)
     {
         std::vector<std::string> typeArgs;
@@ -638,6 +597,44 @@ namespace evaluator::utils
         }
 
         return true;
+    }
+
+    // AST-based type substitution (replaces naive string substitution)
+    std::shared_ptr<ast::GenericType> GenericTypeManager::substituteTypeParameters(
+        std::shared_ptr<ast::GenericType> genericType,
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
+    {
+        if (!genericType) {
+            return nullptr;
+        }
+
+        // Use the GenericType's built-in substitute method for proper AST handling
+        return genericType->substitute(substitutionMap);
+    }
+
+    std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> GenericTypeManager::createASTSubstitutionMap(
+        const std::vector<GenericTypeParameter>& genericParameters,
+        const std::vector<std::string>& typeArguments)
+    {
+        std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> substitutionMap;
+
+        if (genericParameters.size() != typeArguments.size()) {
+            // Invalid argument count - return empty map
+            return substitutionMap;
+        }
+
+        for (size_t i = 0; i < genericParameters.size(); ++i) {
+            const std::string& parameterName = genericParameters[i].name;
+            const std::string& typeArgument = typeArguments[i];
+
+            // Create GenericType from string representation
+            // For now, create a simple non-generic type (concrete type)
+            auto concreteType = std::make_shared<ast::GenericType>(typeArgument);
+
+            substitutionMap[parameterName] = concreteType;
+        }
+
+        return substitutionMap;
     }
 
 }
