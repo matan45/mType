@@ -88,6 +88,7 @@ namespace parser::statement
             TokenType opType = tokenStream.current().type;
             if (isAssignmentOperator(opType))
             {
+                errors::SourceLocation opLocation = tokenStream.current().location; // Capture location before advancing
                 tokenStream.advance(); // consume assignment operator
                 auto value = expressionParser->parseExpression();
 
@@ -95,7 +96,7 @@ namespace parser::statement
                 if (opType != TokenType::ASSIGN)
                 {
                     TokenType binaryOp = getCorrespondingBinaryOperator(opType);
-                    value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value));
+                    value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value), opLocation);
 
                     expectToken(TokenType::SEMICOLON, getParserName());
                     return value;
@@ -117,6 +118,7 @@ namespace parser::statement
             TokenType opType = tokenStream.current().type;
             if (isAssignmentOperator(opType))
             {
+                errors::SourceLocation opLocation = tokenStream.current().location; // Capture location before advancing
                 tokenStream.advance(); // consume assignment operator
                 auto value = expressionParser->parseExpression();
 
@@ -124,7 +126,7 @@ namespace parser::statement
                 if (opType != TokenType::ASSIGN)
                 {
                     TokenType binaryOp = getCorrespondingBinaryOperator(opType);
-                    value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value));
+                    value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value), opLocation);
 
                     expectToken(TokenType::SEMICOLON, getParserName());
                     return value;

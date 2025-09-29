@@ -26,9 +26,10 @@ namespace parser::expression
         if (isPrefixUnaryOperator(tokenStream.current().type))
         {
             TokenType op = tokenStream.current().type;
+            SourceLocation opLocation = tokenStream.current().location; // Capture location before advancing
             tokenStream.advance();
             auto operand = parseUnary(); // Support chained unary operators
-            return std::make_unique<UnaryExpNode>(op, std::move(operand), UnaryPosition::PREFIX);
+            return std::make_unique<UnaryExpNode>(op, std::move(operand), UnaryPosition::PREFIX, opLocation);
         }
 
         // If not a unary operator, delegate to postfix parsing

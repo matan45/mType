@@ -27,11 +27,12 @@ namespace parser::expression
 
         if (tokenStream.check(TokenType::QUESTION))
         {
+            SourceLocation questionLocation = tokenStream.current().location; // Capture location before advancing
             tokenStream.advance();
             auto trueExpr = parseTernary(); // Use same level to avoid recursion
             expectToken(TokenType::COLON, getParserName());
             auto falseExpr = parseTernary(); // Use same level to avoid recursion
-            return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr));
+            return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr), questionLocation);
         }
 
         return expr;

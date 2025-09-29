@@ -248,9 +248,10 @@ namespace parser
         while (std::find(operators.begin(), operators.end(), stream.current().type) != operators.end())
         {
             TokenType op = stream.current().type;
+            errors::SourceLocation opLocation = stream.current().location; // Capture location before advancing
             stream.advance();
             auto right = parseNext();
-            left = std::make_unique<ast::nodes::expressions::BinaryExpNode>(std::move(left), op, std::move(right));
+            left = std::make_unique<ast::nodes::expressions::BinaryExpNode>(std::move(left), op, std::move(right), opLocation);
         }
         
         return left;

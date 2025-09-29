@@ -49,8 +49,9 @@ namespace parser::expression
             {
                 // Postfix increment/decrement
                 TokenType op = tokenStream.current().type;
+                SourceLocation opLocation = tokenStream.current().location; // Capture location before advancing
                 tokenStream.advance();
-                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), UnaryPosition::POSTFIX);
+                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), UnaryPosition::POSTFIX, opLocation);
             }
             else if (tokenStream.check(TokenType::LPAREN))
             {
