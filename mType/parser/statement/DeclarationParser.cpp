@@ -2,7 +2,6 @@
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -24,17 +23,27 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> DeclarationParser::parseDeclaration()
     {
+
         // Parse modifiers (final, static)
         ModifierInfo modifiers = parseModifiers();
 
         // Parse the complete type information
         auto typeLocation = getCurrentLocation();
-        parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
+
+        parser::TypeInfo typeInfo;
+        try {
+            typeInfo = TypeParser::parseTypeInfo(tokenStream);
+        }
+        catch (const std::exception& ) {
+            throw;
+        }
         ValueType type = typeInfo.baseType;
         std::string className = typeInfo.className;
 
+
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
+
             // Special case: if we see a parenthesis after a qualified name,
             // it's likely a static method call that was mistakenly routed here
             if (tokenStream.check(TokenType::LPAREN) && !className.empty() &&
@@ -66,7 +75,15 @@ namespace parser::statement
             throw errors::ParseException("Expected variable name");
         }
 
-        std::string varName = tokenStream.current().stringValue.getString();
+
+        std::string varName;
+        try {
+            varName = tokenStream.current().stringValue.getString();
+        }
+        catch (const std::exception&) {
+            throw;
+        }
+
         SourceLocation varLocation = getCurrentLocation();
         tokenStream.advance();
 
@@ -74,6 +91,9 @@ namespace parser::statement
         if (tryConsumeToken(TokenType::ASSIGN))
         {
             value = context.parseExpression();
+        }
+        else
+        {
         }
 
         expectToken(TokenType::SEMICOLON, getParserName());

@@ -126,7 +126,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -142,7 +142,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -158,7 +158,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -174,7 +174,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;

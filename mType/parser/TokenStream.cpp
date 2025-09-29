@@ -1,6 +1,7 @@
 #include "TokenStream.hpp"
 #include "../errors/ParseException.hpp"
-
+#include "../lexer/TokenFactory.hpp"
+#include <iostream>
 namespace parser
 {
     using namespace errors;
@@ -8,12 +9,34 @@ namespace parser
     TokenStream::TokenStream(Lexer& lex) : lexer(lex)
     {
         // Initialize with first token
-        advance();
+        try {
+            advance();
+        }
+        catch (const errors::ParseException&) {
+            // Set END token and re-throw to prevent parser from starting
+            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            throw;
+        }
+        catch (const std::exception&) {
+            // Set END token and re-throw to prevent parser from starting
+            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            throw;
+        }
     }
 
     void TokenStream::advance()
     {
-        currentToken = lexer.getNextToken();
+        try {
+            currentToken = lexer.getNextToken();
+        }
+        catch (const errors::ParseException&) {
+            throw;
+        }
+        catch (const std::exception&) {
+            // Create an END token to prevent infinite loops in case exception isn't caught
+            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            throw;
+        }
     }
 
     bool TokenStream::check(TokenType type) const noexcept

@@ -3,7 +3,6 @@
 #include "../errors/ParseException.hpp"
 #include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <memory>
 #include <algorithm>
 
@@ -55,44 +54,77 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        // Always parse and execute .mt files directly (no auto-caching)
-        lexer::Lexer lexer(filename);
+        try
+        {
+            // Always parse and execute .mt files directly (no auto-caching)
+            lexer::Lexer lexer(filename);
 
-        // Create and configure ImportManager
-        auto importManager = std::make_unique<ImportManager>();
+            // Create and configure ImportManager
+            auto importManager = std::make_unique<ImportManager>();
 
-        // Set base directory to the directory of the script file
-        std::filesystem::path scriptPath(filename);
-        importManager->setBaseDirectory(scriptPath.parent_path().string());
+            // Set base directory to the directory of the script file
+            std::filesystem::path scriptPath(filename);
+            importManager->setBaseDirectory(scriptPath.parent_path().string());
 
-        // Keep a raw pointer for later use before moving to Parser
-        ImportManager* importManagerPtr = importManager.get();
+            // Keep a raw pointer for later use before moving to Parser
+            ImportManager* importManagerPtr = importManager.get();
 
-        parser::Parser parser(lexer, std::move(importManager));
-        auto ast = parser.parseProgram();
+            parser::Parser parser(lexer, std::move(importManager));
 
-        // Set ImportManager on environment for clean architecture
-        environment->setImportManager(importManagerPtr);
+            std::unique_ptr<ASTNode> ast;
+            try
+            {
+                ast = parser.parseProgram();
+            }
+            catch (const errors::ParseException&)
+            {
+                throw;
+            }
+            catch (const std::exception&)
+            {
+                throw;
+            }
+            catch (...)
+            {
+                throw;
+            }
 
-        evaluator->evaluate(ast.get());
+            // Set ImportManager on environment for clean architecture
+            environment->setImportManager(importManagerPtr);
 
-        // Automatic cleanup after script execution to prevent memory growth
-        // Only clean up interfaces that are no longer referenced
-        size_t cleanedUp = cleanupUnusedInterfaces();
-        if (cleanedUp > 0) {
-            // Optional: Log cleanup activity for debugging
-            // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
+            evaluator->evaluate(ast.get());
+
+            // Automatic cleanup after script execution to prevent memory growth
+            // Only clean up interfaces that are no longer referenced
+            size_t cleanedUp = cleanupUnusedInterfaces();
+            if (cleanedUp > 0)
+            {
+                // Optional: Log cleanup activity for debugging
+                // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
+            }
+        }
+        catch (const errors::ParseException&)
+        {
+            std::cerr << "Error" << std::endl;
+            throw; // Re-throw to be caught by main()
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            throw; // Re-throw to be caught by main()
         }
     }
 
     void ScriptInterpreter::cleanupRegistries()
     {
-        if (environment) {
+        if (environment)
+        {
             // Clean up unused interfaces to prevent memory growth
             environment->cleanupUnusedInterfaces();
             // Clear interface validation cache to free memory
             auto interfaceRegistry = environment->getInterfaceRegistry();
-            if (interfaceRegistry) {
+            if (interfaceRegistry)
+            {
                 interfaceRegistry->clearValidationCache();
             }
         }
@@ -296,7 +328,8 @@ namespace services
             if (params.size() != constructorArgs.size())
             {
                 environment->exitScope();
-                throw mtype::exceptions::ParameterMismatchException("constructor", static_cast<int>(params.size()), static_cast<int>(constructorArgs.size()));
+                throw mtype::exceptions::ParameterMismatchException("constructor", static_cast<int>(params.size()),
+                                                                    static_cast<int>(constructorArgs.size()));
             }
 
             // Bind parameters
@@ -339,7 +372,8 @@ namespace services
         if (params.size() != args.size())
         {
             environment->exitScope();
-            throw mtype::exceptions::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()), static_cast<int>(args.size()));
+            throw mtype::exceptions::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()),
+                                                                static_cast<int>(args.size()));
         }
 
         for (size_t i = 0; i < params.size(); ++i)
@@ -388,7 +422,8 @@ namespace services
             if (params.size() != args.size())
             {
                 throw mtype::exceptions::ParameterMismatchException(
-                    classDef->getName() + "::" + methodName, static_cast<int>(params.size()), static_cast<int>(args.size()));
+                    classDef->getName() + "::" + methodName, static_cast<int>(params.size()),
+                    static_cast<int>(args.size()));
             }
 
             for (size_t i = 0; i < params.size(); ++i)

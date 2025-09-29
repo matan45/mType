@@ -1,5 +1,4 @@
 ﻿#include "ExpressionEvaluator.hpp"
-#include <iostream>
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"

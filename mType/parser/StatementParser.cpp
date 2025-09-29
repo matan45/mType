@@ -2,9 +2,7 @@
 #include "TypeParser.hpp"
 #include "ParserUtils.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
-#include "../exceptions/DomainExceptions.hpp"
 #include "../errors/ParseException.hpp"
-#include <iostream>
 
 namespace parser
 {
@@ -24,7 +22,14 @@ namespace parser
 
     std::unique_ptr<ASTNode> StatementParser::parseStatement()
     {
-        StatementType type = StatementTypeDetector::detectStatementType(tokenStream);
+
+        StatementType type;
+        try {
+            type = StatementTypeDetector::detectStatementType(tokenStream);
+        }
+        catch (const std::exception& ) {
+            throw;
+        }
 
         switch (type)
         {

@@ -1,6 +1,5 @@
 #include "ImportParser.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -55,12 +54,6 @@ namespace parser::statement
         {
             reportError("Import path cannot be empty", getParserName());
             throw errors::ParseException("Import path cannot be empty");
-        }
-
-        // Basic validation - could be extended with more sophisticated checks
-        if (path.find("..") != std::string::npos)
-        {
-            reportWarning("Import path contains '..' which may be unsafe", getParserName());
         }
 
         // Check for file extension

@@ -2,7 +2,6 @@
 #include <cctype>
 #include <stdexcept>
 #include <limits>
-#include <iostream>
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
 

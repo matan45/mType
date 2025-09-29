@@ -3,7 +3,6 @@
 #include "ParseContext.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
-#include <iostream>
 
 namespace parser
 {
@@ -70,14 +69,30 @@ namespace parser
     {
         auto program = std::make_unique<ProgramNode>(tokenStream->location());
 
+        int iterationCount = 0;
         while (!tokenStream->isAtEnd())
         {
-            auto statement = parseStatement();
-            if (statement)
-            {
-                // All statements, including import nodes, are added to the program
-                // Import processing is completely deferred to evaluation phase
-                program->addStatement(std::move(statement));
+            iterationCount++;
+
+            if (iterationCount > 1000) {
+                break;
+            }
+
+            try {
+                auto statement = parseStatement();
+
+                if (statement)
+                {
+                    // All statements, including import nodes, are added to the program
+                    // Import processing is completely deferred to evaluation phase
+                    program->addStatement(std::move(statement));
+                }
+                else
+                {
+                }
+            }
+            catch (const std::exception& ) {
+                throw;
             }
         }
 

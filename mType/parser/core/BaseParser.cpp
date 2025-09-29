@@ -20,7 +20,7 @@ namespace parser::core
         tokenStream.advance();
     }
 
-    bool BaseParser::tryConsumeToken(TokenType type) noexcept
+    bool BaseParser::tryConsumeToken(TokenType type)
     {
         if (tokenStream.check(type))
         {

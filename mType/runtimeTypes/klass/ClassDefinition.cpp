@@ -1,7 +1,6 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
-#include <iostream>
 
 namespace runtimeTypes::klass
 {

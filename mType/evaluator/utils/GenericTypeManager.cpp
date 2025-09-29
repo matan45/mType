@@ -8,7 +8,6 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
-#include <iostream>
 #include <mutex>
 
 namespace evaluator::utils

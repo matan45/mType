@@ -28,7 +28,7 @@ namespace parser::core
 
     protected:
         void expectToken(TokenType type, const std::string& parserContext = "");
-        bool tryConsumeToken(TokenType type) noexcept;
+        bool tryConsumeToken(TokenType type);
         SourceLocation getCurrentLocation() const noexcept;
 
         void reportError(const std::string& message, const std::string& parserContext = "") const;

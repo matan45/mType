@@ -9,7 +9,6 @@
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
-#include <iostream>
 
 namespace parser::statement
 {
