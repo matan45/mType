@@ -68,11 +68,11 @@ namespace tests::testFramework
                 Lexer lexer(filePath);
                 auto importManager = std::make_unique<ImportManager>();
                 ImportManager* importManagerPtr = importManager.get();
-                
+
                 // Set base directory to the directory of the test file
                 std::filesystem::path testFilePath(filePath);
                 importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
-                
+
                 Parser parser(lexer, std::move(importManager));
 
                 // Parse the file

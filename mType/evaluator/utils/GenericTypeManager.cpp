@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 #include <mutex>
 
 namespace evaluator::utils
@@ -480,12 +481,12 @@ namespace evaluator::utils
     {
         if (!genericMethod->hasGenericInformation())
         {
-            // Non-generic method should not have type arguments
             return typeArguments.empty();
         }
 
         // Check if type argument count matches generic type parameter count
         const auto& genericTypeParams = genericMethod->getGenericTypeParameters();
+
         if (typeArguments.size() != genericTypeParams.size())
         {
             return false;

@@ -192,7 +192,12 @@ namespace parser::expression
             if (tokenStream.check(TokenType::LESS))
             {
                 tokenStream.advance(); // consume '<'
-                // TODO: Delegate to ArgumentParser for generic type arguments
+                if (!expressionParser)
+                {
+                    reportError("ExpressionParser not set in PostfixOperatorParser", getParserName());
+                    throw errors::ParseException("ExpressionParser not initialized in PostfixOperatorParser");
+                }
+                genericTypeArguments = expressionParser->parseGenericTypeArguments();
                 expectToken(TokenType::GREATER, getParserName());
             }
 

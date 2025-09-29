@@ -119,20 +119,30 @@ namespace parser
             className += "::" + qualifiedParts[i];
         }
 
-        // Handle generic parameters
+        // Handle generic parameters with proper nested bracket matching
         if (tokenStream.check(TokenType::LESS))
         {
             std::string genericsString = "<";
             tokenStream.advance(); // consume '<'
 
-            // Skip generic parameters for now - need to implement properly
-            while (!tokenStream.check(TokenType::GREATER) && !tokenStream.isAtEnd())
+            int depth = 1; // Track nesting depth of < and >
+            while (depth > 0 && !tokenStream.isAtEnd())
             {
-                if (tokenStream.current().type == TokenType::IDENTIFIER ||
-                    tokenStream.current().type == TokenType::INT ||
-                    tokenStream.current().type == TokenType::FLOAT ||
-                    tokenStream.current().type == TokenType::BOOL ||
-                    tokenStream.current().type == TokenType::STRING_TYPE)
+                if (tokenStream.current().type == TokenType::LESS)
+                {
+                    depth++;
+                    genericsString += "<";
+                }
+                else if (tokenStream.current().type == TokenType::GREATER)
+                {
+                    depth--;
+                    genericsString += ">";
+                }
+                else if (tokenStream.current().type == TokenType::IDENTIFIER ||
+                         tokenStream.current().type == TokenType::INT ||
+                         tokenStream.current().type == TokenType::FLOAT ||
+                         tokenStream.current().type == TokenType::BOOL ||
+                         tokenStream.current().type == TokenType::STRING_TYPE)
                 {
                     genericsString += tokenStream.current().stringValue.getString();
                 }
@@ -140,11 +150,19 @@ namespace parser
                 {
                     genericsString += ", ";
                 }
+                else
+                {
+                    // Include other tokens that might appear in generic types
+                    genericsString += tokenStream.current().stringValue.getString();
+                }
+
                 tokenStream.advance();
             }
 
-            tokenStream.expect(TokenType::GREATER); // consume '>'
-            genericsString += ">";
+            if (depth > 0)
+            {
+                throw ParseException("Unmatched '<' in generic type arguments", tokenStream.current().location);
+            }
 
             className += genericsString;
         }

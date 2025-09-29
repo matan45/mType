@@ -1,5 +1,6 @@
 ﻿#include "ScriptInterpreter.hpp"
 #include "../exceptions/DomainExceptions.hpp"
+#include "../errors/ParseException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <stdexcept>
@@ -66,6 +67,7 @@ namespace services
 
         // Keep a raw pointer for later use before moving to Parser
         ImportManager* importManagerPtr = importManager.get();
+
         parser::Parser parser(lexer, std::move(importManager));
         auto ast = parser.parseProgram();
 

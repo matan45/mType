@@ -1,6 +1,5 @@
 #include "GenericParameterParser.hpp"
 #include "../../errors/ParseException.hpp"
-#include <iostream>
 
 namespace parser
 {
@@ -95,12 +94,6 @@ namespace parser
 
     ast::GenericTypeParameter GenericParameterParser::parseGenericTypeParameter()
     {
-        // Debug: Check current token
-        std::cout << "[GenericParameterParser::parseGenericTypeParameter] Current token: "
-                  << "Type=" << static_cast<int>(tokenStream.current().type)
-                  << ", Value='" << tokenStream.current().stringValue.getString() << "'"
-                  << ", Location=" << tokenStream.current().location.getLine() << ":" << tokenStream.current().location.getColumn() << std::endl;
-
         // Expect an identifier for the type parameter name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {

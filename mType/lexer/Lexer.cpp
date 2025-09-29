@@ -258,7 +258,7 @@ namespace lexer
     {
         advance(); // Skip opening quote
         size_t start = pos;
-        
+
         // First pass: find end and check if we have escape sequences
         bool hasEscapes = false;
         size_t end = pos;
@@ -271,7 +271,7 @@ namespace lexer
             }
             end++;
         }
-        
+
         if (end >= input.length())
         {
             throwError("Unterminated string literal");
@@ -374,7 +374,8 @@ namespace lexer
 
     void Lexer::throwError(const std::string& message)
     {
-        throw errors::ParseException(message, locationTracker->getCurrentLocation());
+        auto location = locationTracker->getCurrentLocation();
+        throw errors::ParseException(message, location);
     }
 
     Token Lexer::tryParseOperator()

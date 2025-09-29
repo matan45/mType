@@ -1,4 +1,5 @@
 ﻿#include "InterfaceParser.hpp"
+#include "class/GenericParameterParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
@@ -72,20 +73,28 @@ namespace parser
                 // Handle generic parameters for parent interface
                 if (tokenStream.current().type == TokenType::LESS)
                 {
-                    // Skip generic parameters for now - will enhance later
-                    int depth = 1;
-                    tokenStream.advance();
-                    while (depth > 0 && !tokenStream.isAtEnd())
+                    tokenStream.advance(); // consume '<'
+
+                    // Use GenericParameterParser to properly parse the generic type parameters
+                    GenericParameterParser genericParser(tokenStream, context);
+                    auto parentGenericParams = genericParser.parseGenericTypeParameters();
+
+                    tokenStream.expect(TokenType::GREATER); // consume '>'
+
+                    // Store the generic parameters with the parent interface
+                    // Note: This extends the parent interface name with generic info for now
+                    // A more complete implementation would store these separately
+                    if (!parentGenericParams.empty())
                     {
-                        if (tokenStream.current().type == TokenType::LESS)
+                        std::string genericSuffix = "<";
+                        for (size_t i = 0; i < parentGenericParams.size(); ++i)
                         {
-                            depth++;
+                            if (i > 0) genericSuffix += ", ";
+                            genericSuffix += parentGenericParams[i].name;
                         }
-                        else if (tokenStream.current().type == TokenType::GREATER)
-                        {
-                            depth--;
-                        }
-                        tokenStream.advance();
+                        genericSuffix += ">";
+                        parentInterface += genericSuffix;
+                        interfaceNode->addExtendedInterface(parentInterface);
                     }
                 }
 

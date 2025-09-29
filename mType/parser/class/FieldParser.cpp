@@ -6,6 +6,8 @@
 #include "../../errors/ParseException.hpp"
 #include <utility>
 
+#include "GenericParameterParser.hpp"
+
 namespace parser
 {
     using namespace ast::nodes::classes;
@@ -60,11 +62,11 @@ namespace parser
             if (tokenStream.check(TokenType::LESS))
             {
                 tokenStream.advance(); // consume '<'
-                // Skip generic parameters for now - need to implement properly
-                while (!tokenStream.check(TokenType::GREATER) && !tokenStream.isAtEnd())
-                {
-                    tokenStream.advance();
-                }
+
+                // Use GenericParameterParser to properly parse the generic type parameters
+                GenericParameterParser genericParser(tokenStream, context);
+                methodGenericParameters = genericParser.parseGenericTypeParameters();
+
                 tokenStream.expect(TokenType::GREATER); // consume '>'
             }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <exception>
 #include <string>
+#include <sstream>
 #include "SourceLocation.hpp"
 
 namespace errors

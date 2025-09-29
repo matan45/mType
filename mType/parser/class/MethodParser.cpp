@@ -1,4 +1,5 @@
 #include "MethodParser.hpp"
+#include "GenericParameterParser.hpp"
 #include "../ParserUtils.hpp"
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
@@ -98,11 +99,11 @@ namespace parser
         if (tokenStream.check(TokenType::LESS))
         {
             tokenStream.advance(); // consume '<'
-            // Skip generic parameters for now - need to implement this properly
-            while (!tokenStream.check(TokenType::GREATER) && !tokenStream.isAtEnd())
-            {
-                tokenStream.advance();
-            }
+
+            // Use GenericParameterParser to properly parse the generic type parameters
+            GenericParameterParser genericParser(tokenStream, context);
+            methodGenericParameters = genericParser.parseGenericTypeParameters();
+
             tokenStream.expect(TokenType::GREATER); // consume '>'
         }
         return methodGenericParameters;
