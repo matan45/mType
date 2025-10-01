@@ -81,7 +81,7 @@ namespace environment::registry
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
                         std::cout << (value ? "true" : "false");
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>)
-                        std::cout << "void";
+                        std::cout << "null";
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
                         std::cout << "null";
                     else if constexpr (std::is_same_v<

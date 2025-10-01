@@ -107,7 +107,7 @@ namespace evaluator::utils
                 return "null";
             }
             else if constexpr (std::is_same_v<T, std::monostate>) {
-                return "undefined";
+                return "null";
             }
             else {
                 return "[unknown]";

@@ -1,4 +1,6 @@
 ﻿#include "ExpressionEvaluator.hpp"
+#include "expressions/LiteralEvaluator.hpp"
+#include "expressions/BinaryOperationEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ObjectHelper.hpp"
 #include "validation/TypeValidator.hpp"
@@ -49,9 +51,18 @@ namespace evaluator
     using namespace value;
 
     ExpressionEvaluator::ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx)
-        : context(ctx), stmtEvaluator(nullptr), objEvaluator(nullptr)
+        : context(ctx)
+        , literalEvaluator(std::make_unique<expressions::LiteralEvaluator>(ctx))
+        , binaryOpEvaluator(std::make_unique<expressions::BinaryOperationEvaluator>(ctx))
+        , stmtEvaluator(nullptr)
+        , objEvaluator(nullptr)
     {
+        // Set back-reference so BinaryOperationEvaluator can use toString()
+        binaryOpEvaluator->setExpressionEvaluator(this);
     }
+
+    // Destructor must be defined in .cpp where complete types are available
+    ExpressionEvaluator::~ExpressionEvaluator() = default;
 
     Value ExpressionEvaluator::evaluate(ASTNode* node)
     {
@@ -250,31 +261,27 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateIntegerNode(IntegerNode* node)
     {
-        return node->getValue();
+        return literalEvaluator->evaluateInteger(node);
     }
 
     Value ExpressionEvaluator::evaluateFloatNode(FloatNode* node)
     {
-        return node->getValue();
+        return literalEvaluator->evaluateFloat(node);
     }
 
     Value ExpressionEvaluator::evaluateStringNode(StringNode* node)
     {
-        // Intern the string value from the StringNode
-        auto& pool = StringPool::getInstance();
-        auto result = pool.intern(node->getValue());
-
-        return result;
+        return literalEvaluator->evaluateString(node);
     }
 
     Value ExpressionEvaluator::evaluateBoolNode(BoolNode* node)
     {
-        return node->getValue();
+        return literalEvaluator->evaluateBool(node);
     }
 
     Value ExpressionEvaluator::evaluateNullNode(NullNode* node)
     {
-        return nullptr;
+        return literalEvaluator->evaluateNull(node);
     }
 
     Value ExpressionEvaluator::evaluateVariableNode(VariableNode* node)
@@ -1069,253 +1076,25 @@ namespace evaluator
         }
     }
 
-    // Helper methods for binary operations
+    // Delegate binary operations to BinaryOperationEvaluator
     Value ExpressionEvaluator::evaluateArithmetic(const Value& left, const Value& right, TokenType op)
     {
-        // Handle string concatenation for PLUS operator
-        if (op == TokenType::PLUS &&
-            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
-             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right)))
-        {
-            std::string leftStr = toString(left);
-            std::string rightStr = toString(right);
-            std::string result = leftStr + rightStr;
-
-
-            auto& pool = StringPool::getInstance();
-            return pool.intern(result);
-        }
-
-        // Handle numeric operations
-        bool isFloat = std::holds_alternative<float>(left) || std::holds_alternative<float>(right);
-
-        if (isFloat)
-        {
-            float leftVal = toFloat(left);
-            float rightVal = toFloat(right);
-
-            switch (op)
-            {
-            case TokenType::PLUS: return leftVal + rightVal;
-            case TokenType::MINUS: return leftVal - rightVal;
-            case TokenType::MULTIPLY: return leftVal * rightVal;
-            case TokenType::DIVIDE:
-                if (rightVal == 0.0f)
-                {
-                    throw MathException("Division by zero", SourceLocation{});
-                }
-                return leftVal / rightVal;
-            case TokenType::MODULO:
-                if (rightVal == 0.0f)
-                {
-                    throw MathException("Modulo by zero", SourceLocation{});
-                }
-                return std::fmod(leftVal, rightVal);
-            default:
-                throw TypeException("Invalid arithmetic operator", SourceLocation{});
-            }
-        }
-        else
-        {
-            int leftVal = toInt(left);
-            int rightVal = toInt(right);
-
-            switch (op)
-            {
-            case TokenType::PLUS: return leftVal + rightVal;
-            case TokenType::MINUS: return leftVal - rightVal;
-            case TokenType::MULTIPLY: return leftVal * rightVal;
-            case TokenType::DIVIDE:
-                if (rightVal == 0)
-                {
-                    throw MathException("Division by zero", SourceLocation{});
-                }
-                return leftVal / rightVal;
-            case TokenType::MODULO:
-                if (rightVal == 0)
-                {
-                    throw MathException("Modulo by zero", SourceLocation{});
-                }
-                return leftVal % rightVal;
-            default:
-                throw TypeException("Invalid arithmetic operator", SourceLocation{});
-            }
-        }
+        return binaryOpEvaluator->evaluateArithmetic(left, right, op);
     }
 
     Value ExpressionEvaluator::evaluateComparison(const Value& left, const Value& right, TokenType op)
     {
-        // Handle null comparisons
-        if (std::holds_alternative<nullptr_t>(left) || std::holds_alternative<nullptr_t>(right))
-        {
-            bool leftNull = std::holds_alternative<nullptr_t>(left);
-            bool rightNull = std::holds_alternative<nullptr_t>(right);
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftNull == rightNull;
-            case TokenType::NOT_EQUALS: return leftNull != rightNull;
-            default:
-                throw TypeException("Cannot compare null with relational operators", SourceLocation{});
-            }
-        }
-
-        // Handle string comparisons
-        if (std::holds_alternative<std::string>(left) && std::holds_alternative<std::string>(right))
-        {
-            std::string leftStr = std::get<std::string>(left);
-            std::string rightStr = std::get<std::string>(right);
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftStr == rightStr;
-            case TokenType::NOT_EQUALS: return leftStr != rightStr;
-            case TokenType::LESS: return leftStr < rightStr;
-            case TokenType::LESS_EQUALS: return leftStr <= rightStr;
-            case TokenType::GREATER: return leftStr > rightStr;
-            case TokenType::GREATER_EQUALS: return leftStr >= rightStr;
-            default:
-                throw TypeException("Invalid comparison operator", SourceLocation{});
-            }
-        }
-
-        // Handle InternedString comparisons
-        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<value::InternedString>(right))
-        {
-            std::string leftStr = std::get<value::InternedString>(left).getString();
-            std::string rightStr = std::get<value::InternedString>(right).getString();
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftStr == rightStr;
-            case TokenType::NOT_EQUALS: return leftStr != rightStr;
-            case TokenType::LESS: return leftStr < rightStr;
-            case TokenType::LESS_EQUALS: return leftStr <= rightStr;
-            case TokenType::GREATER: return leftStr > rightStr;
-            case TokenType::GREATER_EQUALS: return leftStr >= rightStr;
-            default:
-                throw TypeException("Invalid comparison operator", SourceLocation{});
-            }
-        }
-
-        // Handle mixed string and InternedString comparisons
-        if ((std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) ||
-            (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)))
-        {
-            std::string leftStr = std::holds_alternative<std::string>(left) ?
-                std::get<std::string>(left) : std::get<value::InternedString>(left).getString();
-            std::string rightStr = std::holds_alternative<std::string>(right) ?
-                std::get<std::string>(right) : std::get<value::InternedString>(right).getString();
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftStr == rightStr;
-            case TokenType::NOT_EQUALS: return leftStr != rightStr;
-            case TokenType::LESS: return leftStr < rightStr;
-            case TokenType::LESS_EQUALS: return leftStr <= rightStr;
-            case TokenType::GREATER: return leftStr > rightStr;
-            case TokenType::GREATER_EQUALS: return leftStr >= rightStr;
-            default:
-                throw TypeException("Invalid comparison operator", SourceLocation{});
-            }
-        }
-
-        // Handle boolean comparisons
-        if (std::holds_alternative<bool>(left) && std::holds_alternative<bool>(right))
-        {
-            bool leftBool = std::get<bool>(left);
-            bool rightBool = std::get<bool>(right);
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftBool == rightBool;
-            case TokenType::NOT_EQUALS: return leftBool != rightBool;
-            default:
-                throw TypeException("Cannot compare booleans with relational operators", SourceLocation{});
-            }
-        }
-
-        // Handle object comparisons (identity-based)
-        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(left) ||
-            std::holds_alternative<std::shared_ptr<ObjectInstance>>(right) ||
-            std::holds_alternative<std::shared_ptr<NativeArray>>(left) ||
-            std::holds_alternative<std::shared_ptr<NativeArray>>(right))
-        {
-            switch (op)
-            {
-            case TokenType::EQUALS:
-            case TokenType::NOT_EQUALS:
-                {
-                    // Use ValueConverter for consistent object comparison
-                    bool areEqual = ValueConverter::compareValues(left, right);
-                    return (op == TokenType::EQUALS) ? areEqual : !areEqual;
-                }
-            default:
-                throw TypeException("Cannot use relational operators (<, >, <=, >=) with objects", SourceLocation{});
-            }
-        }
-
-        // Handle numeric comparisons
-        bool isFloat = std::holds_alternative<float>(left) || std::holds_alternative<float>(right);
-
-        if (isFloat)
-        {
-            float leftVal = toFloat(left);
-            float rightVal = toFloat(right);
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftVal == rightVal;
-            case TokenType::NOT_EQUALS: return leftVal != rightVal;
-            case TokenType::LESS: return leftVal < rightVal;
-            case TokenType::LESS_EQUALS: return leftVal <= rightVal;
-            case TokenType::GREATER: return leftVal > rightVal;
-            case TokenType::GREATER_EQUALS: return leftVal >= rightVal;
-            default:
-                throw TypeException("Invalid comparison operator", SourceLocation{});
-            }
-        }
-        else
-        {
-            int leftVal = toInt(left);
-            int rightVal = toInt(right);
-
-            switch (op)
-            {
-            case TokenType::EQUALS: return leftVal == rightVal;
-            case TokenType::NOT_EQUALS: return leftVal != rightVal;
-            case TokenType::LESS: return leftVal < rightVal;
-            case TokenType::LESS_EQUALS: return leftVal <= rightVal;
-            case TokenType::GREATER: return leftVal > rightVal;
-            case TokenType::GREATER_EQUALS: return leftVal >= rightVal;
-            default:
-                throw TypeException("Invalid comparison operator", SourceLocation{});
-            }
-        }
+        return binaryOpEvaluator->evaluateComparison(left, right, op);
     }
 
     Value ExpressionEvaluator::evaluateLogical(const Value& left, const Value& right, TokenType op)
     {
-        bool leftBool = isTruthy(left);
-        bool rightBool = isTruthy(right);
-
-        switch (op)
-        {
-        case TokenType::AND: return leftBool && rightBool;
-        case TokenType::OR: return leftBool || rightBool;
-        default:
-            throw TypeException("Invalid logical operator", SourceLocation{});
-        }
+        return binaryOpEvaluator->evaluateLogical(left, right, op);
     }
 
     Value ExpressionEvaluator::evaluateStringOperation(const Value& left, const Value& right, TokenType op)
     {
-        if (op == TokenType::PLUS)
-        {
-            auto& pool = StringPool::getInstance();
-            return pool.intern(toString(left) + toString(right));
-        }
-        throw TypeException("Invalid string operator", SourceLocation{});
+        return binaryOpEvaluator->evaluateStringOperation(left, right, op);
     }
 
     Value ExpressionEvaluator::evaluateAssignmentExpression(AssignmentNode* node)

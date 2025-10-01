@@ -20,6 +20,11 @@ namespace evaluator
     using namespace ast::nodes::statements;
     using namespace runtimeTypes::klass;
 
+    // Forward declarations for specialized handlers
+    namespace objects {
+        class ArrayAssignmentHandler;
+    }
+
     /**
      * @brief Refactored Object Evaluator following SOLID principles
      * - Single Responsibility: Only handles object-oriented features
@@ -38,13 +43,16 @@ namespace evaluator
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;
 
+        // Specialized object handlers
+        std::unique_ptr<objects::ArrayAssignmentHandler> arrayAssignmentHandler;
+
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
         class StatementEvaluator* stmtEvaluator;
 
     public:
         explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ObjectEvaluator() = default;
+        ~ObjectEvaluator();
 
         // IEvaluator interface implementation
         Value evaluate(ASTNode* node);
@@ -106,9 +114,5 @@ namespace evaluator
         void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
         std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(const std::string& interfaceName);
         std::string resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions);
-
-        // Multi-dimensional array assignment helpers
-        std::optional<std::pair<Value, std::vector<size_t>>> extractMultiDimensionalAssignment(IndexAssignmentNode* node);
-        Value performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location);
     };
 }

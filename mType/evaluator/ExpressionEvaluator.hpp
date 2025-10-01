@@ -29,10 +29,20 @@ namespace evaluator
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions (EvaluationContext)
      */
+    // Forward declarations
+    namespace expressions {
+        class LiteralEvaluator;
+        class BinaryOperationEvaluator;
+    }
+
     class ExpressionEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
+
+        // Specialized expression handlers
+        std::unique_ptr<expressions::LiteralEvaluator> literalEvaluator;
+        std::unique_ptr<expressions::BinaryOperationEvaluator> binaryOpEvaluator;
 
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;
@@ -40,7 +50,7 @@ namespace evaluator
 
     public:
         explicit ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ExpressionEvaluator() = default;
+        ~ExpressionEvaluator();
 
         // Main interface methods
         Value evaluate(ASTNode* node);
