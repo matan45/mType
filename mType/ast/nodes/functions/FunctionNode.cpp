@@ -92,8 +92,16 @@ namespace ast::nodes::functions
 
         for (const auto& param : parameters) {
             if (param.second->isGenericParameter()) {
-                // Generic parameter - treat as plain object type
-                result.emplace_back(param.first, ParameterType(ValueType::OBJECT));
+                // Check if it's a real generic parameter (single letter like T, K, V)
+                // or a class/interface name (like Vehicle, Animal)
+                std::string typeName = param.second->getGenericName();
+                if (typeName.length() == 1 && std::isupper(typeName[0])) {
+                    // Real generic parameter - treat as plain object type
+                    result.emplace_back(param.first, ParameterType(ValueType::OBJECT));
+                } else {
+                    // Class or interface name - store as class type
+                    result.emplace_back(param.first, ParameterType::forClass(typeName));
+                }
             } else if (param.second->getConcreteType() == ValueType::OBJECT) {
                 // Object type (class or interface) - store as class type
                 // The validation logic will check both class and interface registries
