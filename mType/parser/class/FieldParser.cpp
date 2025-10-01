@@ -1,6 +1,6 @@
 #include "FieldParser.hpp"
 #include "../TypeParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -15,8 +15,8 @@ namespace parser
     using namespace value;
     using namespace errors;
 
-    FieldParser::FieldParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    FieldParser::FieldParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -28,17 +28,12 @@ namespace parser
     bool FieldParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::STATIC) ||
-               stream.check(TokenType::FINAL) ||
-               stream.check(TokenType::INT) ||
-               stream.check(TokenType::FLOAT) ||
-               stream.check(TokenType::BOOL) ||
-               stream.check(TokenType::STRING_TYPE) ||
-               stream.check(TokenType::IDENTIFIER);
-    }
-
-    std::string FieldParser::getParserName() const
-    {
-        return "FieldParser";
+            stream.check(TokenType::FINAL) ||
+            stream.check(TokenType::INT) ||
+            stream.check(TokenType::FLOAT) ||
+            stream.check(TokenType::BOOL) ||
+            stream.check(TokenType::STRING_TYPE) ||
+            stream.check(TokenType::IDENTIFIER);
     }
 
     std::unique_ptr<ASTNode> FieldParser::parseField()
@@ -58,7 +53,7 @@ namespace parser
             tokenStream.advance(); // consume 'function'
 
             // Parse generic type parameters for static methods
-            std::vector<ast::GenericTypeParameter> methodGenericParameters;
+            std::vector<GenericTypeParameter> methodGenericParameters;
             if (tokenStream.check(TokenType::LESS))
             {
                 tokenStream.advance(); // consume '<'
@@ -87,7 +82,7 @@ namespace parser
             auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
             // Parse return type using generic type system
-            std::shared_ptr<ast::GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
+            std::shared_ptr<GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
             if (tokenStream.current().type == TokenType::COLON)
             {
                 tokenStream.advance();

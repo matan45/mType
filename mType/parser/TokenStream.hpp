@@ -27,7 +27,7 @@ namespace parser
         [[nodiscard]] const Token& current() const noexcept { return currentToken; }
 
         /// @brief Get current token location
-        [[nodiscard]] const errors::SourceLocation& location() const noexcept { return currentToken.location; }
+        [[nodiscard]] const SourceLocation& location() const noexcept { return currentToken.location; }
 
         /// @brief Advance to next token
         void advance();

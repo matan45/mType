@@ -1,7 +1,7 @@
 #include "ClassDeclarationParser.hpp"
 #include "GenericParameterParser.hpp"
 #include "../ParserValidator.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -11,8 +11,8 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    ClassDeclarationParser::ClassDeclarationParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    ClassDeclarationParser::ClassDeclarationParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
         genericParameterParser = std::make_unique<GenericParameterParser>(tokenStream, context);
     }
@@ -25,11 +25,6 @@ namespace parser
     bool ClassDeclarationParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::CLASS);
-    }
-
-    std::string ClassDeclarationParser::getParserName() const
-    {
-        return "ClassDeclarationParser";
     }
 
     std::unique_ptr<ASTNode> ClassDeclarationParser::parseClassDeclaration()

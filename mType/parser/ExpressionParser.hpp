@@ -4,7 +4,6 @@
 #include "../ast/ASTNode.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
-#include "error/ErrorHandler.hpp"
 #include "expression/BinaryOperatorParser.hpp"
 #include "expression/UnaryOperatorParser.hpp"
 #include "expression/PostfixOperatorParser.hpp"
@@ -22,7 +21,6 @@ namespace parser
     private:
         TokenStream& tokenStream;
         ParseContext& context;
-        std::shared_ptr<error::ErrorHandler> errorHandler;
 
         // Specialized parser helpers
         std::unique_ptr<BinaryOperatorParser> binaryOpParser;
@@ -32,11 +30,7 @@ namespace parser
         std::unique_ptr<ArgumentParser> argumentParser;
 
     public:
-        explicit ExpressionParser(TokenStream& stream, ParseContext& ctx)
-            : tokenStream(stream), context(ctx), errorHandler(std::make_shared<error::ErrorHandler>())
-        {
-            initializeHelperParsers();
-        }
+        explicit ExpressionParser(TokenStream& stream, ParseContext& ctx);
 
         // Expression parsing methods (precedence climbing)
         std::unique_ptr<ASTNode> parseExpression();
@@ -73,4 +67,3 @@ namespace parser
         bool isLikelyLambdaParameterList() const;
     };
 }
-

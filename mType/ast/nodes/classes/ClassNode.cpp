@@ -96,6 +96,9 @@ namespace ast::nodes::classes
         return genericParameters.size();
     }
 
+    bool ClassNode::isGeneric() const
+    { return !genericParameters.empty(); }
+
     std::string ClassNode::getFullClassName() const
     {
         std::string fullName = className;

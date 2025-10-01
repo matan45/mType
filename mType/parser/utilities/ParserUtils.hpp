@@ -5,10 +5,10 @@
 #include <utility>
 #include <functional>
 #include <memory>
-#include "../value/ValueType.hpp"
-#include "../value/ParameterType.hpp"
-#include "../token/TokenType.hpp"
-#include "../errors/SourceLocation.hpp"
+#include "../../value/ValueType.hpp"
+#include "../../value/ParameterType.hpp"
+#include "../../token/TokenType.hpp"
+#include "../../errors/SourceLocation.hpp"
 
 // Forward declarations
 namespace ast

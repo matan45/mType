@@ -38,7 +38,8 @@ namespace ast::nodes::classes
     // Legacy getter for backward compatibility
     ValueType FieldNode::getType() const
     {
-        if (type && !type->isGenericParameter()) {
+        if (type && !type->isGenericParameter())
+        {
             return type->getConcreteType();
         }
         return ValueType::OBJECT; // Default for generic parameters

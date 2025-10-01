@@ -3,7 +3,12 @@
 
 namespace parser::core
 {
-    void BaseParser::expectToken(TokenType type, const std::string& parserContext)
+    BaseParser::BaseParser(TokenStream& stream, ParseContext& ctx)
+        : tokenStream(stream), context(ctx)
+    {
+    }
+
+    void BaseParser::expectToken(TokenType type)
     {
         if (!tokenStream.check(type))
         {
@@ -11,10 +16,7 @@ namespace parser::core
             std::string actualName = "TOKEN"; // Simplified for now
             std::string message = "Expected token but found different token";
 
-            ErrorContext error(getCurrentLocation(), message, ErrorSeverity::Error, parserContext);
-            errorHandler->reportError(error);
-
-            throw errors::ParseException(message);
+            throw ParseException(message, tokenStream.current().location);
         }
         tokenStream.advance();
     }
@@ -29,21 +31,6 @@ namespace parser::core
         return false;
     }
 
-    SourceLocation BaseParser::getCurrentLocation() const noexcept
-    {
-        return tokenStream.location();
-    }
-
-    void BaseParser::reportError(const std::string& message, const std::string& parserContext) const
-    {
-        ErrorContext error(getCurrentLocation(), message, ErrorSeverity::Error, parserContext);
-        errorHandler->reportError(error);
-    }
-
-    void BaseParser::reportWarning(const std::string& message, const std::string& parserContext) const
-    {
-        errorHandler->reportWarning(message, getCurrentLocation(), parserContext);
-    }
 
     void BaseParser::recoverToToken(TokenType type)
     {
@@ -86,5 +73,15 @@ namespace parser::core
             }
             tokenStream.advance();
         }
+    }
+
+    bool BaseParser::isAtEnd() const
+    {
+        return tokenStream.isAtEnd();
+    }
+
+    const Token& BaseParser::currentToken() const
+    {
+        return tokenStream.current();
     }
 }

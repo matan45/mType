@@ -18,21 +18,15 @@ namespace parser::expression
     class BinaryOperatorParser : public BaseParser
     {
     private:
-        parser::ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
-
+        ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
     public:
-        BinaryOperatorParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler), expressionParser(nullptr) {}
-
+        explicit BinaryOperatorParser(TokenStream& stream, ParseContext& ctx);
+        
         // Method to set ExpressionParser reference after construction
-        void setExpressionParser(parser::ExpressionParser& exprParser)
-        {
-            expressionParser = &exprParser;
-        }
-
+        void setExpressionParser(ExpressionParser& exprParser);
+        
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "BinaryOperatorParser"; }
 
         // Precedence climbing methods
         std::unique_ptr<ASTNode> parseTernary();
@@ -46,9 +40,9 @@ namespace parser::expression
     private:
         std::unique_ptr<ASTNode> parseBinaryLevel(
             std::function<std::unique_ptr<ASTNode>()> parseNext,
-            const std::vector<token::TokenType>& operators);
+            const std::vector<TokenType>& operators);
 
-        bool isBinaryOperator(token::TokenType type) const noexcept;
-        int getOperatorPrecedence(token::TokenType type) const noexcept;
+        bool isBinaryOperator(TokenType type) const noexcept;
+        int getOperatorPrecedence(TokenType type) const noexcept;
     };
 }

@@ -6,8 +6,8 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    GenericParameterParser::GenericParameterParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    GenericParameterParser::GenericParameterParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -20,11 +20,6 @@ namespace parser
     bool GenericParameterParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::LESS);
-    }
-
-    std::string GenericParameterParser::getParserName() const
-    {
-        return "GenericParameterParser";
     }
 
     std::string GenericParameterParser::parseGenericParameters()
@@ -69,15 +64,13 @@ namespace parser
 
             return paramType;
         }
-        else
-        {
-            throw ParseException("Expected type parameter", tokenStream.current().location);
-        }
+
+        throw ParseException("Expected type parameter", tokenStream.current().location);
     }
 
-    std::vector<ast::GenericTypeParameter> GenericParameterParser::parseGenericTypeParameters()
+    std::vector<GenericTypeParameter> GenericParameterParser::parseGenericTypeParameters()
     {
-        std::vector<ast::GenericTypeParameter> parameters;
+        std::vector<GenericTypeParameter> parameters;
 
         // Parse first parameter
         parameters.push_back(parseGenericTypeParameter());
@@ -92,7 +85,7 @@ namespace parser
         return parameters;
     }
 
-    ast::GenericTypeParameter GenericParameterParser::parseGenericTypeParameter()
+    GenericTypeParameter GenericParameterParser::parseGenericTypeParameter()
     {
         // Expect an identifier for the type parameter name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
@@ -115,7 +108,7 @@ namespace parser
             if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
                 throw ParseException("Expected interface name after constraint keyword",
-                                   tokenStream.current().location);
+                                     tokenStream.current().location);
             }
 
             std::string constraintName = tokenStream.current().stringValue.getString();
@@ -130,7 +123,7 @@ namespace parser
             constraints.push_back(constraintName);
         }
 
-        return ast::GenericTypeParameter(paramName, constraints, location);
+        return GenericTypeParameter(paramName, constraints, location);
     }
 
     std::string GenericParameterParser::parseNestedGenericType()

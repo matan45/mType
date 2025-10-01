@@ -3,21 +3,18 @@
 #include "../TokenStream.hpp"
 #include "../ParseContext.hpp"
 #include "../TypeParser.hpp"
+#include "../core/BaseParser.hpp"
 
 namespace parser
 {
-    class ObjectCreationParser : public core::IParser
+    class ObjectCreationParser : public core::BaseParser
     {
-    private:
-        TokenStream& tokenStream;
-        ParseContext& context;
-
+    
     public:
-        ObjectCreationParser(TokenStream& tokenStream, ParseContext& context);
+        explicit ObjectCreationParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override;
 
         // Public method for coordinated parsing
         std::unique_ptr<ASTNode> parseNewExpression();

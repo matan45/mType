@@ -11,12 +11,10 @@ namespace parser::statement
     class LoopParser : public BaseParser
     {
     public:
-        LoopParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler) {}
+        explicit LoopParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "LoopParser"; }
 
         std::unique_ptr<ASTNode> parseWhileStatement();
         std::unique_ptr<ASTNode> parseDoWhileStatement();

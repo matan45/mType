@@ -1,7 +1,7 @@
 ﻿#include "InterfaceParser.hpp"
 #include "class/GenericParameterParser.hpp"
 #include "TypeParser.hpp"
-#include "ParserUtils.hpp"
+#include "utilities/ParserUtils.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
@@ -15,6 +15,11 @@ namespace parser
     using namespace ast::nodes::statements;
     using namespace token;
     using namespace errors;
+
+    InterfaceParser::InterfaceParser(TokenStream& stream, ParseContext& ctx)
+        : tokenStream(stream), context(ctx)
+    {
+    }
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
     {
@@ -40,7 +45,7 @@ namespace parser
         tokenStream.advance();
 
         // Parse optional generic type parameters
-        std::vector<ast::GenericTypeParameter> genericParams;
+        std::vector<GenericTypeParameter> genericParams;
         if (tokenStream.current().type == TokenType::LESS)
         {
             tokenStream.advance(); // consume '<'
@@ -124,7 +129,7 @@ namespace parser
         auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
         // Parse return type
-        std::shared_ptr<ast::GenericType> returnType;
+        std::shared_ptr<GenericType> returnType;
         if (tokenStream.current().type == TokenType::COLON)
         {
             tokenStream.advance();
@@ -135,7 +140,7 @@ namespace parser
         else
         {
             // Default to void if no return type specified
-            returnType = std::make_shared<ast::GenericType>(value::ValueType::VOID);
+            returnType = std::make_shared<GenericType>(ValueType::VOID);
         }
 
         // Expect semicolon to end method signature
@@ -156,7 +161,7 @@ namespace parser
         return std::move(methodNode);
     }
 
-    std::vector<ast::GenericTypeParameter> InterfaceParser::parseGenericTypeParameters()
+    std::vector<GenericTypeParameter> InterfaceParser::parseGenericTypeParameters()
     {
         // Use GenericParameterParser to handle all the complexity
         GenericParameterParser genericParser(tokenStream, context);

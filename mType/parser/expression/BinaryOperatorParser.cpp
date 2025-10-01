@@ -1,6 +1,6 @@
 #include "BinaryOperatorParser.hpp"
 #include "../ExpressionParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -9,6 +9,16 @@ namespace parser::expression
     using namespace ast::nodes::expressions;
     using namespace token;
     using namespace errors;
+
+    BinaryOperatorParser::BinaryOperatorParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx), expressionParser(nullptr)
+    {
+    }
+
+    void BinaryOperatorParser::setExpressionParser(ExpressionParser& exprParser)
+    {
+        expressionParser = &exprParser;
+    }
 
     std::unique_ptr<ASTNode> BinaryOperatorParser::parse()
     {
@@ -30,9 +40,10 @@ namespace parser::expression
             SourceLocation questionLocation = tokenStream.current().location; // Capture location before advancing
             tokenStream.advance();
             auto trueExpr = parseTernary(); // Use same level to avoid recursion
-            expectToken(TokenType::COLON, getParserName());
+            expectToken(TokenType::COLON);
             auto falseExpr = parseTernary(); // Use same level to avoid recursion
-            return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr), questionLocation);
+            return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr),
+                                                    questionLocation);
         }
 
         return expr;
@@ -81,11 +92,12 @@ namespace parser::expression
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseMultiplicative()
     {
         return parseBinaryLevel(
-            [this]() {
+            [this]()
+            {
                 if (!expressionParser)
                 {
-                    reportError("ExpressionParser not set in BinaryOperatorParser", getParserName());
-                    throw errors::ParseException("ExpressionParser not initialized in BinaryOperatorParser");
+                    throw ParseException("ExpressionParser not initialized in BinaryOperatorParser",
+                                         tokenStream.current().location);
                 }
                 return expressionParser->parseUnary();
             },
@@ -101,10 +113,9 @@ namespace parser::expression
         {
             return ParserUtils::parseBinaryOperators(tokenStream, parseNext, operators);
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            reportError(std::string("Error parsing binary operator: ") + e.what(), getParserName());
-            throw errors::ParseException("Binary operator parsing failed");
+            throw ParseException("Binary operator parsing failed", tokenStream.current().location);
         }
     }
 

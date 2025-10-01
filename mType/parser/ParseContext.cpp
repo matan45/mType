@@ -10,7 +10,8 @@ namespace parser
 {
     using namespace errors;
 
-    ParseContext::ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface, TokenStream& stream)
+    ParseContext::ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
+                               TokenStream& stream)
         : statementParser(std::ref(stmt)),
           expressionParser(std::ref(expr)),
           classParser(std::ref(cls)),
@@ -67,5 +68,30 @@ namespace parser
             throw ParseException("ClassParser not initialized", location);
         }
         return classParser->get().parseNewExpression();
+    }
+
+    void ParseContext::setStatementParser(StatementParser& parser)
+    {
+        statementParser = std::ref(parser);
+    }
+
+    void ParseContext::setExpressionParser(ExpressionParser& parser)
+    {
+        expressionParser = std::ref(parser);
+    }
+
+    void ParseContext::setClassParser(ClassParser& parser)
+    {
+        classParser = std::ref(parser);
+    }
+
+    void ParseContext::setInterfaceParser(InterfaceParser& parser)
+    {
+        interfaceParser = std::ref(parser);
+    }
+
+    void ParseContext::setTokenStream(TokenStream& stream)
+    {
+        tokenStream = std::ref(stream);
     }
 }

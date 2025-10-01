@@ -13,8 +13,8 @@ namespace parser
     using namespace value;
     using namespace errors;
 
-    ObjectCreationParser::ObjectCreationParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    ObjectCreationParser::ObjectCreationParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -26,11 +26,6 @@ namespace parser
     bool ObjectCreationParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::NEW);
-    }
-
-    std::string ObjectCreationParser::getParserName() const
-    {
-        return "ObjectCreationParser";
     }
 
     std::unique_ptr<ASTNode> ObjectCreationParser::parseNewExpression()
@@ -56,10 +51,8 @@ namespace parser
         {
             return parseArrayCreation(className);
         }
-        else
-        {
-            return parseObjectInstantiation(className);
-        }
+
+        return parseObjectInstantiation(className);
     }
 
     std::unique_ptr<ASTNode> ObjectCreationParser::parseArrayCreation(const std::string& className)
@@ -139,10 +132,10 @@ namespace parser
                     genericsString += ">";
                 }
                 else if (tokenStream.current().type == TokenType::IDENTIFIER ||
-                         tokenStream.current().type == TokenType::INT ||
-                         tokenStream.current().type == TokenType::FLOAT ||
-                         tokenStream.current().type == TokenType::BOOL ||
-                         tokenStream.current().type == TokenType::STRING_TYPE)
+                    tokenStream.current().type == TokenType::INT ||
+                    tokenStream.current().type == TokenType::FLOAT ||
+                    tokenStream.current().type == TokenType::BOOL ||
+                    tokenStream.current().type == TokenType::STRING_TYPE)
                 {
                     genericsString += tokenStream.current().stringValue.getString();
                 }

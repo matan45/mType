@@ -2,13 +2,23 @@
 #include "../ExpressionParser.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../errors/ParseException.hpp"
-#include "../../errors/ParseException.hpp"
 
 namespace parser::expression
 {
     using namespace ast::nodes::expressions;
     using namespace token;
     using namespace errors;
+
+    UnaryOperatorParser::UnaryOperatorParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx), expressionParser(nullptr)
+    {
+    }
+
+    void UnaryOperatorParser::setExpressionParser(ExpressionParser& exprParser)
+    {
+        expressionParser = &exprParser;
+    }
+
 
     std::unique_ptr<ASTNode> UnaryOperatorParser::parse()
     {
@@ -35,8 +45,8 @@ namespace parser::expression
         // If not a unary operator, delegate to postfix parsing
         if (!expressionParser)
         {
-            reportError("ExpressionParser not set in UnaryOperatorParser", getParserName());
-            throw errors::ParseException("ExpressionParser not initialized in UnaryOperatorParser");
+            throw ParseException("ExpressionParser not initialized in UnaryOperatorParser",
+                                 tokenStream.current().location);
         }
         return expressionParser->parsePostfix();
     }

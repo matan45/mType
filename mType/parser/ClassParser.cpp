@@ -5,16 +5,10 @@
 #include "class/FieldParser.hpp"
 #include "class/ObjectCreationParser.hpp"
 #include "class/GenericParameterParser.hpp"
-#include "TypeParser.hpp"
-#include "ParserUtils.hpp"
+#include "utilities/ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
-#include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
-#include "../ast/nodes/classes/FieldNode.hpp"
-#include "../ast/nodes/classes/NewNode.hpp"
-#include "../ast/nodes/expressions/ArrayCreationNode.hpp"
-#include "../parser/ParserValidator.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -68,7 +62,7 @@ namespace parser
                 }
             }
             else if (currentToken == TokenType::FUNCTION ||
-                     (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION))
+                (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION))
             {
                 auto method = methodParser->parseMethod();
                 if (method)
@@ -129,12 +123,12 @@ namespace parser
         return genericParameterParser->parseGenericParameter();
     }
 
-    std::vector<ast::GenericTypeParameter> ClassParser::parseGenericTypeParameters()
+    std::vector<GenericTypeParameter> ClassParser::parseGenericTypeParameters()
     {
         return genericParameterParser->parseGenericTypeParameters();
     }
 
-    ast::GenericTypeParameter ClassParser::parseGenericTypeParameter()
+    GenericTypeParameter ClassParser::parseGenericTypeParameter()
     {
         return genericParameterParser->parseGenericTypeParameter();
     }

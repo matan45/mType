@@ -11,7 +11,7 @@ namespace ast::nodes::classes
     {
     private:
         std::string className;
-        std::vector<GenericTypeParameter> genericParameters;  // NEW: Generic type parameters
+        std::vector<GenericTypeParameter> genericParameters; // NEW: Generic type parameters
         std::vector<std::unique_ptr<ASTNode>> fields;
         std::vector<std::unique_ptr<ASTNode>> constructors;
         std::vector<std::unique_ptr<ASTNode>> methods;
@@ -22,9 +22,9 @@ namespace ast::nodes::classes
 
         // NEW: Primary constructor with generic parameters
         explicit ClassNode(const std::string& name,
-                 const std::vector<GenericTypeParameter>& generics,
-                 const std::vector<std::string>& interfaces = {},
-                 const SourceLocation& loc = SourceLocation());
+                           const std::vector<GenericTypeParameter>& generics,
+                           const std::vector<std::string>& interfaces = {},
+                           const SourceLocation& loc = SourceLocation());
 
         const std::string& getClassName() const;
         const std::vector<std::unique_ptr<ASTNode>>& getFields() const;
@@ -36,7 +36,7 @@ namespace ast::nodes::classes
         void setGenericParameters(const std::vector<GenericTypeParameter>& generics);
         void addGenericParameter(const GenericTypeParameter& param);
         size_t getGenericParameterCount() const;
-        bool isGeneric() const { return !genericParameters.empty(); }
+        bool isGeneric() const;
 
         // Helper to get full generic class name (e.g., "Box<T>")
         std::string getFullClassName() const;
@@ -54,6 +54,5 @@ namespace ast::nodes::classes
         const std::vector<std::string>& getImplementedInterfaces() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
-        
     };
 }

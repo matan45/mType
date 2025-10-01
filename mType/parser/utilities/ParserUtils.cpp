@@ -1,11 +1,11 @@
 #include "ParserUtils.hpp"
-#include "TypeParser.hpp"
-#include "TokenStream.hpp"
-#include "../ast/ASTNode.hpp"
-#include "../ast/GenericType.hpp"
-#include "../ast/nodes/expressions/BinaryExpNode.hpp"
-#include "../errors/ParseException.hpp"
-#include "../errors/SourceLocation.hpp"
+#include "../TypeParser.hpp"
+#include "../TokenStream.hpp"
+#include "../../ast/ASTNode.hpp"
+#include "../../ast/GenericType.hpp"
+#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../../errors/ParseException.hpp"
+#include "../../errors/SourceLocation.hpp"
 #include <cctype>
 #include <algorithm>
 

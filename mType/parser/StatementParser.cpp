@@ -1,6 +1,6 @@
 ﻿#include "StatementParser.hpp"
 #include "TypeParser.hpp"
-#include "ParserUtils.hpp"
+#include "utilities/ParserUtils.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../errors/ParseException.hpp"
 
@@ -12,22 +12,29 @@ namespace parser
 
     void StatementParser::initializeHelperParsers()
     {
-        controlFlowParser = std::make_unique<ControlFlowParser>(tokenStream, context, errorHandler);
-        loopParser = std::make_unique<LoopParser>(tokenStream, context, errorHandler);
-        declarationParser = std::make_unique<DeclarationParser>(tokenStream, context, errorHandler);
-        assignmentParser = std::make_unique<AssignmentStatementParser>(tokenStream, context, errorHandler);
-        functionParser = std::make_unique<FunctionParser>(tokenStream, context, errorHandler);
-        importParser = std::make_unique<ImportParser>(tokenStream, context, errorHandler);
+        controlFlowParser = std::make_unique<ControlFlowParser>(tokenStream, context);
+        loopParser = std::make_unique<LoopParser>(tokenStream, context);
+        declarationParser = std::make_unique<DeclarationParser>(tokenStream, context);
+        assignmentParser = std::make_unique<AssignmentStatementParser>(tokenStream, context);
+        functionParser = std::make_unique<FunctionParser>(tokenStream, context);
+        importParser = std::make_unique<ImportParser>(tokenStream, context);
+    }
+
+    StatementParser::StatementParser(TokenStream& stream, ParseContext& ctx)
+        : tokenStream(stream), context(ctx), expressionParser(nullptr)
+    {
+        initializeHelperParsers();
     }
 
     std::unique_ptr<ASTNode> StatementParser::parseStatement()
     {
-
         StatementType type;
-        try {
+        try
+        {
             type = StatementTypeDetector::detectStatementType(tokenStream);
         }
-        catch (const std::exception& ) {
+        catch (const std::exception&)
+        {
             throw;
         }
 
@@ -87,20 +94,16 @@ namespace parser
             case StatementType::EXPRESSION:
                 return assignmentParser->parseExpressionStatement();
             default:
-                throw errors::ParseException("Unknown statement type");
+                throw ParseException("Unknown statement type", tokenStream.current().location);
             }
         }
-        catch (const errors::ParseException& e)
+        catch (const ParseException&)
         {
-            errorHandler->reportError(error::ErrorContext(tokenStream.current().location,
-                                                        std::string("Error in StatementParser: ") + e.what()));
             throw;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            errorHandler->reportError(error::ErrorContext(tokenStream.current().location,
-                                                        std::string("Unexpected error in StatementParser: ") + e.what()));
-            throw errors::ParseException("Parser error during statement processing");
+            throw ParseException("Parser error during statement processing", tokenStream.current().location);
         }
     }
 

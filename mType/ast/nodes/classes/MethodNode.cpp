@@ -27,7 +27,8 @@ namespace ast::nodes::classes
         returnType = std::make_shared<GenericType>(retType);
 
         // Convert parameters from ValueType to GenericType
-        for (const auto& param : params) {
+        for (const auto& param : params)
+        {
             parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
         }
     }
@@ -44,7 +45,8 @@ namespace ast::nodes::classes
         returnType = std::make_shared<GenericType>(retType);
 
         // Convert parameters from ValueType to GenericType
-        for (const auto& param : params) {
+        for (const auto& param : params)
+        {
             parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
         }
     }
@@ -67,7 +69,8 @@ namespace ast::nodes::classes
     // Legacy getter for backward compatibility
     ValueType MethodNode::getReturnType() const
     {
-        if (returnType && !returnType->isGenericParameter()) {
+        if (returnType && !returnType->isGenericParameter())
+        {
             return returnType->getConcreteType();
         }
         return ValueType::OBJECT; // Default for generic parameters
@@ -82,9 +85,9 @@ namespace ast::nodes::classes
         static std::vector<std::pair<std::string, ValueType>> legacyParams;
         legacyParams.clear();
 
-        for (const auto& param : parameters) {
-            ValueType type = param.second->isGenericParameter() ?
-                ValueType::OBJECT : param.second->getConcreteType();
+        for (const auto& param : parameters)
+        {
+            ValueType type = param.second->isGenericParameter() ? ValueType::OBJECT : param.second->getConcreteType();
             legacyParams.emplace_back(param.first, type);
         }
 
@@ -136,7 +139,8 @@ namespace ast::nodes::classes
         returnType = retType;
     }
 
-    void MethodNode::setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params)
+    void MethodNode::setGenericParameters(
+        const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params)
     {
         parameters = params;
     }
@@ -151,7 +155,8 @@ namespace ast::nodes::classes
     void MethodNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
         parameters.clear();
-        for (const auto& param : params) {
+        for (const auto& param : params)
+        {
             parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
         }
     }

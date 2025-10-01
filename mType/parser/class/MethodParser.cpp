@@ -1,6 +1,6 @@
 #include "MethodParser.hpp"
 #include "GenericParameterParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -13,8 +13,8 @@ namespace parser
     using namespace value;
     using namespace errors;
 
-    MethodParser::MethodParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    MethodParser::MethodParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -26,12 +26,7 @@ namespace parser
     bool MethodParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::FUNCTION) ||
-               (stream.check(TokenType::STATIC) && stream.peekAhead(1).type == TokenType::FUNCTION);
-    }
-
-    std::string MethodParser::getParserName() const
-    {
-        return "MethodParser";
+            (stream.check(TokenType::STATIC) && stream.peekAhead(1).type == TokenType::FUNCTION);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseMethod()
@@ -63,7 +58,7 @@ namespace parser
         tokenStream.advance();
 
         // Parse generic type parameters for generic methods
-        std::vector<ast::GenericTypeParameter> methodGenericParameters = parseMethodGenericParameters();
+        std::vector<GenericTypeParameter> methodGenericParameters = parseMethodGenericParameters();
 
         // Parse method name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
@@ -79,7 +74,7 @@ namespace parser
         auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
         // Parse return type after the parameters using new generic type system
-        std::shared_ptr<ast::GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
+        std::shared_ptr<GenericType> returnType = std::make_shared<GenericType>(ValueType::VOID);
         if (tokenStream.current().type == TokenType::COLON)
         {
             tokenStream.advance();
@@ -93,9 +88,9 @@ namespace parser
                                             std::move(body), isStatic, methodGenericParameters);
     }
 
-    std::vector<ast::GenericTypeParameter> MethodParser::parseMethodGenericParameters()
+    std::vector<GenericTypeParameter> MethodParser::parseMethodGenericParameters()
     {
-        std::vector<ast::GenericTypeParameter> methodGenericParameters;
+        std::vector<GenericTypeParameter> methodGenericParameters;
         if (tokenStream.check(TokenType::LESS))
         {
             tokenStream.advance(); // consume '<'

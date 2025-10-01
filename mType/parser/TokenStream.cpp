@@ -1,7 +1,7 @@
 #include "TokenStream.hpp"
 #include "../errors/ParseException.hpp"
 #include "../lexer/TokenFactory.hpp"
-#include <iostream>
+
 namespace parser
 {
     using namespace errors;
@@ -9,32 +9,38 @@ namespace parser
     TokenStream::TokenStream(Lexer& lex) : lexer(lex)
     {
         // Initialize with first token
-        try {
+        try
+        {
             advance();
         }
-        catch (const errors::ParseException&) {
+        catch (const errors::ParseException&)
+        {
             // Set END token and re-throw to prevent parser from starting
-            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
             throw;
         }
-        catch (const std::exception&) {
+        catch (const std::exception&)
+        {
             // Set END token and re-throw to prevent parser from starting
-            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
             throw;
         }
     }
 
     void TokenStream::advance()
     {
-        try {
+        try
+        {
             currentToken = lexer.getNextToken();
         }
-        catch (const errors::ParseException&) {
+        catch (const ParseException&)
+        {
             throw;
         }
-        catch (const std::exception&) {
+        catch (const std::exception&)
+        {
             // Create an END token to prevent infinite loops in case exception isn't caught
-            currentToken = lexer::TokenFactory::createEndToken(errors::SourceLocation("", 0, 0));
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
             throw;
         }
     }
@@ -63,8 +69,8 @@ namespace parser
     {
         if (!match(type))
         {
-            throw ParseException("Expected token type but found different type", 
-                               currentToken.location);
+            throw ParseException("Expected token type but found different type",
+                                 currentToken.location);
         }
     }
 

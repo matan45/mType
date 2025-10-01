@@ -1,9 +1,8 @@
 #include "FunctionParser.hpp"
 #include "../TypeParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
-#include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -11,6 +10,12 @@ namespace parser::statement
     using namespace ast::nodes::functions;
     using namespace token;
     using namespace errors;
+
+    FunctionParser::FunctionParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
+
 
     std::unique_ptr<ASTNode> FunctionParser::parse()
     {
@@ -24,11 +29,8 @@ namespace parser::statement
         {
             return parseFunction();
         }
-        else
-        {
-            reportError("Unexpected token in function parser", getParserName());
-            throw errors::ParseException("Invalid function token");
-        }
+
+        throw errors::ParseException("Invalid function token", tokenStream.current().location);
     }
 
     bool FunctionParser::canParse(const TokenStream& stream) const
@@ -46,12 +48,11 @@ namespace parser::statement
             isNative = true;
         }
 
-        expectToken(TokenType::FUNCTION, getParserName());
+        expectToken(TokenType::FUNCTION);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected function name", getParserName());
-            throw errors::ParseException("Expected function name");
+            throw ParseException("Expected function name", tokenStream.current().location);
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
@@ -61,7 +62,7 @@ namespace parser::statement
         // Use generic-aware parameter parsing to preserve class/interface names
         auto genericParameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
-        expectToken(TokenType::COLON, getParserName());
+        expectToken(TokenType::COLON);
 
         // Parse return type using generic-aware parsing to preserve interface names
         auto genericReturnType = TypeParser::parseGenericType(tokenStream);
@@ -71,7 +72,7 @@ namespace parser::statement
         if (isNative)
         {
             // Native functions don't have a body
-            expectToken(TokenType::SEMICOLON, getParserName());
+            expectToken(TokenType::SEMICOLON);
         }
         else
         {
@@ -80,19 +81,18 @@ namespace parser::statement
 
         // Use new generic-aware constructor
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
-                                                      genericParameters, std::move(body));
+                                                       genericParameters, std::move(body));
         return funcNode;
     }
 
     std::unique_ptr<ASTNode> FunctionParser::parseNativeFunction()
     {
-        expectToken(TokenType::NATIVE, getParserName());
-        expectToken(TokenType::FUNCTION, getParserName());
+        expectToken(TokenType::NATIVE);
+        expectToken(TokenType::FUNCTION);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected function name", getParserName());
-            throw errors::ParseException("Expected function name");
+            throw ParseException("Expected function name", tokenStream.current().location);
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
@@ -101,14 +101,14 @@ namespace parser::statement
 
         auto parameters = parseParameterList();
 
-        expectToken(TokenType::COLON, getParserName());
+        expectToken(TokenType::COLON);
         ValueType returnType = TypeParser::parseType(tokenStream);
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
 
         // Native functions don't have a body - explicitly use unique_ptr nullptr
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters),
-                                            std::unique_ptr<ASTNode>(nullptr));
+                                              std::unique_ptr<ASTNode>(nullptr));
     }
 
     bool FunctionParser::isFunctionToken(TokenType type) const noexcept
@@ -136,9 +136,8 @@ namespace parser::statement
             // Validate function naming convention (must start with lowercase)
             ParserUtils::validateFunctionNamingConvention(funcName, false, "Function", tokenStream.location());
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            reportError(e.what(), getParserName());
             throw;
         }
     }

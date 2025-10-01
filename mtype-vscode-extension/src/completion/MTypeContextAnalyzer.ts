@@ -115,6 +115,14 @@ export class MTypeContextAnalyzer {
             contexts.push('return-type');
         }
 
+        // Check if we're after a class or interface name (for extends/implements)
+        if (linePrefix.match(/class\s+\w+\s+$/)) {
+            contexts.push('after-class-name');
+        }
+        if (linePrefix.match(/interface\s+\w+\s+$/)) {
+            contexts.push('after-interface-name');
+        }
+
         // Check if we're after an if statement
         if (this.isPreviousLineIf(fullLine)) {
             contexts.push('after-if');
@@ -225,8 +233,8 @@ export class MTypeContextAnalyzer {
             return 'static-member';
         }
 
-        // Instance member access
-        if (linePrefix.match(/\w+\.\s*$/)) {
+        // Instance member access (including this.)
+        if (linePrefix.match(/\w+\.\s*$/) || linePrefix.match(/this\.\s*$/)) {
             return 'instance-member';
         }
 

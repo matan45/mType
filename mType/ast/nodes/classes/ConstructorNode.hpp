@@ -8,7 +8,7 @@
 namespace ast::nodes::classes
 {
     using namespace value;
-    
+
     class ConstructorNode : public ASTNode
     {
     private:
@@ -18,19 +18,19 @@ namespace ast::nodes::classes
     public:
         // Constructor accepting shared_ptr
         explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
-                        std::shared_ptr<ASTNode> constructorBody,
-                        const SourceLocation& loc = SourceLocation());
-        
+                                 std::shared_ptr<ASTNode> constructorBody,
+                                 const SourceLocation& loc = SourceLocation());
+
         // Constructor accepting unique_ptr for backward compatibility
         explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
-                        std::unique_ptr<ASTNode> constructorBody,
-                        const SourceLocation& loc = SourceLocation());
+                                 std::unique_ptr<ASTNode> constructorBody,
+                                 const SourceLocation& loc = SourceLocation());
 
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
-        
+
         // Safe getter - returns shared_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
-        
+
         // For code that just needs to read
         [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
 
@@ -40,6 +40,5 @@ namespace ast::nodes::classes
         size_t getParameterCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
-        
     };
 }

@@ -11,12 +11,10 @@ namespace parser::expression
     class LiteralParser : public BaseParser
     {
     public:
-        LiteralParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler) {}
+        explicit LiteralParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "LiteralParser"; }
 
         std::unique_ptr<ASTNode> parsePrimary();
         std::unique_ptr<ASTNode> parseArrayLiteral();
@@ -30,6 +28,6 @@ namespace parser::expression
         std::unique_ptr<ASTNode> parseIdentifier();
         std::unique_ptr<ASTNode> parseParenthesizedExpression();
 
-        bool isLiteralToken(token::TokenType type) const noexcept;
+        bool isLiteralToken(TokenType type) const noexcept;
     };
 }

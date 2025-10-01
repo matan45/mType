@@ -30,10 +30,10 @@ namespace parser
 
     public:
         /// @brief Default constructor for delayed initialization
-        ParseContext() = default;
+        explicit ParseContext() = default;
 
         /// @brief Constructor with immediate initialization
-        ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
+        explicit ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
                      TokenStream& stream);
 
         ~ParseContext() = default;
@@ -54,10 +54,10 @@ namespace parser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
 
         // Setters for delayed initialization with memory-safe references
-        void setStatementParser(StatementParser& parser) { statementParser = std::ref(parser); }
-        void setExpressionParser(ExpressionParser& parser) { expressionParser = std::ref(parser); }
-        void setClassParser(ClassParser& parser) { classParser = std::ref(parser); }
-        void setInterfaceParser(InterfaceParser& parser) { interfaceParser = std::ref(parser); }
-        void setTokenStream(TokenStream& stream) { tokenStream = std::ref(stream); }
+        void setStatementParser(StatementParser& parser);
+        void setExpressionParser(ExpressionParser& parser); 
+        void setClassParser(ClassParser& parser);
+        void setInterfaceParser(InterfaceParser& parser);
+        void setTokenStream(TokenStream& stream);
     };
 }
