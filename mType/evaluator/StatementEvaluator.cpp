@@ -1,6 +1,8 @@
 #include "StatementEvaluator.hpp"
 #include "statements/LoopEvaluator.hpp"
 #include "statements/DeclarationHandler.hpp"
+#include "statements/ControlFlowHandler.hpp"
+#include "statements/ImportAndFunctionHandler.hpp"
 #include "validation/TypeValidator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
@@ -55,10 +57,14 @@ namespace evaluator
         : context(ctx), flowManager(std::make_unique<ControlFlowManager>()),
           loopEvaluator(std::make_unique<statements::LoopEvaluator>(ctx, flowManager.get())),
           declarationHandler(std::make_unique<statements::DeclarationHandler>(ctx)),
+          controlFlowHandler(std::make_unique<statements::ControlFlowHandler>(ctx, flowManager.get())),
+          importAndFunctionHandler(std::make_unique<statements::ImportAndFunctionHandler>(ctx)),
           exprEvaluator(nullptr), objEvaluator(nullptr)
     {
-        // Set back-reference so LoopEvaluator can call back to StatementEvaluator
+        // Set back-references so handlers can call back to StatementEvaluator
         loopEvaluator->setStatementEvaluator(this);
+        controlFlowHandler->setStatementEvaluator(this);
+        importAndFunctionHandler->setStatementEvaluator(this);
     }
 
     StatementEvaluator::~StatementEvaluator() = default;
@@ -154,7 +160,7 @@ namespace evaluator
         {
             return evaluateReturnNode(retNode);
         }
-        if (auto nativeNode = dynamic_cast<NativeFunctionNode*>(node))
+        if (auto nativeNode = dynamic_cast<ast::nodes::statements::NativeFunctionNode*>(node))
         {
             return evaluateNativeFunctionNode(nativeNode);
         }
@@ -222,6 +228,8 @@ namespace evaluator
         exprEvaluator = evaluator;
         loopEvaluator->setExpressionEvaluator(evaluator);
         declarationHandler->setExpressionEvaluator(evaluator);
+        controlFlowHandler->setExpressionEvaluator(evaluator);
+        importAndFunctionHandler->setExpressionEvaluator(evaluator);
     }
 
     void StatementEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
@@ -250,7 +258,7 @@ namespace evaluator
             dynamic_cast<ImportNode*>(node) ||
             dynamic_cast<FunctionNode*>(node) ||
             dynamic_cast<ReturnNode*>(node) ||
-            dynamic_cast<NativeFunctionNode*>(node);
+            dynamic_cast<ast::nodes::statements::NativeFunctionNode*>(node);
     }
 
     Value StatementEvaluator::executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements)
@@ -391,24 +399,7 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateIfNode(IfNode* node)
     {
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for if statement evaluation");
-        }
-
-        Value conditionValue = exprEvaluator->evaluate(node->getCondition());
-        bool isTrue = exprEvaluator->isTruthy(conditionValue);
-
-        if (isTrue)
-        {
-            return evaluate(node->getThenStatement());
-        }
-        else if (node->getElseStatement())
-        {
-            return evaluate(node->getElseStatement());
-        }
-
-        return std::monostate{};
+        return controlFlowHandler->evaluateIf(node);
     }
 
     Value StatementEvaluator::evaluateWhileNode(WhileNode* node)
@@ -469,114 +460,7 @@ namespace evaluator
     // Switch statement implementation
     Value StatementEvaluator::evaluateSwitchNode(SwitchNode* node)
     {
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for switch statement evaluation");
-        }
-
-        // Evaluate the switch expression
-        Value switchValue = exprEvaluator->evaluate(node->getExpression());
-
-        Value lastValue = std::monostate{};
-        bool foundMatch = false;
-        bool executeRemaining = false; // For fallthrough behavior
-
-        resetLoopFlags(); // Reset any existing break/continue flags
-
-        // Enter breakable context for switch statement
-        enterBreakableContext();
-
-        try
-        {
-            // Iterate through all cases
-            for (const auto& casePtr : node->getCases())
-            {
-                if (auto caseNode = dynamic_cast<CaseNode*>(casePtr.get()))
-                {
-                    // Regular case
-                    if (!foundMatch && !executeRemaining)
-                    {
-                        // Check if case value matches switch value
-                        Value caseValue = exprEvaluator->evaluate(caseNode->getValue());
-                        if (ValueConverter::compareValues(switchValue, caseValue))
-                        {
-                            foundMatch = true;
-                            executeRemaining = true;
-                        }
-                    }
-
-                    // Execute case statements if we're in fallthrough mode
-                    if (executeRemaining)
-                    {
-                        for (const auto& statement : caseNode->getStatements())
-                        {
-                            try
-                            {
-                                lastValue = evaluate(statement.get());
-                            }
-                            catch (const BreakException&)
-                            {
-                                // Break encountered - exit switch
-                                resetLoopFlags();
-                                exitBreakableContext();
-                                return lastValue;
-                            }
-
-                            // Check for other control flow interruptions
-                            if (context->shouldReturn())
-                            {
-                                exitBreakableContext();
-                                return lastValue;
-                            }
-                        }
-                    }
-                }
-                else if (auto defaultNode = dynamic_cast<DefaultCaseNode*>(casePtr.get()))
-                {
-                    // Default case - execute if no match found or if we're in fallthrough
-                    if (!foundMatch || executeRemaining)
-                    {
-                        foundMatch = true; // Mark as found for fallthrough logic
-                        executeRemaining = true;
-
-                        for (const auto& statement : defaultNode->getStatements())
-                        {
-                            try
-                            {
-                                lastValue = evaluate(statement.get());
-                            }
-                            catch (const BreakException&)
-                            {
-                                // Break encountered - exit switch
-                                resetLoopFlags();
-                                exitBreakableContext();
-                                return lastValue;
-                            }
-
-                            // Check for other control flow interruptions
-                            if (context->shouldReturn())
-                            {
-                                exitBreakableContext();
-                                return lastValue;
-                            }
-                        }
-
-                        // Default case has implicit break - exit switch after executing default
-                        exitBreakableContext();
-                        return lastValue;
-                    }
-                }
-            }
-        }
-        catch (const BreakException&)
-        {
-            // Break caught at switch level
-            resetLoopFlags();
-        }
-
-        // Exit breakable context before returning
-        exitBreakableContext();
-        return lastValue;
+        return controlFlowHandler->evaluateSwitch(node);
     }
 
     Value StatementEvaluator::evaluateCaseNode(CaseNode* node)
@@ -593,142 +477,17 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateImportNode(ImportNode* node)
     {
-        // Check if import is already resolved (e.g., from JSON deserialization)
-        if (node->isResolved() && node->getImportedAST())
-        {
-            // Directly evaluate the embedded AST instead of resolving from files
-            ASTNode* importedAST = node->getImportedAST();
-
-            // Evaluate the embedded AST directly using the current evaluation context
-            // This should register all classes, functions, etc. from the import
-            if (importedAST)
-            {
-                // Recursively evaluate the imported AST using the statement evaluator
-                Value result = this->evaluate(importedAST);
-            }
-
-            return std::monostate{}; // Import completed successfully
-        }
-
-        // Fall back to normal ImportManager-based resolution for non-resolved imports
-        auto env = context->getEnvironment();
-        auto importManager = env->getImportManager();
-
-        if (!importManager)
-        {
-            throw TypeException("Import manager not available for import evaluation");
-        }
-
-        std::string filePath = node->getFilePath();
-
-        // Determine execution mode based on file extension
-        //bool isCacheMode = filePath.ends_with(".mtc");
-
-        // For cache mode with release directory, keep .mtc paths for both tracking and resolution
-        // For normal mode, use .mt paths for tracking consistency
-        //std::string trackingPath = filePath;
-        //std::string resolutionPath = filePath;
-
-        /* if (!isCacheMode && filePath.ends_with(".mtc")) {
-             trackingPath = filePath.substr(0, filePath.length() - 1); // Remove 'c' to get .mt
-             resolutionPath = trackingPath;
-         } else if (isCacheMode && !filePath.ends_with(".mtc")) {
-             // Convert .mt to .mtc for cache mode
-             resolutionPath = filePath + "c";
-             trackingPath = resolutionPath;
-         }*/
-
-        // Use appropriate path for resolution based on execution mode
-        std::string resolvedPath = importManager->resolvePath(filePath);
-
-        // Check if already evaluated to avoid re-evaluation
-        if (importManager->isEvaluated(resolvedPath))
-        {
-            return std::monostate{}; // Already imported
-        }
-
-        // Check for circular imports
-        if (importManager->isBeingEvaluated(resolvedPath))
-        {
-            throw TypeException("Circular import detected: " + filePath + " is already being imported");
-        }
-
-        // Mark as being evaluated to prevent circular imports
-        importManager->markAsBeingEvaluated(resolvedPath);
-
-        try
-        {
-            // Normal mode: Parse .mt file
-            ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
-
-            // Set import evaluation context and evaluate the loaded AST
-            env->setImportEvaluation(true);
-            evaluateRecursively(importedAST);
-            env->setImportEvaluation(false);
-
-            // Mark as evaluated and no longer being evaluated
-            importManager->markAsEvaluated(resolvedPath);
-            importManager->unmarkAsBeingEvaluated(resolvedPath);
-
-            return std::monostate{}; // Imports return void
-        }
-        catch (...)
-        {
-            env->setImportEvaluation(false);
-            importManager->unmarkAsBeingEvaluated(resolvedPath);
-            throw;
-        }
+        return importAndFunctionHandler->evaluateImport(node);
     }
 
     Value StatementEvaluator::evaluateFunctionNode(FunctionNode* node)
     {
-        auto env = context->getEnvironment();
-
-        // Create function definition with interface support
-        auto genericRetType = node->getGenericReturnType();
-        std::string returnClassName = "";
-
-        if (genericRetType && node->getReturnType() == ValueType::OBJECT)
-        {
-            // For object types, try to get the specific class/interface name
-            std::string typeName = genericRetType->getBaseTypeName();
-            if (typeName != "object")
-            {
-                returnClassName = typeName;
-            }
-            else if (genericRetType->isGenericParameter())
-            {
-                // It's a generic parameter, get its name
-                returnClassName = genericRetType->getGenericName();
-            }
-        }
-
-        // Use backward compatibility constructor, then set return class name
-        auto funcDef = std::make_shared<FunctionDefinition>(
-            node->getName(),
-            node->getReturnType(),
-            node->getParameters()
-        );
-
-        // Set the return class name if we found one
-        if (!returnClassName.empty())
-        {
-            funcDef->setReturnClassName(returnClassName);
-        }
-
-        // Set the function body
-        funcDef->setBody(node->getBody());
-
-        // Register function in environment
-        env->registerFunction(node->getName(), funcDef);
-
-
-        return std::monostate{}; // Function definitions don't return values
+        return importAndFunctionHandler->evaluateFunction(node);
     }
 
-    Value StatementEvaluator::evaluateNativeFunctionNode(NativeFunctionNode* node)
+    Value StatementEvaluator::evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node)
     {
-        throw TypeException("Native function evaluation not implemented in refactored version");
+        return importAndFunctionHandler->evaluateNativeFunction(node);
     }
 
     void StatementEvaluator::evaluateRecursively(ASTNode* node)
@@ -776,45 +535,6 @@ namespace evaluator
 
     Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location)
     {
-        // Extract the lambda value
-        auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
-        auto* lambdaNode = lambdaPtr->getLambda();
-
-        // Get the interface definition from the environment
-        auto env = context->getEnvironment();
-        auto interfaceDef = env->findInterface(interfaceName);
-
-        if (!interfaceDef)
-        {
-            return lambdaValue;
-        }
-
-        // Check if the interface is functional (has exactly one method)
-        if (!interfaceDef->isFunctionalInterface())
-        {
-            auto methodSignatures = interfaceDef->getMethodSignatures();
-            throw errors::TypeException(
-                "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
-                "Lambdas can only be assigned to interfaces with exactly one method. " +
-                "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
-                "Consider using a functional interface (single method) or implement the interface explicitly.",
-                location
-            );
-        }
-
-        // Create the lambda implementation class
-        auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
-        if (!implClass)
-        {
-            return lambdaValue;
-        }
-
-        // Create an instance of the implementation class
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
-
-        // Store the lambda in a special field that the implementation can access
-        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, lambdaValue);
-
-        return instance;
+        return importAndFunctionHandler->convertLambdaToInterface(lambdaValue, interfaceName, location);
     }
 }

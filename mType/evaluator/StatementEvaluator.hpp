@@ -12,6 +12,8 @@ namespace evaluator {
 namespace statements {
     class LoopEvaluator;
     class DeclarationHandler;
+    class ControlFlowHandler;
+    class ImportAndFunctionHandler;
 }
 }
 
@@ -41,6 +43,8 @@ namespace evaluator
         // Specialized statement handlers
         std::unique_ptr<statements::LoopEvaluator> loopEvaluator;
         std::unique_ptr<statements::DeclarationHandler> declarationHandler;
+        std::unique_ptr<statements::ControlFlowHandler> controlFlowHandler;
+        std::unique_ptr<statements::ImportAndFunctionHandler> importAndFunctionHandler;
 
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
@@ -89,7 +93,7 @@ namespace evaluator
         Value evaluateImportNode(ImportNode* node);
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
-        Value evaluateNativeFunctionNode(NativeFunctionNode* node);
+        Value evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
