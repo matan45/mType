@@ -28,7 +28,7 @@ namespace expressions {
 
     Value LiteralEvaluator::evaluateNull(NullNode* node)
     {
-        return std::monostate{};
+        return nullptr;
     }
 
 } // namespace expressions

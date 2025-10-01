@@ -14,6 +14,7 @@
 #include "../../value/SparseMultiArray.hpp"
 #include <string>
 #include <vector>
+#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::klass;
@@ -41,6 +42,8 @@ namespace expressions {
         }
 
         std::string varName = node->getName();
+
+        auto env = context->getEnvironment();
 
         // Check if this is a qualified static field access (contains ::)
         if (varName.find("::") != std::string::npos)
@@ -81,7 +84,7 @@ namespace expressions {
             }
         }
 
-        auto env = context->getEnvironment();
+        // env already declared above (line 49)
 
         // Check variables first (parameters, local variables, etc.)
         auto varDef = env->findVariable(varName);

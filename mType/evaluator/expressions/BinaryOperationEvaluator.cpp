@@ -86,11 +86,12 @@ namespace expressions {
 
     Value BinaryOperationEvaluator::evaluateComparison(const Value& left, const Value& right, TokenType op)
     {
-        // Handle null comparisons
-        if (std::holds_alternative<std::monostate>(left) || std::holds_alternative<std::monostate>(right))
+        // Handle null comparisons (both std::monostate and nullptr_t)
+        if (std::holds_alternative<std::monostate>(left) || std::holds_alternative<std::monostate>(right) ||
+            std::holds_alternative<std::nullptr_t>(left) || std::holds_alternative<std::nullptr_t>(right))
         {
-            bool leftNull = std::holds_alternative<std::monostate>(left);
-            bool rightNull = std::holds_alternative<std::monostate>(right);
+            bool leftNull = std::holds_alternative<std::monostate>(left) || std::holds_alternative<std::nullptr_t>(left);
+            bool rightNull = std::holds_alternative<std::monostate>(right) || std::holds_alternative<std::nullptr_t>(right);
 
             switch (op)
             {

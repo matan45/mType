@@ -21,7 +21,7 @@
 using namespace errors;
 
 // Define MAX_GENERIC_PARAMETERS constant locally
-constexpr size_t MAX_GENERIC_PARAMETERS = 10;
+constexpr size_t MAX_GENERIC_PARAMETERS = 20;
 
 namespace evaluator {
 namespace objects {

@@ -277,16 +277,16 @@ namespace evaluator
             throw TypeException("Expression evaluator not available for method call");
         }
 
-        // Evaluate arguments first (needed for both static and instance calls)
-        std::vector<Value> args = evaluateArgumentList(node->getArguments());
-
-        // Handle static method calls
+        // Handle static method calls BEFORE evaluating arguments
         if (node->getIsStaticCall())
         {
             // For static calls, the object should be a VariableNode containing the class name
             if (auto varNode = dynamic_cast<nodes::expressions::VariableNode*>(node->getObject()))
             {
                 std::string className = varNode->getName();
+
+                // Evaluate arguments after confirming it's a valid static call
+                std::vector<Value> args = evaluateArgumentList(node->getArguments());
 
                 // Call static method with or without generic type arguments
                 if (node->hasGenericTypeArguments())
@@ -304,6 +304,9 @@ namespace evaluator
                 throw TypeException("Invalid static method call - expected class name");
             }
         }
+
+        // Evaluate arguments first (needed for instance calls)
+        std::vector<Value> args = evaluateArgumentList(node->getArguments());
 
         // Handle instance method calls
         Value objectValue;
