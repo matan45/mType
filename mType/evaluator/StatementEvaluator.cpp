@@ -352,8 +352,8 @@ namespace evaluator
                                                     const SourceLocation& location,
                                                     const std::string& expectedClassName)
     {
-        // Delegate to TypeValidator utility (note: TypeValidator handles context internally)
-        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location, expectedClassName);
+        // Delegate to TypeValidator utility, passing context
+        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location, expectedClassName, context);
     }
 
     void StatementEvaluator::validateAssignmentAsDeclaration(AssignmentNode* node)

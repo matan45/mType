@@ -51,7 +51,8 @@ namespace validation {
             const Value& actualValue,
             const std::string& variableName,
             const SourceLocation& location,
-            const std::string& expectedClassName);
+            const std::string& expectedClassName,
+            std::shared_ptr<EvaluationContext> context);
 
         /**
          * Validate function return type

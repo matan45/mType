@@ -58,7 +58,8 @@ namespace validation {
         const Value& actualValue,
         const std::string& variableName,
         const SourceLocation& location,
-        const std::string& expectedClassName)
+        const std::string& expectedClassName,
+        std::shared_ptr<EvaluationContext> context)
     {
         // Skip validation for void initializers (default values)
         if (std::holds_alternative<std::monostate>(actualValue) && expectedType != ValueType::VOID)
@@ -80,7 +81,7 @@ namespace validation {
             // For object types, validate class compatibility
             if (actualType == ValueType::OBJECT && expectedType == ValueType::OBJECT && !expectedClassName.empty())
             {
-                validateObjectTypeCompatibility(actualValue, variableName, location, expectedClassName, nullptr);
+                validateObjectTypeCompatibility(actualValue, variableName, location, expectedClassName, context);
             }
             return;
         }
