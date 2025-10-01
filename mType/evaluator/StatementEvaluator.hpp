@@ -7,6 +7,13 @@
 #include "../errors/SourceLocation.hpp"
 #include <memory>
 
+// Forward declarations for specialized handlers
+namespace evaluator {
+namespace statements {
+    class LoopEvaluator;
+}
+}
+
 namespace evaluator
 {
     using namespace base;
@@ -30,6 +37,9 @@ namespace evaluator
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<ControlFlowManager> flowManager;
 
+        // Specialized statement handlers
+        std::unique_ptr<statements::LoopEvaluator> loopEvaluator;
+
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
         class ObjectEvaluator* objEvaluator;
@@ -39,7 +49,7 @@ namespace evaluator
 
     public:
         explicit StatementEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~StatementEvaluator() = default;
+        ~StatementEvaluator();
 
         // IEvaluator interface implementation
         Value evaluate(ASTNode* node);

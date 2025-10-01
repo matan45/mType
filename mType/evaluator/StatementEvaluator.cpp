@@ -1,4 +1,5 @@
 #include "StatementEvaluator.hpp"
+#include "statements/LoopEvaluator.hpp"
 #include "validation/TypeValidator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
@@ -51,9 +52,14 @@ namespace evaluator
 
     StatementEvaluator::StatementEvaluator(std::shared_ptr<EvaluationContext> ctx)
         : context(ctx), flowManager(std::make_unique<ControlFlowManager>()),
+          loopEvaluator(std::make_unique<statements::LoopEvaluator>(ctx, flowManager.get())),
           exprEvaluator(nullptr), objEvaluator(nullptr)
     {
+        // Set back-reference so LoopEvaluator can call back to StatementEvaluator
+        loopEvaluator->setStatementEvaluator(this);
     }
+
+    StatementEvaluator::~StatementEvaluator() = default;
 
     Value StatementEvaluator::evaluate(ASTNode* node)
     {
@@ -212,11 +218,13 @@ namespace evaluator
     void StatementEvaluator::setExpressionEvaluator(ExpressionEvaluator* evaluator)
     {
         exprEvaluator = evaluator;
+        loopEvaluator->setExpressionEvaluator(evaluator);
     }
 
     void StatementEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
     {
         objEvaluator = evaluator;
+        loopEvaluator->setObjectEvaluator(evaluator);
     }
 
     bool StatementEvaluator::isStatementNode(ASTNode* node) const
@@ -805,192 +813,17 @@ namespace evaluator
 
     Value StatementEvaluator::evaluateWhileNode(WhileNode* node)
     {
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for while loop evaluation");
-        }
-
-        Value lastValue = std::monostate{};
-        resetLoopFlags();
-        enterLoop(); // Mark that we're entering a loop
-
-        try
-        {
-            while (true)
-            {
-                Value conditionValue = exprEvaluator->evaluate(node->getCondition());
-                if (!exprEvaluator->isTruthy(conditionValue))
-                {
-                    break;
-                }
-
-                try
-                {
-                    lastValue = evaluate(node->getBody());
-                }
-                catch (const ContinueException&)
-                {
-                    // Continue caught - reset flags and continue to next iteration
-                    resetLoopFlags();
-                    continue; // Continue the while loop
-                }
-
-                if (context->shouldReturn() || flowManager->isBreaking())
-                {
-                    break;
-                }
-
-                if (flowManager->isContinuing())
-                {
-                    resetLoopFlags();
-                    continue;
-                }
-            }
-        }
-        catch (const BreakException&)
-        {
-            // Break caught, exit loop normally
-        }
-
-        resetLoopFlags();
-        exitLoop(); // Mark that we're exiting the loop
-        return lastValue;
+        return loopEvaluator->evaluateWhile(node);
     }
 
     Value StatementEvaluator::evaluateDoWhileNode(DoWhileNode* node)
     {
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for do-while loop evaluation");
-        }
-
-        Value lastValue = std::monostate{};
-        resetLoopFlags();
-        enterLoop(); // Mark that we're entering a loop
-
-        try
-        {
-            do
-            {
-                try
-                {
-                    lastValue = evaluate(node->getBody());
-                }
-                catch (const ContinueException&)
-                {
-                    // Continue caught - reset flags and continue to condition check
-                    resetLoopFlags();
-                    // Fall through to condition check
-                }
-
-                if (context->shouldReturn() || flowManager->isBreaking())
-                {
-                    break;
-                }
-
-                if (flowManager->isContinuing())
-                {
-                    resetLoopFlags();
-                    // Check condition before next iteration
-                }
-
-                Value conditionValue = exprEvaluator->evaluate(node->getCondition());
-                if (!exprEvaluator->isTruthy(conditionValue))
-                {
-                    break;
-                }
-            }
-            while (true);
-        }
-        catch (const BreakException&)
-        {
-            // Break caught, exit loop normally
-        }
-
-        resetLoopFlags();
-        exitLoop(); // Mark that we're exiting the loop
-        return lastValue;
+        return loopEvaluator->evaluateDoWhile(node);
     }
 
     Value StatementEvaluator::evaluateForNode(ForNode* node)
     {
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for for loop evaluation");
-        }
-
-        auto env = context->getEnvironment();
-        env->enterScope("", ScopeType::BLOCK);
-
-        Value lastValue = std::monostate{};
-        resetLoopFlags();
-        enterLoop(); // Mark that we're entering a loop
-
-        try
-        {
-            // Initialize
-            if (node->getInitialization())
-            {
-                evaluate(node->getInitialization());
-            }
-
-            // Loop
-            while (true)
-            {
-                // Check condition
-                if (node->getCondition())
-                {
-                    Value conditionValue = exprEvaluator->evaluate(node->getCondition());
-                    if (!exprEvaluator->isTruthy(conditionValue))
-                    {
-                        break;
-                    }
-                }
-
-                // Execute body
-                try
-                {
-                    lastValue = evaluate(node->getBody());
-                }
-                catch (const ContinueException&)
-                {
-                    // Continue caught - reset flags and continue to update/next iteration
-                    resetLoopFlags();
-                    // Fall through to update
-                }
-
-                if (context->shouldReturn() || flowManager->isBreaking())
-                {
-                    break;
-                }
-
-                if (flowManager->isContinuing())
-                {
-                    resetLoopFlags();
-                }
-
-                // Update
-                if (node->getUpdate())
-                {
-                    evaluate(node->getUpdate());
-                }
-            }
-        }
-        catch (const BreakException&)
-        {
-            // Break caught, exit loop normally
-        }
-        catch (...)
-        {
-            env->exitScope();
-            exitLoop(); // Clean up loop state even on exception
-            throw;
-        }
-
-        env->exitScope();
-        resetLoopFlags();
-        exitLoop(); // Mark that we're exiting the loop
-        return lastValue;
+        return loopEvaluator->evaluateFor(node);
     }
 
     Value StatementEvaluator::evaluateBreakNode(BreakNode* node)
@@ -1338,221 +1171,7 @@ namespace evaluator
 
     value::Value StatementEvaluator::evaluateForEachNode(ForEachNode* node)
     {
-        // New implementation for mType collections and native arrays
-        if (!exprEvaluator)
-        {
-            throw TypeException("Expression evaluator not available for foreach evaluation");
-        }
-
-        // Evaluate the collection to iterate over
-        value::Value collectionValue = exprEvaluator->evaluate(node->getCollection());
-        auto env = context->getEnvironment();
-
-        // Create a new scope for the loop
-        utils::ScopeGuard scope(env, "foreach", environment::manager::ScopeType::BLOCK);
-
-        // Setup loop tracking and control flow
-        resetLoopFlags();
-        enterLoop(); // Mark that we're entering a loop
-
-        try
-        {
-            // Handle native arrays first
-            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue))
-            {
-                auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
-
-                for (size_t i = 0; i < array->size(); ++i)
-                {
-                    value::Value element = array->get(i);
-
-                    // Define the loop variable in this scope
-                    auto varType = node->getVariableType();
-                    auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                        node->getVariableName(), varType, element, false, "");
-
-                    env->declareVariable(node->getVariableName(), variableDef);
-
-                    // Execute the loop body
-                    if (node->getBody())
-                    {
-                        try
-                        {
-                            value::Value result = evaluate(node->getBody());
-
-                            // Handle control flow statements
-                            if (context->shouldReturn())
-                            {
-                                exitLoop();
-                                return result;
-                            }
-                        }
-                        catch (const BreakException&)
-                        {
-                            // Break caught - exit foreach loop
-                            resetLoopFlags();
-                            exitLoop();
-                            return std::monostate{};
-                        }
-                        catch (const ContinueException&)
-                        {
-                            // Continue caught - reset flags and continue to next iteration
-                            resetLoopFlags();
-                            continue;
-                        }
-
-                        // Check for other control flow interruptions
-                        if (flowManager->isBreaking())
-                        {
-                            break;
-                        }
-                        if (flowManager->isContinuing())
-                        {
-                            resetLoopFlags();
-                        }
-                    }
-                }
-                exitLoop();
-                return std::monostate{};
-            }
-
-            // Handle mType collection objects
-            if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(collectionValue))
-            {
-                auto collection = std::get<std::shared_ptr<ObjectInstance>>(collectionValue);
-                auto classDef = collection->getClassDefinition();
-
-                if (!classDef)
-                {
-                    throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
-                }
-
-                std::string className = classDef->getName();
-
-                // Check if this is a collection class by trying to get an array for iteration
-                std::shared_ptr<value::NativeArray> iterationArray = nullptr;
-
-                // For Map collections, iterate over values by default
-                if (className.find("Map<") == 0)
-                {
-                    // Call getValues() method
-                    auto getValuesMethod = classDef->findMethod("getValues", 0);
-                    if (getValuesMethod)
-                    {
-                        // Set current instance context for method call
-                        context->setCurrentInstance(collection);
-
-                        // Call getValues() method
-                        value::Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
-
-                        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult))
-                        {
-                            iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
-                        }
-
-                        context->clearCurrentInstance();
-                    }
-                }
-                else
-                {
-                    // For other collections (Set, List, Stack, Queue), try toArray() method
-                    auto toArrayMethod = classDef->findMethod("toArray", 0);
-                    if (toArrayMethod)
-                    {
-                        // Set current instance context for method call
-                        context->setCurrentInstance(collection);
-
-                        // Call toArray() method
-                        value::Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
-
-                        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult))
-                        {
-                            iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
-                        }
-
-                        context->clearCurrentInstance();
-                    }
-                }
-
-                if (!iterationArray)
-                {
-                    throw ScriptException(
-                        "Collection '" + className +
-                        "' does not support iteration (missing toArray() or getValues() method)", node->getLocation());
-                }
-
-                // Iterate through the array
-                for (size_t i = 0; i < iterationArray->size(); ++i)
-                {
-                    value::Value element = iterationArray->get(i);
-
-                    // Define the loop variable in this scope
-                    auto varType = node->getVariableType();
-                    auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                        node->getVariableName(), varType, element, false, "");
-
-                    env->declareVariable(node->getVariableName(), variableDef);
-
-                    // Execute the loop body
-                    if (node->getBody())
-                    {
-                        try
-                        {
-                            value::Value result = evaluate(node->getBody());
-
-                            // Handle control flow statements
-                            if (context->shouldReturn())
-                            {
-                                exitLoop();
-                                return result;
-                            }
-                        }
-                        catch (const BreakException&)
-                        {
-                            // Break caught - exit foreach loop
-                            resetLoopFlags();
-                            exitLoop();
-                            return std::monostate{};
-                        }
-                        catch (const ContinueException&)
-                        {
-                            // Continue caught - reset flags and continue to next iteration
-                            resetLoopFlags();
-                            continue;
-                        }
-
-                        // Check for other control flow interruptions
-                        if (flowManager->isBreaking())
-                        {
-                            break;
-                        }
-                        if (flowManager->isContinuing())
-                        {
-                            resetLoopFlags();
-                        }
-                    }
-                }
-                exitLoop();
-                return std::monostate{};
-            }
-
-            throw ScriptException("Value is not a valid collection for foreach iteration", node->getLocation());
-        }
-        catch (const BreakException&)
-        {
-            // Break caught at foreach level
-            resetLoopFlags();
-        }
-        catch (...)
-        {
-            // Any other exception - make sure to clean up loop state
-            exitLoop();
-            throw;
-        }
-
-        // Normal completion - clean up loop state
-        exitLoop();
-        return std::monostate{};
+        return loopEvaluator->evaluateForEach(node);
     }
 
     Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location)
