@@ -4,6 +4,7 @@
 #include "statements/ControlFlowHandler.hpp"
 #include "statements/ImportAndFunctionHandler.hpp"
 #include "validation/TypeValidator.hpp"
+#include "utils/NodeTypeRegistry.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
 #include "../ast/nodes/statements/ProgramNode.hpp"
@@ -55,6 +56,9 @@ namespace evaluator
         loopEvaluator->setStatementEvaluator(this);
         controlFlowHandler->setStatementEvaluator(this);
         importAndFunctionHandler->setStatementEvaluator(this);
+
+        // Initialize dispatcher with all node type handlers
+        initializeDispatcher();
     }
 
     StatementEvaluator::~StatementEvaluator() = default;
@@ -81,81 +85,31 @@ namespace evaluator
             return std::monostate{};
         }
 
-        // Dispatch to appropriate evaluation method based on node type
-        if (auto progNode = dynamic_cast<ProgramNode*>(node))
-        {
-            return evaluateProgramNode(progNode);
-        }
-        if (auto blockNode = dynamic_cast<BlockNode*>(node))
-        {
-            return evaluateBlockNode(blockNode);
-        }
-        if (auto declNode = dynamic_cast<DeclarationNode*>(node))
-        {
-            return evaluateDeclarationNode(declNode);
-        }
-        if (auto assignNode = dynamic_cast<AssignmentNode*>(node))
-        {
-            return evaluateAssignmentNode(assignNode);
-        }
-        if (auto ifNode = dynamic_cast<IfNode*>(node))
-        {
-            return evaluateIfNode(ifNode);
-        }
-        if (auto whileNode = dynamic_cast<WhileNode*>(node))
-        {
-            return evaluateWhileNode(whileNode);
-        }
-        if (auto doWhileNode = dynamic_cast<DoWhileNode*>(node))
-        {
-            return evaluateDoWhileNode(doWhileNode);
-        }
-        if (auto forNode = dynamic_cast<ForNode*>(node))
-        {
-            return evaluateForNode(forNode);
-        }
-        if (auto forEachNode = dynamic_cast<ForEachNode*>(node))
-        {
-            return evaluateForEachNode(forEachNode);
-        }
-        if (auto breakNode = dynamic_cast<BreakNode*>(node))
-        {
-            return evaluateBreakNode(breakNode);
-        }
-        if (auto continueNode = dynamic_cast<ContinueNode*>(node))
-        {
-            return evaluateContinueNode(continueNode);
-        }
-        if (auto switchNode = dynamic_cast<SwitchNode*>(node))
-        {
-            return evaluateSwitchNode(switchNode);
-        }
-        if (auto caseNode = dynamic_cast<CaseNode*>(node))
-        {
-            return evaluateCaseNode(caseNode);
-        }
-        if (auto defaultNode = dynamic_cast<DefaultCaseNode*>(node))
-        {
-            return evaluateDefaultCaseNode(defaultNode);
-        }
-        if (auto importNode = dynamic_cast<ImportNode*>(node))
-        {
-            return evaluateImportNode(importNode);
-        }
-        if (auto funcNode = dynamic_cast<FunctionNode*>(node))
-        {
-            return evaluateFunctionNode(funcNode);
-        }
-        if (auto retNode = dynamic_cast<ReturnNode*>(node))
-        {
-            return evaluateReturnNode(retNode);
-        }
-        if (auto nativeNode = dynamic_cast<ast::nodes::statements::NativeFunctionNode*>(node))
-        {
-            return evaluateNativeFunctionNode(nativeNode);
-        }
+        // Use dispatcher for O(1) lookup instead of O(n) dynamic_cast chain
+        return dispatcher.dispatch(this, node);
+    }
 
-        return std::monostate{};
+    void StatementEvaluator::initializeDispatcher()
+    {
+        // Register all statement node handlers with the dispatcher
+        dispatcher.registerMethod<ProgramNode>(&StatementEvaluator::evaluateProgramNode);
+        dispatcher.registerMethod<BlockNode>(&StatementEvaluator::evaluateBlockNode);
+        dispatcher.registerMethod<DeclarationNode>(&StatementEvaluator::evaluateDeclarationNode);
+        dispatcher.registerMethod<AssignmentNode>(&StatementEvaluator::evaluateAssignmentNode);
+        dispatcher.registerMethod<IfNode>(&StatementEvaluator::evaluateIfNode);
+        dispatcher.registerMethod<WhileNode>(&StatementEvaluator::evaluateWhileNode);
+        dispatcher.registerMethod<DoWhileNode>(&StatementEvaluator::evaluateDoWhileNode);
+        dispatcher.registerMethod<ForNode>(&StatementEvaluator::evaluateForNode);
+        dispatcher.registerMethod<ForEachNode>(&StatementEvaluator::evaluateForEachNode);
+        dispatcher.registerMethod<BreakNode>(&StatementEvaluator::evaluateBreakNode);
+        dispatcher.registerMethod<ContinueNode>(&StatementEvaluator::evaluateContinueNode);
+        dispatcher.registerMethod<SwitchNode>(&StatementEvaluator::evaluateSwitchNode);
+        dispatcher.registerMethod<CaseNode>(&StatementEvaluator::evaluateCaseNode);
+        dispatcher.registerMethod<DefaultCaseNode>(&StatementEvaluator::evaluateDefaultCaseNode);
+        dispatcher.registerMethod<ImportNode>(&StatementEvaluator::evaluateImportNode);
+        dispatcher.registerMethod<FunctionNode>(&StatementEvaluator::evaluateFunctionNode);
+        dispatcher.registerMethod<ReturnNode>(&StatementEvaluator::evaluateReturnNode);
+        dispatcher.registerMethod<ast::nodes::statements::NativeFunctionNode>(&StatementEvaluator::evaluateNativeFunctionNode);
     }
 
     bool StatementEvaluator::canHandle(ASTNode* node) const
@@ -231,24 +185,8 @@ namespace evaluator
 
     bool StatementEvaluator::isStatementNode(ASTNode* node) const
     {
-        return dynamic_cast<ProgramNode*>(node) ||
-            dynamic_cast<BlockNode*>(node) ||
-            dynamic_cast<DeclarationNode*>(node) ||
-            dynamic_cast<AssignmentNode*>(node) ||
-            dynamic_cast<IfNode*>(node) ||
-            dynamic_cast<WhileNode*>(node) ||
-            dynamic_cast<DoWhileNode*>(node) ||
-            dynamic_cast<ForNode*>(node) ||
-            dynamic_cast<ForEachNode*>(node) ||
-            dynamic_cast<BreakNode*>(node) ||
-            dynamic_cast<ContinueNode*>(node) ||
-            dynamic_cast<SwitchNode*>(node) ||
-            dynamic_cast<CaseNode*>(node) ||
-            dynamic_cast<DefaultCaseNode*>(node) ||
-            dynamic_cast<ImportNode*>(node) ||
-            dynamic_cast<FunctionNode*>(node) ||
-            dynamic_cast<ReturnNode*>(node) ||
-            dynamic_cast<ast::nodes::statements::NativeFunctionNode*>(node);
+        // Use NodeTypeRegistry for O(1) lookup instead of O(n) dynamic_cast chain
+        return utils::NodeTypeRegistry::isStatement(node);
     }
 
     Value StatementEvaluator::executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements)

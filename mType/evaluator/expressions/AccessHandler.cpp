@@ -216,7 +216,7 @@ namespace expressions {
             if (node->getMemberName() == "length")
             {
                 // For multi-dimensional arrays, return the first dimension size (like in Java/C#)
-                return static_cast<int>(flatArray->size());
+                return static_cast<int>(flatArray->getDimensions()[0]);
             }
             else
             {
@@ -232,7 +232,7 @@ namespace expressions {
             if (node->getMemberName() == "length")
             {
                 // For sparse multi-dimensional arrays, return the first dimension size
-                return static_cast<int>(sparseArray->size());
+                return static_cast<int>(sparseArray->getDimensions()[0]);
             }
             else
             {

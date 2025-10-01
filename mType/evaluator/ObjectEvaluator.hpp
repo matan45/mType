@@ -2,6 +2,7 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
@@ -53,6 +54,9 @@ namespace evaluator
         std::unique_ptr<objects::StaticMemberHandler> staticMemberHandler;
         std::unique_ptr<objects::InstanceOperationHandler> instanceOperationHandler;
         std::unique_ptr<objects::GenericInstantiationHandler> genericInstantiationHandler;
+
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<ObjectEvaluator> dispatcher;
 
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
@@ -117,6 +121,9 @@ namespace evaluator
         std::string resolveTypeParameterFromContext(const std::string& typeParam);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);

@@ -552,6 +552,12 @@
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeDispatcher.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeTypeRegistry.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\ObjectHelper.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
@@ -1047,6 +1053,9 @@
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\NodeTypeRegistry.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ObjectHelper.cpp">

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "base/EvaluationContext.hpp"
 #include "utils/ValueConverter.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
@@ -60,6 +61,9 @@ namespace evaluator
         std::unique_ptr<expressions::UnaryOperationHandler> unaryOpHandler;
         std::unique_ptr<expressions::AccessHandler> accessHandler;
 
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<ExpressionEvaluator> dispatcher;
+
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;
         class ObjectEvaluator* objEvaluator;
@@ -104,13 +108,16 @@ namespace evaluator
         void setObjectEvaluator(ObjectEvaluator* evaluator);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods for binary operations
         Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
         Value evaluateComparison(const Value& left, const Value& right, TokenType op);
         Value evaluateLogical(const Value& left, const Value& right, TokenType op);
         Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
 
-        // Node type checking
+        // Node type checking - now delegated to NodeTypeRegistry
         bool isExpressionNode(ASTNode* node) const;
 
         // Multi-dimensional array access helpers
