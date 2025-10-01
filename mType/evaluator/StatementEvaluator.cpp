@@ -1,4 +1,5 @@
 #include "StatementEvaluator.hpp"
+#include "validation/TypeValidator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
@@ -342,37 +343,8 @@ namespace evaluator
                                                     const std::string& variableName,
                                                     const SourceLocation& location)
     {
-        // Skip validation for void initializers (default values)
-        if (std::holds_alternative<std::monostate>(value) && expectedType != ValueType::VOID)
-        {
-            return; // Allow default initialization
-        }
-
-        ValueType actualType = utils::ValueConverter::getValueType(value);
-
-        // Allow null assignment to object types
-        if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
-        {
-            return;
-        }
-
-        // Allow exact type matches
-        if (actualType == expectedType)
-        {
-            return;
-        }
-
-        // Allow valid implicit conversions
-        if (isValidTypeConversion(actualType, expectedType))
-        {
-            return;
-        }
-
-        // Type mismatch
-        throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
-                            utils::ValueConverter::valueTypeToString(expectedType) +
-                            " but got " + utils::ValueConverter::valueTypeToString(actualType),
-                            location);
+        // Delegate to TypeValidator utility
+        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location);
     }
 
     void StatementEvaluator::validateTypeAssignment(ValueType expectedType, const Value& value,
@@ -380,42 +352,8 @@ namespace evaluator
                                                     const SourceLocation& location,
                                                     const std::string& expectedClassName)
     {
-        // Skip validation for void initializers (default values)
-        if (std::holds_alternative<std::monostate>(value) && expectedType != ValueType::VOID)
-        {
-            return; // Allow default initialization
-        }
-
-        ValueType actualType = utils::ValueConverter::getValueType(value);
-
-        // Allow null assignment to object types
-        if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
-        {
-            return;
-        }
-
-        // Allow exact type matches
-        if (actualType == expectedType)
-        {
-            // For object types, validate class compatibility
-            if (actualType == ValueType::OBJECT && expectedType == ValueType::OBJECT && !expectedClassName.empty())
-            {
-                validateObjectTypeCompatibility(value, variableName, location, expectedClassName);
-            }
-            return;
-        }
-
-        // Allow valid implicit conversions
-        if (isValidTypeConversion(actualType, expectedType))
-        {
-            return;
-        }
-
-        // Type mismatch
-        throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
-                            utils::ValueConverter::valueTypeToString(expectedType) +
-                            " but got " + utils::ValueConverter::valueTypeToString(actualType),
-                            location);
+        // Delegate to TypeValidator utility (note: TypeValidator handles context internally)
+        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location, expectedClassName);
     }
 
     void StatementEvaluator::validateAssignmentAsDeclaration(AssignmentNode* node)
@@ -432,119 +370,21 @@ namespace evaluator
 
     void StatementEvaluator::validateClassExists(const std::string& className, const SourceLocation& location)
     {
-        auto env = context->getEnvironment();
-
-        // Try to resolve type parameters from current object context first
-        std::string resolvedClassName = className;
-        auto currentInstance = context->getCurrentInstance();
-        if (currentInstance && className.find('<') != std::string::npos && className.find('T') != std::string::npos)
-        {
-            auto instanceClassDef = currentInstance->getClassDefinition();
-            if (instanceClassDef)
-            {
-                std::string instanceClassName = instanceClassDef->getName(); // e.g., "Set<int>"
-
-                if (utils::GenericTypeManager::isGenericInstantiation(instanceClassName))
-                {
-                    auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(
-                        instanceClassName);
-
-                    // Replace type parameters in className
-                    resolvedClassName = className;
-                    if (className.find("T") != std::string::npos && !typeArguments.empty())
-                    {
-                        // Simple T replacement - can be extended for multiple type parameters
-                        size_t pos = resolvedClassName.find("T");
-                        while (pos != std::string::npos)
-                        {
-                            resolvedClassName.replace(pos, 1, typeArguments[0]);
-                            pos = resolvedClassName.find("T", pos + typeArguments[0].length());
-                        }
-                    }
-                }
-            }
-        }
-
-        // Check if the class or interface is defined
-        if (!env->findClass(resolvedClassName) && !env->findInterface(resolvedClassName))
-        {
-            throw UndefinedException("Class '" + resolvedClassName + "' is not defined", location);
-        }
+        // Delegate to TypeValidator utility
+        validation::TypeValidator::validateClassExists(className, location, context);
     }
 
     bool StatementEvaluator::isValidTypeConversion(ValueType from, ValueType to)
     {
-        // Allow int to float conversion (common implicit conversion)
-        if (from == ValueType::INT && to == ValueType::FLOAT)
-        {
-            return true;
-        }
-
-        // Add other valid conversions here if needed
-        // For example, you might allow:
-        // - bool to int (false = 0, true = 1)
-        // - char to int
-        // etc.
-
-        return false; // No other conversions allowed for now
+        // Delegate to TypeValidator utility
+        return validation::TypeValidator::isValidTypeConversion(from, to);
     }
 
     bool StatementEvaluator::isGenericTypeCompatible(const std::string& actualClassName,
                                                      const std::string& expectedClassName)
     {
-        // Exact match is always compatible
-        if (actualClassName == expectedClassName)
-        {
-            return true;
-        }
-
-        // Handle lambda implementation classes (e.g., "$Lambda$Predicate$123" should be compatible with "Predicate<T>")
-        if (actualClassName.find("$Lambda$") == 0)
-        {
-            // Extract the interface name from lambda class name: "$Lambda$Predicate$123" -> "Predicate"
-            size_t prefixEnd = actualClassName.find('$', 8); // Skip "$Lambda$"
-            if (prefixEnd != std::string::npos)
-            {
-                std::string lambdaInterfaceName = actualClassName.substr(8, prefixEnd - 8);
-
-                // Extract base interface name from expected class (e.g., "Predicate<Person>" -> "Predicate")
-                std::string expectedBase = expectedClassName;
-                size_t anglePos = expectedClassName.find('<');
-                if (anglePos != std::string::npos)
-                {
-                    expectedBase = expectedClassName.substr(0, anglePos);
-                }
-
-                // Check if the lambda implements the expected interface
-                if (lambdaInterfaceName == expectedBase)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Handle generic type compatibility
-        // Extract base class name (e.g., "Set" from "Set<T>" or "Set<int>")
-        auto extractBaseClassName = [](const std::string& className) -> std::string
-        {
-            size_t pos = className.find('<');
-            if (pos != std::string::npos)
-            {
-                return className.substr(0, pos);
-            }
-            return className;
-        };
-
-        std::string actualBase = extractBaseClassName(actualClassName);
-        std::string expectedBase = extractBaseClassName(expectedClassName);
-
-        // If base class names match, consider compatible for generic types
-        if (actualBase == expectedBase)
-        {
-            return true;
-        }
-
-        return false;
+        // Delegate to TypeValidator utility
+        return validation::TypeValidator::isGenericTypeCompatible(actualClassName, expectedClassName);
     }
 
     void StatementEvaluator::validateObjectTypeCompatibility(const Value& value,
@@ -552,78 +392,8 @@ namespace evaluator
                                                              const SourceLocation& location,
                                                              const std::string& expectedClassName)
     {
-        // Handle Object instances
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value))
-        {
-            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
-            if (objInstance)
-            {
-                std::string actualClassName = objInstance->getClassDefinition()->getName();
-
-                // Check if the actual class matches the expected class or implements the expected interface
-                if (!isGenericTypeCompatible(actualClassName, expectedClassName))
-                {
-                    // Check if expectedClassName is an interface that the actual class implements
-                    auto classDefinition = objInstance->getClassDefinition();
-
-                    // Extract base interface name from generic type (e.g., "Repository<Int, String>" -> "Repository")
-                    std::string baseExpectedName = expectedClassName;
-                    size_t anglePos = expectedClassName.find('<');
-                    if (anglePos != std::string::npos) {
-                        baseExpectedName = expectedClassName.substr(0, anglePos);
-                    }
-
-                    // Get the interface registry from the environment
-                    auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
-
-                    if (!classDefinition->implementsInterface(baseExpectedName, interfaceRegistry))
-                    {
-                        throw TypeException("Object type mismatch for variable '" + variableName + "': expected " +
-                                            expectedClassName + " but got " + actualClassName, location);
-                    }
-
-                }
-
-                // TODO: In a full implementation, this would also check class hierarchies
-                // to allow assignments like Derived -> Base (inheritance compatibility)
-            }
-            return;
-        }
-
-        // Handle NativeArray (1D arrays)
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(value))
-        {
-            // NativeArray represents 1D arrays, expected type should be like "int[]"
-            if (expectedClassName.find("[]") != std::string::npos)
-            {
-                // It's an array type, allow the assignment
-                return;
-            }
-            else
-            {
-                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
-                                    expectedClassName + " but got array type", location);
-            }
-        }
-
-        // Handle FlatMultiArray (multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(value))
-        {
-            // FlatMultiArray represents N-dimensional arrays, expected type should be like "int[][]"
-            if (expectedClassName.find("[]") != std::string::npos)
-            {
-                // It's an array type, allow the assignment
-                return;
-            }
-            else
-            {
-                throw TypeException("Type mismatch for variable '" + variableName + "': expected " +
-                                    expectedClassName + " but got multi-dimensional array type", location);
-            }
-        }
-
-        // If we get here, the value type is not compatible with object expectations
-        // This should not happen if called correctly, but add safety check
+        // Delegate to TypeValidator utility
+        validation::TypeValidator::validateObjectTypeCompatibility(value, variableName, location, expectedClassName, context);
     }
 
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)

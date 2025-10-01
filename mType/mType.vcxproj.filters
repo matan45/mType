@@ -46,6 +46,9 @@
     <Filter Include="evaluator\utils">
       <UniqueIdentifier>{3884827F-A40F-F043-AD20-7338192B4C44}</UniqueIdentifier>
     </Filter>
+    <Filter Include="evaluator\validation">
+      <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="exception">
       <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
     </Filter>
@@ -453,7 +456,13 @@
     <ClInclude Include="evaluator\managers\InstanceManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\ArgumentEvaluator.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ObjectHelper.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
@@ -464,6 +473,9 @@
     </ClInclude>
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+      <Filter>evaluator\validation</Filter>
     </ClInclude>
     <ClInclude Include="exception\BreakException.hpp">
       <Filter>exception</Filter>
@@ -908,7 +920,13 @@
     <ClCompile Include="evaluator\managers\InstanceManager.cpp">
       <Filter>evaluator\managers</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\utils\ArgumentEvaluator.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ObjectHelper.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ParameterBinder.cpp">
@@ -919,6 +937,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+      <Filter>evaluator\validation</Filter>
     </ClCompile>
     <ClCompile Include="exceptions\CircularDependencyDetection.cpp">
       <Filter>exceptions</Filter>
@@ -2507,6 +2528,12 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaLifecycleStress.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambda_interface_test.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambda_interface_test.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\multiParameterLambda.expected">

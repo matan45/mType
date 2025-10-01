@@ -1,5 +1,7 @@
 ﻿#include "ExpressionEvaluator.hpp"
 #include "utils/ParameterBinder.hpp"
+#include "utils/ObjectHelper.hpp"
+#include "validation/TypeValidator.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
@@ -874,8 +876,9 @@ namespace evaluator
                         }
 
                         // Validate return type matches function's declared return type
-                        validateFunctionReturnType(funcDef->getReturnType(), result, node->getFunctionName(),
-                                                   node->getLocation());
+                        validation::TypeValidator::validateFunctionReturn(
+                            funcDef->getReturnType(), result, node->getFunctionName(),
+                            node->getLocation());
                     }
                 }
                 else
@@ -910,8 +913,9 @@ namespace evaluator
                 }
 
                 // Validate return type matches function's declared return type
-                validateFunctionReturnType(funcDef->getReturnType(), returnValue, node->getFunctionName(),
-                                           node->getLocation());
+                validation::TypeValidator::validateFunctionReturn(
+                    funcDef->getReturnType(), returnValue, node->getFunctionName(),
+                    node->getLocation());
 
                 return returnValue;
             }
@@ -1326,33 +1330,6 @@ namespace evaluator
         return stmtEvaluator->evaluate(node);
     }
 
-    void ExpressionEvaluator::validateFunctionReturnType(ValueType expectedType, const Value& returnValue,
-                                                         const std::string& functionName,
-                                                         const SourceLocation& location)
-    {
-        ValueType actualType = ValueConverter::getValueType(returnValue);
-
-        // Allow null return for object types
-        if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
-        {
-            return;
-        }
-
-        // Allow void returns (monostate) for void functions
-        if (actualType == ValueType::VOID && expectedType == ValueType::VOID)
-        {
-            return;
-        }
-
-        // Check for type mismatch
-        if (actualType != expectedType)
-        {
-            throw TypeException("Return type mismatch in function '" + functionName + "': expected " +
-                                ValueConverter::valueTypeToString(expectedType) +
-                                " but got " + ValueConverter::valueTypeToString(actualType),
-                                location);
-        }
-    }
 
     // Helper function to get default value for a given type
     Value ExpressionEvaluator::getDefaultValueForType(const ::parser::TypeInfo& elementType)
@@ -1558,8 +1535,8 @@ namespace evaluator
                     else
                     {
                         // Get readable type names for error message
-                        std::string expectedTypeName = getTypeNameForError(expectedType);
-                        std::string actualTypeName = getTypeNameForError(currentType);
+                        std::string expectedTypeName = ValueConverter::valueTypeToString(expectedType);
+                        std::string actualTypeName = ValueConverter::valueTypeToString(currentType);
                         throw TypeException("Array literal type mismatch: expected " + expectedTypeName +
                                            " but found " + actualTypeName, node->getLocation());
                     }
@@ -1567,10 +1544,10 @@ namespace evaluator
                 else if (currentType == ValueType::OBJECT && expectedType == ValueType::OBJECT)
                 {
                     // For objects, we need to validate the class types are compatible
-                    if (!validateObjectTypeCompatibility(evaluatedElements[0], elementValue))
+                    if (!utils::ObjectHelper::areObjectTypesCompatible(evaluatedElements[0], elementValue))
                     {
-                        std::string expectedClassName = getObjectClassName(evaluatedElements[0]);
-                        std::string actualClassName = getObjectClassName(elementValue);
+                        std::string expectedClassName = utils::ObjectHelper::getClassName(evaluatedElements[0]);
+                        std::string actualClassName = utils::ObjectHelper::getClassName(elementValue);
                         throw TypeException("Array literal object type mismatch: expected " + expectedClassName +
                                            " but found " + actualClassName, node->getLocation());
                     }
@@ -1849,65 +1826,6 @@ namespace evaluator
         throw TypeException("Unsupported array type for direct multi-dimensional access", location);
     }
 
-    std::string ExpressionEvaluator::getTypeNameForError(ValueType type) const
-    {
-        switch (type)
-        {
-        case ValueType::INT:
-            return "int";
-        case ValueType::FLOAT:
-            return "float";
-        case ValueType::BOOL:
-            return "bool";
-        case ValueType::STRING:
-            return "string";
-        case ValueType::OBJECT:
-            return "object";
-        case ValueType::VOID:
-            return "void";
-        case ValueType::NULL_TYPE:
-            return "null";
-        default:
-            return "unknown";
-        }
-    }
-
-    bool ExpressionEvaluator::validateObjectTypeCompatibility(const Value& expected, const Value& actual) const
-    {
-        // Both values should be objects
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(expected) ||
-            !std::holds_alternative<std::shared_ptr<ObjectInstance>>(actual))
-        {
-            return false;
-        }
-
-        auto expectedObj = std::get<std::shared_ptr<ObjectInstance>>(expected);
-        auto actualObj = std::get<std::shared_ptr<ObjectInstance>>(actual);
-
-        if (!expectedObj || !actualObj)
-        {
-            return false;
-        }
-
-        // Compare class names
-        std::string expectedClassName = expectedObj->getClassDefinition()->getName();
-        std::string actualClassName = actualObj->getClassDefinition()->getName();
-
-        return expectedClassName == actualClassName;
-    }
-
-    std::string ExpressionEvaluator::getObjectClassName(const Value& objectValue) const
-    {
-        if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
-        {
-            auto obj = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            if (obj)
-            {
-                return obj->getClassDefinition()->getName();
-            }
-        }
-        return "unknown";
-    }
 
     Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
     {

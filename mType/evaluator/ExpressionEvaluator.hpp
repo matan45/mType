@@ -73,9 +73,6 @@ namespace evaluator
         Value evaluateLambdaNode(LambdaNode* node);
         Value evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node);
 
-        // Helper method to get default value for type
-        Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
-
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);
@@ -90,18 +87,11 @@ namespace evaluator
         // Node type checking
         bool isExpressionNode(ASTNode* node) const;
 
-        // Function return type validation
-        void validateFunctionReturnType(ValueType expectedType, const Value& returnValue,
-                                        const std::string& functionName,
-                                        const SourceLocation& location);
-
         // Multi-dimensional array access helpers
         std::optional<Value> extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices);
         Value evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location);
 
-        // Type validation helpers
-        std::string getTypeNameForError(ValueType type) const;
-        bool validateObjectTypeCompatibility(const Value& expected, const Value& actual) const;
-        std::string getObjectClassName(const Value& objectValue) const;
+        // Helper for default values
+        Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
     };
 }

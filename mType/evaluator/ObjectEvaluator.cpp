@@ -1,4 +1,6 @@
 #include "ObjectEvaluator.hpp"
+#include "ExpressionEvaluator.hpp"
+#include "StatementEvaluator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../value/ParameterType.hpp"
@@ -6,6 +8,7 @@
 #include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
 #include "utils/ValueConverter.hpp"
+#include "utils/ArgumentEvaluator.hpp"
 #include <mutex>
 #include <iostream>
 #include "../value/FlatMultiArray.hpp"
@@ -1373,18 +1376,7 @@ namespace evaluator
     std::vector<Value> ObjectEvaluator::evaluateArgumentList(
         const std::vector<std::unique_ptr<ASTNode>>& args)
     {
-        std::vector<Value> values;
-        values.reserve(args.size());
-
-        if (exprEvaluator)
-        {
-            for (const auto& arg : args)
-            {
-                values.push_back(exprEvaluator->evaluate(arg.get()));
-            }
-        }
-
-        return values;
+        return utils::ArgumentEvaluator::evaluateArguments(args, exprEvaluator);
     }
 
     // Static member operations (delegating to instance manager)
@@ -2072,7 +2064,7 @@ namespace evaluator
                 }
                 else
                 {
-                    methodReturnType = valueTypeToString(method->getReturnType());
+                    methodReturnType = utils::ValueConverter::valueTypeToString(method->getReturnType());
                 }
 
                 if (methodReturnType != resolvedReturnType)
@@ -2106,7 +2098,7 @@ namespace evaluator
                     }
                     else
                     {
-                        methodParamType = valueTypeToString(methodParams[i].second);
+                        methodParamType = utils::ValueConverter::valueTypeToString(methodParams[i].second);
                     }
 
                     std::string resolvedParamType = resolveGenericType(signature.parameters[i].second->getBaseTypeName(), typeSubstitutions);
@@ -2171,17 +2163,4 @@ namespace evaluator
         return typeName;
     }
 
-    std::string ObjectEvaluator::valueTypeToString(const value::ValueType& type)
-    {
-        switch (type) {
-            case value::ValueType::INT: return "int";
-            case value::ValueType::FLOAT: return "float";
-            case value::ValueType::BOOL: return "bool";
-            case value::ValueType::STRING: return "string";
-            case value::ValueType::VOID: return "void";
-            case value::ValueType::OBJECT: return "object";
-            case value::ValueType::NULL_TYPE: return "null";
-            default: return "unknown";
-        }
-    }
 }
