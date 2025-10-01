@@ -68,10 +68,11 @@ namespace evaluator::managers
     }
     
     Value InstanceManager::accessMember(std::shared_ptr<ObjectInstance> object,
-                                       const std::string& memberName) const
+                                       const std::string& memberName,
+                                       const errors::SourceLocation& location) const
     {
         if (!object) {
-            throw TypeException("Cannot access member '" + memberName + "' on null object");
+            throw TypeException("Cannot access member '" + memberName + "' on null object", location);
         }
 
         // Check if it's a field
@@ -80,51 +81,53 @@ namespace evaluator::managers
         }
 
         throw UndefinedException("Member '" + memberName + "' not found in class '" +
-                                object->getTypeName() + "'");
+                                object->getTypeName() + "'", location);
     }
     
-    void InstanceManager::assignMember(std::shared_ptr<ObjectInstance> object, 
-                                      const std::string& memberName, 
-                                      const Value& value)
+    void InstanceManager::assignMember(std::shared_ptr<ObjectInstance> object,
+                                      const std::string& memberName,
+                                      const Value& value,
+                                      const errors::SourceLocation& location)
     {
         if (!object) {
-            throw TypeException("Cannot assign to member '" + memberName + "' on null object");
+            throw TypeException("Cannot assign to member '" + memberName + "' on null object", location);
         }
-        
+
         if (object->getField(memberName)) {
             object->setField(memberName, value);
             return;
         }
-        
-        throw UndefinedException("Field '" + memberName + "' not found in class '" + 
-                                object->getTypeName() + "'");
+
+        throw UndefinedException("Field '" + memberName + "' not found in class '" +
+                                object->getTypeName() + "'", location);
     }
     
-    Value InstanceManager::callMethod(std::shared_ptr<ObjectInstance> object, 
+    Value InstanceManager::callMethod(std::shared_ptr<ObjectInstance> object,
                                      const std::string& methodName,
                                      const std::vector<Value>& args,
-                                     std::shared_ptr<Environment> environment)
+                                     std::shared_ptr<Environment> environment,
+                                     const errors::SourceLocation& location)
     {
         if (!object) {
-            throw TypeException("Cannot call method '" + methodName + "' on null object");
+            throw TypeException("Cannot call method '" + methodName + "' on null object", location);
         }
-        
+
         auto classDef = object->getClassDefinition();
         if (!classDef) {
-            throw TypeException("Object has no class definition");
+            throw TypeException("Object has no class definition", location);
         }
-        
+
         auto method = classDef->findMethod(methodName, args.size());
         if (!method) {
-            throw UndefinedException("Method '" + methodName + "' with " + 
-                                   std::to_string(args.size()) + 
-                                   " arguments not found in class '" + 
-                                   object->getTypeName() + "'");
+            throw UndefinedException("Method '" + methodName + "' with " +
+                                   std::to_string(args.size()) +
+                                   " arguments not found in class '" +
+                                   object->getTypeName() + "'", location);
         }
-        
+
         // Method execution would be handled by the calling evaluator
         // This manager only validates and finds the method
-        throw TypeException("Method execution should be handled by calling evaluator");
+        throw TypeException("Method execution should be handled by calling evaluator", location);
     }
     
     Value InstanceManager::accessStaticMember(const std::string& className, 

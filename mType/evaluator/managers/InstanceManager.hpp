@@ -2,6 +2,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../value/ValueType.hpp"
+#include "../../errors/SourceLocation.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -36,17 +37,20 @@ namespace evaluator::managers
         void clearCurrentInstance();
         
         // Member access operations
-        Value accessMember(std::shared_ptr<ObjectInstance> object, 
-                          const std::string& memberName) const;
-        void assignMember(std::shared_ptr<ObjectInstance> object, 
-                         const std::string& memberName, 
-                         const Value& value);
-        
+        Value accessMember(std::shared_ptr<ObjectInstance> object,
+                          const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation()) const;
+        void assignMember(std::shared_ptr<ObjectInstance> object,
+                         const std::string& memberName,
+                         const Value& value,
+                         const errors::SourceLocation& location = errors::SourceLocation());
+
         // Method call operations
-        Value callMethod(std::shared_ptr<ObjectInstance> object, 
+        Value callMethod(std::shared_ptr<ObjectInstance> object,
                         const std::string& methodName,
                         const std::vector<Value>& args,
-                        std::shared_ptr<Environment> environment);
+                        std::shared_ptr<Environment> environment,
+                        const errors::SourceLocation& location = errors::SourceLocation());
         
         // Static member operations
         Value accessStaticMember(const std::string& className, 

@@ -78,7 +78,7 @@ namespace objects {
         }
 
         auto env = context->getEnvironment();
-        return instanceManager->accessMember(object, memberName);
+        return instanceManager->accessMember(object, memberName, location);
     }
 
     void InstanceOperationHandler::assignMember(std::shared_ptr<ObjectInstance> object,
@@ -103,7 +103,7 @@ namespace objects {
             }
         }
 
-        instanceManager->assignMember(object, memberName, value);
+        instanceManager->assignMember(object, memberName, value, location);
     }
 
     Value InstanceOperationHandler::callMethod(std::shared_ptr<ObjectInstance> object,
