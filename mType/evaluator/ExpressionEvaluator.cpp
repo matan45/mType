@@ -1,6 +1,8 @@
 ﻿#include "ExpressionEvaluator.hpp"
 #include "expressions/LiteralEvaluator.hpp"
 #include "expressions/BinaryOperationEvaluator.hpp"
+#include "expressions/CallHandler.hpp"
+#include "expressions/ArrayHandler.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ObjectHelper.hpp"
 #include "validation/TypeValidator.hpp"
@@ -54,11 +56,15 @@ namespace evaluator
         : context(ctx)
         , literalEvaluator(std::make_unique<expressions::LiteralEvaluator>(ctx))
         , binaryOpEvaluator(std::make_unique<expressions::BinaryOperationEvaluator>(ctx))
+        , callHandler(std::make_unique<expressions::CallHandler>(ctx))
+        , arrayHandler(std::make_unique<expressions::ArrayHandler>(ctx))
         , stmtEvaluator(nullptr)
         , objEvaluator(nullptr)
     {
-        // Set back-reference so BinaryOperationEvaluator can use toString()
+        // Set back-references
         binaryOpEvaluator->setExpressionEvaluator(this);
+        callHandler->setExpressionEvaluator(this);
+        arrayHandler->setExpressionEvaluator(this);
     }
 
     // Destructor must be defined in .cpp where complete types are available
@@ -229,11 +235,13 @@ namespace evaluator
     void ExpressionEvaluator::setStatementEvaluator(StatementEvaluator* evaluator)
     {
         stmtEvaluator = evaluator;
+        callHandler->setStatementEvaluator(evaluator);
     }
 
     void ExpressionEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
     {
         objEvaluator = evaluator;
+        callHandler->setObjectEvaluator(evaluator);
     }
 
     bool ExpressionEvaluator::isExpressionNode(ASTNode* node) const
@@ -627,313 +635,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateFunctionCallNode(FunctionCallNode* node)
     {
-        auto env = context->getEnvironment();
-
-
-        // First check if it's a native function
-        auto nativeRegistry = env->getNativeRegistry();
-        if (nativeRegistry->hasNativeFunction(node->getFunctionName()))
-        {
-            auto nativeFunc = nativeRegistry->findNativeFunction(node->getFunctionName());
-
-            // Evaluate arguments
-            std::vector<Value> args;
-            for (auto& argNode : node->getArguments())
-            {
-                args.push_back(evaluate(argNode.get()));
-            }
-
-            // Call native function
-            return nativeFunc(args);
-        }
-
-        // Check if this is a qualified call (contains ::)
-        std::string functionName = node->getFunctionName();
-        // Check for qualified function calls (::) - treat as static method calls
-        if (functionName.find("::") != std::string::npos)
-        {
-            // Parse the qualified name into parts
-            std::vector<std::string> parts;
-            size_t start = 0;
-            size_t pos = 0;
-            while ((pos = functionName.find("::", start)) != std::string::npos)
-            {
-                parts.push_back(functionName.substr(start, pos - start));
-                start = pos + 2;
-            }
-            parts.push_back(functionName.substr(start));
-
-            // Treat qualified calls as static method calls: ClassName::methodName
-            if (parts.size() == 2)
-            {
-                std::string className = parts[0];
-                std::string methodName = parts[1];
-
-                // Handle 'this::methodName' syntax - resolve 'this' to current class
-                if (className == "this")
-                {
-                    // Try to get the current class from instance context first
-                    auto currentInstance = context->getCurrentInstance();
-                    if (currentInstance)
-                    {
-                        className = currentInstance->getClassDefinition()->getClassName();
-                    }
-                    // For static methods, get class name from the __current_class_name__ variable
-                    else
-                    {
-                        auto currentClassVar = env->findVariable("__current_class_name__");
-                        if (currentClassVar)
-                        {
-                            auto currentClassValue = currentClassVar->getValue();
-                            if (std::holds_alternative<std::string>(currentClassValue))
-                            {
-                                className = std::get<std::string>(currentClassValue);
-                            }
-                            else
-                            {
-                                throw UndefinedException("Cannot determine class context for 'this' qualifier",
-                                                         node->getLocation());
-                            }
-                        }
-                        else
-                        {
-                            throw UndefinedException("'this' qualifier can only be used within class methods",
-                                                     node->getLocation());
-                        }
-                    }
-                }
-
-                auto classRegistry = env->getClassRegistry();
-                auto classDef = classRegistry->findItem(className);
-
-                if (classDef)
-                {
-                    // Found a class - try to call static method
-                    std::vector<Value> args;
-                    for (auto& argNode : node->getArguments())
-                    {
-                        args.push_back(evaluate(argNode.get()));
-                    }
-
-                    // Look for static method
-                    auto method = classDef->getMethod(methodName);
-                    if (method && method->isStatic())
-                    {
-                        // Call static method through ObjectEvaluator
-                        if (objEvaluator)
-                        {
-                            return objEvaluator->callStaticMethod(className, methodName, args, node->getLocation());
-                        }
-                        else
-                        {
-                            throw UndefinedException("Object evaluator not available for static method call",
-                                                     node->getLocation());
-                        }
-                    }
-                    else
-                    {
-                        throw UndefinedException(
-                            "Static method '" + methodName + "' not found in class '" + className + "'",
-                            node->getLocation());
-                    }
-                }
-                else
-                {
-                    throw UndefinedException(
-                        "Class '" + className + "' not found for qualified call '" + functionName + "'",
-                        node->getLocation());
-                }
-            }
-            else
-            {
-                // For now, don't support nested qualified calls like A::B::C
-                throw UndefinedException("Complex qualified function calls not supported: '" + functionName + "'",
-                                         node->getLocation());
-            }
-        }
-
-        // First check if we're in a method context and this could be a method call
-        auto currentInstance = context->getCurrentInstance();
-        if (currentInstance)
-        {
-            auto method = currentInstance->getClassDefinition()->getMethod(node->getFunctionName());
-            if (method && !method->isStatic())
-            {
-                // This is a method call on the current instance (recursive or other method call)
-                std::vector<Value> args;
-                for (auto& argNode : node->getArguments())
-                {
-                    args.push_back(evaluate(argNode.get()));
-                }
-
-                if (objEvaluator)
-                {
-                    return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args, node->getLocation());
-                }
-                else
-                {
-                    throw UndefinedException("Object evaluator not available for method call", node->getLocation());
-                }
-            }
-        }
-
-        // Check for user-defined function
-        auto funcDef = env->findFunction(node->getFunctionName());
-
-        if (!funcDef)
-        {
-            throw UndefinedException("Undefined function: " + node->getFunctionName(), node->getLocation());
-        }
-
-
-        // Evaluate arguments
-        std::vector<Value> args;
-        for (auto& argNode : node->getArguments())
-        {
-            args.push_back(evaluate(argNode.get()));
-        }
-
-        // Use ScopeGuard for automatic scope management  
-        {
-            utils::ScopeGuard scope(env, node->getFunctionName(), ScopeType::FUNCTION);
-
-            // Use ParameterBinder for basic validation, then add custom object validation
-            utils::ParameterBinder::bindAndValidateParameters(
-                funcDef->getParameters(),
-                args,
-                "function '" + node->getFunctionName() + "'",
-                env,
-                node->getLocation()
-            );
-
-            // Additional custom object validation for function calls (after ParameterBinder)
-            for (size_t i = 0; i < args.size(); ++i)
-            {
-                const auto& param = funcDef->getParameters()[i];
-                ValueType actualType = ValueConverter::getValueType(args[i]);
-                ValueType parameterType = param.second;
-
-                // Enhanced object type checking for specific incompatible scenarios
-                if (actualType == ValueType::OBJECT && parameterType == ValueType::OBJECT)
-                {
-                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]))
-                    {
-                        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(args[i]);
-                        if (objInstance)
-                        {
-                            std::string actualClassName = objInstance->getClassDefinition()->getName();
-                            std::string functionName = node->getFunctionName();
-
-                            // Detect specific incompatible scenarios based on function context
-                            bool isIncompatible = false;
-
-                            // Case 1: Function "process" in ns2 getting TypeB when it expects TypeA
-                            if (functionName == "process" && actualClassName == "TypeB")
-                            {
-                                isIncompatible = true;
-                            }
-                            // Case 2: Function "expectsVehicle" getting Animal class
-                            else if (functionName == "expectsVehicle" && actualClassName == "Animal")
-                            {
-                                isIncompatible = true;
-                            }
-
-                            if (isIncompatible)
-                            {
-                                throw errors::TypeException(
-                                    "Type mismatch in function '" + functionName + "': parameter '" +
-                                    param.first + "' expects specific object type but got incompatible class '" +
-                                    actualClassName + "'", node->getLocation());
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Execute function body
-            Value result = std::monostate{};
-            try
-            {
-                if (stmtEvaluator)
-                {
-                    stmtEvaluator->evaluate(funcDef->getBody().get());
-
-                    // Get return value if function returned
-                    if (context->shouldReturn())
-                    {
-                        result = context->getReturnValue();
-                        context->setReturned(false);
-
-                        // Check for lambda-to-interface conversion before validation
-                        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(result) &&
-                            funcDef->getReturnType() == ValueType::OBJECT) {
-
-                            // Try to convert lambda to the expected interface type
-                            if (stmtEvaluator) {
-                                // Get the expected class/interface name from function definition
-                                std::string expectedTypeName = funcDef->getReturnClassName();
-                                if (!expectedTypeName.empty()) {
-                                    try {
-                                        result = stmtEvaluator->convertLambdaToInterface(result, expectedTypeName);
-                                    } catch (...) {
-                                        // If conversion fails, keep original lambda value and let validation handle it
-                                    }
-                                }
-                            }
-                        }
-
-                        // Validate return type matches function's declared return type
-                        validation::TypeValidator::validateFunctionReturn(
-                            funcDef->getReturnType(), result, node->getFunctionName(),
-                            node->getLocation());
-                    }
-                }
-                else
-                {
-                    throw UndefinedException("Statement evaluator not available for function execution",
-                                             node->getLocation());
-                }
-            }
-            catch (const exception::ReturnException& e)
-            {
-                // Handle return statement - this is the expected way functions return
-                // Reset return state since this was a function return, not a program return
-                context->setReturned(false);
-
-                // Check for lambda-to-interface conversion before validation
-                Value returnValue = e.returnValue;
-                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(returnValue) &&
-                    funcDef->getReturnType() == ValueType::OBJECT) {
-
-                    // Try to convert lambda to the expected interface type
-                    if (stmtEvaluator) {
-                        // Get the expected class/interface name from function definition
-                        std::string expectedTypeName = funcDef->getReturnClassName();
-                        if (!expectedTypeName.empty()) {
-                            try {
-                                returnValue = stmtEvaluator->convertLambdaToInterface(returnValue, expectedTypeName);
-                            } catch (...) {
-                                // If conversion fails, keep original lambda value and let validation handle it
-                            }
-                        }
-                    }
-                }
-
-                // Validate return type matches function's declared return type
-                validation::TypeValidator::validateFunctionReturn(
-                    funcDef->getReturnType(), returnValue, node->getFunctionName(),
-                    node->getLocation());
-
-                return returnValue;
-            }
-            catch (...)
-            {
-                throw;
-            }
-
-            return result;
-            // Scope automatically exits via RAII
-        }
+        return callHandler->evaluateFunctionCall(node);
     }
 
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
@@ -1012,55 +714,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateMethodCallNode(MethodCallNode* node)
     {
-        // Check if this is a static method call first
-        if (node->getIsStaticCall())
-        {
-            // Delegate static method calls to ObjectEvaluator
-            if (objEvaluator)
-            {
-                return objEvaluator->evaluateMethodCallNode(node);
-            }
-            else
-            {
-                throw TypeException("Object evaluator not available for static method call");
-            }
-        }
-
-        // Handle instance method calls
-        Value objectValue = evaluate(node->getObject());
-
-        // Check if object is null
-        if (std::holds_alternative<nullptr_t>(objectValue))
-        {
-            throw TypeException("Cannot call method on null object", node->getLocation());
-        }
-
-
-        // Get object instance
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
-        {
-            throw TypeException("Cannot call method on non-object value", node->getLocation());
-        }
-
-        auto object = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-
-        // Evaluate arguments
-        std::vector<Value> args;
-        for (auto& argNode : node->getArguments())
-        {
-            args.push_back(evaluate(argNode.get()));
-        }
-
-        // Delegate to ObjectEvaluator
-        if (objEvaluator)
-        {
-            Value result = objEvaluator->callMethod(object, node->getMethodName(), args, node->getLocation());
-            return result;
-        }
-        else
-        {
-            throw UndefinedException("Object evaluator not available for method call", node->getLocation());
-        }
+        return callHandler->evaluateMethodCall(node);
     }
 
     Value ExpressionEvaluator::evaluateNewNode(NewNode* node)
@@ -1113,498 +767,37 @@ namespace evaluator
     // Helper function to get default value for a given type
     Value ExpressionEvaluator::getDefaultValueForType(const ::parser::TypeInfo& elementType)
     {
-        switch (elementType.baseType)
-        {
-        case ValueType::INT:
-            return 0;
-        case ValueType::FLOAT:
-            return 0.0f;
-        case ValueType::STRING:
-            return std::string("");
-        case ValueType::BOOL:
-            return false;
-        default:
-            return std::monostate{}; // null for objects and generics
-        }
+        return arrayHandler->getDefaultValueForType(elementType);
     }
 
     // Collection-related method implementations
     Value ExpressionEvaluator::evaluateArrayCreationNode(ArrayCreationNode* node)
     {
-        // Get all size expressions for multidimensional support
-        const auto& sizeExpressions = node->getSizeExpressions();
-
-        if (sizeExpressions.empty())
-        {
-            throw TypeException("Array creation must have at least one dimension", node->getLocation());
-        }
-
-        // Evaluate size expressions and handle jagged arrays
-        std::vector<size_t> dimensions;
-        bool hasJaggedDimensions = false;
-
-        for (const auto& sizeExpr : sizeExpressions)
-        {
-            if (sizeExpr == nullptr)
-            {
-                // Null expression indicates jagged dimension (e.g., new int[2][])
-                hasJaggedDimensions = true;
-                dimensions.push_back(0); // Use 0 to indicate unspecified size
-            }
-            else
-            {
-                Value sizeValue = evaluate(sizeExpr.get());
-
-                if (!std::holds_alternative<int>(sizeValue))
-                {
-                    throw TypeException("Array size must be an integer", node->getLocation());
-                }
-
-                int size = std::get<int>(sizeValue);
-                if (size < 0)
-                {
-                    throw TypeException("Array size cannot be negative", node->getLocation());
-                }
-                dimensions.push_back(static_cast<size_t>(size));
-            }
-        }
-
-        // Determine default value based on element type
-        Value defaultValue = getDefaultValueForType(node->getElementTypeInfo());
-
-        // Handle different array creation scenarios
-        if (dimensions.size() == 1)
-        {
-            // Use NativeArray for 1D (this works)
-            auto elementTypeInfo = node->getElementTypeInfo();
-            auto nativeArray = std::make_shared<NativeArray>(dimensions[0], elementTypeInfo.baseType, elementTypeInfo.className);
-            for (size_t i = 0; i < dimensions[0]; ++i)
-            {
-                nativeArray->set(i, defaultValue);
-            }
-            return nativeArray;
-        }
-        else if (hasJaggedDimensions)
-        {
-            // Handle jagged arrays (e.g., new int[2][] or new int[2][][])
-            // Find the first specified dimension
-            size_t firstDimension = 0;
-            bool foundSpecifiedDimension = false;
-
-            for (size_t dim : dimensions)
-            {
-                if (dim != 0)
-                {
-                    firstDimension = dim;
-                    foundSpecifiedDimension = true;
-                    break;
-                }
-            }
-
-            if (!foundSpecifiedDimension)
-            {
-                throw TypeException("Jagged arrays must have at least one specified dimension", node->getLocation());
-            }
-
-            // Create an array with the first specified dimension
-            auto elementTypeInfo = node->getElementTypeInfo();
-            auto jaggedArray = std::make_shared<NativeArray>(firstDimension, elementTypeInfo.baseType, elementTypeInfo.className);
-
-            // Initialize each element to null (will be assigned later)
-            for (size_t i = 0; i < firstDimension; ++i)
-            {
-                jaggedArray->set(i, std::monostate{}); // null until assigned
-            }
-
-            return jaggedArray;
-        }
-        else
-        {
-            // Use adaptive ArrayPool for efficient multi-dimensional array allocation
-            auto& pool = ArrayPool::getInstance();
-            Value adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
-
-            // Verify the array is valid (works for both FlatMultiArray and SparseMultiArray)
-            if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
-            {
-                auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(adaptiveArray);
-                if (!flatArray)
-                {
-                    throw TypeException("Failed to create FlatMultiArray", node->getLocation());
-                }
-
-                // Verify size for dense arrays
-                size_t expectedSize = 1;
-                for (size_t dim : dimensions)
-                {
-                    expectedSize *= dim;
-                }
-                if (flatArray->totalSize() != expectedSize)
-                {
-                    throw TypeException("FlatMultiArray size mismatch", node->getLocation());
-                }
-            }
-            else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(adaptiveArray))
-            {
-                auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(adaptiveArray);
-                if (!sparseArray)
-                {
-                    throw TypeException("Failed to create SparseMultiArray", node->getLocation());
-                }
-
-                // Verify dimensions for sparse arrays
-                if (!sparseArray->hasDimensions(dimensions))
-                {
-                    throw TypeException("SparseMultiArray dimension mismatch", node->getLocation());
-                }
-            }
-            else
-            {
-                throw TypeException("Unknown array type returned from adaptive pool", node->getLocation());
-            }
-
-            return adaptiveArray;
-        }
+        return arrayHandler->evaluateArrayCreation(node);
     }
 
     Value ExpressionEvaluator::evaluateArrayLiteralNode(ArrayLiteralNode* node)
     {
-        const auto& elements = node->getElements();
-
-        if (elements.empty())
-        {
-            // Create empty array with size 0
-            auto emptyArray = std::make_shared<value::NativeArray>(0);
-            return emptyArray;
-        }
-
-        // First evaluate all elements to determine array size and validate types
-        std::vector<Value> evaluatedElements;
-        evaluatedElements.reserve(elements.size());
-        ValueType expectedType = ValueType::VOID; // Will be set from first element
-        bool isFirstElement = true;
-
-        for (const auto& element : elements)
-        {
-            Value elementValue = evaluate(element.get());
-            ValueType currentType = getValueType(elementValue);
-
-            if (isFirstElement)
-            {
-                // Set expected type from first element
-                expectedType = currentType;
-                isFirstElement = false;
-            }
-            else
-            {
-                // Validate that all subsequent elements have the same type
-                if (currentType != expectedType)
-                {
-                    // Special case: allow int in float arrays (implicit conversion)
-                    if (expectedType == ValueType::FLOAT && currentType == ValueType::INT)
-                    {
-                        // Convert int to float
-                        elementValue = static_cast<float>(std::get<int>(elementValue));
-                    }
-                    // Special case: null is not allowed in primitive arrays
-                    else if (currentType == ValueType::VOID || currentType == ValueType::NULL_TYPE)
-                    {
-                        throw TypeException("Cannot mix null values with primitive types in array literals", node->getLocation());
-                    }
-                    else
-                    {
-                        // Get readable type names for error message
-                        std::string expectedTypeName = ValueConverter::valueTypeToString(expectedType);
-                        std::string actualTypeName = ValueConverter::valueTypeToString(currentType);
-                        throw TypeException("Array literal type mismatch: expected " + expectedTypeName +
-                                           " but found " + actualTypeName, node->getLocation());
-                    }
-                }
-                else if (currentType == ValueType::OBJECT && expectedType == ValueType::OBJECT)
-                {
-                    // For objects, we need to validate the class types are compatible
-                    if (!utils::ObjectHelper::areObjectTypesCompatible(evaluatedElements[0], elementValue))
-                    {
-                        std::string expectedClassName = utils::ObjectHelper::getClassName(evaluatedElements[0]);
-                        std::string actualClassName = utils::ObjectHelper::getClassName(elementValue);
-                        throw TypeException("Array literal object type mismatch: expected " + expectedClassName +
-                                           " but found " + actualClassName, node->getLocation());
-                    }
-                }
-            }
-
-            evaluatedElements.push_back(elementValue);
-        }
-
-        // Create NativeArray with the correct size
-        auto array = std::make_shared<value::NativeArray>(evaluatedElements.size());
-
-        // Populate the array using set method
-        for (size_t i = 0; i < evaluatedElements.size(); ++i)
-        {
-            array->set(i, evaluatedElements[i]);
-        }
-
-        return array;
+        return arrayHandler->evaluateArrayLiteral(node);
     }
 
     Value ExpressionEvaluator::evaluateIndexAccessNode(IndexAccessNode* node)
     {
-        // Check if this is a multi-dimensional access pattern (e.g., arr[i][j])
-        std::vector<size_t> indices;
-        auto baseArray = extractMultiDimensionalAccess(node, indices);
-
-        if (baseArray.has_value())
-        {
-            // Handle direct multi-dimensional access
-            return evaluateDirectMultiDimensionalAccess(baseArray.value(), indices, node->getLocation());
-        }
-
-        // Evaluate the array expression
-        Value arrayValue = evaluate(node->getCollection());
-
-        // Evaluate the index expression
-        Value indexValue = evaluate(node->getIndex());
-
-        // Check if index is an integer
-        if (!std::holds_alternative<int>(indexValue))
-        {
-            throw TypeException("Array index must be an integer", node->getLocation());
-        }
-
-        int index = std::get<int>(indexValue);
-
-        // Check if array is a NativeArray
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue))
-        {
-            auto nativeArray = std::get<std::shared_ptr<NativeArray>>(arrayValue);
-
-            // Check bounds with descriptive error message
-            if (index < 0)
-            {
-                throw TypeException("Array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
-            }
-            if (static_cast<size_t>(index) >= nativeArray->size())
-            {
-                throw TypeException("Array index " + std::to_string(index) + " exceeds array size of " +
-                                    std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
-                                    std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
-            }
-
-            return nativeArray->get(static_cast<size_t>(index));
-        }
-
-        // Check if array is a FlatMultiArray (for multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue))
-        {
-            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(arrayValue);
-
-            // Check bounds with descriptive error message
-            if (index < 0)
-            {
-                throw TypeException(
-                    "Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
-            }
-            if (static_cast<size_t>(index) >= flatArray->size())
-            {
-                throw TypeException(
-                    "Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
-                    std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
-                    std::to_string(flatArray->size() - 1) + ")", node->getLocation());
-            }
-
-            // For multi-dimensional arrays, return a sub-array view
-            if (flatArray->getRank() > 1)
-            {
-                auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
-                if (subArray)
-                {
-                    return subArray;
-                }
-                else
-                {
-                    throw TypeException("Cannot access sub-array", node->getLocation());
-                }
-            }
-            else
-            {
-                // Single dimension, return the value directly
-                try
-                {
-                    return flatArray->get(static_cast<size_t>(index));
-                }
-                catch (const std::out_of_range& e)
-                {
-                    throw TypeException("Array access failed: " + std::string(e.what()), node->getLocation());
-                }
-            }
-        }
-
-        // Check if array is a SparseMultiArray (for adaptive sparse arrays)
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(arrayValue))
-        {
-            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(arrayValue);
-
-            // Check bounds with descriptive error message
-            if (index < 0)
-            {
-                throw TypeException(
-                    "Sparse array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
-            }
-            if (static_cast<size_t>(index) >= sparseArray->size())
-            {
-                throw TypeException(
-                    "Sparse array index " + std::to_string(index) + " exceeds array size of " +
-                    std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
-                    std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
-            }
-
-            // For sparse multi-dimensional arrays, return a sub-array view
-            if (sparseArray->getRank() > 1)
-            {
-                auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
-                if (subArray)
-                {
-                    return subArray;
-                }
-                else
-                {
-                    throw TypeException("Cannot access sub-array in sparse array", node->getLocation());
-                }
-            }
-            else
-            {
-                // Single dimension sparse array
-                std::vector<size_t> indices = {static_cast<size_t>(index)};
-                try
-                {
-                    return sparseArray->get(indices);
-                }
-                catch (const std::out_of_range& e)
-                {
-                    throw TypeException("Sparse array access failed: " + std::string(e.what()), node->getLocation());
-                }
-            }
-        }
-
-        throw TypeException("Cannot index non-array value", node->getLocation());
+        return arrayHandler->evaluateIndexAccess(node);
     }
 
     std::optional<Value> ExpressionEvaluator::extractMultiDimensionalAccess(
         IndexAccessNode* node, std::vector<size_t>& indices)
     {
-        // Traverse up the IndexAccessNode chain to collect all indices
-        std::vector<IndexAccessNode*> accessChain;
-        IndexAccessNode* current = node;
-
-        while (current != nullptr)
-        {
-            accessChain.push_back(current);
-
-            // Check if the collection is also an IndexAccessNode
-            IndexAccessNode* nextAccess = dynamic_cast<IndexAccessNode*>(current->getCollection());
-            if (nextAccess != nullptr)
-            {
-                current = nextAccess;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        // If we only have one level, this isn't multi-dimensional
-        if (accessChain.size() <= 1)
-        {
-            return std::nullopt;
-        }
-
-        // Evaluate the base array (the deepest collection)
-        Value baseArray = evaluate(accessChain.back()->getCollection());
-
-        // Check if it's a multi-dimensional array type we can optimize
-        bool isMultiDimensional = false;
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
-        {
-            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
-            isMultiDimensional = flatArray->getRank() > 1;
-        }
-        else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
-        {
-            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
-            isMultiDimensional = sparseArray->getRank() > 1;
-        }
-
-        if (!isMultiDimensional)
-        {
-            return std::nullopt;
-        }
-
-        // Evaluate indices in reverse order (from base to leaf)
-        indices.clear();
-        indices.reserve(accessChain.size());
-
-        for (auto it = accessChain.rbegin(); it != accessChain.rend(); ++it)
-        {
-            Value indexValue = evaluate((*it)->getIndex());
-
-            if (!std::holds_alternative<int>(indexValue))
-            {
-                return std::nullopt; // Fall back to regular handling
-            }
-
-            int index = std::get<int>(indexValue);
-            if (index < 0)
-            {
-                return std::nullopt; // Let regular handling provide proper error
-            }
-
-            indices.push_back(static_cast<size_t>(index));
-        }
-
-        return baseArray;
+        return arrayHandler->extractMultiDimensionalAccess(node, indices);
     }
 
     Value ExpressionEvaluator::evaluateDirectMultiDimensionalAccess(const Value& baseArray,
                                                                     const std::vector<size_t>& indices,
                                                                     const SourceLocation& location)
     {
-        // Handle FlatMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
-        {
-            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
-
-            try
-            {
-                return flatArray->get(indices);
-            }
-            catch (const std::out_of_range& e)
-            {
-                throw TypeException("Multi-dimensional array access failed: " + std::string(e.what()), location);
-            }
-        }
-
-        // Handle SparseMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
-        {
-            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
-
-            try
-            {
-                return sparseArray->get(indices);
-            }
-            catch (const std::out_of_range& e)
-            {
-                throw TypeException("Sparse multi-dimensional array access failed: " + std::string(e.what()), location);
-            }
-        }
-
-        throw TypeException("Unsupported array type for direct multi-dimensional access", location);
+        return arrayHandler->evaluateDirectMultiDimensionalAccess(baseArray, indices, location);
     }
-
 
     Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
     {
@@ -1618,66 +811,6 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node)
     {
-        if (!node) {
-            throw UndefinedException("LambdaInterfaceInvocationNode is null");
-        }
-
-        // Enhanced lambda accessibility check with debugging
-        if (!node->isLambdaAccessible()) {
-            std::string lifecycleStatus = node->getLambdaLifecycleStatus();
-            throw RuntimeException("Lambda is not accessible - cannot invoke interface method '" +
-                                   node->getMethodName() + "' on interface '" + node->getInterfaceName() +
-                                   "'. Lifecycle status: " + lifecycleStatus);
-        }
-
-        // Get the lambda node
-        auto lambda = node->getLambdaNode();
-        if (!lambda) {
-            throw RuntimeException("Lambda node is null - cannot create lambda for interface method '" +
-                                   node->getMethodName() + "'");
-        }
-
-        // Create LambdaValue with current evaluation context
-        auto lambdaValue = std::make_shared<value::LambdaValue>(lambda.get(), context);
-
-        // Set interface implementation info for better debugging and type checking
-        lambdaValue->setInterfaceImplementation(node->getInterfaceName(), node->getMethodName());
-
-        // Evaluate arguments in current context
-        std::vector<Value> evaluatedArgs;
-        evaluatedArgs.reserve(node->getArguments().size());
-
-        for (const auto& argNode : node->getArguments()) {
-            if (argNode) {
-                evaluatedArgs.push_back(evaluate(argNode.get()));
-            }
-        }
-
-        // Validate parameter types before invocation with detailed error message
-        std::string errorMessage;
-        if (!node->validateParameterTypes(evaluatedArgs, &errorMessage)) {
-            throw TypeException("Parameter validation failed when invoking lambda for interface method '" +
-                                node->getMethodName() + "' on interface '" + node->getInterfaceName() + "': " + errorMessage);
-        }
-
-        // Invoke the lambda with the evaluated arguments
-        try {
-            Value result = lambdaValue->invoke(evaluatedArgs, context);
-
-            // Validate return type compatibility
-            std::string returnErrorMessage;
-            if (!node->validateReturnType(result, &returnErrorMessage)) {
-                throw TypeException("Return type validation failed for interface method '" +
-                                    node->getMethodName() + "' on interface '" + node->getInterfaceName() + "': " + returnErrorMessage);
-            }
-
-            return result;
-        } catch (const TypeException&) {
-            // Re-throw TypeException as-is
-            throw;
-        } catch (const std::exception& e) {
-            throw RuntimeException("Lambda invocation failed for interface method '" +
-                                   node->getMethodName() + "': " + std::string(e.what()));
-        }
+        return callHandler->evaluateLambdaInterfaceInvocation(node);
     }
 }

@@ -49,6 +49,9 @@
     <Filter Include="evaluator\objects">
       <UniqueIdentifier>{91376872-FD4D-6608-46C5-F129B21A3790}</UniqueIdentifier>
     </Filter>
+    <Filter Include="evaluator\statements">
+      <UniqueIdentifier>{AF7F49D1-9B0E-D39A-442D-E795309BE340}</UniqueIdentifier>
+    </Filter>
     <Filter Include="evaluator\utils">
       <UniqueIdentifier>{3884827F-A40F-F043-AD20-7338192B4C44}</UniqueIdentifier>
     </Filter>
@@ -456,7 +459,13 @@
     <ClInclude Include="evaluator\base\EvaluationContext.hpp">
       <Filter>evaluator\base</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\expressions\ArrayHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\expressions\BinaryOperationEvaluator.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\CallHandler.hpp">
       <Filter>evaluator\expressions</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\expressions\LiteralEvaluator.hpp">
@@ -470,6 +479,9 @@
     </ClInclude>
     <ClInclude Include="evaluator\objects\ArrayAssignmentHandler.hpp">
       <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\LoopEvaluator.hpp">
+      <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\ArgumentEvaluator.hpp">
       <Filter>evaluator\utils</Filter>
@@ -929,7 +941,13 @@
     <ClCompile Include="evaluator\base\EvaluationContext.cpp">
       <Filter>evaluator\base</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\expressions\ArrayHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\expressions\BinaryOperationEvaluator.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\CallHandler.cpp">
       <Filter>evaluator\expressions</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\expressions\LiteralEvaluator.cpp">
@@ -943,6 +961,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\objects\ArrayAssignmentHandler.cpp">
       <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\LoopEvaluator.cpp">
+      <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ArgumentEvaluator.cpp">
       <Filter>evaluator\utils</Filter>

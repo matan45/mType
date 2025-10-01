@@ -10,6 +10,16 @@
 #include <memory>
 #include <optional>
 
+// Forward declarations for specialized handlers
+namespace evaluator {
+namespace expressions {
+    class LiteralEvaluator;
+    class BinaryOperationEvaluator;
+    class CallHandler;
+    class ArrayHandler;
+}
+}
+
 namespace evaluator
 {
     using namespace base;
@@ -43,6 +53,8 @@ namespace evaluator
         // Specialized expression handlers
         std::unique_ptr<expressions::LiteralEvaluator> literalEvaluator;
         std::unique_ptr<expressions::BinaryOperationEvaluator> binaryOpEvaluator;
+        std::unique_ptr<expressions::CallHandler> callHandler;
+        std::unique_ptr<expressions::ArrayHandler> arrayHandler;
 
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;
