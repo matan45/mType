@@ -56,8 +56,6 @@ namespace parser
         std::string parseGenericParameter();
         std::vector<ast::GenericTypeParameter> parseGenericTypeParameters();
         ast::GenericTypeParameter parseGenericTypeParameter();
-        std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
-        TypeInfo createTypeInfoFromClassName(const std::string& className);
     };
 }
 

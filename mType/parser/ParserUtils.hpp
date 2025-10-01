@@ -94,6 +94,30 @@ namespace parser
             class TokenStream& stream,
             std::string_view initialName);
 
+        /// @brief Parse comma-separated list of interfaces with optional generic parameters
+        /// Eliminates code duplication between InterfaceParser and ClassDeclarationParser
+        /// @param stream Token stream to parse from
+        /// @param keywordName Name of keyword ("extends" or "implements") for error messages
+        /// @return Vector of interface names with generic parameters
+        [[nodiscard]] static std::vector<std::string> parseInterfaceList(
+            class TokenStream& stream,
+            std::string_view keywordName);
+
+        /// @brief Parse nested generic expression with depth tracking (e.g., Map<String, List<Int>>)
+        /// Eliminates code duplication in complex generic parsing
+        /// @param stream Token stream to parse from
+        /// @return String representation of nested generic expression
+        [[nodiscard]] static std::string parseNestedGenericExpression(class TokenStream& stream);
+
+        /// @brief Validate that a name starts with capital letter (for classes/interfaces)
+        /// @param name Name to validate
+        /// @param context Description for error message (e.g., "Class", "Interface")
+        /// @param location Source location for error reporting
+        /// @throws ParseException if name doesn't start with capital letter
+        static void validateCapitalizedName(std::string_view name,
+                                           std::string_view context,
+                                           const errors::SourceLocation& location);
+
     private:
         // Utility class - no instances allowed
         ParserUtils() = delete;

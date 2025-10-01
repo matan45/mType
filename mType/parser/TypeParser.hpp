@@ -73,6 +73,12 @@ namespace parser
         /// @brief Convert string to ValueType (for identifier-based types)
         [[nodiscard]] static ValueType stringToValueType(std::string_view typeName) noexcept;
 
+        /// @brief Create TypeInfo from class name string (handles basic types and custom classes)
+        [[nodiscard]] static TypeInfo createTypeInfoFromClassName(const std::string& className);
+
+        /// @brief Convert TypeInfo to GenericType (for new generic system)
+        [[nodiscard]] static std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
+
     private:
         // Helper for qualified name parsing (Class::member)
         static std::string parseQualifiedName(TokenStream& stream);

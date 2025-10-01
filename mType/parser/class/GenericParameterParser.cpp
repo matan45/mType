@@ -105,8 +105,30 @@ namespace parser
         validateGenericParameterName(paramName);
         tokenStream.advance();
 
-        // For now, we don't support constraints (extends/implements)
+        // Parse optional constraints (extends/implements SomeInterface)
         std::vector<std::string> constraints;
+        if (tokenStream.current().type == TokenType::EXTENDS ||
+            tokenStream.current().type == TokenType::IMPLEMENTS)
+        {
+            tokenStream.advance(); // consume constraint keyword
+
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected interface name after constraint keyword",
+                                   tokenStream.current().location);
+            }
+
+            std::string constraintName = tokenStream.current().stringValue.getString();
+            tokenStream.advance();
+
+            // Handle generic parameters in constraints (e.g., Comparable<T>)
+            if (tokenStream.current().type == TokenType::LESS)
+            {
+                constraintName += parseNestedGenericConstraint();
+            }
+
+            constraints.push_back(constraintName);
+        }
 
         return ast::GenericTypeParameter(paramName, constraints, location);
     }
@@ -133,5 +155,37 @@ namespace parser
         {
             throw ParseException("Generic type parameter name cannot be empty", tokenStream.current().location);
         }
+    }
+
+    std::string GenericParameterParser::parseNestedGenericConstraint()
+    {
+        std::string result = "<";
+        int depth = 1;
+        tokenStream.advance(); // consume '<'
+
+        while (depth > 0 && !tokenStream.isAtEnd())
+        {
+            if (tokenStream.current().type == TokenType::LESS)
+            {
+                depth++;
+                result += "<";
+            }
+            else if (tokenStream.current().type == TokenType::GREATER)
+            {
+                depth--;
+                result += ">";
+            }
+            else if (tokenStream.current().type == TokenType::IDENTIFIER)
+            {
+                result += tokenStream.current().stringValue.getString();
+            }
+            else if (tokenStream.current().type == TokenType::COMMA)
+            {
+                result += ",";
+            }
+            tokenStream.advance();
+        }
+
+        return result;
     }
 }
