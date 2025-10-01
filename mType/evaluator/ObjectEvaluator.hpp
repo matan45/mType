@@ -23,6 +23,10 @@ namespace evaluator
     // Forward declarations for specialized handlers
     namespace objects {
         class ArrayAssignmentHandler;
+        class ClassRegistrationHandler;
+        class StaticMemberHandler;
+        class InstanceOperationHandler;
+        class GenericInstantiationHandler;
     }
 
     /**
@@ -45,6 +49,10 @@ namespace evaluator
 
         // Specialized object handlers
         std::unique_ptr<objects::ArrayAssignmentHandler> arrayAssignmentHandler;
+        std::unique_ptr<objects::ClassRegistrationHandler> classRegistrationHandler;
+        std::unique_ptr<objects::StaticMemberHandler> staticMemberHandler;
+        std::unique_ptr<objects::InstanceOperationHandler> instanceOperationHandler;
+        std::unique_ptr<objects::GenericInstantiationHandler> genericInstantiationHandler;
 
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;

@@ -459,6 +459,9 @@
     <ClInclude Include="evaluator\base\EvaluationContext.hpp">
       <Filter>evaluator\base</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\expressions\AccessHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\expressions\ArrayHandler.hpp">
       <Filter>evaluator\expressions</Filter>
     </ClInclude>
@@ -471,6 +474,9 @@
     <ClInclude Include="evaluator\expressions\LiteralEvaluator.hpp">
       <Filter>evaluator\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\expressions\UnaryOperationHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\managers\ControlFlowManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
@@ -479,6 +485,27 @@
     </ClInclude>
     <ClInclude Include="evaluator\objects\ArrayAssignmentHandler.hpp">
       <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\ClassRegistrationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\GenericInstantiationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\InstanceOperationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\StaticMemberHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ControlFlowHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\DeclarationHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ImportAndFunctionHandler.hpp">
+      <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\statements\LoopEvaluator.hpp">
       <Filter>evaluator\statements</Filter>
@@ -941,6 +968,9 @@
     <ClCompile Include="evaluator\base\EvaluationContext.cpp">
       <Filter>evaluator\base</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\expressions\AccessHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\expressions\ArrayHandler.cpp">
       <Filter>evaluator\expressions</Filter>
     </ClCompile>
@@ -953,6 +983,9 @@
     <ClCompile Include="evaluator\expressions\LiteralEvaluator.cpp">
       <Filter>evaluator\expressions</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\expressions\UnaryOperationHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\managers\ControlFlowManager.cpp">
       <Filter>evaluator\managers</Filter>
     </ClCompile>
@@ -961,6 +994,27 @@
     </ClCompile>
     <ClCompile Include="evaluator\objects\ArrayAssignmentHandler.cpp">
       <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\ClassRegistrationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\GenericInstantiationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\InstanceOperationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\StaticMemberHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ControlFlowHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\DeclarationHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ImportAndFunctionHandler.cpp">
+      <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\statements\LoopEvaluator.cpp">
       <Filter>evaluator\statements</Filter>
