@@ -9,7 +9,7 @@
 #include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
-#include "../exceptions/CircularDependencyDetector.hpp"
+#include "../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -45,7 +45,7 @@ namespace environment
         services::ImportManager* importManager;
 
         // Enhanced circular dependency detection for imports
-        std::shared_ptr<mtype::exceptions::CircularDependencyDetector> importDependencyDetector;
+        std::shared_ptr<circularDependency::CircularDependencyDetector> importDependencyDetector;
 
         // Legacy import stack for backward compatibility (can be removed after migration)
         std::stack<std::string> evaluationImportStack;
@@ -82,8 +82,8 @@ namespace environment
         std::vector<std::string> getImportDependencyChain() const;
 
         // Configuration for import dependency limits
-        void setImportDependencyConfig(const mtype::exceptions::CircularDependencyConfig& config);
-        mtype::exceptions::CircularDependencyConfig getImportDependencyConfig() const;
+        void setImportDependencyConfig(const circularDependency::CircularDependencyConfig& config);
+        circularDependency::CircularDependencyConfig getImportDependencyConfig() const;
 
         // Legacy methods for backward compatibility (deprecated)
         void pushEvaluationImport(const std::string& filePath);

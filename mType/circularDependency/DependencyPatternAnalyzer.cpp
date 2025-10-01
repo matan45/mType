@@ -1,9 +1,14 @@
-#include "CircularDependencyDetection.hpp"
+﻿#include "DependencyPatternAnalyzer.hpp"
 #include <algorithm>
 #include <regex>
 
-namespace mtype::exceptions
+namespace circularDependency
 {
+    DependencyPatternAnalyzer::DependencyPatternAnalyzer(const CircularDependencyConfig& config)
+        : config_(config)
+    {
+    }
+
     bool DependencyPatternAnalyzer::detectRepeatingPattern(const std::vector<std::string>& chain) const
     {
         if (chain.size() < config_.repeatingPatternThreshold * 2)
@@ -156,4 +161,4 @@ namespace mtype::exceptions
 
         return suggestion.empty() ? "No specific optimization suggestions available." : suggestion;
     }
-} // namespace mtype::exceptions
+}

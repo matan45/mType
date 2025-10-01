@@ -12,11 +12,9 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
-#include "../../errors/RuntimeException.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include <sstream>
-#include <algorithm>
 
 using namespace errors;
 
@@ -257,7 +255,7 @@ namespace objects {
         if (!env->getInterfaceRegistry()->validateInterfaceHierarchy(node->getName())) {
             // Unregister the interface since validation failed
             env->getInterfaceRegistry()->removeInterface(node->getName());
-            throw mtype::exceptions::CircularDependencyException(
+            throw circularDependency::CircularDependencyException(
                 "Circular interface inheritance detected for interface '" + node->getName() + "'",
                 {node->getName()}, // dependency chain
                 node->getLocation().toString()
