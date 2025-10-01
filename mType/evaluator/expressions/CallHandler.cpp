@@ -323,42 +323,10 @@ namespace expressions {
 
     Value CallHandler::evaluateMethodCall(MethodCallNode* node)
     {
-        // Check if this is a static method call
-        if (node->getIsStaticCall())
-        {
-            // Delegate to ObjectEvaluator which handles static calls correctly
-            if (objEvaluator)
-            {
-                return objEvaluator->evaluateMethodCallNode(node);
-            }
-            else
-            {
-                throw UndefinedException("Object evaluator not available for static method call", node->getLocation());
-            }
-        }
-
-        // Handle instance method call
-        // Evaluate the object
-        Value objectValue = exprEvaluator->evaluate(node->getObject());
-
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
-        {
-            throw TypeException("Cannot call method on non-object value", node->getLocation());
-        }
-
-        auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-
-        // Evaluate arguments
-        std::vector<Value> args;
-        for (auto& argNode : node->getArguments())
-        {
-            args.push_back(exprEvaluator->evaluate(argNode.get()));
-        }
-
-        // Delegate to ObjectEvaluator
+        // Delegate ALL method calls to ObjectEvaluator which handles both static and instance calls
         if (objEvaluator)
         {
-            return objEvaluator->callMethod(objectInstance, node->getMethodName(), args, node->getLocation());
+            return objEvaluator->evaluateMethodCallNode(node);
         }
         else
         {

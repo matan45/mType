@@ -317,8 +317,20 @@ namespace evaluator
         }
         else
         {
-            // Delegate to expression evaluator for other nodes (like VariableNode)
+            // Delegate to expression evaluator for other nodes (like VariableNode, ArrayAccessNode, etc.)
             objectValue = exprEvaluator->evaluate(node->getObject());
+        }
+
+        // Handle direct lambda values (e.g., from array elements)
+        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(objectValue))
+        {
+            auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(objectValue);
+            if (!lambda) {
+                throw TypeException("Lambda value is null - cannot invoke method '" +
+                                  node->getMethodName() + "'", node->getLocation());
+            }
+            // Invoke the lambda with the method arguments
+            return lambda->invoke(args, context);
         }
 
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
@@ -350,7 +362,7 @@ namespace evaluator
         else
         {
             throw TypeException("Cannot call method '" + node->getMethodName() +
-                "' on non-object value");
+                "' on non-object value", node->getLocation());
         }
     }
 
