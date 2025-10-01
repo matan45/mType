@@ -99,9 +99,11 @@ namespace evaluator
         std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
                                                        const std::vector<Value>& constructorArgs,
                                                        const std::unordered_map<std::string, std::string>& typeBindings);
-        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
+        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                          const Value& value);
+                          const Value& value,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args,
                          const errors::SourceLocation& location = errors::SourceLocation{});

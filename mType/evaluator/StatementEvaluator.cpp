@@ -4,12 +4,9 @@
 #include "statements/ControlFlowHandler.hpp"
 #include "statements/ImportAndFunctionHandler.hpp"
 #include "validation/TypeValidator.hpp"
-#include "../constants/LambdaConstants.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
-#include <iostream>
 #include "../ast/nodes/statements/ProgramNode.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
@@ -25,13 +22,11 @@
 #include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../environment/manager/Scope.hpp"
-#include "../exception/BreakException.hpp"
-#include "../exception/ContinueException.hpp"
-#include "../exception/ReturnException.hpp"
+#include "../errors/BreakException.hpp"
+#include "../errors/ContinueException.hpp"
+#include "../errors/ReturnException.hpp"
 #include "../errors/TypeException.hpp"
-#include "../errors/UndefinedException.hpp"
 #include "../errors/RuntimeException.hpp"
-#include "../errors/ScriptException.hpp"
 #include "../errors/EnvironmentException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
@@ -39,15 +34,10 @@
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
-#include "../value/NativeArray.hpp"
-#include "../value/LambdaValue.hpp"
-#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
 
 namespace evaluator
 {
     using namespace errors;
-    using namespace exception;
     using namespace runtimeTypes::global;
     using namespace environment::manager;
     using namespace services;
@@ -349,7 +339,8 @@ namespace evaluator
                                                     const std::string& expectedClassName)
     {
         // Delegate to TypeValidator utility, passing context
-        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location, expectedClassName, context);
+        validation::TypeValidator::validateAssignment(expectedType, value, variableName, location, expectedClassName,
+                                                      context);
     }
 
     void StatementEvaluator::validateAssignmentAsDeclaration(AssignmentNode* node)
@@ -389,7 +380,8 @@ namespace evaluator
                                                              const std::string& expectedClassName)
     {
         // Delegate to TypeValidator utility
-        validation::TypeValidator::validateObjectTypeCompatibility(value, variableName, location, expectedClassName, context);
+        validation::TypeValidator::validateObjectTypeCompatibility(value, variableName, location, expectedClassName,
+                                                                   context);
     }
 
     Value StatementEvaluator::evaluateAssignmentNode(AssignmentNode* node)
@@ -533,7 +525,8 @@ namespace evaluator
         return loopEvaluator->evaluateForEach(node);
     }
 
-    Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location)
+    Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
+                                                       const SourceLocation& location)
     {
         return importAndFunctionHandler->convertLambdaToInterface(lambdaValue, interfaceName, location);
     }

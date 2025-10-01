@@ -16,7 +16,7 @@
 #include "../evaluator/ExpressionEvaluator.hpp"
 #include "../evaluator/StatementEvaluator.hpp"
 #include "../evaluator/ObjectEvaluator.hpp"
-#include "../exception/ReturnException.hpp"
+#include "../errors/ReturnException.hpp"
 #include "../evaluator/utils/ValueConverter.hpp"
 #include <set>
 #include <iostream>
@@ -24,13 +24,15 @@
 namespace value
 {
     LambdaValue::LambdaValue(ast::nodes::expressions::LambdaNode* node,
-                           std::shared_ptr<evaluator::base::EvaluationContext> context)
+                             std::shared_ptr<evaluator::base::EvaluationContext> context)
         : lambdaNode(node), capturedContext(context), isInterfaceImplementation(false)
     {
-        if (!node) {
+        if (!node)
+        {
             throw errors::RuntimeException("Lambda node cannot be null");
         }
-        if (!context) {
+        if (!context)
+        {
             throw errors::RuntimeException("Evaluation context cannot be null");
         }
 
@@ -42,22 +44,28 @@ namespace value
     }
 
     Value LambdaValue::invoke(const std::vector<Value>& arguments,
-                             std::shared_ptr<evaluator::base::EvaluationContext> callContext)
+                              std::shared_ptr<evaluator::base::EvaluationContext> callContext)
     {
-
         // Enhanced lambda state validation with detailed error messages
-        if (!lambdaNode) {
-            std::string interfaceInfo = isImplementingInterface() ?
-                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+        if (!lambdaNode)
+        {
+            std::string interfaceInfo = isImplementingInterface()
+                                            ? " (implementing interface '" + implementedInterface + "', method '" +
+                                            implementedMethod + "')"
+                                            : "";
             throw errors::RuntimeException("Lambda node is null - invalid lambda state" + interfaceInfo);
         }
-        if (!capturedContext) {
-            std::string interfaceInfo = isImplementingInterface() ?
-                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+        if (!capturedContext)
+        {
+            std::string interfaceInfo = isImplementingInterface()
+                                            ? " (implementing interface '" + implementedInterface + "', method '" +
+                                            implementedMethod + "')"
+                                            : "";
             throw errors::RuntimeException("Captured context is null - invalid lambda state" + interfaceInfo);
         }
         auto capturedEnv = capturedContext->getEnvironment();
-        if (!capturedEnv) {
+        if (!capturedEnv)
+        {
             throw errors::RuntimeException("Captured environment is null - invalid lambda state");
         }
 
@@ -76,35 +84,42 @@ namespace value
         lambdaContext->setGenericTypeBindings(capturedContext->getGenericTypeBindings());
 
         // Restore captured variables to lambda scope
-        for (const auto& [name, captured] : capturedVariables) {
+        for (const auto& [name, captured] : capturedVariables)
+        {
             // Get the current value based on capture strategy
             Value currentValue = captured.getValue();
 
             // Check if reference is still valid (for reference captures)
-            if (!captured.isCapturedByValue && std::holds_alternative<std::monostate>(currentValue)) {
+            if (!captured.isCapturedByValue && std::holds_alternative<std::monostate>(currentValue))
+            {
                 throw errors::RuntimeException("Lambda references captured variable '" + name +
-                                             "' which is no longer accessible");
+                    "' which is no longer accessible");
             }
 
             lambdaEnv->declareVariable(name,
-                std::make_shared<runtimeTypes::global::VariableDefinition>(name, captured.originalType, currentValue));
+                                       std::make_shared<runtimeTypes::global::VariableDefinition>(
+                                           name, captured.originalType, currentValue));
         }
 
         // Bind parameters to arguments
         const auto& parameters = lambdaNode->getParameters();
-        for (size_t i = 0; i < parameters.size() && i < arguments.size(); ++i) {
+        for (size_t i = 0; i < parameters.size() && i < arguments.size(); ++i)
+        {
             ValueType argType = evaluator::utils::ValueConverter::getValueType(arguments[i]);
             lambdaEnv->declareVariable(parameters[i].name,
-                std::make_shared<runtimeTypes::global::VariableDefinition>(parameters[i].name, argType, arguments[i]));
+                                       std::make_shared<runtimeTypes::global::VariableDefinition>(
+                                           parameters[i].name, argType, arguments[i]));
         }
 
         // Execute lambda body
         auto lambdaBody = lambdaNode->getBody();
-        if (!lambdaBody) {
+        if (!lambdaBody)
+        {
             throw errors::RuntimeException("Lambda body is null - malformed lambda AST");
         }
 
-        if (lambdaNode->isExpressionLambda()) {
+        if (lambdaNode->isExpressionLambda())
+        {
             // Expression lambda - evaluate and return the expression
 
             // Create all evaluators for proper context support
@@ -125,7 +140,9 @@ namespace value
             Value result = exprEvaluator.evaluate(lambdaBody);
 
             return result;
-        } else {
+        }
+        else
+        {
             // Block lambda - execute statements and get return value
             // Create all three evaluators and link them properly
             evaluator::StatementEvaluator stmtEvaluator(lambdaContext);
@@ -142,15 +159,19 @@ namespace value
             objEvaluator.setExpressionEvaluator(&exprEvaluator);
             objEvaluator.setStatementEvaluator(&stmtEvaluator);
 
-            try {
+            try
+            {
                 stmtEvaluator.evaluate(lambdaBody);
-            } catch (const exception::ReturnException& e) {
+            }
+            catch (const errors::ReturnException& e)
+            {
                 // Return statements in lambdas are normal - extract the return value
                 return e.returnValue;
             }
 
             // Check if a return value was set
-            if (lambdaContext->shouldReturn()) {
+            if (lambdaContext->shouldReturn())
+            {
                 return lambdaContext->getReturnValue();
             }
 
@@ -187,23 +208,36 @@ namespace value
         std::vector<ValueType> types;
         const auto& parameters = lambdaNode->getParameters();
 
-        for (const auto& param : parameters) {
-            if (param.type) {
+        for (const auto& param : parameters)
+        {
+            if (param.type)
+            {
                 // Type is specified - we would need to convert from GenericType to ValueType
                 // For now, we'll use a simple heuristic based on type name
                 std::string typeName = param.type->getBaseTypeName();
-                if (typeName == "int" || typeName == "Int") {
+                if (typeName == "int" || typeName == "Int")
+                {
                     types.push_back(ValueType::INT);
-                } else if (typeName == "float" || typeName == "Float") {
+                }
+                else if (typeName == "float" || typeName == "Float")
+                {
                     types.push_back(ValueType::FLOAT);
-                } else if (typeName == "bool" || typeName == "Bool") {
+                }
+                else if (typeName == "bool" || typeName == "Bool")
+                {
                     types.push_back(ValueType::BOOL);
-                } else if (typeName == "string" || typeName == "String") {
+                }
+                else if (typeName == "string" || typeName == "String")
+                {
                     types.push_back(ValueType::STRING);
-                } else {
+                }
+                else
+                {
                     types.push_back(ValueType::OBJECT);
                 }
-            } else {
+            }
+            else
+            {
                 // Type inference would happen during type checking phase
                 types.push_back(ValueType::OBJECT); // Default to object for now
             }
@@ -233,28 +267,37 @@ namespace value
 
         // Capture variables from current environment
         auto environment = capturedContext->getEnvironment();
-        for (const auto& varName : referencedVars) {
+        for (const auto& varName : referencedVars)
+        {
             // Skip parameter names (they will be bound during invocation)
             bool isParameter = false;
-            for (const auto& param : lambdaNode->getParameters()) {
-                if (param.name == varName) {
+            for (const auto& param : lambdaNode->getParameters())
+            {
+                if (param.name == varName)
+                {
                     isParameter = true;
                     break;
                 }
             }
 
-            if (!isParameter) {
+            if (!isParameter)
+            {
                 auto varDef = environment->findVariable(varName);
-                if (varDef) {
+                if (varDef)
+                {
                     // Found as local/environment variable - use optimized capture
                     ValueType type = evaluator::utils::ValueConverter::getValueType(varDef->getValue());
                     addCapturedVariableOptimized(varName, varDef->getValue(), type);
-                } else {
+                }
+                else
+                {
                     // Not found in environment, check if it's a class field
                     auto currentInstance = capturedContext->getCurrentInstance();
-                    if (currentInstance) {
+                    if (currentInstance)
+                    {
                         auto field = currentInstance->getField(varName);
-                        if (field) {
+                        if (field)
+                        {
                             // Found as instance field - capture its current value with optimization
                             Value fieldValue = currentInstance->getFieldValue(varName);
                             ValueType type = evaluator::utils::ValueConverter::getValueType(fieldValue);
@@ -280,41 +323,26 @@ namespace value
     {
         const auto& parameters = lambdaNode->getParameters();
 
-        if (arguments.size() != parameters.size()) {
+        if (arguments.size() != parameters.size())
+        {
             std::string paramNames;
-            for (size_t i = 0; i < parameters.size(); ++i) {
+            for (size_t i = 0; i < parameters.size(); ++i)
+            {
                 if (i > 0) paramNames += ", ";
                 paramNames += parameters[i].name;
             }
 
             std::string message = "Lambda argument count mismatch: expected " +
-                                std::to_string(parameters.size()) + " parameters (" + paramNames +
-                                "), got " + std::to_string(arguments.size()) + " arguments";
+                std::to_string(parameters.size()) + " parameters (" + paramNames +
+                "), got " + std::to_string(arguments.size()) + " arguments";
 
-            if (isImplementingInterface()) {
+            if (isImplementingInterface())
+            {
                 message += " (implementing interface '" + implementedInterface +
-                          "', method '" + implementedMethod + "')";
+                    "', method '" + implementedMethod + "')";
             }
 
             throw errors::RuntimeException(message);
-        }
-
-        // Enhanced type validation
-        for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
-            ValueType argType = evaluator::utils::ValueConverter::getValueType(arguments[i]);
-            const auto& paramName = parameters[i].name;
-
-            // If parameter has explicit type information, validate it
-            if (parameters[i].type) {
-                // For now, we'll skip detailed type validation as it requires more complex type resolution
-                // This could be enhanced in the future with proper GenericType->ValueType conversion
-            }
-
-            // Basic validation: ensure we don't pass null where it shouldn't be accepted
-            if (std::holds_alternative<std::monostate>(arguments[i])) {
-                // Allow null/void for parameters that might accept it
-                // More sophisticated null checking could be added here
-            }
         }
     }
 
@@ -323,66 +351,79 @@ namespace value
         if (!node) return;
 
         // Check for variable nodes (variable references)
-        if (auto varNode = dynamic_cast<const ast::nodes::expressions::VariableNode*>(node)) {
+        if (auto varNode = dynamic_cast<const ast::nodes::expressions::VariableNode*>(node))
+        {
             variables.insert(varNode->getName());
             return;
         }
 
         // Handle binary operations
-        if (auto binOpNode = dynamic_cast<const ast::nodes::expressions::BinaryExpNode*>(node)) {
+        if (auto binOpNode = dynamic_cast<const ast::nodes::expressions::BinaryExpNode*>(node))
+        {
             traverseForVariables(binOpNode->getLeft(), variables);
             traverseForVariables(binOpNode->getRight(), variables);
             return;
         }
 
         // Handle unary operations
-        if (auto unaryNode = dynamic_cast<const ast::nodes::expressions::UnaryExpNode*>(node)) {
+        if (auto unaryNode = dynamic_cast<const ast::nodes::expressions::UnaryExpNode*>(node))
+        {
             traverseForVariables(unaryNode->getOperand(), variables);
             return;
         }
 
         // Handle block statements
-        if (auto blockNode = dynamic_cast<const ast::nodes::statements::BlockNode*>(node)) {
-            for (const auto& statement : blockNode->getStatements()) {
+        if (auto blockNode = dynamic_cast<const ast::nodes::statements::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
                 traverseForVariables(statement.get(), variables);
             }
             return;
         }
 
         // Handle assignments
-        if (auto assignNode = dynamic_cast<const ast::nodes::statements::AssignmentNode*>(node)) {
+        if (auto assignNode = dynamic_cast<const ast::nodes::statements::AssignmentNode*>(node))
+        {
             traverseForVariables(assignNode->getValue(), variables);
             return;
         }
 
         // Handle declarations (only traverse initializer)
-        if (auto declNode = dynamic_cast<const ast::nodes::statements::DeclarationNode*>(node)) {
-            if (declNode->getInitializer()) {
+        if (auto declNode = dynamic_cast<const ast::nodes::statements::DeclarationNode*>(node))
+        {
+            if (declNode->getInitializer())
+            {
                 traverseForVariables(declNode->getInitializer(), variables);
             }
             return;
         }
 
         // Handle if statements
-        if (auto ifNode = dynamic_cast<const ast::nodes::statements::IfNode*>(node)) {
+        if (auto ifNode = dynamic_cast<const ast::nodes::statements::IfNode*>(node))
+        {
             traverseForVariables(ifNode->getCondition(), variables);
             traverseForVariables(ifNode->getThenStatement(), variables);
-            if (ifNode->hasElseStatement()) {
+            if (ifNode->hasElseStatement())
+            {
                 traverseForVariables(ifNode->getElseStatement(), variables);
             }
             return;
         }
 
         // Handle while loops
-        if (auto whileNode = dynamic_cast<const ast::nodes::statements::WhileNode*>(node)) {
+        if (auto whileNode = dynamic_cast<const ast::nodes::statements::WhileNode*>(node))
+        {
             traverseForVariables(whileNode->getCondition(), variables);
             traverseForVariables(whileNode->getBody(), variables);
             return;
         }
 
         // Handle return statements
-        if (auto returnNode = dynamic_cast<const ast::nodes::functions::ReturnNode*>(node)) {
-            if (returnNode->hasReturnValue()) {
+        if (auto returnNode = dynamic_cast<const ast::nodes::functions::ReturnNode*>(node))
+        {
+            if (returnNode->hasReturnValue())
+            {
                 traverseForVariables(returnNode->getReturnValue(), variables);
             }
             return;
@@ -396,7 +437,8 @@ namespace value
     {
         // Always capture primitives by value (they're small)
         if (type == ValueType::INT || type == ValueType::FLOAT ||
-            type == ValueType::BOOL || type == ValueType::VOID) {
+            type == ValueType::BOOL || type == ValueType::VOID)
+        {
             return true;
         }
 
@@ -407,27 +449,29 @@ namespace value
 
     size_t LambdaValue::estimateValueSize(const Value& value, ValueType type) const
     {
-        switch (type) {
-            case ValueType::INT:
-                return sizeof(int);
-            case ValueType::FLOAT:
-                return sizeof(float);
-            case ValueType::BOOL:
-                return sizeof(bool);
-            case ValueType::STRING:
-                if (std::holds_alternative<std::string>(value)) {
-                    const auto& str = std::get<std::string>(value);
-                    return str.size() + sizeof(std::string); // String data + overhead
-                }
-                return sizeof(std::string);
-            case ValueType::OBJECT:
-                // Objects are generally large - estimate conservatively
-                return LARGE_OBJECT_THRESHOLD;
-            case ValueType::ARRAY:
-                // Arrays can be very large - estimate conservatively
-                return LARGE_OBJECT_THRESHOLD;
-            default:
-                return LARGE_OBJECT_THRESHOLD; // Conservative estimate for unknown types
+        switch (type)
+        {
+        case ValueType::INT:
+            return sizeof(int);
+        case ValueType::FLOAT:
+            return sizeof(float);
+        case ValueType::BOOL:
+            return sizeof(bool);
+        case ValueType::STRING:
+            if (std::holds_alternative<std::string>(value))
+            {
+                const auto& str = std::get<std::string>(value);
+                return str.size() + sizeof(std::string); // String data + overhead
+            }
+            return sizeof(std::string);
+        case ValueType::OBJECT:
+            // Objects are generally large - estimate conservatively
+            return LARGE_OBJECT_THRESHOLD;
+        case ValueType::ARRAY:
+            // Arrays can be very large - estimate conservatively
+            return LARGE_OBJECT_THRESHOLD;
+        default:
+            return LARGE_OBJECT_THRESHOLD; // Conservative estimate for unknown types
         }
     }
 
@@ -435,10 +479,13 @@ namespace value
     {
         bool captureByValue = shouldCaptureByValue(value, type);
 
-        if (captureByValue) {
+        if (captureByValue)
+        {
             // Small values - capture by value for performance
             capturedVariables.emplace(name, CapturedVariable(name, value, type));
-        } else {
+        }
+        else
+        {
             // Large values - capture by reference to save memory
             addCapturedVariableByReference(name, value, type);
         }
@@ -450,11 +497,14 @@ namespace value
         auto environment = capturedContext->getEnvironment();
         auto varDef = environment->findVariable(name);
 
-        if (varDef) {
+        if (varDef)
+        {
             // Create weak reference to the variable definition
             std::weak_ptr<runtimeTypes::global::VariableDefinition> weakRef = varDef;
             capturedVariables.emplace(name, CapturedVariable(name, weakRef, type));
-        } else {
+        }
+        else
+        {
             // Fallback: if we can't find the variable definition, capture by value
             // This can happen with temporary values or complex expressions
             capturedVariables.emplace(name, CapturedVariable(name, value, type));
@@ -464,22 +514,27 @@ namespace value
     bool LambdaValue::isValid() const
     {
         // Check basic state
-        if (!lambdaNode || !capturedContext) {
+        if (!lambdaNode || !capturedContext)
+        {
             return false;
         }
 
         // Check if captured environment is still valid
         auto capturedEnv = capturedContext->getEnvironment();
-        if (!capturedEnv) {
+        if (!capturedEnv)
+        {
             return false;
         }
 
         // Check captured variables (for reference captures)
-        for (const auto& [name, captured] : capturedVariables) {
-            if (!captured.isCapturedByValue) {
+        for (const auto& [name, captured] : capturedVariables)
+        {
+            if (!captured.isCapturedByValue)
+            {
                 // Check if weak reference is still valid
                 Value currentValue = captured.getValue();
-                if (std::holds_alternative<std::monostate>(currentValue)) {
+                if (std::holds_alternative<std::monostate>(currentValue))
+                {
                     return false; // Reference expired
                 }
             }
@@ -493,15 +548,21 @@ namespace value
         std::stringstream ss;
         ss << "LambdaValue(";
 
-        if (!lambdaNode) {
+        if (!lambdaNode)
+        {
             ss << "lambdaNode=NULL, ";
-        } else {
+        }
+        else
+        {
             ss << "lambdaNode=valid, ";
         }
 
-        if (!capturedContext) {
+        if (!capturedContext)
+        {
             ss << "capturedContext=NULL, ";
-        } else {
+        }
+        else
+        {
             auto capturedEnv = capturedContext->getEnvironment();
             ss << "capturedContext=" << (capturedEnv ? "valid" : "invalid") << ", ";
         }
@@ -510,20 +571,25 @@ namespace value
 
         // Check captured variables
         size_t expiredRefs = 0;
-        for (const auto& [name, captured] : capturedVariables) {
-            if (!captured.isCapturedByValue) {
+        for (const auto& [name, captured] : capturedVariables)
+        {
+            if (!captured.isCapturedByValue)
+            {
                 Value currentValue = captured.getValue();
-                if (std::holds_alternative<std::monostate>(currentValue)) {
+                if (std::holds_alternative<std::monostate>(currentValue))
+                {
                     expiredRefs++;
                 }
             }
         }
 
-        if (expiredRefs > 0) {
+        if (expiredRefs > 0)
+        {
             ss << ", expiredRefs=" << expiredRefs;
         }
 
-        if (isImplementingInterface()) {
+        if (isImplementingInterface())
+        {
             ss << ", interface=" << implementedInterface << "." << implementedMethod;
         }
 
@@ -533,32 +599,44 @@ namespace value
 
     void LambdaValue::validateState() const
     {
-        if (!lambdaNode) {
-            std::string interfaceInfo = isImplementingInterface() ?
-                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+        if (!lambdaNode)
+        {
+            std::string interfaceInfo = isImplementingInterface()
+                                            ? " (implementing interface '" + implementedInterface + "', method '" +
+                                            implementedMethod + "')"
+                                            : "";
             throw errors::RuntimeException("Lambda node is null - invalid lambda state" + interfaceInfo);
         }
 
-        if (!capturedContext) {
-            std::string interfaceInfo = isImplementingInterface() ?
-                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+        if (!capturedContext)
+        {
+            std::string interfaceInfo = isImplementingInterface()
+                                            ? " (implementing interface '" + implementedInterface + "', method '" +
+                                            implementedMethod + "')"
+                                            : "";
             throw errors::RuntimeException("Captured context is null - invalid lambda state" + interfaceInfo);
         }
 
         auto capturedEnv = capturedContext->getEnvironment();
-        if (!capturedEnv) {
-            std::string interfaceInfo = isImplementingInterface() ?
-                " (implementing interface '" + implementedInterface + "', method '" + implementedMethod + "')" : "";
+        if (!capturedEnv)
+        {
+            std::string interfaceInfo = isImplementingInterface()
+                                            ? " (implementing interface '" + implementedInterface + "', method '" +
+                                            implementedMethod + "')"
+                                            : "";
             throw errors::RuntimeException("Captured environment is null - invalid lambda state" + interfaceInfo);
         }
 
         // Check for expired captured variable references
-        for (const auto& [name, captured] : capturedVariables) {
-            if (!captured.isCapturedByValue) {
+        for (const auto& [name, captured] : capturedVariables)
+        {
+            if (!captured.isCapturedByValue)
+            {
                 Value currentValue = captured.getValue();
-                if (std::holds_alternative<std::monostate>(currentValue)) {
+                if (std::holds_alternative<std::monostate>(currentValue))
+                {
                     throw errors::RuntimeException("Lambda references captured variable '" + name +
-                                                 "' which is no longer accessible");
+                        "' which is no longer accessible");
                 }
             }
         }

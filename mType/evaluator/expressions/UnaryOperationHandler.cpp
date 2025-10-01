@@ -106,7 +106,7 @@ namespace expressions {
                 if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
                 {
                     auto objectInstance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-                    objEvaluator->assignMember(objectInstance, memberNode->getMemberName(), newValue);
+                    objEvaluator->assignMember(objectInstance, memberNode->getMemberName(), newValue, node->getLocation());
                 }
                 else
                 {

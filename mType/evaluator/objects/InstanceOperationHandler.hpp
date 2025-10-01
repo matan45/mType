@@ -70,13 +70,15 @@ namespace objects {
         /**
          * Access an instance field value
          */
-        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
+        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
 
         /**
          * Assign a value to an instance field
          */
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                         const Value& value);
+                         const Value& value,
+                         const errors::SourceLocation& location = errors::SourceLocation{});
 
         /**
          * Call an instance method

@@ -198,6 +198,8 @@ namespace evaluator::utils
             if (interfaceRegistry) {
                 return classDefinition->implementsInterface(interfaceName, interfaceRegistry);
             } else {
+                // Fallback to direct interface checking only (no transitive inheritance)
+                // This should not happen in normal execution as registry should always be available
                 return classDefinition->implementsInterface(interfaceName);
             }
         }

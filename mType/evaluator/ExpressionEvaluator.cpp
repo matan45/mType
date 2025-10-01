@@ -5,18 +5,11 @@
 #include "expressions/ArrayHandler.hpp"
 #include "expressions/UnaryOperationHandler.hpp"
 #include "expressions/AccessHandler.hpp"
-#include "utils/ParameterBinder.hpp"
-#include "utils/ObjectHelper.hpp"
-#include "validation/TypeValidator.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
-#include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
-#include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/RuntimeException.hpp"
-#include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
@@ -30,10 +23,7 @@
 #include "../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../value/NativeArray.hpp"
-#include "../value/FlatMultiArray.hpp"
 #include "../value/ArrayPool.hpp"
-#include "../value/StringPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -44,7 +34,6 @@
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "utils/ValueConverter.hpp"
-#include <cmath>
 
 namespace evaluator
 {

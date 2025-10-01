@@ -108,7 +108,11 @@ namespace runtimeTypes::klass
         const std::vector<std::string>& getImplementedInterfaces() const { return implementedInterfaces; }
         void setImplementedInterfaces(const std::vector<std::string>& interfaces) { implementedInterfaces = interfaces; }
         void addImplementedInterface(const std::string& interfaceName) { implementedInterfaces.push_back(interfaceName); }
+
+        // Direct interface checking (does not support transitive interface inheritance)
         bool implementsInterface(const std::string& interfaceName) const;
+
+        // Full interface checking with transitive inheritance support (requires InterfaceRegistry)
         bool implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const;
 
         // NEW: Inheritance-related methods
@@ -119,9 +123,7 @@ namespace runtimeTypes::klass
         static constexpr int MAX_INTERFACE_DEPTH = 20;
 
         // Helper method for transitive interface checking with depth protection
-        bool implementsInterfaceTransitive(const std::string& interfaceName,
-                                         std::unordered_set<std::string>& visited,
-                                         int depth) const;
+        // Requires InterfaceRegistry for complete transitive resolution
         bool implementsInterfaceTransitive(const std::string& interfaceName,
                                          std::unordered_set<std::string>& visited,
                                          int depth,

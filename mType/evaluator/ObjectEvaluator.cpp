@@ -8,28 +8,16 @@
 #include "StatementEvaluator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../value/LambdaValue.hpp"
-#include "../value/ParameterType.hpp"
 #include "utils/ParameterBinder.hpp"
-#include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
-#include "utils/ValueConverter.hpp"
 #include "utils/ArgumentEvaluator.hpp"
-#include <mutex>
-#include <iostream>
-#include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
-#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../errors/TypeException.hpp"
-#include "../errors/UndefinedException.hpp"
-#include "../exception/ReturnException.hpp"
-#include "../environment/manager/Scope.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
-#include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
@@ -42,9 +30,6 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../parser/TypeParser.hpp"
-#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "ExpressionEvaluator.hpp"
-#include "StatementEvaluator.hpp"
 
 namespace evaluator
 {
@@ -205,7 +190,7 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            return accessMember(instance, node->getMemberName());
+            return accessMember(instance, node->getMemberName(), node->getLocation());
         }
         else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
         {
@@ -227,9 +212,10 @@ namespace evaluator
     }
 
     Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object,
-                                        const std::string& memberName)
+                                        const std::string& memberName,
+                                        const SourceLocation& location)
     {
-        return instanceOperationHandler->accessMember(object, memberName);
+        return instanceOperationHandler->accessMember(object, memberName, location);
     }
 
     Value ObjectEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
@@ -248,7 +234,7 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            assignMember(instance, node->getMemberName(), newValue);
+            assignMember(instance, node->getMemberName(), newValue, node->getLocation());
             return newValue;
         }
         else
@@ -265,9 +251,10 @@ namespace evaluator
 
     void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object,
                                        const std::string& memberName,
-                                       const Value& value)
+                                       const Value& value,
+                                       const SourceLocation& location)
     {
-        instanceOperationHandler->assignMember(object, memberName, value);
+        instanceOperationHandler->assignMember(object, memberName, value, location);
     }
 
     Value ObjectEvaluator::evaluateMethodCallNode(MethodCallNode* node)

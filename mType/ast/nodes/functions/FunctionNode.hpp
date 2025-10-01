@@ -3,6 +3,7 @@
 #include "../../GenericTypeParameter.hpp"
 #include "../../GenericType.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../../../value/ParameterType.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -50,6 +51,9 @@ namespace ast::nodes::functions
         // Legacy getters for backward compatibility
         ValueType getReturnType() const;
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
+
+        // NEW: Get parameters as ParameterType (preserves class/interface information)
+        std::vector<std::pair<std::string, ParameterType>> getParameterTypes() const;
 
         // Safe getter - returns shared_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;

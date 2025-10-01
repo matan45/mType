@@ -86,6 +86,27 @@ namespace ast::nodes::functions
         return legacyParams;
     }
 
+    std::vector<std::pair<std::string, ParameterType>> FunctionNode::getParameterTypes() const
+    {
+        std::vector<std::pair<std::string, ParameterType>> result;
+
+        for (const auto& param : parameters) {
+            if (param.second->isGenericParameter()) {
+                // Generic parameter - treat as plain object type
+                result.emplace_back(param.first, ParameterType(ValueType::OBJECT));
+            } else if (param.second->getConcreteType() == ValueType::OBJECT) {
+                // Object type (class or interface) - store as class type
+                // The validation logic will check both class and interface registries
+                result.emplace_back(param.first, ParameterType::forClass(param.second->getBaseTypeName()));
+            } else {
+                // Basic type (int, string, bool, etc.)
+                result.emplace_back(param.first, ParameterType(param.second->getConcreteType()));
+            }
+        }
+
+        return result;
+    }
+
     std::shared_ptr<ASTNode> FunctionNode::getBody() const
     {
         return body;

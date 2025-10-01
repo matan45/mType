@@ -58,7 +58,8 @@ namespace parser::statement
         validateFunctionName(funcName);
         tokenStream.advance();
 
-        auto parameters = parseParameterList();
+        // Use generic-aware parameter parsing to preserve class/interface names
+        auto genericParameters = ParserUtils::parseGenericParameterList(tokenStream, true);
 
         expectToken(TokenType::COLON, getParserName());
 
@@ -75,14 +76,6 @@ namespace parser::statement
         else
         {
             body = context.parseStatement(); // Should be a block
-        }
-
-        // Convert parameters to generic format for consistency
-        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
-        for (const auto& [name, valueType] : parameters)
-        {
-            auto genericType = std::make_shared<ast::GenericType>(valueType);
-            genericParameters.emplace_back(name, genericType);
         }
 
         // Use new generic-aware constructor

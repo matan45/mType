@@ -2,7 +2,7 @@
 #include <exception>
 #include "../value/ValueType.hpp"
 
-namespace exception
+namespace errors
 {
     using namespace value;
     // Return exception for early function returns

@@ -10,7 +10,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
-#include "../../exception/ReturnException.hpp"
+#include "../../errors/ReturnException.hpp"
 
 using namespace errors;
 
@@ -57,7 +57,8 @@ namespace objects {
     }
 
     Value InstanceOperationHandler::accessMember(std::shared_ptr<ObjectInstance> object,
-                                                 const std::string& memberName)
+                                                 const std::string& memberName,
+                                                 const SourceLocation& location)
     {
         if (!object)
         {
@@ -72,7 +73,7 @@ namespace objects {
             {
                 throw TypeException("Cannot access instance field '" + memberName +
                                     "' from static method context",
-                                    SourceLocation()); // TODO: Pass proper location if available
+                                    location);
             }
         }
 
@@ -82,7 +83,8 @@ namespace objects {
 
     void InstanceOperationHandler::assignMember(std::shared_ptr<ObjectInstance> object,
                                                 const std::string& memberName,
-                                                const Value& value)
+                                                const Value& value,
+                                                const SourceLocation& location)
     {
         if (!object)
         {
@@ -97,7 +99,7 @@ namespace objects {
             {
                 throw TypeException("Cannot assign to instance field '" + memberName +
                                     "' from static method context",
-                                    SourceLocation()); // TODO: Pass proper location if available
+                                    location);
             }
         }
 
@@ -228,7 +230,7 @@ namespace objects {
             {
                 throw TypeException("Cannot call instance method '" + methodName +
                                     "' on 'this' from static method context",
-                                    SourceLocation()); // TODO: Pass proper location if available
+                                    location);
             }
             // Allow calls on other objects (local variables, parameters, newly created objects)
         }
@@ -312,7 +314,7 @@ namespace objects {
 
                 return result;
             }
-            catch (const exception::ReturnException& e)
+            catch (const ReturnException& e)
             {
                 // Handle return exception - extract return value
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context

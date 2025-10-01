@@ -11,7 +11,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
-#include "../exception/ReturnException.hpp"
+#include "../errors/ReturnException.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
@@ -103,7 +103,7 @@ namespace services
                 // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
             }
         }
-        catch (const errors::ParseException&)
+        catch (const ParseException&)
         {
             std::cerr << "Error" << std::endl;
             throw; // Re-throw to be caught by main()
@@ -469,7 +469,7 @@ namespace services
                         result = apiEvaluator->getReturnValue();
                     }
                 }
-                catch (const exception::ReturnException& returnEx)
+                catch (const ReturnException& returnEx)
                 {
                     // Handle explicit return statements - this is the normal case for static methods with return values
                     result = returnEx.returnValue;
