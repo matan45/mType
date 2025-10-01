@@ -17,6 +17,8 @@ namespace expressions {
     class BinaryOperationEvaluator;
     class CallHandler;
     class ArrayHandler;
+    class UnaryOperationHandler;
+    class AccessHandler;
 }
 }
 
@@ -55,6 +57,8 @@ namespace evaluator
         std::unique_ptr<expressions::BinaryOperationEvaluator> binaryOpEvaluator;
         std::unique_ptr<expressions::CallHandler> callHandler;
         std::unique_ptr<expressions::ArrayHandler> arrayHandler;
+        std::unique_ptr<expressions::UnaryOperationHandler> unaryOpHandler;
+        std::unique_ptr<expressions::AccessHandler> accessHandler;
 
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;

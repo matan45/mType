@@ -3,6 +3,8 @@
 #include "expressions/BinaryOperationEvaluator.hpp"
 #include "expressions/CallHandler.hpp"
 #include "expressions/ArrayHandler.hpp"
+#include "expressions/UnaryOperationHandler.hpp"
+#include "expressions/AccessHandler.hpp"
 #include "utils/ParameterBinder.hpp"
 #include "utils/ObjectHelper.hpp"
 #include "validation/TypeValidator.hpp"
@@ -54,17 +56,21 @@ namespace evaluator
 
     ExpressionEvaluator::ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx)
         : context(ctx)
-        , literalEvaluator(std::make_unique<expressions::LiteralEvaluator>(ctx))
-        , binaryOpEvaluator(std::make_unique<expressions::BinaryOperationEvaluator>(ctx))
-        , callHandler(std::make_unique<expressions::CallHandler>(ctx))
-        , arrayHandler(std::make_unique<expressions::ArrayHandler>(ctx))
-        , stmtEvaluator(nullptr)
-        , objEvaluator(nullptr)
+          , literalEvaluator(std::make_unique<expressions::LiteralEvaluator>(ctx))
+          , binaryOpEvaluator(std::make_unique<expressions::BinaryOperationEvaluator>(ctx))
+          , callHandler(std::make_unique<expressions::CallHandler>(ctx))
+          , arrayHandler(std::make_unique<expressions::ArrayHandler>(ctx))
+          , unaryOpHandler(std::make_unique<expressions::UnaryOperationHandler>(ctx))
+          , accessHandler(std::make_unique<expressions::AccessHandler>(ctx))
+          , stmtEvaluator(nullptr)
+          , objEvaluator(nullptr)
     {
         // Set back-references
         binaryOpEvaluator->setExpressionEvaluator(this);
         callHandler->setExpressionEvaluator(this);
         arrayHandler->setExpressionEvaluator(this);
+        unaryOpHandler->setExpressionEvaluator(this);
+        accessHandler->setExpressionEvaluator(this);
     }
 
     // Destructor must be defined in .cpp where complete types are available
@@ -236,12 +242,15 @@ namespace evaluator
     {
         stmtEvaluator = evaluator;
         callHandler->setStatementEvaluator(evaluator);
+        accessHandler->setStatementEvaluator(evaluator);
     }
 
     void ExpressionEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
     {
         objEvaluator = evaluator;
         callHandler->setObjectEvaluator(evaluator);
+        unaryOpHandler->setObjectEvaluator(evaluator);
+        accessHandler->setObjectEvaluator(evaluator);
     }
 
     bool ExpressionEvaluator::isExpressionNode(ASTNode* node) const
@@ -294,148 +303,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateVariableNode(VariableNode* node)
     {
-        // Handle 'this' keyword specifically
-        if (node->getName() == "this")
-        {
-            // VALIDATION: Prevent 'this' access from static methods
-            if (context->isInStaticMethodContext())
-            {
-                throw TypeException("Cannot use 'this' in static method context", node->getLocation());
-            }
-
-            auto currentInstance = context->getCurrentInstance();
-            if (currentInstance)
-            {
-                return currentInstance;
-            }
-            throw UndefinedException("'this' is not available outside of instance methods", node->getLocation());
-        }
-
-        std::string varName = node->getName();
-
-        // Check if this is a qualified static field access (contains ::)
-        if (varName.find("::") != std::string::npos)
-        {
-            // Parse the qualified name into parts
-            std::vector<std::string> parts;
-            size_t start = 0;
-            size_t pos = varName.find("::");
-
-            while (pos != std::string::npos)
-            {
-                parts.push_back(varName.substr(start, pos - start));
-                start = pos + 2; // Skip "::"
-                pos = varName.find("::", start);
-            }
-            parts.push_back(varName.substr(start));
-
-            // Handle qualified static field access: ClassName::fieldName
-            if (parts.size() == 2)
-            {
-                std::string className = parts[0];
-                std::string fieldName = parts[1];
-                // Delegate static member access to object evaluator
-                if (objEvaluator)
-                {
-                    return objEvaluator->accessStaticMember(className, fieldName);
-                }
-                else
-                {
-                    throw UndefinedException("Object evaluator not available for static member access",
-                                             node->getLocation());
-                }
-            }
-            else
-            {
-                throw UndefinedException("Complex qualified variable access not supported: '" + varName + "'",
-                                         node->getLocation());
-            }
-        }
-
-        auto env = context->getEnvironment();
-
-        // Check variables first (parameters, local variables, etc.)
-        auto varDef = env->findVariable(varName);
-        if (varDef)
-        {
-            return varDef->getValue();
-        }
-
-        // Check instance fields if no variable found
-        auto currentInstance = context->getCurrentInstance();
-        if (currentInstance)
-        {
-            // VALIDATION: Prevent instance member access from static methods
-            if (context->isInStaticMethodContext())
-            {
-                auto field = currentInstance->getField(varName);
-                if (field && !field->isStatic())
-                {
-                    throw TypeException("Cannot access instance field '" + varName +
-                                        "' from static method context", node->getLocation());
-                }
-            }
-
-            auto field = currentInstance->getField(varName);
-            if (field)
-            {
-                return currentInstance->getFieldValue(varName);
-            }
-        }
-
-        // Check if this might be a static field access
-        // First check if we're in a static method by looking for the current class name
-        auto classRegistry = env->getClassRegistry();
-
-        // Check if we have a current class name stored (from static method execution)
-        auto currentClassVar = env->findVariable("__current_class_name__");
-        if (currentClassVar)
-        {
-            auto currentClassValue = currentClassVar->getValue();
-            if (std::holds_alternative<std::string>(currentClassValue))
-            {
-                std::string className = std::get<std::string>(currentClassValue);
-                auto classDef = env->findClass(className);
-                if (classDef)
-                {
-                    auto field = classDef->getField(varName);
-                    if (field && field->isStatic())
-                    {
-                        return field->getValue();
-                    }
-                }
-            }
-        }
-
-        // Fallback: search all classes (for backward compatibility)
-        auto allClassNames = classRegistry->getAllItemNames();
-        std::string currentClassName;
-        if (currentClassVar)
-        {
-            auto currentClassValue = currentClassVar->getValue();
-            if (std::holds_alternative<std::string>(currentClassValue))
-            {
-                currentClassName = std::get<std::string>(currentClassValue);
-            }
-        }
-
-        for (const auto& className : allClassNames)
-        {
-            // Skip if we already checked this class above
-            if (!currentClassName.empty() && className == currentClassName) continue;
-
-            auto classDef = classRegistry->findClass(className);
-            if (classDef)
-            {
-                auto field = classDef->getField(varName);
-                if (field && field->isStatic())
-                {
-                    return field->getValue();
-                }
-            }
-        }
-
-        throw UndefinedException("Undefined variable: " + varName, node->getLocation());
+        return accessHandler->evaluateVariableAccess(node);
     }
 
     Value ExpressionEvaluator::evaluateBinaryExpNode(BinaryExpNode* node)
@@ -503,134 +371,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateUnaryExpNode(UnaryExpNode* node)
     {
-        TokenType op = node->getOperator();
-
-        // Handle increment and decrement operators (support variables and member access)
-        if (op == TokenType::INCREMENT || op == TokenType::DECREMENT)
-        {
-            Value currentValue;
-            bool isVariable = false;
-            bool isMemberAccess = false;
-            VariableNode* varNode = nullptr;
-            MemberAccessNode* memberNode = nullptr;
-
-            // Check if operand is a simple variable
-            varNode = dynamic_cast<VariableNode*>(node->getOperand());
-            if (varNode)
-            {
-                isVariable = true;
-                auto env = context->getEnvironment();
-                auto varDef = env->findVariable(varNode->getName());
-                if (!varDef)
-                {
-                    throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
-                }
-                currentValue = varDef->getValue();
-            }
-            else
-            {
-                // Check if operand is member access (this.field, obj.field)
-                memberNode = dynamic_cast<MemberAccessNode*>(node->getOperand());
-                if (memberNode)
-                {
-                    isMemberAccess = true;
-                    // Get current value using member access evaluation
-                    currentValue = objEvaluator->evaluateMemberAccessNode(memberNode);
-                }
-                else
-                {
-                    throw TypeException(
-                        "Increment/decrement operators can only be applied to variables or member access",
-                        node->getLocation());
-                }
-            }
-
-            // Check if it's a numeric type
-            if (!std::holds_alternative<int>(currentValue) && !std::holds_alternative<float>(currentValue))
-            {
-                throw TypeException("Increment/decrement operators can only be applied to numeric values",
-                                    node->getLocation());
-            }
-
-            Value newValue;
-            Value returnValue;
-
-            // Calculate new value based on operator
-            if (std::holds_alternative<int>(currentValue))
-            {
-                int intVal = std::get<int>(currentValue);
-                int newIntVal = (op == TokenType::INCREMENT) ? intVal + 1 : intVal - 1;
-                newValue = newIntVal;
-
-                // For postfix, return original value; for prefix, return new value
-                returnValue = node->isPostfix() ? intVal : newIntVal;
-            }
-            else
-            {
-                float floatVal = std::get<float>(currentValue);
-                float newFloatVal = (op == TokenType::INCREMENT) ? floatVal + 1.0f : floatVal - 1.0f;
-                newValue = newFloatVal;
-
-                // For postfix, return original value; for prefix, return new value
-                returnValue = node->isPostfix() ? floatVal : newFloatVal;
-            }
-
-            // Update the variable or member
-            if (isVariable)
-            {
-                auto env = context->getEnvironment();
-                auto varDef = env->findVariable(varNode->getName());
-                varDef->setValue(newValue);
-            }
-            else if (isMemberAccess)
-            {
-                // For member access, we need to get the object and set the member value
-                Value objectValue = evaluate(memberNode->getObject());
-
-                if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
-                {
-                    auto objectInstance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-                    objEvaluator->assignMember(objectInstance, memberNode->getMemberName(), newValue);
-                }
-                else
-                {
-                    throw TypeException("Cannot perform increment/decrement on non-object member access",
-                                        node->getLocation());
-                }
-            }
-
-            return returnValue;
-        }
-
-        // Handle other unary operators (evaluate operand first)
-        Value operand = evaluate(node->getOperand());
-
-        switch (op)
-        {
-        case TokenType::MINUS:
-            if (std::holds_alternative<int>(operand))
-            {
-                return -std::get<int>(operand);
-            }
-            if (std::holds_alternative<float>(operand))
-            {
-                return -std::get<float>(operand);
-            }
-            throw TypeException("Cannot apply unary minus to non-numeric value", node->getLocation());
-
-        case TokenType::PLUS:
-            if (std::holds_alternative<int>(operand) || std::holds_alternative<float>(operand))
-            {
-                return operand; // Unary plus returns the value as-is
-            }
-            throw TypeException("Cannot apply unary plus to non-numeric value", node->getLocation());
-
-        case TokenType::NOT:
-            return !isTruthy(operand);
-
-        default:
-            throw TypeException("Unknown unary operator", node->getLocation());
-        }
+        return unaryOpHandler->evaluateUnaryOperation(node);
     }
 
     Value ExpressionEvaluator::evaluateFunctionCallNode(FunctionCallNode* node)
@@ -640,76 +381,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)
     {
-        Value objectValue = evaluate(node->getObject());
-
-        // Check if object is null
-        if (std::holds_alternative<nullptr_t>(objectValue))
-        {
-            throw TypeException("Cannot access member of null object", node->getLocation());
-        }
-
-        // Handle object instances
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
-        {
-            auto object = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-            auto field = object->getField(node->getMemberName());
-
-            if (!field)
-            {
-                throw UndefinedException("Undefined field: " + node->getMemberName(), node->getLocation());
-            }
-
-            return object->getFieldValue(node->getMemberName());
-        }
-
-        // Handle native arrays
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
-        {
-            auto array = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
-            if (node->getMemberName() == "length")
-            {
-                return static_cast<int>(array->size());
-            }
-            else
-            {
-                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
-                                         node->getLocation());
-            }
-        }
-
-        // Handle FlatMultiArray (multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue))
-        {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
-            if (node->getMemberName() == "length")
-            {
-                // For multi-dimensional arrays, return the first dimension size (like in Java/C#)
-                return static_cast<int>(flatArray->size());
-            }
-            else
-            {
-                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
-                                         node->getLocation());
-            }
-        }
-
-        // Handle SparseMultiArray (adaptive sparse arrays)
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue))
-        {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
-            if (node->getMemberName() == "length")
-            {
-                // For sparse multi-dimensional arrays, return the first dimension size
-                return static_cast<int>(sparseArray->size());
-            }
-            else
-            {
-                throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
-                                         node->getLocation());
-            }
-        }
-
-        throw TypeException("Cannot access member of non-object value", node->getLocation());
+        return accessHandler->evaluateMemberAccess(node);
     }
 
     Value ExpressionEvaluator::evaluateMethodCallNode(MethodCallNode* node)
@@ -719,15 +391,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateNewNode(NewNode* node)
     {
-        // Delegate to ObjectEvaluator
-        if (objEvaluator)
-        {
-            return objEvaluator->evaluate(node);
-        }
-        else
-        {
-            throw UndefinedException("Object evaluator not available for object creation", node->getLocation());
-        }
+        return accessHandler->evaluateObjectCreation(node);
     }
 
     // Delegate binary operations to BinaryOperationEvaluator
@@ -753,14 +417,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateAssignmentExpression(AssignmentNode* node)
     {
-        // Delegate assignment to the statement evaluator since it handles the actual assignment logic
-        if (!stmtEvaluator)
-        {
-            throw TypeException("Statement evaluator not available for assignment expression");
-        }
-
-        // The statement evaluator's evaluateAssignmentNode already returns the assigned value
-        return stmtEvaluator->evaluate(node);
+        return accessHandler->evaluateAssignment(node);
     }
 
 
@@ -801,7 +458,6 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateLambdaNode(LambdaNode* node)
     {
-
         // Create a LambdaValue with the current evaluation context
         // The LambdaValue will capture the current environment for closure support
         auto lambdaValue = std::make_shared<value::LambdaValue>(node, context);

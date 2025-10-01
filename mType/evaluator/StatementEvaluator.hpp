@@ -11,6 +11,7 @@
 namespace evaluator {
 namespace statements {
     class LoopEvaluator;
+    class DeclarationHandler;
 }
 }
 
@@ -39,6 +40,7 @@ namespace evaluator
 
         // Specialized statement handlers
         std::unique_ptr<statements::LoopEvaluator> loopEvaluator;
+        std::unique_ptr<statements::DeclarationHandler> declarationHandler;
 
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
