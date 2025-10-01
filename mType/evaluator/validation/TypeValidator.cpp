@@ -7,6 +7,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include <variant>
+#include <unordered_map>
 
 namespace evaluator {
 namespace validation {
@@ -163,14 +164,17 @@ namespace validation {
             {
                 std::string actualClassName = objInstance->getClassDefinition()->getName();
 
+                // Resolve generic type parameters in expected class name
+                std::string resolvedExpectedClassName = resolveGenericClassName(expectedClassName, context);
+
                 // Check if the actual class matches the expected class
-                if (!isGenericTypeCompatible(actualClassName, expectedClassName))
+                if (!isGenericTypeCompatible(actualClassName, resolvedExpectedClassName))
                 {
                     // Check if expectedClassName is an interface that the actual class implements
                     auto classDefinition = objInstance->getClassDefinition();
 
                     // Extract base interface name from generic type
-                    std::string baseExpectedName = extractBaseClassName(expectedClassName);
+                    std::string baseExpectedName = extractBaseClassName(resolvedExpectedClassName);
 
                     // Get the interface registry from the environment
                     if (context)
@@ -181,7 +185,7 @@ namespace validation {
                         {
                             throw TypeException(
                                 "Object type mismatch for variable '" + variableName + "': expected " +
-                                expectedClassName + " but got " + actualClassName,
+                                resolvedExpectedClassName + " but got " + actualClassName,
                                 location);
                         }
                     }
@@ -282,33 +286,58 @@ namespace validation {
         const std::string& className,
         std::shared_ptr<EvaluationContext> context)
     {
-        // Try to resolve type parameters from current object context
-        std::string resolvedClassName = className;
+        // First, try to resolve from context's generic type bindings (for generic methods/functions)
+        const auto& contextBindings = context->getGenericTypeBindings();
+
+        // Then, try to resolve from current instance's bindings (for generic classes)
+        std::unordered_map<std::string, std::string> typeBindings = contextBindings;
+
         auto currentInstance = context->getCurrentInstance();
-
-        if (currentInstance && className.find('<') != std::string::npos && className.find('T') != std::string::npos)
+        if (currentInstance)
         {
-            auto instanceClassDef = currentInstance->getClassDefinition();
-            if (instanceClassDef)
+            const auto& instanceBindings = currentInstance->getGenericTypeBindings();
+            // Merge instance bindings into type bindings (context bindings take precedence)
+            for (const auto& [key, value] : instanceBindings)
             {
-                std::string instanceClassName = instanceClassDef->getName();
-
-                if (GenericTypeManager::isGenericInstantiation(instanceClassName))
+                if (typeBindings.find(key) == typeBindings.end())
                 {
-                    auto [baseName, typeArguments] = GenericTypeManager::parseGenericInstantiation(instanceClassName);
+                    typeBindings[key] = value;
+                }
+            }
+        }
 
-                    // Replace type parameters in className
-                    resolvedClassName = className;
-                    if (className.find("T") != std::string::npos && !typeArguments.empty())
-                    {
-                        // Simple T replacement
-                        size_t pos = resolvedClassName.find("T");
-                        while (pos != std::string::npos)
-                        {
-                            resolvedClassName.replace(pos, 1, typeArguments[0]);
-                            pos = resolvedClassName.find("T", pos + typeArguments[0].length());
-                        }
-                    }
+        if (typeBindings.empty())
+        {
+            return className;
+        }
+
+        // Check if className is a simple type parameter (e.g., "T", "K", "V")
+        auto it = typeBindings.find(className);
+        if (it != typeBindings.end())
+        {
+            return it->second;
+        }
+
+        // Handle complex types with type parameters (e.g., "List<T>", "Map<K,V>")
+        std::string resolvedClassName = className;
+        for (const auto& [param, actualType] : typeBindings)
+        {
+            size_t pos = 0;
+            while ((pos = resolvedClassName.find(param, pos)) != std::string::npos)
+            {
+                // Check if this is a standalone type parameter (not part of another word)
+                bool isStandalone = (pos == 0 || !isalnum(resolvedClassName[pos-1])) &&
+                                  (pos + param.length() >= resolvedClassName.length() ||
+                                   !isalnum(resolvedClassName[pos + param.length()]));
+
+                if (isStandalone)
+                {
+                    resolvedClassName.replace(pos, param.length(), actualType);
+                    pos += actualType.length();
+                }
+                else
+                {
+                    pos++;
                 }
             }
         }

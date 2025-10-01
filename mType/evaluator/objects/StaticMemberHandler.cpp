@@ -10,6 +10,7 @@
 #include "../../exception/ReturnException.hpp"
 #include <mutex>
 #include <unordered_map>
+#include <iostream>
 
 using namespace errors;
 
@@ -297,6 +298,24 @@ namespace objects {
                 auto previousMethod = context->getCurrentMethod();
                 context->setCurrentMethod(methodToCall);
 
+                // Set generic type bindings for the method execution
+                // Map generic type parameters (T, U, V) to their concrete types (String, Int, etc.)
+                auto previousGenericBindings = context->getGenericTypeBindings();
+                if (!genericTypeArguments.empty() && methodToCall->hasGenericInformation())
+                {
+                    // Use getGenericTypeParameters() to get the <T, U, V> declarations, not function parameters
+                    const auto& genericTypeParams = methodToCall->getGenericTypeParameters();
+                    std::unordered_map<std::string, std::string> methodTypeBindings;
+
+                    for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArguments.size(); ++i)
+                    {
+                        // genericTypeParams is a vector of GenericTypeParameter objects
+                        methodTypeBindings[genericTypeParams[i].name] = genericTypeArguments[i];
+                    }
+
+                    context->setGenericTypeBindings(methodTypeBindings);
+                }
+
                 try
                 {
                     // Execute method body (no instance context for static methods)
@@ -316,6 +335,7 @@ namespace objects {
                     // Restore previous static method state
                     context->setInStaticMethod(previousStaticState);
                     context->setCurrentMethod(previousMethod);
+                    context->setGenericTypeBindings(previousGenericBindings);
                     return result;
                 }
                 catch (const exception::ReturnException& e)
@@ -323,6 +343,7 @@ namespace objects {
                     // Handle return exception - extract return value
                     context->setInStaticMethod(previousStaticState);
                     context->setCurrentMethod(previousMethod);
+                    context->setGenericTypeBindings(previousGenericBindings);
                     context->setReturned(false);
                     return e.returnValue;
                 }
@@ -331,6 +352,7 @@ namespace objects {
                     // Ensure we restore state even if exception occurs
                     context->setInStaticMethod(previousStaticState);
                     context->setCurrentMethod(previousMethod);
+                    context->setGenericTypeBindings(previousGenericBindings);
                     throw;
                 }
             }

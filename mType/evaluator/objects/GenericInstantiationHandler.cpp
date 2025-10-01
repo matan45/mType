@@ -10,6 +10,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../environment/manager/Scope.hpp"
+#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::klass;
@@ -144,7 +145,35 @@ namespace objects {
                 // Map each generic parameter to its concrete type
                 for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
                 {
-                    genericTypeBindings[genericParams[i].name] = typeArguments[i];
+                    // Resolve the type argument in case it's itself a type parameter
+                    // For example, if we're in a generic method<T> and create new HashSet<T>(),
+                    // we need to resolve T to its actual type (e.g., String)
+                    std::string resolvedTypeArg = typeArguments[i];
+
+                    // Try to resolve from context's type bindings (for generic methods)
+                    const auto& contextBindings = context->getGenericTypeBindings();
+
+                    auto it = contextBindings.find(typeArguments[i]);
+                    if (it != contextBindings.end())
+                    {
+                        resolvedTypeArg = it->second;
+                    }
+                    else
+                    {
+                        // Try to resolve from current instance's type bindings (for generic classes)
+                        auto currentInstance = context->getCurrentInstance();
+                        if (currentInstance)
+                        {
+                            const auto& instanceBindings = currentInstance->getGenericTypeBindings();
+                            auto instIt = instanceBindings.find(typeArguments[i]);
+                            if (instIt != instanceBindings.end())
+                            {
+                                resolvedTypeArg = instIt->second;
+                            }
+                        }
+                    }
+
+                    genericTypeBindings[genericParams[i].name] = resolvedTypeArg;
                 }
 
                 // Use the template class definition for creating the instance
