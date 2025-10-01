@@ -5,7 +5,7 @@
 #include "../../ast/nodes/statements/ForNode.hpp"
 #include "../../ast/nodes/statements/ForEachNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement

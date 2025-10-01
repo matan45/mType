@@ -1,5 +1,5 @@
 #include "GenericType.hpp"
-#include "../exceptions/DomainExceptions.hpp"
+#include "../errors/TypeException.hpp"
 #include <stdexcept>
 #include <sstream>
 #include <unordered_map>
@@ -10,8 +10,8 @@ namespace ast
     value::ValueType GenericType::getConcreteType() const
     {
         if (isGenericParameter()) {
-            throw mtype::exceptions::TypeException("Cannot get concrete type from generic parameter",
-                                                  std::get<std::string>(baseType), __FUNCTION__);
+            throw errors::TypeException("Cannot get concrete type from generic parameter: " +
+                                       std::get<std::string>(baseType));
         }
         return std::get<value::ValueType>(baseType);
     }
@@ -19,8 +19,7 @@ namespace ast
     std::string GenericType::getGenericName() const
     {
         if (!isGenericParameter()) {
-            throw mtype::exceptions::TypeException("Cannot get generic name from concrete type",
-                                                  "", __FUNCTION__);
+            throw errors::TypeException("Cannot get generic name from concrete type");
         }
         return std::get<std::string>(baseType);
     }

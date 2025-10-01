@@ -1,6 +1,7 @@
 #include "ArrayCreationNode.hpp"
 #include <stdexcept>
-#include "../../../exceptions/DomainExceptions.hpp"
+#include "../../../errors/TypeException.hpp"
+#include "../../../errors/ArrayCreationException.hpp"
 
 namespace ast::nodes::expressions
 {
@@ -42,7 +43,7 @@ namespace ast::nodes::expressions
     const std::unique_ptr<ASTNode>& ArrayCreationNode::getSizeExpression() const
     {
         if (sizeExpressions.empty()) {
-            throw mtype::exceptions::ArrayCreationException("ArrayCreationNode has no size expressions");
+            throw errors::ArrayCreationException("ArrayCreationNode has no size expressions");
         }
         return sizeExpressions[0];
     }

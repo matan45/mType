@@ -3,7 +3,7 @@
 #include "../ParserUtils.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement

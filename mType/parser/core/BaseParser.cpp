@@ -1,5 +1,4 @@
 #include "BaseParser.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::core

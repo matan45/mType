@@ -93,19 +93,20 @@ namespace ast::nodes::functions
         for (const auto& param : parameters) {
             if (param.second->isGenericParameter()) {
                 // Check if it's a real generic parameter (single letter like T, K, V)
-                // or a class/interface name (like Vehicle, Animal)
+                // or a class/interface name (like Vehicle, Animal, GenericContainer<Int>)
                 std::string typeName = param.second->getGenericName();
                 if (typeName.length() == 1 && std::isupper(typeName[0])) {
                     // Real generic parameter - treat as plain object type
                     result.emplace_back(param.first, ParameterType(ValueType::OBJECT));
                 } else {
-                    // Class or interface name - store as class type
-                    result.emplace_back(param.first, ParameterType::forClass(typeName));
+                    // Class or interface name - store as class type with full type info
+                    // Use toString() to preserve generic type arguments like GenericContainer<Int>
+                    result.emplace_back(param.first, ParameterType::forClass(param.second->toString()));
                 }
             } else if (param.second->getConcreteType() == ValueType::OBJECT) {
-                // Object type (class or interface) - store as class type
-                // The validation logic will check both class and interface registries
-                result.emplace_back(param.first, ParameterType::forClass(param.second->getBaseTypeName()));
+                // Object type (class or interface) - store as class type with full type info
+                // Use toString() to preserve generic type arguments
+                result.emplace_back(param.first, ParameterType::forClass(param.second->toString()));
             } else {
                 // Basic type (int, string, bool, etc.)
                 result.emplace_back(param.first, ParameterType(param.second->getConcreteType()));

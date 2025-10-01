@@ -1,7 +1,7 @@
 #include "UnaryOperatorParser.hpp"
 #include "../ExpressionParser.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression

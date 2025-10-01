@@ -12,7 +12,7 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/RuntimeException.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include <sstream>

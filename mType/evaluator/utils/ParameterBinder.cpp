@@ -213,9 +213,26 @@ namespace evaluator::utils
                 return false;
             }
 
-            // Check exact class match or inheritance
-            return classDefinition->getName() == expectedClassName ||
-                   classDefinition->isSubclassOf(expectedClassName);
+            // Extract base class name from expected type (strip generic arguments like <Int>)
+            // GenericContainer<Int> -> GenericContainer
+            std::string baseExpectedClassName = expectedClassName;
+            size_t anglePos = expectedClassName.find('<');
+            if (anglePos != std::string::npos) {
+                baseExpectedClassName = expectedClassName.substr(0, anglePos);
+            }
+
+            // Extract base class name from actual type as well
+            std::string actualClassName = classDefinition->getName();
+            std::string baseActualClassName = actualClassName;
+            size_t actualAnglePos = actualClassName.find('<');
+            if (actualAnglePos != std::string::npos) {
+                baseActualClassName = actualClassName.substr(0, actualAnglePos);
+            }
+
+            // Check exact class match or inheritance using base class names
+            // At runtime, GenericContainer<Int> and GenericContainer<String> both match GenericContainer
+            return baseActualClassName == baseExpectedClassName ||
+                   classDefinition->isSubclassOf(baseExpectedClassName);
         }
 
         return false;

@@ -7,7 +7,7 @@
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression

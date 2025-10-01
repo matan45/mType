@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <memory>
 #include <chrono>
-#include "DomainExceptions.hpp"
+#include <stdexcept>
 
 namespace mtype::exceptions
 {
@@ -20,6 +20,35 @@ namespace mtype::exceptions
         INTERFACE_INHERITANCE,
         CLASS_INHERITANCE,
         METHOD_OVERLOAD
+    };
+
+    /**
+     * @brief Base exception for circular dependency errors
+     */
+    class CircularDependencyException : public std::runtime_error
+    {
+    protected:
+        std::vector<std::string> dependencyChain_;
+        std::string location_;
+
+    public:
+        CircularDependencyException(const std::string& message,
+                                  const std::vector<std::string>& chain = {},
+                                  const std::string& location = "")
+            : std::runtime_error(message)
+            , dependencyChain_(chain)
+            , location_(location) {}
+
+        const std::vector<std::string>& getDependencyChain() const { return dependencyChain_; }
+        const std::string& getLocation() const { return location_; }
+
+        virtual std::string getDetailedMessage() const {
+            std::string detailed = what();
+            if (!location_.empty()) {
+                detailed += " at " + location_;
+            }
+            return detailed;
+        }
     };
 
     /**

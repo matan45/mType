@@ -1,5 +1,5 @@
 #include "ArgumentParser.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression

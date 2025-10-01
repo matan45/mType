@@ -6,7 +6,7 @@
 #include "../../ast/nodes/statements/BreakNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
+#include "../../errors/ParseException.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
