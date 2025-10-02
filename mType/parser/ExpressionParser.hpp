@@ -9,6 +9,7 @@
 #include "expression/PostfixOperatorParser.hpp"
 #include "expression/LiteralParser.hpp"
 #include "expression/ArgumentParser.hpp"
+#include "expression/CastParser.hpp"
 
 namespace parser
 {
@@ -28,6 +29,7 @@ namespace parser
         std::unique_ptr<PostfixOperatorParser> postfixOpParser;
         std::unique_ptr<LiteralParser> literalParser;
         std::unique_ptr<ArgumentParser> argumentParser;
+        std::unique_ptr<CastParser> castParser;
 
     public:
         explicit ExpressionParser(TokenStream& stream, ParseContext& ctx);
@@ -52,6 +54,9 @@ namespace parser
 
         // Generic type argument parsing for static method calls
         std::vector<std::string> parseGenericTypeArguments();
+
+        // Get castParser for isClassOf delegation
+        CastParser* getCastParser() const { return castParser.get(); }
 
     private:
         void initializeHelperParsers();

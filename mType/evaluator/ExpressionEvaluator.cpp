@@ -10,8 +10,11 @@
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
+#include "../ast/nodes/expressions/CastExpression.hpp"
+#include "../ast/nodes/expressions/InstanceOfExpression.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
+#include "../errors/TypeConversionException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -109,6 +112,10 @@ namespace evaluator
         dispatcher.registerMethod<NewNode>(&ExpressionEvaluator::evaluateNewNode);
         dispatcher.registerMethod<SuperConstructorCallNode>(&ExpressionEvaluator::evaluateSuperConstructorCallNode);
         dispatcher.registerMethod<SuperMethodCallNode>(&ExpressionEvaluator::evaluateSuperMethodCallNode);
+
+        // Cast and type checking expressions
+        dispatcher.registerMethod<CastExpression>(&ExpressionEvaluator::evaluateCastExpression);
+        dispatcher.registerMethod<InstanceOfExpression>(&ExpressionEvaluator::evaluateInstanceOfExpression);
 
         // Special case: MemberAssignmentNode delegates to ObjectEvaluator
         dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
@@ -549,5 +556,183 @@ namespace evaluator
         throw UndefinedException(
             "Object evaluator not available for super." + node->getMethodName() + "() call",
             node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateCastExpression(CastExpression* node)
+    {
+        // Evaluate the expression to cast
+        Value sourceValue = evaluate(node->getExpression());
+        auto targetType = node->getTargetType();
+
+        // Get target type information
+        std::string targetTypeName = targetType->toString();
+        ValueType targetValueType = ValueType::VOID;
+
+        // Determine target value type by checking if it's a concrete primitive type
+        bool isPrimitiveTarget = !targetType->isGenericParameter();
+        if (isPrimitiveTarget) {
+            try {
+                targetValueType = targetType->getConcreteType();
+                // Check if this is actually a primitive (not OBJECT, ARRAY, etc.)
+                isPrimitiveTarget = (targetValueType == ValueType::INT ||
+                                      targetValueType == ValueType::FLOAT ||
+                                      targetValueType == ValueType::BOOL ||
+                                      targetValueType == ValueType::STRING);
+                if (!isPrimitiveTarget) {
+                    targetValueType = ValueType::OBJECT;
+                }
+            }
+            catch (...) {
+                // Not a concrete type, treat as object
+                targetValueType = ValueType::OBJECT;
+            }
+        } else {
+            targetValueType = ValueType::OBJECT;
+        }
+
+        // Handle null - null can be cast to any object type but not primitives
+        if (std::holds_alternative<std::monostate>(sourceValue)) {
+            if (targetValueType == ValueType::OBJECT) {
+                return sourceValue; // null remains null
+            }
+            throw TypeConversionException(
+                "Cannot cast null to primitive type " + targetTypeName,
+                "null",
+                targetTypeName,
+                node->getLocation()
+            );
+        }
+
+        ValueType sourceValueType = value::getValueType(sourceValue);
+
+        // Primitive to primitive casting
+        if (sourceValueType != ValueType::OBJECT && targetValueType != ValueType::OBJECT) {
+            return castPrimitive(sourceValue, targetValueType, targetTypeName, node->getLocation());
+        }
+
+        // Object to object casting
+        if (sourceValueType == ValueType::OBJECT && targetValueType == ValueType::OBJECT) {
+            return castObject(sourceValue, targetTypeName, node->getLocation());
+        }
+
+        // Cross-category cast not allowed
+        throw TypeConversionException(
+            "Cannot cast between primitive and object types",
+            ValueConverter::valueTypeToString(sourceValueType),
+            targetTypeName,
+            node->getLocation()
+        );
+    }
+
+    Value ExpressionEvaluator::evaluateInstanceOfExpression(InstanceOfExpression* node)
+    {
+        // Evaluate the expression to check
+        Value value = evaluate(node->getExpression());
+        auto targetType = node->getTargetType();
+        std::string targetTypeName = targetType->toString();
+
+        // null isClassOf anything is false
+        if (std::holds_alternative<std::monostate>(value)) {
+            return false;
+        }
+
+        ValueType valueType = value::getValueType(value);
+
+        // For primitives, check exact type match
+        if (valueType != ValueType::OBJECT) {
+            bool isMatch = false;
+            if (valueType == ValueType::INT && targetTypeName == "int") isMatch = true;
+            else if (valueType == ValueType::FLOAT && targetTypeName == "float") isMatch = true;
+            else if (valueType == ValueType::BOOL && targetTypeName == "bool") isMatch = true;
+            else if (valueType == ValueType::STRING && targetTypeName == "string") isMatch = true;
+
+            return isMatch;
+        }
+
+        // For objects, check inheritance and interfaces
+        auto objInstance = std::get<std::shared_ptr<ObjectInstance>>(value);
+        bool isInstance = isInstanceOfClass(objInstance, targetTypeName);
+
+        return isInstance;
+    }
+
+    Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)
+    {
+        ValueType sourceType = value::getValueType(value);
+
+        // Same type - no conversion needed
+        if (sourceType == targetType) {
+            return value;
+        }
+
+        switch (targetType) {
+        case ValueType::INT:
+            return toInt(value);
+        case ValueType::FLOAT:
+            return toFloat(value);
+        case ValueType::BOOL:
+            return isTruthy(value);
+        case ValueType::STRING: {
+            auto& pool = value::StringPool::getInstance();
+            return pool.intern(toString(value));
+        }
+        default:
+            throw TypeConversionException(
+                "Invalid primitive cast target type",
+                ValueConverter::valueTypeToString(sourceType),
+                targetTypeName,
+                location
+            );
+        }
+    }
+
+    Value ExpressionEvaluator::castObject(const Value& value, const std::string& targetClassName, const SourceLocation& location)
+    {
+        auto objInstance = std::get<std::shared_ptr<ObjectInstance>>(value);
+
+        // Check if cast is valid using isInstanceOf logic
+        if (isInstanceOfClass(objInstance, targetClassName)) {
+            return value; // Cast succeeds, return same object
+        }
+
+        // Cast failed
+        throw TypeConversionException(
+            "Cannot cast object to incompatible type",
+            objInstance->getTypeName(),
+            targetClassName,
+            location
+        );
+    }
+
+    bool ExpressionEvaluator::isInstanceOfClass(std::shared_ptr<ObjectInstance> objInstance, const std::string& targetClassName)
+    {
+        if (!objInstance) {
+            return false;
+        }
+
+        auto classDef = objInstance->getClassDefinition();
+        if (!classDef) {
+            return false;
+        }
+
+        std::string actualClassName = classDef->getName();
+
+        // Exact match
+        if (actualClassName == targetClassName) {
+            return true;
+        }
+
+        // Check inheritance chain (upcast: Child → Parent)
+        if (classDef->isSubclassOf(targetClassName)) {
+            return true;
+        }
+
+        // Check interface implementation
+        auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
+        if (classDef->implementsInterface(targetClassName, interfaceRegistry)) {
+            return true;
+        }
+
+        return false;
     }
 }

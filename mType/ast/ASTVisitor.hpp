@@ -55,5 +55,7 @@ namespace ast
         virtual T visitForEachNode(ForEachNode* node) = 0;
         virtual T visitSuperConstructorCallNode(SuperConstructorCallNode* node) = 0;
         virtual T visitSuperMethodCallNode(SuperMethodCallNode* node) = 0;
+        virtual T visitCastExpression(CastExpression* node) = 0;
+        virtual T visitInstanceOfExpression(InstanceOfExpression* node) = 0;
     };
 }

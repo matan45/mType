@@ -22,6 +22,8 @@ namespace ast
             class MapLiteralNode;
             class IndexAccessNode;
             class LambdaNode;
+            class CastExpression;
+            class InstanceOfExpression;
         }
         
         namespace statements
@@ -115,4 +117,6 @@ namespace ast
     using ForEachNode = nodes::statements::ForEachNode;
     using SuperConstructorCallNode = nodes::classes::SuperConstructorCallNode;
     using SuperMethodCallNode = nodes::classes::SuperMethodCallNode;
+    using CastExpression = nodes::expressions::CastExpression;
+    using InstanceOfExpression = nodes::expressions::InstanceOfExpression;
 }

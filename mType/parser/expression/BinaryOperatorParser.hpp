@@ -34,6 +34,7 @@ namespace parser::expression
         std::unique_ptr<ASTNode> parseLogicalAnd();
         std::unique_ptr<ASTNode> parseEquality();
         std::unique_ptr<ASTNode> parseComparison();
+        std::unique_ptr<ASTNode> parseIsClassOf();
         std::unique_ptr<ASTNode> parseAdditive();
         std::unique_ptr<ASTNode> parseMultiplicative();
 

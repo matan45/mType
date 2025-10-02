@@ -76,9 +76,31 @@ namespace parser::expression
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseComparison()
     {
         return parseBinaryLevel(
-            [this]() { return parseAdditive(); },
+            [this]() { return parseIsClassOf(); },
             {TokenType::LESS, TokenType::LESS_EQUALS, TokenType::GREATER, TokenType::GREATER_EQUALS}
         );
+    }
+
+    std::unique_ptr<ASTNode> BinaryOperatorParser::parseIsClassOf()
+    {
+        auto left = parseAdditive();
+
+        // Check for isClassOf operator
+        while (tokenStream.check(TokenType::ISCLASSOF))
+        {
+            // Delegate to castParser for instanceof handling
+            if (expressionParser)
+            {
+                left = expressionParser->getCastParser()->parseInstanceOfExpression(std::move(left));
+            }
+            else
+            {
+                throw ParseException("ExpressionParser not initialized in BinaryOperatorParser",
+                                   tokenStream.current().location);
+            }
+        }
+
+        return left;
     }
 
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseAdditive()

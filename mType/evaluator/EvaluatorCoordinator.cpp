@@ -330,4 +330,14 @@ namespace evaluator
     {
         return exprEvaluator->evaluateSuperMethodCallNode(node);
     }
+
+    Value EvaluatorCoordinator::visitCastExpression(CastExpression* node)
+    {
+        return exprEvaluator->evaluateCastExpression(node);
+    }
+
+    Value EvaluatorCoordinator::visitInstanceOfExpression(InstanceOfExpression* node)
+    {
+        return exprEvaluator->evaluateInstanceOfExpression(node);
+    }
 }

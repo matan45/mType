@@ -45,6 +45,7 @@ namespace token
         EXTENDS, // extends keyword
         SUPER, // super keyword for parent class access
         ARROW,        // -> for lambda expressions
+        ISCLASSOF, // isClassOf keyword for type checking
         END // End of input
     };
 }

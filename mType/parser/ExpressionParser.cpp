@@ -32,11 +32,13 @@ namespace parser
         postfixOpParser = std::make_unique<PostfixOperatorParser>(tokenStream, context);
         literalParser = std::make_unique<LiteralParser>(tokenStream, context);
         argumentParser = std::make_unique<ArgumentParser>(tokenStream, context);
+        castParser = std::make_unique<CastParser>(tokenStream, context);
 
         // Set ExpressionParser reference in parsers to break circular dependencies
         binaryOpParser->setExpressionParser(*this);
         unaryOpParser->setExpressionParser(*this);
         postfixOpParser->setExpressionParser(*this);
+        castParser->setExpressionParser(*this);
     }
 
     ExpressionParser::ExpressionParser(TokenStream& stream, ParseContext& ctx)

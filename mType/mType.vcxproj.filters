@@ -282,6 +282,9 @@
     <ClInclude Include="ast\nodes\expressions\BoolNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\CastExpression.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
@@ -289,6 +292,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\InstanceOfExpression.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
@@ -676,6 +682,9 @@
       <Filter>parser\expression</Filter>
     </ClInclude>
     <ClInclude Include="parser\expression\BinaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\CastParser.hpp">
       <Filter>parser\expression</Filter>
     </ClInclude>
     <ClInclude Include="parser\expression\LiteralParser.hpp">
@@ -1179,6 +1188,9 @@
       <Filter>parser\expression</Filter>
     </ClCompile>
     <ClCompile Include="parser\expression\BinaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\CastParser.cpp">
       <Filter>parser\expression</Filter>
     </ClCompile>
     <ClCompile Include="parser\expression\LiteralParser.cpp">

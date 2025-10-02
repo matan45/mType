@@ -203,6 +203,16 @@ namespace evaluator
         return coordinator->visitInterfaceNode(node);
     }
 
+    Value Evaluator::visitCastExpression(CastExpression* node)
+    {
+        return coordinator->visitCastExpression(node);
+    }
+
+    Value Evaluator::visitInstanceOfExpression(InstanceOfExpression* node)
+    {
+        return coordinator->visitInstanceOfExpression(node);
+    }
+
     // Helper method implementations - delegate to coordinator
     std::shared_ptr<Environment> Evaluator::getEnvironment() const
     {

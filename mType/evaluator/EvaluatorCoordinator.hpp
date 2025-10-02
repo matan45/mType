@@ -82,6 +82,8 @@ namespace evaluator
         Value visitLambdaNode(LambdaNode* node) override;
         Value visitSuperConstructorCallNode(SuperConstructorCallNode* node) override;
         Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
+        Value visitCastExpression(CastExpression* node) override;
+        Value visitInstanceOfExpression(InstanceOfExpression* node) override;
 
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }

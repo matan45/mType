@@ -107,6 +107,10 @@ namespace evaluator
         Value evaluateSuperConstructorCallNode(SuperConstructorCallNode* node);
         Value evaluateSuperMethodCallNode(SuperMethodCallNode* node);
 
+        // NEW: Cast and type checking expressions
+        Value evaluateCastExpression(CastExpression* node);
+        Value evaluateInstanceOfExpression(InstanceOfExpression* node);
+
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);
@@ -130,5 +134,10 @@ namespace evaluator
 
         // Helper for default values
         Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
+
+        // Cast helper methods
+        Value castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location);
+        Value castObject(const Value& value, const std::string& targetClassName, const SourceLocation& location);
+        bool isInstanceOfClass(std::shared_ptr<ObjectInstance> objInstance, const std::string& targetClassName);
     };
 }

@@ -32,6 +32,12 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> UnaryOperatorParser::parseUnary()
     {
+        // Check for cast expression first: (Type)expression
+        if (expressionParser && expressionParser->getCastParser()->isCastExpression())
+        {
+            return expressionParser->getCastParser()->parseCastExpression();
+        }
+
         // Handle prefix unary operators like !, -, +, ++, --
         if (isPrefixUnaryOperator(tokenStream.current().type))
         {
