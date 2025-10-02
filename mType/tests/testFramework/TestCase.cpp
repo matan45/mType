@@ -68,11 +68,11 @@ namespace tests::testFramework
                 Lexer lexer(filePath);
                 auto importManager = std::make_unique<ImportManager>();
                 ImportManager* importManagerPtr = importManager.get();
-                
+
                 // Set base directory to the directory of the test file
                 std::filesystem::path testFilePath(filePath);
                 importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
-                
+
                 Parser parser(lexer, std::move(importManager));
 
                 // Parse the file
@@ -126,7 +126,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -142,7 +142,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -158,7 +158,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;
@@ -174,7 +174,7 @@ namespace tests::testFramework
             {
                 std::cout.rdbuf(oldCout);
                 output = outputBuffer.str();
-                
+
                 if (type == TestType::ERROR_EXPECTED)
                 {
                     status = TestStatus::PASSED;

@@ -1,13 +1,27 @@
 ﻿#pragma once
 #include "base/EvaluationContext.hpp"
 #include "utils/ValueConverter.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
+#include "../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../errors/SourceLocation.hpp"
 #include "../parser/TypeParser.hpp"
 #include <memory>
 #include <optional>
+
+// Forward declarations for specialized handlers
+namespace evaluator {
+namespace expressions {
+    class LiteralEvaluator;
+    class BinaryOperationEvaluator;
+    class CallHandler;
+    class ArrayHandler;
+    class UnaryOperationHandler;
+    class AccessHandler;
+}
+}
 
 namespace evaluator
 {
@@ -28,10 +42,27 @@ namespace evaluator
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions (EvaluationContext)
      */
+    // Forward declarations
+    namespace expressions {
+        class LiteralEvaluator;
+        class BinaryOperationEvaluator;
+    }
+
     class ExpressionEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
+
+        // Specialized expression handlers
+        std::unique_ptr<expressions::LiteralEvaluator> literalEvaluator;
+        std::unique_ptr<expressions::BinaryOperationEvaluator> binaryOpEvaluator;
+        std::unique_ptr<expressions::CallHandler> callHandler;
+        std::unique_ptr<expressions::ArrayHandler> arrayHandler;
+        std::unique_ptr<expressions::UnaryOperationHandler> unaryOpHandler;
+        std::unique_ptr<expressions::AccessHandler> accessHandler;
+
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<ExpressionEvaluator> dispatcher;
 
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;
@@ -39,7 +70,7 @@ namespace evaluator
 
     public:
         explicit ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ExpressionEvaluator() = default;
+        ~ExpressionEvaluator();
 
         // Main interface methods
         Value evaluate(ASTNode* node);
@@ -70,36 +101,30 @@ namespace evaluator
         Value evaluateArrayLiteralNode(ArrayLiteralNode* node);
         Value evaluateIndexAccessNode(IndexAccessNode* node);
         Value evaluateLambdaNode(LambdaNode* node);
-
-        // Helper method to get default value for type
-        Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
+        Value evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node);
 
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods for binary operations
         Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
         Value evaluateComparison(const Value& left, const Value& right, TokenType op);
         Value evaluateLogical(const Value& left, const Value& right, TokenType op);
         Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
 
-        // Node type checking
+        // Node type checking - now delegated to NodeTypeRegistry
         bool isExpressionNode(ASTNode* node) const;
-
-        // Function return type validation
-        void validateFunctionReturnType(ValueType expectedType, const Value& returnValue,
-                                        const std::string& functionName,
-                                        const SourceLocation& location);
 
         // Multi-dimensional array access helpers
         std::optional<Value> extractMultiDimensionalAccess(IndexAccessNode* node, std::vector<size_t>& indices);
         Value evaluateDirectMultiDimensionalAccess(const Value& baseArray, const std::vector<size_t>& indices, const SourceLocation& location);
 
-        // Type validation helpers
-        std::string getTypeNameForError(ValueType type) const;
-        bool validateObjectTypeCompatibility(const Value& expected, const Value& actual) const;
-        std::string getObjectClassName(const Value& objectValue) const;
+        // Helper for default values
+        Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
     };
 }

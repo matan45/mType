@@ -107,7 +107,7 @@ namespace evaluator::utils
                 return "null";
             }
             else if constexpr (std::is_same_v<T, std::monostate>) {
-                return "undefined";
+                return "null";
             }
             else {
                 return "[unknown]";
@@ -233,46 +233,67 @@ namespace evaluator::utils
     bool ValueConverter::compareValues(const Value& left, const Value& right)
     {
         // Handle null comparisons first
-        if (std::holds_alternative<std::nullptr_t>(left) || 
-            std::holds_alternative<std::nullptr_t>(right)) {
-            return std::holds_alternative<std::nullptr_t>(left) && 
-                   std::holds_alternative<std::nullptr_t>(right);
+        if (compareNullValues(left, right)) {
+            return true;
         }
-        
+
         // Same type comparison
         if (left.index() == right.index()) {
-            return std::visit([](const auto& l, const auto& r) -> bool {
-                using T1 = std::decay_t<decltype(l)>;
-                using T2 = std::decay_t<decltype(r)>;
-                if constexpr (std::is_same_v<T1, T2>) {
-                    if constexpr (std::is_same_v<T1, std::shared_ptr<ObjectInstance>>) {
-                        // Object identity comparison
-                        return l.get() == r.get();
-                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::NativeArray>>) {
-                        // Array identity comparison
-                        return l.get() == r.get();
-                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::FlatMultiArray>>) {
-                        // Multi-array identity comparison
-                        return l.get() == r.get();
-                    } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::SparseMultiArray>>) {
-                        // Sparse array identity comparison
-                        return l.get() == r.get();
-                    } else if constexpr (std::is_same_v<T1, std::monostate>) {
-                        // monostate values are always equal
-                        return true;
-                    } else if constexpr (std::is_same_v<T1, std::nullptr_t>) {
-                        // nullptr values are always equal
-                        return true;
-                    } else {
-                        return l == r;
-                    }
-                } else {
-                    return false; // Different types are not equal
-                }
-            }, left, right);
+            return compareSameTypeValues(left, right);
         }
-        
+
         // Type coercion for numeric types
+        if (compareNumericValues(left, right)) {
+            return true;
+        }
+
+        // Type coercion for boolean to integer (for switch statements)
+        if (compareBooleanIntValues(left, right)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool ValueConverter::compareNullValues(const Value& left, const Value& right)
+    {
+        if (std::holds_alternative<std::nullptr_t>(left) ||
+            std::holds_alternative<std::nullptr_t>(right)) {
+            return std::holds_alternative<std::nullptr_t>(left) &&
+                   std::holds_alternative<std::nullptr_t>(right);
+        }
+        return false;
+    }
+
+    bool ValueConverter::compareSameTypeValues(const Value& left, const Value& right)
+    {
+        return std::visit([](const auto& l, const auto& r) -> bool {
+            using T1 = std::decay_t<decltype(l)>;
+            using T2 = std::decay_t<decltype(r)>;
+            if constexpr (std::is_same_v<T1, T2>) {
+                if constexpr (std::is_same_v<T1, std::shared_ptr<ObjectInstance>>) {
+                    return l.get() == r.get(); // Object identity comparison
+                } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::NativeArray>>) {
+                    return l.get() == r.get(); // Array identity comparison
+                } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::FlatMultiArray>>) {
+                    return l.get() == r.get(); // Multi-array identity comparison
+                } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::SparseMultiArray>>) {
+                    return l.get() == r.get(); // Sparse array identity comparison
+                } else if constexpr (std::is_same_v<T1, std::monostate>) {
+                    return true; // monostate values are always equal
+                } else if constexpr (std::is_same_v<T1, std::nullptr_t>) {
+                    return true; // nullptr values are always equal
+                } else {
+                    return l == r;
+                }
+            } else {
+                return false; // Different types are not equal
+            }
+        }, left, right);
+    }
+
+    bool ValueConverter::compareNumericValues(const Value& left, const Value& right)
+    {
         try {
             if ((std::holds_alternative<int>(left) || std::holds_alternative<float>(left)) &&
                 (std::holds_alternative<int>(right) || std::holds_alternative<float>(right))) {
@@ -281,25 +302,27 @@ namespace evaluator::utils
                 return std::abs(leftFloat - rightFloat) < 1e-9f;
             }
         } catch (const TypeException&) {
-            // Fall through to boolean coercion
+            // Conversion failed
         }
-        
-        // Type coercion for boolean to integer (for switch statements)
+        return false;
+    }
+
+    bool ValueConverter::compareBooleanIntValues(const Value& left, const Value& right)
+    {
         try {
             if ((std::holds_alternative<bool>(left) && std::holds_alternative<int>(right)) ||
                 (std::holds_alternative<int>(left) && std::holds_alternative<bool>(right))) {
-                
-                int leftInt = std::holds_alternative<bool>(left) ? 
+
+                int leftInt = std::holds_alternative<bool>(left) ?
                               (std::get<bool>(left) ? 1 : 0) : std::get<int>(left);
-                int rightInt = std::holds_alternative<bool>(right) ? 
+                int rightInt = std::holds_alternative<bool>(right) ?
                                (std::get<bool>(right) ? 1 : 0) : std::get<int>(right);
-                
+
                 return leftInt == rightInt;
             }
         } catch (const std::bad_variant_access&) {
-            // Fall through to false
+            // Conversion failed
         }
-        
         return false;
     }
 }

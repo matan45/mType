@@ -4,21 +4,34 @@
 #include "../ast/ASTNode.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
+#include "expression/BinaryOperatorParser.hpp"
+#include "expression/UnaryOperatorParser.hpp"
+#include "expression/PostfixOperatorParser.hpp"
+#include "expression/LiteralParser.hpp"
+#include "expression/ArgumentParser.hpp"
 
 namespace parser
 {
     class ParseContext;
     using namespace ast;
-    
+    using namespace parser::expression;
+
     class ExpressionParser
     {
     private:
         TokenStream& tokenStream;
         ParseContext& context;
-        
+
+        // Specialized parser helpers
+        std::unique_ptr<BinaryOperatorParser> binaryOpParser;
+        std::unique_ptr<UnaryOperatorParser> unaryOpParser;
+        std::unique_ptr<PostfixOperatorParser> postfixOpParser;
+        std::unique_ptr<LiteralParser> literalParser;
+        std::unique_ptr<ArgumentParser> argumentParser;
+
     public:
-        explicit ExpressionParser(TokenStream& stream, ParseContext& ctx) : tokenStream(stream), context(ctx) {}
-        
+        explicit ExpressionParser(TokenStream& stream, ParseContext& ctx);
+
         // Expression parsing methods (precedence climbing)
         std::unique_ptr<ASTNode> parseExpression();
         std::unique_ptr<ASTNode> parseAssignment();
@@ -39,8 +52,10 @@ namespace parser
 
         // Generic type argument parsing for static method calls
         std::vector<std::string> parseGenericTypeArguments();
-        
+
     private:
+        void initializeHelperParsers();
+
         // Helper methods
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
@@ -50,7 +65,5 @@ namespace parser
         // Lambda detection helpers
         bool isLambdaStart() const;
         bool isLikelyLambdaParameterList() const;
-    
     };
 }
-

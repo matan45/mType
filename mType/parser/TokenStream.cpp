@@ -1,5 +1,6 @@
 #include "TokenStream.hpp"
 #include "../errors/ParseException.hpp"
+#include "../lexer/TokenFactory.hpp"
 
 namespace parser
 {
@@ -8,12 +9,40 @@ namespace parser
     TokenStream::TokenStream(Lexer& lex) : lexer(lex)
     {
         // Initialize with first token
-        advance();
+        try
+        {
+            advance();
+        }
+        catch (const errors::ParseException&)
+        {
+            // Set END token and re-throw to prevent parser from starting
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
+            throw;
+        }
+        catch (const std::exception&)
+        {
+            // Set END token and re-throw to prevent parser from starting
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
+            throw;
+        }
     }
 
     void TokenStream::advance()
     {
-        currentToken = lexer.getNextToken();
+        try
+        {
+            currentToken = lexer.getNextToken();
+        }
+        catch (const ParseException&)
+        {
+            throw;
+        }
+        catch (const std::exception&)
+        {
+            // Create an END token to prevent infinite loops in case exception isn't caught
+            currentToken = TokenFactory::createEndToken(SourceLocation("", 0, 0));
+            throw;
+        }
     }
 
     bool TokenStream::check(TokenType type) const noexcept
@@ -40,8 +69,8 @@ namespace parser
     {
         if (!match(type))
         {
-            throw ParseException("Expected token type but found different type", 
-                               currentToken.location);
+            throw ParseException("Expected token type but found different type",
+                                 currentToken.location);
         }
     }
 

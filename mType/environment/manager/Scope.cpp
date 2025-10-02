@@ -1,5 +1,4 @@
 ﻿#include "Scope.hpp"
-#include <iostream>
 #include <algorithm>
 
 namespace environment::manager

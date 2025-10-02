@@ -1,6 +1,8 @@
 #include "MethodDefinition.hpp"
 #include "../../parser/TypeParser.hpp"
+#include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include <algorithm>
+#include <sstream>
 
 namespace runtimeTypes::klass
 {
@@ -128,5 +130,64 @@ namespace runtimeTypes::klass
 
         // Fall back to the stored ValueType
         return returnType;
+    }
+
+    void MethodDefinition::cleanupLambdaResources()
+    {
+        // Reset lambda implementation
+        lambdaImplementation.reset();
+
+        // Clear weak reference to lambda node
+        lambdaNode.reset();
+
+        // If the body is a LambdaInterfaceInvocationNode, clean it up
+        if (body) {
+            if (auto lambdaInvocationNode = std::dynamic_pointer_cast<ast::nodes::expressions::LambdaInterfaceInvocationNode>(body)) {
+                lambdaInvocationNode->cleanup();
+            }
+        }
+    }
+
+    bool MethodDefinition::needsLambdaCleanup() const
+    {
+        // Check if we have lambda resources that need cleanup
+        if (hasLambdaImplementation() || hasLambdaNode()) {
+            // Check if lambda node is expired
+            if (!isLambdaNodeValid()) {
+                return true;
+            }
+
+            // Check if lambda invocation node needs cleanup
+            if (body) {
+                if (auto lambdaInvocationNode = std::dynamic_pointer_cast<const ast::nodes::expressions::LambdaInterfaceInvocationNode>(body)) {
+                    return lambdaInvocationNode->needsCleanup();
+                }
+            }
+        }
+
+        return false;
+    }
+
+    std::string MethodDefinition::getLambdaLifecycleStatus() const
+    {
+        std::stringstream ss;
+        ss << "MethodDefinition(name=" << getName();
+
+        if (hasLambdaImplementation()) {
+            ss << ", hasLambdaImpl=true";
+        }
+
+        if (hasLambdaNode()) {
+            ss << ", hasLambdaNode=true, nodeValid=" << (isLambdaNodeValid() ? "true" : "false");
+        }
+
+        if (body) {
+            if (auto lambdaInvocationNode = std::dynamic_pointer_cast<const ast::nodes::expressions::LambdaInterfaceInvocationNode>(body)) {
+                ss << ", invocationNode=" << lambdaInvocationNode->getLambdaLifecycleStatus();
+            }
+        }
+
+        ss << ")";
+        return ss.str();
     }
 }

@@ -16,8 +16,7 @@ namespace parser
         ParseContext& context;
 
     public:
-        explicit LambdaParser(TokenStream& stream, ParseContext& ctx)
-            : tokenStream(stream), context(ctx) {}
+        explicit LambdaParser(TokenStream& stream, ParseContext& ctx);
 
         // Main lambda parsing entry point
         std::unique_ptr<LambdaNode> parseLambda();
@@ -38,6 +37,5 @@ namespace parser
         // Helper methods
         bool isLambdaParameterPattern() const;
         bool hasArrowAhead() const;
-        int findMatchingParen() const;
     };
 }

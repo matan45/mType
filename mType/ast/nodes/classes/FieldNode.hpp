@@ -13,7 +13,7 @@ namespace ast::nodes::classes
     {
     private:
         std::string name;
-        std::shared_ptr<GenericType> type;  // CHANGED: From ValueType to GenericType
+        std::shared_ptr<GenericType> type; // CHANGED: From ValueType to GenericType
         std::unique_ptr<ASTNode> initialValue;
         bool isStatic;
         bool isFinal;
@@ -21,16 +21,16 @@ namespace ast::nodes::classes
     public:
         // NEW: Primary constructor with GenericType support
         explicit FieldNode(const std::string& fieldName,
-                          std::shared_ptr<GenericType> fieldType,
-                          std::unique_ptr<ASTNode> initValue = nullptr,
-                          bool isStaticField = false, bool isFinalField = false,
-                          const SourceLocation& loc = SourceLocation());
+                           std::shared_ptr<GenericType> fieldType,
+                           std::unique_ptr<ASTNode> initValue = nullptr,
+                           bool isStaticField = false, bool isFinalField = false,
+                           const SourceLocation& loc = SourceLocation());
 
         // Backward compatibility constructor with ValueType
         explicit FieldNode(const std::string& fieldName, ValueType fieldType,
-                  std::unique_ptr<ASTNode> initValue = nullptr,
-                  bool isStaticField = false, bool isFinalField = false,
-                  const SourceLocation& loc = SourceLocation());
+                           std::unique_ptr<ASTNode> initValue = nullptr,
+                           bool isStaticField = false, bool isFinalField = false,
+                           const SourceLocation& loc = SourceLocation());
 
         const std::string& getName() const;
 

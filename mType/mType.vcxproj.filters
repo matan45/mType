@@ -40,14 +40,23 @@
     <Filter Include="evaluator\base">
       <UniqueIdentifier>{62E4A349-4EB2-974F-3746-087623B373B4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="evaluator\expressions">
+      <UniqueIdentifier>{4A3D52C9-B6A9-0DC4-7F9D-A521EBC82F2C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="evaluator\managers">
       <UniqueIdentifier>{B575FFA2-A159-C0F8-0ABA-BA4BF6BCAA7A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\objects">
+      <UniqueIdentifier>{91376872-FD4D-6608-46C5-F129B21A3790}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="evaluator\statements">
+      <UniqueIdentifier>{AF7F49D1-9B0E-D39A-442D-E795309BE340}</UniqueIdentifier>
     </Filter>
     <Filter Include="evaluator\utils">
       <UniqueIdentifier>{3884827F-A40F-F043-AD20-7338192B4C44}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exception">
-      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
+    <Filter Include="evaluator\validation">
+      <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
     </Filter>
     <Filter Include="exceptions">
       <UniqueIdentifier>{67C00D32-5378-4F7F-BC7F-28DBA856EA6F}</UniqueIdentifier>
@@ -57,6 +66,24 @@
     </Filter>
     <Filter Include="parser">
       <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\class">
+      <UniqueIdentifier>{B78F1E5E-A3F2-AD02-4C78-E6B838BA7985}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\core">
+      <UniqueIdentifier>{AAC52739-167B-A02E-9F6F-9A050B249732}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\error">
+      <UniqueIdentifier>{CB52465E-B7B5-D502-603B-0EB94C7DA185}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\expression">
+      <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\statement">
+      <UniqueIdentifier>{769D2811-6296-4763-8BC8-2CE87720276F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\utilities">
+      <UniqueIdentifier>{FD68964F-E961-B5A1-1294-9A26FEEB94AD}</UniqueIdentifier>
     </Filter>
     <Filter Include="run">
       <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
@@ -381,10 +408,28 @@
     <ClInclude Include="errors\ArgumentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\ArrayCreationException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\BreakException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ClassNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ContinueException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\EnvironmentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\FieldNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\FileException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\FinalModificationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ImportException.hpp">
@@ -393,7 +438,22 @@
     <ClInclude Include="errors\MathException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\MethodNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\NullPointerException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ObjectException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ParameterMismatchException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\ParseException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ReturnException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\RuntimeException.hpp">
@@ -405,7 +465,13 @@
     <ClInclude Include="errors\SourceLocation.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\TypeConversionException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\TypeException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\TypeResolutionException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\UndefinedException.hpp">
@@ -429,13 +495,70 @@
     <ClInclude Include="evaluator\base\EvaluationContext.hpp">
       <Filter>evaluator\base</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\expressions\AccessHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\ArrayHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\BinaryOperationEvaluator.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\CallHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\LiteralEvaluator.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\UnaryOperationHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\managers\ControlFlowManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\managers\InstanceManager.hpp">
       <Filter>evaluator\managers</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\objects\ArrayAssignmentHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\ClassRegistrationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\GenericInstantiationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\InstanceOperationHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\objects\StaticMemberHandler.hpp">
+      <Filter>evaluator\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ControlFlowHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\DeclarationHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ImportAndFunctionHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\LoopEvaluator.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ArgumentEvaluator.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeDispatcher.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeTypeRegistry.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\ObjectHelper.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\ParameterBinder.hpp">
@@ -447,22 +570,13 @@
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
-    <ClInclude Include="exception\BreakException.hpp">
-      <Filter>exception</Filter>
-    </ClInclude>
-    <ClInclude Include="exception\ContinueException.hpp">
-      <Filter>exception</Filter>
-    </ClInclude>
-    <ClInclude Include="exception\ReturnException.hpp">
-      <Filter>exception</Filter>
+    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+      <Filter>evaluator\validation</Filter>
     </ClInclude>
     <ClInclude Include="exceptions\CircularDependencyDetection.hpp">
       <Filter>exceptions</Filter>
     </ClInclude>
     <ClInclude Include="exceptions\CircularDependencyDetector.hpp">
-      <Filter>exceptions</Filter>
-    </ClInclude>
-    <ClInclude Include="exceptions\DomainExceptions.hpp">
       <Filter>exceptions</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
@@ -509,6 +623,72 @@
     </ClInclude>
     <ClInclude Include="parser\TypeParser.hpp">
       <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ClassDeclarationParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ConstructorParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\FieldParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\GenericParameterParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\MethodParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ObjectCreationParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\core\BaseParser.hpp">
+      <Filter>parser\core</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\core\IParser.hpp">
+      <Filter>parser\core</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\error\ErrorHandler.hpp">
+      <Filter>parser\error</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\ArgumentParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\BinaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\LiteralParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\PostfixOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\UnaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\AssignmentStatementParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ControlFlowParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\DeclarationParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\FunctionParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ImportParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\LoopParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParsePatterns.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
+      <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\Definition.hpp">
       <Filter>runtimeTypes</Filter>
@@ -818,13 +998,67 @@
     <ClCompile Include="evaluator\base\EvaluationContext.cpp">
       <Filter>evaluator\base</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\expressions\AccessHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\ArrayHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\BinaryOperationEvaluator.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\CallHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\LiteralEvaluator.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\UnaryOperationHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\managers\ControlFlowManager.cpp">
       <Filter>evaluator\managers</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\managers\InstanceManager.cpp">
       <Filter>evaluator\managers</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\objects\ArrayAssignmentHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\ClassRegistrationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\GenericInstantiationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\InstanceOperationHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\objects\StaticMemberHandler.cpp">
+      <Filter>evaluator\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ControlFlowHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\DeclarationHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ImportAndFunctionHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\LoopEvaluator.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ArgumentEvaluator.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\NodeTypeRegistry.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\ObjectHelper.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ParameterBinder.cpp">
@@ -835,6 +1069,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+      <Filter>evaluator\validation</Filter>
     </ClCompile>
     <ClCompile Include="exceptions\CircularDependencyDetection.cpp">
       <Filter>exceptions</Filter>
@@ -886,6 +1123,69 @@
     </ClCompile>
     <ClCompile Include="parser\TypeParser.cpp">
       <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ClassDeclarationParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ConstructorParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\FieldParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\GenericParameterParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\MethodParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ObjectCreationParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\core\BaseParser.cpp">
+      <Filter>parser\core</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\error\ErrorHandler.cpp">
+      <Filter>parser\error</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\ArgumentParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\BinaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\LiteralParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\PostfixOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\UnaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\AssignmentStatementParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ControlFlowParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\DeclarationParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\FunctionParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ImportParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\LoopParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParsePatterns.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">
+      <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="run\Main.cpp">
       <Filter>run</Filter>
@@ -2360,6 +2660,12 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaLifecycleStress.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambda_interface_test.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambda_interface_test.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\multiParameterLambda.expected">

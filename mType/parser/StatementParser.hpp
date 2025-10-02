@@ -4,21 +4,52 @@
 #include "../ast/ASTNode.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
+#include "statement/ControlFlowParser.hpp"
+#include "statement/LoopParser.hpp"
+#include "statement/DeclarationParser.hpp"
+#include "statement/AssignmentStatementParser.hpp"
+#include "statement/FunctionParser.hpp"
+#include "statement/ImportParser.hpp"
+#include "utilities/StatementTypeDetector.hpp"
 
 namespace parser
 {
     class ParseContext;
+    class ExpressionParser; // Forward declaration
     using namespace ast;
-    
+    using namespace parser::statement;
+    using namespace parser::utilities;
+
     class StatementParser
     {
     private:
         TokenStream& tokenStream;
         ParseContext& context;
-        
+        ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
+
+        // Specialized parser helpers
+        std::unique_ptr<ControlFlowParser> controlFlowParser;
+        std::unique_ptr<LoopParser> loopParser;
+        std::unique_ptr<DeclarationParser> declarationParser;
+        std::unique_ptr<AssignmentStatementParser> assignmentParser;
+        std::unique_ptr<FunctionParser> functionParser;
+        std::unique_ptr<ImportParser> importParser;
+
     public:
-        explicit StatementParser(TokenStream& stream, ParseContext& ctx) : tokenStream(stream), context(ctx) {}
-        
+        explicit StatementParser(TokenStream& stream, ParseContext& ctx);
+       
+
+        // Method to set ExpressionParser reference after construction
+        void setExpressionParser(ExpressionParser& exprParser)
+        {
+            expressionParser = &exprParser;
+            // Also set it in the assignment parser to break circular dependency
+            if (assignmentParser)
+            {
+                assignmentParser->setExpressionParser(exprParser);
+            }
+        }
+
         // Statement parsing methods
         std::unique_ptr<ASTNode> parseStatement();
         std::unique_ptr<ASTNode> parseBlock();
@@ -37,8 +68,11 @@ namespace parser
         std::unique_ptr<ASTNode> parseFunction();
         std::unique_ptr<ASTNode> parseImport();
         std::unique_ptr<ASTNode> parseNativeFunction();
-        
+
     private:
+        void initializeHelperParsers();
+        std::unique_ptr<ASTNode> delegateToSpecializedParser(StatementType type);
+
         // Helper methods
         std::vector<std::pair<std::string, ValueType>> parseParameterList();
         std::unique_ptr<ASTNode> tryParseForEach(); // Returns nullptr if not for-each pattern

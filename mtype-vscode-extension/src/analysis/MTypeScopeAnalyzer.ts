@@ -105,8 +105,8 @@ export class MTypeScopeAnalyzer {
             const openBraces = (line.match(/\{/g) || []).length;
             const closeBraces = (line.match(/\}/g) || []).length;
 
-            // Check for class declaration
-            const classMatch = line.match(/^\s*class\s+(\w+)\s*\{/);
+            // Check for class declaration (support generic classes like HashMap<K,V>)
+            const classMatch = line.match(/^\s*class\s+(\w+)(?:<[^>]+>)?\s*\{/);
             if (classMatch && !currentClass) {
                 const className = classMatch[1];
                 classStartLine = i;

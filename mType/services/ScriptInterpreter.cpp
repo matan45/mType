@@ -1,8 +1,15 @@
 ﻿#include "ScriptInterpreter.hpp"
-#include "../exceptions/DomainExceptions.hpp"
+#include "../errors/RuntimeException.hpp"
+#include "../errors/ParseException.hpp"
+#include "../errors/MethodNotFoundException.hpp"
+#include "../errors/ObjectException.hpp"
+#include "../errors/ClassNotFoundException.hpp"
+#include "../errors/ParameterMismatchException.hpp"
+#include "../errors/FieldNotFoundException.hpp"
+#include "../errors/FinalModificationException.hpp"
+#include "../errors/TypeConversionException.hpp"
 #include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <memory>
 #include <algorithm>
 
@@ -11,7 +18,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
-#include "../exception/ReturnException.hpp"
+#include "../errors/ReturnException.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
@@ -54,43 +61,77 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
-        // Always parse and execute .mt files directly (no auto-caching)
-        lexer::Lexer lexer(filename);
+        try
+        {
+            // Always parse and execute .mt files directly (no auto-caching)
+            lexer::Lexer lexer(filename);
 
-        // Create and configure ImportManager
-        auto importManager = std::make_unique<ImportManager>();
+            // Create and configure ImportManager
+            auto importManager = std::make_unique<ImportManager>();
 
-        // Set base directory to the directory of the script file
-        std::filesystem::path scriptPath(filename);
-        importManager->setBaseDirectory(scriptPath.parent_path().string());
+            // Set base directory to the directory of the script file
+            std::filesystem::path scriptPath(filename);
+            importManager->setBaseDirectory(scriptPath.parent_path().string());
 
-        // Keep a raw pointer for later use before moving to Parser
-        ImportManager* importManagerPtr = importManager.get();
-        parser::Parser parser(lexer, std::move(importManager));
-        auto ast = parser.parseProgram();
+            // Keep a raw pointer for later use before moving to Parser
+            ImportManager* importManagerPtr = importManager.get();
 
-        // Set ImportManager on environment for clean architecture
-        environment->setImportManager(importManagerPtr);
+            parser::Parser parser(lexer, std::move(importManager));
 
-        evaluator->evaluate(ast.get());
+            std::unique_ptr<ASTNode> ast;
+            try
+            {
+                ast = parser.parseProgram();
+            }
+            catch (const errors::ParseException&)
+            {
+                throw;
+            }
+            catch (const std::exception&)
+            {
+                throw;
+            }
+            catch (...)
+            {
+                throw;
+            }
 
-        // Automatic cleanup after script execution to prevent memory growth
-        // Only clean up interfaces that are no longer referenced
-        size_t cleanedUp = cleanupUnusedInterfaces();
-        if (cleanedUp > 0) {
-            // Optional: Log cleanup activity for debugging
-            // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
+            // Set ImportManager on environment for clean architecture
+            environment->setImportManager(importManagerPtr);
+
+            evaluator->evaluate(ast.get());
+
+            // Automatic cleanup after script execution to prevent memory growth
+            // Only clean up interfaces that are no longer referenced
+            size_t cleanedUp = cleanupUnusedInterfaces();
+            if (cleanedUp > 0)
+            {
+                // Optional: Log cleanup activity for debugging
+                // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
+            }
+        }
+        catch (const ParseException&)
+        {
+            std::cerr << "Error" << std::endl;
+            throw; // Re-throw to be caught by main()
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            throw; // Re-throw to be caught by main()
         }
     }
 
     void ScriptInterpreter::cleanupRegistries()
     {
-        if (environment) {
+        if (environment)
+        {
             // Clean up unused interfaces to prevent memory growth
             environment->cleanupUnusedInterfaces();
             // Clear interface validation cache to free memory
             auto interfaceRegistry = environment->getInterfaceRegistry();
-            if (interfaceRegistry) {
+            if (interfaceRegistry)
+            {
                 interfaceRegistry->clearValidationCache();
             }
         }
@@ -172,7 +213,7 @@ namespace services
             }
         }
 
-        throw mtype::exceptions::MethodNotFoundException(functionName, "", __FUNCTION__);
+        throw errors::MethodNotFoundException(functionName, "", __FUNCTION__);
     }
 
     // Method calling on objects
@@ -181,7 +222,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw mtype::exceptions::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
+            throw errors::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
@@ -195,7 +236,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         return invokeStaticMethod(classDef, methodName, args);
@@ -208,13 +249,13 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
+            throw errors::FieldNotFoundException(fieldName, className);
         }
 
         return field->getValue();
@@ -226,18 +267,18 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
+            throw errors::FieldNotFoundException(fieldName, className);
         }
 
         if (field->isFinal())
         {
-            throw mtype::exceptions::FinalModificationException(fieldName, className);
+            throw errors::FinalModificationException(fieldName, className);
         }
 
         field->setValue(value);
@@ -249,7 +290,7 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw mtype::exceptions::FieldNotFoundException(variableName);
+            throw errors::FieldNotFoundException(variableName);
         }
 
         return varDef->getValue();
@@ -260,12 +301,12 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw mtype::exceptions::FieldNotFoundException(variableName);
+            throw errors::FieldNotFoundException(variableName);
         }
 
         if (varDef->isFinal())
         {
-            throw mtype::exceptions::FinalModificationException(variableName);
+            throw errors::FinalModificationException(variableName);
         }
 
         varDef->setValue(value);
@@ -277,7 +318,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         // Create the object instance
@@ -294,7 +335,8 @@ namespace services
             if (params.size() != constructorArgs.size())
             {
                 environment->exitScope();
-                throw mtype::exceptions::ParameterMismatchException("constructor", static_cast<int>(params.size()), static_cast<int>(constructorArgs.size()));
+                throw errors::ParameterMismatchException("constructor", static_cast<int>(params.size()),
+                                                                    static_cast<int>(constructorArgs.size()));
             }
 
             // Bind parameters
@@ -337,7 +379,8 @@ namespace services
         if (params.size() != args.size())
         {
             environment->exitScope();
-            throw mtype::exceptions::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()), static_cast<int>(args.size()));
+            throw errors::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()),
+                                                                static_cast<int>(args.size()));
         }
 
         for (size_t i = 0; i < params.size(); ++i)
@@ -373,7 +416,7 @@ namespace services
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
-            throw mtype::exceptions::MethodNotFoundException(methodName, classDef->getName());
+            throw errors::MethodNotFoundException(methodName, classDef->getName());
         }
 
         // Set up method scope
@@ -385,8 +428,9 @@ namespace services
             auto params = method->getParameters();
             if (params.size() != args.size())
             {
-                throw mtype::exceptions::ParameterMismatchException(
-                    classDef->getName() + "::" + methodName, static_cast<int>(params.size()), static_cast<int>(args.size()));
+                throw errors::ParameterMismatchException(
+                    classDef->getName() + "::" + methodName, static_cast<int>(params.size()),
+                    static_cast<int>(args.size()));
             }
 
             for (size_t i = 0; i < params.size(); ++i)
@@ -432,7 +476,7 @@ namespace services
                         result = apiEvaluator->getReturnValue();
                     }
                 }
-                catch (const exception::ReturnException& returnEx)
+                catch (const ReturnException& returnEx)
                 {
                     // Handle explicit return statements - this is the normal case for static methods with return values
                     result = returnEx.returnValue;
@@ -478,7 +522,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw mtype::exceptions::TypeConversionException("Value is not an object", "unknown", "object");
+            throw errors::TypeConversionException("Value is not an object", "unknown", "object");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);

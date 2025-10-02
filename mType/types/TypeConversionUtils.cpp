@@ -13,7 +13,7 @@ namespace types {
         const TypeConversionContext& context) {
 
         if (!genericType) {
-            throw TypeConversionException("null", "Cannot convert null generic type", context);
+            throw TypeConversionException("Cannot convert null generic type", "null", "unknown", context);
         }
 
         auto& registry = getGlobalTypeRegistry();
@@ -29,8 +29,8 @@ namespace types {
 
                     // Validate the substituted type
                     if (!registry.hasType(substitutedType)) {
-                        TypeConversionException ex(substitutedType,
-                            "Substituted type is not registered", context);
+                        TypeConversionException ex("Substituted type is not registered",
+                            substitutedType, "unknown", context);
 
                         auto suggestions = getTypeSuggestions(substitutedType);
                         for (const auto& suggestion : suggestions) {
@@ -58,8 +58,8 @@ namespace types {
                     std::string typeName = genericType->getBaseTypeName();
 
                     if (!registry.hasType(typeName)) {
-                        TypeConversionException ex(typeName,
-                            "Type is not registered", context);
+                        TypeConversionException ex("Type is not registered",
+                            typeName, "unknown", context);
 
                         auto suggestions = getTypeSuggestions(typeName);
                         for (const auto& suggestion : suggestions) {
@@ -90,7 +90,7 @@ namespace types {
 
                     std::string errorMessage;
                     if (!validateGenericInstantiation(baseTypeName, typeArgStrings, errorMessage)) {
-                        throw TypeConversionException(baseTypeName, errorMessage, context);
+                        throw TypeConversionException(errorMessage, baseTypeName, "object", context);
                     }
 
                     return value::ValueType::OBJECT;
@@ -104,8 +104,8 @@ namespace types {
         } catch (const TypeConversionException&) {
             throw; // Re-throw our detailed exceptions
         } catch (const std::exception& e) {
-            throw TypeConversionException("unknown",
-                std::string("Unexpected error: ") + e.what(), context);
+            throw TypeConversionException(std::string("Unexpected error: ") + e.what(),
+                "unknown", "unknown", context);
         }
     }
 

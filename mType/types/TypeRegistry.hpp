@@ -2,7 +2,8 @@
 
 #include "../value/ValueType.hpp"
 #include "../ast/GenericType.hpp"
-#include "../exceptions/DomainExceptions.hpp"
+#include "../errors/TypeException.hpp"
+#include "../errors/TypeResolutionException.hpp"
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -36,12 +37,12 @@ namespace types {
 
     /**
      * Exception thrown when type resolution fails
-     * @deprecated Use mtype::exceptions::TypeResolutionException instead
+     * @deprecated Use errors::TypeResolutionException instead
      */
-    class TypeResolutionException : public mtype::exceptions::TypeResolutionException {
+    class TypeResolutionException : public errors::TypeResolutionException {
     public:
         explicit TypeResolutionException(const std::string& message)
-            : mtype::exceptions::TypeResolutionException(message, "", __FUNCTION__) {}
+            : errors::TypeResolutionException(message) {}
     };
 
     /**

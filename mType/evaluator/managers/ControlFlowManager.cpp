@@ -6,32 +6,32 @@ namespace evaluator::managers
         : breakFlag(false), continueFlag(false), loopDepth(0), breakableDepth(0)
     {
     }
-    
+
     bool ControlFlowManager::shouldBreakOrContinue() const
     {
         return breakFlag || continueFlag;
     }
-    
+
     void ControlFlowManager::handleBreak()
     {
         breakFlag = true;
     }
-    
+
     void ControlFlowManager::handleContinue()
     {
         continueFlag = true;
     }
-    
+
     bool ControlFlowManager::isBreaking() const
     {
         return breakFlag;
     }
-    
+
     bool ControlFlowManager::isContinuing() const
     {
         return continueFlag;
     }
-    
+
     void ControlFlowManager::resetLoopFlags()
     {
         breakFlag = false;
@@ -46,10 +46,12 @@ namespace evaluator::managers
 
     void ControlFlowManager::exitLoop()
     {
-        if (loopDepth > 0) {
+        if (loopDepth > 0)
+        {
             loopDepth--;
         }
-        if (breakableDepth > 0) {
+        if (breakableDepth > 0)
+        {
             breakableDepth--;
         }
     }
@@ -66,7 +68,8 @@ namespace evaluator::managers
 
     void ControlFlowManager::exitBreakableContext()
     {
-        if (breakableDepth > 0) {
+        if (breakableDepth > 0)
+        {
             breakableDepth--;
         }
     }

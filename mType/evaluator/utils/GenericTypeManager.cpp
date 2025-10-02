@@ -50,15 +50,6 @@ namespace evaluator::utils
             return nullptr;
         }
 
-        // Create instantiated class name (e.g., "Box<int>")
-        std::string instantiatedName = genericClass->getBaseName() + "<";
-        for (size_t i = 0; i < typeArguments.size(); ++i)
-        {
-            if (i > 0) instantiatedName += ", ";
-            instantiatedName += typeArguments[i];
-        }
-        instantiatedName += ">";
-
         // OPTIMIZATION: Check fast cache first for common patterns
         if (isCommonPattern(genericClass->getName(), typeArguments)) {
             auto fastCacheData = getFastGenericCache();
@@ -74,22 +65,18 @@ namespace evaluator::utils
                     return fastIt->second;
                 }
             }
-
-            // Not in fast cache, proceed to create and cache in both levels
         }
 
         // Fallback to comprehensive cache key for complex/uncommon patterns
         std::string cacheKey = createComprehensiveCacheKey(genericClass, typeArguments);
 
         // Check generic class instantiation cache with thread safety
-        // Use function-local static to ensure same variables across method calls
         auto cacheData = getGenericClassCache();
         std::mutex& cacheMutex = cacheData.first;
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>& cache = cacheData.second;
 
         {
             std::lock_guard<std::mutex> lock(cacheMutex);
-
             auto cacheIt = cache.find(cacheKey);
             if (cacheIt != cache.end())
             {
@@ -97,65 +84,20 @@ namespace evaluator::utils
             }
         }
 
+        // Create instantiated class
+        std::string instantiatedName = createInstantiatedClassName(genericClass, typeArguments);
+        auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
 
         // Create substitution map
         auto substitutionMap = createTypeSubstitutionMap(
             genericClass->getGenericParameters(), typeArguments);
 
-        // Create new class definition
-        auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
+        // Copy and substitute all members
+        copyAndSubstituteFields(genericClass, instantiatedClass, substitutionMap);
+        copyAndSubstituteMethods(genericClass, instantiatedClass, substitutionMap);
+        copyAndSubstituteConstructors(genericClass, instantiatedClass, substitutionMap);
 
-        // Copy and substitute fields
-        for (const auto& [fieldName, field] : genericClass->getInstanceFields())
-        {
-            // Create a copy of the field with substituted type
-            auto newField = std::make_shared<FieldDefinition>(
-                field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
-                field->getValue(),
-                field->isStatic(),
-                field->isFinal()
-            );
-            instantiatedClass->addInstanceField(fieldName, newField);
-        }
-
-        for (const auto& [fieldName, field] : genericClass->getStaticFields())
-        {
-            // Create a copy of the field with substituted type
-            auto newField = std::make_shared<FieldDefinition>(
-                field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
-                field->getValue(),
-                field->isStatic(),
-                field->isFinal()
-            );
-            instantiatedClass->addStaticField(fieldName, newField);
-        }
-
-        // Copy and substitute methods
-        for (const auto& [methodName, method] : genericClass->getInstanceMethods())
-        {
-            // Create a copy of the method with substituted types
-            auto newMethod = substituteMethodTypes(method, substitutionMap);
-            instantiatedClass->addInstanceMethod(methodName, newMethod);
-        }
-
-        for (const auto& [methodName, method] : genericClass->getStaticMethods())
-        {
-            // Create a copy of the method with substituted types
-            auto newMethod = substituteMethodTypes(method, substitutionMap);
-            instantiatedClass->addStaticMethod(methodName, newMethod);
-        }
-
-        // Copy constructors
-        for (const auto& constructor : genericClass->getConstructors())
-        {
-            // Create a copy of the constructor with substituted parameter types
-            auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
-            instantiatedClass->addConstructor(newConstructor);
-        }
-
-        // Cache the instantiated class for future reuse in both caches
+        // Cache the instantiated class for future reuse
         {
             std::lock_guard<std::mutex> lock(cacheMutex);
             cache[cacheKey] = instantiatedClass;
@@ -174,6 +116,84 @@ namespace evaluator::utils
         }
 
         return instantiatedClass;
+    }
+
+    std::string GenericTypeManager::createInstantiatedClassName(
+        std::shared_ptr<ClassDefinition> genericClass,
+        const std::vector<std::string>& typeArguments)
+    {
+        std::string name = genericClass->getBaseName() + "<";
+        for (size_t i = 0; i < typeArguments.size(); ++i)
+        {
+            if (i > 0) name += ", ";
+            name += typeArguments[i];
+        }
+        name += ">";
+        return name;
+    }
+
+    void GenericTypeManager::copyAndSubstituteFields(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        // Copy instance fields
+        for (const auto& [fieldName, field] : source->getInstanceFields())
+        {
+            auto newField = std::make_shared<FieldDefinition>(
+                field->getName(),
+                substituteFieldType(field->getType(), substitutionMap),
+                field->getValue(),
+                field->isStatic(),
+                field->isFinal()
+            );
+            target->addInstanceField(fieldName, newField);
+        }
+
+        // Copy static fields
+        for (const auto& [fieldName, field] : source->getStaticFields())
+        {
+            auto newField = std::make_shared<FieldDefinition>(
+                field->getName(),
+                substituteFieldType(field->getType(), substitutionMap),
+                field->getValue(),
+                field->isStatic(),
+                field->isFinal()
+            );
+            target->addStaticField(fieldName, newField);
+        }
+    }
+
+    void GenericTypeManager::copyAndSubstituteMethods(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        // Copy instance methods
+        for (const auto& [methodName, method] : source->getInstanceMethods())
+        {
+            auto newMethod = substituteMethodTypes(method, substitutionMap);
+            target->addInstanceMethod(methodName, newMethod);
+        }
+
+        // Copy static methods
+        for (const auto& [methodName, method] : source->getStaticMethods())
+        {
+            auto newMethod = substituteMethodTypes(method, substitutionMap);
+            target->addStaticMethod(methodName, newMethod);
+        }
+    }
+
+    void GenericTypeManager::copyAndSubstituteConstructors(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        for (const auto& constructor : source->getConstructors())
+        {
+            auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
+            target->addConstructor(newConstructor);
+        }
     }
 
     bool GenericTypeManager::validateTypeArguments(
@@ -227,47 +247,6 @@ namespace evaluator::utils
         }
 
         return substitutionMap;
-    }
-
-    std::string GenericTypeManager::substituteTypeParameters(
-        const std::string& typeString,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
-    {
-        std::string result = typeString;
-
-        // Simple substitution - replace each type parameter with its concrete type
-        for (const auto& [parameter, concreteType] : substitutionMap)
-        {
-            // TODO: Implement more sophisticated substitution that handles complex types
-            // For now, just do simple string replacement
-            size_t pos = 0;
-            while ((pos = result.find(parameter, pos)) != std::string::npos)
-            {
-                // Make sure we're replacing a whole word, not part of another identifier
-                bool isWholeWord = true;
-                if (pos > 0 && (std::isalnum(result[pos - 1]) || result[pos - 1] == '_'))
-                {
-                    isWholeWord = false;
-                }
-                if (pos + parameter.length() < result.length() &&
-                    (std::isalnum(result[pos + parameter.length()]) || result[pos + parameter.length()] == '_'))
-                {
-                    isWholeWord = false;
-                }
-
-                if (isWholeWord)
-                {
-                    result.replace(pos, parameter.length(), concreteType);
-                    pos += concreteType.length();
-                }
-                else
-                {
-                    pos += parameter.length();
-                }
-            }
-        }
-
-        return result;
     }
 
     std::vector<std::string> GenericTypeManager::parseTypeArguments(const std::string& typeArgsString)
@@ -480,12 +459,12 @@ namespace evaluator::utils
     {
         if (!genericMethod->hasGenericInformation())
         {
-            // Non-generic method should not have type arguments
             return typeArguments.empty();
         }
 
         // Check if type argument count matches generic type parameter count
         const auto& genericTypeParams = genericMethod->getGenericTypeParameters();
+
         if (typeArguments.size() != genericTypeParams.size())
         {
             return false;
@@ -638,6 +617,126 @@ namespace evaluator::utils
         }
 
         return true;
+    }
+
+    // AST-based type substitution (replaces naive string substitution)
+    std::shared_ptr<ast::GenericType> GenericTypeManager::substituteTypeParameters(
+        std::shared_ptr<ast::GenericType> genericType,
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
+    {
+        if (!genericType) {
+            return nullptr;
+        }
+
+        // Use the GenericType's built-in substitute method for proper AST handling
+        return genericType->substitute(substitutionMap);
+    }
+
+    std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> GenericTypeManager::createASTSubstitutionMap(
+        const std::vector<GenericTypeParameter>& genericParameters,
+        const std::vector<std::string>& typeArguments)
+    {
+        std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> substitutionMap;
+
+        if (genericParameters.size() != typeArguments.size()) {
+            // Invalid argument count - return empty map
+            return substitutionMap;
+        }
+
+        for (size_t i = 0; i < genericParameters.size(); ++i) {
+            const std::string& parameterName = genericParameters[i].name;
+            const std::string& typeArgument = typeArguments[i];
+
+            // Create GenericType from string representation
+            // For now, create a simple non-generic type (concrete type)
+            auto concreteType = std::make_shared<ast::GenericType>(typeArgument);
+
+            substitutionMap[parameterName] = concreteType;
+        }
+
+        return substitutionMap;
+    }
+
+    bool GenericTypeManager::isGenericTypeParameter(const std::string& name)
+    {
+        if (name.empty()) return false;
+
+        // Single uppercase letter is definitely a generic type parameter
+        if (name.length() == 1 && std::isupper(name[0]))
+        {
+            return true;
+        }
+
+        // Uppercase name that's likely a generic parameter (heuristic)
+        if (std::isupper(name[0]) && name.length() <= 10)
+        {
+            bool allLetters = std::all_of(name.begin(), name.end(), ::isalpha);
+            if (allLetters)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool GenericTypeManager::hasUnresolvedGenericParams(const std::string& className)
+    {
+        // Direct generic parameter
+        if (isGenericTypeParameter(className))
+        {
+            return true;
+        }
+
+        // Array type containing generic parameters (T[], Element[], etc.)
+        if (className.find("[]") != std::string::npos)
+        {
+            std::string baseType = className.substr(0, className.find("[]"));
+            if (isGenericTypeParameter(baseType))
+            {
+                return true;
+            }
+        }
+
+        // Generic types with angle brackets
+        if (className.find('<') != std::string::npos)
+        {
+            // Extract type parameters from angle brackets
+            size_t start = className.find('<');
+            size_t end = className.rfind('>');
+
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string typeParams = className.substr(start + 1, end - start - 1);
+
+                // Parse comma-separated type parameters
+                std::stringstream ss(typeParams);
+                std::string param;
+
+                while (std::getline(ss, param, ','))
+                {
+                    // Trim whitespace
+                    param.erase(0, param.find_first_not_of(" \t"));
+                    param.erase(param.find_last_not_of(" \t") + 1);
+
+                    if (isGenericTypeParameter(param))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check if this is a concrete generic instantiation
+            if (isGenericInstantiation(className))
+            {
+                auto [baseName, typeArguments] = parseGenericInstantiation(className);
+                // Note: We can't check env->findClass here as this is a static utility
+                // The caller should handle class existence validation separately
+                return true; // Assume it needs special handling
+            }
+        }
+
+        return false;
     }
 
 }

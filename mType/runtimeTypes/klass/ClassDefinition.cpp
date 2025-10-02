@@ -1,7 +1,6 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
-#include <iostream>
 
 namespace runtimeTypes::klass
 {
@@ -210,16 +209,22 @@ namespace runtimeTypes::klass
 
     bool ClassDefinition::implementsInterface(const std::string& interfaceName) const
     {
-        // Check direct interfaces first
+        // Direct interface checking only - for transitive checks, use the registry-based version
         for (const auto& implementedInterface : implementedInterfaces) {
-            if (implementedInterface == interfaceName) {
+            // Extract base name from generic interface (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
+            std::string baseImplementedName = implementedInterface;
+            size_t anglePos = implementedInterface.find('<');
+            if (anglePos != std::string::npos) {
+                baseImplementedName = implementedInterface.substr(0, anglePos);
+            }
+
+            if (baseImplementedName == interfaceName) {
                 return true;
             }
         }
 
-        // Check transitive interface inheritance with depth protection
-        std::unordered_set<std::string> visited;
-        return implementsInterfaceTransitive(interfaceName, visited, 0);
+        // Cannot perform transitive interface resolution without InterfaceRegistry
+        return false;
     }
 
     bool ClassDefinition::implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const
@@ -241,35 +246,6 @@ namespace runtimeTypes::klass
         // Check transitive interface inheritance with depth protection and registry access
         std::unordered_set<std::string> visited;
         return implementsInterfaceTransitive(interfaceName, visited, 0, registry);
-    }
-
-    bool ClassDefinition::implementsInterfaceTransitive(const std::string& interfaceName,
-                                                       std::unordered_set<std::string>& visited,
-                                                       int depth) const
-    {
-        // Depth protection - prevent stack overflow attacks
-        if (depth > MAX_INTERFACE_DEPTH) {
-            return false;
-        }
-
-        // Check all directly implemented interfaces for transitive inheritance
-        for (const auto& implementedInterface : implementedInterfaces) {
-            // Avoid infinite recursion (circular inheritance)
-            if (visited.find(implementedInterface) != visited.end()) {
-                continue;
-            }
-
-            visited.insert(implementedInterface);
-
-            // TODO: For complete transitive resolution, we would need access to
-            // the InterfaceRegistry to check if implementedInterface extends interfaceName
-            // This is a simplified implementation that prevents the immediate vulnerability
-            // Full implementation would require dependency injection of InterfaceRegistry
-
-            visited.erase(implementedInterface);
-        }
-
-        return false;
     }
 
     bool ClassDefinition::implementsInterfaceTransitive(const std::string& interfaceName,

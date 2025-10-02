@@ -2,6 +2,7 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
@@ -19,6 +20,15 @@ namespace evaluator
     using namespace ast::nodes::classes;
     using namespace ast::nodes::statements;
     using namespace runtimeTypes::klass;
+
+    // Forward declarations for specialized handlers
+    namespace objects {
+        class ArrayAssignmentHandler;
+        class ClassRegistrationHandler;
+        class StaticMemberHandler;
+        class InstanceOperationHandler;
+        class GenericInstantiationHandler;
+    }
 
     /**
      * @brief Refactored Object Evaluator following SOLID principles
@@ -38,13 +48,23 @@ namespace evaluator
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<InstanceManager> instanceManager;
 
+        // Specialized object handlers
+        std::unique_ptr<objects::ArrayAssignmentHandler> arrayAssignmentHandler;
+        std::unique_ptr<objects::ClassRegistrationHandler> classRegistrationHandler;
+        std::unique_ptr<objects::StaticMemberHandler> staticMemberHandler;
+        std::unique_ptr<objects::InstanceOperationHandler> instanceOperationHandler;
+        std::unique_ptr<objects::GenericInstantiationHandler> genericInstantiationHandler;
+
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<ObjectEvaluator> dispatcher;
+
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
         class StatementEvaluator* stmtEvaluator;
 
     public:
         explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ObjectEvaluator() = default;
+        ~ObjectEvaluator();
 
         // IEvaluator interface implementation
         Value evaluate(ASTNode* node);
@@ -83,9 +103,11 @@ namespace evaluator
         std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
                                                        const std::vector<Value>& constructorArgs,
                                                        const std::unordered_map<std::string, std::string>& typeBindings);
-        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
+        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                          const Value& value);
+                          const Value& value,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args,
                          const errors::SourceLocation& location = errors::SourceLocation{});
@@ -99,6 +121,9 @@ namespace evaluator
         std::string resolveTypeParameterFromContext(const std::string& typeParam);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
@@ -106,10 +131,5 @@ namespace evaluator
         void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
         std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(const std::string& interfaceName);
         std::string resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions);
-        std::string valueTypeToString(const value::ValueType& type);
-
-        // Multi-dimensional array assignment helpers
-        std::optional<std::pair<Value, std::vector<size_t>>> extractMultiDimensionalAssignment(IndexAssignmentNode* node);
-        Value performDirectMultiDimensionalAssignment(const Value& baseArray, const std::vector<size_t>& indices, const Value& newValue, const SourceLocation& location);
     };
 }

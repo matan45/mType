@@ -18,7 +18,7 @@ namespace tests::testSuite
         addOutputVerificationTest("Valid Scope Usage",
                         passPath + "validScopeUsage.mt");
 
-        // Lexer error tests (expected to fail)
+        // Lexer error tests (expected to fail) - FIXED: No longer causes infinite loop
         addTestFromFile("Lexer Unterminated String Error",
                         errorPath + "lexerUnteminatedString.mt",
                         TestType::ERROR_EXPECTED);

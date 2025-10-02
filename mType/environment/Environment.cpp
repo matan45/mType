@@ -1,5 +1,6 @@
 ﻿#include "Environment.hpp"
-#include "../errors/AmbiguousReferenceException.hpp"
+#include "../circularDependency/TrueCyclicException.hpp"
+#include "../circularDependency/DepthLimitException.hpp"
 
 namespace environment
 {
@@ -19,12 +20,12 @@ namespace environment
         importManager(nullptr)
     {
         // Initialize enhanced import dependency detection
-        mtype::exceptions::CircularDependencyConfig config;
-        config.maxImportDepth = 100;  // Allow deeper import chains than generic substitution
+        circularDependency::CircularDependencyConfig config;
+        config.maxImportDepth = 100; // Allow deeper import chains than generic substitution
         config.enableEarlyDetection = true;
         config.enablePerformanceMetrics = true;
 
-        importDependencyDetector = std::make_shared<mtype::exceptions::CircularDependencyDetector>(config);
+        importDependencyDetector = std::make_shared<circularDependency::CircularDependencyDetector>(config);
     }
 
     void Environment::initialize()
@@ -135,9 +136,11 @@ namespace environment
         return nullptr;
     }
 
-    void Environment::registerInterface(const std::string& name, std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDefinition)
+    void Environment::registerInterface(const std::string& name,
+                                        std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDefinition)
     {
-        if (interfaceRegistry) {
+        if (interfaceRegistry)
+        {
             interfaceRegistry->registerInterface(name, interfaceDefinition);
         }
     }
@@ -150,7 +153,8 @@ namespace environment
 
     void Environment::clearInterfaces()
     {
-        if (interfaceRegistry) {
+        if (interfaceRegistry)
+        {
             interfaceRegistry->clearValidationCache();
             interfaceRegistry->clear();
         }
@@ -266,32 +270,35 @@ namespace environment
     bool Environment::wouldCauseCircularImport(const std::string& filePath)
     {
         // Check using enhanced circular dependency detection
-        try {
+        try
+        {
             // Temporarily enter the dependency to see if it would cause a cycle
             importDependencyDetector->enterDependency(
-                mtype::exceptions::DependencyType::IMPORT_CHAIN,
+                circularDependency::DependencyType::IMPORT_CHAIN,
                 filePath,
                 "import validation"
             );
             // If no exception, exit immediately and return false
             importDependencyDetector->exitDependency(
-                mtype::exceptions::DependencyType::IMPORT_CHAIN,
+                circularDependency::DependencyType::IMPORT_CHAIN,
                 filePath
             );
             return false;
         }
-        catch (const mtype::exceptions::TrueCyclicException&) {
-            return true;  // True circular dependency
+        catch (const circularDependency::TrueCyclicException&)
+        {
+            return true; // True circular dependency
         }
-        catch (const mtype::exceptions::DepthLimitException&) {
-            return true;  // Depth limit - treat as circular for safety
+        catch (const circularDependency::DepthLimitException&)
+        {
+            return true; // Depth limit - treat as circular for safety
         }
     }
 
     bool Environment::enterImportDependency(const std::string& filePath, const std::string& location)
     {
         return importDependencyDetector->enterDependency(
-            mtype::exceptions::DependencyType::IMPORT_CHAIN,
+            circularDependency::DependencyType::IMPORT_CHAIN,
             filePath,
             location
         );
@@ -300,22 +307,22 @@ namespace environment
     void Environment::exitImportDependency(const std::string& filePath)
     {
         importDependencyDetector->exitDependency(
-            mtype::exceptions::DependencyType::IMPORT_CHAIN,
+            circularDependency::DependencyType::IMPORT_CHAIN,
             filePath
         );
     }
 
     std::vector<std::string> Environment::getImportDependencyChain() const
     {
-        return importDependencyDetector->getDependencyChain(mtype::exceptions::DependencyType::IMPORT_CHAIN);
+        return importDependencyDetector->getDependencyChain(circularDependency::DependencyType::IMPORT_CHAIN);
     }
 
-    void Environment::setImportDependencyConfig(const mtype::exceptions::CircularDependencyConfig& config)
+    void Environment::setImportDependencyConfig(const circularDependency::CircularDependencyConfig& config)
     {
         importDependencyDetector->setConfig(config);
     }
 
-    mtype::exceptions::CircularDependencyConfig Environment::getImportDependencyConfig() const
+    circularDependency::CircularDependencyConfig Environment::getImportDependencyConfig() const
     {
         return importDependencyDetector->getConfig();
     }

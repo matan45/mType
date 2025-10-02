@@ -98,6 +98,11 @@
         "command": "mtype.run",
         "key": "f5",
         "when": "editorTextFocus && resourceExtname == '.mt'"
+      },
+      {
+        "command": "editor.action.copyLinesDownAction",
+        "key": "ctrl+d",
+        "when": "editorTextFocus && resourceExtname == '.mt'"
       }
     ],
     "menus": {

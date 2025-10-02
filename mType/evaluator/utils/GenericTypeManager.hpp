@@ -53,16 +53,7 @@ namespace evaluator::utils
         static std::shared_ptr<ClassDefinition> instantiateGenericClass(
             std::shared_ptr<ClassDefinition> genericClass,
             const std::vector<std::string>& typeArguments);
-
-        /**
-         * @brief Create a specialized class definition from a generic ClassNode
-         * @param genericClassNode The generic class AST node (e.g., Box<T>)
-         * @param typeArguments The concrete types to substitute (e.g., ["int"])
-         * @return Specialized class definition (e.g., Box<int>)
-         */
-        static std::shared_ptr<ClassDefinition> instantiateGenericClassFromNode(
-            ast::nodes::classes::ClassNode* genericClassNode,
-            const std::vector<std::string>& typeArguments);
+        
 
         /**
          * @brief Validate that type arguments match the generic parameters
@@ -99,14 +90,24 @@ namespace evaluator::utils
             const std::vector<std::string>& typeArguments);
 
         /**
-         * @brief Substitute generic type parameters in a type string
-         * @param typeString Original type string (may contain T, K, etc.)
-         * @param substitutionMap Map of type parameter to concrete type
-         * @return Type string with substitutions applied
+         * @brief Substitute generic type parameters using AST-based approach
+         * @param genericType The generic type AST node to substitute
+         * @param substitutionMap Map of type parameter names to concrete GenericType objects
+         * @return New GenericType with substitutions applied
          */
-        static std::string substituteTypeParameters(
-            const std::string& typeString,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+        static std::shared_ptr<ast::GenericType> substituteTypeParameters(
+            std::shared_ptr<ast::GenericType> genericType,
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
+
+        /**
+         * @brief Create a GenericType substitution map from string type arguments
+         * @param genericParameters The generic type parameters (T, K, V, etc.)
+         * @param typeArguments The concrete type argument strings (int, string, etc.)
+         * @return Map for AST-based type substitution
+         */
+        static std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> createASTSubstitutionMap(
+            const std::vector<GenericTypeParameter>& genericParameters,
+            const std::vector<std::string>& typeArguments);
 
         /**
          * @brief Create a specialized method definition from a generic static method
@@ -145,6 +146,20 @@ namespace evaluator::utils
          * This is useful for test isolation and preventing cache contamination
          */
         static void clearGenericClassCache();
+
+        /**
+         * @brief Check if a name is likely a generic type parameter
+         * @param name The type name to check (e.g., "T", "Key", "Element")
+         * @return True if it matches generic parameter patterns
+         */
+        static bool isGenericTypeParameter(const std::string& name);
+
+        /**
+         * @brief Check if a class name contains unresolved generic type parameters
+         * @param className The class name to check (e.g., "List<T>", "Map<K,V>")
+         * @return True if it contains unresolved generic parameters
+         */
+        static bool hasUnresolvedGenericParams(const std::string& className);
 
     private:
         /**
@@ -194,7 +209,25 @@ namespace evaluator::utils
             std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> originalConstructor,
             const std::unordered_map<std::string, std::string>& substitutionMap);
 
-        
+        // Helper methods for instantiateGenericClass
+        static std::string createInstantiatedClassName(
+            std::shared_ptr<ClassDefinition> genericClass,
+            const std::vector<std::string>& typeArguments);
+
+        static void copyAndSubstituteFields(
+            std::shared_ptr<ClassDefinition> source,
+            std::shared_ptr<ClassDefinition> target,
+            const std::unordered_map<std::string, std::string>& substitutionMap);
+
+        static void copyAndSubstituteMethods(
+            std::shared_ptr<ClassDefinition> source,
+            std::shared_ptr<ClassDefinition> target,
+            const std::unordered_map<std::string, std::string>& substitutionMap);
+
+        static void copyAndSubstituteConstructors(
+            std::shared_ptr<ClassDefinition> source,
+            std::shared_ptr<ClassDefinition> target,
+            const std::unordered_map<std::string, std::string>& substitutionMap);
 
     private:
         /**

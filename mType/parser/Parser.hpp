@@ -21,6 +21,16 @@ namespace parser
     using namespace ast;
     using namespace token;
 
+    // Helper for atomic initialization
+    struct ParserComponents {
+        std::unique_ptr<TokenStream> tokenStream;
+        std::unique_ptr<StatementParser> statementParser;
+        std::unique_ptr<ExpressionParser> expressionParser;
+        std::unique_ptr<ClassParser> classParser;
+        std::unique_ptr<InterfaceParser> interfaceParser;
+        std::unique_ptr<ParseContext> context;
+    };
+
     class Parser
     {
     private:
@@ -36,15 +46,6 @@ namespace parser
         std::unique_ptr<ClassParser> classParser;
         std::unique_ptr<InterfaceParser> interfaceParser;
         
-        // Helper for atomic initialization
-        struct ParserComponents {
-            std::unique_ptr<TokenStream> tokenStream;
-            std::unique_ptr<StatementParser> statementParser;
-            std::unique_ptr<ExpressionParser> expressionParser;
-            std::unique_ptr<ClassParser> classParser;
-            std::unique_ptr<InterfaceParser> interfaceParser;
-            std::unique_ptr<ParseContext> context;
-        };
         static ParserComponents createComponents(Lexer& lex);
 
     public:

@@ -2,10 +2,21 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/ControlFlowManager.hpp"
 #include "utils/ValueConverter.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/statements/BreakNode.hpp"
 #include "../errors/SourceLocation.hpp"
 #include <memory>
+
+// Forward declarations for specialized handlers
+namespace evaluator {
+namespace statements {
+    class LoopEvaluator;
+    class DeclarationHandler;
+    class ControlFlowHandler;
+    class ImportAndFunctionHandler;
+}
+}
 
 namespace evaluator
 {
@@ -30,6 +41,15 @@ namespace evaluator
         std::shared_ptr<EvaluationContext> context;
         std::unique_ptr<ControlFlowManager> flowManager;
 
+        // Specialized statement handlers
+        std::unique_ptr<statements::LoopEvaluator> loopEvaluator;
+        std::unique_ptr<statements::DeclarationHandler> declarationHandler;
+        std::unique_ptr<statements::ControlFlowHandler> controlFlowHandler;
+        std::unique_ptr<statements::ImportAndFunctionHandler> importAndFunctionHandler;
+
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<StatementEvaluator> dispatcher;
+
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
         class ObjectEvaluator* objEvaluator;
@@ -39,7 +59,7 @@ namespace evaluator
 
     public:
         explicit StatementEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~StatementEvaluator() = default;
+        ~StatementEvaluator();
 
         // IEvaluator interface implementation
         Value evaluate(ASTNode* node);
@@ -77,13 +97,16 @@ namespace evaluator
         Value evaluateImportNode(ImportNode* node);
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
-        Value evaluateNativeFunctionNode(NativeFunctionNode* node);
+        Value evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods
         bool isStatementNode(ASTNode* node) const;
         Value executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements);
@@ -106,6 +129,6 @@ namespace evaluator
 
     public:
         // Lambda-to-interface conversion (moved to public for ObjectEvaluator access)
-        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName);
+        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location = SourceLocation());
     };
 }

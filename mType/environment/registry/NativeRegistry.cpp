@@ -5,8 +5,9 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/NullPointerException.hpp"
+#include "../../errors/TypeConversionException.hpp"
 #include "../../value/StringPool.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 
 namespace environment::registry
 {
@@ -81,7 +82,7 @@ namespace environment::registry
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
                         std::cout << (value ? "true" : "false");
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::monostate>)
-                        std::cout << "void";
+                        std::cout << "null";
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
                         std::cout << "null";
                     else if constexpr (std::is_same_v<
@@ -274,14 +275,14 @@ namespace environment::registry
                 {
                     if (!value)
                     {
-                        throw mtype::exceptions::NullPointerException("classNameObj function call");
+                        throw errors::NullPointerException("classNameObj function call");
                     }
                     // Return the class name of the object
                     return value->getTypeName();
                 }
                 else
                 {
-                    throw mtype::exceptions::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
+                    throw errors::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
                 }
             }, args[0]);
         });

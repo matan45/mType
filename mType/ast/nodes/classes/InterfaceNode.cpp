@@ -40,8 +40,10 @@ namespace ast::nodes::classes
 
     bool InterfaceNode::extendsInterface(const std::string& interfaceName) const
     {
-        for (const auto& extendedInterface : extendsInterfaces) {
-            if (extendedInterface == interfaceName) {
+        for (const auto& extendedInterface : extendsInterfaces)
+        {
+            if (extendedInterface == interfaceName)
+            {
                 return true;
             }
         }
@@ -50,12 +52,14 @@ namespace ast::nodes::classes
 
     std::string InterfaceNode::getFullInterfaceName() const
     {
-        if (genericParameters.empty()) {
+        if (genericParameters.empty())
+        {
             return name;
         }
 
         std::string fullName = name + "<";
-        for (size_t i = 0; i < genericParameters.size(); ++i) {
+        for (size_t i = 0; i < genericParameters.size(); ++i)
+        {
             if (i > 0) fullName += ", ";
             fullName += genericParameters[i].name;
         }

@@ -16,8 +16,10 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
 
     async provideCompletionItems(
         document: vscode.TextDocument,
-        position: vscode.Position
-    ): Promise<vscode.CompletionItem[]> {
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): Promise<vscode.CompletionList | vscode.CompletionItem[]> {
         const text = document.getText();
         this.analyzer.analyzeDocument(text);
 
@@ -42,12 +44,22 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                     await this.importedSymbolProvider.analyzeDocumentImports(document);
                 }
                 const staticCompletions = await this.getStaticMemberCompletions(className, document);
-                // Return ONLY static member completions, no other suggestions
-                return staticCompletions;
+                // Return as CompletionList with incomplete=false to suppress other suggestions
+                return new vscode.CompletionList(staticCompletions, false);
             }
         }
-        // Handle instance member access (object.)
+        // Handle instance member access (object. or this.)
         else if (triggerContext === 'instance-member') {
+            // Check for "this." specifically
+            const thisMatch = lineText.match(/this\.\s*$/);
+            if (thisMatch) {
+                // Get current class context for "this."
+                const thisCompletions = await this.getThisCompletions(document, position);
+                // Return as CompletionList with incomplete=false to suppress other suggestions
+                return new vscode.CompletionList(thisCompletions, false);
+            }
+
+            // Regular object member access
             const dotMatch = lineText.match(/(\w+)\.\s*$/);
             if (dotMatch) {
                 const objectName = dotMatch[1];
@@ -56,7 +68,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 const collectionType = this.findVariableTypeInDocument(document, objectName);
                 if (collectionType && this.isCollectionType(collectionType)) {
                     const collectionMethods = this.getCollectionMethodCompletions(collectionType);
-                    return collectionMethods;
+                    // Return as CompletionList with incomplete=false to suppress other suggestions
+                    return new vscode.CompletionList(collectionMethods, false);
                 }
 
                 // Ensure imports are analyzed for member access
@@ -64,8 +77,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                     await this.importedSymbolProvider.analyzeDocumentImports(document);
                 }
                 const instanceCompletions = await this.getScopeAwareInstanceCompletions(objectName, document, position);
-                // Return ONLY instance member completions, no other suggestions
-                return instanceCompletions;
+                // Return as CompletionList with incomplete=false to suppress other suggestions
+                return new vscode.CompletionList(instanceCompletions, false);
             }
         }
         // Handle generic type parameters
@@ -832,5 +845,121 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         }
 
         return null;
+    }
+
+    /**
+     * Get completions for "this." - shows instance members of the current class
+     */
+    private async getThisCompletions(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.CompletionItem[]> {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        if (!this.scopeAnalyzer) {
+            return completionItems;
+        }
+
+        // Find the enclosing class at the current position
+        const currentClassName = this.findEnclosingClass(document, position);
+        if (!currentClassName) {
+            return completionItems;
+        }
+
+        // Get class info
+        const classInfo = this.scopeAnalyzer.getClassInfo(currentClassName);
+        if (!classInfo) {
+            return completionItems;
+        }
+
+        // Add instance methods (non-static methods)
+        for (const method of classInfo.methods.values()) {
+            if (method.isStatic) continue; // Skip static methods for "this."
+
+            const item = new vscode.CompletionItem(method.name, vscode.CompletionItemKind.Method);
+            const paramStr = method.parameters.map(p => `${p.type} ${p.name}`).join(', ');
+
+            const modifiers = [
+                method.visibility === Visibility.Private ? 'private' : ''
+            ].filter(Boolean).join(' ');
+
+            item.detail = `${modifiers} ${method.returnType} ${method.name}(${paramStr})`;
+            item.documentation = new vscode.MarkdownString(
+                `**Instance Method**\n\nReturns: \`${method.returnType}\`\n\nParameters: ${paramStr || 'none'}`
+            );
+
+            // Create snippet for parameters
+            if (method.parameters.length > 0) {
+                const snippetParams = method.parameters.map((p, i) => `\${${i + 1}:${p.name}}`).join(', ');
+                item.insertText = new vscode.SnippetString(`${method.name}(${snippetParams})`);
+            } else {
+                item.insertText = new vscode.SnippetString(`${method.name}()`);
+            }
+
+            // Use very high priority sort text to appear at top
+            item.sortText = '!0_' + method.name;
+            item.filterText = method.name;
+            completionItems.push(item);
+        }
+
+        // Add instance fields (non-static fields)
+        for (const field of classInfo.fields.values()) {
+            if (field.isStatic) continue; // Skip static fields for "this."
+
+            const item = new vscode.CompletionItem(field.name, vscode.CompletionItemKind.Field);
+
+            const modifiers = [
+                field.visibility === Visibility.Private ? 'private' : '',
+                field.isFinal ? 'final' : ''
+            ].filter(Boolean).join(' ');
+
+            item.detail = `${modifiers} ${field.type} ${field.name}`;
+            item.documentation = new vscode.MarkdownString(
+                `**Instance Field**\n\nType: \`${field.type}\`\n\nModifiers: ${modifiers || 'none'}`
+            );
+            // Use very high priority sort text to appear at top
+            item.sortText = '!1_' + field.name;
+            item.filterText = field.name;
+            completionItems.push(item);
+        }
+
+        return completionItems;
+    }
+
+    /**
+     * Find the enclosing class name at the given position
+     */
+    private findEnclosingClass(document: vscode.TextDocument, position: vscode.Position): string | null {
+        const text = document.getText();
+        const lines = text.split('\n');
+
+        let currentClass: string | null = null;
+        let braceCount = 0;
+        let classBraceLevel = -1;
+
+        for (let i = 0; i <= position.line; i++) {
+            const line = lines[i];
+
+            // Count braces BEFORE checking exit condition
+            const openBraces = (line.match(/\{/g) || []).length;
+            const closeBraces = (line.match(/\}/g) || []).length;
+
+            // Check for class declaration (support multiple patterns including generics)
+            const classMatch = line.match(/^\s*class\s+(\w+)(?:<[^>]+>)?/) ||
+                              line.match(/class\s+(\w+)(?:<[^>]+>)?\s+implements/) ||
+                              line.match(/class\s+(\w+)(?:<[^>]+>)?\s+extends/);
+            if (classMatch) {
+                currentClass = classMatch[1];
+                classBraceLevel = braceCount; // Level BEFORE the opening brace
+            }
+
+            // Update brace count AFTER checking for class
+            braceCount += openBraces - closeBraces;
+
+            // Check if we've exited the class (brace count drops to or below class level)
+            if (currentClass && braceCount <= classBraceLevel && i > 0) {
+                currentClass = null;
+                classBraceLevel = -1;
+            }
+        }
+
+        return currentClass;
     }
 }

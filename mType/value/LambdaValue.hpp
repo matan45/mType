@@ -156,6 +156,11 @@ namespace value
         // Interface proxy creation for functional interfaces
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> createInterfaceProxy() const;
 
+        // Memory safety and validation
+        bool isValid() const;
+        std::string getValidationStatus() const;
+        void validateState() const; // Throws on invalid state
+
     private:
         // Memory optimization constants
         static constexpr size_t MAX_VALUE_CAPTURE_SIZE = 256; // bytes
