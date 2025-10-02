@@ -53,5 +53,7 @@ namespace ast
         virtual T visitIndexAccessNode(IndexAccessNode* node) = 0;
         virtual T visitLambdaNode(LambdaNode* node) = 0;
         virtual T visitForEachNode(ForEachNode* node) = 0;
+        virtual T visitSuperConstructorCallNode(SuperConstructorCallNode* node) = 0;
+        virtual T visitSuperMethodCallNode(SuperMethodCallNode* node) = 0;
     };
 }

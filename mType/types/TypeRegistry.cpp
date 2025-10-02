@@ -346,6 +346,65 @@ namespace types {
         return true;
     }
 
+    void TypeRegistry::registerInheritance(const std::string& childType, const std::string& parentType) {
+        classInheritance[childType] = parentType;
+        // Clear cache when inheritance relationships change
+        subtypeCache.clear();
+    }
+
+    bool TypeRegistry::isSubtypeOf(const std::string& childType, const std::string& parentType) const {
+        // Exact match
+        if (childType == parentType) {
+            return true;
+        }
+
+        // Check cache
+        std::string cacheKey = childType + "->" + parentType;
+        auto it = subtypeCache.find(cacheKey);
+        if (it != subtypeCache.end()) {
+            return it->second;
+        }
+
+        // Traverse inheritance chain
+        std::string current = childType;
+        std::unordered_set<std::string> visited; // Prevent cycles
+        int depth = 0;
+        const int MAX_DEPTH = 20;
+
+        while (depth < MAX_DEPTH) {
+            // Check if we've found the parent
+            auto inheritanceIt = classInheritance.find(current);
+            if (inheritanceIt == classInheritance.end()) {
+                // No parent found, not a subtype
+                subtypeCache[cacheKey] = false;
+                return false;
+            }
+
+            std::string parent = inheritanceIt->second;
+
+            // Cycle detection
+            if (visited.find(parent) != visited.end()) {
+                subtypeCache[cacheKey] = false;
+                return false;
+            }
+            visited.insert(parent);
+
+            // Check if we've found the target parent
+            if (parent == parentType) {
+                subtypeCache[cacheKey] = true;
+                return true;
+            }
+
+            // Continue up the inheritance chain
+            current = parent;
+            depth++;
+        }
+
+        // Depth limit reached or cycle detected
+        subtypeCache[cacheKey] = false;
+        return false;
+    }
+
     // Global registry instance
     TypeRegistry& getGlobalTypeRegistry() {
         static TypeRegistry instance;

@@ -63,6 +63,8 @@ namespace ast
             class MemberAccessNode;
             class MethodCallNode;
             class InterfaceNode;
+            class SuperConstructorCallNode;
+            class SuperMethodCallNode;
         }
     }
     
@@ -111,4 +113,6 @@ namespace ast
     using IndexAccessNode = nodes::expressions::IndexAccessNode;
     using LambdaNode = nodes::expressions::LambdaNode;
     using ForEachNode = nodes::statements::ForEachNode;
+    using SuperConstructorCallNode = nodes::classes::SuperConstructorCallNode;
+    using SuperMethodCallNode = nodes::classes::SuperMethodCallNode;
 }

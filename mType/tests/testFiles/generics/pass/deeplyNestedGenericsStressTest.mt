@@ -104,13 +104,6 @@ function main(): void {
     print("Sub map size: " + megaMap.get(new Int(42)).size());
     print("Int list size: " + megaMap.get(new Int(42)).get(new String("large_numbers")).size());
 
-    // Test 5: Testing classNameObj with nested generics
-    print("\nTest 5: Class names of nested generics");
-    print("Complex list class: " + classNameObj(complexList));
-    print("Nested map class: " + classNameObj(nestedMap));
-    print("Triple list class: " + classNameObj(tripleList));
-    print("Mega map class: " + classNameObj(megaMap));
-
     // Test 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>
     print("\nTest 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>");
     List<HashMap<String, HashSet<HashMap<Int, String>>>> extremeNesting = new List<HashMap<String, HashSet<HashMap<Int, String>>>>();

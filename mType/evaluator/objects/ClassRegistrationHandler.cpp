@@ -12,8 +12,11 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
+#include "../../errors/InheritanceException.hpp"
+#include "../validation/InheritanceValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
+#include "../../circularDependency/CircularDependencyDetector.hpp"
 #include <sstream>
 
 using namespace errors;
@@ -57,6 +60,45 @@ namespace evaluator
 
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
+
+            // NEW: Handle inheritance if parent class specified
+            if (node->hasParentClass()) {
+                const std::string& parentClassName = node->getParentClassName();
+
+                // Validate parent class exists
+                validation::InheritanceValidator::validateParentClassExists(
+                    parentClassName,
+                    node->getLocation(),
+                    context);
+
+                // Validate no circular inheritance
+                static circularDependency::CircularDependencyDetector inheritanceDetector;
+                validation::InheritanceValidator::validateCircularInheritance(
+                    node->getClassName(),
+                    parentClassName,
+                    node->getLocation(),
+                    inheritanceDetector);
+
+                // Set parent class name in definition
+                classDef->setParentClassName(parentClassName);
+
+                // Find parent class and link it
+                auto parentClass = env->findClass(parentClassName);
+                if (parentClass) {
+                    classDef->setParentClass(parentClass);
+
+                    // Register inheritance relationship in class registry
+                    env->getClassRegistry()->registerInheritance(
+                        node->getClassName(),
+                        parentClassName);
+
+                    // Validate inheritance depth
+                    validation::InheritanceValidator::validateInheritanceDepth(
+                        node->getClassName(),
+                        node->getLocation(),
+                        context);
+                }
+            }
 
             // Add fields
             for (const auto& fieldPtr : node->getFields())
@@ -219,6 +261,17 @@ namespace evaluator
 
             // Validate interface implementations
             validateInterfaceImplementations(classDef);
+
+            // NEW: Validate method overrides if class has parent
+            if (classDef->hasParentClass()) {
+                auto parentClass = classDef->getParentClass();
+                if (parentClass) {
+                    validation::InheritanceValidator::validateMethodOverrides(
+                        classDef,
+                        parentClass,
+                        node->getLocation());
+                }
+            }
 
             // Register class
             registerClass(classDef);

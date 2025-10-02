@@ -19,6 +19,9 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="circularDependency">
+      <UniqueIdentifier>{B982208C-A566-E1E1-0EC7-DB34FAC9CB63}</UniqueIdentifier>
+    </Filter>
     <Filter Include="constants">
       <UniqueIdentifier>{6215F996-CE7F-AD0D-17BE-5EB383678B62}</UniqueIdentifier>
     </Filter>
@@ -58,9 +61,6 @@
     <Filter Include="evaluator\validation">
       <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exceptions">
-      <UniqueIdentifier>{67C00D32-5378-4F7F-BC7F-28DBA856EA6F}</UniqueIdentifier>
-    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -72,9 +72,6 @@
     </Filter>
     <Filter Include="parser\core">
       <UniqueIdentifier>{AAC52739-167B-A02E-9F6F-9A050B249732}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="parser\error">
-      <UniqueIdentifier>{CB52465E-B7B5-D502-603B-0EB94C7DA185}</UniqueIdentifier>
     </Filter>
     <Filter Include="parser\expression">
       <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
@@ -267,6 +264,12 @@
     <ClInclude Include="ast\nodes\classes\NewNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperConstructorCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMethodCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
@@ -375,6 +378,30 @@
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyConfig.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyDetector.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyPatternAnalyzer.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyScope.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyType.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DepthLimitException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\TrueCyclicException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
     </ClInclude>
@@ -433,6 +460,9 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ImportException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\InheritanceException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\MathException.hpp">
@@ -570,14 +600,11 @@
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
-    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+    <ClInclude Include="evaluator\validation\InheritanceValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
-    <ClInclude Include="exceptions\CircularDependencyDetection.hpp">
-      <Filter>exceptions</Filter>
-    </ClInclude>
-    <ClInclude Include="exceptions\CircularDependencyDetector.hpp">
-      <Filter>exceptions</Filter>
+    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+      <Filter>evaluator\validation</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
@@ -607,9 +634,6 @@
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\Parser.hpp">
-      <Filter>parser</Filter>
-    </ClInclude>
-    <ClInclude Include="parser\ParserUtils.hpp">
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\ParserValidator.hpp">
@@ -648,9 +672,6 @@
     <ClInclude Include="parser\core\IParser.hpp">
       <Filter>parser\core</Filter>
     </ClInclude>
-    <ClInclude Include="parser\error\ErrorHandler.hpp">
-      <Filter>parser\error</Filter>
-    </ClInclude>
     <ClInclude Include="parser\expression\ArgumentParser.hpp">
       <Filter>parser\expression</Filter>
     </ClInclude>
@@ -685,6 +706,9 @@
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\ParsePatterns.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParserUtils.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
@@ -848,6 +872,12 @@
     <ClCompile Include="ast\nodes\classes\NewNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperConstructorCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMethodCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
@@ -955,6 +985,12 @@
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="circularDependency\CircularDependencyDetector.cpp">
+      <Filter>circularDependency</Filter>
+    </ClCompile>
+    <ClCompile Include="circularDependency\DependencyPatternAnalyzer.cpp">
+      <Filter>circularDependency</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
       <Filter>environment</Filter>
@@ -1070,14 +1106,11 @@
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
-    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+    <ClCompile Include="evaluator\validation\InheritanceValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
-    <ClCompile Include="exceptions\CircularDependencyDetection.cpp">
-      <Filter>exceptions</Filter>
-    </ClCompile>
-    <ClCompile Include="exceptions\CircularDependencyDetector.cpp">
-      <Filter>exceptions</Filter>
+    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+      <Filter>evaluator\validation</Filter>
     </ClCompile>
     <ClCompile Include="lexer\BracketBalancer.cpp">
       <Filter>lexer</Filter>
@@ -1107,9 +1140,6 @@
       <Filter>parser</Filter>
     </ClCompile>
     <ClCompile Include="parser\Parser.cpp">
-      <Filter>parser</Filter>
-    </ClCompile>
-    <ClCompile Include="parser\ParserUtils.cpp">
       <Filter>parser</Filter>
     </ClCompile>
     <ClCompile Include="parser\ParserValidator.cpp">
@@ -1145,9 +1175,6 @@
     <ClCompile Include="parser\core\BaseParser.cpp">
       <Filter>parser\core</Filter>
     </ClCompile>
-    <ClCompile Include="parser\error\ErrorHandler.cpp">
-      <Filter>parser\error</Filter>
-    </ClCompile>
     <ClCompile Include="parser\expression\ArgumentParser.cpp">
       <Filter>parser\expression</Filter>
     </ClCompile>
@@ -1182,6 +1209,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\ParsePatterns.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParserUtils.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">

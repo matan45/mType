@@ -320,4 +320,14 @@ namespace evaluator
     {
         return exprEvaluator->evaluateLambdaNode(node);
     }
+
+    Value EvaluatorCoordinator::visitSuperConstructorCallNode(SuperConstructorCallNode* node)
+    {
+        return exprEvaluator->evaluateSuperConstructorCallNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitSuperMethodCallNode(SuperMethodCallNode* node)
+    {
+        return exprEvaluator->evaluateSuperMethodCallNode(node);
+    }
 }

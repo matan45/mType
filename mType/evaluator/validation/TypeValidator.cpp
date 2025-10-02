@@ -170,23 +170,27 @@ namespace validation {
                 // Check if the actual class matches the expected class
                 if (!isGenericTypeCompatible(actualClassName, resolvedExpectedClassName))
                 {
-                    // Check if expectedClassName is an interface that the actual class implements
-                    auto classDefinition = objInstance->getClassDefinition();
-
-                    // Extract base interface name from generic type
-                    std::string baseExpectedName = extractBaseClassName(resolvedExpectedClassName);
-
-                    // Get the interface registry from the environment
-                    if (context)
+                    // Check if actualClassName is a subclass of expectedClassName (inheritance)
+                    if (!isSubclassCompatible(actualClassName, resolvedExpectedClassName, context))
                     {
-                        auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
+                        // Check if expectedClassName is an interface that the actual class implements
+                        auto classDefinition = objInstance->getClassDefinition();
 
-                        if (!classDefinition->implementsInterface(baseExpectedName, interfaceRegistry))
+                        // Extract base interface name from generic type
+                        std::string baseExpectedName = extractBaseClassName(resolvedExpectedClassName);
+
+                        // Get the interface registry from the environment
+                        if (context)
                         {
-                            throw TypeException(
-                                "Object type mismatch for variable '" + variableName + "': expected " +
-                                resolvedExpectedClassName + " but got " + actualClassName,
-                                location);
+                            auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
+
+                            if (!classDefinition->implementsInterface(baseExpectedName, interfaceRegistry))
+                            {
+                                throw TypeException(
+                                    "Object type mismatch for variable '" + variableName + "': expected " +
+                                    resolvedExpectedClassName + " but got " + actualClassName,
+                                    location);
+                            }
                         }
                     }
                 }
@@ -353,6 +357,29 @@ namespace validation {
             return className.substr(0, pos);
         }
         return className;
+    }
+
+    bool TypeValidator::isSubclassCompatible(
+        const std::string& actualClassName,
+        const std::string& expectedClassName,
+        std::shared_ptr<EvaluationContext> context)
+    {
+        if (!context) {
+            return false;
+        }
+
+        // Extract base class names (remove generics)
+        std::string actualBase = extractBaseClassName(actualClassName);
+        std::string expectedBase = extractBaseClassName(expectedClassName);
+
+        // Get the class definition for the actual class
+        auto actualClassDef = context->getEnvironment()->findClass(actualBase);
+        if (!actualClassDef) {
+            return false;
+        }
+
+        // Check if actualClass is a subclass of expectedClass
+        return actualClassDef->isSubclassOf(expectedBase);
     }
 
 } // namespace validation

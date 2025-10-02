@@ -103,6 +103,10 @@ namespace evaluator
         Value evaluateLambdaNode(LambdaNode* node);
         Value evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node);
 
+        // NEW: Super expressions for inheritance
+        Value evaluateSuperConstructorCallNode(SuperConstructorCallNode* node);
+        Value evaluateSuperMethodCallNode(SuperMethodCallNode* node);
+
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);

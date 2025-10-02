@@ -308,4 +308,14 @@ namespace evaluator
         return coordinator->visitLambdaNode(node);
     }
 
+    Value Evaluator::visitSuperConstructorCallNode(SuperConstructorCallNode* node)
+    {
+        return coordinator->visitSuperConstructorCallNode(node);
+    }
+
+    Value Evaluator::visitSuperMethodCallNode(SuperMethodCallNode* node)
+    {
+        return coordinator->visitSuperMethodCallNode(node);
+    }
+
 }

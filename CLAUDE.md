@@ -54,7 +54,12 @@ mtype/
 │   │   ├── StatementEvaluator.cpp/.hpp
 │   │   ├── base/                # Evaluation context
 │   │   ├── managers/            # Control flow and instance management
-│   │   └── utils/               # Evaluation utilities
+│   │   ├── statements/          # Statement handlers (refactored)
+│   │   │   └── DeclarationHandler.cpp/.hpp  # Variable declarations and assignments
+│   │   ├── utils/               # Evaluation utilities
+│   │   │   └── GenericTypeManager.cpp/.hpp  # Generic type operations and validation
+│   │   └── validation/          # Type validation utilities
+│   │       └── TypeValidator.cpp/.hpp
 │   ├── exception/               # Control flow exceptions
 │   │   ├── BreakException.hpp
 │   │   ├── ContinueException.hpp
@@ -343,59 +348,6 @@ public:
 - **Utility Extraction**: Move common operations to utility classes
 - **Context Grouping**: Organize classes by functional context in folder structure
 
-**Example Class Structure:**
-```cpp
-// TokenValidator.hpp - Small, focused helper class
-#pragma once
-#include "Token.hpp"
-
-class TokenValidator {
-public:
-    static bool isValidIdentifier(const Token& token);
-    static bool isKeyword(const std::string& text);
-    static bool isOperator(const Token& token);
-};
-
-// Lexer.hpp - Main class using helpers
-#pragma once
-#include "TokenValidator.hpp"
-#include "TokenFactory.hpp"
-
-class Lexer {
-private:
-    std::unique_ptr<TokenFactory> tokenFactory;
-    std::unique_ptr<SourceLocationTracker> locationTracker;
-
-public:
-    std::vector<Token> tokenize(const std::string& source);
-
-private:
-    Token createNextToken();  // < 50 lines
-    void skipWhitespace();    // < 50 lines
-    Token parseString();      // < 50 lines
-};
-```
-
-**Helper Class Examples:**
-```cpp
-// evaluator/managers/ControlFlowManager.hpp
-class ControlFlowManager {
-public:
-    bool handleBreakStatement(const BreakNode& node);
-    bool handleContinueStatement(const ContinueNode& node);
-    void enterLoop();
-    void exitLoop();
-};
-
-// parser/utils/ParseContext.hpp
-class ParseContext {
-public:
-    void pushScope();
-    void popScope();
-    bool isInFunction() const;
-    bool isInClass() const;
-};
-```
 
 #### Quality Assurance
 - **Unit Testing**: Comprehensive unit tests for all components

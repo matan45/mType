@@ -39,6 +39,10 @@ namespace runtimeTypes::klass
         // NEW: Interface support
         std::vector<std::string> implementedInterfaces;
 
+        // NEW: Inheritance support
+        std::string parentClassName;
+        std::weak_ptr<ClassDefinition> parentClass;
+
     public:
         explicit ClassDefinition(const std::string& n)
             : Definition(n), isGenericClass(false)
@@ -118,9 +122,29 @@ namespace runtimeTypes::klass
         // NEW: Inheritance-related methods
         bool isSubclassOf(const std::string& className) const;
 
+        // Parent class management
+        const std::string& getParentClassName() const { return parentClassName; }
+        void setParentClassName(const std::string& parent) { parentClassName = parent; }
+        bool hasParentClass() const { return !parentClassName.empty(); }
+
+        std::shared_ptr<ClassDefinition> getParentClass() const { return parentClass.lock(); }
+        void setParentClass(std::shared_ptr<ClassDefinition> parent) {
+            parentClass = parent;
+            if (parent) {
+                parentClassName = parent->getName();
+            }
+        }
+
+        // Polymorphic method lookup
+        std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;
+
+        // Inheritance chain traversal
+        std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain() const;
+
     private:
-        // Depth protection for interface inheritance chains
+        // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;
+        static constexpr int MAX_INHERITANCE_DEPTH = 20;
 
         // Helper method for transitive interface checking with depth protection
         // Requires InterfaceRegistry for complete transitive resolution

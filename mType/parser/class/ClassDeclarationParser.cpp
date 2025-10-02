@@ -49,12 +49,40 @@ namespace parser
             tokenStream.expect(TokenType::GREATER); // consume '>'
         }
 
+        // Parse extends clause if present (must come before implements)
+        std::string parentClassName = parseExtendsClause();
+
         // Parse implements clause if present
         std::vector<std::string> implementedInterfaces = parseImplementedInterfaces();
 
         tokenStream.expect(TokenType::LBRACE);
 
-        return std::make_unique<ClassNode>(className, genericParameters, implementedInterfaces);
+        return std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
+    }
+
+    std::string ClassDeclarationParser::parseExtendsClause()
+    {
+        if (!tokenStream.check(TokenType::EXTENDS))
+        {
+            return ""; // No inheritance
+        }
+
+        tokenStream.advance(); // consume 'extends'
+
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        {
+            throw ParseException("Expected parent class name after 'extends'",
+                               tokenStream.current().location);
+        }
+
+        std::string parentClass = parseGenericInterfaceName(); // Reuse for generic parent support
+
+        // Validate parent class name
+        ParserUtils::validateCapitalizedName(parentClass.substr(0, parentClass.find('<')),
+                                            "Parent class",
+                                            tokenStream.current().location);
+
+        return parentClass;
     }
 
     std::vector<std::string> ClassDeclarationParser::parseImplementedInterfaces()

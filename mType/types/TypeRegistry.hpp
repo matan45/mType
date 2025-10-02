@@ -68,6 +68,10 @@ namespace types {
         // Custom type factories
         std::unordered_map<std::string, std::function<ExtendedTypeInfo(const std::vector<std::string>&)>> typeFactories;
 
+        // NEW: Inheritance relationships
+        std::unordered_map<std::string, std::string> classInheritance; // child -> parent
+        mutable std::unordered_map<std::string, bool> subtypeCache; // For caching subtype relationships
+
     public:
         /**
          * Initialize registry with built-in types
@@ -168,6 +172,17 @@ namespace types {
          * Check if a type is a primitive type
          */
         bool isPrimitiveType(const std::string& typeName) const;
+
+        /**
+         * NEW: Register inheritance relationship between classes
+         */
+        void registerInheritance(const std::string& childType, const std::string& parentType);
+
+        /**
+         * NEW: Check if one type is a subtype of another (inheritance-aware)
+         * @return true if childType is a subtype of parentType
+         */
+        bool isSubtypeOf(const std::string& childType, const std::string& parentType) const;
 
     private:
         /**

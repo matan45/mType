@@ -29,5 +29,6 @@ namespace parser
     private:
         void validateClassName(const std::string& className, const SourceLocation& location);
         std::string parseGenericInterfaceName();
+        std::string parseExtendsClause();
     };
 }

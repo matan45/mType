@@ -259,32 +259,5 @@ namespace environment::registry
                 }
             }, args[0]);
         });
-
-        // Add classNameObj function for getting class name of objects
-        registerNativeFunction("classNameObj", [](const std::vector<Value>& args) -> Value
-        {
-            if (args.size() != 1)
-            {
-                throw errors::ArgumentException("classNameObj expects exactly 1 argument");
-            }
-
-            return std::visit([](const auto& value) -> Value
-            {
-                if constexpr (std::is_same_v<
-                    std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-                {
-                    if (!value)
-                    {
-                        throw errors::NullPointerException("classNameObj function call");
-                    }
-                    // Return the class name of the object
-                    return value->getTypeName();
-                }
-                else
-                {
-                    throw errors::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
-                }
-            }, args[0]);
-        });
     }
 }

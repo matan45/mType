@@ -6,6 +6,8 @@
 #include "../../ast/nodes/expressions/NullNode.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -54,6 +56,8 @@ namespace parser::expression
         case TokenType::LBRACKET:
             // Parse array literal: [1, 2, 3]
             return parseArrayLiteral();
+        case TokenType::SUPER:
+            return parseSuperExpression();
         default:
             throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
         }
@@ -142,6 +146,76 @@ namespace parser::expression
         return expr;
     }
 
+    std::unique_ptr<ASTNode> LiteralParser::parseSuperExpression()
+    {
+        using namespace ast::nodes::classes;
+
+        SourceLocation superLocation = tokenStream.current().location;
+        expectToken(TokenType::SUPER);
+
+        // Check what follows 'super'
+        if (tokenStream.check(TokenType::LPAREN))
+        {
+            // super(...) - constructor call
+            tokenStream.advance(); // consume '('
+
+            std::vector<std::unique_ptr<ASTNode>> arguments;
+
+            // Parse arguments if not empty
+            if (!tokenStream.check(TokenType::RPAREN))
+            {
+                arguments.push_back(context.parseExpression());
+                while (tryConsumeToken(TokenType::COMMA))
+                {
+                    arguments.push_back(context.parseExpression());
+                }
+            }
+
+            expectToken(TokenType::RPAREN);
+
+            return std::make_unique<SuperConstructorCallNode>(
+                std::move(arguments), superLocation);
+        }
+        else if (tokenStream.check(TokenType::DOT))
+        {
+            // super.method(...) - method call
+            tokenStream.advance(); // consume '.'
+
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected method name after 'super.'",
+                                   tokenStream.current().location);
+            }
+
+            std::string methodName = tokenStream.current().stringValue.getString();
+            tokenStream.advance();
+
+            // Expect method call with parentheses
+            expectToken(TokenType::LPAREN);
+
+            std::vector<std::unique_ptr<ASTNode>> arguments;
+
+            if (!tokenStream.check(TokenType::RPAREN))
+            {
+                arguments.push_back(context.parseExpression());
+                while (tryConsumeToken(TokenType::COMMA))
+                {
+                    arguments.push_back(context.parseExpression());
+                }
+            }
+
+            expectToken(TokenType::RPAREN);
+
+            return std::make_unique<SuperMethodCallNode>(
+                methodName, std::move(arguments), superLocation);
+        }
+        else
+        {
+            throw ParseException("Expected '(' or '.' after 'super'",
+                               tokenStream.current().location);
+        }
+    }
+
     bool LiteralParser::isLiteralToken(TokenType type) const noexcept
     {
         switch (type)
@@ -156,6 +230,7 @@ namespace parser::expression
         case TokenType::LPAREN:
         case TokenType::NEW:
         case TokenType::LBRACKET:
+        case TokenType::SUPER:
             return true;
         default:
             return false;

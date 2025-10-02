@@ -61,7 +61,17 @@ namespace runtimeTypes::klass
 
     bool ObjectInstance::isInstanceOf(const std::string& className) const
     {
-        return classDefinition && classDefinition->getName() == className;
+        if (!classDefinition) {
+            return false;
+        }
+
+        // Check direct class match
+        if (classDefinition->getName() == className) {
+            return true;
+        }
+
+        // NEW: Check inheritance chain
+        return classDefinition->isSubclassOf(className);
     }
 
     std::string ObjectInstance::getTypeName() const
@@ -232,5 +242,29 @@ namespace runtimeTypes::klass
     const std::unordered_map<std::string, std::string>& ObjectInstance::getGenericTypeBindings() const
     {
         return genericTypeBindings;
+    }
+
+    std::shared_ptr<MethodDefinition> ObjectInstance::findMethodInHierarchy(const std::string& methodName, size_t argCount) const
+    {
+        if (!classDefinition) {
+            return nullptr;
+        }
+
+        // Create cache key
+        std::string cacheKey = methodName + "_" + std::to_string(argCount);
+
+        // Check cache first
+        auto cacheIt = methodCache.find(cacheKey);
+        if (cacheIt != methodCache.end()) {
+            return cacheIt->second;
+        }
+
+        // Search using ClassDefinition's hierarchy search
+        auto method = classDefinition->findMethodInHierarchy(methodName, argCount);
+
+        // Cache the result (even if nullptr to avoid repeated searches)
+        methodCache[cacheKey] = method;
+
+        return method;
     }
 }

@@ -13,6 +13,7 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
@@ -30,6 +31,8 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
@@ -104,6 +107,8 @@ namespace evaluator
         dispatcher.registerMethod<MemberAccessNode>(&ExpressionEvaluator::evaluateMemberAccessNode);
         dispatcher.registerMethod<MethodCallNode>(&ExpressionEvaluator::evaluateMethodCallNode);
         dispatcher.registerMethod<NewNode>(&ExpressionEvaluator::evaluateNewNode);
+        dispatcher.registerMethod<SuperConstructorCallNode>(&ExpressionEvaluator::evaluateSuperConstructorCallNode);
+        dispatcher.registerMethod<SuperMethodCallNode>(&ExpressionEvaluator::evaluateSuperMethodCallNode);
 
         // Special case: MemberAssignmentNode delegates to ObjectEvaluator
         dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
@@ -390,5 +395,159 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node)
     {
         return callHandler->evaluateLambdaInterfaceInvocation(node);
+    }
+
+    Value ExpressionEvaluator::evaluateSuperConstructorCallNode(SuperConstructorCallNode* node)
+    {
+        // Get current instance - super() can only be called in a constructor
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            throw UndefinedException(
+                "super() can only be called within a constructor",
+                node->getLocation());
+        }
+
+        auto currentClass = currentInstance->getClassDefinition();
+        if (!currentClass->hasParentClass()) {
+            throw UndefinedException(
+                "Class '" + currentClass->getName() +
+                "' has no parent class, cannot call super()",
+                node->getLocation());
+        }
+
+        auto parentClass = currentClass->getParentClass();
+        if (!parentClass) {
+            throw UndefinedException(
+                "Parent class not found for super() call",
+                node->getLocation());
+        }
+
+        // Evaluate constructor arguments
+        std::vector<Value> argValues;
+        for (const auto& arg : node->getArguments()) {
+            argValues.push_back(evaluate(arg.get()));
+        }
+
+        // Find matching parent constructor
+        auto parentConstructor = parentClass->findConstructor(argValues.size());
+        if (!parentConstructor) {
+            throw UndefinedException(
+                "No matching constructor in parent class '" + parentClass->getName() +
+                "' with " + std::to_string(argValues.size()) + " parameter(s)",
+                node->getLocation());
+        }
+
+        // Execute parent constructor in the context of current instance
+        if (objEvaluator) {
+            // Create new scope for parent constructor execution
+            context->getEnvironment()->enterScope();
+
+            // Bind constructor parameters
+            const auto& params = parentConstructor->getParameters();
+            for (size_t i = 0; i < params.size() && i < argValues.size(); ++i) {
+                auto varDef = std::make_shared<VariableDefinition>(
+                    params[i].first,
+                    params[i].second,
+                    argValues[i],
+                    false  // parameters are not final
+                );
+                context->getEnvironment()->declareVariable(params[i].first, varDef);
+            }
+
+            // Execute parent constructor body
+            Value result = std::monostate{};
+            if (parentConstructor->getBody()) {
+                result = stmtEvaluator->evaluate(parentConstructor->getBody());
+            }
+
+            context->getEnvironment()->exitScope();
+            return result;
+        }
+
+        throw UndefinedException(
+            "Object evaluator not available for super() call",
+            node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateSuperMethodCallNode(SuperMethodCallNode* node)
+    {
+        // Get current instance - super.method() can only be called in instance methods
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            throw UndefinedException(
+                "super." + node->getMethodName() + "() can only be called within an instance method",
+                node->getLocation());
+        }
+
+        auto currentClass = currentInstance->getClassDefinition();
+        if (!currentClass->hasParentClass()) {
+            throw UndefinedException(
+                "Class '" + currentClass->getName() +
+                "' has no parent class, cannot call super." + node->getMethodName() + "()",
+                node->getLocation());
+        }
+
+        auto parentClass = currentClass->getParentClass();
+        if (!parentClass) {
+            throw UndefinedException(
+                "Parent class not found for super." + node->getMethodName() + "() call",
+                node->getLocation());
+        }
+
+        // Evaluate method arguments
+        std::vector<Value> argValues;
+        for (const auto& arg : node->getArguments()) {
+            argValues.push_back(evaluate(arg.get()));
+        }
+
+        // Find method in parent class (not in current class - that's the override)
+        auto parentMethod = parentClass->findMethod(node->getMethodName(), argValues.size());
+        if (!parentMethod) {
+            throw UndefinedException(
+                "Method '" + node->getMethodName() + "' with " +
+                std::to_string(argValues.size()) + " parameter(s) not found in parent class '" +
+                parentClass->getName() + "'",
+                node->getLocation());
+        }
+
+        // Call parent method using object evaluator
+        if (objEvaluator) {
+            // Create new scope for method execution
+            context->getEnvironment()->enterScope();
+
+            // Bind 'this' to current instance
+            auto thisVarDef = std::make_shared<VariableDefinition>(
+                "this",
+                ValueType::OBJECT,
+                currentInstance,
+                true  // 'this' is effectively final
+            );
+            context->getEnvironment()->declareVariable("this", thisVarDef);
+
+            // Bind method parameters
+            const auto& params = parentMethod->getParameters();
+            for (size_t i = 0; i < params.size() && i < argValues.size(); ++i) {
+                auto varDef = std::make_shared<VariableDefinition>(
+                    params[i].first,
+                    params[i].second.basicType,  // Extract ValueType from ParameterType
+                    argValues[i],
+                    false  // parameters are not final
+                );
+                context->getEnvironment()->declareVariable(params[i].first, varDef);
+            }
+
+            // Execute parent method body
+            Value result = std::monostate{};
+            if (parentMethod->getBody()) {
+                result = stmtEvaluator->evaluate(parentMethod->getBody());
+            }
+
+            context->getEnvironment()->exitScope();
+            return result;
+        }
+
+        throw UndefinedException(
+            "Object evaluator not available for super." + node->getMethodName() + "() call",
+            node->getLocation());
     }
 }

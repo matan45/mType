@@ -18,11 +18,15 @@ namespace runtimeTypes::klass
         std::vector<std::pair<std::string, ValueType>> parameters;
         std::shared_ptr<ASTNode> body;
         std::shared_ptr<ASTNode> initializerList;  // For member initialization
+
+        // NEW: Super constructor call tracking
+        bool hasSuperConstructorCall;
+        std::vector<std::shared_ptr<ASTNode>> superCallArgs;
       public:
-       explicit ConstructorDefinition(const std::vector<std::pair<std::string, ValueType>>& params, 
+       explicit ConstructorDefinition(const std::vector<std::pair<std::string, ValueType>>& params,
                              std::shared_ptr<ASTNode> b)
             : Definition("constructor"), parameters(params), body(b),
-              initializerList(nullptr) {}
+              initializerList(nullptr), hasSuperConstructorCall(false) {}
         
         bool matchesArgCount(size_t argCount) const;
         
@@ -36,5 +40,11 @@ namespace runtimeTypes::klass
         // Setter methods
         void setBody(std::shared_ptr<ASTNode> b) { body = b; }
         void setInitializerList(std::shared_ptr<ASTNode> init) { initializerList = init; }
+
+        // NEW: Super constructor call methods
+        bool hasSuperCall() const { return hasSuperConstructorCall; }
+        void setHasSuperCall(bool hasSuper) { hasSuperConstructorCall = hasSuper; }
+        const std::vector<std::shared_ptr<ASTNode>>& getSuperArgs() const { return superCallArgs; }
+        void setSuperArgs(const std::vector<std::shared_ptr<ASTNode>>& args) { superCallArgs = args; }
     };
 }
