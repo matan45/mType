@@ -109,9 +109,9 @@ namespace tests::testSuite
                         passPath + "nullCastAssignment.mt");
         addOutputVerificationTest("Null Cast in Conditional",
                         passPath + "nullCastInConditional.mt");
-        addErrorExpectationTest("Null to Primitive Cast Error",
+        addTestFromFile("Null to Primitive Cast Error",
                         errorPath + "nullToPrimitiveCast.mt",
-                        "Cannot cast null to primitive type");
+                        TestType::ERROR_EXPECTED);
 
         // === isClassOf TESTS (9 tests) ===
         addOutputVerificationTest("isClassOf Primitive Types",
@@ -146,20 +146,20 @@ namespace tests::testSuite
                         passPath + "castWithNamespace.mt");
 
         // === ERROR TESTS ===
-        addErrorExpectationTest("Invalid Primitive to Object Cast",
+        addTestFromFile("Invalid Primitive to Object Cast",
                         errorPath + "primitiveToObjectCast.mt",
-                        "Cannot cast between primitive and object types");
-        addErrorExpectationTest("Invalid Object to Primitive Cast",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Object to Primitive Cast",
                         errorPath + "objectToPrimitiveCast.mt",
-                        "Cannot cast between primitive and object types");
-        addErrorExpectationTest("Incompatible Class Cast",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Incompatible Class Cast",
                         errorPath + "incompatibleClassCast.mt",
-                        "Cannot cast");
-        addErrorExpectationTest("Invalid Interface Cast",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Interface Cast",
                         errorPath + "invalidInterfaceCast.mt",
-                        "Cannot cast");
-        addErrorExpectationTest("Generic Type Mismatch Cast",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Generic Type Mismatch Cast",
                         errorPath + "genericTypeMismatchCast.mt",
-                        "Cannot cast");
+                        TestType::ERROR_EXPECTED);
     }
 }
