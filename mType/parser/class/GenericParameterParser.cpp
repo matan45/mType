@@ -6,8 +6,8 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    GenericParameterParser::GenericParameterParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    GenericParameterParser::GenericParameterParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -20,11 +20,6 @@ namespace parser
     bool GenericParameterParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::LESS);
-    }
-
-    std::string GenericParameterParser::getParserName() const
-    {
-        return "GenericParameterParser";
     }
 
     std::string GenericParameterParser::parseGenericParameters()
@@ -69,15 +64,13 @@ namespace parser
 
             return paramType;
         }
-        else
-        {
-            throw ParseException("Expected type parameter", tokenStream.current().location);
-        }
+
+        throw ParseException("Expected type parameter", tokenStream.current().location);
     }
 
-    std::vector<ast::GenericTypeParameter> GenericParameterParser::parseGenericTypeParameters()
+    std::vector<GenericTypeParameter> GenericParameterParser::parseGenericTypeParameters()
     {
-        std::vector<ast::GenericTypeParameter> parameters;
+        std::vector<GenericTypeParameter> parameters;
 
         // Parse first parameter
         parameters.push_back(parseGenericTypeParameter());
@@ -92,7 +85,7 @@ namespace parser
         return parameters;
     }
 
-    ast::GenericTypeParameter GenericParameterParser::parseGenericTypeParameter()
+    GenericTypeParameter GenericParameterParser::parseGenericTypeParameter()
     {
         // Expect an identifier for the type parameter name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
@@ -105,10 +98,32 @@ namespace parser
         validateGenericParameterName(paramName);
         tokenStream.advance();
 
-        // For now, we don't support constraints (extends/implements)
+        // Parse optional constraints (extends/implements SomeInterface)
         std::vector<std::string> constraints;
+        if (tokenStream.current().type == TokenType::EXTENDS ||
+            tokenStream.current().type == TokenType::IMPLEMENTS)
+        {
+            tokenStream.advance(); // consume constraint keyword
 
-        return ast::GenericTypeParameter(paramName, constraints, location);
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected interface name after constraint keyword",
+                                     tokenStream.current().location);
+            }
+
+            std::string constraintName = tokenStream.current().stringValue.getString();
+            tokenStream.advance();
+
+            // Handle generic parameters in constraints (e.g., Comparable<T>)
+            if (tokenStream.current().type == TokenType::LESS)
+            {
+                constraintName += parseNestedGenericConstraint();
+            }
+
+            constraints.push_back(constraintName);
+        }
+
+        return GenericTypeParameter(paramName, constraints, location);
     }
 
     std::string GenericParameterParser::parseNestedGenericType()
@@ -133,5 +148,37 @@ namespace parser
         {
             throw ParseException("Generic type parameter name cannot be empty", tokenStream.current().location);
         }
+    }
+
+    std::string GenericParameterParser::parseNestedGenericConstraint()
+    {
+        std::string result = "<";
+        int depth = 1;
+        tokenStream.advance(); // consume '<'
+
+        while (depth > 0 && !tokenStream.isAtEnd())
+        {
+            if (tokenStream.current().type == TokenType::LESS)
+            {
+                depth++;
+                result += "<";
+            }
+            else if (tokenStream.current().type == TokenType::GREATER)
+            {
+                depth--;
+                result += ">";
+            }
+            else if (tokenStream.current().type == TokenType::IDENTIFIER)
+            {
+                result += tokenStream.current().stringValue.getString();
+            }
+            else if (tokenStream.current().type == TokenType::COMMA)
+            {
+                result += ",";
+            }
+            tokenStream.advance();
+        }
+
+        return result;
     }
 }

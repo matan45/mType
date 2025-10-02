@@ -1,8 +1,7 @@
 #pragma once
-#include "../core/IParser.hpp"
+#include "../core/BaseParser.hpp"
 #include "../TokenStream.hpp"
 #include "../ParseContext.hpp"
-#include "../../ast/GenericTypeParameter.hpp"
 #include <vector>
 #include <string>
 #include <memory>
@@ -11,19 +10,16 @@ namespace parser
 {
     class GenericParameterParser; // Forward declaration
 
-    class ClassDeclarationParser : public core::IParser
+    class ClassDeclarationParser : public core::BaseParser
     {
     private:
-        TokenStream& tokenStream;
-        ParseContext& context;
         std::unique_ptr<GenericParameterParser> genericParameterParser;
 
     public:
-        ClassDeclarationParser(TokenStream& tokenStream, ParseContext& context);
+        explicit ClassDeclarationParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override;
 
         // Public methods for coordinate parsing
         std::unique_ptr<ASTNode> parseClassDeclaration();

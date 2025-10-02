@@ -18,11 +18,19 @@ namespace parser::statement
     using namespace token;
     using namespace errors;
 
+    AssignmentStatementParser::AssignmentStatementParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx), expressionParser(nullptr)
+    {
+    }
+
+    void AssignmentStatementParser::setExpressionParser(ExpressionParser& exprParser)
+    {
+        expressionParser = &exprParser;
+    }
+
     std::unique_ptr<ASTNode> AssignmentStatementParser::parse()
     {
-        // This should not be called directly - use parseAssignment or parseExpressionStatement
-        reportError("AssignmentStatementParser::parse() called directly", getParserName());
-        throw errors::ParseException("Invalid use of AssignmentStatementParser");
+        throw ParseException("Invalid use of AssignmentStatementParser", tokenStream.current().location);
     }
 
     bool AssignmentStatementParser::canParse(const TokenStream& stream) const
@@ -34,12 +42,11 @@ namespace parser::statement
     {
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected identifier in assignment", getParserName());
-            throw errors::ParseException("Expected identifier in assignment");
+            throw ParseException("Expected identifier in assignment", tokenStream.current().location);
         }
 
         std::string varName = tokenStream.current().stringValue.getString();
-        SourceLocation varLocation = getCurrentLocation();
+        SourceLocation varLocation = tokenStream.location();
         tokenStream.advance();
 
         // Check for compound assignment operators
@@ -49,8 +56,7 @@ namespace parser::statement
             tokenStream.advance();
             if (!expressionParser)
             {
-                reportError("ExpressionParser not set in AssignmentStatementParser", getParserName());
-                throw errors::ParseException("ExpressionParser not initialized");
+                throw ParseException("ExpressionParser not initialized", tokenStream.current().location);
             }
             auto value = expressionParser->parseExpression();
 
@@ -60,25 +66,19 @@ namespace parser::statement
                 value = createCompoundAssignment(varName, varLocation, opType, std::move(value));
             }
 
-            expectToken(TokenType::SEMICOLON, getParserName());
+            expectToken(TokenType::SEMICOLON);
             return std::make_unique<AssignmentNode>(varName, std::move(value), ValueType::VOID,
-                                                  "", false, false, varLocation);
+                                                    "", false, false, varLocation);
         }
-        else
-        {
-            // Not an assignment - treat as expression statement
-            // We need to backtrack and parse as expression
-            reportError("Expected assignment operator after identifier", getParserName());
-            throw errors::ParseException("Expected assignment operator");
-        }
+
+        throw ParseException("Expected assignment operator", tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> AssignmentStatementParser::parseExpressionStatement()
     {
         if (!expressionParser)
         {
-            reportError("ExpressionParser not set in AssignmentStatementParser", getParserName());
-            throw errors::ParseException("ExpressionParser not initialized");
+            throw ParseException("ExpressionParser not initialized", tokenStream.current().location);
         }
         auto expr = expressionParser->parseExpression();
 
@@ -98,11 +98,11 @@ namespace parser::statement
                     TokenType binaryOp = getCorrespondingBinaryOperator(opType);
                     value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value), opLocation);
 
-                    expectToken(TokenType::SEMICOLON, getParserName());
+                    expectToken(TokenType::SEMICOLON);
                     return value;
                 }
 
-                expectToken(TokenType::SEMICOLON, getParserName());
+                expectToken(TokenType::SEMICOLON);
 
                 // Extract the object and member name for the assignment
                 auto object = memberAccess->transferObjectOwnership();
@@ -128,11 +128,11 @@ namespace parser::statement
                     TokenType binaryOp = getCorrespondingBinaryOperator(opType);
                     value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value), opLocation);
 
-                    expectToken(TokenType::SEMICOLON, getParserName());
+                    expectToken(TokenType::SEMICOLON);
                     return value;
                 }
 
-                expectToken(TokenType::SEMICOLON, getParserName());
+                expectToken(TokenType::SEMICOLON);
 
                 // Extract the object and index for the assignment
                 auto object = indexAccess->transferCollectionOwnership();
@@ -142,7 +142,7 @@ namespace parser::statement
             }
         }
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
         return expr;
     }
 

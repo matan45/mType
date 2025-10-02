@@ -6,7 +6,6 @@
 #include "../../ast/nodes/expressions/NullNode.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -14,6 +13,11 @@ namespace parser::expression
     using namespace ast::nodes::expressions;
     using namespace token;
     using namespace errors;
+
+    LiteralParser::LiteralParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
 
     std::unique_ptr<ASTNode> LiteralParser::parse()
     {
@@ -51,16 +55,15 @@ namespace parser::expression
             // Parse array literal: [1, 2, 3]
             return parseArrayLiteral();
         default:
-            reportError("Unexpected token in primary expression", getParserName());
-            throw errors::ParseException("Unexpected token in primary expression");
+            throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
         }
     }
 
     std::unique_ptr<ASTNode> LiteralParser::parseArrayLiteral()
     {
         // Parse array literal: [element1, element2, element3, ...]
-        SourceLocation location = getCurrentLocation();
-        expectToken(TokenType::LBRACKET, getParserName());
+        SourceLocation location = tokenStream.current().location;
+        expectToken(TokenType::LBRACKET);
 
         std::vector<std::unique_ptr<ASTNode>> elements;
 
@@ -80,14 +83,14 @@ namespace parser::expression
             elements.push_back(context.parseExpression());
         }
 
-        expectToken(TokenType::RBRACKET, getParserName());
+        expectToken(TokenType::RBRACKET);
         return std::make_unique<ArrayLiteralNode>(std::move(elements), location);
     }
 
     std::unique_ptr<ASTNode> LiteralParser::parseIntegerLiteral()
     {
         int value = tokenStream.current().intValue;
-        auto intLocation = getCurrentLocation();
+        auto intLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<IntegerNode>(value, intLocation);
     }
@@ -95,7 +98,7 @@ namespace parser::expression
     std::unique_ptr<ASTNode> LiteralParser::parseFloatLiteral()
     {
         float value = tokenStream.current().floatValue;
-        auto floatLocation = getCurrentLocation();
+        auto floatLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<FloatNode>(value, floatLocation);
     }
@@ -103,7 +106,7 @@ namespace parser::expression
     std::unique_ptr<ASTNode> LiteralParser::parseStringLiteral()
     {
         std::string value = tokenStream.current().stringValue.getString();
-        auto stringLocation = getCurrentLocation();
+        auto stringLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<StringNode>(value, stringLocation);
     }
@@ -111,14 +114,14 @@ namespace parser::expression
     std::unique_ptr<ASTNode> LiteralParser::parseBooleanLiteral()
     {
         bool value = (tokenStream.current().type == TokenType::TRUE);
-        auto boolLocation = getCurrentLocation();
+        auto boolLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<BoolNode>(value, boolLocation);
     }
 
     std::unique_ptr<ASTNode> LiteralParser::parseNullLiteral()
     {
-        auto nullLocation = getCurrentLocation();
+        auto nullLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<NullNode>(nullLocation);
     }
@@ -126,16 +129,16 @@ namespace parser::expression
     std::unique_ptr<ASTNode> LiteralParser::parseIdentifier()
     {
         std::string name = tokenStream.current().stringValue.getString();
-        auto identifierLocation = getCurrentLocation();
+        auto identifierLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<VariableNode>(name, identifierLocation);
     }
 
     std::unique_ptr<ASTNode> LiteralParser::parseParenthesizedExpression()
     {
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::LPAREN);
         auto expr = context.parseExpression(); // Delegate back to main expression parsing
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
         return expr;
     }
 

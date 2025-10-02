@@ -50,15 +50,6 @@ namespace evaluator::utils
             return nullptr;
         }
 
-        // Create instantiated class name (e.g., "Box<int>")
-        std::string instantiatedName = genericClass->getBaseName() + "<";
-        for (size_t i = 0; i < typeArguments.size(); ++i)
-        {
-            if (i > 0) instantiatedName += ", ";
-            instantiatedName += typeArguments[i];
-        }
-        instantiatedName += ">";
-
         // OPTIMIZATION: Check fast cache first for common patterns
         if (isCommonPattern(genericClass->getName(), typeArguments)) {
             auto fastCacheData = getFastGenericCache();
@@ -74,22 +65,18 @@ namespace evaluator::utils
                     return fastIt->second;
                 }
             }
-
-            // Not in fast cache, proceed to create and cache in both levels
         }
 
         // Fallback to comprehensive cache key for complex/uncommon patterns
         std::string cacheKey = createComprehensiveCacheKey(genericClass, typeArguments);
 
         // Check generic class instantiation cache with thread safety
-        // Use function-local static to ensure same variables across method calls
         auto cacheData = getGenericClassCache();
         std::mutex& cacheMutex = cacheData.first;
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>& cache = cacheData.second;
 
         {
             std::lock_guard<std::mutex> lock(cacheMutex);
-
             auto cacheIt = cache.find(cacheKey);
             if (cacheIt != cache.end())
             {
@@ -97,65 +84,20 @@ namespace evaluator::utils
             }
         }
 
+        // Create instantiated class
+        std::string instantiatedName = createInstantiatedClassName(genericClass, typeArguments);
+        auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
 
         // Create substitution map
         auto substitutionMap = createTypeSubstitutionMap(
             genericClass->getGenericParameters(), typeArguments);
 
-        // Create new class definition
-        auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
+        // Copy and substitute all members
+        copyAndSubstituteFields(genericClass, instantiatedClass, substitutionMap);
+        copyAndSubstituteMethods(genericClass, instantiatedClass, substitutionMap);
+        copyAndSubstituteConstructors(genericClass, instantiatedClass, substitutionMap);
 
-        // Copy and substitute fields
-        for (const auto& [fieldName, field] : genericClass->getInstanceFields())
-        {
-            // Create a copy of the field with substituted type
-            auto newField = std::make_shared<FieldDefinition>(
-                field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
-                field->getValue(),
-                field->isStatic(),
-                field->isFinal()
-            );
-            instantiatedClass->addInstanceField(fieldName, newField);
-        }
-
-        for (const auto& [fieldName, field] : genericClass->getStaticFields())
-        {
-            // Create a copy of the field with substituted type
-            auto newField = std::make_shared<FieldDefinition>(
-                field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
-                field->getValue(),
-                field->isStatic(),
-                field->isFinal()
-            );
-            instantiatedClass->addStaticField(fieldName, newField);
-        }
-
-        // Copy and substitute methods
-        for (const auto& [methodName, method] : genericClass->getInstanceMethods())
-        {
-            // Create a copy of the method with substituted types
-            auto newMethod = substituteMethodTypes(method, substitutionMap);
-            instantiatedClass->addInstanceMethod(methodName, newMethod);
-        }
-
-        for (const auto& [methodName, method] : genericClass->getStaticMethods())
-        {
-            // Create a copy of the method with substituted types
-            auto newMethod = substituteMethodTypes(method, substitutionMap);
-            instantiatedClass->addStaticMethod(methodName, newMethod);
-        }
-
-        // Copy constructors
-        for (const auto& constructor : genericClass->getConstructors())
-        {
-            // Create a copy of the constructor with substituted parameter types
-            auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
-            instantiatedClass->addConstructor(newConstructor);
-        }
-
-        // Cache the instantiated class for future reuse in both caches
+        // Cache the instantiated class for future reuse
         {
             std::lock_guard<std::mutex> lock(cacheMutex);
             cache[cacheKey] = instantiatedClass;
@@ -174,6 +116,84 @@ namespace evaluator::utils
         }
 
         return instantiatedClass;
+    }
+
+    std::string GenericTypeManager::createInstantiatedClassName(
+        std::shared_ptr<ClassDefinition> genericClass,
+        const std::vector<std::string>& typeArguments)
+    {
+        std::string name = genericClass->getBaseName() + "<";
+        for (size_t i = 0; i < typeArguments.size(); ++i)
+        {
+            if (i > 0) name += ", ";
+            name += typeArguments[i];
+        }
+        name += ">";
+        return name;
+    }
+
+    void GenericTypeManager::copyAndSubstituteFields(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        // Copy instance fields
+        for (const auto& [fieldName, field] : source->getInstanceFields())
+        {
+            auto newField = std::make_shared<FieldDefinition>(
+                field->getName(),
+                substituteFieldType(field->getType(), substitutionMap),
+                field->getValue(),
+                field->isStatic(),
+                field->isFinal()
+            );
+            target->addInstanceField(fieldName, newField);
+        }
+
+        // Copy static fields
+        for (const auto& [fieldName, field] : source->getStaticFields())
+        {
+            auto newField = std::make_shared<FieldDefinition>(
+                field->getName(),
+                substituteFieldType(field->getType(), substitutionMap),
+                field->getValue(),
+                field->isStatic(),
+                field->isFinal()
+            );
+            target->addStaticField(fieldName, newField);
+        }
+    }
+
+    void GenericTypeManager::copyAndSubstituteMethods(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        // Copy instance methods
+        for (const auto& [methodName, method] : source->getInstanceMethods())
+        {
+            auto newMethod = substituteMethodTypes(method, substitutionMap);
+            target->addInstanceMethod(methodName, newMethod);
+        }
+
+        // Copy static methods
+        for (const auto& [methodName, method] : source->getStaticMethods())
+        {
+            auto newMethod = substituteMethodTypes(method, substitutionMap);
+            target->addStaticMethod(methodName, newMethod);
+        }
+    }
+
+    void GenericTypeManager::copyAndSubstituteConstructors(
+        std::shared_ptr<ClassDefinition> source,
+        std::shared_ptr<ClassDefinition> target,
+        const std::unordered_map<std::string, std::string>& substitutionMap)
+    {
+        for (const auto& constructor : source->getConstructors())
+        {
+            auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
+            target->addConstructor(newConstructor);
+        }
     }
 
     bool GenericTypeManager::validateTypeArguments(

@@ -1,6 +1,7 @@
 #include "ClassDeclarationParser.hpp"
 #include "GenericParameterParser.hpp"
 #include "../ParserValidator.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -10,8 +11,8 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    ClassDeclarationParser::ClassDeclarationParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    ClassDeclarationParser::ClassDeclarationParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
         genericParameterParser = std::make_unique<GenericParameterParser>(tokenStream, context);
     }
@@ -24,11 +25,6 @@ namespace parser
     bool ClassDeclarationParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::CLASS);
-    }
-
-    std::string ClassDeclarationParser::getParserName() const
-    {
-        return "ClassDeclarationParser";
     }
 
     std::unique_ptr<ASTNode> ClassDeclarationParser::parseClassDeclaration()
@@ -69,28 +65,8 @@ namespace parser
         {
             tokenStream.advance(); // consume 'implements'
 
-            do
-            {
-                if (tokenStream.current().type != TokenType::IDENTIFIER)
-                {
-                    throw ParseException("Expected interface name after 'implements'",
-                                         tokenStream.current().location);
-                }
-
-                std::string interfaceName = parseGenericInterfaceName();
-                implementedInterfaces.push_back(interfaceName);
-
-                // Check for comma (multiple interfaces)
-                if (tokenStream.check(TokenType::COMMA))
-                {
-                    tokenStream.advance();
-                }
-                else
-                {
-                    break;
-                }
-            }
-            while (true);
+            // Use ParserUtils to parse the interface list
+            implementedInterfaces = ParserUtils::parseInterfaceList(tokenStream, "implements");
         }
 
         return implementedInterfaces;
@@ -125,10 +101,8 @@ namespace parser
 
     void ClassDeclarationParser::validateClassName(const std::string& className, const SourceLocation& location)
     {
-        if (!ParserValidator::isValidClassName(className))
-        {
-            throw ParseException("Class name '" + className + "' must start with an uppercase letter", location);
-        }
+        // Use ParserUtils for consistent validation
+        ParserUtils::validateCapitalizedName(className, "Class", location);
     }
 
     std::string ClassDeclarationParser::parseGenericInterfaceName()

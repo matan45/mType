@@ -16,21 +16,17 @@ namespace parser::expression
     class UnaryOperatorParser : public BaseParser
     {
     private:
-        parser::ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
+        ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
 
     public:
-        UnaryOperatorParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler), expressionParser(nullptr) {}
+       explicit UnaryOperatorParser(TokenStream& stream, ParseContext& ctx);
+           
 
         // Method to set ExpressionParser reference after construction
-        void setExpressionParser(parser::ExpressionParser& exprParser)
-        {
-            expressionParser = &exprParser;
-        }
+        void setExpressionParser(ExpressionParser& exprParser);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "UnaryOperatorParser"; }
 
         std::unique_ptr<ASTNode> parseUnary();
 

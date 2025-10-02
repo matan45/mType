@@ -58,9 +58,6 @@
     <Filter Include="evaluator\validation">
       <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exception">
-      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
-    </Filter>
     <Filter Include="exceptions">
       <UniqueIdentifier>{67C00D32-5378-4F7F-BC7F-28DBA856EA6F}</UniqueIdentifier>
     </Filter>
@@ -411,10 +408,28 @@
     <ClInclude Include="errors\ArgumentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\ArrayCreationException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\BreakException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ClassNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ContinueException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\EnvironmentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\FieldNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\FileException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\FinalModificationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ImportException.hpp">
@@ -423,7 +438,22 @@
     <ClInclude Include="errors\MathException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\MethodNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\NullPointerException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ObjectException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ParameterMismatchException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\ParseException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\ReturnException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\RuntimeException.hpp">
@@ -435,7 +465,13 @@
     <ClInclude Include="errors\SourceLocation.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\TypeConversionException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\TypeException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\TypeResolutionException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\UndefinedException.hpp">
@@ -516,6 +552,12 @@
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeDispatcher.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\NodeTypeRegistry.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\ObjectHelper.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
@@ -531,22 +573,10 @@
     <ClInclude Include="evaluator\validation\TypeValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
-    <ClInclude Include="exception\BreakException.hpp">
-      <Filter>exception</Filter>
-    </ClInclude>
-    <ClInclude Include="exception\ContinueException.hpp">
-      <Filter>exception</Filter>
-    </ClInclude>
-    <ClInclude Include="exception\ReturnException.hpp">
-      <Filter>exception</Filter>
-    </ClInclude>
     <ClInclude Include="exceptions\CircularDependencyDetection.hpp">
       <Filter>exceptions</Filter>
     </ClInclude>
     <ClInclude Include="exceptions\CircularDependencyDetector.hpp">
-      <Filter>exceptions</Filter>
-    </ClInclude>
-    <ClInclude Include="exceptions\DomainExceptions.hpp">
       <Filter>exceptions</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
@@ -1023,6 +1053,9 @@
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\NodeTypeRegistry.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\ObjectHelper.cpp">

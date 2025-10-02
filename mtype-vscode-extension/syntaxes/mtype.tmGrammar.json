@@ -48,7 +48,7 @@
         },
         {
           "name": "keyword.other.mtype",
-          "match": "\\b(class|import|new|this|null|static|final|function|constructor|return)\\b"
+          "match": "\\b(class|interface|extends|implements|import|new|this|null|static|final|function|constructor|return)\\b"
         },
         {
           "name": "keyword.native.mtype",

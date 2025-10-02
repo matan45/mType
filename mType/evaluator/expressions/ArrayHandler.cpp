@@ -34,6 +34,14 @@ namespace expressions {
         }
     }
 
+    ArrayHandler::ArrayHandler(std::shared_ptr<EvaluationContext> ctx)
+    : context(ctx), exprEvaluator(nullptr) {}
+
+    void ArrayHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+    {
+        exprEvaluator = evaluator;
+    }
+
     Value ArrayHandler::evaluateArrayCreation(ArrayCreationNode* node)
     {
         // Get all size expressions for multidimensional support
@@ -82,7 +90,7 @@ namespace expressions {
         {
             // Use NativeArray for 1D (this works)
             auto elementTypeInfo = node->getElementTypeInfo();
-            auto nativeArray = std::make_shared<value::NativeArray>(dimensions[0], elementTypeInfo.baseType, elementTypeInfo.className);
+            auto nativeArray = std::make_shared<NativeArray>(dimensions[0], elementTypeInfo.baseType, elementTypeInfo.className);
             for (size_t i = 0; i < dimensions[0]; ++i)
             {
                 nativeArray->set(i, defaultValue);
@@ -113,7 +121,7 @@ namespace expressions {
 
             // Create an array with the first specified dimension
             auto elementTypeInfo = node->getElementTypeInfo();
-            auto jaggedArray = std::make_shared<value::NativeArray>(firstDimension, elementTypeInfo.baseType, elementTypeInfo.className);
+            auto jaggedArray = std::make_shared<NativeArray>(firstDimension, elementTypeInfo.baseType, elementTypeInfo.className);
 
             // Initialize each element to null (will be assigned later)
             for (size_t i = 0; i < firstDimension; ++i)
@@ -126,13 +134,13 @@ namespace expressions {
         else
         {
             // Use adaptive ArrayPool for efficient multi-dimensional array allocation
-            auto& pool = value::ArrayPool::getInstance();
+            auto& pool = ArrayPool::getInstance();
             Value adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
 
             // Verify the array is valid (works for both FlatMultiArray and SparseMultiArray)
-            if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(adaptiveArray))
+            if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
             {
-                auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(adaptiveArray);
+                auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(adaptiveArray);
                 if (!flatArray)
                 {
                     throw TypeException("Failed to create FlatMultiArray", node->getLocation());
@@ -149,9 +157,9 @@ namespace expressions {
                     throw TypeException("FlatMultiArray size mismatch", node->getLocation());
                 }
             }
-            else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(adaptiveArray))
+            else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(adaptiveArray))
             {
-                auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(adaptiveArray);
+                auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(adaptiveArray);
                 if (!sparseArray)
                 {
                     throw TypeException("Failed to create SparseMultiArray", node->getLocation());
@@ -179,7 +187,7 @@ namespace expressions {
         if (elements.empty())
         {
             // Create empty array with size 0
-            auto emptyArray = std::make_shared<value::NativeArray>(0);
+            auto emptyArray = std::make_shared<NativeArray>(0);
             return emptyArray;
         }
 
@@ -242,7 +250,7 @@ namespace expressions {
         }
 
         // Create NativeArray with the correct size
-        auto array = std::make_shared<value::NativeArray>(evaluatedElements.size());
+        auto array = std::make_shared<NativeArray>(evaluatedElements.size());
 
         // Populate the array using set method
         for (size_t i = 0; i < evaluatedElements.size(); ++i)
@@ -280,9 +288,9 @@ namespace expressions {
         int index = std::get<int>(indexValue);
 
         // Check if array is a NativeArray
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayValue))
+        if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue))
         {
-            auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(arrayValue);
+            auto nativeArray = std::get<std::shared_ptr<NativeArray>>(arrayValue);
 
             // Check bounds with descriptive error message
             if (index < 0)
@@ -301,9 +309,9 @@ namespace expressions {
         }
 
         // Check if array is a FlatMultiArray (for multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayValue))
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue))
         {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayValue);
+            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(arrayValue);
 
             // Check bounds with descriptive error message
             if (index < 0)
@@ -348,9 +356,9 @@ namespace expressions {
         }
 
         // Check if array is a SparseMultiArray (for adaptive sparse arrays)
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayValue))
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(arrayValue))
         {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayValue);
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(arrayValue);
 
             // Check bounds with descriptive error message
             if (index < 0)
@@ -432,14 +440,14 @@ namespace expressions {
 
         // Check if it's a multi-dimensional array type we can optimize
         bool isMultiDimensional = false;
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
         {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
             isMultiDimensional = flatArray->getRank() > 1;
         }
-        else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
+        else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
         {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
             isMultiDimensional = sparseArray->getRank() > 1;
         }
 
@@ -475,12 +483,12 @@ namespace expressions {
 
     Value ArrayHandler::evaluateDirectMultiDimensionalAccess(const Value& baseArray,
                                                                 const std::vector<size_t>& indices,
-                                                                const errors::SourceLocation& location)
+                                                                const SourceLocation& location)
     {
         // Handle FlatMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(baseArray))
+        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray))
         {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(baseArray);
+            auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(baseArray);
 
             try
             {
@@ -493,9 +501,9 @@ namespace expressions {
         }
 
         // Handle SparseMultiArray direct access
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(baseArray))
+        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray))
         {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(baseArray);
+            auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(baseArray);
 
             try
             {
@@ -510,5 +518,5 @@ namespace expressions {
         throw TypeException("Unsupported array type for direct multi-dimensional access", location);
     }
 
-} // namespace expressions
-} // namespace evaluator
+} 
+} 

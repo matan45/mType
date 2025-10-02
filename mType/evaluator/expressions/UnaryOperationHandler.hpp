@@ -42,26 +42,18 @@ namespace expressions {
     class UnaryOperationHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-        evaluator::ObjectEvaluator* objEvaluator;
+        ExpressionEvaluator* exprEvaluator;
+        ObjectEvaluator* objEvaluator;
 
     public:
-        explicit UnaryOperationHandler(std::shared_ptr<EvaluationContext> ctx)
-            : context(ctx), exprEvaluator(nullptr), objEvaluator(nullptr) {}
+        explicit UnaryOperationHandler(std::shared_ptr<EvaluationContext> ctx);
 
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
-            exprEvaluator = evaluator;
-        }
+        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
-        void setObjectEvaluator(evaluator::ObjectEvaluator* evaluator) {
-            objEvaluator = evaluator;
-        }
-
-        /**
-         * Evaluate unary expression
-         */
+        void setObjectEvaluator(ObjectEvaluator* evaluator);
+        
         Value evaluateUnaryOperation(UnaryExpNode* node);
     };
 
-} // namespace expressions
-} // namespace evaluator
+} 
+}

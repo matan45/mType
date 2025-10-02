@@ -2,7 +2,6 @@
 #include <memory>
 #include "../ast/ASTNode.hpp"
 #include "../ast/GenericTypeParameter.hpp"
-#include "../ast/GenericType.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
 
@@ -54,10 +53,8 @@ namespace parser
         // Delegation methods for backward compatibility
         std::string parseGenericParameters();
         std::string parseGenericParameter();
-        std::vector<ast::GenericTypeParameter> parseGenericTypeParameters();
-        ast::GenericTypeParameter parseGenericTypeParameter();
-        std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
-        TypeInfo createTypeInfoFromClassName(const std::string& className);
+        std::vector<GenericTypeParameter> parseGenericTypeParameters();
+        GenericTypeParameter parseGenericTypeParameter();
     };
 }
 

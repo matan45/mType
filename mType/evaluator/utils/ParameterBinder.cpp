@@ -160,12 +160,12 @@ namespace evaluator::utils
         const ParameterType& expectedType,
         std::shared_ptr<Environment> env)
     {
-        ValueType actualType = ValueConverter::getValueType(actualValue);
-
         // Handle non-object types with existing logic
         if (!expectedType.isInterface() && !expectedType.isClass()) {
-            return isValidParameterConversion(actualType, expectedType.basicType);
+            return checkBasicTypeConversion(actualValue, expectedType);
         }
+
+        ValueType actualType = ValueConverter::getValueType(actualValue);
 
         // For interface/class parameters, actual value must be an object
         if (actualType != ValueType::OBJECT) {
@@ -185,38 +185,79 @@ namespace evaluator::utils
 
         // Check interface implementation
         if (expectedType.isInterface()) {
-            std::string interfaceName = expectedType.getInterfaceName();
-
-            // Check if the object's class implements the required interface
-            auto classDefinition = objectInstance->getClassDefinition();
-            if (!classDefinition) {
-                return false;
-            }
-
-            // Check if class implements the interface using registry for transitive checks
-            auto interfaceRegistry = env->getInterfaceRegistry();
-            if (interfaceRegistry) {
-                return classDefinition->implementsInterface(interfaceName, interfaceRegistry);
-            } else {
-                return classDefinition->implementsInterface(interfaceName);
-            }
+            return checkInterfaceImplementation(actualValue, expectedType, env);
         }
 
-        // Check class type (exact class or inheritance)
+        // Check class type
         if (expectedType.isClass()) {
-            std::string expectedClassName = expectedType.getClassName();
-
-            auto classDefinition = objectInstance->getClassDefinition();
-            if (!classDefinition) {
-                return false;
-            }
-
-            // Check exact class match or inheritance
-            return classDefinition->getName() == expectedClassName ||
-                   classDefinition->isSubclassOf(expectedClassName);
+            return checkClassTypeMatch(actualValue, expectedType);
         }
 
         return false;
+    }
+
+    bool ParameterBinder::checkBasicTypeConversion(
+        const Value& actualValue,
+        const ParameterType& expectedType)
+    {
+        ValueType actualType = ValueConverter::getValueType(actualValue);
+        return isValidParameterConversion(actualType, expectedType.basicType);
+    }
+
+    bool ParameterBinder::checkInterfaceImplementation(
+        const Value& actualValue,
+        const ParameterType& expectedType,
+        std::shared_ptr<Environment> env)
+    {
+        auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue);
+        std::string interfaceName = expectedType.getInterfaceName();
+
+        // Check if the object's class implements the required interface
+        auto classDefinition = objectInstance->getClassDefinition();
+        if (!classDefinition) {
+            return false;
+        }
+
+        // Check if class implements the interface using registry for transitive checks
+        auto interfaceRegistry = env->getInterfaceRegistry();
+        if (interfaceRegistry) {
+            return classDefinition->implementsInterface(interfaceName, interfaceRegistry);
+        } else {
+            // Fallback to direct interface checking only (no transitive inheritance)
+            return classDefinition->implementsInterface(interfaceName);
+        }
+    }
+
+    bool ParameterBinder::checkClassTypeMatch(
+        const Value& actualValue,
+        const ParameterType& expectedType)
+    {
+        auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue);
+        std::string expectedClassName = expectedType.getClassName();
+
+        auto classDefinition = objectInstance->getClassDefinition();
+        if (!classDefinition) {
+            return false;
+        }
+
+        // Extract base class name from expected type (strip generic arguments like <Int>)
+        std::string baseExpectedClassName = expectedClassName;
+        size_t anglePos = expectedClassName.find('<');
+        if (anglePos != std::string::npos) {
+            baseExpectedClassName = expectedClassName.substr(0, anglePos);
+        }
+
+        // Extract base class name from actual type as well
+        std::string actualClassName = classDefinition->getName();
+        std::string baseActualClassName = actualClassName;
+        size_t actualAnglePos = actualClassName.find('<');
+        if (actualAnglePos != std::string::npos) {
+            baseActualClassName = actualClassName.substr(0, actualAnglePos);
+        }
+
+        // Check exact class match or inheritance using base class names
+        return baseActualClassName == baseExpectedClassName ||
+               classDefinition->isSubclassOf(baseExpectedClassName);
     }
 
     void ParameterBinder::validateParameterType(

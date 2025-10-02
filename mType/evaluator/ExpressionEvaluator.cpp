@@ -5,18 +5,13 @@
 #include "expressions/ArrayHandler.hpp"
 #include "expressions/UnaryOperationHandler.hpp"
 #include "expressions/AccessHandler.hpp"
-#include "utils/ParameterBinder.hpp"
-#include "utils/ObjectHelper.hpp"
-#include "validation/TypeValidator.hpp"
+#include "utils/ValueConverter.hpp"
+#include "utils/NodeTypeRegistry.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
-#include "utils/ScopeGuard.hpp"
 #include "../errors/TypeException.hpp"
-#include "../errors/MathException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/RuntimeException.hpp"
-#include "../exception/ReturnException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
@@ -30,10 +25,7 @@
 #include "../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../value/NativeArray.hpp"
-#include "../value/FlatMultiArray.hpp"
 #include "../value/ArrayPool.hpp"
-#include "../value/StringPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -43,8 +35,6 @@
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
-#include "utils/ValueConverter.hpp"
-#include <cmath>
 
 namespace evaluator
 {
@@ -71,6 +61,9 @@ namespace evaluator
         arrayHandler->setExpressionEvaluator(this);
         unaryOpHandler->setExpressionEvaluator(this);
         accessHandler->setExpressionEvaluator(this);
+
+        // Initialize dispatcher with all node type handlers
+        initializeDispatcher();
     }
 
     // Destructor must be defined in .cpp where complete types are available
@@ -82,98 +75,44 @@ namespace evaluator
         {
             return std::monostate{};
         }
-        // Dispatch to appropriate evaluation method based on node type
-        if (auto intNode = dynamic_cast<IntegerNode*>(node))
-        {
-            return evaluateIntegerNode(intNode);
-        }
-        if (auto floatNode = dynamic_cast<FloatNode*>(node))
-        {
-            return evaluateFloatNode(floatNode);
-        }
-        if (auto stringNode = dynamic_cast<StringNode*>(node))
-        {
-            return evaluateStringNode(stringNode);
-        }
-        if (auto boolNode = dynamic_cast<BoolNode*>(node))
-        {
-            return evaluateBoolNode(boolNode);
-        }
-        if (auto nullNode = dynamic_cast<NullNode*>(node))
-        {
-            return evaluateNullNode(nullNode);
-        }
-        if (auto lambdaNode = dynamic_cast<LambdaNode*>(node))
-        {
-            return evaluateLambdaNode(lambdaNode);
-        }
-        if (auto varNode = dynamic_cast<VariableNode*>(node))
-        {
-            return evaluateVariableNode(varNode);
-        }
-        if (auto binNode = dynamic_cast<BinaryExpNode*>(node))
-        {
-            return evaluateBinaryExpNode(binNode);
-        }
-        if (auto ternNode = dynamic_cast<TernaryExpNode*>(node))
-        {
-            return evaluateTernaryExpNode(ternNode);
-        }
-        if (auto unaryNode = dynamic_cast<UnaryExpNode*>(node))
-        {
-            return evaluateUnaryExpNode(unaryNode);
-        }
-        if (auto funcCallNode = dynamic_cast<FunctionCallNode*>(node))
-        {
-            return evaluateFunctionCallNode(funcCallNode);
-        }
-        if (auto newNode = dynamic_cast<NewNode*>(node))
-        {
-            return evaluateNewNode(newNode);
-        }
-        if (auto methodCallNode = dynamic_cast<MethodCallNode*>(node))
-        {
-            return evaluateMethodCallNode(methodCallNode);
-        }
-        if (auto memberAccessNode = dynamic_cast<MemberAccessNode*>(node))
-        {
-            return evaluateMemberAccessNode(memberAccessNode);
-        }
-        if (auto assignNode = dynamic_cast<AssignmentNode*>(node))
-        {
-            return evaluateAssignmentExpression(assignNode);
-        }
-        if (auto memberAssignNode = dynamic_cast<MemberAssignmentNode*>(node))
-        {
-            // Delegate member assignment to ObjectEvaluator
+
+        // Use dispatcher for O(1) lookup instead of O(n) dynamic_cast chain
+        return dispatcher.dispatch(this, node);
+    }
+
+    void ExpressionEvaluator::initializeDispatcher()
+    {
+        // Register all expression node handlers with the dispatcher
+        dispatcher.registerMethod<IntegerNode>(&ExpressionEvaluator::evaluateIntegerNode);
+        dispatcher.registerMethod<FloatNode>(&ExpressionEvaluator::evaluateFloatNode);
+        dispatcher.registerMethod<StringNode>(&ExpressionEvaluator::evaluateStringNode);
+        dispatcher.registerMethod<BoolNode>(&ExpressionEvaluator::evaluateBoolNode);
+        dispatcher.registerMethod<NullNode>(&ExpressionEvaluator::evaluateNullNode);
+        dispatcher.registerMethod<LambdaNode>(&ExpressionEvaluator::evaluateLambdaNode);
+        dispatcher.registerMethod<VariableNode>(&ExpressionEvaluator::evaluateVariableNode);
+        dispatcher.registerMethod<BinaryExpNode>(&ExpressionEvaluator::evaluateBinaryExpNode);
+        dispatcher.registerMethod<TernaryExpNode>(&ExpressionEvaluator::evaluateTernaryExpNode);
+        dispatcher.registerMethod<UnaryExpNode>(&ExpressionEvaluator::evaluateUnaryExpNode);
+        dispatcher.registerMethod<FunctionCallNode>(&ExpressionEvaluator::evaluateFunctionCallNode);
+        dispatcher.registerMethod<AssignmentNode>(&ExpressionEvaluator::evaluateAssignmentExpression);
+        dispatcher.registerMethod<ArrayCreationNode>(&ExpressionEvaluator::evaluateArrayCreationNode);
+        dispatcher.registerMethod<ArrayLiteralNode>(&ExpressionEvaluator::evaluateArrayLiteralNode);
+        dispatcher.registerMethod<IndexAccessNode>(&ExpressionEvaluator::evaluateIndexAccessNode);
+        dispatcher.registerMethod<LambdaInterfaceInvocationNode>(&ExpressionEvaluator::evaluateLambdaInterfaceInvocationNode);
+
+        // Object-related nodes that can appear in expressions
+        dispatcher.registerMethod<MemberAccessNode>(&ExpressionEvaluator::evaluateMemberAccessNode);
+        dispatcher.registerMethod<MethodCallNode>(&ExpressionEvaluator::evaluateMethodCallNode);
+        dispatcher.registerMethod<NewNode>(&ExpressionEvaluator::evaluateNewNode);
+
+        // Special case: MemberAssignmentNode delegates to ObjectEvaluator
+        dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
             if (objEvaluator)
             {
-                return objEvaluator->evaluate(memberAssignNode);
+                return objEvaluator->evaluate(node);
             }
-            else
-            {
-                throw UndefinedException("Object evaluator not available for member assignment", node->getLocation());
-            }
-        }
-
-        if (auto arrayCreationNode = dynamic_cast<ArrayCreationNode*>(node))
-        {
-            return evaluateArrayCreationNode(arrayCreationNode);
-        }
-        if (auto arrayLiteralNode = dynamic_cast<ArrayLiteralNode*>(node))
-        {
-            return evaluateArrayLiteralNode(arrayLiteralNode);
-        }
-        if (auto indexAccessNode = dynamic_cast<IndexAccessNode*>(node))
-        {
-            return evaluateIndexAccessNode(indexAccessNode);
-        }
-        if (auto lambdaInterfaceNode = dynamic_cast<LambdaInterfaceInvocationNode*>(node))
-        {
-            return evaluateLambdaInterfaceInvocationNode(lambdaInterfaceNode);
-        }
-
-        return std::monostate{};
+            throw UndefinedException("Object evaluator not available for member assignment", node->getLocation());
+        });
     }
 
     bool ExpressionEvaluator::canHandle(ASTNode* node) const
@@ -255,25 +194,8 @@ namespace evaluator
 
     bool ExpressionEvaluator::isExpressionNode(ASTNode* node) const
     {
-        return dynamic_cast<IntegerNode*>(node) ||
-            dynamic_cast<FloatNode*>(node) ||
-            dynamic_cast<StringNode*>(node) ||
-            dynamic_cast<BoolNode*>(node) ||
-            dynamic_cast<NullNode*>(node) ||
-            dynamic_cast<LambdaNode*>(node) ||
-            dynamic_cast<VariableNode*>(node) ||
-            dynamic_cast<BinaryExpNode*>(node) ||
-            dynamic_cast<TernaryExpNode*>(node) ||
-            dynamic_cast<UnaryExpNode*>(node) ||
-            dynamic_cast<FunctionCallNode*>(node) ||
-            dynamic_cast<NewNode*>(node) ||
-            dynamic_cast<MethodCallNode*>(node) ||
-            dynamic_cast<MemberAccessNode*>(node) ||
-            dynamic_cast<AssignmentNode*>(node) ||
-            dynamic_cast<MemberAssignmentNode*>(node) ||
-            dynamic_cast<ArrayCreationNode*>(node) ||
-            dynamic_cast<ArrayLiteralNode*>(node) ||
-            dynamic_cast<IndexAccessNode*>(node);
+        // Use NodeTypeRegistry for O(1) lookup instead of O(n) dynamic_cast chain
+        return utils::NodeTypeRegistry::isExpression(node);
     }
 
     Value ExpressionEvaluator::evaluateIntegerNode(IntegerNode* node)

@@ -11,6 +11,11 @@ namespace parser::statement
     using namespace token;
     using namespace errors;
 
+    DeclarationParser::DeclarationParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
+
     std::unique_ptr<ASTNode> DeclarationParser::parse()
     {
         return parseDeclaration();
@@ -23,18 +28,19 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> DeclarationParser::parseDeclaration()
     {
-
         // Parse modifiers (final, static)
         ModifierInfo modifiers = parseModifiers();
 
         // Parse the complete type information
-        auto typeLocation = getCurrentLocation();
+        auto typeLocation = tokenStream.current().location;
 
-        parser::TypeInfo typeInfo;
-        try {
+        TypeInfo typeInfo;
+        try
+        {
             typeInfo = TypeParser::parseTypeInfo(tokenStream);
         }
-        catch (const std::exception& ) {
+        catch (const std::exception&)
+        {
             throw;
         }
         ValueType type = typeInfo.baseType;
@@ -43,7 +49,6 @@ namespace parser::statement
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-
             // Special case: if we see a parenthesis after a qualified name,
             // it's likely a static method call that was mistakenly routed here
             if (tokenStream.check(TokenType::LPAREN) && !className.empty() &&
@@ -64,27 +69,28 @@ namespace parser::statement
                     }
                 }
 
-                expectToken(TokenType::RPAREN, getParserName());
-                expectToken(TokenType::SEMICOLON, getParserName());
+                expectToken(TokenType::RPAREN);
+                expectToken(TokenType::SEMICOLON);
 
                 // Create a FunctionCallNode with the qualified name
                 return std::make_unique<FunctionCallNode>(className, std::move(arguments), typeLocation);
             }
 
-            reportError("Expected variable name in declaration", getParserName());
-            throw errors::ParseException("Expected variable name");
+            throw ParseException("Expected variable name", tokenStream.current().location);
         }
 
 
         std::string varName;
-        try {
+        try
+        {
             varName = tokenStream.current().stringValue.getString();
         }
-        catch (const std::exception&) {
+        catch (const std::exception&)
+        {
             throw;
         }
 
-        SourceLocation varLocation = getCurrentLocation();
+        SourceLocation varLocation = tokenStream.current().location;
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> value = nullptr;
@@ -96,10 +102,10 @@ namespace parser::statement
         {
         }
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
 
         return std::make_unique<AssignmentNode>(varName, std::move(value), type, className,
-                                              modifiers.isFinal, modifiers.isStatic, varLocation);
+                                                modifiers.isFinal, modifiers.isStatic, varLocation);
     }
 
     bool DeclarationParser::isDeclarationStart(TokenType type) const noexcept

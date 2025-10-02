@@ -1,5 +1,4 @@
 #include "ArgumentParser.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -7,17 +6,20 @@ namespace parser::expression
     using namespace token;
     using namespace errors;
 
+    ArgumentParser::ArgumentParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
+
+
     std::unique_ptr<ASTNode> ArgumentParser::parse()
     {
-        // This should not be called directly - use parseArguments or parseGenericTypeArguments
-        reportError("ArgumentParser::parse() called directly", getParserName());
-        throw errors::ParseException("Invalid use of ArgumentParser");
+        throw ParseException("Invalid use of ArgumentParser", tokenStream.current().location);
     }
 
     bool ArgumentParser::canParse(const TokenStream& stream) const
     {
-        // Arguments can start with any expression token
-        return true; // This will be determined by the calling context
+        return true;
     }
 
     std::vector<std::unique_ptr<ASTNode>> ArgumentParser::parseArguments()
@@ -76,17 +78,14 @@ namespace parser::expression
                     typeArg += nestedArgs[i];
                 }
 
-                expectToken(TokenType::GREATER, getParserName()); // consume '>'
+                expectToken(TokenType::GREATER); // consume '>'
                 typeArg += ">";
             }
 
             return typeArg;
         }
-        else
-        {
-            reportError("Expected type argument", getParserName());
-            throw errors::ParseException("Expected type argument");
-        }
+
+        throw ParseException("Expected type argument", tokenStream.current().location);
     }
 
     std::string ArgumentParser::parseNestedGenericType()

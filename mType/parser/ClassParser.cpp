@@ -5,16 +5,10 @@
 #include "class/FieldParser.hpp"
 #include "class/ObjectCreationParser.hpp"
 #include "class/GenericParameterParser.hpp"
-#include "TypeParser.hpp"
-#include "ParserUtils.hpp"
+#include "utilities/ParserUtils.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
-#include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
-#include "../ast/nodes/classes/FieldNode.hpp"
-#include "../ast/nodes/classes/NewNode.hpp"
-#include "../ast/nodes/expressions/ArrayCreationNode.hpp"
-#include "../parser/ParserValidator.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -68,7 +62,7 @@ namespace parser
                 }
             }
             else if (currentToken == TokenType::FUNCTION ||
-                     (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION))
+                (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION))
             {
                 auto method = methodParser->parseMethod();
                 if (method)
@@ -129,66 +123,13 @@ namespace parser
         return genericParameterParser->parseGenericParameter();
     }
 
-    std::vector<ast::GenericTypeParameter> ClassParser::parseGenericTypeParameters()
+    std::vector<GenericTypeParameter> ClassParser::parseGenericTypeParameters()
     {
         return genericParameterParser->parseGenericTypeParameters();
     }
 
-    ast::GenericTypeParameter ClassParser::parseGenericTypeParameter()
+    GenericTypeParameter ClassParser::parseGenericTypeParameter()
     {
         return genericParameterParser->parseGenericTypeParameter();
-    }
-
-    // Helper method to create TypeInfo from class name string
-    TypeInfo ClassParser::createTypeInfoFromClassName(const std::string& className)
-    {
-        // Handle basic types
-        if (className == "int") return TypeInfo(ValueType::INT);
-        if (className == "float") return TypeInfo(ValueType::FLOAT);
-        if (className == "bool") return TypeInfo(ValueType::BOOL);
-        if (className == "string") return TypeInfo(ValueType::STRING);
-        if (className == "void") return TypeInfo(ValueType::VOID);
-
-
-        // For complex generic types like "Array<int>", extract and parse
-        size_t anglePos = className.find('<');
-        if (anglePos != std::string::npos)
-        {
-            std::string baseType = className.substr(0, anglePos);
-            std::string genericPart = className.substr(anglePos + 1, className.length() - anglePos - 2);
-            // Remove < and >
-
-            // Custom generic class - treat as object for now
-            return TypeInfo(ValueType::OBJECT, className);
-        }
-
-        // Default: treat as custom class (OBJECT type)
-        return TypeInfo(ValueType::OBJECT, className);
-    }
-
-    // NEW: Convert TypeInfo to GenericType for field and method parsing
-    std::shared_ptr<ast::GenericType> ClassParser::convertTypeInfoToGenericType(const TypeInfo& typeInfo)
-    {
-        // Handle basic types
-        if (typeInfo.baseType != ValueType::OBJECT)
-        {
-            // Simple built-in types (int, float, bool, string, void)
-            return std::make_shared<ast::GenericType>(typeInfo.baseType);
-        }
-        else
-        {
-            // Handle object types
-            if (!typeInfo.className.empty())
-            {
-                // For now, treat as regular object type
-                // Later we can enhance this to detect generic type parameters
-                return std::make_shared<ast::GenericType>(typeInfo.className);
-            }
-            else
-            {
-                // Generic object type
-                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
-            }
-        }
     }
 }

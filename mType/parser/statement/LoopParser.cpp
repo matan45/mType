@@ -5,7 +5,6 @@
 #include "../../ast/nodes/statements/ForNode.hpp"
 #include "../../ast/nodes/statements/ForEachNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -13,6 +12,11 @@ namespace parser::statement
     using namespace ast::nodes::statements;
     using namespace token;
     using namespace errors;
+
+    LoopParser::LoopParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
 
     std::unique_ptr<ASTNode> LoopParser::parse()
     {
@@ -27,8 +31,7 @@ namespace parser::statement
         case TokenType::FOR:
             return parseForStatement();
         default:
-            reportError("Unexpected token in loop parser", getParserName());
-            throw errors::ParseException("Invalid loop token");
+            throw ParseException("Invalid loop token", tokenStream.current().location);
         }
     }
 
@@ -39,10 +42,10 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> LoopParser::parseWhileStatement()
     {
-        expectToken(TokenType::WHILE, getParserName());
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::WHILE);
+        expectToken(TokenType::LPAREN);
         auto condition = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         auto body = context.parseStatement();
         return std::make_unique<WhileNode>(std::move(condition), std::move(body));
@@ -50,21 +53,21 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> LoopParser::parseDoWhileStatement()
     {
-        expectToken(TokenType::DO, getParserName());
+        expectToken(TokenType::DO);
         auto body = context.parseStatement();
-        expectToken(TokenType::WHILE, getParserName());
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::WHILE);
+        expectToken(TokenType::LPAREN);
         auto condition = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::RPAREN);
+        expectToken(TokenType::SEMICOLON);
 
         return std::make_unique<DoWhileNode>(std::move(body), std::move(condition));
     }
 
     std::unique_ptr<ASTNode> LoopParser::parseForStatement()
     {
-        expectToken(TokenType::FOR, getParserName());
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::FOR);
+        expectToken(TokenType::LPAREN);
 
         // Parse initialization - could be for-each or regular for loop
         std::unique_ptr<ASTNode> init = nullptr;
@@ -77,16 +80,15 @@ namespace parser::statement
                 tokenStream.check(TokenType::IDENTIFIER))
             {
                 // Parse type and variable name
-                parser::TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
+                TypeInfo typeInfo = TypeParser::parseTypeInfo(tokenStream);
 
                 if (!tokenStream.check(TokenType::IDENTIFIER))
                 {
-                    reportError("Expected variable name in for loop", getParserName());
-                    throw errors::ParseException("Expected variable name");
+                    throw ParseException("Expected variable name", tokenStream.current().location);
                 }
 
                 std::string varName = tokenStream.current().stringValue.getString();
-                SourceLocation location = getCurrentLocation();
+                SourceLocation location = tokenStream.current().location;
                 tokenStream.advance();
 
                 // Check if this is for-each (colon) or regular for loop (assignment/semicolon)
@@ -96,12 +98,12 @@ namespace parser::statement
                     tokenStream.advance(); // consume ':'
 
                     auto collection = context.parseExpression();
-                    expectToken(TokenType::RPAREN, getParserName());
+                    expectToken(TokenType::RPAREN);
 
                     auto body = context.parseStatement();
 
                     return std::make_unique<ForEachNode>(varName, typeInfo,
-                                                       std::move(collection), std::move(body), location);
+                                                         std::move(collection), std::move(body), location);
                 }
                 else
                 {
@@ -113,8 +115,8 @@ namespace parser::statement
                     }
 
                     init = std::make_unique<AssignmentNode>(varName, std::move(value),
-                                                          typeInfo.baseType, typeInfo.className,
-                                                          false, false, location);
+                                                            typeInfo.baseType, typeInfo.className,
+                                                            false, false, location);
                 }
             }
             else
@@ -123,7 +125,7 @@ namespace parser::statement
             }
         }
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
 
         // Parse condition
         std::unique_ptr<ASTNode> condition = nullptr;
@@ -131,7 +133,7 @@ namespace parser::statement
         {
             condition = context.parseExpression();
         }
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
 
         // Parse update
         std::unique_ptr<ASTNode> update = nullptr;
@@ -139,7 +141,7 @@ namespace parser::statement
         {
             update = context.parseExpression();
         }
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         auto body = context.parseStatement();
 
@@ -152,32 +154,31 @@ namespace parser::statement
         // This method is for explicit for-each parsing
         // We should be positioned at the start of the type (after the opening parenthesis)
 
-        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
+        TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected variable name in for-each loop", getParserName());
-            throw errors::ParseException("Expected variable name in for-each loop");
+            throw ParseException("Expected variable name in for-each loop", tokenStream.current().location);
         }
 
         std::string variableName = tokenStream.current().stringValue.getString();
-        SourceLocation location = getCurrentLocation();
+        SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
         if (!tokenStream.check(TokenType::COLON))
         {
-            reportError("Expected ':' in for-each loop", getParserName());
-            throw errors::ParseException("Expected ':' in for-each loop. Use ';' for regular for loops.");
+            throw ParseException("Expected ':' in for-each loop. Use ';' for regular for loops.",
+                                 tokenStream.current().location);
         }
         tokenStream.advance(); // consume ':'
 
         auto collection = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         auto body = context.parseStatement();
 
         return std::make_unique<ForEachNode>(variableName, variableTypeInfo,
-                                           std::move(collection), std::move(body), location);
+                                             std::move(collection), std::move(body), location);
     }
 
     std::unique_ptr<ASTNode> LoopParser::tryParseForEach()
@@ -185,7 +186,7 @@ namespace parser::statement
         // Try to parse for-each pattern without consuming too many tokens
         // Returns nullptr if this is not a for-each loop
 
-        parser::TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
+        TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
@@ -194,7 +195,7 @@ namespace parser::statement
         }
 
         std::string variableName = tokenStream.current().stringValue.getString();
-        SourceLocation location = getCurrentLocation();
+        SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
         // This is the key check - if we see colon, it's for-each
@@ -208,12 +209,12 @@ namespace parser::statement
         tokenStream.advance(); // consume ':'
 
         auto collection = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         auto body = context.parseStatement();
 
         return std::make_unique<ForEachNode>(variableName, variableTypeInfo,
-                                           std::move(collection), std::move(body), location);
+                                             std::move(collection), std::move(body), location);
     }
 
     bool LoopParser::isLoopToken(TokenType type) const noexcept

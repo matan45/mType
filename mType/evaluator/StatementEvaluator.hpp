@@ -2,6 +2,7 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/ControlFlowManager.hpp"
 #include "utils/ValueConverter.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/statements/BreakNode.hpp"
 #include "../errors/SourceLocation.hpp"
@@ -45,6 +46,9 @@ namespace evaluator
         std::unique_ptr<statements::DeclarationHandler> declarationHandler;
         std::unique_ptr<statements::ControlFlowHandler> controlFlowHandler;
         std::unique_ptr<statements::ImportAndFunctionHandler> importAndFunctionHandler;
+
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<StatementEvaluator> dispatcher;
 
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
@@ -100,6 +104,9 @@ namespace evaluator
         void setObjectEvaluator(ObjectEvaluator* evaluator);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods
         bool isStatementNode(ASTNode* node) const;
         Value executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements);

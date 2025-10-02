@@ -2,22 +2,18 @@
 #include "../core/IParser.hpp"
 #include "../TokenStream.hpp"
 #include "../ParseContext.hpp"
-#include "../TypeParser.hpp"
+#include "../core/BaseParser.hpp"
 
 namespace parser
 {
-    class FieldParser : public core::IParser
+    class FieldParser : public core::BaseParser
     {
-    private:
-        TokenStream& tokenStream;
-        ParseContext& context;
-
+    
     public:
-        FieldParser(TokenStream& tokenStream, ParseContext& context);
+        explicit FieldParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override;
 
         // Public method for coordinated parsing
         std::unique_ptr<ASTNode> parseField();

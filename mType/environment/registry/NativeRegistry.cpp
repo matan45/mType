@@ -5,8 +5,9 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/NullPointerException.hpp"
+#include "../../errors/TypeConversionException.hpp"
 #include "../../value/StringPool.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 
 namespace environment::registry
 {
@@ -274,14 +275,14 @@ namespace environment::registry
                 {
                     if (!value)
                     {
-                        throw mtype::exceptions::NullPointerException("classNameObj function call");
+                        throw errors::NullPointerException("classNameObj function call");
                     }
                     // Return the class name of the object
                     return value->getTypeName();
                 }
                 else
                 {
-                    throw mtype::exceptions::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
+                    throw errors::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
                 }
             }, args[0]);
         });

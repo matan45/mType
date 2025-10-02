@@ -4,90 +4,81 @@
 #include "../../ast/NodeClassesDeclaration.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>
-#include <vector>
 
-// Forward declarations for AST nodes
-namespace ast {
-namespace nodes {
-namespace expressions {
-    class LambdaInterfaceInvocationNode;
-}
-namespace functions {
-    class FunctionCallNode;
-}
-namespace classes {
-    class MethodCallNode;
-}
-}
+namespace ast
+{
+    namespace nodes
+    {
+        namespace expressions
+        {
+            class LambdaInterfaceInvocationNode;
+        }
+
+        namespace functions
+        {
+            class FunctionCallNode;
+        }
+
+        namespace classes
+        {
+            class MethodCallNode;
+        }
+    }
 }
 
-namespace evaluator {
-    // Forward declarations
+namespace evaluator
+{
     class ExpressionEvaluator;
     class StatementEvaluator;
     class ObjectEvaluator;
 }
 
-namespace evaluator {
-namespace expressions {
-
-    using namespace base;
-    using namespace value;
-    using namespace ast::nodes::expressions;
-    using namespace ast::nodes::classes;
-
-    /**
-     * @brief Handles function and method call evaluation
-     *
-     * Responsibilities:
-     * - Function call evaluation (global and namespaced)
-     * - Method call evaluation (instance and static)
-     * - Lambda invocation
-     * - Argument evaluation and passing
-     *
-     * Design Principles:
-     * - Single Responsibility: Only call operations
-     * - Handles generic type resolution for calls
-     */
-    class CallHandler {
-    private:
-        std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-        evaluator::StatementEvaluator* stmtEvaluator;
-        evaluator::ObjectEvaluator* objEvaluator;
-
-    public:
-        explicit CallHandler(std::shared_ptr<EvaluationContext> ctx)
-            : context(ctx), exprEvaluator(nullptr),
-              stmtEvaluator(nullptr), objEvaluator(nullptr) {}
-
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
-            exprEvaluator = evaluator;
-        }
-
-        void setStatementEvaluator(evaluator::StatementEvaluator* evaluator) {
-            stmtEvaluator = evaluator;
-        }
-
-        void setObjectEvaluator(evaluator::ObjectEvaluator* evaluator) {
-            objEvaluator = evaluator;
-        }
+namespace evaluator
+{
+    namespace expressions
+    {
+        using namespace base;
+        using namespace value;
+        using namespace ast::nodes::expressions;
+        using namespace ast::nodes::classes;
 
         /**
-         * Evaluate function call
+         * @brief Handles function and method call evaluation
+         *
+         * Responsibilities:
+         * - Function call evaluation (global and namespaced)
+         * - Method call evaluation (instance and static)
+         * - Lambda invocation
+         * - Argument evaluation and passing
+         *
+         * Design Principles:
+         * - Single Responsibility: Only call operations
+         * - Handles generic type resolution for calls
          */
-        Value evaluateFunctionCall(FunctionCallNode* node);
+        class CallHandler
+        {
+        private:
+            std::shared_ptr<EvaluationContext> context;
+            ExpressionEvaluator* exprEvaluator;
+            StatementEvaluator* stmtEvaluator;
+            ObjectEvaluator* objEvaluator;
 
-        /**
-         * Evaluate method call
-         */
-        Value evaluateMethodCall(MethodCallNode* node);
+        public:
+            explicit CallHandler(std::shared_ptr<EvaluationContext> ctx);
+          
 
-        /**
-         * Evaluate lambda interface invocation
-         */
-        Value evaluateLambdaInterfaceInvocation(LambdaInterfaceInvocationNode* node);
-    };
+            void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
-} // namespace expressions
-} // namespace evaluator
+            void setStatementEvaluator(StatementEvaluator* evaluator);
+            
+            void setObjectEvaluator(ObjectEvaluator* evaluator);
+            
+            
+            Value evaluateFunctionCall(FunctionCallNode* node);
+            
+            Value evaluateMethodCall(MethodCallNode* node);
+            
+            Value evaluateLambdaInterfaceInvocation(LambdaInterfaceInvocationNode* node);
+        };
+    } 
+} 

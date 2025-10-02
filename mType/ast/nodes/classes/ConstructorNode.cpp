@@ -10,13 +10,13 @@ namespace ast::nodes::classes
           body(std::move(constructorBody))
     {
     }
-    
+
     // Constructor accepting unique_ptr for backward compatibility
     ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
                                      std::unique_ptr<ASTNode> constructorBody,
                                      const SourceLocation& loc)
         : ASTNode(loc), parameters(std::move(params)),
-          body(std::move(constructorBody))  // unique_ptr converts to shared_ptr automatically
+          body(std::move(constructorBody)) // unique_ptr converts to shared_ptr automatically
     {
     }
 
@@ -29,7 +29,7 @@ namespace ast::nodes::classes
     {
         return body;
     }
-    
+
     ASTNode* ConstructorNode::getBodyPtr() const noexcept
     {
         return body.get();

@@ -1,11 +1,11 @@
 #include "ParserUtils.hpp"
-#include "TypeParser.hpp"
-#include "TokenStream.hpp"
-#include "../ast/ASTNode.hpp"
-#include "../ast/GenericType.hpp"
-#include "../ast/nodes/expressions/BinaryExpNode.hpp"
-#include "../errors/ParseException.hpp"
-#include "../errors/SourceLocation.hpp"
+#include "../TypeParser.hpp"
+#include "../TokenStream.hpp"
+#include "../../ast/ASTNode.hpp"
+#include "../../ast/GenericType.hpp"
+#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../../errors/ParseException.hpp"
+#include "../../errors/SourceLocation.hpp"
 #include <cctype>
 #include <algorithm>
 
@@ -303,5 +303,113 @@ namespace parser
         }
         
         return parts;
+    }
+
+    std::vector<std::string> ParserUtils::parseInterfaceList(TokenStream& stream, std::string_view keywordName)
+    {
+        using namespace token;
+        using namespace errors;
+
+        std::vector<std::string> interfaces;
+
+        // Parse first interface
+        do
+        {
+            if (stream.current().type != TokenType::IDENTIFIER)
+            {
+                std::string message = "Expected interface name after '" + std::string(keywordName) + "'";
+                throw ParseException(message, stream.location());
+            }
+
+            std::string interfaceName = stream.current().stringValue.getString();
+            stream.advance();
+
+            // Handle generic parameters for the interface
+            if (stream.current().type == TokenType::LESS)
+            {
+                interfaceName += parseNestedGenericExpression(stream);
+            }
+
+            interfaces.push_back(interfaceName);
+
+            // Check for comma (multiple interfaces)
+            if (stream.current().type == TokenType::COMMA)
+            {
+                stream.advance();
+            }
+            else
+            {
+                break;
+            }
+        }
+        while (true);
+
+        return interfaces;
+    }
+
+    std::string ParserUtils::parseNestedGenericExpression(TokenStream& stream)
+    {
+        using namespace token;
+
+        std::string result = "<";
+        int depth = 1;
+        stream.advance(); // consume '<'
+
+        while (depth > 0 && !stream.isAtEnd())
+        {
+            if (stream.current().type == TokenType::LESS)
+            {
+                depth++;
+                result += "<";
+            }
+            else if (stream.current().type == TokenType::GREATER)
+            {
+                depth--;
+                result += ">";
+            }
+            else if (stream.current().type == TokenType::IDENTIFIER)
+            {
+                result += stream.current().stringValue.getString();
+            }
+            else if (stream.current().type == TokenType::COMMA)
+            {
+                result += ",";
+            }
+            else if (stream.current().type == TokenType::SCOPE)
+            {
+                result += "::";
+            }
+            stream.advance();
+        }
+
+        return result;
+    }
+
+    void ParserUtils::validateCapitalizedName(std::string_view name,
+                                             std::string_view context,
+                                             const errors::SourceLocation& location)
+    {
+        using namespace errors;
+
+        if (name.empty())
+        {
+            std::string message = std::string(context) + " name cannot be empty";
+            throw ParseException(message, location);
+        }
+
+        if (!std::isupper(name[0]))
+        {
+            std::string message = std::string(context) + " name '" + std::string(name) +
+                                "' must start with a capital letter";
+            throw ParseException(message, location);
+        }
+
+        // Ensure it's a valid identifier
+        if (!isValidIdentifier(name))
+        {
+            std::string message = std::string(context) + " name '" + std::string(name) +
+                                "' is not a valid identifier";
+            throw ParseException(message, location);
+        }
     }
 }

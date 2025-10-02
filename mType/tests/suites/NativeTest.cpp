@@ -1,7 +1,7 @@
 #include "NativeTest.hpp"
 #include "../../evaluator/Evaluator.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../exception/ReturnException.hpp"
+#include "../../errors/ReturnException.hpp"
 #include <iostream>
 
 namespace tests::testSuite
@@ -170,7 +170,7 @@ namespace tests::testSuite
                     value::Value result = interpreter->callStaticMethod("Vector", "zero", emptyArgs);
                     std::cout << "API call completed without segfault!" << std::endl;
                 }
-                catch (const exception::ReturnException& returnEx) {
+                catch (const ReturnException& returnEx) {
                     // This is expected - the method returns a value, so we get a ReturnException
                     if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(returnEx.returnValue)) {
                         auto vectorObj = std::get<std::shared_ptr<ObjectInstance>>(returnEx.returnValue);
@@ -203,7 +203,7 @@ namespace tests::testSuite
                 Value square25 = interpreter->callStaticMethod("MathUtils", "square", {5});
                 std::cout << "MathUtils::square(5) = " << std::get<int>(square25) << std::endl;
             }
-            catch (const exception::ReturnException& returnEx) {
+            catch (const ReturnException& returnEx) {
                 if (std::holds_alternative<int>(returnEx.returnValue)) {
                     int result = std::get<int>(returnEx.returnValue);
                     std::cout << "MathUtils::square(5) = " << result << std::endl;
@@ -214,7 +214,7 @@ namespace tests::testSuite
                 Value opCount = interpreter->callStaticMethod("MathUtils", "getOperationCount", {});
                 std::cout << "Operation count: " << std::get<int>(opCount) << std::endl;
             }
-            catch (const exception::ReturnException& returnEx) {
+            catch (const ReturnException& returnEx) {
                 if (std::holds_alternative<int>(returnEx.returnValue)) {
                     int count = std::get<int>(returnEx.returnValue);
                     std::cout << "Operation count: " << count << std::endl;
@@ -227,7 +227,7 @@ namespace tests::testSuite
                 Value reversed = interpreter->callStaticMethod("StringUtils", "reverse", {std::string("hello")});
                 std::cout << "StringUtils::reverse(\"hello\") = " << std::get<std::string>(reversed) << std::endl;
             }
-            catch (const exception::ReturnException& returnEx) {
+            catch (const ReturnException& returnEx) {
                 if (std::holds_alternative<std::string>(returnEx.returnValue)) {
                     std::string result = std::get<std::string>(returnEx.returnValue);
                     std::cout << "StringUtils::reverse(\"hello\") = " << result << std::endl;

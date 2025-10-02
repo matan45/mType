@@ -333,7 +333,7 @@ namespace parser
     {
         // Convert ValueType to string
         std::string result;
-        
+
         switch (baseType) {
             case ValueType::INT: result = "int"; break;
             case ValueType::FLOAT: result = "float"; break;
@@ -345,9 +345,55 @@ namespace parser
                 break;
             default: result = "unknown"; break;
         }
-        
+
         // No collection generic parameters needed anymore
-        
+
         return result;
+    }
+
+    TypeInfo TypeParser::createTypeInfoFromClassName(const std::string& className)
+    {
+        // Handle basic types
+        if (className == "int") return TypeInfo(ValueType::INT);
+        if (className == "float") return TypeInfo(ValueType::FLOAT);
+        if (className == "bool") return TypeInfo(ValueType::BOOL);
+        if (className == "string") return TypeInfo(ValueType::STRING);
+        if (className == "void") return TypeInfo(ValueType::VOID);
+
+        // For complex generic types like "Array<int>", extract and parse
+        size_t anglePos = className.find('<');
+        if (anglePos != std::string::npos)
+        {
+            // Custom generic class - treat as object
+            return TypeInfo(ValueType::OBJECT, className);
+        }
+
+        // Default: treat as custom class (OBJECT type)
+        return TypeInfo(ValueType::OBJECT, className);
+    }
+
+    std::shared_ptr<ast::GenericType> TypeParser::convertTypeInfoToGenericType(const TypeInfo& typeInfo)
+    {
+        // Handle basic types
+        if (typeInfo.baseType != ValueType::OBJECT)
+        {
+            // Simple built-in types (int, float, bool, string, void)
+            return std::make_shared<ast::GenericType>(typeInfo.baseType);
+        }
+        else
+        {
+            // Handle object types
+            if (!typeInfo.className.empty())
+            {
+                // For now, treat as regular object type
+                // Later we can enhance this to detect generic type parameters
+                return std::make_shared<ast::GenericType>(typeInfo.className);
+            }
+            else
+            {
+                // Generic object type
+                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
+            }
+        }
     }
 }

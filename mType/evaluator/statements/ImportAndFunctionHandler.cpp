@@ -145,11 +145,11 @@ namespace statements {
             }
         }
 
-        // Use backward compatibility constructor, then set return class name
+        // Use ParameterType version to preserve class/interface information
         auto funcDef = std::make_shared<FunctionDefinition>(
             node->getName(),
             node->getReturnType(),
-            node->getParameters()
+            node->getParameterTypes()  // Use getParameterTypes() instead of getParameters()
         );
 
         // Set the return class name if we found one

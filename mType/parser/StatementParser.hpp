@@ -4,7 +4,6 @@
 #include "../ast/ASTNode.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
-#include "error/ErrorHandler.hpp"
 #include "statement/ControlFlowParser.hpp"
 #include "statement/LoopParser.hpp"
 #include "statement/DeclarationParser.hpp"
@@ -27,7 +26,6 @@ namespace parser
         TokenStream& tokenStream;
         ParseContext& context;
         ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
-        std::shared_ptr<error::ErrorHandler> errorHandler;
 
         // Specialized parser helpers
         std::unique_ptr<ControlFlowParser> controlFlowParser;
@@ -38,11 +36,8 @@ namespace parser
         std::unique_ptr<ImportParser> importParser;
 
     public:
-        explicit StatementParser(TokenStream& stream, ParseContext& ctx)
-            : tokenStream(stream), context(ctx), expressionParser(nullptr), errorHandler(std::make_shared<error::ErrorHandler>())
-        {
-            initializeHelperParsers();
-        }
+        explicit StatementParser(TokenStream& stream, ParseContext& ctx);
+       
 
         // Method to set ExpressionParser reference after construction
         void setExpressionParser(ExpressionParser& exprParser)

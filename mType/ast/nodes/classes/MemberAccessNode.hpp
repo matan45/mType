@@ -14,12 +14,12 @@ namespace ast::nodes::classes
 
     public:
         // Constructor accepting shared_ptr
-        explicit MemberAccessNode(std::shared_ptr<ASTNode> obj, const std::string& member, 
-                         bool isStatic = false, const SourceLocation& loc = SourceLocation());
-        
+        explicit MemberAccessNode(std::shared_ptr<ASTNode> obj, const std::string& member,
+                                  bool isStatic = false, const SourceLocation& loc = SourceLocation());
+
         // Constructor accepting unique_ptr for backward compatibility
-        explicit MemberAccessNode(std::unique_ptr<ASTNode> obj, const std::string& member, 
-                         bool isStatic = false, const SourceLocation& loc = SourceLocation());
+        explicit MemberAccessNode(std::unique_ptr<ASTNode> obj, const std::string& member,
+                                  bool isStatic = false, const SourceLocation& loc = SourceLocation());
 
         // For code that just needs to read
         [[nodiscard]] ASTNode* getObject() const noexcept;
@@ -28,7 +28,7 @@ namespace ast::nodes::classes
 
         // Safe getter - returns shared_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> getObjectShared() const;
-        
+
         // Safe transfer of ownership - returns shared_ptr that gets converted to unique_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> transferObjectOwnership() const;
 

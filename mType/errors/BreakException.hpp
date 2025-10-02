@@ -1,7 +1,7 @@
 #pragma once
 #include <exception>
 
-namespace exception
+namespace errors
 {
     class BreakException : public std::exception
     {

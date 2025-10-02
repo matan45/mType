@@ -2,6 +2,7 @@
 #include "base/EvaluationContext.hpp"
 #include "managers/InstanceManager.hpp"
 #include "utils/GenericTypeManager.hpp"
+#include "utils/NodeDispatcher.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
@@ -54,6 +55,9 @@ namespace evaluator
         std::unique_ptr<objects::InstanceOperationHandler> instanceOperationHandler;
         std::unique_ptr<objects::GenericInstantiationHandler> genericInstantiationHandler;
 
+        // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
+        utils::NodeDispatcher<ObjectEvaluator> dispatcher;
+
         // Forward declarations for circular dependency resolution
         class ExpressionEvaluator* exprEvaluator;
         class StatementEvaluator* stmtEvaluator;
@@ -99,9 +103,11 @@ namespace evaluator
         std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
                                                        const std::vector<Value>& constructorArgs,
                                                        const std::unordered_map<std::string, std::string>& typeBindings);
-        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName);
+        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                          const Value& value);
+                          const Value& value,
+                          const errors::SourceLocation& location = errors::SourceLocation{});
         Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
                          const std::vector<Value>& args,
                          const errors::SourceLocation& location = errors::SourceLocation{});
@@ -115,6 +121,9 @@ namespace evaluator
         std::string resolveTypeParameterFromContext(const std::string& typeParam);
 
     private:
+        // Initialize dispatcher with all handler registrations
+        void initializeDispatcher();
+
         // Helper methods
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);

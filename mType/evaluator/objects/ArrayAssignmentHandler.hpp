@@ -36,19 +36,14 @@ namespace objects {
     class ArrayAssignmentHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
+        ExpressionEvaluator* exprEvaluator;
 
     public:
-        explicit ArrayAssignmentHandler(std::shared_ptr<EvaluationContext> ctx)
-            : context(ctx), exprEvaluator(nullptr) {}
+        explicit ArrayAssignmentHandler(std::shared_ptr<EvaluationContext> ctx);
+        
+        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
-            exprEvaluator = evaluator;
-        }
-
-        /**
-         * Evaluate index assignment (e.g., arr[i] = value or arr[i][j] = value)
-         */
+       
         Value evaluateIndexAssignment(IndexAssignmentNode* node);
 
     private:
@@ -69,5 +64,5 @@ namespace objects {
             const SourceLocation& location);
     };
 
-} // namespace objects
-} // namespace evaluator
+}
+} 

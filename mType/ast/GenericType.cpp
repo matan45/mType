@@ -1,6 +1,5 @@
 #include "GenericType.hpp"
-#include "../exceptions/DomainExceptions.hpp"
-#include <stdexcept>
+#include "../errors/TypeException.hpp"
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -10,8 +9,8 @@ namespace ast
     value::ValueType GenericType::getConcreteType() const
     {
         if (isGenericParameter()) {
-            throw mtype::exceptions::TypeException("Cannot get concrete type from generic parameter",
-                                                  std::get<std::string>(baseType), __FUNCTION__);
+            throw errors::TypeException("Cannot get concrete type from generic parameter: " +
+                                       std::get<std::string>(baseType));
         }
         return std::get<value::ValueType>(baseType);
     }
@@ -19,8 +18,7 @@ namespace ast
     std::string GenericType::getGenericName() const
     {
         if (!isGenericParameter()) {
-            throw mtype::exceptions::TypeException("Cannot get generic name from concrete type",
-                                                  "", __FUNCTION__);
+            throw errors::TypeException("Cannot get generic name from concrete type");
         }
         return std::get<std::string>(baseType);
     }
@@ -89,7 +87,7 @@ namespace ast
         const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions) const
     {
         // Start with enhanced substitution context
-        mtype::exceptions::CircularDependencyConfig config;
+        circularDependency::CircularDependencyConfig config;
         config.maxGenericDepth = 50;  // Configurable depth limit
         config.enableEarlyDetection = true;  // Enable pattern detection
         config.enablePerformanceMetrics = true;  // Track performance
@@ -109,7 +107,7 @@ namespace ast
         }
 
         return detector->enterDependency(
-            mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION,
+            circularDependency::DependencyType::GENERIC_SUBSTITUTION,
             paramName,
             fullLocation
         );
@@ -118,19 +116,19 @@ namespace ast
     void GenericType::SubstitutionContext::exitSubstitution(const std::string& paramName)
     {
         detector->exitDependency(
-            mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION,
+            circularDependency::DependencyType::GENERIC_SUBSTITUTION,
             paramName
         );
     }
 
     std::vector<std::string> GenericType::SubstitutionContext::getCurrentChain() const
     {
-        return detector->getDependencyChain(mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION);
+        return detector->getDependencyChain(circularDependency::DependencyType::GENERIC_SUBSTITUTION);
     }
 
     int GenericType::SubstitutionContext::getCurrentDepth() const
     {
-        return detector->getCurrentDepth(mtype::exceptions::DependencyType::GENERIC_SUBSTITUTION);
+        return detector->getCurrentDepth(circularDependency::DependencyType::GENERIC_SUBSTITUTION);
     }
 
     std::string GenericType::SubstitutionContext::getChainString() const

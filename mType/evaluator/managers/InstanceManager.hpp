@@ -2,6 +2,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../value/ValueType.hpp"
+#include "../../errors/SourceLocation.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -22,7 +23,7 @@ namespace evaluator::managers
         std::shared_ptr<ObjectInstance> currentInstance;
         
     public:
-        InstanceManager();
+        explicit InstanceManager();
         ~InstanceManager() = default;
         
         // Instance creation and management
@@ -35,20 +36,21 @@ namespace evaluator::managers
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
         void clearCurrentInstance();
         
-        // Member access operations
-        Value accessMember(std::shared_ptr<ObjectInstance> object, 
-                          const std::string& memberName) const;
-        void assignMember(std::shared_ptr<ObjectInstance> object, 
-                         const std::string& memberName, 
-                         const Value& value);
         
-        // Method call operations
-        Value callMethod(std::shared_ptr<ObjectInstance> object, 
+        Value accessMember(std::shared_ptr<ObjectInstance> object,
+                          const std::string& memberName,
+                          const SourceLocation& location = SourceLocation()) const;
+        void assignMember(std::shared_ptr<ObjectInstance> object,
+                         const std::string& memberName,
+                         const Value& value,
+                         const SourceLocation& location = SourceLocation());
+        
+        Value callMethod(std::shared_ptr<ObjectInstance> object,
                         const std::string& methodName,
                         const std::vector<Value>& args,
-                        std::shared_ptr<Environment> environment);
+                        std::shared_ptr<Environment> environment,
+                        const SourceLocation& location = SourceLocation());
         
-        // Static member operations
         Value accessStaticMember(const std::string& className, 
                                 const std::string& memberName,
                                 std::shared_ptr<Environment> environment) const;

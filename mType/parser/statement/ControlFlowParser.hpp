@@ -11,12 +11,10 @@ namespace parser::statement
     class ControlFlowParser : public BaseParser
     {
     public:
-        ControlFlowParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler) {}
+        explicit ControlFlowParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "ControlFlowParser"; }
 
         std::unique_ptr<ASTNode> parseIfStatement();
         std::unique_ptr<ASTNode> parseSwitchStatement();
@@ -25,6 +23,6 @@ namespace parser::statement
         std::unique_ptr<ASTNode> parseReturnStatement();
 
     private:
-        bool isControlFlowToken(token::TokenType type) const noexcept;
+        bool isControlFlowToken(TokenType type) const noexcept;
     };
 }

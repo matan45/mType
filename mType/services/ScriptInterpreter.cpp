@@ -1,6 +1,13 @@
 ﻿#include "ScriptInterpreter.hpp"
-#include "../exceptions/DomainExceptions.hpp"
+#include "../errors/RuntimeException.hpp"
 #include "../errors/ParseException.hpp"
+#include "../errors/MethodNotFoundException.hpp"
+#include "../errors/ObjectException.hpp"
+#include "../errors/ClassNotFoundException.hpp"
+#include "../errors/ParameterMismatchException.hpp"
+#include "../errors/FieldNotFoundException.hpp"
+#include "../errors/FinalModificationException.hpp"
+#include "../errors/TypeConversionException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <memory>
@@ -11,7 +18,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
-#include "../exception/ReturnException.hpp"
+#include "../errors/ReturnException.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
@@ -103,7 +110,7 @@ namespace services
                 // std::cout << "Cleaned up " << cleanedUp << " unused interfaces\n";
             }
         }
-        catch (const errors::ParseException&)
+        catch (const ParseException&)
         {
             std::cerr << "Error" << std::endl;
             throw; // Re-throw to be caught by main()
@@ -206,7 +213,7 @@ namespace services
             }
         }
 
-        throw mtype::exceptions::MethodNotFoundException(functionName, "", __FUNCTION__);
+        throw errors::MethodNotFoundException(functionName, "", __FUNCTION__);
     }
 
     // Method calling on objects
@@ -215,7 +222,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw mtype::exceptions::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
+            throw errors::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
@@ -229,7 +236,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         return invokeStaticMethod(classDef, methodName, args);
@@ -242,13 +249,13 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
+            throw errors::FieldNotFoundException(fieldName, className);
         }
 
         return field->getValue();
@@ -260,18 +267,18 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         auto field = classDef->getField(fieldName);
         if (!field || !field->isStatic())
         {
-            throw mtype::exceptions::FieldNotFoundException(fieldName, className);
+            throw errors::FieldNotFoundException(fieldName, className);
         }
 
         if (field->isFinal())
         {
-            throw mtype::exceptions::FinalModificationException(fieldName, className);
+            throw errors::FinalModificationException(fieldName, className);
         }
 
         field->setValue(value);
@@ -283,7 +290,7 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw mtype::exceptions::FieldNotFoundException(variableName);
+            throw errors::FieldNotFoundException(variableName);
         }
 
         return varDef->getValue();
@@ -294,12 +301,12 @@ namespace services
         auto varDef = environment->findVariable(variableName);
         if (!varDef)
         {
-            throw mtype::exceptions::FieldNotFoundException(variableName);
+            throw errors::FieldNotFoundException(variableName);
         }
 
         if (varDef->isFinal())
         {
-            throw mtype::exceptions::FinalModificationException(variableName);
+            throw errors::FinalModificationException(variableName);
         }
 
         varDef->setValue(value);
@@ -311,7 +318,7 @@ namespace services
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
-            throw mtype::exceptions::ClassNotFoundException(className);
+            throw errors::ClassNotFoundException(className);
         }
 
         // Create the object instance
@@ -328,7 +335,7 @@ namespace services
             if (params.size() != constructorArgs.size())
             {
                 environment->exitScope();
-                throw mtype::exceptions::ParameterMismatchException("constructor", static_cast<int>(params.size()),
+                throw errors::ParameterMismatchException("constructor", static_cast<int>(params.size()),
                                                                     static_cast<int>(constructorArgs.size()));
             }
 
@@ -372,7 +379,7 @@ namespace services
         if (params.size() != args.size())
         {
             environment->exitScope();
-            throw mtype::exceptions::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()),
+            throw errors::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()),
                                                                 static_cast<int>(args.size()));
         }
 
@@ -409,7 +416,7 @@ namespace services
         auto method = classDef->getMethod(methodName);
         if (!method || !method->isStatic())
         {
-            throw mtype::exceptions::MethodNotFoundException(methodName, classDef->getName());
+            throw errors::MethodNotFoundException(methodName, classDef->getName());
         }
 
         // Set up method scope
@@ -421,7 +428,7 @@ namespace services
             auto params = method->getParameters();
             if (params.size() != args.size())
             {
-                throw mtype::exceptions::ParameterMismatchException(
+                throw errors::ParameterMismatchException(
                     classDef->getName() + "::" + methodName, static_cast<int>(params.size()),
                     static_cast<int>(args.size()));
             }
@@ -469,7 +476,7 @@ namespace services
                         result = apiEvaluator->getReturnValue();
                     }
                 }
-                catch (const exception::ReturnException& returnEx)
+                catch (const ReturnException& returnEx)
                 {
                     // Handle explicit return statements - this is the normal case for static methods with return values
                     result = returnEx.returnValue;
@@ -515,7 +522,7 @@ namespace services
     {
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
         {
-            throw mtype::exceptions::TypeConversionException("Value is not an object", "unknown", "object");
+            throw errors::TypeConversionException("Value is not an object", "unknown", "object");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);

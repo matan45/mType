@@ -111,5 +111,22 @@ namespace evaluator::utils
             const std::string& paramName,
             const std::string& functionName
         );
+
+        // Helper methods for isValidParameterConversion
+        static bool checkBasicTypeConversion(
+            const value::Value& actualValue,
+            const value::ParameterType& expectedType
+        );
+
+        static bool checkInterfaceImplementation(
+            const value::Value& actualValue,
+            const value::ParameterType& expectedType,
+            std::shared_ptr<environment::Environment> env
+        );
+
+        static bool checkClassTypeMatch(
+            const value::Value& actualValue,
+            const value::ParameterType& expectedType
+        );
     };
 }

@@ -1,7 +1,6 @@
 #include "ConstructorParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
-#include "../../errors/ParseException.hpp"
 #include <utility>
 
 namespace parser
@@ -10,8 +9,8 @@ namespace parser
     using namespace token;
     using namespace errors;
 
-    ConstructorParser::ConstructorParser(TokenStream& tokenStream, ParseContext& context)
-        : tokenStream(tokenStream), context(context)
+    ConstructorParser::ConstructorParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
     {
     }
 
@@ -23,11 +22,6 @@ namespace parser
     bool ConstructorParser::canParse(const TokenStream& stream) const
     {
         return stream.check(TokenType::CONSTRUCTOR);
-    }
-
-    std::string ConstructorParser::getParserName() const
-    {
-        return "ConstructorParser";
     }
 
     std::unique_ptr<ASTNode> ConstructorParser::parseConstructor()

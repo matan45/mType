@@ -13,12 +13,10 @@ namespace parser::expression
     class ArgumentParser : public BaseParser
     {
     public:
-        ArgumentParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler) {}
+        explicit ArgumentParser(TokenStream& stream, ParseContext& ctx);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "ArgumentParser"; }
 
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
         std::vector<std::string> parseGenericTypeArguments();

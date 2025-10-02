@@ -18,21 +18,16 @@ namespace parser::expression
     class PostfixOperatorParser : public BaseParser
     {
     private:
-        parser::ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
+        ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
 
     public:
-        PostfixOperatorParser(TokenStream& stream, ParseContext& ctx, std::shared_ptr<error::ErrorHandler> handler)
-            : BaseParser(stream, ctx, handler), expressionParser(nullptr) {}
+        explicit PostfixOperatorParser(TokenStream& stream, ParseContext& ctx);
 
         // Method to set ExpressionParser reference after construction
-        void setExpressionParser(parser::ExpressionParser& exprParser)
-        {
-            expressionParser = &exprParser;
-        }
+        void setExpressionParser(ExpressionParser& exprParser);
 
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
-        std::string getParserName() const override { return "PostfixOperatorParser"; }
 
         std::unique_ptr<ASTNode> parsePostfix();
         std::unique_ptr<ASTNode> parsePostfixOperations(std::unique_ptr<ASTNode> expr);
@@ -43,9 +38,9 @@ namespace parser::expression
         std::unique_ptr<ASTNode> parseFunctionCall(std::unique_ptr<ASTNode> expr);
         std::unique_ptr<ASTNode> parseScopeResolution(std::unique_ptr<ASTNode> expr);
         std::unique_ptr<ASTNode> parseGenericMethodCall(const std::string& className,
-                                                       const std::string& methodName,
-                                                       const std::vector<std::string>& typeArgs);
+                                                        const std::string& methodName,
+                                                        const std::vector<std::string>& typeArgs);
 
-        bool isPostfixOperator(token::TokenType type) const noexcept;
+        bool isPostfixOperator(TokenType type) const noexcept;
     };
 }

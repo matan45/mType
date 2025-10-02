@@ -6,7 +6,6 @@
 #include "../../ast/nodes/statements/BreakNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -14,6 +13,11 @@ namespace parser::statement
     using namespace ast::nodes::statements;
     using namespace ast::nodes::functions;
     using namespace token;
+
+    ControlFlowParser::ControlFlowParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
 
     std::unique_ptr<ASTNode> ControlFlowParser::parse()
     {
@@ -32,8 +36,7 @@ namespace parser::statement
         case TokenType::RETURN:
             return parseReturnStatement();
         default:
-            reportError("Unexpected token in control flow parser", getParserName());
-            throw errors::ParseException("Invalid control flow token");
+            throw ParseException("Invalid control flow token", tokenStream.current().location);
         }
     }
 
@@ -44,10 +47,10 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseIfStatement()
     {
-        expectToken(TokenType::IF, getParserName());
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::IF);
+        expectToken(TokenType::LPAREN);
         auto condition = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         auto thenStatement = context.parseStatement();
 
@@ -62,11 +65,11 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseSwitchStatement()
     {
-        expectToken(TokenType::SWITCH, getParserName());
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::SWITCH);
+        expectToken(TokenType::LPAREN);
         auto expression = context.parseExpression();
-        expectToken(TokenType::RPAREN, getParserName());
-        expectToken(TokenType::LBRACE, getParserName());
+        expectToken(TokenType::RPAREN);
+        expectToken(TokenType::LBRACE);
 
         auto switchNode = std::make_unique<SwitchNode>(std::move(expression));
 
@@ -76,7 +79,7 @@ namespace parser::statement
             {
                 tokenStream.advance();
                 auto caseValue = context.parseExpression();
-                expectToken(TokenType::COLON, getParserName());
+                expectToken(TokenType::COLON);
 
                 auto caseNode = std::make_unique<CaseNode>(std::move(caseValue));
                 while (!tokenStream.check(TokenType::CASE) &&
@@ -95,9 +98,9 @@ namespace parser::statement
             }
             else if (tokenStream.check(TokenType::DEFAULT))
             {
-                auto defaultLocation = getCurrentLocation();
+                auto defaultLocation = tokenStream.current().location;
                 tokenStream.advance();
-                expectToken(TokenType::COLON, getParserName());
+                expectToken(TokenType::COLON);
 
                 auto defaultNode = std::make_unique<DefaultCaseNode>(defaultLocation);
                 while (!tokenStream.check(TokenType::CASE) &&
@@ -116,34 +119,32 @@ namespace parser::statement
             }
             else
             {
-                reportWarning("Unexpected token in switch statement, skipping", getParserName());
                 tokenStream.advance();
             }
         }
 
-        expectToken(TokenType::RBRACE, getParserName());
+        expectToken(TokenType::RBRACE);
         return std::move(switchNode);
     }
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseBreakStatement()
     {
-        auto breakLocation = getCurrentLocation();
-        expectToken(TokenType::BREAK, getParserName());
-        expectToken(TokenType::SEMICOLON, getParserName());
+        auto breakLocation = tokenStream.current().location;
+        expectToken(TokenType::BREAK);
+        expectToken(TokenType::SEMICOLON);
         return std::make_unique<BreakNode>(breakLocation);
     }
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseContinueStatement()
     {
-        auto continueLocation = getCurrentLocation();
-        expectToken(TokenType::CONTINUE, getParserName());
-        expectToken(TokenType::SEMICOLON, getParserName());
-        return std::make_unique<ContinueNode>(continueLocation);
+        expectToken(TokenType::CONTINUE);
+        expectToken(TokenType::SEMICOLON);
+        return std::make_unique<ContinueNode>(tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseReturnStatement()
     {
-        expectToken(TokenType::RETURN, getParserName());
+        expectToken(TokenType::RETURN);
 
         std::unique_ptr<ASTNode> value = nullptr;
         if (!tokenStream.check(TokenType::SEMICOLON))
@@ -151,7 +152,7 @@ namespace parser::statement
             value = context.parseExpression();
         }
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
         return std::make_unique<ReturnNode>(std::move(value));
     }
 

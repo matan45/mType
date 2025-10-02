@@ -15,6 +15,5 @@ namespace parser::core
 
         virtual std::unique_ptr<ASTNode> parse() = 0;
         virtual bool canParse(const TokenStream& stream) const = 0;
-        virtual std::string getParserName() const = 0;
     };
 }

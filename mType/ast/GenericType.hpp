@@ -1,13 +1,12 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
-#include "../exceptions/CircularDependencyDetector.hpp"
+#include "../circularDependency/CircularDependencyDetector.hpp"
 #include <string>
 #include <vector>
 #include <variant>
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace ast
 {
@@ -28,13 +27,17 @@ namespace ast
          * Constructor for concrete types (int, string, bool, etc.)
          * @param type The concrete ValueType
          */
-        explicit GenericType(value::ValueType type) : baseType(type) {}
+        explicit GenericType(value::ValueType type) : baseType(type)
+        {
+        }
 
         /**
          * Constructor for generic type parameters (T, E, K, V, etc.)
          * @param genericName The name of the generic type parameter
          */
-        explicit GenericType(const std::string& genericName) : baseType(genericName) {}
+        explicit GenericType(const std::string& genericName) : baseType(genericName)
+        {
+        }
 
         /**
          * Constructor for parameterized concrete types (Array<T>, Map<K,V>)
@@ -42,7 +45,9 @@ namespace ast
          * @param args Vector of type arguments
          */
         GenericType(value::ValueType type, const std::vector<std::shared_ptr<GenericType>>& args)
-            : baseType(type), typeArguments(args) {}
+            : baseType(type), typeArguments(args)
+        {
+        }
 
         /**
          * Constructor for parameterized generic types (Box<T> where Box is generic)
@@ -50,14 +55,18 @@ namespace ast
          * @param args Vector of type arguments
          */
         GenericType(const std::string& genericName, const std::vector<std::shared_ptr<GenericType>>& args)
-            : baseType(genericName), typeArguments(args) {}
+            : baseType(genericName), typeArguments(args)
+        {
+        }
 
         /**
          * Copy constructor
          */
         GenericType(const GenericType& other)
-            : baseType(other.baseType) {
-            for (const auto& arg : other.typeArguments) {
+            : baseType(other.baseType)
+        {
+            for (const auto& arg : other.typeArguments)
+            {
                 typeArguments.push_back(std::make_shared<GenericType>(*arg));
             }
         }
@@ -65,11 +74,14 @@ namespace ast
         /**
          * Assignment operator
          */
-        GenericType& operator=(const GenericType& other) {
-            if (this != &other) {
+        GenericType& operator=(const GenericType& other)
+        {
+            if (this != &other)
+            {
                 baseType = other.baseType;
                 typeArguments.clear();
-                for (const auto& arg : other.typeArguments) {
+                for (const auto& arg : other.typeArguments)
+                {
                     typeArguments.push_back(std::make_shared<GenericType>(*arg));
                 }
             }
@@ -80,7 +92,8 @@ namespace ast
          * Checks if this represents a generic type parameter (T, E, etc.)
          * @return true if this is a type parameter, false if concrete type
          */
-        bool isGenericParameter() const {
+        bool isGenericParameter() const
+        {
             return std::holds_alternative<std::string>(baseType);
         }
 
@@ -88,7 +101,8 @@ namespace ast
          * Checks if this type has type arguments (Array<T>, Map<K,V>)
          * @return true if parameterized, false otherwise
          */
-        bool isParameterized() const {
+        bool isParameterized() const
+        {
             return !typeArguments.empty();
         }
 
@@ -116,7 +130,8 @@ namespace ast
          * Gets the type arguments for parameterized types
          * @return Vector of type arguments
          */
-        const std::vector<std::shared_ptr<GenericType>>& getTypeArguments() const {
+        const std::vector<std::shared_ptr<GenericType>>& getTypeArguments() const
+        {
             return typeArguments;
         }
 
@@ -124,7 +139,8 @@ namespace ast
          * Sets the type arguments for parameterized types
          * @param args Vector of type arguments
          */
-        void setTypeArguments(const std::vector<std::shared_ptr<GenericType>>& args) {
+        void setTypeArguments(const std::vector<std::shared_ptr<GenericType>>& args)
+        {
             typeArguments = args;
         }
 
@@ -132,7 +148,8 @@ namespace ast
          * Adds a single type argument
          * @param arg The type argument to add
          */
-        void addTypeArgument(std::shared_ptr<GenericType> arg) {
+        void addTypeArgument(std::shared_ptr<GenericType> arg)
+        {
             typeArguments.push_back(arg);
         }
 
@@ -140,7 +157,8 @@ namespace ast
          * Gets the number of type arguments
          * @return Count of type arguments
          */
-        size_t getTypeArgumentCount() const {
+        size_t getTypeArgumentCount() const
+        {
             return typeArguments.size();
         }
 
@@ -160,14 +178,16 @@ namespace ast
         /**
          * Equality operator
          */
-        bool operator==(const GenericType& other) const {
+        bool operator==(const GenericType& other) const
+        {
             return equals(other);
         }
 
         /**
          * Inequality operator
          */
-        bool operator!=(const GenericType& other) const {
+        bool operator!=(const GenericType& other) const
+        {
             return !equals(other);
         }
 
@@ -183,15 +203,20 @@ namespace ast
         /**
          * @brief Enhanced context for tracking substitution chains with robust circular dependency detection
          */
-        struct SubstitutionContext {
-            std::shared_ptr<mtype::exceptions::CircularDependencyDetector> detector;
-            std::string currentLocation;  // For error reporting
+        struct SubstitutionContext
+        {
+            std::shared_ptr<circularDependency::CircularDependencyDetector> detector;
+            std::string currentLocation; // For error reporting
 
             SubstitutionContext()
-                : detector(std::make_shared<mtype::exceptions::CircularDependencyDetector>()) {}
+                : detector(std::make_shared<circularDependency::CircularDependencyDetector>())
+            {
+            }
 
-            explicit SubstitutionContext(const mtype::exceptions::CircularDependencyConfig& config)
-                : detector(std::make_shared<mtype::exceptions::CircularDependencyDetector>(config)) {}
+            explicit SubstitutionContext(const circularDependency::CircularDependencyConfig& config)
+                : detector(std::make_shared<circularDependency::CircularDependencyDetector>(config))
+            {
+            }
 
             /**
              * @brief Enter a new substitution step with enhanced detection
@@ -239,31 +264,38 @@ namespace ast
         /**
          * Static factory methods for common types
          */
-        static std::shared_ptr<GenericType> createInt() {
+        static std::shared_ptr<GenericType> createInt()
+        {
             return std::make_shared<GenericType>(value::ValueType::INT);
         }
 
-        static std::shared_ptr<GenericType> createString() {
+        static std::shared_ptr<GenericType> createString()
+        {
             return std::make_shared<GenericType>(value::ValueType::STRING);
         }
 
-        static std::shared_ptr<GenericType> createBool() {
+        static std::shared_ptr<GenericType> createBool()
+        {
             return std::make_shared<GenericType>(value::ValueType::BOOL);
         }
 
-        static std::shared_ptr<GenericType> createFloat() {
+        static std::shared_ptr<GenericType> createFloat()
+        {
             return std::make_shared<GenericType>(value::ValueType::FLOAT);
         }
 
-        static std::shared_ptr<GenericType> createVoid() {
+        static std::shared_ptr<GenericType> createVoid()
+        {
             return std::make_shared<GenericType>(value::ValueType::VOID);
         }
 
-        static std::shared_ptr<GenericType> createObject() {
+        static std::shared_ptr<GenericType> createObject()
+        {
             return std::make_shared<GenericType>(value::ValueType::OBJECT);
         }
 
-        static std::shared_ptr<GenericType> createGenericParameter(const std::string& name) {
+        static std::shared_ptr<GenericType> createGenericParameter(const std::string& name)
+        {
             return std::make_shared<GenericType>(name);
         }
 

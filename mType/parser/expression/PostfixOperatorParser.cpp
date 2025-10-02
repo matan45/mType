@@ -1,13 +1,12 @@
 #include "PostfixOperatorParser.hpp"
 #include "../ExpressionParser.hpp"
-#include "../ParserUtils.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../../exceptions/DomainExceptions.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -18,19 +17,27 @@ namespace parser::expression
     using namespace token;
     using namespace errors;
 
+    PostfixOperatorParser::PostfixOperatorParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx), expressionParser(nullptr)
+    {
+    }
+
+    void PostfixOperatorParser::setExpressionParser(ExpressionParser& exprParser)
+    {
+        expressionParser = &exprParser;
+    }
+
     std::unique_ptr<ASTNode> PostfixOperatorParser::parse()
     {
-        // This should not be called directly - use parsePostfix
-        reportError("PostfixOperatorParser::parse() called directly", getParserName());
-        throw errors::ParseException("Invalid use of PostfixOperatorParser");
+        throw ParseException("Invalid use of PostfixOperatorParser", tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parsePostfix()
     {
         if (!expressionParser)
         {
-            reportError("ExpressionParser not set in PostfixOperatorParser", getParserName());
-            throw errors::ParseException("ExpressionParser not initialized in PostfixOperatorParser");
+            throw ParseException("ExpressionParser not initialized in PostfixOperatorParser",
+                                 tokenStream.current().location);
         }
         auto expr = expressionParser->parsePrimary(); // Delegate to ExpressionParser for primary parsing
         return parsePostfixOperations(std::move(expr));
@@ -95,7 +102,7 @@ namespace parser::expression
 
         if (canCallFunction)
         {
-            expectToken(TokenType::LPAREN, getParserName());
+            expectToken(TokenType::LPAREN);
             std::vector<std::unique_ptr<ASTNode>> arguments;
 
             // Parse arguments: arg1, arg2, arg3, ...
@@ -110,28 +117,24 @@ namespace parser::expression
                 }
             }
 
-            expectToken(TokenType::RPAREN, getParserName());
-            return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), getCurrentLocation());
+            expectToken(TokenType::RPAREN);
+            return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), tokenStream.current().location);
         }
-        else
-        {
-            reportError("Invalid function call target", getParserName());
-            throw errors::ParseException("Invalid function call target");
-        }
+
+        throw ParseException("Invalid function call target", tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parseMemberAccess(std::unique_ptr<ASTNode> object)
     {
-        expectToken(TokenType::DOT, getParserName());
+        expectToken(TokenType::DOT);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected member name after '.'", getParserName());
-            throw errors::ParseException("Expected member name after '.'");
+            throw ParseException("Expected member name after '.'", tokenStream.current().location);
         }
 
         std::string memberName = tokenStream.current().stringValue.getString();
-        SourceLocation location = getCurrentLocation();
+        SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
         // Check if it's a method call
@@ -152,35 +155,32 @@ namespace parser::expression
                 }
             }
 
-            expectToken(TokenType::RPAREN, getParserName());
+            expectToken(TokenType::RPAREN);
             return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments),
-                                                   false, std::vector<std::string>(), location);
+                                                    false, std::vector<std::string>(), location);
         }
-        else
-        {
-            return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
-        }
+
+        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
     }
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)
     {
-        SourceLocation location = getCurrentLocation();
-        expectToken(TokenType::LBRACKET, getParserName());
+        SourceLocation location = tokenStream.current().location;
+        expectToken(TokenType::LBRACKET);
 
         auto index = context.parseExpression();
-        expectToken(TokenType::RBRACKET, getParserName());
+        expectToken(TokenType::RBRACKET);
 
         return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index), location);
     }
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parseScopeResolution(std::unique_ptr<ASTNode> expr)
     {
-        expectToken(TokenType::SCOPE, getParserName());
+        expectToken(TokenType::SCOPE);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            reportError("Expected identifier after '::'", getParserName());
-            throw errors::ParseException("Expected identifier after '::'");
+            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
         }
 
         if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
@@ -195,11 +195,11 @@ namespace parser::expression
                 tokenStream.advance(); // consume '<'
                 if (!expressionParser)
                 {
-                    reportError("ExpressionParser not set in PostfixOperatorParser", getParserName());
-                    throw errors::ParseException("ExpressionParser not initialized in PostfixOperatorParser");
+                    throw ParseException("ExpressionParser not initialized in PostfixOperatorParser",
+                                         tokenStream.current().location);
                 }
                 genericTypeArguments = expressionParser->parseGenericTypeArguments();
-                expectToken(TokenType::GREATER, getParserName());
+                expectToken(TokenType::GREATER);
             }
 
             // Check if this is a function call (e.g., MathUtils::max(10, 5))
@@ -228,8 +228,8 @@ namespace parser::expression
                         }
                     }
 
-                    expectToken(TokenType::RPAREN, getParserName());
-                    return std::make_unique<FunctionCallNode>(fullName, std::move(arguments), getCurrentLocation());
+                    expectToken(TokenType::RPAREN);
+                    return std::make_unique<FunctionCallNode>(fullName, std::move(arguments), tokenStream.current().location);
                 }
             }
             else
@@ -241,8 +241,7 @@ namespace parser::expression
             }
         }
 
-        reportError("Invalid scope resolution target", getParserName());
-        throw errors::ParseException("Invalid scope resolution target");
+        throw ParseException("Invalid scope resolution target", tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parseGenericMethodCall(
@@ -251,7 +250,7 @@ namespace parser::expression
         const std::vector<std::string>& typeArgs)
     {
         // Parse arguments
-        expectToken(TokenType::LPAREN, getParserName());
+        expectToken(TokenType::LPAREN);
         std::vector<std::unique_ptr<ASTNode>> arguments;
 
         // Parse arguments: arg1, arg2, arg3, ...
@@ -266,13 +265,13 @@ namespace parser::expression
             }
         }
 
-        expectToken(TokenType::RPAREN, getParserName());
+        expectToken(TokenType::RPAREN);
 
         // Create MethodCallNode for static generic call
-        auto classNodeLocation = getCurrentLocation();
+        auto classNodeLocation = tokenStream.current().location;
         auto classNode = std::make_unique<VariableNode>(className, classNodeLocation);
         return std::make_unique<MethodCallNode>(std::move(classNode), methodName, std::move(arguments),
-                                              true, typeArgs, classNodeLocation); // isStatic = true
+                                                true, typeArgs, classNodeLocation); // isStatic = true
     }
 
     bool PostfixOperatorParser::isPostfixOperator(TokenType type) const noexcept

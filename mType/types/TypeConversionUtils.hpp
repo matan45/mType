@@ -3,7 +3,8 @@
 #include "../value/ValueType.hpp"
 #include "../ast/GenericType.hpp"
 #include "TypeRegistry.hpp"
-#include "../exceptions/DomainExceptions.hpp"
+#include "../errors/TypeException.hpp"
+#include "../errors/TypeConversionException.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -25,18 +26,19 @@ namespace types {
 
     /**
      * Enhanced type conversion exception with detailed context
-     * @deprecated Use mtype::exceptions::TypeConversionException instead
+     * @deprecated Use errors::TypeConversionException instead
      */
-    class TypeConversionException : public mtype::exceptions::TypeConversionException {
+    class TypeConversionException : public errors::TypeConversionException {
     private:
         TypeConversionContext context_;
         std::vector<std::string> suggestions_;
 
     public:
-        TypeConversionException(const std::string& typeName,
-                              const std::string& message,
+        TypeConversionException(const std::string& message,
+                              const std::string& sourceType,
+                              const std::string& targetType,
                               const TypeConversionContext& context = TypeConversionContext())
-            : mtype::exceptions::TypeConversionException(message, "", typeName, context.sourceLocation)
+            : errors::TypeConversionException(message, sourceType, targetType)
             , context_(context) {}
 
         const TypeConversionContext& getContext() const { return context_; }

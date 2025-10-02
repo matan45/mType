@@ -8,6 +8,12 @@ namespace parser::statement
     using namespace token;
     using namespace errors;
 
+    ImportParser::ImportParser(TokenStream& stream, ParseContext& ctx)
+        : BaseParser(stream, ctx)
+    {
+    }
+
+
     std::unique_ptr<ASTNode> ImportParser::parse()
     {
         return parseImport();
@@ -20,21 +26,20 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> ImportParser::parseImport()
     {
-        expectToken(TokenType::IMPORT, getParserName());
+        expectToken(TokenType::IMPORT);
 
         if (!tokenStream.check(TokenType::STRING_LITERAL))
         {
-            reportError("Expected string literal after 'import'", getParserName());
-            throw errors::ParseException("Expected string literal after 'import'");
+            throw ParseException("Expected string literal after 'import'", tokenStream.current().location);
         }
 
         std::string filePath = tokenStream.current().stringValue.getString();
-        SourceLocation loc = getCurrentLocation();
+        SourceLocation loc = tokenStream.current().location;
         tokenStream.advance();
 
         validateImportPath(filePath);
 
-        expectToken(TokenType::SEMICOLON, getParserName());
+        expectToken(TokenType::SEMICOLON);
 
         // Create a pure import node - no processing, no ImportManager dependency
         auto importNode = std::make_unique<ImportNode>(filePath, loc);
@@ -52,14 +57,7 @@ namespace parser::statement
     {
         if (path.empty())
         {
-            reportError("Import path cannot be empty", getParserName());
-            throw errors::ParseException("Import path cannot be empty");
-        }
-
-        // Check for file extension
-        if (path.find(".mt") == std::string::npos)
-        {
-            reportWarning("Import path should typically end with '.mt'", getParserName());
+            throw ParseException("Import path cannot be empty", tokenStream.current().location);
         }
     }
 }

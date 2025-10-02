@@ -1,6 +1,6 @@
 ﻿#include "ExpressionParser.hpp"
 #include "TypeParser.hpp"
-#include "ParserUtils.hpp"
+#include "utilities/ParserUtils.hpp"
 #include "LambdaParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "expression/BinaryOperatorParser.hpp"
@@ -27,16 +27,22 @@ namespace parser
 
     void ExpressionParser::initializeHelperParsers()
     {
-        binaryOpParser = std::make_unique<BinaryOperatorParser>(tokenStream, context, errorHandler);
-        unaryOpParser = std::make_unique<UnaryOperatorParser>(tokenStream, context, errorHandler);
-        postfixOpParser = std::make_unique<PostfixOperatorParser>(tokenStream, context, errorHandler);
-        literalParser = std::make_unique<LiteralParser>(tokenStream, context, errorHandler);
-        argumentParser = std::make_unique<ArgumentParser>(tokenStream, context, errorHandler);
+        binaryOpParser = std::make_unique<BinaryOperatorParser>(tokenStream, context);
+        unaryOpParser = std::make_unique<UnaryOperatorParser>(tokenStream, context);
+        postfixOpParser = std::make_unique<PostfixOperatorParser>(tokenStream, context);
+        literalParser = std::make_unique<LiteralParser>(tokenStream, context);
+        argumentParser = std::make_unique<ArgumentParser>(tokenStream, context);
 
         // Set ExpressionParser reference in parsers to break circular dependencies
         binaryOpParser->setExpressionParser(*this);
         unaryOpParser->setExpressionParser(*this);
         postfixOpParser->setExpressionParser(*this);
+    }
+
+    ExpressionParser::ExpressionParser(TokenStream& stream, ParseContext& ctx)
+        : tokenStream(stream), context(ctx)
+    {
+        initializeHelperParsers();
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseExpression()

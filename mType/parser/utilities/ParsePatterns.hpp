@@ -11,7 +11,7 @@ namespace parser::utilities
     class ParsePatterns
     {
     public:
-        template<typename T>
+        template <typename T>
         static std::vector<T> parseList(
             TokenStream& stream,
             std::function<T()> parseElement,

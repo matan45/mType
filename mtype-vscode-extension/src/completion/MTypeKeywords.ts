@@ -23,6 +23,33 @@ export class MTypeKeywords {
             priority: 9
         },
         {
+            keyword: 'interface',
+            detail: 'interface declaration',
+            documentation: 'Defines a new interface',
+            insertText: 'interface ${1:InterfaceName} {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['global', 'namespace'],
+            priority: 9
+        },
+        {
+            keyword: 'extends',
+            detail: 'class/interface extension',
+            documentation: 'Extends a parent class or interface',
+            insertText: 'extends ${1:ParentClass}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['after-class-name', 'after-interface-name'],
+            priority: 9
+        },
+        {
+            keyword: 'implements',
+            detail: 'interface implementation',
+            documentation: 'Implements one or more interfaces',
+            insertText: 'implements ${1:InterfaceName}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['after-class-name'],
+            priority: 9
+        },
+        {
             keyword: 'function',
             detail: 'function declaration',
             documentation: 'Defines a function or method',

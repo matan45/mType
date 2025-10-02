@@ -1,4 +1,5 @@
 ﻿#include "ObjectEvaluator.hpp"
+#include "utils/NodeTypeRegistry.hpp"
 #include "objects/ArrayAssignmentHandler.hpp"
 #include "objects/ClassRegistrationHandler.hpp"
 #include "objects/StaticMemberHandler.hpp"
@@ -8,28 +9,17 @@
 #include "StatementEvaluator.hpp"
 #include "../constants/LambdaConstants.hpp"
 #include "../value/LambdaValue.hpp"
-#include "../value/ParameterType.hpp"
 #include "utils/ParameterBinder.hpp"
-#include "utils/ScopeGuard.hpp"
 #include "utils/GenericTypeManager.hpp"
-#include "utils/ValueConverter.hpp"
 #include "utils/ArgumentEvaluator.hpp"
-#include <mutex>
-#include <iostream>
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
-#include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../errors/TypeException.hpp"
-#include "../errors/UndefinedException.hpp"
-#include "../exception/ReturnException.hpp"
-#include "../environment/manager/Scope.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../ast/nodes/classes/FieldNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../ast/nodes/classes/ConstructorNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
-#include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
@@ -42,9 +32,6 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../parser/TypeParser.hpp"
-#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "ExpressionEvaluator.hpp"
-#include "StatementEvaluator.hpp"
 
 namespace evaluator
 {
@@ -65,6 +52,9 @@ namespace evaluator
     {
         // Set back-reference so handler can call back to ObjectEvaluator
         genericInstantiationHandler->setObjectEvaluator(this);
+
+        // Initialize dispatcher with all node type handlers
+        initializeDispatcher();
     }
 
     ObjectEvaluator::~ObjectEvaluator() = default;
@@ -76,49 +66,23 @@ namespace evaluator
             return std::monostate{};
         }
 
-        // Dispatch to appropriate evaluation method based on node type
-        if (auto classNode = dynamic_cast<ClassNode*>(node))
-        {
-            return evaluateClassNode(classNode);
-        }
-        if (auto interfaceNode = dynamic_cast<InterfaceNode*>(node))
-        {
-            return evaluateInterfaceNode(interfaceNode);
-        }
-        if (auto methodNode = dynamic_cast<MethodNode*>(node))
-        {
-            return evaluateMethodNode(methodNode);
-        }
-        if (auto fieldNode = dynamic_cast<FieldNode*>(node))
-        {
-            return evaluateFieldNode(fieldNode);
-        }
-        if (auto ctorNode = dynamic_cast<ConstructorNode*>(node))
-        {
-            return evaluateConstructorNode(ctorNode);
-        }
-        if (auto newNode = dynamic_cast<NewNode*>(node))
-        {
-            return evaluateNewNode(newNode);
-        }
-        if (auto memberAccessNode = dynamic_cast<MemberAccessNode*>(node))
-        {
-            return evaluateMemberAccessNode(memberAccessNode);
-        }
-        if (auto methodCallNode = dynamic_cast<MethodCallNode*>(node))
-        {
-            return evaluateMethodCallNode(methodCallNode);
-        }
-        if (auto memberAssignNode = dynamic_cast<MemberAssignmentNode*>(node))
-        {
-            return evaluateMemberAssignmentNode(memberAssignNode);
-        }
-        if (auto indexAssignNode = dynamic_cast<IndexAssignmentNode*>(node))
-        {
-            return evaluateIndexAssignmentNode(indexAssignNode);
-        }
+        // Use dispatcher for O(1) lookup instead of O(n) dynamic_cast chain
+        return dispatcher.dispatch(this, node);
+    }
 
-        return std::monostate{};
+    void ObjectEvaluator::initializeDispatcher()
+    {
+        // Register all object node handlers with the dispatcher
+        dispatcher.registerMethod<ClassNode>(&ObjectEvaluator::evaluateClassNode);
+        dispatcher.registerMethod<InterfaceNode>(&ObjectEvaluator::evaluateInterfaceNode);
+        dispatcher.registerMethod<MethodNode>(&ObjectEvaluator::evaluateMethodNode);
+        dispatcher.registerMethod<FieldNode>(&ObjectEvaluator::evaluateFieldNode);
+        dispatcher.registerMethod<ConstructorNode>(&ObjectEvaluator::evaluateConstructorNode);
+        dispatcher.registerMethod<NewNode>(&ObjectEvaluator::evaluateNewNode);
+        dispatcher.registerMethod<MemberAccessNode>(&ObjectEvaluator::evaluateMemberAccessNode);
+        dispatcher.registerMethod<MethodCallNode>(&ObjectEvaluator::evaluateMethodCallNode);
+        dispatcher.registerMethod<MemberAssignmentNode>(&ObjectEvaluator::evaluateMemberAssignmentNode);
+        dispatcher.registerMethod<IndexAssignmentNode>(&ObjectEvaluator::evaluateIndexAssignmentNode);
     }
 
     bool ObjectEvaluator::canHandle(ASTNode* node) const
@@ -145,16 +109,8 @@ namespace evaluator
 
     bool ObjectEvaluator::isObjectNode(ASTNode* node) const
     {
-        return dynamic_cast<ClassNode*>(node) ||
-            dynamic_cast<InterfaceNode*>(node) ||
-            dynamic_cast<MethodNode*>(node) ||
-            dynamic_cast<FieldNode*>(node) ||
-            dynamic_cast<ConstructorNode*>(node) ||
-            dynamic_cast<NewNode*>(node) ||
-            dynamic_cast<MemberAccessNode*>(node) ||
-            dynamic_cast<MethodCallNode*>(node) ||
-            dynamic_cast<MemberAssignmentNode*>(node) ||
-            dynamic_cast<IndexAssignmentNode*>(node);
+        // Use NodeTypeRegistry for O(1) lookup instead of O(n) dynamic_cast chain
+        return utils::NodeTypeRegistry::isObject(node);
     }
 
     Value ObjectEvaluator::evaluateClassNode(ClassNode* node)
@@ -205,14 +161,39 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            return accessMember(instance, node->getMemberName());
+            return accessMember(instance, node->getMemberName(), node->getLocation());
         }
+        // Handle all array types for .length property
         else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(objectValue))
         {
             auto array = std::get<std::shared_ptr<value::NativeArray>>(objectValue);
             if (node->getMemberName() == "length")
             {
                 return static_cast<int>(array->size());
+            }
+            else
+            {
+                throw TypeException("Array does not have member '" + node->getMemberName() + "'");
+            }
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<value::FlatMultiArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                return static_cast<int>(array->getDimensions()[0]);
+            }
+            else
+            {
+                throw TypeException("Array does not have member '" + node->getMemberName() + "'");
+            }
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(objectValue))
+        {
+            auto array = std::get<std::shared_ptr<value::SparseMultiArray>>(objectValue);
+            if (node->getMemberName() == "length")
+            {
+                return static_cast<int>(array->getDimensions()[0]);
             }
             else
             {
@@ -227,9 +208,10 @@ namespace evaluator
     }
 
     Value ObjectEvaluator::accessMember(std::shared_ptr<ObjectInstance> object,
-                                        const std::string& memberName)
+                                        const std::string& memberName,
+                                        const SourceLocation& location)
     {
-        return instanceOperationHandler->accessMember(object, memberName);
+        return instanceOperationHandler->accessMember(object, memberName, location);
     }
 
     Value ObjectEvaluator::evaluateMemberAssignmentNode(MemberAssignmentNode* node)
@@ -248,7 +230,7 @@ namespace evaluator
         if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<ObjectInstance>>(objectValue);
-            assignMember(instance, node->getMemberName(), newValue);
+            assignMember(instance, node->getMemberName(), newValue, node->getLocation());
             return newValue;
         }
         else
@@ -265,9 +247,10 @@ namespace evaluator
 
     void ObjectEvaluator::assignMember(std::shared_ptr<ObjectInstance> object,
                                        const std::string& memberName,
-                                       const Value& value)
+                                       const Value& value,
+                                       const SourceLocation& location)
     {
-        instanceOperationHandler->assignMember(object, memberName, value);
+        instanceOperationHandler->assignMember(object, memberName, value, location);
     }
 
     Value ObjectEvaluator::evaluateMethodCallNode(MethodCallNode* node)

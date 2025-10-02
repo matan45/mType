@@ -11,13 +11,12 @@ namespace parser {
         ParseContext& context;
         
     public:
-        InterfaceParser(TokenStream& stream, ParseContext& ctx) 
-            : tokenStream(stream), context(ctx) {}
+        explicit InterfaceParser(TokenStream& stream, ParseContext& ctx); 
         
-        std::unique_ptr<ast::nodes::classes::InterfaceNode> parseInterface();
+        std::unique_ptr<nodes::classes::InterfaceNode> parseInterface();
         
     private:
         std::unique_ptr<ASTNode> parseMethodSignature();
-        std::vector<ast::GenericTypeParameter> parseGenericTypeParameters();
+        std::vector<GenericTypeParameter> parseGenericTypeParameters();
     };
 }
