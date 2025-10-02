@@ -5,72 +5,52 @@
 #include "../../value/ValueType.hpp"
 #include <memory>
 
-namespace evaluator {
-    // Forward declaration from parent namespace
+namespace evaluator
+{
     class ExpressionEvaluator;
 }
 
-namespace evaluator {
-namespace expressions {
-
-    using namespace base;
-    using namespace value;
-    using namespace token;
-
-    /**
-     * @brief Evaluates binary operation expressions
-     *
-     * Responsibilities:
-     * - Arithmetic operations (+, -, *, /, %)
-     * - Comparison operations (==, !=, <, >, <=, >=)
-     * - Logical operations (&&, ||)
-     * - String concatenation
-     *
-     * Design Principles:
-     * - Single Responsibility: Only binary operations
-     * - Type handling: Supports int, float, string, bool, null, objects
-     * - Error handling: Division by zero, type mismatches
-     */
-
-    class BinaryOperationEvaluator {
-    private:
-        std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-
-    public:
-        explicit BinaryOperationEvaluator(std::shared_ptr<EvaluationContext> ctx)
-            : context(ctx), exprEvaluator(nullptr) {}
-
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
-            exprEvaluator = evaluator;
-        }
+namespace evaluator
+{
+    namespace expressions
+    {
+        using namespace base;
+        using namespace value;
+        using namespace token;
 
         /**
-         * Evaluate arithmetic operations
-         * Handles: +, -, *, /, %
-         * Also handles string concatenation for + operator
+         * @brief Evaluates binary operation expressions
+         *
+         * Responsibilities:
+         * - Arithmetic operations (+, -, *, /, %)
+         * - Comparison operations (==, !=, <, >, <=, >=)
+         * - Logical operations (&&, ||)
+         * - String concatenation
+         *
+         * Design Principles:
+         * - Single Responsibility: Only binary operations
+         * - Type handling: Supports int, float, string, bool, null, objects
+         * - Error handling: Division by zero, type mismatches
          */
-        Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
 
-        /**
-         * Evaluate comparison operations
-         * Handles: ==, !=, <, >, <=, >=
-         * Supports null, string, bool, numeric, and object comparisons
-         */
-        Value evaluateComparison(const Value& left, const Value& right, TokenType op);
+        class BinaryOperationEvaluator
+        {
+        private:
+            std::shared_ptr<EvaluationContext> context;
+            ExpressionEvaluator* exprEvaluator;
 
-        /**
-         * Evaluate logical operations
-         * Handles: &&, ||
-         */
-        Value evaluateLogical(const Value& left, const Value& right, TokenType op);
+        public:
+            explicit BinaryOperationEvaluator(std::shared_ptr<EvaluationContext> ctx);
 
-        /**
-         * Evaluate string operations
-         * Handles: + (concatenation)
-         */
-        Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
-    };
+            void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
-} // namespace expressions
-} // namespace evaluator
+            Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
+
+            Value evaluateComparison(const Value& left, const Value& right, TokenType op);
+
+            Value evaluateLogical(const Value& left, const Value& right, TokenType op);
+
+            Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
+        };
+    }
+}

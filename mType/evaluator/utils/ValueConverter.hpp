@@ -64,8 +64,13 @@ namespace evaluator::utils
          * @return true if values are equal, false otherwise
          */
         static bool compareValues(const Value& left, const Value& right);
-        
+
     private:
+        // Helper methods for compareValues
+        static bool compareNullValues(const Value& left, const Value& right);
+        static bool compareSameTypeValues(const Value& left, const Value& right);
+        static bool compareNumericValues(const Value& left, const Value& right);
+        static bool compareBooleanIntValues(const Value& left, const Value& right);
         // Static utility class - prevent instantiation
         ValueConverter() = default;
         ~ValueConverter() = default;

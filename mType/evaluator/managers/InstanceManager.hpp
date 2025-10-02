@@ -23,7 +23,7 @@ namespace evaluator::managers
         std::shared_ptr<ObjectInstance> currentInstance;
         
     public:
-        InstanceManager();
+        explicit InstanceManager();
         ~InstanceManager() = default;
         
         // Instance creation and management
@@ -36,23 +36,21 @@ namespace evaluator::managers
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
         void clearCurrentInstance();
         
-        // Member access operations
+        
         Value accessMember(std::shared_ptr<ObjectInstance> object,
                           const std::string& memberName,
-                          const errors::SourceLocation& location = errors::SourceLocation()) const;
+                          const SourceLocation& location = SourceLocation()) const;
         void assignMember(std::shared_ptr<ObjectInstance> object,
                          const std::string& memberName,
                          const Value& value,
-                         const errors::SourceLocation& location = errors::SourceLocation());
-
-        // Method call operations
+                         const SourceLocation& location = SourceLocation());
+        
         Value callMethod(std::shared_ptr<ObjectInstance> object,
                         const std::string& methodName,
                         const std::vector<Value>& args,
                         std::shared_ptr<Environment> environment,
-                        const errors::SourceLocation& location = errors::SourceLocation());
+                        const SourceLocation& location = SourceLocation());
         
-        // Static member operations
         Value accessStaticMember(const std::string& className, 
                                 const std::string& memberName,
                                 std::shared_ptr<Environment> environment) const;

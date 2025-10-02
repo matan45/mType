@@ -24,6 +24,27 @@ namespace evaluator
 {
     namespace expressions
     {
+        CallHandler::CallHandler(std::shared_ptr<EvaluationContext> ctx)
+            : context(ctx), exprEvaluator(nullptr),
+              stmtEvaluator(nullptr), objEvaluator(nullptr)
+        {
+        }
+
+        void CallHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        {
+            exprEvaluator = evaluator;
+        }
+
+        void CallHandler::setStatementEvaluator(StatementEvaluator* evaluator)
+        {
+            stmtEvaluator = evaluator;
+        }
+
+        void CallHandler::setObjectEvaluator(ObjectEvaluator* evaluator)
+        {
+            objEvaluator = evaluator;
+        }
+
         Value CallHandler::evaluateFunctionCall(FunctionCallNode* node)
         {
             auto env = context->getEnvironment();
@@ -253,7 +274,7 @@ namespace evaluator
 
                     // Check for lambda-to-interface conversion
                     Value returnValue = e.returnValue;
-                    if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(returnValue) &&
+                    if (std::holds_alternative<std::shared_ptr<LambdaValue>>(returnValue) &&
                         funcDef->getReturnType() == ValueType::OBJECT)
                     {
                         if (stmtEvaluator)
@@ -297,10 +318,8 @@ namespace evaluator
             {
                 return objEvaluator->evaluateMethodCallNode(node);
             }
-            else
-            {
-                throw UndefinedException("Object evaluator not available for method call", node->getLocation());
-            }
+
+            throw UndefinedException("Object evaluator not available for method call", node->getLocation());
         }
 
         Value CallHandler::evaluateLambdaInterfaceInvocation(LambdaInterfaceInvocationNode* node)
@@ -309,9 +328,9 @@ namespace evaluator
             Value lambdaValue = exprEvaluator->evaluate(node->getLambdaNode().get());
 
             // Check if it's a lambda wrapper object
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(lambdaValue))
+            if (std::holds_alternative<std::shared_ptr<ObjectInstance>>(lambdaValue))
             {
-                auto objectInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(lambdaValue);
+                auto objectInstance = std::get<std::shared_ptr<ObjectInstance>>(lambdaValue);
 
                 // Evaluate arguments
                 std::vector<Value> args;
@@ -336,5 +355,5 @@ namespace evaluator
                 throw TypeException("Lambda interface invocation requires lambda wrapper object", node->getLocation());
             }
         }
-    } // namespace expressions
-} // namespace evaluator
+    }
+}

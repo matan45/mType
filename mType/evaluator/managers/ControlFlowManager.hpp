@@ -15,7 +15,7 @@ namespace evaluator::managers
         int breakableDepth; // Track nested breakable contexts (loops, switches, etc.)
         
     public:
-        ControlFlowManager();
+        explicit ControlFlowManager();
         ~ControlFlowManager() = default;
         
         // Break/Continue management

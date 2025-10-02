@@ -55,41 +55,27 @@ namespace evaluator
         {
         private:
             std::shared_ptr<EvaluationContext> context;
-            evaluator::ExpressionEvaluator* exprEvaluator;
+            ExpressionEvaluator* exprEvaluator;
 
         public:
-            explicit ClassRegistrationHandler(std::shared_ptr<EvaluationContext> ctx)
-                : context(ctx), exprEvaluator(nullptr)
-            {
-            }
-
-            void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator)
-            {
-                exprEvaluator = evaluator;
-            }
-
-            /**
-             * Evaluate and register a class definition
-             */
+            explicit ClassRegistrationHandler(std::shared_ptr<EvaluationContext> ctx);
+            
+            void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+           
+            
             Value evaluateClass(ClassNode* node);
-
-            /**
-             * Evaluate and register an interface definition
-             */
+            
             Value evaluateInterface(InterfaceNode* node);
-
-            /**
-             * Register a class in the environment
-             */
+            
             void registerClass(std::shared_ptr<ClassDefinition> classDef);
 
         private:
-            // Helper methods
-            void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
+            
+            void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef);
             std::pair<std::string, std::vector<std::string>>
             parseGenericInterfaceName(const std::string& interfaceName);
             std::string resolveGenericType(const std::string& typeName,
                                            const std::unordered_map<std::string, std::string>& substitutions);
         };
-    } // namespace objects
-} // namespace evaluator
+    } 
+} 
