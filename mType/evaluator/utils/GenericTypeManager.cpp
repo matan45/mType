@@ -657,4 +657,86 @@ namespace evaluator::utils
         return substitutionMap;
     }
 
+    bool GenericTypeManager::isGenericTypeParameter(const std::string& name)
+    {
+        if (name.empty()) return false;
+
+        // Single uppercase letter is definitely a generic type parameter
+        if (name.length() == 1 && std::isupper(name[0]))
+        {
+            return true;
+        }
+
+        // Uppercase name that's likely a generic parameter (heuristic)
+        if (std::isupper(name[0]) && name.length() <= 10)
+        {
+            bool allLetters = std::all_of(name.begin(), name.end(), ::isalpha);
+            if (allLetters)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool GenericTypeManager::hasUnresolvedGenericParams(const std::string& className)
+    {
+        // Direct generic parameter
+        if (isGenericTypeParameter(className))
+        {
+            return true;
+        }
+
+        // Array type containing generic parameters (T[], Element[], etc.)
+        if (className.find("[]") != std::string::npos)
+        {
+            std::string baseType = className.substr(0, className.find("[]"));
+            if (isGenericTypeParameter(baseType))
+            {
+                return true;
+            }
+        }
+
+        // Generic types with angle brackets
+        if (className.find('<') != std::string::npos)
+        {
+            // Extract type parameters from angle brackets
+            size_t start = className.find('<');
+            size_t end = className.rfind('>');
+
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                std::string typeParams = className.substr(start + 1, end - start - 1);
+
+                // Parse comma-separated type parameters
+                std::stringstream ss(typeParams);
+                std::string param;
+
+                while (std::getline(ss, param, ','))
+                {
+                    // Trim whitespace
+                    param.erase(0, param.find_first_not_of(" \t"));
+                    param.erase(param.find_last_not_of(" \t") + 1);
+
+                    if (isGenericTypeParameter(param))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check if this is a concrete generic instantiation
+            if (isGenericInstantiation(className))
+            {
+                auto [baseName, typeArguments] = parseGenericInstantiation(className);
+                // Note: We can't check env->findClass here as this is a static utility
+                // The caller should handle class existence validation separately
+                return true; // Assume it needs special handling
+            }
+        }
+
+        return false;
+    }
+
 }

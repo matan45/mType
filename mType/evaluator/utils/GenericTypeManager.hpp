@@ -53,16 +53,7 @@ namespace evaluator::utils
         static std::shared_ptr<ClassDefinition> instantiateGenericClass(
             std::shared_ptr<ClassDefinition> genericClass,
             const std::vector<std::string>& typeArguments);
-
-        /**
-         * @brief Create a specialized class definition from a generic ClassNode
-         * @param genericClassNode The generic class AST node (e.g., Box<T>)
-         * @param typeArguments The concrete types to substitute (e.g., ["int"])
-         * @return Specialized class definition (e.g., Box<int>)
-         */
-        static std::shared_ptr<ClassDefinition> instantiateGenericClassFromNode(
-            ast::nodes::classes::ClassNode* genericClassNode,
-            const std::vector<std::string>& typeArguments);
+        
 
         /**
          * @brief Validate that type arguments match the generic parameters
@@ -155,6 +146,20 @@ namespace evaluator::utils
          * This is useful for test isolation and preventing cache contamination
          */
         static void clearGenericClassCache();
+
+        /**
+         * @brief Check if a name is likely a generic type parameter
+         * @param name The type name to check (e.g., "T", "Key", "Element")
+         * @return True if it matches generic parameter patterns
+         */
+        static bool isGenericTypeParameter(const std::string& name);
+
+        /**
+         * @brief Check if a class name contains unresolved generic type parameters
+         * @param className The class name to check (e.g., "List<T>", "Map<K,V>")
+         * @return True if it contains unresolved generic parameters
+         */
+        static bool hasUnresolvedGenericParams(const std::string& className);
 
     private:
         /**

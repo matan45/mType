@@ -71,7 +71,7 @@ namespace statements {
         Value evaluateAssignment(AssignmentNode* node);
 
     private:
-        // Helper methods
+        // Validation helpers
         void validateVariableDeclaration(DeclarationNode* node);
         void validateAssignmentAsDeclaration(AssignmentNode* node);
         void validateClassExists(const std::string& className, const SourceLocation& location);
@@ -82,8 +82,23 @@ namespace statements {
                                    const std::string& variableName,
                                    const SourceLocation& location,
                                    const std::string& expectedClassName);
+
+        // Assignment handling helpers
+        Value handleLambdaConversion(Value value, AssignmentNode* node);
+        bool tryImplicitFieldAssignment(const Value& newValue, AssignmentNode* node);
+        Value handleNewVariableDeclaration(const Value& newValue, AssignmentNode* node);
+        Value handleQualifiedStaticAssignment(const Value& newValue, AssignmentNode* node);
+        Value handleUnqualifiedStaticAssignment(const Value& newValue, AssignmentNode* node);
+        Value handleScopeShadowing(const Value& newValue, AssignmentNode* node,
+                                  std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
+        Value handleExistingVariableAssignment(const Value& newValue, AssignmentNode* node,
+                                              std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
+
+        // Utility helpers
         Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
                                       const SourceLocation& location);
+        std::shared_ptr<runtimeTypes::global::VariableDefinition> createVariableDefinition(
+            AssignmentNode* node, const Value& value);
     };
 
 } // namespace statements
