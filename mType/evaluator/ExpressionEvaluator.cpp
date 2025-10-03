@@ -43,6 +43,7 @@
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "../errors/ReturnException.hpp"
+#include <iostream>
 
 namespace evaluator
 {
