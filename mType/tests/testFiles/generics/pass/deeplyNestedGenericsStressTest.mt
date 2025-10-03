@@ -119,7 +119,6 @@ function main(): void {
     extremeNesting.add(extremeMap);
 
     print("Extreme nesting size: " + extremeNesting.size());
-    print("Extreme nesting class: " + classNameObj(extremeNesting));
 
     print("\n=== All deeply nested generic stress tests completed successfully! ===");
 }

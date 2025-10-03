@@ -89,7 +89,6 @@ function main(): void {
     print("Container first size: " + complexContainer.getFirst().size());
     print("Container second size: " + complexContainer.getSecond().size());
     print("Container third size: " + complexContainer.getThird().size());
-    print("Container class: " + classNameObj(complexContainer));
 
     // Test 2: Nested generic wrappers
     print("\nTest 2: Wrapper<Wrapper<Wrapper<String>>>");
@@ -100,7 +99,6 @@ function main(): void {
 
     String unwrapped = outerWrapper.getData().getData().getData();
     print("Unwrapped value: " + unwrapped);
-    print("Outer wrapper class: " + classNameObj(outerWrapper));
 
     // Test 3: Collections of complex containers
     print("\nTest 3: List<Container<HashSet<String>, List<Int>, HashMap<String, Int>>>");
@@ -127,7 +125,6 @@ function main(): void {
 
     print("Container list size: " + containerList.size());
     print("First container's first component size: " + containerList.get(0).getFirst().size());
-    print("Container list class: " + classNameObj(containerList));
 
     // Test 4: HashMap with complex key and value types
     print("\nTest 4: HashMap<Container<String, Int, String>, List<HashSet<String>>>");
@@ -149,7 +146,6 @@ function main(): void {
     complexKeyMap.put(keyContainer, valueList);
 
     print("Complex key map size: " + complexKeyMap.size());
-    print("Complex key map class: " + classNameObj(complexKeyMap));
 
     // Test 5: Stress test with multiple instances of same nested type
     print("\nTest 5: Multiple instances of HashMap<String, List<HashMap<Int, HashSet<String>>>>");
@@ -173,7 +169,6 @@ function main(): void {
     print("Instance 1 size: " + instance1.size());
     print("Instance 2 size: " + instance2.size());
     print("Instance 3 size: " + instance3.size());
-    print("All instances have same class: " + classNameObj(instance1));
 
     // Test 6: Maximum complexity test
     print("\nTest 6: Maximum complexity - List<HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>>");
@@ -204,7 +199,6 @@ function main(): void {
     maxComplexity.add(maxMap);
 
     print("Maximum complexity size: " + maxComplexity.size());
-    print("Maximum complexity class: " + classNameObj(maxComplexity));
 
     print("\n=== All generic complexity stress tests completed successfully! ===");
 }

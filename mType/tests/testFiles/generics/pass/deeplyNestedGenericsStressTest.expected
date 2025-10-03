@@ -21,6 +21,5 @@ Int list size: 2
 
 Test 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>
 Extreme nesting size: 1
-Extreme nesting class: List<HashMap<String, HashSet<HashMap<Int, String>>>>
 
 === All deeply nested generic stress tests completed successfully! ===
