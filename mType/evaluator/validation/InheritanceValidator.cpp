@@ -19,7 +19,15 @@ namespace validation {
         }
 
         auto env = context->getEnvironment();
-        auto parentClass = env->findClass(parentClassName);
+
+        // Extract base class name from generic type (e.g., "Container<T>" -> "Container")
+        std::string baseClassName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseClassName = parentClassName.substr(0, genericStart);
+        }
+
+        auto parentClass = env->findClass(baseClassName);
 
         if (!parentClass) {
             throw InheritanceException(

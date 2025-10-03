@@ -2,9 +2,9 @@
 // Expected: Pass - demonstrates polymorphic assignment and method dispatch
 
 class Shape {
-    String color;
+    string color;
 
-    constructor(String color) {
+    constructor(string color) {
         this.color = color;
     }
 
@@ -20,7 +20,7 @@ class Shape {
 class Circle extends Shape {
     float radius;
 
-    constructor(String color, float radius) {
+    constructor(string color, float radius) {
         super(color);
         this.radius = radius;
     }
@@ -38,7 +38,7 @@ class Rectangle extends Shape {
     float width;
     float height;
 
-    constructor(String color, float width, float height) {
+    constructor(string color, float width, float height) {
         super(color);
         this.width = width;
         this.height = height;

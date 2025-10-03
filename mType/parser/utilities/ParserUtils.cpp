@@ -6,8 +6,10 @@
 #include "../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../errors/SourceLocation.hpp"
+#include "../../evaluator/utils/ValueConverter.hpp"
 #include <cctype>
 #include <algorithm>
+#include <iostream>
 
 namespace parser
 {
@@ -205,9 +207,9 @@ namespace parser
             // Convert TypeInfo to ParameterType
             ParameterType paramType(typeInfo.baseType);  // Initialize with base type
             if (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty()) {
-                // This could be an interface or class type
-                // For now, we'll assume it's an interface if it's an identifier we don't recognize as a built-in type
-                paramType = ParameterType::forInterface(typeInfo.className);
+                // For object types, use forClass instead of forInterface
+                // This properly handles both classes and interfaces
+                paramType = ParameterType::forClass(typeInfo.className);
             }
 
             // Expect parameter name

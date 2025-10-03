@@ -35,6 +35,24 @@ namespace evaluator::utils
         );
 
         /**
+         * Binds and validates parameters with generic type resolution
+         * @param params Expected parameters (name, type pairs)
+         * @param args Actual argument values
+         * @param functionName Name of function/method for error messages
+         * @param env Environment to bind variables in
+         * @param genericBindings Map of generic type parameters to actual types (e.g., "T" -> "String")
+         * @param location Source location for error reporting
+         */
+        static void bindAndValidateParameters(
+            const std::vector<std::pair<std::string, value::ParameterType>>& params,
+            const std::vector<value::Value>& args,
+            const std::string& functionName,
+            std::shared_ptr<environment::Environment> env,
+            const std::unordered_map<std::string, std::string>& genericBindings,
+            const errors::SourceLocation& location = errors::SourceLocation{}
+        );
+
+        /**
          * Backward compatibility: Binds and validates parameters with old ValueType format
          */
         static void bindAndValidateParameters(

@@ -7,6 +7,7 @@
 #include "expressions/AccessHandler.hpp"
 #include "utils/ValueConverter.hpp"
 #include "utils/NodeTypeRegistry.hpp"
+#include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
@@ -41,6 +42,7 @@
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
+#include "../errors/ReturnException.hpp"
 
 namespace evaluator
 {
@@ -414,7 +416,13 @@ namespace evaluator
                 node->getLocation());
         }
 
-        auto currentClass = currentInstance->getClassDefinition();
+        // Use currentConstructorClass to get the right parent
+        // If currentConstructorClass is set, use it; otherwise fall back to instance's class
+        auto currentClass = context->getCurrentConstructorClass();
+        if (!currentClass) {
+            currentClass = currentInstance->getClassDefinition();
+        }
+
         if (!currentClass->hasParentClass()) {
             throw UndefinedException(
                 "Class '" + currentClass->getName() +
@@ -449,22 +457,41 @@ namespace evaluator
             // Create new scope for parent constructor execution
             context->getEnvironment()->enterScope();
 
-            // Bind constructor parameters
-            const auto& params = parentConstructor->getParameters();
-            for (size_t i = 0; i < params.size() && i < argValues.size(); ++i) {
-                auto varDef = std::make_shared<VariableDefinition>(
-                    params[i].first,
-                    params[i].second,
-                    argValues[i],
-                    false  // parameters are not final
+            // Get generic type bindings from context
+            auto genericBindings = context->getGenericTypeBindings();
+
+            // Use ParameterBinder with full type information if available
+            if (parentConstructor->hasParametersWithTypes()) {
+                utils::ParameterBinder::bindAndValidateParameters(
+                    parentConstructor->getParametersWithTypes(),
+                    argValues,
+                    "constructor for parent class '" + parentClass->getName() + "'",
+                    context->getEnvironment(),
+                    genericBindings,  // Pass generic bindings for type resolution
+                    node->getLocation()
                 );
-                context->getEnvironment()->declareVariable(params[i].first, varDef);
+            } else {
+                // Fallback to old format
+                utils::ParameterBinder::bindAndValidateParameters(
+                    parentConstructor->getParameters(),
+                    argValues,
+                    "constructor for parent class '" + parentClass->getName() + "'",
+                    context->getEnvironment(),
+                    node->getLocation()
+                );
             }
 
             // Execute parent constructor body
             Value result = std::monostate{};
             if (parentConstructor->getBody()) {
+                // Set currentConstructorClass to parent so nested super() calls work correctly
+                auto prevConstructorClass = context->getCurrentConstructorClass();
+                context->setCurrentConstructorClass(parentClass);
+
                 result = stmtEvaluator->evaluate(parentConstructor->getBody());
+
+                // Restore previous constructor class
+                context->setCurrentConstructorClass(prevConstructorClass);
             }
 
             context->getEnvironment()->exitScope();
@@ -546,7 +573,18 @@ namespace evaluator
             // Execute parent method body
             Value result = std::monostate{};
             if (parentMethod->getBody()) {
-                result = stmtEvaluator->evaluate(parentMethod->getBody());
+                try {
+                    result = stmtEvaluator->evaluate(parentMethod->getBody());
+
+                    // Check if method returned a value
+                    if (context->shouldReturn()) {
+                        result = context->getReturnValue();
+                        context->setReturned(false);  // Reset return flag
+                    }
+                } catch (const ReturnException& e) {
+                    result = e.returnValue;
+                    context->setReturned(false);  // Reset return flag
+                }
             }
 
             context->getEnvironment()->exitScope();

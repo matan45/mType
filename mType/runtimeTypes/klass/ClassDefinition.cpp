@@ -1,6 +1,7 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include <iostream>
 
 namespace runtimeTypes::klass
 {
@@ -143,12 +144,36 @@ namespace runtimeTypes::klass
         if (it != instanceFields.end()) {
             return it->second;
         }
-        
+
         auto staticIt = staticFields.find(fieldName);
         if (staticIt != staticFields.end()) {
             return staticIt->second;
         }
-        
+
+        return nullptr;
+    }
+
+    std::shared_ptr<FieldDefinition> ClassDefinition::getFieldInHierarchy(const std::string& fieldName) const
+    {
+        // First, check in this class
+        auto field = getField(fieldName);
+        if (field) {
+            return field;
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            field = current->getField(fieldName);
+            if (field) {
+                return field;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
         return nullptr;
     }
 

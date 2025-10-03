@@ -2,9 +2,9 @@
 // Expected: Pass - demonstrates basic extends syntax and inherited fields
 
 class Animal {
-    String name;
+    string name;
 
-    constructor(String name) {
+    constructor(string name) {
         this.name = name;
     }
 
@@ -14,14 +14,14 @@ class Animal {
 }
 
 class Dog extends Animal {
-    String breed;
+    string breed;
 
-    constructor(String name, String breed) {
+    constructor(string name, string breed) {
         super(name);
         this.breed = breed;
     }
 
-    function getInfo(): String {
+    function getInfo(): string {
         return this.name + " is a " + this.breed;
     }
 }

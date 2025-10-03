@@ -7,6 +7,8 @@
 #include "utils/NodeTypeRegistry.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
+#include <iostream>
+#include <typeinfo>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/DeclarationNode.hpp"
@@ -196,6 +198,7 @@ namespace evaluator
         for (size_t i = 0; i < statements.size(); i++)
         {
             const auto& statement = statements[i];
+
             // Delegate evaluation based on statement type
             if (canHandle(statement.get()))
             {

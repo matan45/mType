@@ -138,6 +138,9 @@ namespace runtimeTypes::klass
         // Polymorphic method lookup
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;
 
+        // Polymorphic field lookup (search in parent classes)
+        std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;
+
         // Inheritance chain traversal
         std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain() const;
 

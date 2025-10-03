@@ -29,6 +29,9 @@ namespace evaluator::base
         // Current method execution context for generic type resolution
         std::shared_ptr<MethodDefinition> currentMethod;
 
+        // Current constructor execution context for super() calls
+        std::shared_ptr<ClassDefinition> currentConstructorClass;
+
         // Generic type bindings from the current object instance (e.g., T -> String)
         std::unordered_map<std::string, std::string> currentGenericTypeBindings;
 
@@ -67,6 +70,11 @@ namespace evaluator::base
         void setCurrentMethod(std::shared_ptr<MethodDefinition> method);
         std::shared_ptr<MethodDefinition> getCurrentMethod() const;
         void clearCurrentMethod();
+
+        // Current constructor context management for super() calls
+        void setCurrentConstructorClass(std::shared_ptr<ClassDefinition> classDef);
+        std::shared_ptr<ClassDefinition> getCurrentConstructorClass() const;
+        void clearCurrentConstructorClass();
 
         // Generic type binding management
         void setGenericTypeBindings(const std::unordered_map<std::string, std::string>& bindings);

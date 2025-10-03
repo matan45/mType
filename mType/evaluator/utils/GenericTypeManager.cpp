@@ -92,6 +92,13 @@ namespace evaluator::utils
         auto substitutionMap = createTypeSubstitutionMap(
             genericClass->getGenericParameters(), typeArguments);
 
+        // Copy parent class link if exists
+        auto parentClass = genericClass->getParentClass();
+        if (parentClass) {
+            instantiatedClass->setParentClass(parentClass);
+            instantiatedClass->setParentClassName(genericClass->getParentClassName());
+        }
+
         // Copy and substitute all members
         copyAndSubstituteFields(genericClass, instantiatedClass, substitutionMap);
         copyAndSubstituteMethods(genericClass, instantiatedClass, substitutionMap);

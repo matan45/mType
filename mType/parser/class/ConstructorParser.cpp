@@ -29,11 +29,12 @@ namespace parser
         auto constructorLocation = tokenStream.current().location;
         tokenStream.expect(TokenType::CONSTRUCTOR);
 
-        // Parse parameter list using centralized utility
-        auto parameters = ParserUtils::parseParameterList(tokenStream, true);
+        // Parse parameter list with full type information
+        auto parametersWithTypes = ParserUtils::parseParameterListWithTypes(tokenStream, true);
 
         auto body = context.parseStatement();
 
-        return std::make_unique<ConstructorNode>(std::move(parameters), std::move(body), constructorLocation);
+        // Use the new constructor that preserves ParameterType information
+        return std::make_unique<ConstructorNode>(std::move(parametersWithTypes), std::move(body), constructorLocation);
     }
 }

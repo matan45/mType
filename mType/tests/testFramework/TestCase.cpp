@@ -85,11 +85,26 @@ namespace tests::testFramework
 
                 // Evaluate the AST
                 auto env = EnvironmentBuilder::createDefault();
-                
+
                 // Set ImportManager on environment for clean architecture
                 env->setImportManager(importManagerPtr);
-                
+
                 Evaluator evaluator(env);
+
+                // Set up method call handler for native functions (needed for toString())
+                auto nativeRegistry = env->getNativeRegistry();
+                if (nativeRegistry)
+                {
+                    nativeRegistry->setMethodCallHandler(
+                        [&evaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                    const std::string& methodName,
+                                    const std::vector<value::Value>& args) -> value::Value
+                        {
+                            return evaluator.callMethodOnInstance(instance, methodName, args);
+                        }
+                    );
+                }
+
                 evaluator.evaluate(ast.get());
 
                 // Restore stdout

@@ -98,24 +98,56 @@ namespace environment::registry
                             if (methodCallHandler)
                             {
                                 auto classDef = value->getClassDefinition();
-                                if (classDef && classDef->hasMethod("toString"))
+                                auto toStringMethod = classDef ? classDef->findMethod("toString", 0) : nullptr;
+
+                                if (!toStringMethod || toStringMethod->isStatic())
                                 {
-                                    auto toStringMethod = classDef->findMethod("toString", 0);
-                                    if (toStringMethod && !toStringMethod->isStatic())
+                                    // No toString method or it's static - use default representation
+                                    std::cout << "[object " << value->getTypeName() << "]";
+                                    return;
+                                }
+
+                                if (toStringMethod)
+                                {
+                                    try
                                     {
-                                        try
+                                        Value result = methodCallHandler(value, "toString", {});
+                                        if (std::holds_alternative<std::string>(result))
                                         {
-                                            Value result = methodCallHandler(value, "toString", {});
-                                            if (std::holds_alternative<std::string>(result))
+                                            std::cout << std::get<std::string>(result);
+                                            return;
+                                        }
+                                        else if (std::holds_alternative<value::InternedString>(result))
+                                        {
+                                            std::cout << std::get<value::InternedString>(result).getString();
+                                            return;
+                                        }
+                                        else if (std::holds_alternative<std::shared_ptr<
+                                            runtimeTypes::klass::ObjectInstance>>(result))
+                                        {
+                                            // toString() returned an object instead of a string - try to get its value field
+                                            auto resultObj = std::get<std::shared_ptr<
+                                                runtimeTypes::klass::ObjectInstance>>(result);
+                                            if (resultObj)
                                             {
-                                                std::cout << std::get<std::string>(result);
-                                                return;
+                                                Value fieldValue = resultObj->getFieldValue("value");
+                                                if (std::holds_alternative<std::string>(fieldValue))
+                                                {
+                                                    std::cout << std::get<std::string>(fieldValue);
+                                                    return;
+                                                }
+                                                else if (std::holds_alternative<value::InternedString>(fieldValue))
+                                                {
+                                                    std::cout << std::get<value::InternedString>(fieldValue).
+                                                        getString();
+                                                    return;
+                                                }
                                             }
                                         }
-                                        catch (...)
-                                        {
-                                            // If toString() fails, fall back to default representation
-                                        }
+                                    }
+                                    catch (...)
+                                    {
+                                        // If toString() fails, fall back to default representation
                                     }
                                 }
                             }

@@ -2,9 +2,9 @@
 // Expected: Pass - demonstrates multi-level inheritance
 
 class Being {
-    String kingdom;
+    string kingdom;
 
-    constructor(String kingdom) {
+    constructor(string kingdom) {
         this.kingdom = kingdom;
         print("Being constructor: Kingdom " + kingdom);
     }
@@ -15,9 +15,9 @@ class Being {
 }
 
 class Animal extends Being {
-    String species;
+    string species;
 
-    constructor(String species) {
+    constructor(string species) {
         super("Animalia");
         this.species = species;
         print("Animal constructor: Species " + species);
@@ -31,7 +31,7 @@ class Animal extends Being {
 class Mammal extends Animal {
     bool hasFur;
 
-    constructor(String species, bool hasFur) {
+    constructor(string species, bool hasFur) {
         super(species);
         this.hasFur = hasFur;
         print("Mammal constructor: Has fur? " + hasFur);
@@ -43,9 +43,9 @@ class Mammal extends Animal {
 }
 
 class Dog extends Mammal {
-    String breed;
+    string breed;
 
-    constructor(String breed) {
+    constructor(string breed) {
         super("Canis familiaris", true);
         this.breed = breed;
         print("Dog constructor: Breed " + breed);

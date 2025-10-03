@@ -2,9 +2,9 @@
 // Expected: Pass - demonstrates method overriding and super.method() calls
 
 class Animal {
-    String name;
+    string name;
 
-    constructor(String name) {
+    constructor(string name) {
         this.name = name;
     }
 
@@ -12,15 +12,15 @@ class Animal {
         print("Animal makes a sound");
     }
 
-    function getInfo(): String {
+    function getInfo(): string {
         return "Animal: " + this.name;
     }
 }
 
 class Dog extends Animal {
-    String breed;
+    string breed;
 
-    constructor(String name, String breed) {
+    constructor(string name, string breed) {
         super(name);
         this.breed = breed;
     }
@@ -30,8 +30,8 @@ class Dog extends Animal {
         print("Dog barks: Woof Woof!");
     }
 
-    function getInfo(): String {
-        String parentInfo = super.getInfo();  // Call parent method for base info
+    function getInfo(): string {
+        string parentInfo = super.getInfo();  // Call parent method for base info
         return parentInfo + ", Breed: " + this.breed;
     }
 }

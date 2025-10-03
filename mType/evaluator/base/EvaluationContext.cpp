@@ -4,7 +4,8 @@ namespace evaluator::base
 {
     EvaluationContext::EvaluationContext(std::shared_ptr<Environment> env)
         : environment(env), currentInstance(nullptr), hasReturned(false),
-          isInStaticMethod(false), currentMethod(nullptr), cachedEnv(nullptr), envCacheValid(false)
+          isInStaticMethod(false), currentMethod(nullptr), currentConstructorClass(nullptr),
+          cachedEnv(nullptr), envCacheValid(false)
     {
     }
 
@@ -85,6 +86,15 @@ namespace evaluator::base
 
     void EvaluationContext::clearCurrentMethod()
     { currentMethod = nullptr; }
+
+    void EvaluationContext::setCurrentConstructorClass(std::shared_ptr<ClassDefinition> classDef)
+    { currentConstructorClass = classDef; }
+
+    std::shared_ptr<ClassDefinition> EvaluationContext::getCurrentConstructorClass() const
+    { return currentConstructorClass; }
+
+    void EvaluationContext::clearCurrentConstructorClass()
+    { currentConstructorClass = nullptr; }
 
     void EvaluationContext::setGenericTypeBindings(const std::unordered_map<std::string, std::string>& bindings)
     {

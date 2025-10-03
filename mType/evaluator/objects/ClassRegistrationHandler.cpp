@@ -18,6 +18,7 @@
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
 #include <sstream>
+#include <iostream>
 
 using namespace errors;
 
@@ -82,15 +83,22 @@ namespace evaluator
                 // Set parent class name in definition
                 classDef->setParentClassName(parentClassName);
 
-                // Find parent class and link it
-                auto parentClass = env->findClass(parentClassName);
+                // Extract base class name from generic type (e.g., "Container<T>" -> "Container")
+                std::string baseParentClassName = parentClassName;
+                size_t genericStart = parentClassName.find('<');
+                if (genericStart != std::string::npos) {
+                    baseParentClassName = parentClassName.substr(0, genericStart);
+                }
+
+                // Find parent class and link it (use base class name for lookup)
+                auto parentClass = env->findClass(baseParentClassName);
                 if (parentClass) {
                     classDef->setParentClass(parentClass);
 
-                    // Register inheritance relationship in class registry
+                    // Register inheritance relationship in class registry (use base name)
                     env->getClassRegistry()->registerInheritance(
                         node->getClassName(),
-                        parentClassName);
+                        baseParentClassName);
 
                     // Validate inheritance depth
                     validation::InheritanceValidator::validateInheritanceDepth(
@@ -251,10 +259,20 @@ namespace evaluator
                 // Get shared_ptr to constructor body safely
                 auto bodyPtr = constructorNode->getBody();
 
-                auto ctorDef = std::make_shared<ConstructorDefinition>(
-                    constructorNode->getParameters(),
-                    bodyPtr
-                );
+                // Use the new constructor format if available (preserves class/interface information)
+                std::shared_ptr<ConstructorDefinition> ctorDef;
+                if (constructorNode->hasParametersWithTypes()) {
+                    ctorDef = std::make_shared<ConstructorDefinition>(
+                        constructorNode->getParametersWithTypes(),
+                        bodyPtr
+                    );
+                } else {
+                    // Fallback to old format
+                    ctorDef = std::make_shared<ConstructorDefinition>(
+                        constructorNode->getParameters(),
+                        bodyPtr
+                    );
+                }
 
                 classDef->addConstructor(ctorDef);
             }

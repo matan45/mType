@@ -42,6 +42,8 @@
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
 
 namespace evaluator::utils
 {
@@ -72,7 +74,9 @@ namespace evaluator::utils
             typeid(MemberAccessNode),       // Member access is an expression (obj.field, arr.length)
             typeid(MethodCallNode),         // Method calls are expressions (obj.method())
             typeid(NewNode),                // Object creation is an expression (new ClassName())
-            typeid(MemberAssignmentNode)    // Member assignment is an expression for chained assignments (obj.field = value)
+            typeid(MemberAssignmentNode),   // Member assignment is an expression for chained assignments (obj.field = value)
+            typeid(SuperConstructorCallNode), // Super constructor call is an expression (super(...))
+            typeid(SuperMethodCallNode)     // Super method call is an expression (super.method())
         };
     }
 

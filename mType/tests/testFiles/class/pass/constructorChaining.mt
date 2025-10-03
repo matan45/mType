@@ -2,10 +2,10 @@
 // Expected: Pass - demonstrates constructor chaining with super()
 
 class Vehicle {
-    String type;
+    string type;
     int wheels;
 
-    constructor(String type, int wheels) {
+    constructor(string type, int wheels) {
         this.type = type;
         this.wheels = wheels;
         print("Vehicle constructor: " + type + " with " + wheels + " wheels");
@@ -13,9 +13,9 @@ class Vehicle {
 }
 
 class Car extends Vehicle {
-    String brand;
+    string brand;
 
-    constructor(String brand) {
+    constructor(string brand) {
         super("Car", 4);  // Call parent constructor
         this.brand = brand;
         print("Car constructor: " + brand);
@@ -25,7 +25,7 @@ class Car extends Vehicle {
 class SportsCar extends Car {
     int topSpeed;
 
-    constructor(String brand, int topSpeed) {
+    constructor(string brand, int topSpeed) {
         super(brand);  // Call Car constructor, which calls Vehicle constructor
         this.topSpeed = topSpeed;
         print("SportsCar constructor: Top speed " + topSpeed + " mph");

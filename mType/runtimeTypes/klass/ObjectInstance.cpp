@@ -8,7 +8,8 @@ namespace runtimeTypes::klass
 {
     std::shared_ptr<FieldDefinition> ObjectInstance::getField(const std::string& fieldName) const
     {
-        return classDefinition->getField(fieldName);
+        // Search in class hierarchy to support inherited fields
+        return classDefinition->getFieldInHierarchy(fieldName);
     }
 
     Value ObjectInstance::getFieldValue(const std::string& fieldName) const
@@ -44,6 +45,7 @@ namespace runtimeTypes::klass
     void ObjectInstance::setField(const std::string& fieldName, const Value& value)
     {
         auto field = getField(fieldName);
+
         if (field) {
             // For static fields, set value in the field definition (shared across all instances)
             if (field->isStatic()) {
