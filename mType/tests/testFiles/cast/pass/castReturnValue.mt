@@ -1,14 +1,16 @@
 // Test: Cast return value
 class Base {
     int id;
-    Base(int i) { this.id = i; }
+    constructor(int i) { this.id = i; }
 }
 
 class Derived extends Base {
-    Derived(int i) : super(i) {}
+    constructor(int i) {
+	super(i);
+	}
 }
 
-Base getBase() {
+function getBase(): Base {
     return new Derived(42);
 }
 

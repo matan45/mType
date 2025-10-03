@@ -1,6 +1,6 @@
 // Test: Polymorphic behavior with casting
 class Shape {
-    void area() {
+    function area(): void {
         print("Unknown area");
     }
 }
@@ -9,12 +9,12 @@ class Rectangle extends Shape {
     int width;
     int height;
 
-    Rectangle(int w, int h) {
+    constructor(int w, int h) {
         this.width = w;
         this.height = h;
     }
 
-    void area() {
+    function area():void {
         print(this.width * this.height);
     }
 }

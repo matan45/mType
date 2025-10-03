@@ -756,19 +756,30 @@ namespace evaluator
 
         std::string actualClassName = classDef->getName();
 
-        // Exact match
-        if (actualClassName == targetClassName) {
+        // Extract base class name from generic types (e.g., "Box<int>" -> "Box")
+        auto extractBaseName = [](const std::string& name) -> std::string {
+            size_t anglePos = name.find('<');
+            return (anglePos != std::string::npos) ? name.substr(0, anglePos) : name;
+        };
+
+        std::string actualBaseName = extractBaseName(actualClassName);
+        std::string targetBaseName = extractBaseName(targetClassName);
+
+        // Exact match (either full name or base name)
+        if (actualClassName == targetClassName || actualBaseName == targetBaseName) {
             return true;
         }
 
         // Check inheritance chain (upcast: Child → Parent)
-        if (classDef->isSubclassOf(targetClassName)) {
+        // Try both full name and base name for compatibility
+        if (classDef->isSubclassOf(targetClassName) || classDef->isSubclassOf(targetBaseName)) {
             return true;
         }
 
         // Check interface implementation
         auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
-        if (classDef->implementsInterface(targetClassName, interfaceRegistry)) {
+        if (classDef->implementsInterface(targetClassName, interfaceRegistry) ||
+            classDef->implementsInterface(targetBaseName, interfaceRegistry)) {
             return true;
         }
 

@@ -1,10 +1,10 @@
 // Test: Cast class to interface
 interface Drawable {
-    void draw();
+    function draw(): void;
 }
 
 class Circle implements Drawable {
-    void draw() {
+    function draw(): void {
         print("Drawing circle");
     }
 }

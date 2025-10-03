@@ -2,7 +2,7 @@
 class MyClass {
     int value;
 
-    MyClass(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }

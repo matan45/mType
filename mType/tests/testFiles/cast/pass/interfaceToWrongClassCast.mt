@@ -1,6 +1,6 @@
 // Test: Valid interface usage (error test is separate)
-interface I { void m(); }
-class C implements I { void m() { print("OK"); } }
+interface I { function m(): void; }
+class C implements I { function m(): void { print("OK"); } }
 
 C obj = new C();
 I i = obj;

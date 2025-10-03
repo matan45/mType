@@ -1,13 +1,13 @@
 // Test: Cast interface back to class
 interface Shape {
-    void area();
+    function area(): void;
 }
 
 class Rectangle implements Shape {
     int width = 5;
     int height = 10;
 
-    void area() {
+    function area(): void {
         print(this.width * this.height);
     }
 }

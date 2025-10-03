@@ -2,7 +2,7 @@
 class Parent {
     string name;
 
-    Parent(string n) {
+    constructor(string n) {
         this.name = n;
         print("Parent constructor: " + n);
     }
@@ -11,7 +11,8 @@ class Parent {
 class Child extends Parent {
     int age;
 
-    Child(string n, int a) : super(n) {
+    constructor(string n, int a) {
+	super(n);
         this.age = a;
         print("Child constructor: " + (string)a);
     }

@@ -1,15 +1,15 @@
 // Test: Interface inheritance casting
 interface Base {
-    void baseMethod();
+    function baseMethod(): void;
 }
 
 interface Extended extends Base {
-    void extendedMethod();
+    function extendedMethod(): void;
 }
 
 class Impl implements Extended {
-    void baseMethod() { print("Base"); }
-    void extendedMethod() { print("Extended"); }
+    function baseMethod(): void { print("Base"); }
+    function extendedMethod(): void { print("Extended"); }
 }
 
 Impl obj = new Impl();

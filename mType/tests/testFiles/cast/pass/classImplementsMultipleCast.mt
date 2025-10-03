@@ -1,10 +1,10 @@
 // Test: Class implements multiple, cast between them
-interface I1 { void m1(); }
-interface I2 { void m2(); }
+interface I1 { function m1() : void; }
+interface I2 { function m2() : void; }
 
 class C implements I1, I2 {
-    void m1() { print("M1"); }
-    void m2() { print("M2"); }
+    function m1() : void { print("M1"); }
+    function m2() : void { print("M2"); }
 }
 
 C obj = new C();

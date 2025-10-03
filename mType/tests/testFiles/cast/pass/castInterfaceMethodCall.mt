@@ -1,12 +1,12 @@
 // Test: Method call after interface cast
 interface Printable {
-    void print();
+    function print(): void;
 }
 
 class Document implements Printable {
     string title = "Report";
 
-    void print() {
+    function print(): void {
         print(this.title);
     }
 }

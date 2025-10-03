@@ -1,6 +1,18 @@
-// Simplified generic cast test
-class Box<T> {}
-Box<int> box = new Box<int>();
-print("Generic cast placeholder");
+// Test: Generic class casting
+import "../../lib/primitives/Int.mt";
+class Container<T> {
+    T value;
+    constructor(T v) { this.value = v; }
+    function getValue(): T { return this.value; }
+}
+
+class Box<T> extends Container<T> {
+    constructor(T v) { super(v); }
+}
+
+Box<Int> intBox = new Box<Int>(new Int(42));
+Container<Int> container = (Container<Int>)intBox;  // Upcast generic class
+print(container.getValue());
+
 // Expected output:
-// Generic cast placeholder
+// 42

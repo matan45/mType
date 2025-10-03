@@ -1,15 +1,15 @@
 // Test: Cast with multiple interfaces
 interface A {
-    void methodA();
+    function methodA(): void;
 }
 
 interface B {
-    void methodB();
+    function methodB():void;
 }
 
 class Multi implements A, B {
-    void methodA() { print("A"); }
-    void methodB() { print("B"); }
+    function methodA(): void { print("A"); }
+    function methodB(): void { print("B"); }
 }
 
 Multi obj = new Multi();
