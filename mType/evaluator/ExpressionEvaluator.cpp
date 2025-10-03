@@ -408,6 +408,14 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluateSuperConstructorCallNode(SuperConstructorCallNode* node)
     {
+        // Check if we're being called from initializer (allowed) or body (not allowed)
+        // If we're in an initializer context, the context flag will be set
+        if (!context->isInSuperInitializerContext()) {
+            throw UndefinedException(
+                "super() cannot be called in constructor body. Use initializer list syntax: constructor(...) : super(...)",
+                node->getLocation());
+        }
+
         // Get current instance - super() can only be called in a constructor
         auto currentInstance = context->getCurrentInstance();
         if (!currentInstance) {
@@ -479,6 +487,21 @@ namespace evaluator
                     context->getEnvironment(),
                     node->getLocation()
                 );
+            }
+
+            // Execute parent's super initializer first (if it has one)
+            if (parentConstructor->hasSuperInitializer()) {
+                auto parentSuperInit = parentConstructor->getSuperInitializer();
+                if (parentSuperInit) {
+                    // Set currentConstructorClass to parent so super() knows which class's constructor is executing
+                    auto prevConstructorClass = context->getCurrentConstructorClass();
+                    context->setCurrentConstructorClass(parentClass);
+
+                    // We're already in super initializer context, so this will work
+                    evaluate(static_cast<ASTNode*>(parentSuperInit));
+
+                    context->setCurrentConstructorClass(prevConstructorClass);
+                }
             }
 
             // Execute parent constructor body

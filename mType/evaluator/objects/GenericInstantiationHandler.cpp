@@ -236,6 +236,25 @@ namespace objects {
                             );
                         }
 
+                        // Execute super initializer first (if present)
+                        if (constructor->hasSuperInitializer())
+                        {
+                            auto superInit = constructor->getSuperInitializer();
+                            if (superInit && exprEvaluator)
+                            {
+                                // Set currentConstructorClass before super call
+                                auto prevConstructorClass = context->getCurrentConstructorClass();
+                                context->setCurrentConstructorClass(classDef);
+
+                                // Mark that we're in super initializer context (allowed)
+                                context->setInSuperInitializerContext(true);
+                                exprEvaluator->evaluate(static_cast<ASTNode*>(superInit));
+                                context->setInSuperInitializerContext(false);
+
+                                context->setCurrentConstructorClass(prevConstructorClass);
+                            }
+                        }
+
                         // Execute constructor body
                         if (stmtEvaluator)
                         {

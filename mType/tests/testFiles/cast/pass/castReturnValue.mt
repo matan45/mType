@@ -5,8 +5,7 @@ class Base {
 }
 
 class Derived extends Base {
-    constructor(int i) {
-	super(i);
+    constructor(int i):super(i) {
 	}
 }
 

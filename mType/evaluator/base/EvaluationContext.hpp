@@ -25,6 +25,7 @@ namespace evaluator::base
         std::stack<Value> returnStack;
         bool hasReturned;
         bool isInStaticMethod;
+        bool inSuperInitializerContext;
 
         // Current method execution context for generic type resolution
         std::shared_ptr<MethodDefinition> currentMethod;
@@ -81,7 +82,11 @@ namespace evaluator::base
         const std::unordered_map<std::string, std::string>& getGenericTypeBindings() const;
         void clearGenericTypeBindings();
         std::string resolveGenericType(const std::string& typeName) const;
-        
+
+        // Super initializer context management
+        void setInSuperInitializerContext(bool inContext);
+        bool isInSuperInitializerContext() const;
+
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;
         EvaluationContext& operator=(const EvaluationContext&) = delete;

@@ -195,5 +195,8 @@ namespace tests::testSuite
         addTestFromFile("Multiple Inheritance Error",
                         errorPath + "multipleInheritance.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("super syntax",
+                        errorPath + "superSyntax.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

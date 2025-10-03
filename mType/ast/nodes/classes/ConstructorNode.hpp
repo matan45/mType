@@ -10,12 +10,15 @@ namespace ast::nodes::classes
 {
     using namespace value;
 
+    class SuperConstructorCallNode; // Forward declaration
+
     class ConstructorNode : public ASTNode
     {
     private:
         std::vector<std::pair<std::string, ValueType>> parameters;
         std::vector<std::pair<std::string, ParameterType>> parametersWithTypes;
         std::shared_ptr<ASTNode> body;
+        std::unique_ptr<SuperConstructorCallNode> superInitializer;
 
     public:
         // Constructor accepting shared_ptr (old format)
@@ -47,6 +50,11 @@ namespace ast::nodes::classes
 
         void setParameters(std::vector<std::pair<std::string, ValueType>> params);
         void setBody(std::shared_ptr<ASTNode> constructorBody);
+
+        // Super initializer accessors
+        void setSuperInitializer(std::unique_ptr<SuperConstructorCallNode> superCall);
+        [[nodiscard]] SuperConstructorCallNode* getSuperInitializer() const noexcept;
+        [[nodiscard]] bool hasSuperInitializer() const noexcept;
 
         size_t getParameterCount() const;
 

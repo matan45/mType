@@ -1,4 +1,5 @@
 ﻿#include "ConstructorNode.hpp"
+#include "SuperConstructorCallNode.hpp"
 
 namespace ast::nodes::classes
 {
@@ -66,6 +67,21 @@ namespace ast::nodes::classes
     void ConstructorNode::setBody(std::shared_ptr<ASTNode> constructorBody)
     {
         body = std::move(constructorBody);
+    }
+
+    void ConstructorNode::setSuperInitializer(std::unique_ptr<SuperConstructorCallNode> superCall)
+    {
+        superInitializer = std::move(superCall);
+    }
+
+    SuperConstructorCallNode* ConstructorNode::getSuperInitializer() const noexcept
+    {
+        return superInitializer.get();
+    }
+
+    bool ConstructorNode::hasSuperInitializer() const noexcept
+    {
+        return superInitializer != nullptr;
     }
 
     size_t ConstructorNode::getParameterCount() const

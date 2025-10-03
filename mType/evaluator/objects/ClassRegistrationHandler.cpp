@@ -274,6 +274,14 @@ namespace evaluator
                     );
                 }
 
+                // Copy super initializer if present
+                if (constructorNode->hasSuperInitializer()) {
+                    auto superInit = constructorNode->getSuperInitializer();
+                    // Convert raw pointer to shared_ptr
+                    ctorDef->setSuperInitializer(std::shared_ptr<::ast::nodes::classes::SuperConstructorCallNode>(
+                        superInit, [](auto*){})); // Empty deleter since we don't own the original
+                }
+
                 classDef->addConstructor(ctorDef);
             }
 

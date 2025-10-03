@@ -17,8 +17,7 @@ class Being {
 class Animal extends Being {
     string species;
 
-    constructor(string species) {
-        super("Animalia");
+    constructor(string species): super("Animalia") {
         this.species = species;
         print("Animal constructor: Species " + species);
     }
@@ -31,8 +30,7 @@ class Animal extends Being {
 class Mammal extends Animal {
     bool hasFur;
 
-    constructor(string species, bool hasFur) {
-        super(species);
+    constructor(string species, bool hasFur): super(species) {
         this.hasFur = hasFur;
         print("Mammal constructor: Has fur? " + hasFur);
     }
@@ -45,8 +43,7 @@ class Mammal extends Animal {
 class Dog extends Mammal {
     string breed;
 
-    constructor(string breed) {
-        super("Canis familiaris", true);
+    constructor(string breed): super("Canis familiaris", true) {
         this.breed = breed;
         print("Dog constructor: Breed " + breed);
     }

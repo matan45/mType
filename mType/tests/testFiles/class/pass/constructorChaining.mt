@@ -15,8 +15,7 @@ class Vehicle {
 class Car extends Vehicle {
     string brand;
 
-    constructor(string brand) {
-        super("Car", 4);  // Call parent constructor
+    constructor(string brand) : super("Car", 4) {
         this.brand = brand;
         print("Car constructor: " + brand);
     }
@@ -25,8 +24,7 @@ class Car extends Vehicle {
 class SportsCar extends Car {
     int topSpeed;
 
-    constructor(string brand, int topSpeed) {
-        super(brand);  // Call Car constructor, which calls Vehicle constructor
+    constructor(string brand, int topSpeed) : super(brand) {
         this.topSpeed = topSpeed;
         print("SportsCar constructor: Top speed " + topSpeed + " mph");
     }

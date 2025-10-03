@@ -11,8 +11,7 @@ class Parent {
 class Child extends Parent {
     int age;
 
-    constructor(string n, int a) {
-	super(n);
+    constructor(string n, int a) : super(n) {
         this.age = a;
         print("Child constructor: " + (string)a);
     }

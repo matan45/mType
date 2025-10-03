@@ -10,8 +10,7 @@ class Vehicle {
 class Car extends Vehicle {
     string model;
 
-    constructor(int w, string m) {
-		super(w);
+    constructor(int w, string m):super(w) {
         this.model = m;
     }
 }

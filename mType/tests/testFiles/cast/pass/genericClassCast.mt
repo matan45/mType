@@ -7,7 +7,7 @@ class Container<T> {
 }
 
 class Box<T> extends Container<T> {
-    constructor(T v) { super(v); }
+    constructor(T v): super(v) {  }
 }
 
 Box<Int> intBox = new Box<Int>(new Int(42));

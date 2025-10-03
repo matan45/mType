@@ -7,8 +7,7 @@ class Animal {
 class Dog extends Animal {
     string breed;
 
-    constructor(string n, string b)  {
-		super(n);
+    constructor(string n, string b):super(n)  {
         this.breed = b;
     }
 

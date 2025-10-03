@@ -12,8 +12,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-    constructor(string n) {
-	 super(n);
+    constructor(string n):super(n) {
 	}
 
     function speak():void {

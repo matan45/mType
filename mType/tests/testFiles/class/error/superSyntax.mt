@@ -20,7 +20,8 @@ class Shape {
 class Circle extends Shape {
     float radius;
 
-    constructor(string color, float radius) : super(color) {
+    constructor(string color, float radius) {
+        super(color);
         this.radius = radius;
     }
 
@@ -37,7 +38,8 @@ class Rectangle extends Shape {
     float width;
     float height;
 
-    constructor(string color, float width, float height): super(color) {
+    constructor(string color, float width, float height) {
+        super(color);
         this.width = width;
         this.height = height;
     }

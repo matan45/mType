@@ -4,8 +4,8 @@ namespace evaluator::base
 {
     EvaluationContext::EvaluationContext(std::shared_ptr<Environment> env)
         : environment(env), currentInstance(nullptr), hasReturned(false),
-          isInStaticMethod(false), currentMethod(nullptr), currentConstructorClass(nullptr),
-          cachedEnv(nullptr), envCacheValid(false)
+          isInStaticMethod(false), inSuperInitializerContext(false), currentMethod(nullptr),
+          currentConstructorClass(nullptr), cachedEnv(nullptr), envCacheValid(false)
     {
     }
 
@@ -114,4 +114,10 @@ namespace evaluator::base
         auto it = currentGenericTypeBindings.find(typeName);
         return (it != currentGenericTypeBindings.end()) ? it->second : typeName;
     }
+
+    void EvaluationContext::setInSuperInitializerContext(bool inContext)
+    { inSuperInitializerContext = inContext; }
+
+    bool EvaluationContext::isInSuperInitializerContext() const
+    { return inSuperInitializerContext; }
 }

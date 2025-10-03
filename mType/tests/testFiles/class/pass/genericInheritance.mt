@@ -22,8 +22,7 @@ class Container<T> {
 class Box<T> extends Container<T> {
     String label;
 
-    constructor(T val, String label) {
-        super(val);
+    constructor(T val, String label): super(val) {
         this.label = label;
     }
 
