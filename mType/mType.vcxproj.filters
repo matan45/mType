@@ -205,6 +205,15 @@
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\modifiers">
+      <UniqueIdentifier>{4BD78D3A-B799-C1C4-004A-50516C4B9AA2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\modifiers\error">
+      <UniqueIdentifier>{E47AA95B-505E-B89B-5961-E6D7C5C37EEC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\modifiers\pass">
+      <UniqueIdentifier>{31B45012-1DDA-1A79-0620-A044F2E43F45}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\native">
       <UniqueIdentifier>{D0DB4994-BCD5-72E6-A542-09F791DBD852}</UniqueIdentifier>
     </Filter>
@@ -238,6 +247,9 @@
       <Filter>ast</Filter>
     </ClInclude>
     <ClInclude Include="ast\ASTVisitor.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\AccessModifier.hpp">
       <Filter>ast</Filter>
     </ClInclude>
     <ClInclude Include="ast\GenericType.hpp">
@@ -444,6 +456,9 @@
     <ClInclude Include="environment\registry\NativeRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="errors\AccessViolationException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\AmbiguousReferenceException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
@@ -537,6 +552,9 @@
     <ClInclude Include="evaluator\StatementEvaluator.hpp">
       <Filter>evaluator</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\base\AccessContext.hpp">
+      <Filter>evaluator\base</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\base\EvaluationContext.hpp">
       <Filter>evaluator\base</Filter>
     </ClInclude>
@@ -614,6 +632,9 @@
     </ClInclude>
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\validation\AccessValidator.hpp">
+      <Filter>evaluator\validation</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\validation\InheritanceValidator.hpp">
       <Filter>evaluator\validation</Filter>
@@ -723,6 +744,9 @@
     <ClInclude Include="parser\statement\LoopParser.hpp">
       <Filter>parser\statement</Filter>
     </ClInclude>
+    <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
     <ClInclude Include="parser\utilities\ParsePatterns.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
@@ -804,6 +828,9 @@
     <ClInclude Include="tests\suites\LambdaTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\ModifiersTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -863,6 +890,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ast\AccessModifier.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
     <ClCompile Include="ast\GenericType.cpp">
       <Filter>ast</Filter>
     </ClCompile>
@@ -1037,6 +1067,9 @@
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="errors\AccessViolationException.cpp">
+      <Filter>errors</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\Evaluator.cpp">
       <Filter>evaluator</Filter>
     </ClCompile>
@@ -1051,6 +1084,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\StatementEvaluator.cpp">
       <Filter>evaluator</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\base\AccessContext.cpp">
+      <Filter>evaluator\base</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\base\EvaluationContext.cpp">
       <Filter>evaluator\base</Filter>
@@ -1126,6 +1162,9 @@
     </ClCompile>
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\validation\AccessValidator.cpp">
+      <Filter>evaluator\validation</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\validation\InheritanceValidator.cpp">
       <Filter>evaluator\validation</Filter>
@@ -1232,6 +1271,9 @@
     <ClCompile Include="parser\statement\LoopParser.cpp">
       <Filter>parser\statement</Filter>
     </ClCompile>
+    <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
     <ClCompile Include="parser\utilities\ParsePatterns.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
@@ -1311,6 +1353,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\LambdaTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ModifiersTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
@@ -1921,6 +1966,9 @@
     <None Include="tests\testFiles\class\error\staticScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\superSyntax.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\undefinedClass.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -2114,9 +2162,6 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\returningThisAndChaining.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\scopingBugTest.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\staticDataMembers.expected">
@@ -3222,6 +3267,165 @@
     </None>
     <None Include="tests\testFiles\lib\primitives\String.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\interfacePrivateMethod.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\interfaceProtectedMethod.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\privateConstructorExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\privateFieldExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\privateMethodExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\privateStaticFieldExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\privateStaticMethodExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\protectedConstructorExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\protectedFieldExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\protectedMethodExternal.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\protectedMethodNonSubclass.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\error\protectedNonSubclass.mt">
+      <Filter>tests\testFiles\modifiers\error</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\classDefaultPrivate.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\classDefaultPrivate.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\constructorDefaultPublic.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\constructorDefaultPublic.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\encapsulationExample.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\encapsulationExample.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\getterSetterPattern.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\getterSetterPattern.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\interfaceDefaultPublic.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\interfaceDefaultPublic.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\mixedAccessModifiers.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\mixedAccessModifiers.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateConstructorFactory.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateConstructorFactory.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateFieldsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateFieldsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateMethodsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateMethodsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateStaticSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\privateStaticSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedFieldsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedFieldsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedMethodsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedMethodsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedStaticInheritance.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedStaticInheritance.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedSubclassAccess.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\protectedSubclassAccess.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicConstructors.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicConstructors.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicFieldsExternal.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicFieldsExternal.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicFieldsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicFieldsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicMethodsExternal.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicMethodsExternal.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicMethodsSameClass.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicMethodsSameClass.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.expected">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
+      <Filter>tests\testFiles\modifiers\pass</Filter>
     </None>
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>

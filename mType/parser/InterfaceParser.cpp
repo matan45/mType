@@ -2,6 +2,7 @@
 #include "class/GenericParameterParser.hpp"
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
+#include "utilities/AccessModifierParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
@@ -82,6 +83,18 @@ namespace parser
         // Parse method signatures
         while (tokenStream.current().type != TokenType::RBRACE && !tokenStream.isAtEnd())
         {
+            // Check for access modifiers - validate they are PUBLIC or not present
+            if (utilities::AccessModifierParser::isAccessModifier(tokenStream.current().type))
+            {
+                auto location = tokenStream.current().location;
+                ast::AccessModifier modifier = utilities::AccessModifierParser::tokenTypeToAccessModifier(tokenStream.current().type);
+
+                // Validate that interface methods can only be public
+                utilities::AccessModifierParser::validateModifierForContext(modifier, true, location);
+
+                tokenStream.advance(); // consume the access modifier
+            }
+
             if (tokenStream.current().type == TokenType::FUNCTION)
             {
                 auto methodSignature = parseMethodSignature();

@@ -21,6 +21,31 @@ namespace evaluator
                                                       const std::string& memberName)
         {
             auto env = context->getEnvironment();
+
+            // Find the class and field
+            auto classDef = env->findClass(className);
+            if (!classDef)
+            {
+                throw UndefinedException("Class '" + className + "' not found");
+            }
+
+            // Get static fields map and find the field
+            const auto& staticFields = classDef->getStaticFields();
+            auto fieldIt = staticFields.find(memberName);
+            if (fieldIt == staticFields.end())
+            {
+                throw UndefinedException("Static field '" + memberName + "' not found in class '" + className + "'");
+            }
+            auto field = fieldIt->second;
+
+            // ACCESS CONTROL: Validate field access permissions
+            auto accessContext = base::AccessContext::forStaticAccess(
+                context->getCurrentCallingClass(),
+                classDef,
+                errors::SourceLocation{}
+            );
+            validation::AccessValidator::validateFieldAccess(accessContext, *field);
+
             return instanceManager->accessStaticMember(className, memberName, env);
         }
 
@@ -29,6 +54,31 @@ namespace evaluator
                                                      const Value& value)
         {
             auto env = context->getEnvironment();
+
+            // Find the class and field
+            auto classDef = env->findClass(className);
+            if (!classDef)
+            {
+                throw UndefinedException("Class '" + className + "' not found");
+            }
+
+            // Get static fields map and find the field
+            const auto& staticFields = classDef->getStaticFields();
+            auto fieldIt = staticFields.find(memberName);
+            if (fieldIt == staticFields.end())
+            {
+                throw UndefinedException("Static field '" + memberName + "' not found in class '" + className + "'");
+            }
+            auto field = fieldIt->second;
+
+            // ACCESS CONTROL: Validate field access permissions
+            auto accessContext = base::AccessContext::forStaticAccess(
+                context->getCurrentCallingClass(),
+                classDef,
+                errors::SourceLocation{}
+            );
+            validation::AccessValidator::validateFieldAccess(accessContext, *field);
+
             instanceManager->assignStaticMember(className, memberName, value, env);
         }
 
@@ -104,6 +154,14 @@ namespace evaluator
                 throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
             }
 
+            // ACCESS CONTROL: Validate method access permissions
+            auto accessContext = base::AccessContext::forStaticAccess(
+                context->getCurrentCallingClass(),
+                classDef,
+                location
+            );
+            validation::AccessValidator::validateMethodAccess(accessContext, *method);
+
             // Use ScopeGuard and ParameterBinder utilities
             {
                 utils::ScopeGuard scope(env, methodName, environment::manager::ScopeType::FUNCTION);
@@ -129,6 +187,9 @@ namespace evaluator
                     bool previousStaticState = context->isInStaticMethodContext();
                     context->setInStaticMethod(true);
 
+                    // Push calling class onto stack for access control
+                    context->pushCallingClass(className);
+
                     try
                     {
                         // Execute method body (no instance context for static methods)
@@ -147,6 +208,7 @@ namespace evaluator
 
                         // Restore previous static method state
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         return result;
                     }
@@ -154,6 +216,7 @@ namespace evaluator
                     {
                         // Handle return exception - extract return value
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setReturned(false);
                         return e.returnValue;
@@ -162,6 +225,7 @@ namespace evaluator
                     {
                         // Ensure we restore state even if exception occurs
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         throw;
                     }
@@ -200,6 +264,14 @@ namespace evaluator
             {
                 throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
             }
+
+            // ACCESS CONTROL: Validate method access permissions
+            auto accessContext = base::AccessContext::forStaticAccess(
+                context->getCurrentCallingClass(),
+                classDef,
+                location
+            );
+            validation::AccessValidator::validateMethodAccess(accessContext, *method);
 
             // Handle generic method instantiation
             std::shared_ptr<runtimeTypes::klass::MethodDefinition> methodToCall = method;
@@ -289,6 +361,9 @@ namespace evaluator
                     bool previousStaticState = context->isInStaticMethodContext();
                     context->setInStaticMethod(true);
 
+                    // Push calling class onto stack for access control
+                    context->pushCallingClass(className);
+
                     // Set current method context for generic type resolution
                     auto previousMethod = context->getCurrentMethod();
                     context->setCurrentMethod(methodToCall);
@@ -329,6 +404,7 @@ namespace evaluator
 
                         // Restore previous static method state
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
                         return result;
@@ -337,6 +413,7 @@ namespace evaluator
                     {
                         // Handle return exception - extract return value
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
                         context->setReturned(false);
@@ -346,6 +423,7 @@ namespace evaluator
                     {
                         // Ensure we restore state even if exception occurs
                         context->setInStaticMethod(previousStaticState);
+                        context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
                         throw;

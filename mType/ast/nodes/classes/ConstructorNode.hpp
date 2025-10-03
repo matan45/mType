@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
+#include "../../AccessModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ParameterType.hpp"
 #include <string>
@@ -18,6 +19,7 @@ namespace ast::nodes::classes
         std::vector<std::pair<std::string, ParameterType>> parametersWithTypes;
         std::shared_ptr<ASTNode> body;
         std::unique_ptr<SuperConstructorCallNode> superInitializer;
+        AccessModifier accessModifier;
 
         // Cached computed property - lazily computed from parametersWithTypes
         mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
@@ -27,6 +29,7 @@ namespace ast::nodes::classes
         // Constructor with ParameterType (preserves class/interface information)
         explicit ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
                                  std::shared_ptr<ASTNode> constructorBody,
+                                 AccessModifier modifier = AccessModifier::PUBLIC,
                                  const SourceLocation& loc = SourceLocation());
 
         // Computed property - derives from parametersWithTypes
@@ -48,6 +51,9 @@ namespace ast::nodes::classes
         void setSuperInitializer(std::unique_ptr<SuperConstructorCallNode> superCall);
         [[nodiscard]] SuperConstructorCallNode* getSuperInitializer() const noexcept;
         [[nodiscard]] bool hasSuperInitializer() const noexcept;
+
+        AccessModifier getAccessModifier() const;
+        void setAccessModifier(AccessModifier modifier);
 
         size_t getParameterCount() const;
 

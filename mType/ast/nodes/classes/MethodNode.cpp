@@ -9,9 +9,10 @@ namespace ast::nodes::classes
                            std::shared_ptr<ASTNode> methodBody,
                            bool isStaticMethod,
                            const std::vector<GenericTypeParameter>& generics,
+                           AccessModifier modifier,
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod)
+          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), accessModifier(modifier)
     {
     }
 
@@ -20,8 +21,9 @@ namespace ast::nodes::classes
                            const std::vector<std::pair<std::string, ValueType>>& params,
                            std::shared_ptr<ASTNode> methodBody,
                            bool isStaticMethod,
+                           AccessModifier modifier,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody))
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody)), accessModifier(modifier)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -38,8 +40,9 @@ namespace ast::nodes::classes
                            const std::vector<std::pair<std::string, ValueType>>& params,
                            std::unique_ptr<ASTNode> methodBody,
                            bool isStaticMethod,
+                           AccessModifier modifier,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody))
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody)), accessModifier(modifier)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -169,6 +172,16 @@ namespace ast::nodes::classes
     void MethodNode::setIsStatic(bool isStaticMethod)
     {
         isStatic = isStaticMethod;
+    }
+
+    AccessModifier MethodNode::getAccessModifier() const
+    {
+        return accessModifier;
+    }
+
+    void MethodNode::setAccessModifier(AccessModifier modifier)
+    {
+        accessModifier = modifier;
     }
 
     size_t MethodNode::getParameterCount() const

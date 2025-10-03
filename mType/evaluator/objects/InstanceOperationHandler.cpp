@@ -65,17 +65,34 @@ namespace objects {
             throw TypeException("Cannot access member '" + memberName + "' on null object");
         }
 
+        // Get the field definition
+        auto field = object->getField(memberName);
+        if (!field)
+        {
+            throw UndefinedException("Field '" + memberName + "' not found in class '" +
+                                     object->getClassDefinition()->getName() + "'");
+        }
+
         // VALIDATION: Prevent instance member access from static methods
         if (context->isInStaticMethodContext())
         {
-            auto field = object->getField(memberName);
-            if (field && !field->isStatic())
+            if (!field->isStatic())
             {
                 throw TypeException("Cannot access instance field '" + memberName +
                                     "' from static method context",
                                     location);
             }
         }
+
+        // ACCESS CONTROL: Validate field access permissions
+        auto classDef = object->getClassDefinition();
+        auto callingInstance = context->getCurrentInstance();
+        auto accessContext = base::AccessContext::forInstanceAccess(
+            callingInstance,
+            classDef,
+            location
+        );
+        validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
         auto env = context->getEnvironment();
         return instanceManager->accessMember(object, memberName, location);
@@ -91,17 +108,34 @@ namespace objects {
             throw TypeException("Cannot assign to member '" + memberName + "' on null object");
         }
 
+        // Get the field definition
+        auto field = object->getField(memberName);
+        if (!field)
+        {
+            throw UndefinedException("Field '" + memberName + "' not found in class '" +
+                                     object->getClassDefinition()->getName() + "'");
+        }
+
         // VALIDATION: Prevent instance member assignment from static methods
         if (context->isInStaticMethodContext())
         {
-            auto field = object->getField(memberName);
-            if (field && !field->isStatic())
+            if (!field->isStatic())
             {
                 throw TypeException("Cannot assign to instance field '" + memberName +
                                     "' from static method context",
                                     location);
             }
         }
+
+        // ACCESS CONTROL: Validate field access permissions
+        auto classDef = object->getClassDefinition();
+        auto callingInstance = context->getCurrentInstance();
+        auto accessContext = base::AccessContext::forInstanceAccess(
+            callingInstance,
+            classDef,
+            location
+        );
+        validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
         instanceManager->assignMember(object, memberName, value, location);
     }
@@ -144,6 +178,15 @@ namespace objects {
             throw UndefinedException("Method '" + methodName + "' not found in class '" +
                 classDef->getName() + "'");
         }
+
+        // ACCESS CONTROL: Validate method access permissions
+        auto callingInstance = context->getCurrentInstance();
+        auto accessContext = base::AccessContext::forInstanceAccess(
+            callingInstance,
+            classDef,
+            location
+        );
+        validation::AccessValidator::validateMethodAccess(accessContext, *method);
 
         // Convert lambda arguments to interface implementations if needed
         std::vector<Value> convertedArgs = args;
@@ -247,6 +290,9 @@ namespace objects {
             context->setGenericTypeBindings(object->getGenericTypeBindings());
         }
 
+        // Push calling class onto stack for access control
+        context->pushCallingClass(classDef->getName());
+
         // Temporarily clear static method context for instance method execution
         // Instance methods should run in instance context regardless of where they're called from
         bool wasInStaticMethod = context->isInStaticMethodContext();
@@ -306,6 +352,8 @@ namespace objects {
                     context->setReturned(false);
                 }
 
+                // Pop calling class from stack
+                context->popCallingClass();
 
                 context->setCurrentInstance(prevInstance);
 
@@ -318,6 +366,7 @@ namespace objects {
             {
                 // Handle return exception - extract return value
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context
+                context->popCallingClass(); // Pop calling class from stack
                 context->setCurrentInstance(prevInstance);
                 context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 context->setReturned(false); // Reset return state after handling exception
@@ -326,6 +375,7 @@ namespace objects {
             catch (...)
             {
                 context->setInStaticMethod(wasInStaticMethod); // Restore static method context
+                context->popCallingClass(); // Pop calling class from stack
                 context->setCurrentInstance(prevInstance);
                 context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 throw;

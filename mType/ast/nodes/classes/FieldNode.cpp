@@ -7,9 +7,10 @@ namespace ast::nodes::classes
                          std::shared_ptr<GenericType> fieldType,
                          std::unique_ptr<ASTNode> initValue,
                          bool isStaticField, bool isFinalField,
+                         AccessModifier modifier,
                          const SourceLocation& loc)
         : ASTNode(loc), name(fieldName), type(fieldType), initialValue(std::move(initValue)),
-          isStatic(isStaticField), isFinal(isFinalField)
+          isStatic(isStaticField), isFinal(isFinalField), accessModifier(modifier)
     {
     }
 
@@ -17,9 +18,10 @@ namespace ast::nodes::classes
     FieldNode::FieldNode(const std::string& fieldName, ValueType fieldType,
                          std::unique_ptr<ASTNode> initValue,
                          bool isStaticField, bool isFinalField,
+                         AccessModifier modifier,
                          const SourceLocation& loc)
         : ASTNode(loc), name(fieldName), initialValue(std::move(initValue)),
-          isStatic(isStaticField), isFinal(isFinalField)
+          isStatic(isStaticField), isFinal(isFinalField), accessModifier(modifier)
     {
         // Convert ValueType to GenericType
         type = std::make_shared<GenericType>(fieldType);
@@ -89,6 +91,16 @@ namespace ast::nodes::classes
     void FieldNode::setIsFinal(bool isFinalField)
     {
         isFinal = isFinalField;
+    }
+
+    AccessModifier FieldNode::getAccessModifier() const
+    {
+        return accessModifier;
+    }
+
+    void FieldNode::setAccessModifier(AccessModifier modifier)
+    {
+        accessModifier = modifier;
     }
 
     bool FieldNode::hasInitialValue() const

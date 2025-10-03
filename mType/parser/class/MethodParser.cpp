@@ -1,6 +1,7 @@
 #include "MethodParser.hpp"
 #include "GenericParameterParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/AccessModifierParser.hpp"
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -25,12 +26,22 @@ namespace parser
 
     bool MethodParser::canParse(const TokenStream& stream) const
     {
+        // Check for access modifiers first
+        if (stream.check(TokenType::PRIVATE) || stream.check(TokenType::PUBLIC) || stream.check(TokenType::PROTECTED))
+        {
+            return true;
+        }
+
         return stream.check(TokenType::FUNCTION) ||
             (stream.check(TokenType::STATIC) && stream.peekAhead(1).type == TokenType::FUNCTION);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseMethod()
     {
+        // Parse access modifier first (default to PRIVATE for class methods)
+        ast::AccessModifier accessModifier =
+            utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PRIVATE);
+
         bool isStatic = false;
 
         // Handle static modifier
@@ -40,15 +51,15 @@ namespace parser
             tokenStream.advance();
         }
 
-        return parseMethodWithModifiers(isStatic);
+        return parseMethodWithModifiers(accessModifier, isStatic);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseStaticMethod()
     {
-        return parseMethodWithModifiers(true);
+        return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true);
     }
 
-    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(bool isStatic)
+    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic)
     {
         // Handle function keyword (required for methods)
         if (tokenStream.current().type != TokenType::FUNCTION)
@@ -83,9 +94,9 @@ namespace parser
 
         auto body = context.parseStatement();
 
-        // Create MethodNode with generic support
+        // Create MethodNode with generic support and access modifier
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), isStatic, methodGenericParameters);
+                                            std::move(body), isStatic, methodGenericParameters, accessModifier);
     }
 
     std::vector<GenericTypeParameter> MethodParser::parseMethodGenericParameters()

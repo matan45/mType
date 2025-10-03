@@ -6,6 +6,7 @@
 #include "../../value/ValueType.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
+#include "../../ast/AccessModifier.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../Definition.hpp"
 
@@ -21,6 +22,7 @@ namespace runtimeTypes::klass
         std::shared_ptr<ASTNode> body;
         std::shared_ptr<ASTNode> initializerList;  // For member initialization
         std::shared_ptr<::ast::nodes::classes::SuperConstructorCallNode> superInitializer;
+        ast::AccessModifier accessModifier;
 
         // Cached computed property - lazily computed from parametersWithTypes
         mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
@@ -29,9 +31,10 @@ namespace runtimeTypes::klass
       public:
        // Constructor with ParameterType (preserves class/interface information)
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
-                             std::shared_ptr<ASTNode> b)
+                             std::shared_ptr<ASTNode> b,
+                             ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
             : Definition("constructor"), parametersWithTypes(params), body(b),
-              initializerList(nullptr), superInitializer(nullptr) {}
+              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier) {}
 
         bool matchesArgCount(size_t argCount) const;
 
@@ -61,5 +64,8 @@ namespace runtimeTypes::klass
         bool hasSuperInitializer() const {
             return superInitializer != nullptr;
         }
+
+        ast::AccessModifier getAccessModifier() const { return accessModifier; }
+        void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
     };
 }

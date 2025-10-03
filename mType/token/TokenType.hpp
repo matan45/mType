@@ -36,6 +36,9 @@ namespace token
         NEW, // new keyword
         DOT, // . operator
         STATIC, // static keyword
+        PRIVATE, // private keyword
+        PUBLIC, // public keyword
+        PROTECTED, // protected keyword
         CONSTRUCTOR, // constructor keyword
         NATIVE, // Add this for native function declarations
         SCOPE, // :: scope resolution operator

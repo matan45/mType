@@ -120,4 +120,31 @@ namespace evaluator::base
 
     bool EvaluationContext::isInSuperInitializerContext() const
     { return inSuperInitializerContext; }
+
+    void EvaluationContext::pushCallingClass(const std::string& className)
+    {
+        callingClassStack.push(className);
+    }
+
+    void EvaluationContext::popCallingClass()
+    {
+        if (!callingClassStack.empty())
+        {
+            callingClassStack.pop();
+        }
+    }
+
+    std::string EvaluationContext::getCurrentCallingClass() const
+    {
+        if (!callingClassStack.empty())
+        {
+            return callingClassStack.top();
+        }
+        return "";  // Empty string indicates global scope
+    }
+
+    bool EvaluationContext::hasCallingClass() const
+    {
+        return !callingClassStack.empty();
+    }
 }

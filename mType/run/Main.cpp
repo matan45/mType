@@ -11,6 +11,7 @@
 #include "../tests/suites/InterfaceTestSuite.hpp"
 #include "../tests/suites/LambdaTestSuite.hpp"
 #include "../tests/suites/CastTestSuite.hpp"
+#include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -84,6 +85,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<CastTestSuite>();
     }
+    else if (suiteName == "modifiers" || suiteName == "modifier" || suiteName == "access")
+    {
+        return std::make_unique<ModifiersTestSuite>();
+    }
     return nullptr;
 }
 
@@ -102,6 +107,7 @@ void printAvailableTestSuites()
     std::cout << "  arrays       - Array Test Suite\n";
     std::cout << "  string-pool  - String Pool Test Suite\n";
     std::cout << "  cast         - Cast and Type Checking Test Suite\n";
+    std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -149,6 +155,7 @@ void runAllTests()
     suites.push_back(std::make_unique<InterfaceTestSuite>());
     suites.push_back(std::make_unique<LambdaTestSuite>());
     suites.push_back(std::make_unique<CastTestSuite>());
+    suites.push_back(std::make_unique<ModifiersTestSuite>());
 
     for (auto& suite : suites)
     {

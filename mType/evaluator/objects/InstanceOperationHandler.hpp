@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../base/AccessContext.hpp"
 #include "../managers/InstanceManager.hpp"
+#include "../validation/AccessValidator.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../errors/SourceLocation.hpp"
