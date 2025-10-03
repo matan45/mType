@@ -77,7 +77,9 @@ namespace lexer
             {"interface", TokenType::INTERFACE},
             {"implements", TokenType::IMPLEMENTS},
             {"extends", TokenType::EXTENDS},
-            {"default", TokenType::DEFAULT}
+            {"super", TokenType::SUPER},
+            {"default", TokenType::DEFAULT},
+            {"isClassOf", TokenType::ISCLASSOF}
         };
 
     public:

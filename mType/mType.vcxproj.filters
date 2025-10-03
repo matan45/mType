@@ -19,6 +19,9 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="circularDependency">
+      <UniqueIdentifier>{B982208C-A566-E1E1-0EC7-DB34FAC9CB63}</UniqueIdentifier>
+    </Filter>
     <Filter Include="constants">
       <UniqueIdentifier>{6215F996-CE7F-AD0D-17BE-5EB383678B62}</UniqueIdentifier>
     </Filter>
@@ -58,9 +61,6 @@
     <Filter Include="evaluator\validation">
       <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exceptions">
-      <UniqueIdentifier>{67C00D32-5378-4F7F-BC7F-28DBA856EA6F}</UniqueIdentifier>
-    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -72,9 +72,6 @@
     </Filter>
     <Filter Include="parser\core">
       <UniqueIdentifier>{AAC52739-167B-A02E-9F6F-9A050B249732}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="parser\error">
-      <UniqueIdentifier>{CB52465E-B7B5-D502-603B-0EB94C7DA185}</UniqueIdentifier>
     </Filter>
     <Filter Include="parser\expression">
       <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
@@ -120,6 +117,15 @@
     </Filter>
     <Filter Include="tests\testFiles\arrays\pass">
       <UniqueIdentifier>{C128FBA7-2D36-298E-B61C-25792229F544}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\cast">
+      <UniqueIdentifier>{B4328973-A0C1-123D-49E0-2638354E23E3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\cast\error">
+      <UniqueIdentifier>{0D0120AB-F910-CC7B-62CA-309A4EF9BA14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\cast\pass">
+      <UniqueIdentifier>{3A998A5A-A65B-BEE4-EF0B-4D715B0D97C2}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\class">
       <UniqueIdentifier>{1F45B5E4-8BB1-70DF-54A5-083DC0D09247}</UniqueIdentifier>
@@ -267,6 +273,12 @@
     <ClInclude Include="ast\nodes\classes\NewNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperConstructorCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMethodCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
@@ -279,6 +291,9 @@
     <ClInclude Include="ast\nodes\expressions\BoolNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\CastExpression.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
@@ -286,6 +301,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\InstanceOfExpression.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
@@ -375,6 +393,30 @@
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyConfig.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyDetector.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\CircularDependencyException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyPatternAnalyzer.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyScope.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DependencyType.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\DepthLimitException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="circularDependency\TrueCyclicException.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
     </ClInclude>
@@ -433,6 +475,9 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ImportException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\InheritanceException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\MathException.hpp">
@@ -570,14 +615,11 @@
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
-    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+    <ClInclude Include="evaluator\validation\InheritanceValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
-    <ClInclude Include="exceptions\CircularDependencyDetection.hpp">
-      <Filter>exceptions</Filter>
-    </ClInclude>
-    <ClInclude Include="exceptions\CircularDependencyDetector.hpp">
-      <Filter>exceptions</Filter>
+    <ClInclude Include="evaluator\validation\TypeValidator.hpp">
+      <Filter>evaluator\validation</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
@@ -607,9 +649,6 @@
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\Parser.hpp">
-      <Filter>parser</Filter>
-    </ClInclude>
-    <ClInclude Include="parser\ParserUtils.hpp">
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\ParserValidator.hpp">
@@ -648,13 +687,13 @@
     <ClInclude Include="parser\core\IParser.hpp">
       <Filter>parser\core</Filter>
     </ClInclude>
-    <ClInclude Include="parser\error\ErrorHandler.hpp">
-      <Filter>parser\error</Filter>
-    </ClInclude>
     <ClInclude Include="parser\expression\ArgumentParser.hpp">
       <Filter>parser\expression</Filter>
     </ClInclude>
     <ClInclude Include="parser\expression\BinaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\CastParser.hpp">
       <Filter>parser\expression</Filter>
     </ClInclude>
     <ClInclude Include="parser\expression\LiteralParser.hpp">
@@ -685,6 +724,9 @@
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\ParsePatterns.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParserUtils.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
@@ -733,6 +775,9 @@
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ArrayTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\CastTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ClassTestSuite.hpp">
@@ -848,6 +893,12 @@
     <ClCompile Include="ast\nodes\classes\NewNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperConstructorCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMethodCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
@@ -955,6 +1006,12 @@
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="circularDependency\CircularDependencyDetector.cpp">
+      <Filter>circularDependency</Filter>
+    </ClCompile>
+    <ClCompile Include="circularDependency\DependencyPatternAnalyzer.cpp">
+      <Filter>circularDependency</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
       <Filter>environment</Filter>
@@ -1070,14 +1127,11 @@
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
-    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+    <ClCompile Include="evaluator\validation\InheritanceValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
-    <ClCompile Include="exceptions\CircularDependencyDetection.cpp">
-      <Filter>exceptions</Filter>
-    </ClCompile>
-    <ClCompile Include="exceptions\CircularDependencyDetector.cpp">
-      <Filter>exceptions</Filter>
+    <ClCompile Include="evaluator\validation\TypeValidator.cpp">
+      <Filter>evaluator\validation</Filter>
     </ClCompile>
     <ClCompile Include="lexer\BracketBalancer.cpp">
       <Filter>lexer</Filter>
@@ -1107,9 +1161,6 @@
       <Filter>parser</Filter>
     </ClCompile>
     <ClCompile Include="parser\Parser.cpp">
-      <Filter>parser</Filter>
-    </ClCompile>
-    <ClCompile Include="parser\ParserUtils.cpp">
       <Filter>parser</Filter>
     </ClCompile>
     <ClCompile Include="parser\ParserValidator.cpp">
@@ -1145,13 +1196,13 @@
     <ClCompile Include="parser\core\BaseParser.cpp">
       <Filter>parser\core</Filter>
     </ClCompile>
-    <ClCompile Include="parser\error\ErrorHandler.cpp">
-      <Filter>parser\error</Filter>
-    </ClCompile>
     <ClCompile Include="parser\expression\ArgumentParser.cpp">
       <Filter>parser\expression</Filter>
     </ClCompile>
     <ClCompile Include="parser\expression\BinaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\CastParser.cpp">
       <Filter>parser\expression</Filter>
     </ClCompile>
     <ClCompile Include="parser\expression\LiteralParser.cpp">
@@ -1182,6 +1233,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\ParsePatterns.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParserUtils.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">
@@ -1230,6 +1284,9 @@
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ArrayTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\CastTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ClassTestSuite.cpp">
@@ -1408,7 +1465,388 @@
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\incompatibleClassCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\invalidInterfaceCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\nullToPrimitiveCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\objectToPrimitiveCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\primitiveToObjectCast.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\arrayElementCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\arrayElementCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\boolToIntCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\boolToIntCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\boolToStringCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\boolToStringCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAndAccessMembers.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAndAccessMembers.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInAssignment.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInAssignment.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInMethodCall.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInMethodCall.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInterfaceMethodCall.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInterfaceMethodCall.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castReturnValue.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castReturnValue.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castToInterface.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castToInterface.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castToSibling.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castToSibling.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithConstructor.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithConstructor.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithNamespace.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithNamespace.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithOverride.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithOverride.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\chainedPrimitiveCasts.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\chainedPrimitiveCasts.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\classImplementsMultipleCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\classImplementsMultipleCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\collectionInterfaceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\collectionInterfaceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\complexHierarchyCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\complexHierarchyCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\deepInheritanceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\deepInheritanceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\downcastToChild.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\downcastToChild.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\floatToIntCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\floatToIntCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\floatToStringCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\floatToStringCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericArrayCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericArrayCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericClassCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericClassCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInheritanceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInheritanceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericTypeParameterCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericTypeParameterCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericWildcardCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericWildcardCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToBoolCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToBoolCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToFloatCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToFloatCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToStringCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\intToStringCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceInheritanceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceInheritanceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceToClassCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceToClassCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceToWrongClassCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\interfaceToWrongClassCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfChild.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfChild.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfConditional.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfConditional.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfDeepHierarchy.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfDeepHierarchy.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGeneric.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGeneric.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfInterface.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfInterface.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfMultipleInterfaces.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfMultipleInterfaces.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfNull.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfNull.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfParent.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfParent.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfPrimitive.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfPrimitive.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\listGenericCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\listGenericCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\mapGenericCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\mapGenericCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\multiLevelCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\multiLevelCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\multipleInterfacesCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\multipleInterfacesCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nestedGenericCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nestedGenericCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullCastAssignment.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullCastAssignment.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullCastInConditional.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullCastInConditional.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullToInterfaceCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullToInterfaceCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullToObjectCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\nullToObjectCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\polymorphicCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\polymorphicCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\polymorphicCollectionCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\polymorphicCollectionCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\primitiveCastInExpression.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\primitiveCastInExpression.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\safeDowncastPattern.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\safeDowncastPattern.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\sameClassCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\sameClassCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\sameTypeCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\sameTypeCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\stringToBoolCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\stringToBoolCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeCheckBeforeCast.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeCheckBeforeCast.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\upcastToParent.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\upcastToParent.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\circularInheritance.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\conditionalScopingFail.mt">
@@ -1444,13 +1882,28 @@
     <None Include="tests\testFiles\class\error\invalidConstructor.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\invalidOverride.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\invalidSuper.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\loopScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\methodScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\missingSuper.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\multipleInheritance.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\nullPointerAccess.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\parentNotFound.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\staticClassDeclaration.mt">
@@ -1475,6 +1928,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\basicClassDefinition.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\basicInheritance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\basicInheritance.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\chainedMemberAccess.expected">
@@ -1537,10 +1996,22 @@
     <None Include="tests\testFiles\class\pass\conditionalScopingPass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\constructorChaining.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\constructorChaining.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\constructorWithParameters.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\constructorWithParameters.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\deepInheritance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\deepInheritance.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\defaultConstructor.expected">
@@ -1553,6 +2024,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\functionScopingPass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\genericInheritance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\genericInheritance.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\loopScopingPass.expected">
@@ -1577,6 +2054,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\methodCalls.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodOverride.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodOverride.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\methodScopingPass.expected">
@@ -1619,6 +2102,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\objectCreation.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\polymorphism.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\polymorphism.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\returningThisAndChaining.expected">

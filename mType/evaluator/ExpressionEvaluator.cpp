@@ -7,12 +7,17 @@
 #include "expressions/AccessHandler.hpp"
 #include "utils/ValueConverter.hpp"
 #include "utils/NodeTypeRegistry.hpp"
+#include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
+#include "../ast/nodes/expressions/CastExpression.hpp"
+#include "../ast/nodes/expressions/InstanceOfExpression.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
+#include "../errors/TypeConversionException.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/TernaryExpNode.hpp"
@@ -30,11 +35,14 @@
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
+#include "../errors/ReturnException.hpp"
 
 namespace evaluator
 {
@@ -104,6 +112,12 @@ namespace evaluator
         dispatcher.registerMethod<MemberAccessNode>(&ExpressionEvaluator::evaluateMemberAccessNode);
         dispatcher.registerMethod<MethodCallNode>(&ExpressionEvaluator::evaluateMethodCallNode);
         dispatcher.registerMethod<NewNode>(&ExpressionEvaluator::evaluateNewNode);
+        dispatcher.registerMethod<SuperConstructorCallNode>(&ExpressionEvaluator::evaluateSuperConstructorCallNode);
+        dispatcher.registerMethod<SuperMethodCallNode>(&ExpressionEvaluator::evaluateSuperMethodCallNode);
+
+        // Cast and type checking expressions
+        dispatcher.registerMethod<CastExpression>(&ExpressionEvaluator::evaluateCastExpression);
+        dispatcher.registerMethod<InstanceOfExpression>(&ExpressionEvaluator::evaluateInstanceOfExpression);
 
         // Special case: MemberAssignmentNode delegates to ObjectEvaluator
         dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
@@ -390,5 +404,417 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateLambdaInterfaceInvocationNode(LambdaInterfaceInvocationNode* node)
     {
         return callHandler->evaluateLambdaInterfaceInvocation(node);
+    }
+
+    Value ExpressionEvaluator::evaluateSuperConstructorCallNode(SuperConstructorCallNode* node)
+    {
+        // Check if we're being called from initializer (allowed) or body (not allowed)
+        // If we're in an initializer context, the context flag will be set
+        if (!context->isInSuperInitializerContext()) {
+            throw UndefinedException(
+                "super() cannot be called in constructor body. Use initializer list syntax: constructor(...) : super(...)",
+                node->getLocation());
+        }
+
+        // Get current instance - super() can only be called in a constructor
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            throw UndefinedException(
+                "super() can only be called within a constructor",
+                node->getLocation());
+        }
+
+        // Use currentConstructorClass to get the right parent
+        // If currentConstructorClass is set, use it; otherwise fall back to instance's class
+        auto currentClass = context->getCurrentConstructorClass();
+        if (!currentClass) {
+            currentClass = currentInstance->getClassDefinition();
+        }
+
+        if (!currentClass->hasParentClass()) {
+            throw UndefinedException(
+                "Class '" + currentClass->getName() +
+                "' has no parent class, cannot call super()",
+                node->getLocation());
+        }
+
+        auto parentClass = currentClass->getParentClass();
+        if (!parentClass) {
+            throw UndefinedException(
+                "Parent class not found for super() call",
+                node->getLocation());
+        }
+
+        // Evaluate constructor arguments
+        std::vector<Value> argValues;
+        for (const auto& arg : node->getArguments()) {
+            argValues.push_back(evaluate(arg.get()));
+        }
+
+        // Find matching parent constructor
+        auto parentConstructor = parentClass->findConstructor(argValues.size());
+        if (!parentConstructor) {
+            throw UndefinedException(
+                "No matching constructor in parent class '" + parentClass->getName() +
+                "' with " + std::to_string(argValues.size()) + " parameter(s)",
+                node->getLocation());
+        }
+
+        // Execute parent constructor in the context of current instance
+        if (objEvaluator) {
+            // Create new scope for parent constructor execution
+            context->getEnvironment()->enterScope();
+
+            // Get generic type bindings from context
+            auto genericBindings = context->getGenericTypeBindings();
+
+            // Use ParameterBinder with full type information if available
+            if (parentConstructor->hasParametersWithTypes()) {
+                utils::ParameterBinder::bindAndValidateParameters(
+                    parentConstructor->getParametersWithTypes(),
+                    argValues,
+                    "constructor for parent class '" + parentClass->getName() + "'",
+                    context->getEnvironment(),
+                    genericBindings,  // Pass generic bindings for type resolution
+                    node->getLocation()
+                );
+            } else {
+                // Fallback to old format
+                utils::ParameterBinder::bindAndValidateParameters(
+                    parentConstructor->getParameters(),
+                    argValues,
+                    "constructor for parent class '" + parentClass->getName() + "'",
+                    context->getEnvironment(),
+                    node->getLocation()
+                );
+            }
+
+            // Execute parent's super initializer first (if it has one)
+            if (parentConstructor->hasSuperInitializer()) {
+                auto parentSuperInit = parentConstructor->getSuperInitializer();
+                if (parentSuperInit) {
+                    // Set currentConstructorClass to parent so super() knows which class's constructor is executing
+                    auto prevConstructorClass = context->getCurrentConstructorClass();
+                    context->setCurrentConstructorClass(parentClass);
+
+                    // We're already in super initializer context, so this will work
+                    evaluate(static_cast<ASTNode*>(parentSuperInit));
+
+                    context->setCurrentConstructorClass(prevConstructorClass);
+                }
+            }
+
+            // Execute parent constructor body
+            Value result = std::monostate{};
+            if (parentConstructor->getBody()) {
+                // Set currentConstructorClass to parent so nested super() calls work correctly
+                auto prevConstructorClass = context->getCurrentConstructorClass();
+                context->setCurrentConstructorClass(parentClass);
+
+                result = stmtEvaluator->evaluate(parentConstructor->getBody());
+
+                // Restore previous constructor class
+                context->setCurrentConstructorClass(prevConstructorClass);
+            }
+
+            context->getEnvironment()->exitScope();
+            return result;
+        }
+
+        throw UndefinedException(
+            "Object evaluator not available for super() call",
+            node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateSuperMethodCallNode(SuperMethodCallNode* node)
+    {
+        // Get current instance - super.method() can only be called in instance methods
+        auto currentInstance = context->getCurrentInstance();
+        if (!currentInstance) {
+            throw UndefinedException(
+                "super." + node->getMethodName() + "() can only be called within an instance method",
+                node->getLocation());
+        }
+
+        auto currentClass = currentInstance->getClassDefinition();
+        if (!currentClass->hasParentClass()) {
+            throw UndefinedException(
+                "Class '" + currentClass->getName() +
+                "' has no parent class, cannot call super." + node->getMethodName() + "()",
+                node->getLocation());
+        }
+
+        auto parentClass = currentClass->getParentClass();
+        if (!parentClass) {
+            throw UndefinedException(
+                "Parent class not found for super." + node->getMethodName() + "() call",
+                node->getLocation());
+        }
+
+        // Evaluate method arguments
+        std::vector<Value> argValues;
+        for (const auto& arg : node->getArguments()) {
+            argValues.push_back(evaluate(arg.get()));
+        }
+
+        // Find method in parent class (not in current class - that's the override)
+        auto parentMethod = parentClass->findMethod(node->getMethodName(), argValues.size());
+        if (!parentMethod) {
+            throw UndefinedException(
+                "Method '" + node->getMethodName() + "' with " +
+                std::to_string(argValues.size()) + " parameter(s) not found in parent class '" +
+                parentClass->getName() + "'",
+                node->getLocation());
+        }
+
+        // Call parent method using object evaluator
+        if (objEvaluator) {
+            // Create new scope for method execution
+            context->getEnvironment()->enterScope();
+
+            // Bind 'this' to current instance
+            auto thisVarDef = std::make_shared<VariableDefinition>(
+                "this",
+                ValueType::OBJECT,
+                currentInstance,
+                true  // 'this' is effectively final
+            );
+            context->getEnvironment()->declareVariable("this", thisVarDef);
+
+            // Bind method parameters
+            const auto& params = parentMethod->getParameters();
+            for (size_t i = 0; i < params.size() && i < argValues.size(); ++i) {
+                auto varDef = std::make_shared<VariableDefinition>(
+                    params[i].first,
+                    params[i].second.basicType,  // Extract ValueType from ParameterType
+                    argValues[i],
+                    false  // parameters are not final
+                );
+                context->getEnvironment()->declareVariable(params[i].first, varDef);
+            }
+
+            // Execute parent method body
+            Value result = std::monostate{};
+            if (parentMethod->getBody()) {
+                try {
+                    result = stmtEvaluator->evaluate(parentMethod->getBody());
+
+                    // Check if method returned a value
+                    if (context->shouldReturn()) {
+                        result = context->getReturnValue();
+                        context->setReturned(false);  // Reset return flag
+                    }
+                } catch (const ReturnException& e) {
+                    result = e.returnValue;
+                    context->setReturned(false);  // Reset return flag
+                }
+            }
+
+            context->getEnvironment()->exitScope();
+            return result;
+        }
+
+        throw UndefinedException(
+            "Object evaluator not available for super." + node->getMethodName() + "() call",
+            node->getLocation());
+    }
+
+    Value ExpressionEvaluator::evaluateCastExpression(CastExpression* node)
+    {
+        // Evaluate the expression to cast
+        Value sourceValue = evaluate(node->getExpression());
+        auto targetType = node->getTargetType();
+
+        // Get target type information
+        std::string targetTypeName = targetType->toString();
+        ValueType targetValueType = ValueType::VOID;
+
+        // Determine target value type by checking if it's a concrete primitive type
+        bool isPrimitiveTarget = !targetType->isGenericParameter();
+        if (isPrimitiveTarget) {
+            try {
+                targetValueType = targetType->getConcreteType();
+                // Check if this is actually a primitive (not OBJECT, ARRAY, etc.)
+                isPrimitiveTarget = (targetValueType == ValueType::INT ||
+                                      targetValueType == ValueType::FLOAT ||
+                                      targetValueType == ValueType::BOOL ||
+                                      targetValueType == ValueType::STRING);
+                if (!isPrimitiveTarget) {
+                    targetValueType = ValueType::OBJECT;
+                }
+            }
+            catch (...) {
+                // Not a concrete type, treat as object
+                targetValueType = ValueType::OBJECT;
+            }
+        } else {
+            targetValueType = ValueType::OBJECT;
+        }
+
+        // Handle null - null can be cast to any object type but not primitives
+        ValueType sourceValueType = value::getValueType(sourceValue);
+
+        bool isSourceNull = (sourceValueType == ValueType::NULL_TYPE) ||
+                            std::holds_alternative<std::monostate>(sourceValue) ||
+                            std::holds_alternative<nullptr_t>(sourceValue);
+
+        // Also check for nullptr shared_ptr (null object reference)
+        if (!isSourceNull && std::holds_alternative<std::shared_ptr<ObjectInstance>>(sourceValue)) {
+            auto objPtr = std::get<std::shared_ptr<ObjectInstance>>(sourceValue);
+            isSourceNull = (objPtr == nullptr);
+        }
+
+        if (isSourceNull) {
+            if (targetValueType == ValueType::OBJECT) {
+                return sourceValue; // null remains null
+            }
+            throw TypeConversionException(
+                "Cannot cast null to primitive type " + targetTypeName,
+                "null",
+                targetTypeName,
+                node->getLocation()
+            );
+        }
+
+        // Primitive to primitive casting
+        if (sourceValueType != ValueType::OBJECT && targetValueType != ValueType::OBJECT) {
+            return castPrimitive(sourceValue, targetValueType, targetTypeName, node->getLocation());
+        }
+
+        // Object to object casting
+        if (sourceValueType == ValueType::OBJECT && targetValueType == ValueType::OBJECT) {
+            return castObject(sourceValue, targetTypeName, node->getLocation());
+        }
+
+        // Cross-category cast not allowed
+        throw TypeConversionException(
+            "Cannot cast between primitive and object types",
+            ValueConverter::valueTypeToString(sourceValueType),
+            targetTypeName,
+            node->getLocation()
+        );
+    }
+
+    Value ExpressionEvaluator::evaluateInstanceOfExpression(InstanceOfExpression* node)
+    {
+        // Evaluate the expression to check
+        Value value = evaluate(node->getExpression());
+        auto targetType = node->getTargetType();
+        std::string targetTypeName = targetType->toString();
+
+        // null isClassOf anything is false
+        if (std::holds_alternative<std::monostate>(value)) {
+            return false;
+        }
+
+        ValueType valueType = value::getValueType(value);
+
+        // For primitives, check exact type match
+        if (valueType != ValueType::OBJECT) {
+            bool isMatch = false;
+            if (valueType == ValueType::INT && targetTypeName == "int") isMatch = true;
+            else if (valueType == ValueType::FLOAT && targetTypeName == "float") isMatch = true;
+            else if (valueType == ValueType::BOOL && targetTypeName == "bool") isMatch = true;
+            else if (valueType == ValueType::STRING && targetTypeName == "string") isMatch = true;
+
+            return isMatch;
+        }
+
+        // For objects, check inheritance and interfaces
+        auto objInstance = std::get<std::shared_ptr<ObjectInstance>>(value);
+        bool isInstance = isInstanceOfClass(objInstance, targetTypeName);
+
+        return isInstance;
+    }
+
+    Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)
+    {
+        ValueType sourceType = value::getValueType(value);
+
+        // Same type - no conversion needed
+        if (sourceType == targetType) {
+            return value;
+        }
+
+        switch (targetType) {
+        case ValueType::INT:
+            return toInt(value);
+        case ValueType::FLOAT:
+            return toFloat(value);
+        case ValueType::BOOL:
+            return isTruthy(value);
+        case ValueType::STRING: {
+            auto& pool = value::StringPool::getInstance();
+            return pool.intern(toString(value));
+        }
+        default:
+            throw TypeConversionException(
+                "Invalid primitive cast target type",
+                ValueConverter::valueTypeToString(sourceType),
+                targetTypeName,
+                location
+            );
+        }
+    }
+
+    Value ExpressionEvaluator::castObject(const Value& value, const std::string& targetClassName, const SourceLocation& location)
+    {
+        auto objInstance = std::get<std::shared_ptr<ObjectInstance>>(value);
+
+        // Check if cast is valid using isInstanceOf logic
+        if (isInstanceOfClass(objInstance, targetClassName)) {
+            return value; // Cast succeeds, return same object
+        }
+
+        // Cast failed
+        throw TypeConversionException(
+            "Cannot cast object to incompatible type",
+            objInstance->getTypeName(),
+            targetClassName,
+            location
+        );
+    }
+
+    bool ExpressionEvaluator::isInstanceOfClass(std::shared_ptr<ObjectInstance> objInstance, const std::string& targetClassName)
+    {
+        if (!objInstance) {
+            return false;
+        }
+
+        auto classDef = objInstance->getClassDefinition();
+        if (!classDef) {
+            return false;
+        }
+
+        std::string actualClassName = classDef->getName();
+
+        // Extract base class name from generic types (e.g., "Box<int>" -> "Box")
+        auto extractBaseName = [](const std::string& name) -> std::string {
+            size_t anglePos = name.find('<');
+            return (anglePos != std::string::npos) ? name.substr(0, anglePos) : name;
+        };
+
+        std::string actualBaseName = extractBaseName(actualClassName);
+        std::string targetBaseName = extractBaseName(targetClassName);
+
+        // Exact match (either full name or base name)
+        if (actualClassName == targetClassName || actualBaseName == targetBaseName) {
+            return true;
+        }
+
+        // Check inheritance chain (upcast: Child → Parent)
+        // Try both full name and base name for compatibility
+        if (classDef->isSubclassOf(targetClassName) || classDef->isSubclassOf(targetBaseName)) {
+            return true;
+        }
+
+        // Check interface implementation
+        auto interfaceRegistry = context->getEnvironment()->getInterfaceRegistry();
+        if (classDef->implementsInterface(targetClassName, interfaceRegistry) ||
+            classDef->implementsInterface(targetBaseName, interfaceRegistry)) {
+            return true;
+        }
+
+        return false;
     }
 }

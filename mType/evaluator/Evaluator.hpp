@@ -70,6 +70,10 @@ namespace evaluator
         Value visitIndexAccessNode(IndexAccessNode* node) override;
         Value visitForEachNode(ForEachNode* node) override;
         Value visitLambdaNode(LambdaNode* node) override;
+        Value visitSuperConstructorCallNode(SuperConstructorCallNode* node) override;
+        Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
+        Value visitCastExpression(CastExpression* node) override;
+        Value visitInstanceOfExpression(InstanceOfExpression* node) override;
 
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;

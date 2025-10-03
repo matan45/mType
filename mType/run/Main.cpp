@@ -10,6 +10,7 @@
 #include "../tests/suites/StringPoolTestSuite.hpp"
 #include "../tests/suites/InterfaceTestSuite.hpp"
 #include "../tests/suites/LambdaTestSuite.hpp"
+#include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -79,6 +80,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<LambdaTestSuite>();
     }
+    else if (suiteName == "cast" || suiteName == "casting")
+    {
+        return std::make_unique<CastTestSuite>();
+    }
     return nullptr;
 }
 
@@ -95,7 +100,8 @@ void printAvailableTestSuites()
     std::cout << "  type         - Type Checking Test Suite\n";
     std::cout << "  generics     - Generics Test Suite\n";
     std::cout << "  arrays       - Array Test Suite\n";
-    std::cout << "  string-pool       - String Pool Test Suite\n";
+    std::cout << "  string-pool  - String Pool Test Suite\n";
+    std::cout << "  cast         - Cast and Type Checking Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -142,6 +148,7 @@ void runAllTests()
     suites.push_back(std::make_unique<StringPoolTestSuite>());
     suites.push_back(std::make_unique<InterfaceTestSuite>());
     suites.push_back(std::make_unique<LambdaTestSuite>());
+    suites.push_back(std::make_unique<CastTestSuite>());
 
     for (auto& suite : suites)
     {

@@ -12,6 +12,7 @@ namespace ast::nodes::classes
     private:
         std::string className;
         std::vector<GenericTypeParameter> genericParameters; // NEW: Generic type parameters
+        std::string parentClassName; // NEW: Parent class for inheritance
         std::vector<std::unique_ptr<ASTNode>> fields;
         std::vector<std::unique_ptr<ASTNode>> constructors;
         std::vector<std::unique_ptr<ASTNode>> methods;
@@ -23,6 +24,13 @@ namespace ast::nodes::classes
         // NEW: Primary constructor with generic parameters
         explicit ClassNode(const std::string& name,
                            const std::vector<GenericTypeParameter>& generics,
+                           const std::vector<std::string>& interfaces = {},
+                           const SourceLocation& loc = SourceLocation());
+
+        // NEW: Constructor with inheritance support
+        explicit ClassNode(const std::string& name,
+                           const std::vector<GenericTypeParameter>& generics,
+                           const std::string& parentClass,
                            const std::vector<std::string>& interfaces = {},
                            const SourceLocation& loc = SourceLocation());
 
@@ -52,6 +60,11 @@ namespace ast::nodes::classes
         size_t getMethodCount() const;
 
         const std::vector<std::string>& getImplementedInterfaces() const;
+
+        // NEW: Inheritance methods
+        const std::string& getParentClassName() const;
+        void setParentClassName(const std::string& parent);
+        bool hasParentClass() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

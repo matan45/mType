@@ -22,6 +22,19 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
+        // Call the version with empty generic bindings
+        std::unordered_map<std::string, std::string> emptyBindings;
+        bindAndValidateParameters(params, args, functionName, env, emptyBindings, location);
+    }
+
+    void ParameterBinder::bindAndValidateParameters(
+        const std::vector<std::pair<std::string, ParameterType>>& params,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const std::unordered_map<std::string, std::string>& genericBindings,
+        const SourceLocation& location)
+    {
         // Validate parameter count
         validateParameterCount(params.size(), args.size(), functionName);
 
@@ -31,13 +44,26 @@ namespace evaluator::utils
             const auto& param = params[i];
             const Value& arg = args[i];
 
+            // Resolve generic type if needed
+            ParameterType resolvedType = param.second;
+            if (resolvedType.isClass())
+            {
+                std::string className = resolvedType.getClassName();
+                auto it = genericBindings.find(className);
+                if (it != genericBindings.end())
+                {
+                    // This is a generic type parameter - resolve it
+                    resolvedType = ParameterType::forClass(it->second);
+                }
+            }
+
             // Enhanced validation with interface support
-            validateParameterType(arg, param.second, param.first, functionName, env, location);
+            validateParameterType(arg, resolvedType, param.first, functionName, env, location);
 
             // Create and bind parameter variable
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,
-                param.second.basicType,  // Use basic type for storage
+                resolvedType.basicType,  // Use basic type for storage
                 arg,
                 false  // parameters are not final
             );

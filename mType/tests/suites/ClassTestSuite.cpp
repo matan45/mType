@@ -66,6 +66,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Circular Object References",
                         passPath + "circularObjectReferences.mt");
 
+        // === INHERITANCE AND POLYMORPHISM TESTS ===
+        // These tests verify class inheritance, method overriding, and polymorphism
+
+        addOutputVerificationTest("Basic Inheritance",
+                        passPath + "basicInheritance.mt");
+        addOutputVerificationTest("Method Override",
+                        passPath + "methodOverride.mt");
+        addOutputVerificationTest("Constructor Chaining",
+                        passPath + "constructorChaining.mt");
+        addOutputVerificationTest("Polymorphism",
+                        passPath + "polymorphism.mt");
+        addOutputVerificationTest("Deep Inheritance",
+                        passPath + "deepInheritance.mt");
+        addOutputVerificationTest("Generic Inheritance",
+                        passPath + "genericInheritance.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -156,6 +172,31 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Function Cross-Scoping Error",
                         errorPath + "functionScopingFail.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === INHERITANCE ERROR TESTS ===
+        // These tests verify that inheritance errors are correctly detected
+
+        addTestFromFile("Circular Inheritance Error",
+                        errorPath + "circularInheritance.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Parent Not Found Error",
+                        errorPath + "parentNotFound.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Override Error",
+                        errorPath + "invalidOverride.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Missing Super Call Error",
+                        errorPath + "missingSuper.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Super Placement Error",
+                        errorPath + "invalidSuper.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Multiple Inheritance Error",
+                        errorPath + "multipleInheritance.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("super syntax",
+                        errorPath + "superSyntax.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

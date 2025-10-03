@@ -1,6 +1,7 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include <iostream>
 
 namespace runtimeTypes::klass
 {
@@ -143,12 +144,36 @@ namespace runtimeTypes::klass
         if (it != instanceFields.end()) {
             return it->second;
         }
-        
+
         auto staticIt = staticFields.find(fieldName);
         if (staticIt != staticFields.end()) {
             return staticIt->second;
         }
-        
+
+        return nullptr;
+    }
+
+    std::shared_ptr<FieldDefinition> ClassDefinition::getFieldInHierarchy(const std::string& fieldName) const
+    {
+        // First, check in this class
+        auto field = getField(fieldName);
+        if (field) {
+            return field;
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            field = current->getField(fieldName);
+            if (field) {
+                return field;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
         return nullptr;
     }
 
@@ -327,9 +352,63 @@ namespace runtimeTypes::klass
 
     bool ClassDefinition::isSubclassOf(const std::string& className) const
     {
-        // TODO: Implement proper inheritance hierarchy checking
-        // For now, return false since mType doesn't support class inheritance yet
-        // This would need to traverse the inheritance chain when inheritance is implemented
+        // Check direct parent
+        if (parentClassName == className) {
+            return true;
+        }
+
+        // Traverse inheritance chain with depth protection
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            if (current->getName() == className) {
+                return true;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
         return false;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findMethodInHierarchy(const std::string& methodName, size_t argCount) const
+    {
+        // First, check in this class
+        auto method = findMethod(methodName, argCount);
+        if (method) {
+            return method;
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            method = current->findMethod(methodName, argCount);
+            if (method) {
+                return method;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return nullptr;
+    }
+
+    std::vector<std::shared_ptr<ClassDefinition>> ClassDefinition::getInheritanceChain() const
+    {
+        std::vector<std::shared_ptr<ClassDefinition>> chain;
+
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            chain.push_back(current);
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return chain;
     }
 }

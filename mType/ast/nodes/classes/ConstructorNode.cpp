@@ -1,28 +1,40 @@
 ﻿#include "ConstructorNode.hpp"
+#include "SuperConstructorCallNode.hpp"
 
 namespace ast::nodes::classes
 {
-    // Constructor accepting shared_ptr
-    ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
+    // Constructor with ParameterType (preserves class/interface information)
+    ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
                                      std::shared_ptr<ASTNode> constructorBody,
                                      const SourceLocation& loc)
-        : ASTNode(loc), parameters(std::move(params)),
+        : ASTNode(loc), parametersWithTypes(std::move(params)),
           body(std::move(constructorBody))
     {
-    }
-
-    // Constructor accepting unique_ptr for backward compatibility
-    ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
-                                     std::unique_ptr<ASTNode> constructorBody,
-                                     const SourceLocation& loc)
-        : ASTNode(loc), parameters(std::move(params)),
-          body(std::move(constructorBody)) // unique_ptr converts to shared_ptr automatically
-    {
+        // No dual storage - parametersWithTypes is the single source of truth
     }
 
     const std::vector<std::pair<std::string, ValueType>>& ConstructorNode::getParameters() const
     {
-        return parameters;
+        // Lazy computation - only compute when needed
+        if (!parametersCacheValid) {
+            cachedParameters.clear();
+            cachedParameters.reserve(parametersWithTypes.size());
+            for (const auto& [name, paramType] : parametersWithTypes) {
+                cachedParameters.emplace_back(name, paramType.basicType);
+            }
+            parametersCacheValid = true;
+        }
+        return cachedParameters;
+    }
+
+    const std::vector<std::pair<std::string, ParameterType>>& ConstructorNode::getParametersWithTypes() const
+    {
+        return parametersWithTypes;
+    }
+
+    bool ConstructorNode::hasParametersWithTypes() const
+    {
+        return !parametersWithTypes.empty();
     }
 
     std::shared_ptr<ASTNode> ConstructorNode::getBody() const
@@ -35,19 +47,29 @@ namespace ast::nodes::classes
         return body.get();
     }
 
-    void ConstructorNode::setParameters(std::vector<std::pair<std::string, ValueType>> params)
-    {
-        parameters = std::move(params);
-    }
-
     void ConstructorNode::setBody(std::shared_ptr<ASTNode> constructorBody)
     {
         body = std::move(constructorBody);
     }
 
+    void ConstructorNode::setSuperInitializer(std::unique_ptr<SuperConstructorCallNode> superCall)
+    {
+        superInitializer = std::move(superCall);
+    }
+
+    SuperConstructorCallNode* ConstructorNode::getSuperInitializer() const noexcept
+    {
+        return superInitializer.get();
+    }
+
+    bool ConstructorNode::hasSuperInitializer() const noexcept
+    {
+        return superInitializer != nullptr;
+    }
+
     size_t ConstructorNode::getParameterCount() const
     {
-        return parameters.size();
+        return parametersWithTypes.size();
     }
 
     Value ConstructorNode::accept(ASTVisitor<Value>& visitor)

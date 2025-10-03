@@ -200,6 +200,10 @@ namespace objects {
                 auto prevInstance = context->getCurrentInstance();
                 context->setCurrentInstance(instance);
 
+                // Set generic type bindings for this instance so parameter validation can resolve generic types
+                auto prevGenericBindings = context->getGenericTypeBindings();
+                context->setGenericTypeBindings(genericTypeBindings);
+
                 // Temporarily clear static method context for constructor execution
                 // Constructors always run in instance context regardless of where they're called from
                 bool wasInStaticMethod = context->isInStaticMethodContext();
@@ -211,14 +215,45 @@ namespace objects {
 
                     try
                     {
-                        // Use ParameterBinder utility to eliminate duplication
-                        utils::ParameterBinder::bindAndValidateParameters(
-                            constructor->getParameters(),
-                            args,
-                            "constructor for class '" + node->getClassName() + "'",
-                            env,
-                            node->getLocation()
-                        );
+                        // Use ParameterBinder with full type information if available
+                        if (constructor->hasParametersWithTypes()) {
+                            utils::ParameterBinder::bindAndValidateParameters(
+                                constructor->getParametersWithTypes(),
+                                args,
+                                "constructor for class '" + node->getClassName() + "'",
+                                env,
+                                genericTypeBindings,  // Pass generic bindings for type resolution
+                                node->getLocation()
+                            );
+                        } else {
+                            // Fallback to old format
+                            utils::ParameterBinder::bindAndValidateParameters(
+                                constructor->getParameters(),
+                                args,
+                                "constructor for class '" + node->getClassName() + "'",
+                                env,
+                                node->getLocation()
+                            );
+                        }
+
+                        // Execute super initializer first (if present)
+                        if (constructor->hasSuperInitializer())
+                        {
+                            auto superInit = constructor->getSuperInitializer();
+                            if (superInit && exprEvaluator)
+                            {
+                                // Set currentConstructorClass before super call
+                                auto prevConstructorClass = context->getCurrentConstructorClass();
+                                context->setCurrentConstructorClass(classDef);
+
+                                // Mark that we're in super initializer context (allowed)
+                                context->setInSuperInitializerContext(true);
+                                exprEvaluator->evaluate(static_cast<ASTNode*>(superInit));
+                                context->setInSuperInitializerContext(false);
+
+                                context->setCurrentConstructorClass(prevConstructorClass);
+                            }
+                        }
 
                         // Execute constructor body
                         if (stmtEvaluator)
@@ -226,7 +261,14 @@ namespace objects {
                             auto bodyPtr = constructor->getBody();
                             if (bodyPtr)
                             {
+                                // Set currentConstructorClass so super() knows which class's constructor is executing
+                                auto prevConstructorClass = context->getCurrentConstructorClass();
+                                context->setCurrentConstructorClass(classDef);
+
                                 stmtEvaluator->evaluate(bodyPtr);
+
+                                // Restore previous constructor class
+                                context->setCurrentConstructorClass(prevConstructorClass);
                             }
                         }
                     }
@@ -234,12 +276,14 @@ namespace objects {
                     {
                         context->setCurrentInstance(prevInstance);
                         context->setInStaticMethod(wasInStaticMethod);
+                        context->setGenericTypeBindings(prevGenericBindings);
                         throw;
                     }
                     // Scope automatically exits via RAII
                 }
                 context->setCurrentInstance(prevInstance);
                 context->setInStaticMethod(wasInStaticMethod);
+                context->setGenericTypeBindings(prevGenericBindings);
             }
         }
 

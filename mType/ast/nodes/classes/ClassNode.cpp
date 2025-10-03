@@ -16,6 +16,16 @@ namespace ast::nodes::classes
     {
     }
 
+    ClassNode::ClassNode(const std::string& name,
+                         const std::vector<GenericTypeParameter>& generics,
+                         const std::string& parentClass,
+                         const std::vector<std::string>& interfaces,
+                         const SourceLocation& loc)
+        : ASTNode(loc), className(name), genericParameters(generics),
+          parentClassName(parentClass), implementedInterfaces(interfaces)
+    {
+    }
+
     const std::string& ClassNode::getClassName() const
     {
         return className;
@@ -111,6 +121,21 @@ namespace ast::nodes::classes
             fullName += ">";
         }
         return fullName;
+    }
+
+    const std::string& ClassNode::getParentClassName() const
+    {
+        return parentClassName;
+    }
+
+    void ClassNode::setParentClassName(const std::string& parent)
+    {
+        parentClassName = parent;
+    }
+
+    bool ClassNode::hasParentClass() const
+    {
+        return !parentClassName.empty();
     }
 
     Value ClassNode::accept(ASTVisitor<Value>& visitor)

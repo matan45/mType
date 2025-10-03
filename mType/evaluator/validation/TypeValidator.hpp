@@ -98,6 +98,15 @@ namespace validation {
             const std::string& actualClassName,
             const std::string& expectedClassName);
 
+        /**
+         * Check if one class is a subclass of another (inheritance-aware)
+         * @return true if actualClass is a subclass of expectedClass
+         */
+        static bool isSubclassCompatible(
+            const std::string& actualClassName,
+            const std::string& expectedClassName,
+            std::shared_ptr<EvaluationContext> context);
+
     private:
         /**
          * Helper to resolve generic type parameters from context

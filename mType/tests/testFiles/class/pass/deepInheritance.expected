@@ -1,0 +1,17 @@
+=== Creating a Dog ===
+Being constructor: Kingdom Animalia
+Animal constructor: Species Canis familiaris
+Mammal constructor: Has fur? true
+Dog constructor: Breed Beagle
+
+=== Testing inherited methods ===
+Being exists in kingdom: Animalia
+Animal moves
+Mammal nurses young
+Dog barks!
+
+=== Testing inherited fields ===
+Kingdom: Animalia
+Species: Canis familiaris
+Has fur: true
+Breed: Beagle

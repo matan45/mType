@@ -25,9 +25,13 @@ namespace evaluator::base
         std::stack<Value> returnStack;
         bool hasReturned;
         bool isInStaticMethod;
+        bool inSuperInitializerContext;
 
         // Current method execution context for generic type resolution
         std::shared_ptr<MethodDefinition> currentMethod;
+
+        // Current constructor execution context for super() calls
+        std::shared_ptr<ClassDefinition> currentConstructorClass;
 
         // Generic type bindings from the current object instance (e.g., T -> String)
         std::unordered_map<std::string, std::string> currentGenericTypeBindings;
@@ -68,12 +72,21 @@ namespace evaluator::base
         std::shared_ptr<MethodDefinition> getCurrentMethod() const;
         void clearCurrentMethod();
 
+        // Current constructor context management for super() calls
+        void setCurrentConstructorClass(std::shared_ptr<ClassDefinition> classDef);
+        std::shared_ptr<ClassDefinition> getCurrentConstructorClass() const;
+        void clearCurrentConstructorClass();
+
         // Generic type binding management
         void setGenericTypeBindings(const std::unordered_map<std::string, std::string>& bindings);
         const std::unordered_map<std::string, std::string>& getGenericTypeBindings() const;
         void clearGenericTypeBindings();
         std::string resolveGenericType(const std::string& typeName) const;
-        
+
+        // Super initializer context management
+        void setInSuperInitializerContext(bool inContext);
+        bool isInSuperInitializerContext() const;
+
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;
         EvaluationContext& operator=(const EvaluationContext&) = delete;

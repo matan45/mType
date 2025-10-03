@@ -13,6 +13,8 @@
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
+#include "../../ast/nodes/expressions/CastExpression.hpp"
+#include "../../ast/nodes/expressions/InstanceOfExpression.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/DeclarationNode.hpp"
@@ -42,6 +44,8 @@
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
 
 namespace evaluator::utils
 {
@@ -68,11 +72,15 @@ namespace evaluator::utils
             typeid(IndexAccessNode),
             typeid(LambdaNode),
             typeid(LambdaInterfaceInvocationNode),
+            typeid(CastExpression),         // Type cast expression (Type)expr
+            typeid(InstanceOfExpression),   // Type check expression expr isClassOf Type
             typeid(AssignmentNode),         // Assignment can be expression or statement
             typeid(MemberAccessNode),       // Member access is an expression (obj.field, arr.length)
             typeid(MethodCallNode),         // Method calls are expressions (obj.method())
             typeid(NewNode),                // Object creation is an expression (new ClassName())
-            typeid(MemberAssignmentNode)    // Member assignment is an expression for chained assignments (obj.field = value)
+            typeid(MemberAssignmentNode),   // Member assignment is an expression for chained assignments (obj.field = value)
+            typeid(SuperConstructorCallNode), // Super constructor call is an expression (super(...))
+            typeid(SuperMethodCallNode)     // Super method call is an expression (super.method())
         };
     }
 

@@ -137,8 +137,8 @@ namespace objects {
             throw UndefinedException("Object has no class definition");
         }
 
-        // Find the method
-        auto method = classDef->findMethod(methodName, args.size());
+        // Find the method (search in class hierarchy for inherited methods)
+        auto method = classDef->findMethodInHierarchy(methodName, args.size());
         if (!method)
         {
             throw UndefinedException("Method '" + methodName + "' not found in class '" +

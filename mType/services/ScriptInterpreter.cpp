@@ -348,6 +348,18 @@ namespace services
                 environment->declareVariable(params[i].first, paramVar);
             }
 
+            // Execute super initializer first (if present)
+            if (constructor->hasSuperInitializer())
+            {
+                auto superInit = constructor->getSuperInitializer();
+                if (superInit)
+                {
+                    // Note: ScriptInterpreter uses old evaluator without context flags
+                    // This will need updating when ScriptInterpreter is refactored
+                    evaluator->evaluate(superInit);
+                }
+            }
+
             // Execute constructor body if it exists
             if (constructor->getBody())
             {

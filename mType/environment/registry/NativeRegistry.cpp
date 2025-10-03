@@ -5,12 +5,65 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
-#include "../../errors/NullPointerException.hpp"
-#include "../../errors/TypeConversionException.hpp"
 #include "../../value/StringPool.hpp"
 
 namespace environment::registry
 {
+    namespace {
+        // Helper function to get string representation from an object's toString() method
+        std::optional<std::string> getObjectStringRepresentation(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& value,
+            const std::function<Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>, const std::string&, const std::vector<Value>&)>& methodCallHandler)
+        {
+            if (!value || !methodCallHandler) {
+                return std::nullopt;
+            }
+
+            auto classDef = value->getClassDefinition();
+            auto toStringMethod = classDef ? classDef->findMethod("toString", 0) : nullptr;
+
+            // No toString method or it's static - return nullopt
+            if (!toStringMethod || toStringMethod->isStatic()) {
+                return std::nullopt;
+            }
+
+            try {
+                Value result = methodCallHandler(value, "toString", {});
+
+                // Handle string result
+                if (std::holds_alternative<std::string>(result)) {
+                    return std::get<std::string>(result);
+                }
+
+                // Handle InternedString result
+                if (std::holds_alternative<value::InternedString>(result)) {
+                    return std::get<value::InternedString>(result).getString();
+                }
+
+                // Handle object result with value field
+                if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result)) {
+                    auto resultObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result);
+                    if (resultObj) {
+                        Value fieldValue = resultObj->getFieldValue("value");
+
+                        if (std::holds_alternative<std::string>(fieldValue)) {
+                            return std::get<std::string>(fieldValue);
+                        }
+
+                        if (std::holds_alternative<value::InternedString>(fieldValue)) {
+                            return std::get<value::InternedString>(fieldValue).getString();
+                        }
+                    }
+                }
+            }
+            catch (...) {
+                // If toString() fails, return nullopt to fall back to default representation
+            }
+
+            return std::nullopt;
+        }
+    }
+
     void NativeRegistry::initialize()
     {
         registerBuiltinFunctions();
@@ -94,33 +147,14 @@ namespace environment::registry
                         }
                         else
                         {
-                            // Try to call toString() method if it exists
-                            if (methodCallHandler)
-                            {
-                                auto classDef = value->getClassDefinition();
-                                if (classDef && classDef->hasMethod("toString"))
-                                {
-                                    auto toStringMethod = classDef->findMethod("toString", 0);
-                                    if (toStringMethod && !toStringMethod->isStatic())
-                                    {
-                                        try
-                                        {
-                                            Value result = methodCallHandler(value, "toString", {});
-                                            if (std::holds_alternative<std::string>(result))
-                                            {
-                                                std::cout << std::get<std::string>(result);
-                                                return;
-                                            }
-                                        }
-                                        catch (...)
-                                        {
-                                            // If toString() fails, fall back to default representation
-                                        }
-                                    }
-                                }
+                            // Try to get string representation from toString() method
+                            auto stringRep = getObjectStringRepresentation(value, methodCallHandler);
+                            if (stringRep.has_value()) {
+                                std::cout << stringRep.value();
+                            } else {
+                                // Default object representation
+                                std::cout << "[object " << value->getTypeName() << "]";
                             }
-                            // Default object representation
-                            std::cout << "[object " << value->getTypeName() << "]";
                         }
                     }
                 }, arg);
@@ -256,33 +290,6 @@ namespace environment::registry
                 else
                 {
                     return 0; // Default hash code for unknown types
-                }
-            }, args[0]);
-        });
-
-        // Add classNameObj function for getting class name of objects
-        registerNativeFunction("classNameObj", [](const std::vector<Value>& args) -> Value
-        {
-            if (args.size() != 1)
-            {
-                throw errors::ArgumentException("classNameObj expects exactly 1 argument");
-            }
-
-            return std::visit([](const auto& value) -> Value
-            {
-                if constexpr (std::is_same_v<
-                    std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-                {
-                    if (!value)
-                    {
-                        throw errors::NullPointerException("classNameObj function call");
-                    }
-                    // Return the class name of the object
-                    return value->getTypeName();
-                }
-                else
-                {
-                    throw errors::TypeConversionException("classNameObj can only be called on objects", "unknown", "object");
                 }
             }, args[0]);
         });

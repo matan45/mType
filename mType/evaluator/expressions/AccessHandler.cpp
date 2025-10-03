@@ -14,6 +14,7 @@
 #include "../../value/SparseMultiArray.hpp"
 #include <string>
 #include <vector>
+#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::klass;

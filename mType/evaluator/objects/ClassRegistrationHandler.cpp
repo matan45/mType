@@ -12,9 +12,13 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
+#include "../../errors/InheritanceException.hpp"
+#include "../validation/InheritanceValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
+#include "../../circularDependency/CircularDependencyDetector.hpp"
 #include <sstream>
+#include <iostream>
 
 using namespace errors;
 
@@ -57,6 +61,52 @@ namespace evaluator
 
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
+
+            // NEW: Handle inheritance if parent class specified
+            if (node->hasParentClass()) {
+                const std::string& parentClassName = node->getParentClassName();
+
+                // Validate parent class exists
+                validation::InheritanceValidator::validateParentClassExists(
+                    parentClassName,
+                    node->getLocation(),
+                    context);
+
+                // Validate no circular inheritance
+                static circularDependency::CircularDependencyDetector inheritanceDetector;
+                validation::InheritanceValidator::validateCircularInheritance(
+                    node->getClassName(),
+                    parentClassName,
+                    node->getLocation(),
+                    inheritanceDetector);
+
+                // Set parent class name in definition
+                classDef->setParentClassName(parentClassName);
+
+                // Extract base class name from generic type (e.g., "Container<T>" -> "Container")
+                std::string baseParentClassName = parentClassName;
+                size_t genericStart = parentClassName.find('<');
+                if (genericStart != std::string::npos) {
+                    baseParentClassName = parentClassName.substr(0, genericStart);
+                }
+
+                // Find parent class and link it (use base class name for lookup)
+                auto parentClass = env->findClass(baseParentClassName);
+                if (parentClass) {
+                    classDef->setParentClass(parentClass);
+
+                    // Register inheritance relationship in class registry (use base name)
+                    env->getClassRegistry()->registerInheritance(
+                        node->getClassName(),
+                        baseParentClassName);
+
+                    // Validate inheritance depth
+                    validation::InheritanceValidator::validateInheritanceDepth(
+                        node->getClassName(),
+                        node->getLocation(),
+                        context);
+                }
+            }
 
             // Add fields
             for (const auto& fieldPtr : node->getFields())
@@ -209,16 +259,36 @@ namespace evaluator
                 // Get shared_ptr to constructor body safely
                 auto bodyPtr = constructorNode->getBody();
 
+                // Create constructor definition with full type information
                 auto ctorDef = std::make_shared<ConstructorDefinition>(
-                    constructorNode->getParameters(),
+                    constructorNode->getParametersWithTypes(),
                     bodyPtr
                 );
+
+                // Copy super initializer if present
+                if (constructorNode->hasSuperInitializer()) {
+                    auto superInit = constructorNode->getSuperInitializer();
+                    // Convert raw pointer to shared_ptr
+                    ctorDef->setSuperInitializer(std::shared_ptr<::ast::nodes::classes::SuperConstructorCallNode>(
+                        superInit, [](auto*){})); // Empty deleter since we don't own the original
+                }
 
                 classDef->addConstructor(ctorDef);
             }
 
             // Validate interface implementations
             validateInterfaceImplementations(classDef);
+
+            // NEW: Validate method overrides if class has parent
+            if (classDef->hasParentClass()) {
+                auto parentClass = classDef->getParentClass();
+                if (parentClass) {
+                    validation::InheritanceValidator::validateMethodOverrides(
+                        classDef,
+                        parentClass,
+                        node->getLocation());
+                }
+            }
 
             // Register class
             registerClass(classDef);
