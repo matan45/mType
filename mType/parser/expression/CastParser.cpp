@@ -54,10 +54,25 @@ namespace parser::expression
         // Check for identifier (class/interface name)
         if (type == TokenType::IDENTIFIER)
         {
-            // Additional lookahead: if followed by ) or <, it's likely a cast
+            // Additional lookahead: if followed by ), it's likely a cast
             Token afterId = tokenStream.peekAhead(2); // Token after identifier
-            return (afterId.type == TokenType::RPAREN ||
-                    afterId.type == TokenType::LESS); // Generic: Circle<T>
+            if (afterId.type == TokenType::RPAREN)
+            {
+                return true; // Pattern: (Type)
+            }
+
+            // For generic types like (Circle<T>), we need more sophisticated checking
+            // Only treat it as a cast if the identifier starts with uppercase
+            // (by convention, types start with uppercase, variables with lowercase)
+            if (afterId.type == TokenType::LESS)
+            {
+                std::string idValue = nextToken.stringValue.getString();
+                // Check if first character is uppercase (type convention)
+                if (!idValue.empty() && std::isupper(idValue[0]))
+                {
+                    return true; // Likely a generic type cast
+                }
+            }
         }
 
         return false;

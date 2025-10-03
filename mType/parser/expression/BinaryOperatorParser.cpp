@@ -135,9 +135,14 @@ namespace parser::expression
         {
             return ParserUtils::parseBinaryOperators(tokenStream, parseNext, operators);
         }
-        catch (const std::exception&)
+        catch (const ParseException&)
         {
-            throw ParseException("Binary operator parsing failed", tokenStream.current().location);
+            // Re-throw parse exceptions to preserve error messages
+            throw;
+        }
+        catch (const std::exception& e)
+        {
+            throw ParseException("Binary operator parsing failed: " + std::string(e.what()), tokenStream.current().location);
         }
     }
 
