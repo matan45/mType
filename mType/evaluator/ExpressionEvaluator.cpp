@@ -630,7 +630,19 @@ namespace evaluator
         }
 
         // Handle null - null can be cast to any object type but not primitives
-        if (std::holds_alternative<std::monostate>(sourceValue)) {
+        ValueType sourceValueType = value::getValueType(sourceValue);
+
+        bool isSourceNull = (sourceValueType == ValueType::NULL_TYPE) ||
+                            std::holds_alternative<std::monostate>(sourceValue) ||
+                            std::holds_alternative<nullptr_t>(sourceValue);
+
+        // Also check for nullptr shared_ptr (null object reference)
+        if (!isSourceNull && std::holds_alternative<std::shared_ptr<ObjectInstance>>(sourceValue)) {
+            auto objPtr = std::get<std::shared_ptr<ObjectInstance>>(sourceValue);
+            isSourceNull = (objPtr == nullptr);
+        }
+
+        if (isSourceNull) {
             if (targetValueType == ValueType::OBJECT) {
                 return sourceValue; // null remains null
             }
@@ -641,8 +653,6 @@ namespace evaluator
                 node->getLocation()
             );
         }
-
-        ValueType sourceValueType = value::getValueType(sourceValue);
 
         // Primitive to primitive casting
         if (sourceValueType != ValueType::OBJECT && targetValueType != ValueType::OBJECT) {
