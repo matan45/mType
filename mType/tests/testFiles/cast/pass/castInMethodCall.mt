@@ -1,17 +1,17 @@
 // Test: Cast in method call
 class Animal {
-    void makeSound() {
+    function makeSound(): void {
         print("Generic sound");
     }
 }
 
 class Dog extends Animal {
-    void makeSound() {
+    function makeSound(): void {
         print("Woof");
     }
 }
 
-void processAnimal(Animal a) {
+function processAnimal(Animal a): void {
     a.makeSound();
 }
 

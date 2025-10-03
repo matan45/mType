@@ -1,7 +1,7 @@
 // Test: Safe downcast pattern (check before cast)
 class Animal {}
 class Dog extends Animal {
-    void bark() { print("Woof"); }
+    function bark(): void { print("Woof"); }
 }
 
 Animal animal = new Dog();

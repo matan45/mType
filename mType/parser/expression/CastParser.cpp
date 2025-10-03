@@ -31,7 +31,17 @@ namespace parser::expression
 
     bool CastParser::canParse(const TokenStream& stream) const
     {
-        return stream.check(TokenType::LPAREN) && isCastExpression();
+        if (!stream.check(TokenType::LPAREN)) {
+            return false;
+        }
+
+        try {
+            return isCastExpression();
+        } catch (...) {
+            // If any exception occurs during lookahead (e.g., bracket balancer errors),
+            // assume it's not a cast expression
+            return false;
+        }
     }
 
     bool CastParser::isCastExpression() const
@@ -55,7 +65,9 @@ namespace parser::expression
         if (type == TokenType::IDENTIFIER)
         {
             // Additional lookahead: if followed by ), it's likely a cast
+            // We're at '(', peek() gave us the identifier, so peekAhead(2) gives us what's after the identifier
             Token afterId = tokenStream.peekAhead(2); // Token after identifier
+
             if (afterId.type == TokenType::RPAREN)
             {
                 return true; // Pattern: (Type)

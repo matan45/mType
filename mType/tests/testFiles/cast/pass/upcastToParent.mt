@@ -2,19 +2,21 @@
 class Animal {
     string name;
 
-    Animal(string n) {
+    constructor(string n) {
         this.name = n;
     }
 
-    void speak() {
+    function speak(): void {
         print("Animal speaks");
     }
 }
 
 class Dog extends Animal {
-    Dog(string n) : super(n) {}
+    constructor(string n) {
+	 super(n);
+	}
 
-    void speak() {
+    function speak():void {
         print("Dog barks");
     }
 }

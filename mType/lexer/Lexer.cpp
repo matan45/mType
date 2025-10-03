@@ -579,9 +579,11 @@ namespace lexer
             return peekNextToken(); // Use existing method for offset 0
         }
 
-        // Simple approach: save state, advance, restore
-        // This is less efficient but more reliable than complex buffering
-        size_t originalPos = pos;
+        // Save complete lexer state
+        size_t savedPos = pos;
+        int savedLine = locationTracker->getCurrentLine();
+        int savedColumn = locationTracker->getCurrentColumn();
+        std::stack<char> savedBalanceStack = bracketBalancer->copyStack();
 
         // Advance to the target token
         Token result;
@@ -594,8 +596,21 @@ namespace lexer
             }
         }
 
-        // Restore original position
-        pos = originalPos;
+        // Restore complete lexer state
+        pos = savedPos;
+        locationTracker->setPosition(savedLine, savedColumn);
+
+        // Restore bracket balancer stack
+        bracketBalancer->clear();
+        std::stack<char> tempStack = savedBalanceStack;
+        std::vector<char> stackContents;
+        while (!tempStack.empty()) {
+            stackContents.push_back(tempStack.top());
+            tempStack.pop();
+        }
+        for (auto it = stackContents.rbegin(); it != stackContents.rend(); ++it) {
+            bracketBalancer->pushOpening(*it);
+        }
 
         return result;
     }

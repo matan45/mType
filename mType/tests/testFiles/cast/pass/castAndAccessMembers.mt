@@ -2,7 +2,7 @@
 class Vehicle {
     int wheels;
 
-    Vehicle(int w) {
+    constructor(int w) {
         this.wheels = w;
     }
 }
@@ -10,7 +10,8 @@ class Vehicle {
 class Car extends Vehicle {
     string model;
 
-    Car(int w, string m) : super(w) {
+    constructor(int w, string m) {
+		super(w);
         this.model = m;
     }
 }
