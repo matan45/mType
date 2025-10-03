@@ -399,13 +399,22 @@ namespace evaluator::utils
         const std::unordered_map<std::string, std::string>& substitutionMap)
     {
         // Get the original parameters and substitute their types
-        auto originalParams = originalConstructor->getParameters();
-        std::vector<std::pair<std::string, value::ValueType>> newParams;
+        auto originalParams = originalConstructor->getParametersWithTypes();
+        std::vector<std::pair<std::string, value::ParameterType>> newParams;
         newParams.reserve(originalParams.size());
 
         for (const auto& [paramName, paramType] : originalParams)
         {
-            value::ValueType newParamType = substituteFieldType(paramType, substitutionMap);
+            value::ValueType newBasicType = substituteFieldType(paramType.basicType, substitutionMap);
+
+            // Create new ParameterType preserving class/interface information
+            value::ParameterType newParamType(newBasicType);
+            if (paramType.isInterface()) {
+                newParamType = value::ParameterType::forInterface(paramType.getInterfaceName());
+            } else if (paramType.isClass()) {
+                newParamType = value::ParameterType::forClass(paramType.getClassName());
+            }
+
             newParams.emplace_back(paramName, newParamType);
         }
 

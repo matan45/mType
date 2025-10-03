@@ -16,7 +16,6 @@ namespace ast::nodes::classes
             const SourceLocation& loc = SourceLocation());
 
         const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
-        std::vector<std::unique_ptr<ASTNode>>& getArguments();
         size_t getArgumentCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;

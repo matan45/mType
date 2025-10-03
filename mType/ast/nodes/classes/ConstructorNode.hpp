@@ -15,27 +15,21 @@ namespace ast::nodes::classes
     class ConstructorNode : public ASTNode
     {
     private:
-        std::vector<std::pair<std::string, ValueType>> parameters;
         std::vector<std::pair<std::string, ParameterType>> parametersWithTypes;
         std::shared_ptr<ASTNode> body;
         std::unique_ptr<SuperConstructorCallNode> superInitializer;
 
+        // Cached computed property - lazily computed from parametersWithTypes
+        mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
+        mutable bool parametersCacheValid = false;
+
     public:
-        // Constructor accepting shared_ptr (old format)
-        explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
-                                 std::shared_ptr<ASTNode> constructorBody,
-                                 const SourceLocation& loc = SourceLocation());
-
-        // Constructor accepting unique_ptr for backward compatibility (old format)
-        explicit ConstructorNode(std::vector<std::pair<std::string, ValueType>> params,
-                                 std::unique_ptr<ASTNode> constructorBody,
-                                 const SourceLocation& loc = SourceLocation());
-
-        // NEW: Constructor with ParameterType (preserves class/interface information)
+        // Constructor with ParameterType (preserves class/interface information)
         explicit ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
                                  std::shared_ptr<ASTNode> constructorBody,
                                  const SourceLocation& loc = SourceLocation());
 
+        // Computed property - derives from parametersWithTypes
         const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
 
         // NEW: Get parameters with full type information
@@ -48,7 +42,6 @@ namespace ast::nodes::classes
         // For code that just needs to read
         [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
 
-        void setParameters(std::vector<std::pair<std::string, ValueType>> params);
         void setBody(std::shared_ptr<ASTNode> constructorBody);
 
         // Super initializer accessors

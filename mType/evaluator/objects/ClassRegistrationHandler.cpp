@@ -259,20 +259,11 @@ namespace evaluator
                 // Get shared_ptr to constructor body safely
                 auto bodyPtr = constructorNode->getBody();
 
-                // Use the new constructor format if available (preserves class/interface information)
-                std::shared_ptr<ConstructorDefinition> ctorDef;
-                if (constructorNode->hasParametersWithTypes()) {
-                    ctorDef = std::make_shared<ConstructorDefinition>(
-                        constructorNode->getParametersWithTypes(),
-                        bodyPtr
-                    );
-                } else {
-                    // Fallback to old format
-                    ctorDef = std::make_shared<ConstructorDefinition>(
-                        constructorNode->getParameters(),
-                        bodyPtr
-                    );
-                }
+                // Create constructor definition with full type information
+                auto ctorDef = std::make_shared<ConstructorDefinition>(
+                    constructorNode->getParametersWithTypes(),
+                    bodyPtr
+                );
 
                 // Copy super initializer if present
                 if (constructorNode->hasSuperInitializer()) {

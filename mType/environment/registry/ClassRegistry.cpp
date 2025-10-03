@@ -22,6 +22,15 @@ namespace environment::registry
     void ClassRegistry::removeItem(const std::string& name)
     {
         classes.erase(name);
+
+        // Invalidate cache when a class is removed
+        inheritanceChainCache.erase(name);
+
+        // Also invalidate any class that had this as a parent
+        auto children = getChildClasses(name);
+        for (const auto& child : children) {
+            inheritanceChainCache.erase(child);
+        }
     }
 
     std::vector<std::string> ClassRegistry::getAllItemNames() const
@@ -73,6 +82,16 @@ namespace environment::registry
         // Update child->parent mapping
         childToParent[childName] = parentName;
 
+        // Invalidate cache for affected classes
+        // When we register a new inheritance, any cached chains involving the child need to be invalidated
+        inheritanceChainCache.erase(childName);
+
+        // Also invalidate all descendants of the child (they now have a longer chain)
+        auto descendants = getChildClasses(childName);
+        for (const auto& descendant : descendants) {
+            inheritanceChainCache.erase(descendant);
+        }
+
         // Update ClassDefinition relationships if both classes exist
         auto childClass = findClass(childName);
         auto parentClass = findClass(parentName);
@@ -119,6 +138,13 @@ namespace environment::registry
 
     std::vector<std::shared_ptr<ClassDefinition>> ClassRegistry::getInheritanceChain(const std::string& className) const
     {
+        // Check cache first
+        auto cacheIt = inheritanceChainCache.find(className);
+        if (cacheIt != inheritanceChainCache.end()) {
+            return cacheIt->second;
+        }
+
+        // Compute inheritance chain
         std::vector<std::shared_ptr<ClassDefinition>> chain;
 
         auto classIt = childToParent.find(className);
@@ -134,6 +160,9 @@ namespace environment::registry
             classIt = childToParent.find(classIt->second);
             depth++;
         }
+
+        // Cache the result
+        inheritanceChainCache[className] = chain;
 
         return chain;
     }

@@ -18,6 +18,9 @@ namespace environment::registry
         std::unordered_map<std::string, std::vector<std::string>> parentToChildren; // Parent -> List of children
         std::unordered_map<std::string, std::string> childToParent; // Child -> Parent
 
+        // Memoization cache for inheritance chains
+        mutable std::unordered_map<std::string, std::vector<std::shared_ptr<ClassDefinition>>> inheritanceChainCache;
+
     public:
         explicit ClassRegistry() = default;
         ~ClassRegistry() = default;
@@ -37,10 +40,10 @@ namespace environment::registry
 
         // NEW: Inheritance relationship management
         void registerInheritance(const std::string& childName, const std::string& parentName);
-        bool wouldCreateCycle(const std::string& childName, const std::string& parentName) const;
-        std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain(const std::string& className) const;
-        std::vector<std::string> getChildClasses(const std::string& parentName) const;
-        std::string getParentClass(const std::string& childName) const;
+        [[nodiscard]] bool wouldCreateCycle(const std::string& childName, const std::string& parentName) const;
+        [[nodiscard]] std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain(const std::string& className) const;
+        [[nodiscard]] std::vector<std::string> getChildClasses(const std::string& parentName) const;
+        [[nodiscard]] std::string getParentClass(const std::string& childName) const;
 
     private:
         // Helper method for cycle detection
