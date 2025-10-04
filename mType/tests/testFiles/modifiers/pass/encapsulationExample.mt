@@ -2,21 +2,21 @@
 class PositiveCounter {
     private int count;
 
-    public PositiveCounter() {
+    constructor() {
         count = 0;
     }
 
-    public void increment() {
-        count = count + 1;
+    public function increment(): void {
+        count = count++;
     }
 
-    public void decrement() {
+    public function decrement(): void {
         if (count > 0) {
-            count = count - 1;
+            count = count--;
         }
     }
 
-    public int getCount() {
+    public function getCount(): int {
         return count;
     }
 }

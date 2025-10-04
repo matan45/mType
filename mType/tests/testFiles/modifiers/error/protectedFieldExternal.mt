@@ -2,11 +2,11 @@
 class Item {
     protected int itemID;
 
-    public Item(int id) {
+    constructor(int id) {
         itemID = id;
     }
 
-    public int getID() {
+    public function getID(): int {
         return itemID;
     }
 }

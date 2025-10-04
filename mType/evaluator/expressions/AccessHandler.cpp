@@ -12,6 +12,8 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../validation/AccessValidator.hpp"
+#include "../base/AccessContext.hpp"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -252,6 +254,16 @@ namespace evaluator
                 {
                     throw UndefinedException("Undefined field: " + node->getMemberName(), node->getLocation());
                 }
+
+                // ACCESS CONTROL: Validate field access permissions
+                auto classDef = object->getClassDefinition();
+                auto callingInstance = context->getCurrentInstance();
+                auto accessContext = base::AccessContext::forInstanceAccess(
+                    callingInstance,
+                    classDef,
+                    node->getLocation()
+                );
+                validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
                 return object->getFieldValue(node->getMemberName());
             }

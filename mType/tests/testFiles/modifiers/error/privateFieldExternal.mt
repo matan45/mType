@@ -2,7 +2,7 @@
 class Secret {
     private int code;
 
-    public Secret(int c) {
+    public function Secret(int c): void {
         code = c;
     }
 }

@@ -2,19 +2,19 @@
 class Temperature {
     private float celsius;
 
-    public Temperature(float c) {
+    constructor(float c) {
         celsius = c;
     }
 
-    public float getCelsius() {
+    public function getCelsius(): float {
         return celsius;
     }
 
-    public void setCelsius(float c) {
+    public function setCelsius(float c): void {
         celsius = c;
     }
 
-    public float getFahrenheit() {
+    public function getFahrenheit(): float {
         return (celsius * 9.0 / 5.0) + 32.0;
     }
 }

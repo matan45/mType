@@ -1,10 +1,10 @@
 // Test: Protected method access violation from external context
 class Processor {
-    protected void process() {
+    protected function process(): void {
         print("Processing...");
     }
 
-    public void execute() {
+    public function execute(): void {
         process();
     }
 }

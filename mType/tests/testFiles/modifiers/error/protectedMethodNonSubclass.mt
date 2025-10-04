@@ -1,12 +1,12 @@
 // Test: Protected method access from non-subclass
 class ServiceA {
-    protected void doWork() {
+    protected function doWork(): void {
         print("Working...");
     }
 }
 
 class ServiceB {
-    public void callWork(ServiceA service) {
+    public function callWork(ServiceA service): void {
         service.doWork();  // ERROR: Cannot access protected method (not a subclass)
     }
 }

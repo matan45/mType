@@ -2,11 +2,11 @@
 class Restricted {
     public int value;
 
-    private Restricted() {
+    private constructor() {
         value = 100;
     }
 
-    public static Restricted create() {
+    public static function create():  Restricted {
         return new Restricted();
     }
 }

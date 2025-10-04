@@ -2,7 +2,7 @@
 class Widget {
     public int id;
 
-    Widget(int wid) {  // No modifier = public by default
+    constructor(int wid) {  // No modifier = public by default
         id = wid;
     }
 }

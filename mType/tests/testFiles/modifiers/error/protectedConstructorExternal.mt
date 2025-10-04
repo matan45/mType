@@ -2,7 +2,7 @@
 class BaseEntity {
     public int id;
 
-    protected BaseEntity(int entityID) {
+    protected constructor(int entityID) {
         id = entityID;
     }
 }

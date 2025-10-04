@@ -2,11 +2,11 @@
 class SecretBox {
     int secret;  // No modifier = private by default
 
-    public SecretBox(int s) {
+    public function SecretBox(int s): void {
         secret = s;  // Private field accessible in same class
     }
 
-    public int reveal() {
+    public function reveal(): int {
         return secret;  // Private field accessible in same class
     }
 }

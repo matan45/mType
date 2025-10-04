@@ -1,10 +1,10 @@
 // Test: Private method access violation from external context
 class Helper {
-    private int calculate(int x) {
+    private function calculate(int x): int {
         return x * 2;
     }
 
-    public int doubleValue(int x) {
+    public function doubleValue(int x): int {
         return calculate(x);
     }
 }

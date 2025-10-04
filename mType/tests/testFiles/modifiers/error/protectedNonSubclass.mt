@@ -2,13 +2,13 @@
 class ClassA {
     protected int protectedValue;
 
-    public ClassA(int val) {
+    constructor(int val) {
         protectedValue = val;
     }
 }
 
 class ClassB {
-    public void tryAccess(ClassA obj) {
+    public function tryAccess(ClassA obj): void {
         print(obj.protectedValue);  // ERROR: Cannot access protected field (not a subclass)
     }
 }
