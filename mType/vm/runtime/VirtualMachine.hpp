@@ -9,6 +9,14 @@
 namespace vm::runtime
 {
     /**
+     * Simple bytecode lambda representation
+     */
+    struct BytecodeLambda {
+        size_t instructionPointer;  // Where the lambda code starts
+        size_t parameterCount;      // Number of parameters
+    };
+
+    /**
      * Stack-based virtual machine for executing bytecode
      * Provides high-performance execution of compiled mType programs
      */
@@ -146,6 +154,7 @@ namespace vm::runtime
 
         // Array operations
         void handleNewArray(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr);
         void handleArrayGet();
         void handleArraySet();
         void handleArrayLength();
@@ -154,10 +163,15 @@ namespace vm::runtime
         void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Lambda operations
+        void handleLambda(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLambdaInvoke(const bytecode::BytecodeProgram::Instruction& instr);
+
         // Helper methods
         bool isTruthy(const value::Value& val) const;
         std::string valueToString(const value::Value& val) const;
         value::Value performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op);
         void checkStackUnderflow(size_t required) const;
+        std::shared_ptr<value::NativeArray> createNestedArray(const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName);
     };
 }

@@ -1,6 +1,9 @@
 #include "VirtualMachine.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/NativeArray.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -151,6 +154,7 @@ namespace vm::runtime
 
             // Arrays
             case OpCode::NEW_ARRAY: handleNewArray(instr); break;
+            case OpCode::NEW_ARRAY_MULTI: handleNewArrayMulti(instr); break;
             case OpCode::ARRAY_GET: handleArrayGet(); break;
             case OpCode::ARRAY_SET: handleArraySet(); break;
             case OpCode::ARRAY_LENGTH: handleArrayLength(); break;
@@ -158,6 +162,10 @@ namespace vm::runtime
             // Type operations
             case OpCode::INSTANCEOF: handleInstanceof(instr); break;
             case OpCode::CAST: handleCast(instr); break;
+
+            // Lambda operations
+            case OpCode::LAMBDA: handleLambda(instr); break;
+            case OpCode::LAMBDA_INVOKE: handleLambdaInvoke(instr); break;
 
             // Special
             case OpCode::HALT:
@@ -680,57 +688,550 @@ namespace vm::runtime
     // === Object Operations ===
 
     void VirtualMachine::handleNewObject(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement object creation
-        throw errors::RuntimeException("NEW_OBJECT not yet implemented");
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("NEW_OBJECT requires 2 operands: class name index and arg count");
+        }
+
+        // Get class name from constant pool (may include generics like "Box<Int>")
+        const std::string& fullClassName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Parse generic type arguments from className
+        std::string baseClassName = fullClassName;
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+
+        size_t genericStart = fullClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genericStart);
+
+            // Extract type arguments: "Box<Int>" -> ["Int"], "Map<String,Int>" -> ["String", "Int"]
+            size_t genericEnd = fullClassName.rfind('>');
+            if (genericEnd != std::string::npos && genericEnd > genericStart) {
+                std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
+
+                // For now, we store the full type string as a binding
+                // The runtime type resolution system will handle this
+                // Example: T -> Int, K -> String, V -> Int
+            }
+        }
+
+        // Pop constructor arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Get class definition from environment
+        auto classRegistry = environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available");
+        }
+
+        // Look up the base class (without generic parameters)
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class not found: " + baseClassName);
+        }
+
+        // Create new object instance with generic type bindings
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
+
+        // Initialize instance fields with default values
+        for (const auto& [fieldName, fieldDef] : classDef->getInstanceFields()) {
+            instance->setField(fieldName, nullptr);  // Initialize to null
+        }
+
+        // Find and call constructor
+        auto constructor = classDef->findConstructor(argCount);
+        if (!constructor) {
+            // No matching constructor found
+            if (argCount == 0) {
+                // Default constructor - just return the object
+                push(instance);
+                return;
+            }
+            throw errors::RuntimeException("No constructor found for " + baseClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Call constructor - it will initialize the object and return it
+        // For bytecode: Look up constructor function by name "<init>"
+        auto funcMetadata = program->getFunction("<init>");
+        if (funcMetadata) {
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size();
+            frame.localBase = operandStack.size();
+            frame.functionName = "<init>";
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Create a new scope for the constructor
+            environment->enterScope();
+
+            // Declare 'this' parameter
+            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "this", value::ValueType::OBJECT, instance, false);
+            environment->declareVariable("this", thisDef);
+
+            // Declare constructor parameters
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
+                const value::Value& argValue = args[i];
+                value::ValueType type = value::getValueType(argValue);
+
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+                environment->declareVariable(paramName, varDef);
+            }
+
+            // Jump to constructor start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+        } else {
+            // No bytecode constructor, just push the instance
+            push(instance);
+        }
     }
 
     void VirtualMachine::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement field access
-        throw errors::RuntimeException("GET_FIELD not yet implemented");
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("GET_FIELD requires operand");
+        }
+
+        // Get field name from constant pool
+        const std::string& fieldName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop object from stack
+        value::Value objectValue = pop();
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+            throw errors::RuntimeException("GET_FIELD requires an object instance");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+        // Get field definition to check access modifiers
+        auto fieldDef = instance->getField(fieldName);
+        if (fieldDef) {
+            // TODO: Check access modifiers (public/private/protected)
+            // For now, we allow all access (similar to AST interpreter default behavior)
+            // Access modifier checks would be:
+            // - PUBLIC: Always accessible
+            // - PRIVATE: Only accessible from same class
+            // - PROTECTED: Accessible from same class and subclasses
+        }
+
+        // Get field value
+        value::Value fieldValue = instance->getFieldValue(fieldName);
+        push(fieldValue);
     }
 
     void VirtualMachine::handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement field assignment
-        throw errors::RuntimeException("SET_FIELD not yet implemented");
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("SET_FIELD requires operand");
+        }
+
+        // Get field name from constant pool
+        const std::string& fieldName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop value and object from stack
+        value::Value fieldValue = pop();
+        value::Value objectValue = pop();
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+            throw errors::RuntimeException("SET_FIELD requires an object instance");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+        // Set field value
+        instance->setField(fieldName, fieldValue);
+
+        // Push value back for assignment expressions
+        push(fieldValue);
     }
 
     void VirtualMachine::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement method calls
-        throw errors::RuntimeException("CALL_METHOD not yet implemented");
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("CALL_METHOD requires 2 operands");
+        }
+
+        // Get method name and argument count
+        const std::string& methodName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Pop arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Pop object from stack
+        value::Value objectValue = pop();
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+            throw errors::RuntimeException("CALL_METHOD requires an object instance");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+        // Find method in class hierarchy
+        auto classDef = instance->getClassDefinition();
+        auto method = classDef->findMethod(methodName, argCount);
+
+        if (!method) {
+            throw errors::RuntimeException("Method not found: " + methodName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Look up method in bytecode functions
+        auto funcMetadata = program->getFunction(methodName);
+        if (funcMetadata) {
+            // Calculate frameBase BEFORE any stack modifications
+            size_t frameBase = operandStack.size();
+
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = operandStack.size();
+            frame.functionName = methodName;
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Create a new scope for the method
+            environment->enterScope();
+
+            // Declare 'this' parameter
+            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "this", value::ValueType::OBJECT, instance, false);
+            environment->declareVariable("this", thisDef);
+
+            // Declare method parameters
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
+                const value::Value& argValue = args[i];
+                value::ValueType type = value::getValueType(argValue);
+
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+                environment->declareVariable(paramName, varDef);
+            }
+
+            // Jump to method start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+        } else {
+            // Try to call as native/interpreted method
+            value::Value result = instance->callMethod(methodName, args);
+            push(result);
+        }
     }
 
     // === Array Operations ===
 
     void VirtualMachine::handleNewArray(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement array creation
-        throw errors::RuntimeException("NEW_ARRAY not yet implemented");
+        // Get element type name from constant pool
+        const std::string& elementTypeName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop array size from stack
+        value::Value sizeVal = pop();
+        int size = std::get<int>(sizeVal);
+
+        if (size < 0) {
+            throw errors::RuntimeException("Array size cannot be negative: " + std::to_string(size));
+        }
+
+        // Create new NativeArray
+        auto array = std::make_shared<value::NativeArray>(size, value::ValueType::OBJECT, elementTypeName);
+
+        // Push array onto stack
+        push(array);
+    }
+
+    void VirtualMachine::handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Get element type name from constant pool
+        const std::string& elementTypeName = program->getConstantPool().getString(instr.operands[0]);
+        size_t dimensionCount = instr.operands[1];
+
+        // Pop dimension sizes from stack (in reverse order - last dimension first)
+        std::vector<int> dimensions;
+        dimensions.reserve(dimensionCount);
+        for (size_t i = 0; i < dimensionCount; ++i) {
+            value::Value sizeVal = pop();
+            int size = std::get<int>(sizeVal);
+            if (size < 0) {
+                throw errors::RuntimeException("Array dimension size cannot be negative: " + std::to_string(size));
+            }
+            dimensions.push_back(size);
+        }
+        std::reverse(dimensions.begin(), dimensions.end());
+
+        // For now, create using FlatMultiArray or nested arrays
+        // Simple approach: create nested single-dimensional arrays
+        // TODO: Use FlatMultiArray for better performance
+
+        // Create the innermost arrays first, then work outward
+        std::shared_ptr<value::NativeArray> result = createNestedArray(dimensions, 0, elementTypeName);
+        push(result);
     }
 
     void VirtualMachine::handleArrayGet() {
-        // TODO: Implement array element access
-        throw errors::RuntimeException("ARRAY_GET not yet implemented");
+        // Pop index from stack
+        value::Value indexVal = pop();
+        int index = std::get<int>(indexVal);
+
+        // Pop array from stack
+        value::Value arrayVal = pop();
+        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+
+        // Bounds check
+        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
+            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                         " for array of size " + std::to_string(array->size()));
+        }
+
+        // Get element and push onto stack
+        value::Value element = array->get(index);
+        push(element);
     }
 
     void VirtualMachine::handleArraySet() {
-        // TODO: Implement array element assignment
-        throw errors::RuntimeException("ARRAY_SET not yet implemented");
+        // Pop value from stack
+        value::Value valueToSet = pop();
+
+        // Pop index from stack
+        value::Value indexVal = pop();
+        int index = std::get<int>(indexVal);
+
+        // Pop array from stack
+        value::Value arrayVal = pop();
+        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+
+        // Bounds check
+        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
+            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                         " for array of size " + std::to_string(array->size()));
+        }
+
+        // Set element
+        array->set(index, valueToSet);
     }
 
     void VirtualMachine::handleArrayLength() {
-        // TODO: Implement array length
-        throw errors::RuntimeException("ARRAY_LENGTH not yet implemented");
+        // Pop array from stack
+        value::Value arrayVal = pop();
+        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+
+        // Get length and push as integer onto stack
+        int length = static_cast<int>(array->size());
+        push(length);
     }
 
     // === Type Operations ===
 
     void VirtualMachine::handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement instanceof check
-        throw errors::RuntimeException("INSTANCEOF not yet implemented");
+        // Get target type name from constant pool
+        const std::string& targetTypeName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop value to check
+        value::Value val = pop();
+
+        bool result = false;
+
+        // Check type based on target type
+        if (targetTypeName == "Int" || targetTypeName == "int") {
+            result = std::holds_alternative<int>(val);
+        }
+        else if (targetTypeName == "Float" || targetTypeName == "float") {
+            result = std::holds_alternative<float>(val);
+        }
+        else if (targetTypeName == "Bool" || targetTypeName == "bool") {
+            result = std::holds_alternative<bool>(val);
+        }
+        else if (targetTypeName == "String" || targetTypeName == "string") {
+            result = std::holds_alternative<std::string>(val) || std::holds_alternative<value::InternedString>(val);
+        }
+        else {
+            // Object type check
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+
+                if (obj) {
+                    // Get object's class name
+                    std::string className = obj->getClassDefinition()->getName();
+
+                    // Check if object's class matches or is subclass of target type
+                    // For now, simple string comparison
+                    // TODO: Add proper inheritance hierarchy checking
+                    result = (className == targetTypeName);
+
+                    // Also check if object implements an interface with that name
+                    if (!result) {
+                        const auto& interfaces = obj->getClassDefinition()->getImplementedInterfaces();
+                        for (const auto& iface : interfaces) {
+                            if (iface == targetTypeName) {
+                                result = true;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    result = false; // null is not instance of any type
+                }
+            }
+            else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
+                result = false; // null is not instance of any type
+            }
+            else {
+                result = false; // primitive values are not instances of object types
+            }
+        }
+
+        // Push boolean result onto stack
+        push(result);
     }
 
     void VirtualMachine::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement type casting
-        throw errors::RuntimeException("CAST not yet implemented");
+        // Get target type name from constant pool
+        const std::string& targetTypeName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop value to cast
+        value::Value val = pop();
+
+        // Perform casting based on target type
+        if (targetTypeName == "Int" || targetTypeName == "int") {
+            // Cast to int
+            if (std::holds_alternative<int>(val)) {
+                push(val); // Already int
+            }
+            else if (std::holds_alternative<float>(val)) {
+                push(static_cast<int>(std::get<float>(val)));
+            }
+            else if (std::holds_alternative<bool>(val)) {
+                push(std::get<bool>(val) ? 1 : 0);
+            }
+            else if (std::holds_alternative<std::string>(val)) {
+                try {
+                    push(std::stoi(std::get<std::string>(val)));
+                } catch (...) {
+                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val));
+                }
+            }
+            else {
+                throw errors::RuntimeException("Cannot cast to int from this type");
+            }
+        }
+        else if (targetTypeName == "Float" || targetTypeName == "float") {
+            // Cast to float
+            if (std::holds_alternative<float>(val)) {
+                push(val); // Already float
+            }
+            else if (std::holds_alternative<int>(val)) {
+                push(static_cast<float>(std::get<int>(val)));
+            }
+            else if (std::holds_alternative<std::string>(val)) {
+                try {
+                    push(std::stof(std::get<std::string>(val)));
+                } catch (...) {
+                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val));
+                }
+            }
+            else {
+                throw errors::RuntimeException("Cannot cast to float from this type");
+            }
+        }
+        else if (targetTypeName == "String" || targetTypeName == "string") {
+            // Cast to string
+            push(valueToString(val));
+        }
+        else {
+            // Object cast - check if it's a valid object type
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+
+                // For now, just verify the object exists and push it back
+                // TODO: Add proper type hierarchy checking
+                if (obj) {
+                    push(obj);
+                } else {
+                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
+                }
+            }
+            else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
+                push(val); // null remains null for object casts
+            }
+            else {
+                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName);
+            }
+        }
+    }
+
+    // === Lambda Operations ===
+
+    void VirtualMachine::handleLambda(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Get lambda function start address and parameter count
+        size_t lambdaStart = instr.operands[0];
+        size_t paramCount = instr.operands[1];
+
+        // Create bytecode lambda
+        auto lambda = std::make_shared<BytecodeLambda>();
+        lambda->instructionPointer = lambdaStart;
+        lambda->parameterCount = paramCount;
+
+        // Push lambda value onto stack
+        push(lambda);
+    }
+
+    void VirtualMachine::handleLambdaInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Pop argument count
+        size_t argCount = instr.operands[0];
+
+        // Pop arguments from stack
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Pop lambda value from stack
+        value::Value lambdaVal = pop();
+        auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(lambdaVal);
+
+        size_t lambdaStart = lambda->instructionPointer;
+        size_t paramCount = lambda->parameterCount;
+
+        // Validate argument count
+        if (args.size() != paramCount) {
+            throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
+                                         " arguments but got " + std::to_string(args.size()));
+        }
+
+        // Create call frame
+        CallFrame frame;
+        frame.returnAddress = instructionPointer;  // Return to next instruction
+        frame.frameBase = operandStack.size();
+        frame.localBase = operandStack.size();
+        frame.functionName = "<lambda>";
+
+        callStack.push_back(frame);
+
+        // Push arguments onto stack (they become local variables)
+        for (const auto& arg : args) {
+            push(arg);
+        }
+
+        // Jump to lambda start
+        instructionPointer = lambdaStart;
     }
 
     // === Helper Methods ===
@@ -843,5 +1344,32 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+    }
+
+    std::shared_ptr<value::NativeArray> VirtualMachine::createNestedArray(
+        const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName)
+    {
+        if (dimIndex >= dimensions.size()) {
+            throw errors::RuntimeException("Invalid dimension index in multi-dimensional array creation");
+        }
+
+        int currentDimSize = dimensions[dimIndex];
+
+        if (dimIndex == dimensions.size() - 1) {
+            // Last dimension - create array of actual elements
+            return std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, elementTypeName);
+        }
+        else {
+            // Not last dimension - create array of arrays
+            auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+
+            // Fill with nested arrays
+            for (int i = 0; i < currentDimSize; ++i) {
+                auto innerArray = createNestedArray(dimensions, dimIndex + 1, elementTypeName);
+                outerArray->set(i, innerArray);
+            }
+
+            return outerArray;
+        }
     }
 }

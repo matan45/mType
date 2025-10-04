@@ -27,6 +27,26 @@
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
+#include "../../ast/nodes/classes/ClassNode.hpp"
+#include "../../ast/nodes/classes/MethodNode.hpp"
+#include "../../ast/nodes/classes/FieldNode.hpp"
+#include "../../ast/nodes/classes/ConstructorNode.hpp"
+#include "../../ast/nodes/classes/NewNode.hpp"
+#include "../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../ast/nodes/classes/InterfaceNode.hpp"
+#include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../ast/nodes/expressions/CastExpression.hpp"
+#include "../../ast/nodes/expressions/InstanceOfExpression.hpp"
+#include "../../ast/nodes/statements/ImportNode.hpp"
+#include "../../value/LambdaValue.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -582,7 +602,87 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitForEachNode(ast::ForEachNode* node)
     {
-        throw std::runtime_error("ForEach compilation not yet implemented");
+        // ForEach loop: for (Type element : collection) { body }
+        // Compiles to:
+        // 1. Evaluate collection
+        // 2. Get iterator/length
+        // 3. Loop: get next element, assign to variable, execute body
+
+        std::string varName = node->getVariableName();
+        value::ValueType varType = node->getVariableType();
+
+        // Compile the collection expression
+        node->getCollection()->accept(*this);
+
+        // Duplicate collection on stack for iteration
+        program.emit(bytecode::OpCode::DUP);
+
+        // Get collection length/size
+        // For arrays: use .length field
+        // For collections: call .size() method or iterate directly
+        program.emit(bytecode::OpCode::ARRAY_LENGTH);  // Will work for arrays
+
+        // Initialize loop counter (stored in local variable)
+        program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(0)));
+        size_t counterIndex = program.getConstantPool().addString("__foreach_counter__");
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(0)); // Counter at slot 0
+
+        // Loop start
+        size_t loopStart = program.getCurrentOffset();
+
+        // Load counter and length, compare
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
+        program.emit(bytecode::OpCode::SWAP); // Swap to get: counter, length
+        program.emit(bytecode::OpCode::DUP);  // Duplicate length: counter, length, length
+        program.emit(bytecode::OpCode::SWAP); // Swap: counter, length, length -> length, counter, length
+        // Stack: length, counter, length
+
+        // Compare counter < length
+        size_t loopConditionOffset = program.getCurrentOffset();
+        program.emit(bytecode::OpCode::LT); // counter < length
+
+        // Jump to end if false
+        size_t exitJump = emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+        // Get current element: collection[counter]
+        program.emit(bytecode::OpCode::DUP);  // Duplicate collection
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
+        program.emit(bytecode::OpCode::ARRAY_GET); // Get collection[counter]
+
+        // Declare loop variable and assign current element
+        size_t varNameIndex = program.getConstantPool().addString(varName);
+        program.emit(bytecode::OpCode::DECLARE_VAR, static_cast<uint32_t>(varNameIndex));
+
+        // Compile loop body
+        auto* body = node->getBody();
+        if (body) {
+            // Track loop for break/continue
+            LoopContext ctx;
+            ctx.loopStart = loopStart;
+            ctx.continueTarget = loopStart;  // Continue jumps back to loop condition
+            loopStack.push_back(ctx);
+
+            body->accept(*this);
+
+            loopStack.pop_back();
+        }
+
+        // Increment counter
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
+        program.emit(bytecode::OpCode::INC); // Increment
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(0)); // Store counter
+
+        // Jump back to loop start
+        emitLoop(loopStart);
+
+        // Patch exit jump
+        patchJump(exitJump);
+
+        // Clean up stack (pop collection and length)
+        program.emit(bytecode::OpCode::POP);
+        program.emit(bytecode::OpCode::POP);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitSwitchNode(ast::SwitchNode* node)
@@ -780,97 +880,646 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitClassNode(ast::ClassNode* node)
     {
-        throw std::runtime_error("Class compilation not yet implemented");
+        std::string className = node->getClassName();
+
+        // Register class metadata (for runtime type checking and instanceof)
+        size_t classNameIndex = program.getConstantPool().addString(className);
+
+        // Handle generics - store generic parameter names
+        if (node->isGeneric()) {
+            const auto& genericParams = node->getGenericParameters();
+            for (const auto& param : genericParams) {
+                size_t paramNameIndex = program.getConstantPool().addString(param.name);
+                // Generic parameters are stored in constant pool for type resolution
+            }
+        }
+
+        // Handle inheritance - store parent class name if present
+        if (node->hasParentClass()) {
+            std::string parentClassName = node->getParentClassName();
+            size_t parentNameIndex = program.getConstantPool().addString(parentClassName);
+            // The parent class relationship is handled at runtime by the environment
+            // We just need to ensure the metadata is available
+        }
+
+        // Handle interfaces - store interface names
+        const auto& interfaces = node->getImplementedInterfaces();
+        for (const auto& interfaceName : interfaces) {
+            size_t interfaceNameIndex = program.getConstantPool().addString(interfaceName);
+            // Interfaces are also handled at runtime
+        }
+
+        // Classes are registered at compile-time in the environment
+        // The actual class instantiation happens with NEW_OBJECT instruction
+
+        // Compile static fields initialization
+        for (const auto& field : node->getFields()) {
+            if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
+                if (fieldNode->getIsStatic()) {
+                    field->accept(*this);
+                }
+            }
+        }
+
+        // Compile static methods (they're like standalone functions)
+        for (const auto& method : node->getMethods()) {
+            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                if (methodNode->getIsStatic()) {
+                    method->accept(*this);
+                }
+            }
+        }
+
+        // Compile constructors
+        for (const auto& constructor : node->getConstructors()) {
+            constructor->accept(*this);
+        }
+
+        // Compile instance methods
+        for (const auto& method : node->getMethods()) {
+            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                if (!methodNode->getIsStatic()) {
+                    method->accept(*this);
+                }
+            }
+        }
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitMethodNode(ast::MethodNode* node)
     {
-        throw std::runtime_error("Method compilation not yet implemented");
+        std::string methodName = node->getName();
+        bool isStatic = node->getIsStatic();
+
+        // Handle generic methods - store generic type parameter names
+        if (node->isGeneric()) {
+            const auto& genericParams = node->getGenericTypeParameters();
+            for (const auto& param : genericParams) {
+                size_t paramNameIndex = program.getConstantPool().addString(param.name);
+                // Generic type parameters are available at runtime for type resolution
+            }
+        }
+
+        // Emit JUMP to skip over method body during main execution
+        size_t skipJump = emitJump(bytecode::OpCode::JUMP);
+
+        // Method starts here
+        size_t methodStart = program.getCurrentOffset();
+
+        // Get parameters
+        auto params = node->getParameters();
+        std::vector<std::string> paramNames;
+        for (const auto& param : params) {
+            paramNames.push_back(param.first);
+        }
+
+        // For instance methods, 'this' is implicitly the first parameter
+        if (!isStatic) {
+            paramNames.insert(paramNames.begin(), "this");
+        }
+
+        // Compile method body
+        auto* body = node->getBodyPtr();
+        if (body) {
+            body->accept(*this);
+        }
+
+        // Emit implicit return for void methods (if no explicit return)
+        value::ValueType returnType = node->getReturnType();
+        if (returnType == value::ValueType::VOID) {
+            program.emit(bytecode::OpCode::PUSH_NULL);
+            program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+
+        size_t methodEnd = program.getCurrentOffset();
+
+        // Patch skip jump to here (after method)
+        patchJump(skipJump);
+
+        // Register method metadata
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = methodName;
+        metadata.startOffset = methodStart;
+        metadata.instructionCount = methodEnd - methodStart;
+        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.parameterCount = paramNames.size();
+        metadata.parameterNames = paramNames;
+        metadata.returnType = "auto";  // TODO: Get actual return type
+        metadata.isStatic = isStatic;
+        metadata.isNative = false;
+
+        program.registerFunction(methodName, metadata);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitConstructorNode(ast::ConstructorNode* node)
     {
-        throw std::runtime_error("Constructor compilation not yet implemented");
+        // Constructors are compiled similar to methods, but with special handling
+        // They implicitly return 'this' after initialization
+
+        // Emit JUMP to skip over constructor body during main execution
+        size_t skipJump = emitJump(bytecode::OpCode::JUMP);
+
+        // Constructor starts here
+        size_t constructorStart = program.getCurrentOffset();
+
+        // Get parameters
+        auto params = node->getParameters();
+        std::vector<std::string> paramNames;
+        paramNames.push_back("this");  // 'this' is always the first parameter for constructors
+        for (const auto& param : params) {
+            paramNames.push_back(param.first);
+        }
+
+        // Handle super constructor call if present
+        if (node->hasSuperInitializer()) {
+            auto* superInit = node->getSuperInitializer();
+            if (superInit) {
+                superInit->accept(*this);
+            }
+        }
+
+        // Compile constructor body
+        auto* body = node->getBodyPtr();
+        if (body) {
+            body->accept(*this);
+        }
+
+        // Constructors implicitly return 'this'
+        // Load 'this' parameter (first parameter at index 0)
+        size_t thisNameIndex = program.getConstantPool().addString("this");
+        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
+        program.emit(bytecode::OpCode::RETURN_VALUE);
+
+        size_t constructorEnd = program.getCurrentOffset();
+
+        // Patch skip jump to here (after constructor)
+        patchJump(skipJump);
+
+        // Register constructor metadata (with special name "<init>")
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = "<init>";
+        metadata.startOffset = constructorStart;
+        metadata.instructionCount = constructorEnd - constructorStart;
+        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.parameterCount = paramNames.size();
+        metadata.parameterNames = paramNames;
+        metadata.returnType = "auto";  // Constructors return the object instance
+        metadata.isStatic = false;
+        metadata.isNative = false;
+
+        program.registerFunction("<init>", metadata);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitFieldNode(ast::FieldNode* node)
     {
-        throw std::runtime_error("Field compilation not yet implemented");
+        std::string fieldName = node->getName();
+        bool isStatic = node->getIsStatic();
+
+        // Only compile static fields here (instance fields are initialized in constructor)
+        if (isStatic) {
+            // Get initial value or null
+            auto* initValue = node->getInitialValue();
+            if (initValue) {
+                initValue->accept(*this);
+            } else {
+                emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+            }
+
+            // Store in static field
+            // For now, we use a naming convention: ClassName.fieldName
+            // TODO: Get class name from context
+            size_t nameIndex = program.getConstantPool().addString(fieldName);
+            emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+        }
+
+        // Instance fields are not compiled here - they're handled during object creation
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitNewNode(ast::NewNode* node)
     {
-        throw std::runtime_error("New compilation not yet implemented");
+        std::string fullClassName = node->getClassName();
+
+        // Parse generic type arguments from className (e.g., "Box<Int>" -> "Box" and ["Int"])
+        // The className may contain generic type arguments like "Box<Int>" or "Map<String,Int>"
+        std::string baseClassName = fullClassName;
+        std::vector<std::string> typeArguments;
+
+        size_t genericStart = fullClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genericStart);
+
+            // Extract type arguments from within <>
+            size_t genericEnd = fullClassName.rfind('>');
+            if (genericEnd != std::string::npos && genericEnd > genericStart) {
+                std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
+
+                // Store full generic class name (Box<Int>) for proper type identification
+                // This is used at runtime to create the correct type bindings
+            }
+        }
+
+        // Push constructor arguments onto stack (left to right)
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments) {
+            arg->accept(*this);
+        }
+
+        // Store the FULL class name including generics (e.g., "Box<Int>")
+        // The VM will parse this to create proper type bindings
+        size_t classNameIndex = program.getConstantPool().addString(fullClassName);
+
+        // Emit NEW_OBJECT instruction with full class name and argument count
+        program.emit(bytecode::OpCode::NEW_OBJECT,
+                     static_cast<uint32_t>(classNameIndex),
+                     static_cast<uint32_t>(arguments.size()));
+
+        // NEW_OBJECT will:
+        // 1. Parse generic type arguments from class name
+        // 2. Pop N arguments from stack
+        // 3. Create new object instance with type bindings
+        // 4. Call constructor with arguments
+        // 5. Push resulting object onto stack
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitMemberAccessNode(ast::MemberAccessNode* node)
     {
-        throw std::runtime_error("MemberAccess compilation not yet implemented");
+        std::string memberName = node->getMemberName();
+        bool isStaticAccess = node->getIsStaticAccess();
+
+        if (isStaticAccess) {
+            // Static field access: ClassName::fieldName
+            size_t fieldNameIndex = program.getConstantPool().addString(memberName);
+            emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(fieldNameIndex), node);
+        } else {
+            // Instance field access: object.fieldName
+            // First, compile the object expression
+            node->getObject()->accept(*this);
+
+            // Then emit GET_FIELD instruction
+            size_t fieldNameIndex = program.getConstantPool().addString(memberName);
+            emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+        }
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitMemberAssignmentNode(ast::MemberAssignmentNode* node)
     {
-        throw std::runtime_error("MemberAssignment compilation not yet implemented");
+        std::string memberName = node->getMemberName();
+
+        // Compile the object expression
+        node->getObject()->accept(*this);
+
+        // Compile the value to assign
+        node->getValue()->accept(*this);
+
+        // Emit SET_FIELD instruction (object and value are on stack)
+        size_t fieldNameIndex = program.getConstantPool().addString(memberName);
+        emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitMethodCallNode(ast::MethodCallNode* node)
     {
-        throw std::runtime_error("MethodCall compilation not yet implemented");
+        std::string methodName = node->getMethodName();
+        bool isStaticCall = node->getIsStaticCall();
+        const auto& arguments = node->getArguments();
+
+        if (isStaticCall) {
+            // Static method call: ClassName::methodName(args)
+            // Push all arguments onto stack
+            for (const auto& arg : arguments) {
+                arg->accept(*this);
+            }
+
+            // Emit CALL_STATIC instruction
+            size_t methodNameIndex = program.getConstantPool().addString(methodName);
+            program.emit(bytecode::OpCode::CALL_STATIC,
+                         static_cast<uint32_t>(methodNameIndex),
+                         static_cast<uint32_t>(arguments.size()));
+        } else {
+            // Instance method call: object.methodName(args)
+            // First, compile the object expression
+            node->getObject()->accept(*this);
+
+            // Push all arguments onto stack
+            for (const auto& arg : arguments) {
+                arg->accept(*this);
+            }
+
+            // Emit CALL_METHOD instruction
+            size_t methodNameIndex = program.getConstantPool().addString(methodName);
+            program.emit(bytecode::OpCode::CALL_METHOD,
+                         static_cast<uint32_t>(methodNameIndex),
+                         static_cast<uint32_t>(arguments.size()));
+        }
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitSuperConstructorCallNode(ast::SuperConstructorCallNode* node)
     {
-        throw std::runtime_error("SuperConstructorCall compilation not yet implemented");
+        // Push 'this' onto stack (for super constructor to initialize)
+        size_t thisNameIndex = program.getConstantPool().addString("this");
+        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
+
+        // Push arguments onto stack
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments) {
+            arg->accept(*this);
+        }
+
+        // Emit SUPER_CONSTRUCTOR instruction
+        // This will call the parent class constructor
+        program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR, static_cast<uint32_t>(arguments.size()));
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitSuperMethodCallNode(ast::SuperMethodCallNode* node)
     {
-        throw std::runtime_error("SuperMethodCall compilation not yet implemented");
+        std::string methodName = node->getMethodName();
+
+        // Push 'this' onto stack
+        size_t thisNameIndex = program.getConstantPool().addString("this");
+        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
+
+        // Push arguments onto stack
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments) {
+            arg->accept(*this);
+        }
+
+        // Emit SUPER_INVOKE instruction
+        size_t methodNameIndex = program.getConstantPool().addString(methodName);
+        program.emit(bytecode::OpCode::SUPER_INVOKE,
+                     static_cast<uint32_t>(methodNameIndex),
+                     static_cast<uint32_t>(arguments.size()));
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitInterfaceNode(ast::InterfaceNode* node)
     {
-        throw std::runtime_error("Interface compilation not yet implemented");
+        std::string interfaceName = node->getName();
+
+        // Register interface metadata in constant pool
+        size_t interfaceNameIndex = program.getConstantPool().addString(interfaceName);
+
+        // Store extended interfaces
+        const auto& extendedInterfaces = node->getExtendedInterfaces();
+        for (const auto& parentInterface : extendedInterfaces) {
+            size_t parentNameIndex = program.getConstantPool().addString(parentInterface);
+        }
+
+        // Interfaces are purely compile-time contracts in bytecode
+        // Method signatures are validated at compile time
+        // The runtime will use the interface registry from the environment
+        // No actual bytecode is generated for interfaces themselves
+
+        // Compile method signatures (for validation purposes)
+        const auto& methods = node->getMethods();
+        for (const auto& method : methods) {
+            // Method signatures are just stored as metadata, no bytecode emitted
+            // The actual implementation will be in classes that implement this interface
+        }
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitArrayCreationNode(ast::ArrayCreationNode* node)
     {
-        throw std::runtime_error("ArrayCreation compilation not yet implemented");
+        const auto& sizeExpressions = node->getSizeExpressions();
+        size_t dimensionCount = node->getDimensionCount();
+
+        if (dimensionCount == 1) {
+            // Single-dimensional array: new Type[size]
+            // Compile size expression and push onto stack
+            sizeExpressions[0]->accept(*this);
+
+            // Get element type info
+            const auto& typeInfo = node->getElementTypeInfo();
+            size_t typeNameIndex = program.getConstantPool().addString(typeInfo.toString());
+
+            // Emit NEW_ARRAY with element type
+            program.emit(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex));
+        }
+        else {
+            // Multi-dimensional array: new Type[size1][size2]...
+            // Push all dimension sizes onto stack (in order)
+            for (const auto& sizeExpr : sizeExpressions) {
+                sizeExpr->accept(*this);
+            }
+
+            // Get element type info
+            const auto& typeInfo = node->getElementTypeInfo();
+            size_t typeNameIndex = program.getConstantPool().addString(typeInfo.toString());
+
+            // Emit NEW_ARRAY_MULTI with element type and dimension count
+            program.emit(bytecode::OpCode::NEW_ARRAY_MULTI,
+                        static_cast<uint32_t>(typeNameIndex),
+                        static_cast<uint32_t>(dimensionCount));
+        }
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitArrayLiteralNode(ast::ArrayLiteralNode* node)
     {
-        throw std::runtime_error("ArrayLiteral compilation not yet implemented");
+        const auto& elements = node->getElements();
+        size_t elementCount = elements.size();
+
+        // Push array size onto stack
+        program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(static_cast<int>(elementCount))));
+
+        // Create array with generic "Object" type (type will be inferred from elements)
+        size_t typeNameIndex = program.getConstantPool().addString("Object");
+        program.emit(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex));
+
+        // Array is now on stack. For each element:
+        // 1. Duplicate array reference
+        // 2. Push index
+        // 3. Push element value
+        // 4. Call ARRAY_SET
+        for (size_t i = 0; i < elementCount; ++i) {
+            program.emit(bytecode::OpCode::DUP);  // Duplicate array reference
+
+            // Push index
+            program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(static_cast<int>(i))));
+
+            // Compile and push element value
+            elements[i]->accept(*this);
+
+            // Set array element
+            program.emit(bytecode::OpCode::ARRAY_SET);
+        }
+
+        // Array reference is still on stack
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitIndexAccessNode(ast::IndexAccessNode* node)
     {
-        throw std::runtime_error("IndexAccess compilation not yet implemented");
+        // Compile array/collection expression
+        node->getCollection()->accept(*this);
+
+        // Compile index expression
+        node->getIndex()->accept(*this);
+
+        // Emit ARRAY_GET to retrieve element
+        // Stack before: [array, index]
+        // Stack after: [element]
+        program.emit(bytecode::OpCode::ARRAY_GET);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitIndexAssignmentNode(ast::IndexAssignmentNode* node)
     {
-        throw std::runtime_error("IndexAssignment compilation not yet implemented");
+        // Compile array/collection expression
+        node->getObject()->accept(*this);
+
+        // Compile index expression
+        node->getIndex()->accept(*this);
+
+        // Compile value expression
+        node->getValue()->accept(*this);
+
+        // Emit ARRAY_SET to store element
+        // Stack before: [array, index, value]
+        // Stack after: [] (all consumed)
+        program.emit(bytecode::OpCode::ARRAY_SET);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitLambdaNode(ast::LambdaNode* node)
     {
-        throw std::runtime_error("Lambda compilation not yet implemented");
+        // Generate unique lambda function name
+        static size_t lambdaCounter = 0;
+        std::string lambdaFuncName = "__lambda_" + std::to_string(lambdaCounter++);
+        size_t lambdaNameIndex = program.getConstantPool().addString(lambdaFuncName);
+
+        // Store current position to jump over lambda body
+        program.emit(bytecode::OpCode::JUMP, 0); // Placeholder
+        size_t skipJump = program.getCurrentOffset() - 1;
+
+        // Lambda function starts here
+        size_t lambdaStart = program.getCurrentOffset();
+
+        // Get parameters
+        const auto& params = node->getParameters();
+
+        // Set up lambda parameter locals (they'll be passed on stack when invoked)
+        // Parameters are already on stack when lambda is invoked
+        // We just need to compile the body
+
+        // Compile lambda body
+        auto* body = node->getBody();
+        if (node->isExpressionLambda()) {
+            // Expression lambda: () -> expr
+            // Compile expression and return its value
+            body->accept(*this);
+            program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+        else {
+            // Block lambda: () -> { ... }
+            // Compile block
+            body->accept(*this);
+
+            // Implicit return null if no explicit return
+            program.emit(bytecode::OpCode::PUSH_NULL);
+            program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+
+        // Lambda function ends here
+        size_t lambdaEnd = program.getCurrentOffset();
+
+        // Patch the skip jump to here
+        program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
+
+        // Now emit instruction to create lambda value with captured environment
+        // Store lambda function start address and parameter count
+        program.emit(bytecode::OpCode::LAMBDA,
+                    static_cast<uint32_t>(lambdaStart),
+                    static_cast<uint32_t>(params.size()));
+
+        // TODO: Handle closure - capture variables from current scope
+        // For now, lambdas without closure support
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitCastExpression(ast::CastExpression* node)
     {
-        throw std::runtime_error("Cast compilation not yet implemented");
+        // Compile the expression to be cast
+        node->getExpression()->accept(*this);
+
+        // Get target type information
+        const auto* targetType = node->getTargetType();
+        std::string targetTypeName = targetType->toString();
+
+        // Store target type name in constant pool
+        size_t typeNameIndex = program.getConstantPool().addString(targetTypeName);
+
+        // Emit CAST instruction with target type
+        // Stack before: [value]
+        // Stack after: [casted_value]
+        program.emit(bytecode::OpCode::CAST, static_cast<uint32_t>(typeNameIndex));
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitInstanceOfExpression(ast::InstanceOfExpression* node)
     {
-        throw std::runtime_error("InstanceOf compilation not yet implemented");
+        // Compile the expression to check
+        node->getExpression()->accept(*this);
+
+        // Get target type information
+        const auto* targetType = node->getTargetType();
+        std::string targetTypeName = targetType->toString();
+
+        // Store target type name in constant pool
+        size_t typeNameIndex = program.getConstantPool().addString(targetTypeName);
+
+        // Emit INSTANCEOF instruction with target type
+        // Stack before: [value]
+        // Stack after: [bool_result]
+        program.emit(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex));
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)
     {
-        throw std::runtime_error("Import compilation not yet implemented");
+        // For bytecode compilation, imports are handled at compile time
+        // The imported AST has already been processed and symbols registered in the environment
+        // We need to compile any imported declarations that aren't already compiled
+
+        // Get the imported AST
+        auto* importedAST = node->getImportedAST();
+
+        if (!importedAST) {
+            // Import not resolved - this is an error
+            throw std::runtime_error("Import not resolved: " + node->getFilePath());
+        }
+
+        // Compile the imported AST
+        // This will add any functions, classes, etc. to our bytecode program
+        importedAST->accept(*this);
+
+        // Imports don't produce a runtime value
+        return std::monostate{};
     }
 
 } // namespace vm::compiler
