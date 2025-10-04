@@ -62,6 +62,9 @@ namespace vm::compiler
             throw std::runtime_error("Cannot compile null AST root");
         }
 
+        // First, register all classes in the environment for bytecode execution
+        registerClassesForBytecode(root);
+
         // Visit the root node to generate bytecode
         root->accept(*this);
 
@@ -69,6 +72,111 @@ namespace vm::compiler
         program.emit(bytecode::OpCode::HALT);
 
         return std::move(program);
+    }
+
+    void BytecodeCompiler::registerClassesForBytecode(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            std::string className = classNode->getClassName();
+
+            // Register class for bytecode WITHOUT using evaluator
+            // This only registers the class structure - bytecode handles all initialization
+
+            // Check if class already registered
+            if (environment->findClass(className)) {
+                return; // Already registered, skip
+            }
+
+            // Create class definition programmatically
+            auto classRegistry = environment->getClassRegistry();
+            if (!classRegistry) {
+                throw std::runtime_error("Class registry not available");
+            }
+
+            // Create a new class definition
+            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
+
+            // Handle parent class
+            if (classNode->hasParentClass()) {
+                classDef->setParentClassName(classNode->getParentClassName());
+            }
+
+            // Register constructors
+            for (const auto& constructor : classNode->getConstructors()) {
+                if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get())) {
+                    auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                        ctorNode->getParametersWithTypes(),
+                        ctorNode->getBody()
+                    );
+                    classDef->addConstructor(ctorDef);
+                }
+            }
+
+            // Register methods
+            for (const auto& method : classNode->getMethods()) {
+                if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
+                    auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
+                        methodNode->getName(),
+                        methodNode->getReturnType(),
+                        methodNode->getParameters(),
+                        std::vector<std::pair<std::string, value::Value>>{},
+                        methodNode->getBody(),
+                        methodNode->getIsStatic()
+                    );
+
+                    if (methodNode->getIsStatic()) {
+                        classDef->addStaticMethod(methodNode->getName(), methodDef);
+                    } else {
+                        classDef->addMethod(methodDef);
+                    }
+                }
+            }
+
+            // Register fields (but don't initialize them - bytecode will do that)
+            for (const auto& field : classNode->getFields()) {
+                if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get())) {
+                    auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
+                        fieldNode->getName(),
+                        fieldNode->getType(),
+                        value::Value{},  // Empty value - bytecode will initialize
+                        fieldNode->getIsStatic(),
+                        fieldNode->getIsFinal(),
+                        fieldNode->getAccessModifier()  // Pass access modifier from AST
+                    );
+
+                    if (fieldNode->getIsStatic()) {
+                        classDef->addStaticField(fieldNode->getName(), fieldDef);
+                    } else {
+                        classDef->addInstanceField(fieldNode->getName(), fieldDef);
+                    }
+                }
+            }
+
+            // Register the class
+            classRegistry->registerClass(className, classDef);
+
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                registerClassesForBytecode(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                registerClassesForBytecode(statement.get());
+            }
+        }
     }
 
     // ==================== Helper Methods ====================

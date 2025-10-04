@@ -48,7 +48,6 @@ namespace services
 
         // Cached execution helpers
         void preRegisterClassDefinitions(ast::ASTNode* node);
-        void registerClassesForBytecode(ast::ASTNode* node);
 
         // Execution mode helpers
         value::Value executeAST(ast::ASTNode* ast);

@@ -148,6 +148,9 @@ namespace vm::compiler
         void patchJump(size_t offset);
         void emitLoop(size_t loopStart);
 
+        // Class registration for bytecode
+        void registerClassesForBytecode(ast::ASTNode* node);
+
         // Type conversion helpers
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
         bytecode::OpCode getUnaryOpCode(token::TokenType op);
