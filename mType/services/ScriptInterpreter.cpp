@@ -29,14 +29,44 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../vm/compiler/BytecodeCompiler.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 
 namespace services
 {
     ScriptInterpreter::ScriptInterpreter()
+        : executionMode(constants::ExecutionMode::AST_INTERPRETER),
+          optimizationLevel(constants::OptimizationLevel::O0)
     {
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
+        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
+
+        // Set up method call handler for native functions
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry)
+        {
+            nativeRegistry->setMethodCallHandler(
+                [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                       const std::string& methodName,
+                       const std::vector<value::Value>& args) -> value::Value
+                {
+                    return evaluator->callMethodOnInstance(instance, methodName, args);
+                }
+            );
+        }
+    }
+
+    ScriptInterpreter::ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel)
+        : executionMode(mode), optimizationLevel(optLevel)
+    {
+        environment::EnvironmentBuilder envBuilder;
+        environment = envBuilder.build();
+        evaluator = std::make_unique<evaluator::Evaluator>(environment);
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
+        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -99,7 +129,20 @@ namespace services
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
 
-            evaluator->evaluate(ast.get());
+            // Execute based on execution mode
+            value::Value result;
+            switch (executionMode)
+            {
+                case constants::ExecutionMode::AST_INTERPRETER:
+                    result = executeAST(ast.get());
+                    break;
+                case constants::ExecutionMode::BYTECODE_VM:
+                    result = executeBytecode(ast.get());
+                    break;
+                case constants::ExecutionMode::DUAL_VALIDATION:
+                    result = executeDualValidation(ast.get());
+                    break;
+            }
 
             // Automatic cleanup after script execution to prevent memory growth
             // Only clean up interfaces that are no longer referenced
@@ -572,5 +615,104 @@ namespace services
             }
         }
         // Add other node types that may contain ClassNodes as needed
+    }
+
+    // Execution mode control
+    void ScriptInterpreter::setExecutionMode(constants::ExecutionMode mode)
+    {
+        executionMode = mode;
+    }
+
+    void ScriptInterpreter::setOptimizationLevel(constants::OptimizationLevel level)
+    {
+        optimizationLevel = level;
+    }
+
+    // Execution mode helpers
+    value::Value ScriptInterpreter::executeAST(ast::ASTNode* ast)
+    {
+        return evaluator->evaluate(ast);
+    }
+
+    value::Value ScriptInterpreter::executeBytecode(ast::ASTNode* ast)
+    {
+        try
+        {
+            // Compile AST to bytecode
+            auto program = compiler->compile(ast);
+
+            // Execute bytecode in VM
+            return vm->execute(program);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Bytecode execution error: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    value::Value ScriptInterpreter::executeDualValidation(ast::ASTNode* ast)
+    {
+        // Execute both and compare results
+        value::Value astResult;
+        value::Value vmResult;
+        bool astSuccess = false;
+        bool vmSuccess = false;
+
+        std::cout << "=== DUAL VALIDATION MODE ===" << std::endl;
+
+        // Try AST execution
+        try
+        {
+            std::cout << "[AST] Executing..." << std::endl;
+            astResult = evaluator->evaluate(ast);
+            astSuccess = true;
+            std::cout << "[AST] Success" << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[AST] Error: " << e.what() << std::endl;
+        }
+
+        // Try bytecode execution
+        try
+        {
+            std::cout << "[VM] Compiling and executing..." << std::endl;
+            auto program = compiler->compile(ast);
+            vmResult = vm->execute(program);
+            vmSuccess = true;
+            std::cout << "[VM] Success" << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[VM] Error: " << e.what() << std::endl;
+        }
+
+        // Compare results
+        if (astSuccess && vmSuccess)
+        {
+            // TODO: Deep comparison of results
+            std::cout << "[VALIDATION] Both executions succeeded" << std::endl;
+            std::cout << "=== END DUAL VALIDATION ===" << std::endl;
+            return astResult; // Prefer AST result as ground truth
+        }
+        else if (astSuccess)
+        {
+            std::cout << "[VALIDATION] Only AST succeeded" << std::endl;
+            std::cout << "=== END DUAL VALIDATION ===" << std::endl;
+            return astResult;
+        }
+        else if (vmSuccess)
+        {
+            std::cout << "[VALIDATION] Only VM succeeded" << std::endl;
+            std::cout << "=== END DUAL VALIDATION ===" << std::endl;
+            return vmResult;
+        }
+        else
+        {
+            std::cout << "[VALIDATION] Both executions failed" << std::endl;
+            std::cout << "=== END DUAL VALIDATION ===" << std::endl;
+            throw std::runtime_error("Both execution modes failed");
+        }
     }
 }

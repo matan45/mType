@@ -441,6 +441,9 @@
     <ClInclude Include="circularDependency\TrueCyclicException.hpp">
       <Filter>circularDependency</Filter>
     </ClInclude>
+    <ClInclude Include="constants\ExecutionMode.hpp">
+      <Filter>constants</Filter>
+    </ClInclude>
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
     </ClInclude>
