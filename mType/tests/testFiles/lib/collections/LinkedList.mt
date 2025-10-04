@@ -1,9 +1,9 @@
 // LinkedList<T> - Doubly linked list implementation for O(1) insertions and deletions
  // Private inner class for nodes
     class Node<T> {
-        T data;
-        Node<T> next;
-        Node<T> prev;
+        public T data;
+        public Node<T> next;
+        public Node<T> prev;
 
         constructor(T data) {
             this.data = data;
@@ -31,7 +31,7 @@ class LinkedList<T> {
     }
 
     // Core operations
-    function add(T item): void {
+    public function add(T item): void {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.add() - item cannot be null");
@@ -53,7 +53,7 @@ class LinkedList<T> {
         this.count++;
     }
 
-    function addFirst(T item): void {
+    public function addFirst(T item): void {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.addFirst() - item cannot be null");
@@ -75,11 +75,11 @@ class LinkedList<T> {
         this.count++;
     }
 
-    function addLast(T item): void {
+    public function addLast(T item): void {
         this.add(item); // Same as regular add
     }
 
-    function addAt(int index, T item): void {
+    public function addAt(int index, T item): void {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.addAt() - item cannot be null");
@@ -109,7 +109,7 @@ class LinkedList<T> {
         this.count++;
     }
 
-    function get(int index): T {
+    public function get(int index): T {
         if (index < 0 || index >= this.count) {
             print("Error: LinkedList.get() - index out of bounds: " + index);
             return null;
@@ -119,7 +119,7 @@ class LinkedList<T> {
         return node.data;
     }
 
-    function set(int index, T item): void {
+    public function set(int index, T item): void {
         if (index < 0 || index >= this.count) {
             print("Error: LinkedList.set() - index out of bounds: " + index);
             return;
@@ -135,7 +135,7 @@ class LinkedList<T> {
         node.data = item;
     }
 
-    function removeAt(int index): bool {
+    public function removeAt(int index): bool {
         if (index < 0 || index >= this.count) {
             print("Error: LinkedList.removeAt() - index out of bounds: " + index);
             return false;
@@ -146,7 +146,7 @@ class LinkedList<T> {
         return true;
     }
 
-    function remove(T item): bool {
+    public function remove(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.remove() - item cannot be null");
@@ -164,7 +164,7 @@ class LinkedList<T> {
         return false;
     }
 
-    function removeFirst(): T {
+    public function removeFirst(): T {
         if (this.head == null) {
             print("Error: LinkedList.removeFirst() - list is empty");
             return null;
@@ -175,7 +175,7 @@ class LinkedList<T> {
         return data;
     }
 
-    function removeLast(): T {
+    public function removeLast(): T {
         if (this.tail == null) {
             print("Error: LinkedList.removeLast() - list is empty");
             return null;
@@ -186,7 +186,7 @@ class LinkedList<T> {
         return data;
     }
 
-    function contains(T item): bool {
+    public function contains(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.contains() - item cannot be null");
@@ -203,7 +203,7 @@ class LinkedList<T> {
         return false;
     }
 
-    function indexOf(T item): int {
+    public function indexOf(T item): int {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.indexOf() - item cannot be null");
@@ -222,22 +222,22 @@ class LinkedList<T> {
         return -1;
     }
 
-    function size(): int {
+    public function size(): int {
         return this.count;
     }
 
-    function empty(): bool {
+    public function empty(): bool {
         return this.count == 0;
     }
 
-    function clear(): void {
+    public function clear(): void {
         this.head = null;
         this.tail = null;
         this.count = 0;
     }
 
     // Get first element
-    function first(): T {
+    public function first(): T {
         if (this.head == null) {
             return null;
         }
@@ -245,7 +245,7 @@ class LinkedList<T> {
     }
 
     // Get last element
-    function last(): T {
+    public function last(): T {
         if (this.tail == null) {
             return null;
         }
@@ -253,7 +253,7 @@ class LinkedList<T> {
     }
 
     // Convert to array for iteration
-    function toArray(): T[] {
+    public function toArray(): T[] {
         T[] result = new T[this.count];
         Node<T> current = this.head;
         int index = 0;
@@ -267,7 +267,7 @@ class LinkedList<T> {
     }
 
     // Content-based hash code
-    function hashCode(): int {
+    public function hashCode(): int {
         int hash = 1;
         Node<T> current = this.head;
 
@@ -283,7 +283,7 @@ class LinkedList<T> {
     }
 
     // Reverse the list
-    function reverse(): void {
+    public function reverse(): void {
         if (this.count <= 1) {
             return;
         }
@@ -306,7 +306,7 @@ class LinkedList<T> {
     }
 
     // Private helper methods
-    function getNodeAt(int index): Node<T> {
+    private function getNodeAt(int index): Node<T> {
         if (index < 0 || index >= this.count) {
             return null;
         }
@@ -331,7 +331,7 @@ class LinkedList<T> {
         return current;
     }
 
-    function removeNode(Node<T> node): void {
+    private function removeNode(Node<T> node): void {
         if (node == null) {
             return;
         }
@@ -356,13 +356,13 @@ class LinkedList<T> {
     }
 
     // Additional utility methods
-    function addAll(T[] items): void {
+    public function addAll(T[] items): void {
         for (T item : items) {
             this.add(item);
         }
     }
 
-    function removeAll(T item): int {
+    public function removeAll(T item): int {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.removeAll() - item cannot be null");
@@ -385,7 +385,7 @@ class LinkedList<T> {
     }
 
     // Get a sublist (creates a new LinkedList)
-    function subList(int fromIndex, int toIndex): LinkedList<T> {
+    public function subList(int fromIndex, int toIndex): LinkedList<T> {
         if (fromIndex < 0 || toIndex > this.count || fromIndex > toIndex) {
             print("Error: LinkedList.subList() - invalid range: " + fromIndex + " to " + toIndex);
             return new LinkedList<T>();

@@ -12,16 +12,16 @@ class TestObject {
         value = v;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return name + "(" + value + ")";
     }
 
-    function equals(TestObject other): bool {
+    public function equals(TestObject other): bool {
         if (other == null) return false;
         return this.name == other.name && this.value == other.value;
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         return hashCode(this.name) + this.value;
     }
 }
