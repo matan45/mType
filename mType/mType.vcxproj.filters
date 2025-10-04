@@ -241,6 +241,18 @@
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm">
+      <UniqueIdentifier>{E8795900-D405-880B-3DB4-880B295F880B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\bytecode">
+      <UniqueIdentifier>{4656EA68-B20B-635E-3B00-5D35A7B45962}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler">
+      <UniqueIdentifier>{72FADB43-DEAF-5439-67A4-4E10D3584B3D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime">
+      <UniqueIdentifier>{3B87016C-273F-43B9-9046-1C157C1DDEA9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast\ASTNode.hpp">
@@ -888,6 +900,18 @@
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\bytecode\OpCode.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
+      <Filter>vm\compiler</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\VirtualMachine.hpp">
+      <Filter>vm\runtime</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ast\AccessModifier.cpp">
@@ -1387,6 +1411,15 @@
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
       <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachine.cpp">
+      <Filter>vm\runtime</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -3237,6 +3270,9 @@
     </None>
     <None Include="tests\testFiles\lambda\pass\test_lambda_interface_memory_mgmt.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\Object.mt">
+      <Filter>tests\testFiles\lib</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
