@@ -194,22 +194,91 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    if (argc == 2 && std::string(argv[1]) == "--help")
+    if (argc >= 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
-        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (with auto-caching)\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (AST interpreter mode)\n";
+        std::cout << "  " << argv[0] << " --bytecode <script.mt>     - Run with bytecode VM\n";
+        std::cout << "  " << argv[0] << " --dual <script.mt>         - Run with dual validation (AST + Bytecode)\n";
+        std::cout << "  " << argv[0] << " -O<level> <script.mt>      - Set optimization level (0-3)\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
+        std::cout << "Execution Modes:\n";
+        std::cout << "  AST Interpreter (default) - Traditional AST walking interpreter\n";
+        std::cout << "  Bytecode VM (--bytecode)  - Stack-based bytecode virtual machine\n";
+        std::cout << "  Dual Validation (--dual)  - Run both and compare results\n\n";
+        std::cout << "Optimization Levels:\n";
+        std::cout << "  -O0 - No optimization (default)\n";
+        std::cout << "  -O1 - Basic optimization\n";
+        std::cout << "  -O2 - Advanced optimization\n";
+        std::cout << "  -O3 - Aggressive optimization\n\n";
         printAvailableTestSuites();
         return 0;
     }
 
-    std::string filename = argv[1];
+    // Parse execution mode and optimization level
+    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
+    constants::OptimizationLevel optLevel = constants::OptimizationLevel::O0;
+    std::string filename;
+
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string arg = argv[i];
+
+        if (arg == "--bytecode")
+        {
+            execMode = constants::ExecutionMode::BYTECODE_VM;
+        }
+        else if (arg == "--dual")
+        {
+            execMode = constants::ExecutionMode::DUAL_VALIDATION;
+        }
+        else if (arg.substr(0, 2) == "-O" && arg.length() == 3)
+        {
+            char level = arg[2];
+            if (level == '0') optLevel = constants::OptimizationLevel::O0;
+            else if (level == '1') optLevel = constants::OptimizationLevel::O1;
+            else if (level == '2') optLevel = constants::OptimizationLevel::O2;
+            else
+            {
+                std::cerr << "Invalid optimization level: " << arg << std::endl;
+                return 1;
+            }
+        }
+        else if (arg[0] != '-')
+        {
+            filename = arg;
+        }
+    }
+
+    if (filename.empty())
+    {
+        std::cerr << "Error: No script file specified\n";
+        std::cerr << "Use --help for usage information\n";
+        return 1;
+    }
 
     try
     {
-        ScriptInterpreter interpreter;
+        ScriptInterpreter interpreter(execMode, optLevel);
+
+        // Print execution mode
+        std::cout << "Execution Mode: ";
+        switch (execMode)
+        {
+            case constants::ExecutionMode::AST_INTERPRETER:
+                std::cout << "AST Interpreter";
+                break;
+            case constants::ExecutionMode::BYTECODE_VM:
+                std::cout << "Bytecode VM";
+                break;
+            case constants::ExecutionMode::DUAL_VALIDATION:
+                std::cout << "Dual Validation";
+                break;
+        }
+        std::cout << " (Optimization Level: O" << static_cast<int>(optLevel) << ")\n\n";
+
         interpreter.runScript(filename);
     }
     catch (const std::exception& e)

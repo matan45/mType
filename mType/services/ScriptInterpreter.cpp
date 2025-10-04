@@ -661,7 +661,7 @@ namespace services
 
         std::cout << "=== DUAL VALIDATION MODE ===" << std::endl;
 
-        // Try AST execution
+        // Try AST execution with original environment
         try
         {
             std::cout << "[AST] Executing..." << std::endl;
@@ -674,12 +674,21 @@ namespace services
             std::cerr << "[AST] Error: " << e.what() << std::endl;
         }
 
+        // Create fresh environment for VM execution
+        // This ensures variables from AST execution don't leak into VM execution
+        environment::EnvironmentBuilder vmEnvBuilder;
+        auto vmEnvironment = vmEnvBuilder.build();
+
+        // Create fresh VM and compiler with new environment
+        auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
+        auto vmMachine = std::make_unique<vm::runtime::VirtualMachine>(vmEnvironment);
+
         // Try bytecode execution
         try
         {
             std::cout << "[VM] Compiling and executing..." << std::endl;
-            auto program = compiler->compile(ast);
-            vmResult = vm->execute(program);
+            auto program = vmCompiler->compile(ast);
+            vmResult = vmMachine->execute(program);
             vmSuccess = true;
             std::cout << "[VM] Success" << std::endl;
         }

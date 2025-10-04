@@ -25,6 +25,7 @@
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
+#include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -262,21 +263,19 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitVariableNode(ast::VariableNode* node)
     {
         std::string name = node->getName();
-        size_t localSlot = resolveLocal(name);
 
-        if (localSlot != SIZE_MAX) {
-            // Local variable
-            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
-        } else {
-            // Global variable
-            size_t nameIndex = program.getConstantPool().addString(name);
-            emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
-        }
+        // For now, always use name-based variable lookup
+        // TODO: Implement proper stack-based local variables with function frames
+        size_t nameIndex = program.getConstantPool().addString(name);
+        emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
+
         return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitDeclarationNode(ast::DeclarationNode* node)
     {
+        std::string name = node->getVariableName();
+
         // Compile the initializer (if any)
         auto* initializer = node->getInitializer();
         if (initializer) {
@@ -286,12 +285,11 @@ namespace vm::compiler
         }
 
         // Store in variable
-        std::string name = node->getVariableName();
         value::ValueType valueType = node->getType();
 
-        // Convert ValueType enum to string (simplified - you may want a proper converter)
+        // For now, always use global variables for simplicity
+        // TODO: Implement proper stack-based local variables with function frames
         std::string typeStr = "auto";  // Default type string
-
         size_t nameIndex = program.getConstantPool().addString(name);
         size_t typeIndex = program.getConstantPool().addString(typeStr);
 
@@ -299,32 +297,33 @@ namespace vm::compiler
                      static_cast<uint32_t>(nameIndex),
                      static_cast<uint32_t>(typeIndex));
 
-        // Track as local if in a function scope
-        if (!loopStack.empty() || nextLocalSlot > 0) {
-            LocalVariable local;
-            local.name = name;
-            local.slot = nextLocalSlot++;
-            locals.push_back(local);
-        }
         return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitAssignmentNode(ast::AssignmentNode* node)
     {
+        std::string name = node->getVariableName();
+        value::ValueType varType = node->getVariableType();
+
         // Compile the value
         node->getValue()->accept(*this);
 
-        std::string name = node->getVariableName();
-        size_t localSlot = resolveLocal(name);
+        // Check if this is a declaration (has a type) or pure assignment (type is VOID)
+        if (varType != value::ValueType::VOID) {
+            // This is a declaration with initializer (e.g., "int x = 5;")
+            std::string typeStr = "auto";
+            size_t nameIndex = program.getConstantPool().addString(name);
+            size_t typeIndex = program.getConstantPool().addString(typeStr);
 
-        if (localSlot != SIZE_MAX) {
-            // Local variable
-            emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
+            program.emit(bytecode::OpCode::DECLARE_VAR,
+                         static_cast<uint32_t>(nameIndex),
+                         static_cast<uint32_t>(typeIndex));
         } else {
-            // Global variable
+            // This is a pure assignment (e.g., "x = 5;")
             size_t nameIndex = program.getConstantPool().addString(name);
             emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
         }
+
         return std::monostate{};
     }
 
@@ -545,7 +544,22 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitFunctionCallNode(ast::FunctionCallNode* node)
     {
-        throw std::runtime_error("FunctionCall compilation not yet implemented");
+        // Compile all arguments (left to right)
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments) {
+            arg->accept(*this);
+        }
+
+        // Get function name and add to constant pool
+        std::string functionName = node->getFunctionName();
+        size_t nameIndex = program.getConstantPool().addString(functionName);
+
+        // Emit CALL instruction with function name index and argument count
+        program.emit(bytecode::OpCode::CALL,
+                     static_cast<uint32_t>(nameIndex),
+                     static_cast<uint32_t>(arguments.size()));
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitReturnNode(ast::ReturnNode* node)

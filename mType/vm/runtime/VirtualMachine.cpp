@@ -4,6 +4,7 @@
 #include <chrono>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 namespace vm::runtime
 {
@@ -132,6 +133,7 @@ namespace vm::runtime
             case OpCode::JUMP: handleJump(instr); break;
             case OpCode::JUMP_IF_FALSE: handleJumpIfFalse(instr); break;
             case OpCode::JUMP_IF_TRUE: handleJumpIfTrue(instr); break;
+            case OpCode::JUMP_BACK: handleJumpBack(instr); break;
             case OpCode::RETURN: handleReturn(); break;
             case OpCode::RETURN_VALUE: handleReturnValue(); break;
 
@@ -449,18 +451,52 @@ namespace vm::runtime
         if (instr.operands.empty()) {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
-        // TODO: Implement local variable slots
-        // For now, fall back to named variable
-        handleLoadVar(instr);
+
+        size_t slot = instr.operands[0];
+
+        // Get the current frame base (or 0 if no call frame)
+        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
+
+        // Calculate absolute stack position
+        size_t stackPos = frameBase + slot;
+
+        if (stackPos >= operandStack.size()) {
+            throw errors::RuntimeException("Local variable slot out of bounds: " + std::to_string(slot));
+        }
+
+        // Load value from stack
+        value::Value val = operandStack[stackPos];
+        push(val);
     }
 
     void VirtualMachine::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
-        // TODO: Implement local variable slots
-        // For now, fall back to named variable
-        handleStoreVar(instr);
+
+        size_t slot = instr.operands[0];
+
+        // Get the current frame base (or 0 if no call frame)
+        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
+
+        // Calculate absolute stack position
+        size_t stackPos = frameBase + slot;
+
+        // Pop value from top of stack
+        value::Value val = pop();
+
+        // Extend stack if needed to reach the slot position
+        while (operandStack.size() < stackPos) {
+            operandStack.push_back(std::monostate{});
+        }
+
+        // If the slot is beyond current stack size, push the value
+        if (stackPos >= operandStack.size()) {
+            operandStack.push_back(val);
+        } else {
+            // Otherwise, store at the specific position
+            operandStack[stackPos] = val;
+        }
     }
 
     // === Control Flow Operations ===
@@ -492,6 +528,14 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_BACK requires operand");
+        }
+        // Jump back to loop start (operand is the target instruction)
+        instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
+    }
+
     void VirtualMachine::handleReturn() {
         if (callStack.empty()) {
             // Top-level return - halt execution
@@ -516,8 +560,37 @@ namespace vm::runtime
     // === Function Operations ===
 
     void VirtualMachine::handleCall(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement function calls with call frames
-        throw errors::RuntimeException("CALL not yet implemented");
+        // Get function name from constant pool
+        std::string functionName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Pop arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Try to find native function first
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName)) {
+            auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
+            if (nativeFunc) {
+                value::Value result = nativeFunc(args);
+                push(result);
+                return;
+            }
+        }
+
+        // Try to find user-defined function
+        auto funcDef = environment->getFunctionRegistry()->findFunction(functionName);
+        if (funcDef) {
+            // TODO: Implement user-defined function calls with call frames
+            throw errors::RuntimeException("User-defined function calls not yet implemented in VM");
+        }
+
+        throw errors::RuntimeException("Function not found: " + functionName);
     }
 
     void VirtualMachine::handleCallNative(const bytecode::BytecodeProgram::Instruction& instr) {
