@@ -106,6 +106,11 @@ namespace vm::compiler
         };
         std::vector<LoopContext> loopStack;
 
+        struct SwitchContext {
+            std::vector<size_t> breakJumps;    // Jump instructions that need to be patched to switch end
+        };
+        std::vector<SwitchContext> switchStack;
+
         // Local variable tracking (for optimization)
         struct LocalVariable {
             std::string name;

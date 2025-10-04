@@ -327,8 +327,16 @@ namespace vm::runtime
     void VirtualMachine::handleEq() {
         value::Value right = pop();
         value::Value left = pop();
-        // Simple equality for now - needs enhancement for objects
-        push(left == right);
+
+        // Handle bool-to-int conversion for comparisons
+        if (std::holds_alternative<bool>(left) && std::holds_alternative<int>(right)) {
+            push(static_cast<int>(std::get<bool>(left)) == std::get<int>(right));
+        } else if (std::holds_alternative<int>(left) && std::holds_alternative<bool>(right)) {
+            push(std::get<int>(left) == static_cast<int>(std::get<bool>(right)));
+        } else {
+            // Direct equality comparison
+            push(left == right);
+        }
     }
 
     void VirtualMachine::handleNe() {
@@ -546,6 +554,8 @@ namespace vm::runtime
             CallFrame frame = callStack.back();
             callStack.pop_back();
             instructionPointer = frame.returnAddress;
+            // Exit function scope (to clean up parameters and local variables)
+            environment->exitScope();
             // Restore stack
             while (operandStack.size() > frame.frameBase) {
                 operandStack.pop_back();
@@ -585,11 +595,41 @@ namespace vm::runtime
             }
         }
 
-        // Try to find user-defined function
-        auto funcDef = environment->getFunctionRegistry()->findFunction(functionName);
-        if (funcDef) {
-            // TODO: Implement user-defined function calls with call frames
-            throw errors::RuntimeException("User-defined function calls not yet implemented in VM");
+        // Try to find user-defined function in bytecode
+        auto funcMetadata = program->getFunction(functionName);
+        if (funcMetadata) {
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size() - argCount;
+            frame.localBase = operandStack.size();  // Locals start after arguments
+            frame.functionName = functionName;
+            frame.thisInstance = nullptr;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Create a new scope for the function
+            environment->enterScope();
+
+            // Declare parameters as variables in the new scope
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size(); ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i];
+                const value::Value& argValue = args[i];
+
+                // Determine type from value
+                value::ValueType type = value::getValueType(argValue);
+
+                // Create variable definition for parameter
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+
+                environment->declareVariable(paramName, varDef);
+            }
+
+            // Jump to function start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+            return;
         }
 
         throw errors::RuntimeException("Function not found: " + functionName);

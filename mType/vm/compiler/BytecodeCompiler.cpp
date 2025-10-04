@@ -26,6 +26,7 @@
 #include "../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../ast/nodes/functions/FunctionNode.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -507,12 +508,17 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitBreakNode(ast::BreakNode* node)
     {
-        if (loopStack.empty()) {
-            throw errors::ParseException("Break outside of loop");
+        if (!switchStack.empty()) {
+            // Break in switch context
+            size_t breakJump = emitJump(bytecode::OpCode::JUMP);
+            switchStack.back().breakJumps.push_back(breakJump);
+        } else if (!loopStack.empty()) {
+            // Break in loop context
+            size_t breakJump = emitJump(bytecode::OpCode::JUMP);
+            currentLoop().breakJumps.push_back(breakJump);
+        } else {
+            throw errors::ParseException("Break outside of loop or switch");
         }
-
-        size_t breakJump = emitJump(bytecode::OpCode::JUMP);
-        currentLoop().breakJumps.push_back(breakJump);
         return std::monostate{};
     }
 
@@ -537,22 +543,158 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitSwitchNode(ast::SwitchNode* node)
     {
-        throw std::runtime_error("Switch compilation not yet implemented");
+        // Enter switch context for break handling
+        SwitchContext ctx;
+        switchStack.push_back(ctx);
+
+        // Compile the switch expression
+        node->getExpression()->accept(*this);
+
+        const auto& cases = node->getCases();
+        std::vector<size_t> caseBodyStarts;  // Start positions of case bodies
+        size_t defaultBodyStart = SIZE_MAX;   // Start position of default case body
+        size_t defaultCaseIndex = SIZE_MAX;   // Index of default case
+
+        // First pass: generate comparisons and jumps to case bodies
+        for (size_t i = 0; i < cases.size(); ++i) {
+            if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
+                defaultCaseIndex = i;
+                caseBodyStarts.push_back(SIZE_MAX);  // Placeholder for default
+            } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
+                // Duplicate switch value for comparison
+                emitWithLocation(bytecode::OpCode::DUP, regularCase);
+
+                // Compile case value
+                regularCase->getValue()->accept(*this);
+
+                // Compare: switch_value == case_value
+                emitWithLocation(bytecode::OpCode::EQ, regularCase);
+
+                // Pop comparison result and jump to case body if true
+                size_t jumpToCaseBody = emitJump(bytecode::OpCode::JUMP_IF_TRUE);
+                caseBodyStarts.push_back(jumpToCaseBody);
+            }
+        }
+
+        // If no case matched, jump to default or end
+        size_t jumpToDefaultOrEnd = emitJump(bytecode::OpCode::JUMP);
+
+        // Second pass: compile case bodies (with fallthrough support)
+        for (size_t i = 0; i < cases.size(); ++i) {
+            // Patch jump to this case body
+            if (caseBodyStarts[i] != SIZE_MAX) {
+                patchJump(caseBodyStarts[i]);
+            }
+
+            // Mark default case body start
+            if (i == defaultCaseIndex) {
+                defaultBodyStart = program.getCurrentOffset();
+            }
+
+            // Pop switch value only when entering the first matched case
+            // (not during fallthrough)
+            if (caseBodyStarts[i] != SIZE_MAX || i == defaultCaseIndex) {
+                emitWithLocation(bytecode::OpCode::POP, cases[i].get());
+            }
+
+            // Compile case statements
+            if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
+                for (const auto& stmt : defaultCase->getStatements()) {
+                    stmt->accept(*this);
+                }
+            } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
+                for (const auto& stmt : regularCase->getStatements()) {
+                    stmt->accept(*this);
+                }
+            }
+            // Note: No automatic jump to end - fallthrough is allowed!
+        }
+
+        // If execution falls through all cases without break, jump to end
+        size_t implicitEndJump = emitJump(bytecode::OpCode::JUMP);
+
+        // Patch jump to default or end
+        patchJump(jumpToDefaultOrEnd);
+        if (defaultBodyStart != SIZE_MAX) {
+            // Jump to default case body
+            program.emit(bytecode::OpCode::JUMP, static_cast<uint32_t>(defaultBodyStart));
+        } else {
+            // No default, just pop the switch value and continue
+            emitWithLocation(bytecode::OpCode::POP, node);
+        }
+
+        // Patch all break jumps to end of switch (including implicit end jump)
+        patchJump(implicitEndJump);
+        for (size_t breakJump : switchStack.back().breakJumps) {
+            patchJump(breakJump);
+        }
+
+        // Exit switch context
+        switchStack.pop_back();
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitCaseNode(ast::CaseNode* node)
     {
-        throw std::runtime_error("Case compilation not yet implemented");
+        // Case nodes are handled by SwitchNode, not visited directly
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitDefaultCaseNode(ast::DefaultCaseNode* node)
     {
-        throw std::runtime_error("DefaultCase compilation not yet implemented");
+        // Default case nodes are handled by SwitchNode, not visited directly
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitFunctionNode(ast::FunctionNode* node)
     {
-        throw std::runtime_error("Function compilation not yet implemented");
+        std::string funcName = node->getName();
+
+        // Emit JUMP to skip over function body during main execution
+        size_t skipJump = emitJump(bytecode::OpCode::JUMP);
+
+        // Function starts here
+        size_t functionStart = program.getCurrentOffset();
+
+        // Get parameters
+        auto params = node->getParameters();
+        std::vector<std::string> paramNames;
+        for (const auto& param : params) {
+            paramNames.push_back(param.first);
+        }
+
+        // Compile function body
+        auto* body = node->getBodyPtr();
+        if (body) {
+            body->accept(*this);
+        }
+
+        // Emit implicit return for void functions (if no explicit return)
+        if (node->getReturnType() == value::ValueType::VOID) {
+            program.emit(bytecode::OpCode::PUSH_NULL);
+            program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+
+        size_t functionEnd = program.getCurrentOffset();
+
+        // Patch skip jump to here (after function)
+        patchJump(skipJump);
+
+        // Register function metadata
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = funcName;
+        metadata.startOffset = functionStart;
+        metadata.instructionCount = functionEnd - functionStart;
+        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.parameterCount = params.size();
+        metadata.parameterNames = paramNames;
+        metadata.returnType = "auto";  // TODO: Get actual return type
+        metadata.isNative = false;
+
+        program.registerFunction(funcName, metadata);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitFunctionCallNode(ast::FunctionCallNode* node)
