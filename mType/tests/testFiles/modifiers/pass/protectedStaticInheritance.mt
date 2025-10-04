@@ -2,22 +2,22 @@
 class Base {
     protected static int counter = 0;
 
-    protected static void incrementCounter() {
+    protected static function incrementCounter(): void {
         counter = counter + 1;
     }
 }
 
 class Derived extends Base {
-    public static void increment() {
+    public static function increment(): void {
         // Accessing protected static field and method from parent
-        incrementCounter();
+        Base::incrementCounter();
     }
 
-    public static int getCount() {
+    public static function getCount(): int {
         return counter;
     }
 }
 
-Derived.increment();
-Derived.increment();
-print(Derived.getCount());  // Expected: 2
+Derived::increment();
+Derived::increment();
+print(Derived::getCount());  // Expected: 2

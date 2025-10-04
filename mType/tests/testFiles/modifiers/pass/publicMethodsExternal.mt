@@ -1,10 +1,10 @@
 // Test: Public methods accessible from external context
 class Greeter {
-    public string greet(string name) {
+    public function greet(string name): string {
         return "Hello, " + name;
     }
 
-    public string farewell(string name) {
+    public function farewell(string name): string {
         return "Goodbye, " + name;
     }
 }

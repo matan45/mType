@@ -39,10 +39,13 @@ namespace evaluator
             auto field = fieldIt->second;
 
             // ACCESS CONTROL: Validate field access permissions
+            auto callingClassName = context->getCurrentCallingClass();
+            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
             auto accessContext = base::AccessContext::forStaticAccess(
-                context->getCurrentCallingClass(),
+                callingClassName,
                 classDef,
-                errors::SourceLocation{}
+                errors::SourceLocation{},
+                callingClassDef
             );
             validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
@@ -72,10 +75,13 @@ namespace evaluator
             auto field = fieldIt->second;
 
             // ACCESS CONTROL: Validate field access permissions
+            auto callingClassName = context->getCurrentCallingClass();
+            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
             auto accessContext = base::AccessContext::forStaticAccess(
-                context->getCurrentCallingClass(),
+                callingClassName,
                 classDef,
-                errors::SourceLocation{}
+                errors::SourceLocation{},
+                callingClassDef
             );
             validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
@@ -155,10 +161,13 @@ namespace evaluator
             }
 
             // ACCESS CONTROL: Validate method access permissions
+            auto callingClassName = context->getCurrentCallingClass();
+            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
             auto accessContext = base::AccessContext::forStaticAccess(
-                context->getCurrentCallingClass(),
+                callingClassName,
                 classDef,
-                location
+                location,
+                callingClassDef
             );
             validation::AccessValidator::validateMethodAccess(accessContext, *method);
 
@@ -266,10 +275,13 @@ namespace evaluator
             }
 
             // ACCESS CONTROL: Validate method access permissions
+            auto callingClassName = context->getCurrentCallingClass();
+            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
             auto accessContext = base::AccessContext::forStaticAccess(
-                context->getCurrentCallingClass(),
+                callingClassName,
                 classDef,
-                location
+                location,
+                callingClassDef
             );
             validation::AccessValidator::validateMethodAccess(accessContext, *method);
 

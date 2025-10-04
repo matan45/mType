@@ -1,16 +1,16 @@
 // Test: Interface methods default to public
 interface Printable {
-    void display();  // No modifier = public by default for interfaces
+    function display(): void;  // No modifier = public by default for interfaces
 }
 
 class Document implements Printable {
     public string title;
 
-    public Document(string t) {
+    public constructor(string t) {
         title = t;
     }
 
-    public void display() {
+    public function display(): void {
         print("Document: " + title);
     }
 }

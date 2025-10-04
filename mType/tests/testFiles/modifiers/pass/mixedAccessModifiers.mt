@@ -4,22 +4,22 @@ class Employee {
     protected int employeeID;
     public string name;
 
-    public Employee(string n, int id, string social) {
+    constructor(string n, int id, string social) {
         name = n;
         employeeID = id;
         ssn = social;
     }
 
-    private string maskSSN() {
+    private function maskSSN(): string {
         return "***-**-****";
     }
 
-    protected int getID() {
+    protected function getID(): int {
         return employeeID;
     }
 
-    public string getPublicInfo() {
-        return name + " (ID: " + getID().toString() + ", SSN: " + maskSSN() + ")";
+    public function getPublicInfo(): string {
+        return name + " (ID: " + getID() + ", SSN: " + maskSSN() + ")";
     }
 }
 

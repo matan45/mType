@@ -3,14 +3,14 @@ class Vehicle {
     protected string model;
     protected int year;
 
-    public Vehicle(string m, int y) {
+    public constructor(string m, int y) {
         model = m;  // Accessing protected field in same class
         year = y;   // Accessing protected field in same class
     }
 
-    public string getInfo() {
+    public function getInfo(): string {
         // Accessing protected fields in same class
-        return model + " (" + year.toString() + ")";
+        return model + " (" + year + ")";
     }
 }
 

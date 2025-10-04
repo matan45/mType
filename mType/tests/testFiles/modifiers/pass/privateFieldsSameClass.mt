@@ -2,15 +2,15 @@
 class BankAccount {
     private float balance;
 
-    public BankAccount(float initial) {
+    public constructor(float initial) {
         balance = initial;  // Accessing private field in same class
     }
 
-    public void deposit(float amount) {
+    public function deposit(float amount): void {
         balance = balance + amount;  // Accessing private field in same class
     }
 
-    public float getBalance() {
+    public function getBalance(): float {
         return balance;  // Accessing private field in same class
     }
 }

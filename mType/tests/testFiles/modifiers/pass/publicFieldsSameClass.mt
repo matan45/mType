@@ -2,15 +2,15 @@
 class Counter {
     public int count;
 
-    public Counter(int initial) {
+    constructor(int initial) {
         count = initial;
     }
 
-    public void increment() {
+    public function increment(): void {
         count = count + 1;  // Accessing public field in same class
     }
 
-    public int getCount() {
+    public function getCount(): int {
         return count;  // Accessing public field in same class
     }
 }

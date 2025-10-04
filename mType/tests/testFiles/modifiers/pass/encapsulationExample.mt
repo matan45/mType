@@ -7,17 +7,17 @@ class PositiveCounter {
     }
 
     public function increment(): void {
-        count = count++;
+        this.count++;
     }
 
     public function decrement(): void {
-        if (count > 0) {
-            count = count--;
+        if (this.count > 0) {
+            this.count--;
         }
     }
 
     public function getCount(): int {
-        return count;
+        return this.count;
     }
 }
 

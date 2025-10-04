@@ -1,14 +1,14 @@
 // Test: Private methods accessible within same class
 class Validator {
-    private bool isValidLength(string text) {
-        return text.length() >= 3;
+    private function isValidLength(string text): bool {
+        return strLength(text) >= 3;
     }
 
-    private bool isValidFormat(string text) {
+    private function isValidFormat(string text): bool {
         return text != "";
     }
 
-    public bool validate(string text) {
+    public function validate(string text): bool {
         // Calling private methods from same class
         return isValidLength(text) && isValidFormat(text);
     }

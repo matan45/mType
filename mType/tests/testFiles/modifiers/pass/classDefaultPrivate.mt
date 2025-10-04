@@ -2,7 +2,7 @@
 class SecretBox {
     int secret;  // No modifier = private by default
 
-    public function SecretBox(int s): void {
+    public constructor(int s) {
         secret = s;  // Private field accessible in same class
     }
 

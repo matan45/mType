@@ -3,12 +3,12 @@ class Point {
     public int x;
     public int y;
 
-    public Point() {
+    public constructor() {
         x = 0;
         y = 0;
     }
 
-    public Point(int px, int py) {
+    public constructor(int px, int py) {
         x = px;
         y = py;
     }

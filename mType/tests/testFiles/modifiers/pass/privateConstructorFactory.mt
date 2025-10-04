@@ -3,11 +3,11 @@ class Singleton {
     private static Singleton instance = null;
     public int value;
 
-    private Singleton() {
+    private constructor() {
         value = 42;
     }
 
-    public static Singleton getInstance() {
+    public static function getInstance(): Singleton {
         if (instance == null) {
             instance = new Singleton();  // Private constructor accessible in same class
         }
@@ -15,8 +15,8 @@ class Singleton {
     }
 }
 
-Singleton s1 = Singleton.getInstance();
+Singleton s1 = Singleton::getInstance();
 print(s1.value);  // Expected: 42
 
-Singleton s2 = Singleton.getInstance();
+Singleton s2 = Singleton::getInstance();
 print(s2.value);  // Expected: 42

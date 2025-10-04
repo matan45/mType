@@ -44,10 +44,12 @@ namespace evaluator::base
     AccessContext AccessContext::forStaticAccess(
         const std::string& callingClass,
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> targetClassDef,
-        const SourceLocation& loc)
+        const SourceLocation& loc,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> callingClassDef)
     {
         AccessContext context;
         context.callingClassName = callingClass;
+        context.callingClass = callingClassDef;
         context.targetClass = targetClassDef;
         context.targetClassName = targetClassDef ? targetClassDef->getName() : "";
         context.isStaticAccess = true;
@@ -56,10 +58,15 @@ namespace evaluator::base
         // Check if same class
         context.isSameClass = (context.callingClassName == context.targetClassName);
 
-        // Note: For static access, we don't have the calling ClassDefinition object
-        // so we can't check subclass relationship easily. This would require
-        // looking up the calling class from the registry.
-        context.isSubclass = false;
+        // Check if subclass (now possible with calling ClassDefinition)
+        if (!context.isSameClass && callingClassDef && targetClassDef)
+        {
+            context.isSubclass = callingClassDef->isSubclassOf(context.targetClassName);
+        }
+        else
+        {
+            context.isSubclass = false;
+        }
 
         return context;
     }

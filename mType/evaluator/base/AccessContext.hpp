@@ -58,12 +58,14 @@ namespace evaluator::base
          * @param callingClass The class name from which access is attempted
          * @param targetClassDef The class definition being accessed
          * @param loc Source location for error reporting
+         * @param callingClassDef Optional calling class definition for inheritance checking
          * @return Initialized AccessContext
          */
         static AccessContext forStaticAccess(
             const std::string& callingClass,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> targetClassDef,
-            const SourceLocation& loc);
+            const SourceLocation& loc,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> callingClassDef = nullptr);
 
         /**
          * @brief Create context for global scope access (no calling class)

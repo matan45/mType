@@ -2,11 +2,11 @@
 class Animal {
     protected string species;
 
-    public Animal(string s) {
+    public constructor(string s) {
         species = s;
     }
 
-    protected string getSpecies() {
+    protected function getSpecies(): string {
         return species;
     }
 }
@@ -14,14 +14,13 @@ class Animal {
 class Dog extends Animal {
     public string name;
 
-    public Dog(string n) {
-        super("Canine");
+    public constructor(string n):super("Canine") {
         name = n;
     }
 
-    public string getFullInfo() {
+    public function getFullInfo(): string {
         // Accessing protected field and method from parent class
-        return name + " is a " + getSpecies();
+        return name + " is a " + super.getSpecies();
     }
 }
 

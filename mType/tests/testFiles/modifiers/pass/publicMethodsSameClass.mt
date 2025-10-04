@@ -1,10 +1,10 @@
 // Test: Public methods accessible within same class
 class Calculator {
-    public int add(int a, int b) {
+    public function add(int a, int b): int {
         return a + b;
     }
 
-    public int addThree(int a, int b, int c) {
+    public function addThree(int a, int b, int c): int {
         return add(a, add(b, c));  // Calling public method from same class
     }
 }
