@@ -1339,8 +1339,9 @@ namespace vm::compiler
         metadata.isNative = false;
 
         // Register constructor with parameter count to support overloading
-        // Format: <init>/<paramCount> (e.g., "<init>/0", "<init>/2")
-        std::string constructorName = "<init>/" + std::to_string(params.size());
+        // Format: ClassName::<init>/<paramCount> (e.g., "MyClass::<init>/0", "MyClass::<init>/2")
+        std::string className = currentClassNode ? currentClassNode->getClassName() : "";
+        std::string constructorName = className + "::<init>/" + std::to_string(params.size());
         program.registerFunction(constructorName, metadata);
 
         return std::monostate{};

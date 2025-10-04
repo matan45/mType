@@ -705,18 +705,9 @@ namespace vm::runtime
             callStack.push_back(frame);
             stats.functionCalls++;
 
-            // Create a new scope for the static method
-            environment->enterScope();
-
-            // Declare method parameters
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size(); ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i];
-                const value::Value& argValue = args[i];
-                value::ValueType type = value::getValueType(argValue);
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-                environment->declareVariable(paramName, varDef);
+            // Push arguments onto stack as locals (slot 0, 1, 2, ...)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
             }
 
             // Jump to static method start
@@ -803,8 +794,8 @@ namespace vm::runtime
         }
 
         // Call constructor - it will initialize the object and return it
-        // For bytecode: Look up constructor function by name "<init>/<paramCount>"
-        std::string constructorName = "<init>/" + std::to_string(argCount);
+        // For bytecode: Look up constructor function by name "ClassName::<init>/<paramCount>"
+        std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = program->getFunction(constructorName);
         if (funcMetadata) {
             // Create call frame
@@ -1088,7 +1079,7 @@ namespace vm::runtime
         }
 
         // Look up parent constructor bytecode
-        std::string constructorName = "<init>/" + std::to_string(argCount);
+        std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = program->getFunction(constructorName);
         if (funcMetadata) {
             // Create call frame for parent constructor
