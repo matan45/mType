@@ -154,6 +154,8 @@ namespace vm::runtime
             case OpCode::GET_STATIC: handleGetStatic(instr); break;
             case OpCode::SET_STATIC: handleSetStatic(instr); break;
             case OpCode::CALL_METHOD: handleCallMethod(instr); break;
+            case OpCode::SUPER_CONSTRUCTOR: handleSuperConstructor(instr); break;
+            case OpCode::SUPER_INVOKE: handleSuperInvoke(instr); break;
 
             // Arrays
             case OpCode::NEW_ARRAY: handleNewArray(instr); break;
@@ -1052,6 +1054,183 @@ namespace vm::runtime
             // Try to call as native/interpreted method
             value::Value result = instance->callMethod(methodName, args);
             push(result);
+        }
+    }
+
+    void VirtualMachine::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires operand (argument count)");
+        }
+
+        size_t argCount = instr.operands[0];
+
+        // Pop arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Get current 'this' instance from the environment
+        auto thisVar = environment->findVariable("this");
+        if (!thisVar || !std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue())) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR: 'this' not found or not an object");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue());
+
+        // Get parent class
+        auto classDef = instance->getClassDefinition();
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR: class has no parent");
+        }
+
+        std::string parentClassName = classDef->getParentClassName();
+        auto classRegistry = environment->getClassRegistry();
+        auto parentClassDef = classRegistry->findClass(parentClassName);
+
+        if (!parentClassDef) {
+            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+        }
+
+        // Find parent constructor with matching argument count
+        auto parentConstructor = parentClassDef->findConstructor(argCount);
+        if (!parentConstructor) {
+            throw errors::RuntimeException("No constructor found in parent class " + parentClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Look up parent constructor bytecode
+        std::string constructorName = "<init>/" + std::to_string(argCount);
+        auto funcMetadata = program->getFunction(constructorName);
+        if (funcMetadata) {
+            // Create call frame for parent constructor
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size();
+            frame.localBase = operandStack.size();
+            frame.functionName = "<init>";
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Create a new scope for parent constructor
+            environment->enterScope();
+
+            // Declare 'this' parameter (same instance)
+            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "this", value::ValueType::OBJECT, instance, false);
+            environment->declareVariable("this", thisDef);
+
+            // Declare constructor parameters
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
+                const value::Value& argValue = args[i];
+                value::ValueType type = value::getValueType(argValue);
+
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+                environment->declareVariable(paramName, varDef);
+            }
+
+            // Jump to parent constructor start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+        } else {
+            throw errors::RuntimeException("Parent constructor '" + constructorName +
+                                         "' for class '" + parentClassName +
+                                         "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
+        }
+    }
+
+    void VirtualMachine::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("SUPER_INVOKE requires 2 operands: method name index and argument count");
+        }
+
+        // Get method name and argument count
+        const std::string& methodName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Pop arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Get current 'this' instance from the environment
+        auto thisVar = environment->findVariable("this");
+        if (!thisVar || !std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue())) {
+            throw errors::RuntimeException("SUPER_INVOKE: 'this' not found or not an object");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue());
+
+        // Get parent class
+        auto classDef = instance->getClassDefinition();
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("SUPER_INVOKE: class has no parent");
+        }
+
+        std::string parentClassName = classDef->getParentClassName();
+        auto classRegistry = environment->getClassRegistry();
+        auto parentClassDef = classRegistry->findClass(parentClassName);
+
+        if (!parentClassDef) {
+            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+        }
+
+        // Find parent method with matching argument count
+        auto parentMethod = parentClassDef->findMethod(methodName, argCount);
+        if (!parentMethod) {
+            throw errors::RuntimeException("Method not found in parent class " + parentClassName +
+                                         ": " + methodName + " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Build qualified method name (ParentClass::methodName)
+        std::string qualifiedMethodName = parentClassName + "::" + methodName;
+
+        // Look up parent method bytecode
+        auto funcMetadata = program->getFunction(qualifiedMethodName);
+        if (funcMetadata) {
+            // Create call frame for parent method
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size();
+            frame.localBase = operandStack.size();
+            frame.functionName = qualifiedMethodName;
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Create a new scope for parent method
+            environment->enterScope();
+
+            // Declare 'this' parameter (same instance)
+            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "this", value::ValueType::OBJECT, instance, false);
+            environment->declareVariable("this", thisDef);
+
+            // Declare method parameters
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
+                const value::Value& argValue = args[i];
+                value::ValueType type = value::getValueType(argValue);
+
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+                environment->declareVariable(paramName, varDef);
+            }
+
+            // Jump to parent method start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+        } else {
+            throw errors::RuntimeException("Parent method '" + qualifiedMethodName +
+                                         "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
         }
     }
 

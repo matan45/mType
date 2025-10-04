@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include <stack>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -154,6 +153,8 @@ namespace vm::runtime
         void handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Array operations
         void handleNewArray(const bytecode::BytecodeProgram::Instruction& instr);
