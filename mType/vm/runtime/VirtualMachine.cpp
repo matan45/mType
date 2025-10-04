@@ -660,22 +660,9 @@ namespace vm::runtime
             callStack.push_back(frame);
             stats.functionCalls++;
 
-            // Create a new scope for the function
-            environment->enterScope();
-
-            // Declare parameters as variables in the new scope
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size(); ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i];
-                const value::Value& argValue = args[i];
-
-                // Determine type from value
-                value::ValueType type = value::getValueType(argValue);
-
-                // Create variable definition for parameter
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-
-                environment->declareVariable(paramName, varDef);
+            // Push arguments onto operand stack as locals (they will be at frameBase + slot)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
             }
 
             // Jump to function start
@@ -801,11 +788,16 @@ namespace vm::runtime
         auto constructor = classDef->findConstructor(argCount);
         if (!constructor) {
             // No matching constructor found
-            if (argCount == 0) {
-                // Default constructor - just return the object
+            // Check if class has ANY constructors defined
+            bool hasAnyConstructor = !classDef->getConstructors().empty();
+
+            if (argCount == 0 && !hasAnyConstructor) {
+                // Class has no constructors at all - use implicit default constructor
                 push(instance);
                 return;
             }
+
+            // Either argCount != 0 or class has constructors but none match
             throw errors::RuntimeException("No constructor found for " + baseClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
@@ -826,23 +818,12 @@ namespace vm::runtime
             callStack.push_back(frame);
             stats.functionCalls++;
 
-            // Create a new scope for the constructor
-            environment->enterScope();
+            // Push 'this' onto stack as first local (slot 0)
+            push(instance);
 
-            // Declare 'this' parameter
-            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "this", value::ValueType::OBJECT, instance, false);
-            environment->declareVariable("this", thisDef);
-
-            // Declare constructor parameters
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
-                const value::Value& argValue = args[i];
-                value::ValueType type = value::getValueType(argValue);
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-                environment->declareVariable(paramName, varDef);
+            // Push constructor arguments onto stack as locals (slot 1, 2, ...)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
             }
 
             // Jump to constructor start
@@ -1045,23 +1026,12 @@ namespace vm::runtime
             callStack.push_back(frame);
             stats.functionCalls++;
 
-            // Create a new scope for the method
-            environment->enterScope();
+            // Push 'this' onto stack as first local (slot 0)
+            push(instance);
 
-            // Declare 'this' parameter
-            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "this", value::ValueType::OBJECT, instance, false);
-            environment->declareVariable("this", thisDef);
-
-            // Declare method parameters
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
-                const value::Value& argValue = args[i];
-                value::ValueType type = value::getValueType(argValue);
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-                environment->declareVariable(paramName, varDef);
+            // Push method arguments onto stack as locals (slot 1, 2, ...)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
             }
 
             // Jump to method start

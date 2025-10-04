@@ -47,6 +47,7 @@
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../value/LambdaValue.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace vm::compiler
 {
@@ -163,9 +164,14 @@ namespace vm::compiler
 
     size_t BytecodeCompiler::resolveLocal(const std::string& name)
     {
+        // Only search locals that belong to the current function frame
+        size_t startSlot = functionFrameStack.empty() ? 0 : functionFrameStack.back().localStartSlot;
+
         for (size_t i = locals.size(); i > 0; --i) {
-            if (locals[i - 1].name == name) {
-                return locals[i - 1].slot;
+            const LocalVariable& local = locals[i - 1];
+            // Only consider locals from the current function (slot >= startSlot)
+            if (local.slot >= startSlot && local.name == name) {
+                return local.slot - startSlot;  // Return relative slot within this frame
             }
         }
         return SIZE_MAX;  // Not found
@@ -208,7 +214,7 @@ namespace vm::compiler
                 locals.pop_back();
             }
 
-            // Reset slot counter
+            // Reset slot counter and scope depth
             nextLocalSlot = frame.localStartSlot;
             currentScopeDepth = frame.scopeDepthStart;
         }
@@ -345,9 +351,8 @@ namespace vm::compiler
                             return std::monostate{};
                         } else if (inInstanceMethod) {
                             // Instance field - use GET_FIELD with 'this'
-                            // Load 'this' parameter (first parameter in instance methods)
-                            size_t thisIndex = program.getConstantPool().addString("this");
-                            emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
+                            // Load 'this' from local slot 0 (first parameter in instance methods)
+                            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0, node);
 
                             // Get field from 'this'
                             size_t fieldNameIndex = program.getConstantPool().addString(name);
@@ -361,7 +366,15 @@ namespace vm::compiler
             }
         }
 
-        // Regular variable lookup
+        // Check if this is a local variable
+        size_t localSlot = resolveLocal(name);
+        if (localSlot != SIZE_MAX) {
+            // This is a local variable - use LOAD_LOCAL with slot index
+            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
+            return std::monostate{};
+        }
+
+        // Global variable lookup
         size_t nameIndex = program.getConstantPool().addString(name);
         emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
 
@@ -391,8 +404,14 @@ namespace vm::compiler
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
+
+            // The value is already on the stack from the initializer
+            // For stack-based locals, we don't emit DECLARE_VAR
+            // The value remains on the stack at the slot position
+            return std::monostate{};
         }
 
+        // This is a global variable - use DECLARE_VAR
         std::string typeStr = "auto";  // Default type string
         size_t nameIndex = program.getConstantPool().addString(name);
         size_t typeIndex = program.getConstantPool().addString(typeStr);
@@ -419,6 +438,22 @@ namespace vm::compiler
         // Check if this is a declaration (has a type) or pure assignment (type is VOID)
         if (varType != value::ValueType::VOID) {
             // This is a declaration with initializer (e.g., "int x = 5;")
+
+            // Track local variable if we're in a function
+            if (!functionFrameStack.empty() && currentScopeDepth > 0) {
+                // This is a local variable - add to locals tracking
+                LocalVariable local;
+                local.name = name;
+                local.slot = nextLocalSlot++;
+                local.scopeDepth = currentScopeDepth;
+                locals.push_back(local);
+
+                // The value is already on the stack from the initializer
+                // For stack-based locals, we don't emit DECLARE_VAR
+                return std::monostate{};
+            }
+
+            // This is a global variable - use DECLARE_VAR
             std::string typeStr = "auto";
             size_t nameIndex = program.getConstantPool().addString(name);
             size_t typeIndex = program.getConstantPool().addString(typeStr);
@@ -455,9 +490,8 @@ namespace vm::compiler
                                 return std::monostate{};
                             } else if (inInstanceMethod) {
                                 // Instance field assignment - use SET_FIELD with 'this'
-                                // Load 'this' parameter
-                                size_t thisIndex = program.getConstantPool().addString("this");
-                                emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
+                                // Load 'this' from local slot 0
+                                emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0, node);
 
                                 // Swap so stack is: this, value
                                 program.emit(bytecode::OpCode::SWAP);
@@ -475,7 +509,15 @@ namespace vm::compiler
                 }
             }
 
-            // Regular variable assignment
+            // Check if this is a local variable assignment
+            size_t localSlot = resolveLocal(name);
+            if (localSlot != SIZE_MAX) {
+                // This is a local variable - use STORE_LOCAL with slot index
+                emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
+                return std::monostate{};
+            }
+
+            // Global variable assignment
             size_t nameIndex = program.getConstantPool().addString(name);
             emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
         }
@@ -1269,9 +1311,8 @@ namespace vm::compiler
         inInstanceMethod = wasInInstanceMethod;
 
         // Constructors implicitly return 'this'
-        // Load 'this' parameter (first parameter at index 0)
-        size_t thisNameIndex = program.getConstantPool().addString("this");
-        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
+        // Load 'this' parameter (first local at slot 0)
+        program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
         program.emit(bytecode::OpCode::RETURN_VALUE);
 
         // Calculate local count before exiting frame
