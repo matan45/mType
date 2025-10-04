@@ -39,12 +39,12 @@ function testStringOperations(): void {
         string fieldName;
         string fieldValue;
 
-        function init(string name, string value) {
+        public function init(string name, string value) {
             this.fieldName = name;
             this.fieldValue = value;
         }
 
-        function getInfo() {
+        public function getInfo() {
             return "TestType:" + this.fieldName + "=" + this.fieldValue;
         }
     }

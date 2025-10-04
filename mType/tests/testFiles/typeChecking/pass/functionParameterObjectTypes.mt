@@ -1,7 +1,7 @@
 class Person {
-    string name;
-    int age;
-    
+    public string name;
+    public int age;
+
     constructor(string n, int a) {
         name = n;
         age = a;
@@ -9,9 +9,9 @@ class Person {
 }
 
 class Company {
-    string name;
-    Person owner;
-    
+    public string name;
+    public Person owner;
+
     constructor(string n, Person o) {
         name = n;
         owner = o;

@@ -23,138 +23,138 @@ interface MegaProcessor<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> {
 class DataA {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataA(" + value + ")"; }
+    public function toString(): string { return "DataA(" + value + ")"; }
 }
 
 class DataB {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataB(" + value + ")"; }
+    public function toString(): string { return "DataB(" + value + ")"; }
 }
 
 class DataC {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataC(" + value + ")"; }
+    public function toString(): string { return "DataC(" + value + ")"; }
 }
 
 class DataD {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataD(" + value + ")"; }
+    public function toString(): string { return "DataD(" + value + ")"; }
 }
 
 class DataE {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataE(" + value + ")"; }
+    public function toString(): string { return "DataE(" + value + ")"; }
 }
 
 class DataF {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataF(" + value + ")"; }
+    public function toString(): string { return "DataF(" + value + ")"; }
 }
 
 class DataG {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataG(" + value + ")"; }
+    public function toString(): string { return "DataG(" + value + ")"; }
 }
 
 class DataH {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataH(" + value + ")"; }
+    public function toString(): string { return "DataH(" + value + ")"; }
 }
 
 class DataI {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataI(" + value + ")"; }
+    public function toString(): string { return "DataI(" + value + ")"; }
 }
 
 class DataJ {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataJ(" + value + ")"; }
+    public function toString(): string { return "DataJ(" + value + ")"; }
 }
 
 class DataK {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataK(" + value + ")"; }
+    public function toString(): string { return "DataK(" + value + ")"; }
 }
 
 class DataL {
     string value;
     constructor(string v) { value = v; }
-    function toString(): string { return "DataL(" + value + ")"; }
+    public function toString(): string { return "DataL(" + value + ")"; }
 }
 
 // Implementation with 12 generic parameters
 class MegaProcessorImpl implements MegaProcessor<DataA, DataB, DataC, DataD, DataE, DataF, DataG, DataH, DataI, DataJ, DataK, DataL> {
-    function process1(DataA param): DataA {
+    public function process1(DataA param): DataA {
         print("Processing DataA: " + param.toString());
         return param;
     }
 
-    function process2(DataB param): DataB {
+    public function process2(DataB param): DataB {
         print("Processing DataB: " + param.toString());
         return param;
     }
 
-    function process3(DataC param): DataC {
+    public function process3(DataC param): DataC {
         print("Processing DataC: " + param.toString());
         return param;
     }
 
-    function process4(DataD param): DataD {
+    public function process4(DataD param): DataD {
         print("Processing DataD: " + param.toString());
         return param;
     }
 
-    function process5(DataE param): DataE {
+    public function process5(DataE param): DataE {
         print("Processing DataE: " + param.toString());
         return param;
     }
 
-    function process6(DataF param): DataF {
+    public function process6(DataF param): DataF {
         print("Processing DataF: " + param.toString());
         return param;
     }
 
-    function process7(DataG param): DataG {
+    public function process7(DataG param): DataG {
         print("Processing DataG: " + param.toString());
         return param;
     }
 
-    function process8(DataH param): DataH {
+    public function process8(DataH param): DataH {
         print("Processing DataH: " + param.toString());
         return param;
     }
 
-    function process9(DataI param): DataI {
+    public function process9(DataI param): DataI {
         print("Processing DataI: " + param.toString());
         return param;
     }
 
-    function process10(DataJ param): DataJ {
+    public function process10(DataJ param): DataJ {
         print("Processing DataJ: " + param.toString());
         return param;
     }
 
-    function process11(DataK param): DataK {
+    public function process11(DataK param): DataK {
         print("Processing DataK: " + param.toString());
         return param;
     }
 
-    function process12(DataL param): DataL {
+    public function process12(DataL param): DataL {
         print("Processing DataL: " + param.toString());
         return param;
     }
 
-    function combine(DataA p1, DataB p2, DataC p3, DataD p4, DataE p5, DataF p6,
+    public function combine(DataA p1, DataB p2, DataC p3, DataD p4, DataE p5, DataF p6,
                     DataG p7, DataH p8, DataI p9, DataJ p10, DataK p11, DataL p12): string {
         return "Combined: " + p1.toString() + ", " + p2.toString() + ", " + p3.toString() +
                ", " + p4.toString() + ", " + p5.toString() + ", " + p6.toString() +

@@ -8,57 +8,57 @@ import "../../lib/primitives/Bool.mt";
 // Test class implementing complex interface hierarchy
 class StringIntCache implements CacheStore<String, Int, String> {
     // From Repository<Int, String> (inherited)
-    function save(Int entity): Int {
+    public function save(Int entity): Int {
         return entity;
     }
 
-    function findById(String id): Int {
+    public function findById(String id): Int {
         return new Int(42);
     }
 
-    function delete(String id): void {
+    public function delete(String id): void {
         print("Deleting " + id);
     }
 
-    function equals(Repository<Int, String> other): bool {
+    public function equals(Repository<Int, String> other): bool {
         return false;
     }
 
     // From Hashable (inherited)
-    function hashCode(): int {
+    public function hashCode(): int {
         return 123;
     }
 
     // From CacheStore<string, int, string>
-    function cache(String key, Int value, String metadata): void {
+    public function cache(String key, Int value, String metadata): void {
         print("Caching " + key + " -> " + value + " [" + metadata + "]");
     }
 
-    function evict(String key): bool {
+    public function evict(String key): bool {
         print("Evicting " + key);
         return true;
     }
 
-    function getMetadata(String key): String {
+    public function getMetadata(String key): String {
         return new String("metadata-" + key);
     }
 }
 
 // Test class for SortableMap
 class StringIntMap implements SortableMap<String, Int> {
-    function put(String key, Int value): void {
+    public function put(String key, Int value): void {
         print("Put " + key.toString() + " -> " + value.toString());
     }
 
-    function get(String key): Int {
+    public function get(String key): Int {
         return new Int(100);
     }
 
-    function size(): int {
+    public function size(): int {
         return 5;
     }
 
-    function compareTo(String other): int {
+    public function compareTo(String other): int {
         return this.size() - 3; // Simple comparison
     }
 }

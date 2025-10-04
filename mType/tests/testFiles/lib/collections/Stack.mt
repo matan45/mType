@@ -9,7 +9,7 @@ class Stack<T> {
             this.top = -1;
         }
 
-        function push(T item): void {
+        public function push(T item): void {
             if (this.top + 1 >= this.capacity) {
                 this.resize();
             }
@@ -26,7 +26,7 @@ class Stack<T> {
             return item;
         }
 
-        function peek(): T {
+        public function peek(): T {
             if (this.empty()) {
                 return null; // Stack empty
             }

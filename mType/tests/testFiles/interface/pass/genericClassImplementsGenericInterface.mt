@@ -15,17 +15,17 @@ class GenericList<T> implements Container<Int> {
         this.listSize = new Int(0);
     }
 
-    function add(Int item): bool {
+    public function add(Int item): bool {
         this.listSize = new Int(this.listSize.getValue() + 1);
         print("Added item to generic list");
         return true;
     }
 
-    function get(int index): Int {
+    public function get(int index): Int {
         return null; // Simplified implementation
     }
 
-    function size(): Int {
+    public function size(): Int {
         return this.listSize;
     }
 }

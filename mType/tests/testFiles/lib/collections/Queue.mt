@@ -13,7 +13,7 @@ class Queue<T> {
             this.count = 0;
         }
 
-        function enqueue(T item): void {
+        public function enqueue(T item): void {
             if (this.count >= this.capacity) {
                 this.resize();
             }
@@ -32,7 +32,7 @@ class Queue<T> {
             return item;
         }
 
-        function peek(): T {
+        public function peek(): T {
             if (this.empty()) {
                 return null; // Queue empty
             }

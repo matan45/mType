@@ -140,29 +140,29 @@ print("Mixed whitespace == empty: " + (mixed == empty));
 print("\nTesting empty strings in classes:");
 
 class StringContainer {
-    string value;
-    
+    public string value;
+
     constructor() {
         value = "";  // Initialize with empty string
     }
-    
+
     constructor(string s) {
         value = s;
     }
-    
-    function getValue(): string {
+
+    public function getValue(): string {
         return value;
     }
-    
-    function setValue(string s): void {
+
+    public function setValue(string s): void {
         value = s;
     }
-    
-    function isEmpty(): bool {
+
+    public function isEmpty(): bool {
         return value == "";
     }
-    
-    function append(string s): void {
+
+    public function append(string s): void {
         value += s;
     }
 }
@@ -186,18 +186,18 @@ print("Container with empty string: isEmpty = " + container2.isEmpty());
 print("\nTesting method chaining with empty strings:");
 
 class StringBuilder {
-    string content;
-    
+    public string content;
+
     constructor() {
         content = "";
     }
-    
-    function append(string s): StringBuilder {
+
+    public function append(string s): StringBuilder {
         content += s;
         return this;
     }
-    
-    function toString(): string {
+
+    public function toString(): string {
         return content;
     }
 }

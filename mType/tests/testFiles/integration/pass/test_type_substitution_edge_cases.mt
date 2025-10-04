@@ -133,7 +133,7 @@ class FastCacheTest {
 
 // Test 5: Complex patterns that should use regular cache
 class ComplexCacheTest {
-    static function testComplexPatterns(): void {
+    public static function testComplexPatterns(): void {
         print("=== Complex Cache Tests ===");
 
         // These should NOT use fast cache (too complex)
@@ -173,7 +173,7 @@ class EdgeCaHashSetest {
 
 // Test 8: Performance stress test
 class PerformanceStressTest {
-    static function stressTestCache(): void {
+    public static function stressTestCache(): void {
         print("=== Performance Stress Tests ===");
 
         // Rapid repeated instantiation of same types
@@ -226,7 +226,7 @@ class SubstitutionChaIntest {
 
 // Performance stress test
 class PerformanceStressTest {
-    static function stressTestCache(): void {
+    public static function stressTestCache(): void {
         print("=== Performance Stress Tests ===");
 
         print("Stress testing repeated List<Int> instantiation...");

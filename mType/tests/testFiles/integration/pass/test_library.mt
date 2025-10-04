@@ -31,7 +31,7 @@ class Calculator {
         return 0;
     }
 
-    function multiply(int x, int y): int {
+    public function multiply(int x, int y): int {
         if (isActive) {
             Calculator::operationCount = Calculator::operationCount + 1;
             return x * y;
@@ -43,7 +43,7 @@ class Calculator {
         return name;
     }
 
-    function setActive(bool active): void {
+    public function setActive(bool active): void {
         isActive = active;
     }
 

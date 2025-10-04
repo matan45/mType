@@ -1,6 +1,6 @@
 class Data {
-    int value;
-    
+    public int value;
+
     constructor() {
         value = 0;
     }

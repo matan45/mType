@@ -1,5 +1,5 @@
 class Book {
-    static string TEST = "Book class imported successfully";
+    public static string TEST = "Book class imported successfully";
     
     string title;
     string author;
@@ -11,7 +11,7 @@ class Book {
         pages = p;
     }
     
-    function getInfo(): string {
+    public function getInfo(): string {
         return title + " by " + author;
     }
 }

@@ -1,24 +1,24 @@
 class Department {
-        string name;
-        
+        public string name;
+
         constructor(string n) {
             name = n;
         }
-        
-        function getName(): string {
+
+        public function getName(): string {
             return name;
         }
     }
 
 class Company {
-    
-    Department dept;
-    
+
+    public Department dept;
+
     constructor(string deptName) {
         dept = new Department(deptName);
     }
-    
-    function getDepartment(): Department {
+
+    public function getDepartment(): Department {
         return dept;
     }
 }

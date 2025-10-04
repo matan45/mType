@@ -4,8 +4,8 @@ interface Function {
 }
 
 class Math {
-    static int PI_TIMES_100 = 314;
-    static int E_TIMES_100 = 271;
+    public static int PI_TIMES_100 = 314;
+    public static int E_TIMES_100 = 271;
 }
 
 class Calculator {
@@ -16,22 +16,22 @@ class Calculator {
         instanceValue = value;
     }
 
-    function getStaticLambda() : Function {
+    public function getStaticLambda() : Function {
         // Lambda accessing static field (unqualified)
         return x -> x * MULTIPLIER;
     }
 
-    function getQualifiedStaticLambda() : Function {
+    public function getQualifiedStaticLambda() : Function {
         // Lambda accessing qualified static field
         return x -> x + Math::PI_TIMES_100;
     }
 
-    function getComplexStaticLambda() : Function {
+    public function getComplexStaticLambda() : Function {
         // Lambda mixing static, qualified static, and instance
         return x -> x * MULTIPLIER + Math::E_TIMES_100 + instanceValue;
     }
 
-    static function getStaticMethodLambda() : Function {
+    public static function getStaticMethodLambda() : Function {
         // Lambda from static method accessing static field
         return x -> x * MULTIPLIER + Math::PI_TIMES_100;
     }

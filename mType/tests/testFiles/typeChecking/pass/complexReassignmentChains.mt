@@ -1,10 +1,10 @@
 class DataContainer {
-    string value;
+    public string value;
     constructor(string v) {
         value = v;
     }
-    
-    function setValue(string v) : void{
+
+    public function setValue(string v) : void{
         value = v;
     }
 }
@@ -54,7 +54,7 @@ if (n3 == null) {
 
 // Test nested object reassignment chains
 class NestedContainer {
-    DataContainer inner;
+    public DataContainer inner;
     constructor(string val) {
         inner = new DataContainer(val);
     }

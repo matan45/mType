@@ -18,15 +18,15 @@ class Person {
         return age;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return name + " (" + age + " years old)";
     }
 
-    function equals(Person other): bool {
+    public function equals(Person other): bool {
         return this.name == other.name && this.age == other.age;
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         return hashCode(name) + age;
     }
 }
@@ -40,15 +40,15 @@ class Employee {
         department = d;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return name + " from " + department;
     }
 
-    function equals(Employee other): bool {
+    public function equals(Employee other): bool {
         return this.name == other.name && this.department == other.department;
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         return hashCode(name) + hashCode(department);
     }
 }

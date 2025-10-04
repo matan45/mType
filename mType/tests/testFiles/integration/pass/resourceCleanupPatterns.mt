@@ -162,11 +162,11 @@ function testResourcePoolPattern(): void {
         }
         }
         
-        function getActiveResourceCount(): int {
+        public function getActiveResourceCount(): int {
         return activeResources;
         }
         
-        function cleanup(): void {
+        public function cleanup(): void {
         resource1.close();
         resource2.close();
         resource3.close();

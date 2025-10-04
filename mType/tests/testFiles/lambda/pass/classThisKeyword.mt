@@ -16,17 +16,17 @@ class Calculator {
         base = b;
     }
 
-    function getThisLambda() : Processor {
+    public function getThisLambda() : Processor {
         // Lambda using explicit this.field syntax
         return x -> x * this.factor + this.base;
     }
 
-    function getMultipleThisLambda() : BinaryProcessor {
+    public function getMultipleThisLambda() : BinaryProcessor {
         // Lambda with multiple this accesses
         return (a, b) -> a * this.factor + b * this.base;
     }
 
-    function getThisBlockLambda() : Processor {
+    public function getThisBlockLambda() : Processor {
         // Block lambda with this keyword
         return x -> {
             int temp = this.factor * 2;
@@ -35,7 +35,7 @@ class Calculator {
         };
     }
 
-    function getMixedAccessLambda() : Processor {
+    public function getMixedAccessLambda() : Processor {
         // Mixed this and direct field access
         return x -> x + this.factor + base;
     }

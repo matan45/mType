@@ -24,16 +24,16 @@ class GameObject implements Drawable, Moveable, Resizable {
         this.height = h;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing game object at (" + this.x + ", " + this.y + ")");
     }
 
-    function move(float newX, float newY): void {
+    public function move(float newX, float newY): void {
         this.x = newX;
         this.y = newY;
     }
 
-    function resize(float factor): void {
+    public function resize(float factor): void {
         this.width = this.width * factor;
         this.height = this.height * factor;
     }

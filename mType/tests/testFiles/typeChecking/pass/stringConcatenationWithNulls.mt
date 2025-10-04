@@ -3,15 +3,15 @@
 
 // Define a test class for object concatenation tests
 class TestObject {
-    string name;
-    int value;
-    
+    public string name;
+    public int value;
+
     constructor(string n, int v) {
         name = n;
         value = v;
     }
-    
-    function toString(): string {
+
+    public function toString(): string {
         return name + ":" + value;
     }
 }
@@ -89,11 +89,11 @@ print("Accumulated string: " + accumulated);
 
 // Test 9: Null object concatenation in class methods
 class StringProcessor {
-    function process(TestObject obj): string {
+    public function process(TestObject obj): string {
         return "Processed: " + obj;
     }
 
-    function combineObjects(TestObject obj1, TestObject obj2): string {
+    public function combineObjects(TestObject obj1, TestObject obj2): string {
         return obj1 + " combined with " + obj2;
     }
 }
@@ -140,11 +140,11 @@ print(processObjectType(new TestObject("switch", 123)));
 
 // Test 14: Null object concatenation with static methods
 class StaticStringUtils {
-    static function formatObject(TestObject obj): string {
+    public static function formatObject(TestObject obj): string {
         return "[" + obj + "]";
     }
 
-    static function combineWithPrefix(string prefix, TestObject obj): string {
+    public static function combineWithPrefix(string prefix, TestObject obj): string {
         return prefix + obj;
     }
 }
@@ -162,13 +162,13 @@ print("Null array concatenation: " + arrayResult);
 
 // Test 16: Complex nested null scenarios
 class Container {
-    TestObject inner;
-    
+    public TestObject inner;
+
     constructor(TestObject obj) {
         inner = obj;
     }
-    
-    function describe(): string {
+
+    public function describe(): string {
         return "Container holding: " + inner;
     }
 }

@@ -14,22 +14,22 @@ class ParameterCapture {
         classField = field;
     }
 
-    function createLambdaWithParam(int factor) : Function {
+    public function createLambdaWithParam(int factor) : Function {
         // Lambda capturing method parameter
         return x -> x * factor;
     }
 
-    function createMixedCaptureLambda(int multiplier, int offset) : Function {
+    public function createMixedCaptureLambda(int multiplier, int offset) : Function {
         // Lambda capturing multiple parameters and class field
         return x -> (x + offset) * multiplier + classField;
     }
 
-    function createComplexLambda(int a, int b) : BinaryFunction {
+    public function createComplexLambda(int a, int b) : BinaryFunction {
         // Lambda capturing parameters in binary function
         return (x, y) -> x * a + y * b + classField;
     }
 
-    function createBlockLambdaWithParams(int base, int increment) : Function {
+    public function createBlockLambdaWithParams(int base, int increment) : Function {
         // Block lambda with parameter capture
         return x -> {
             int temp = x + base;
