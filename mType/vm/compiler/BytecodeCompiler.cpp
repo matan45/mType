@@ -165,10 +165,11 @@ namespace vm::compiler
         }
     }
 
-    void BytecodeCompiler::enterLoop(size_t loopStart)
+    void BytecodeCompiler::enterLoop(size_t loopStart, size_t continueTarget)
     {
         LoopContext ctx;
         ctx.loopStart = loopStart;
+        ctx.continueTarget = (continueTarget == SIZE_MAX) ? loopStart : continueTarget;
         loopStack.push_back(ctx);
     }
 
@@ -185,9 +186,9 @@ namespace vm::compiler
             patchJump(breakJump);
         }
 
-        // Patch all continue jumps to loop start
+        // Patch all continue jumps to continue target (for loops: increment, others: loop start)
         for (size_t continueJump : ctx.continueJumps) {
-            program.patchJump(continueJump, static_cast<uint32_t>(ctx.loopStart));
+            program.patchJump(continueJump, static_cast<uint32_t>(ctx.continueTarget));
         }
 
         loopStack.pop_back();
@@ -459,7 +460,6 @@ namespace vm::compiler
         }
 
         size_t loopStart = program.getCurrentOffset();
-        enterLoop(loopStart);
 
         // Compile condition
         size_t exitJump = SIZE_MAX;
@@ -469,18 +469,31 @@ namespace vm::compiler
             exitJump = emitJump(bytecode::OpCode::JUMP_IF_FALSE);
         }
 
-        // Compile body
-        node->getBody()->accept(*this);
+        // Jump over increment to body
+        size_t bodyJump = emitJump(bytecode::OpCode::JUMP);
 
-        // Compile increment
+        // Increment position (continue target for for loops)
+        size_t incrementStart = program.getCurrentOffset();
         auto* update = node->getUpdate();
         if (update) {
             update->accept(*this);
             emitWithLocation(bytecode::OpCode::POP, nullptr);  // Discard increment result
         }
 
-        // Jump back to loop start
+        // Jump back to condition
         emitLoop(loopStart);
+
+        // Patch body jump to here
+        patchJump(bodyJump);
+
+        // Enter loop with increment as continue target
+        enterLoop(loopStart, incrementStart);
+
+        // Compile body
+        node->getBody()->accept(*this);
+
+        // Jump to increment
+        program.emit(bytecode::OpCode::JUMP, static_cast<uint32_t>(incrementStart));
 
         // Patch exit jump
         if (exitJump != SIZE_MAX) {

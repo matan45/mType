@@ -428,6 +428,8 @@ namespace vm::runtime
             throw errors::RuntimeException("Variable not found: " + varName);
         }
         varDef->setValue(val);
+        // Push value back for assignment expressions (e.g., x = y = 5)
+        push(val);
     }
 
     void VirtualMachine::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr) {

@@ -100,8 +100,9 @@ namespace vm::compiler
         // Compilation state
         struct LoopContext {
             std::vector<size_t> breakJumps;    // Jump instructions that need to be patched to loop end
-            std::vector<size_t> continueJumps; // Jump instructions that need to be patched to loop start
-            size_t loopStart;                   // Offset of loop start
+            std::vector<size_t> continueJumps; // Jump instructions that need to be patched to continue target
+            size_t loopStart;                   // Offset of loop start (condition check)
+            size_t continueTarget;              // Offset where continue should jump (for loops: increment, others: loopStart)
         };
         std::vector<LoopContext> loopStack;
 
@@ -130,7 +131,7 @@ namespace vm::compiler
         void endScope();
 
         // Loop management
-        void enterLoop(size_t loopStart);
+        void enterLoop(size_t loopStart, size_t continueTarget = SIZE_MAX);
         void exitLoop();
         LoopContext& currentLoop();
     };
