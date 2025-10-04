@@ -1066,19 +1066,48 @@ namespace vm::runtime
                 auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
 
                 if (obj) {
-                    // Get object's class name
-                    std::string className = obj->getClassDefinition()->getName();
+                    auto classDef = obj->getClassDefinition();
+                    std::string className = classDef->getName();
 
-                    // Check if object's class matches or is subclass of target type
-                    // For now, simple string comparison
-                    // TODO: Add proper inheritance hierarchy checking
-                    result = (className == targetTypeName);
+                    // Extract base class name from generic instantiation (e.g., "Box<Int>" -> "Box")
+                    std::string baseClassName = className;
+                    size_t genericStart = className.find('<');
+                    if (genericStart != std::string::npos) {
+                        baseClassName = className.substr(0, genericStart);
+                    }
+
+                    // Extract base target name from generic (e.g., "Box<Int>" -> "Box")
+                    std::string baseTargetName = targetTypeName;
+                    genericStart = targetTypeName.find('<');
+                    if (genericStart != std::string::npos) {
+                        baseTargetName = targetTypeName.substr(0, genericStart);
+                    }
+
+                    // Check if object's class matches target type (exact or base generic match)
+                    result = (className == targetTypeName) || (baseClassName == baseTargetName);
+
+                    // If not exact match, check inheritance hierarchy
+                    if (!result) {
+                        result = classDef->isSubclassOf(targetTypeName);
+
+                        // Also check with base names for generic types
+                        if (!result && baseTargetName != targetTypeName) {
+                            result = classDef->isSubclassOf(baseTargetName);
+                        }
+                    }
 
                     // Also check if object implements an interface with that name
                     if (!result) {
-                        const auto& interfaces = obj->getClassDefinition()->getImplementedInterfaces();
+                        const auto& interfaces = classDef->getImplementedInterfaces();
                         for (const auto& iface : interfaces) {
-                            if (iface == targetTypeName) {
+                            // Extract base interface name for comparison
+                            std::string baseIfaceName = iface;
+                            size_t ifaceGenericStart = iface.find('<');
+                            if (ifaceGenericStart != std::string::npos) {
+                                baseIfaceName = iface.substr(0, ifaceGenericStart);
+                            }
+
+                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
                                 result = true;
                                 break;
                             }
@@ -1158,10 +1187,107 @@ namespace vm::runtime
             if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
                 auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
 
-                // For now, just verify the object exists and push it back
-                // TODO: Add proper type hierarchy checking
                 if (obj) {
-                    push(obj);
+                    auto classDef = obj->getClassDefinition();
+                    std::string className = classDef->getName();
+
+                    // Extract base class name and type parameters from object's class
+                    std::string baseClassName = className;
+                    std::string classTypeParams = "";
+                    size_t genericStart = className.find('<');
+                    if (genericStart != std::string::npos) {
+                        baseClassName = className.substr(0, genericStart);
+                        classTypeParams = className.substr(genericStart); // includes <>
+                    }
+
+                    // Extract base target name and type parameters
+                    std::string baseTargetName = targetTypeName;
+                    std::string targetTypeParams = "";
+                    genericStart = targetTypeName.find('<');
+                    if (genericStart != std::string::npos) {
+                        baseTargetName = targetTypeName.substr(0, genericStart);
+                        targetTypeParams = targetTypeName.substr(genericStart); // includes <>
+                    }
+
+                    // Check if the object's class can be cast to target type
+                    bool canCast = false;
+
+                    // 1. Exact match (including generic type parameters)
+                    if (className == targetTypeName) {
+                        canCast = true;
+                    }
+                    // 2. Base class match without type parameters (e.g., Box<Int> -> Box)
+                    else if (baseClassName == baseTargetName && targetTypeParams.empty()) {
+                        canCast = true;
+                    }
+                    // 3. Upcast - object is subclass of target type
+                    else if (classDef->isSubclassOf(targetTypeName)) {
+                        canCast = true;
+                    }
+                    // 4. Upcast with base names (for generic types)
+                    else if (classDef->isSubclassOf(baseTargetName)) {
+                        // Check if type parameters match (if target has type params)
+                        if (!targetTypeParams.empty() && !classTypeParams.empty()) {
+                            // Type parameters must match for generic upcast
+                            canCast = (classTypeParams == targetTypeParams);
+                        } else {
+                            // No type params on target, allow upcast to generic base
+                            canCast = true;
+                        }
+                    }
+                    // 5. Downcast - target type is subclass of object's type (runtime check needed)
+                    else {
+                        // Get target class from registry to check if it's a subclass
+                        auto targetClass = environment->findClass(baseTargetName);
+                        if (targetClass) {
+                            // Check if target class is a subclass of the object's actual class
+                            if (targetClass->isSubclassOf(baseClassName)) {
+                                // Check type parameter compatibility for generic downcast
+                                if (!targetTypeParams.empty() && !classTypeParams.empty()) {
+                                    // Type parameters must match for valid generic downcast
+                                    canCast = (classTypeParams == targetTypeParams);
+                                } else {
+                                    // No type param mismatch, allow downcast
+                                    canCast = true;
+                                }
+                            }
+                        }
+                    }
+                    // 6. Interface check
+                    if (!canCast) {
+                        const auto& interfaces = classDef->getImplementedInterfaces();
+                        for (const auto& iface : interfaces) {
+                            // Extract base interface name
+                            std::string baseIfaceName = iface;
+                            std::string ifaceTypeParams = "";
+                            size_t ifaceGenericStart = iface.find('<');
+                            if (ifaceGenericStart != std::string::npos) {
+                                baseIfaceName = iface.substr(0, ifaceGenericStart);
+                                ifaceTypeParams = iface.substr(ifaceGenericStart);
+                            }
+
+                            // Check exact match or base match
+                            if (iface == targetTypeName ||
+                                (baseIfaceName == baseTargetName && targetTypeParams.empty())) {
+                                canCast = true;
+                                break;
+                            }
+                            // Check type param compatibility
+                            if (baseIfaceName == baseTargetName && !targetTypeParams.empty()) {
+                                canCast = (ifaceTypeParams == targetTypeParams);
+                                if (canCast) break;
+                            }
+                        }
+                    }
+
+                    if (canCast) {
+                        push(obj);
+                    } else {
+                        throw errors::RuntimeException(
+                            "Cannot cast " + className + " to " + targetTypeName +
+                            ": incompatible types in inheritance hierarchy"
+                        );
+                    }
                 } else {
                     throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
                 }
