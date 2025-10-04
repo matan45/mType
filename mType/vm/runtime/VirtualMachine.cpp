@@ -104,6 +104,8 @@ namespace vm::runtime
             case OpCode::DIV: handleDiv(); break;
             case OpCode::MOD: handleMod(); break;
             case OpCode::NEG: handleNeg(); break;
+            case OpCode::INC: handleInc(); break;
+            case OpCode::DEC: handleDec(); break;
             case OpCode::ADD_INT: handleAddInt(); break;
             case OpCode::SUB_INT: handleSubInt(); break;
             case OpCode::MUL_INT: handleMulInt(); break;
@@ -291,6 +293,28 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::handleInc() {
+        value::Value val = pop();
+        if (std::holds_alternative<int>(val)) {
+            push(std::get<int>(val) + 1);
+        } else if (std::holds_alternative<float>(val)) {
+            push(std::get<float>(val) + 1.0f);
+        } else {
+            throw errors::RuntimeException("INC requires numeric value");
+        }
+    }
+
+    void VirtualMachine::handleDec() {
+        value::Value val = pop();
+        if (std::holds_alternative<int>(val)) {
+            push(std::get<int>(val) - 1);
+        } else if (std::holds_alternative<float>(val)) {
+            push(std::get<float>(val) - 1.0f);
+        } else {
+            throw errors::RuntimeException("DEC requires numeric value");
+        }
+    }
+
     void VirtualMachine::handleAddInt() {
         checkStackUnderflow(2);
         int right = std::get<int>(pop());
@@ -435,6 +459,10 @@ namespace vm::runtime
         if (!varDef) {
             throw errors::RuntimeException("Variable not found: " + varName);
         }
+        // Check if variable is final
+        if (varDef->isFinal()) {
+            throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
+        }
         varDef->setValue(val);
         // Push value back for assignment expressions (e.g., x = y = 5)
         push(val);
@@ -450,9 +478,15 @@ namespace vm::runtime
         // Determine type from value
         value::ValueType type = value::getValueType(val);
 
+        // Check if variable is final (third operand)
+        bool isFinal = false;
+        if (instr.operands.size() >= 3) {
+            isFinal = (instr.operands[2] != 0);
+        }
+
         // Create variable definition
         auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-            varName, type, val, false);
+            varName, type, val, isFinal);
 
         environment->declareVariable(varName, varDef);
     }
@@ -576,6 +610,9 @@ namespace vm::runtime
         std::string functionName = program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
+        // Calculate frameBase BEFORE popping arguments
+        size_t frameBase = operandStack.size() - argCount;
+
         // Pop arguments from stack (in reverse order)
         std::vector<value::Value> args;
         args.reserve(argCount);
@@ -601,8 +638,8 @@ namespace vm::runtime
             // Create call frame
             CallFrame frame;
             frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size() - argCount;
-            frame.localBase = operandStack.size();  // Locals start after arguments
+            frame.frameBase = frameBase;  // Use the frameBase calculated before popping args
+            frame.localBase = operandStack.size();  // Locals start after arguments (which are now popped)
             frame.functionName = functionName;
             frame.thisInstance = nullptr;
 

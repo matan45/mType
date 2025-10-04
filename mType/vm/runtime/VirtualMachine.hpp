@@ -99,6 +99,8 @@ namespace vm::runtime
         void handleDiv();
         void handleMod();
         void handleNeg();
+        void handleInc();
+        void handleDec();
         void handleAddInt();
         void handleSubInt();
         void handleMulInt();

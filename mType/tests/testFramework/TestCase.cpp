@@ -24,7 +24,7 @@ namespace tests::testFramework
 
     TestCase::TestCase(const std::string& testName, const std::string& testFilePath, TestType testType)
         : name(testName), filePath(testFilePath), type(testType), status(TestStatus::NOT_RUN),
-          executionTime(0)
+          executionTime(0), executionMode(constants::ExecutionMode::AST_INTERPRETER)
     {
     }
 
@@ -64,48 +64,59 @@ namespace tests::testFramework
 
             try
             {
-                // Initialize lexer and parser - let lexer read the file
-                Lexer lexer(filePath);
-                auto importManager = std::make_unique<ImportManager>();
-                ImportManager* importManagerPtr = importManager.get();
-
-                // Set base directory to the directory of the test file
-                std::filesystem::path testFilePath(filePath);
-                importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
-
-                Parser parser(lexer, std::move(importManager));
-
-                // Parse the file
-                auto ast = parser.parseProgram();
-
-                if (!ast)
+                if (executionMode == constants::ExecutionMode::BYTECODE_VM ||
+                    executionMode == constants::ExecutionMode::DUAL_VALIDATION)
                 {
-                    throw std::runtime_error("Failed to generate AST");
+                    // Use ScriptInterpreter for bytecode/dual mode
+                    ScriptInterpreter interpreter(executionMode);
+                    interpreter.runScript(filePath);
                 }
-
-                // Evaluate the AST
-                auto env = EnvironmentBuilder::createDefault();
-
-                // Set ImportManager on environment for clean architecture
-                env->setImportManager(importManagerPtr);
-
-                Evaluator evaluator(env);
-
-                // Set up method call handler for native functions (needed for toString())
-                auto nativeRegistry = env->getNativeRegistry();
-                if (nativeRegistry)
+                else
                 {
-                    nativeRegistry->setMethodCallHandler(
-                        [&evaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                    const std::string& methodName,
-                                    const std::vector<value::Value>& args) -> value::Value
-                        {
-                            return evaluator.callMethodOnInstance(instance, methodName, args);
-                        }
-                    );
-                }
+                    // Original AST execution code
+                    // Initialize lexer and parser - let lexer read the file
+                    Lexer lexer(filePath);
+                    auto importManager = std::make_unique<ImportManager>();
+                    ImportManager* importManagerPtr = importManager.get();
 
-                evaluator.evaluate(ast.get());
+                    // Set base directory to the directory of the test file
+                    std::filesystem::path testFilePath(filePath);
+                    importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
+
+                    Parser parser(lexer, std::move(importManager));
+
+                    // Parse the file
+                    auto ast = parser.parseProgram();
+
+                    if (!ast)
+                    {
+                        throw std::runtime_error("Failed to generate AST");
+                    }
+
+                    // Evaluate the AST
+                    auto env = EnvironmentBuilder::createDefault();
+
+                    // Set ImportManager on environment for clean architecture
+                    env->setImportManager(importManagerPtr);
+
+                    Evaluator evaluator(env);
+
+                    // Set up method call handler for native functions (needed for toString())
+                    auto nativeRegistry = env->getNativeRegistry();
+                    if (nativeRegistry)
+                    {
+                        nativeRegistry->setMethodCallHandler(
+                            [&evaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args) -> value::Value
+                            {
+                                return evaluator.callMethodOnInstance(instance, methodName, args);
+                            }
+                        );
+                    }
+
+                    evaluator.evaluate(ast.get());
+                }
 
                 // Restore stdout
                 std::cout.rdbuf(oldCout);

@@ -111,7 +111,7 @@ void printAvailableTestSuites()
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
-void runSpecificTestSuite(const std::string& suiteName)
+void runSpecificTestSuite(const std::string& suiteName, constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
     // Handle native test separately since it doesn't inherit from TestSuite
     if (suiteName == "native")
@@ -134,6 +134,8 @@ void runSpecificTestSuite(const std::string& suiteName)
     std::cout << "Running " << suite->getName() << "...\n\n";
     suite->setupTests();
 
+    // Set execution mode on all test cases
+    suite->setExecutionModeForAll(execMode);
 
     suite->run();
 }
@@ -180,6 +182,29 @@ void runAllTests()
 
 int main(int argc, char* argv[])
 {
+    // Parse execution mode first
+    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
+
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--bytecode") {
+            execMode = constants::ExecutionMode::BYTECODE_VM;
+        } else if (std::string(argv[i]) == "--dual") {
+            execMode = constants::ExecutionMode::DUAL_VALIDATION;
+        }
+    }
+
+    // Check for test suite execution
+    if (argc >= 2 && std::string(argv[argc-2]) == "--test" && argc >= 3) {
+        std::string suiteName = argv[argc-1];
+        runSpecificTestSuite(suiteName, execMode);
+        return 0;
+    }
+
+    if (argc >= 2 && std::string(argv[argc-1]) == "--tests") {
+        runAllTests();
+        return 0;
+    }
+
     if (argc == 2 && std::string(argv[1]) == "--tests")
     {
         runAllTests();
@@ -189,7 +214,7 @@ int main(int argc, char* argv[])
     if (argc == 3 && std::string(argv[1]) == "--test")
     {
         std::string suiteName = argv[2];
-        runSpecificTestSuite(suiteName);
+        runSpecificTestSuite(suiteName, execMode);
 
         return 0;
     }
@@ -217,8 +242,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // Parse execution mode and optimization level
-    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
+    // Parse optimization level and filename
     constants::OptimizationLevel optLevel = constants::OptimizationLevel::O0;
     std::string filename;
 

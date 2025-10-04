@@ -29,12 +29,20 @@ namespace tests::testFramework
         generateReport();
     }
 
+    void TestSuite::setExecutionModeForAll(constants::ExecutionMode mode)
+    {
+        for (auto& testCase : testCases)
+        {
+            testCase.setExecutionMode(mode);
+        }
+    }
+
     void TestSuite::generateReport()
     {
         // Generate both console and HTML reports
         runner->printDetailedReport();
         generateHtmlReport();
-        
+
         // Save log file
         std::filesystem::create_directories("test_logs");
         

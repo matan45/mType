@@ -294,10 +294,14 @@ namespace vm::compiler
         std::string typeStr = "auto";  // Default type string
         size_t nameIndex = program.getConstantPool().addString(name);
         size_t typeIndex = program.getConstantPool().addString(typeStr);
+        uint32_t isFinal = node->isFinal() ? 1 : 0;
 
         program.emit(bytecode::OpCode::DECLARE_VAR,
-                     static_cast<uint32_t>(nameIndex),
-                     static_cast<uint32_t>(typeIndex));
+                     std::vector<uint32_t>{
+                         static_cast<uint32_t>(nameIndex),
+                         static_cast<uint32_t>(typeIndex),
+                         isFinal
+                     });
 
         return std::monostate{};
     }
@@ -316,10 +320,14 @@ namespace vm::compiler
             std::string typeStr = "auto";
             size_t nameIndex = program.getConstantPool().addString(name);
             size_t typeIndex = program.getConstantPool().addString(typeStr);
+            uint32_t isFinal = node->getIsFinal() ? 1 : 0;
 
             program.emit(bytecode::OpCode::DECLARE_VAR,
-                         static_cast<uint32_t>(nameIndex),
-                         static_cast<uint32_t>(typeIndex));
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(nameIndex),
+                             static_cast<uint32_t>(typeIndex),
+                             isFinal
+                         });
         } else {
             // This is a pure assignment (e.g., "x = 5;")
             size_t nameIndex = program.getConstantPool().addString(name);
@@ -347,11 +355,47 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitUnaryOpNode(ast::UnaryOpNode* node)
     {
-        // Compile operand
-        node->getOperand()->accept(*this);
+        auto op = node->getOperator();
 
-        // Emit operation
-        bytecode::OpCode opcode = getUnaryOpCode(node->getOperator());
+        // Handle increment/decrement specially (they modify variables)
+        if (op == token::TokenType::INCREMENT || op == token::TokenType::DECREMENT) {
+            // Check if operand is a variable
+            if (auto* varNode = dynamic_cast<ast::VariableNode*>(node->getOperand())) {
+                std::string varName = varNode->getName();
+
+                // Load current value
+                size_t nameIndex = program.getConstantPool().addString(varName);
+                program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+
+                // For postfix (i++): duplicate value before incrementing (return original)
+                // For prefix (++i): increment then duplicate (return incremented)
+                bool isPostfix = (node->getPosition() == ast::nodes::expressions::UnaryPosition::POSTFIX);
+
+                if (isPostfix) {
+                    emitWithLocation(bytecode::OpCode::DUP, node);  // Save original value
+                }
+
+                // Increment or decrement
+                bytecode::OpCode opcode = (op == token::TokenType::INCREMENT)
+                    ? bytecode::OpCode::INC
+                    : bytecode::OpCode::DEC;
+                emitWithLocation(opcode, node);
+
+                if (!isPostfix) {
+                    emitWithLocation(bytecode::OpCode::DUP, node);  // Save incremented value
+                }
+
+                // Store updated value back to variable (consumes one value from stack)
+                program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
+
+                // Stack now has either original (postfix) or incremented (prefix) value
+                return std::monostate{};
+            }
+        }
+
+        // For other unary operators (-, !, etc.)
+        node->getOperand()->accept(*this);
+        bytecode::OpCode opcode = getUnaryOpCode(op);
         emitWithLocation(opcode, node);
         return std::monostate{};
     }
