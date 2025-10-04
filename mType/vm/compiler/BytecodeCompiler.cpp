@@ -330,30 +330,34 @@ namespace vm::compiler
             return std::monostate{};
         }
 
-        // Check if we're in an instance method and this variable is a field
-        if (inInstanceMethod && currentClassNode) {
-            // Check if it's a field of the current class by looking in the ClassNode
-            bool isField = false;
+        // Check if we're in a class context (instance or static method)
+        if (currentClassNode) {
+            // Check if it's a field of the current class
             for (const auto& field : currentClassNode->getFields()) {
                 if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
                     if (fieldNode->getName() == name) {
-                        isField = true;
+                        // Found a field with this name
+                        if (fieldNode->getIsStatic()) {
+                            // Static field - use GET_STATIC with qualified name
+                            std::string qualifiedName = currentClassNode->getClassName() + "::" + name;
+                            size_t nameIndex = program.getConstantPool().addString(qualifiedName);
+                            emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                            return std::monostate{};
+                        } else if (inInstanceMethod) {
+                            // Instance field - use GET_FIELD with 'this'
+                            // Load 'this' parameter (first parameter in instance methods)
+                            size_t thisIndex = program.getConstantPool().addString("this");
+                            emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
+
+                            // Get field from 'this'
+                            size_t fieldNameIndex = program.getConstantPool().addString(name);
+                            emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                            return std::monostate{};
+                        }
+                        // If we're in a static method trying to access instance field, fall through to error
                         break;
                     }
                 }
-            }
-
-            if (isField) {
-                // This is a field access - generate this.fieldName
-                // Load 'this' parameter (first parameter in instance methods)
-                size_t thisIndex = program.getConstantPool().addString("this");
-                emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
-
-                // Get field from 'this'
-                size_t fieldNameIndex = program.getConstantPool().addString(name);
-                emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
-
-                return std::monostate{};
             }
         }
 
@@ -437,32 +441,37 @@ namespace vm::compiler
                 return std::monostate{};
             }
 
-            // Check if we're in an instance method and this is a field assignment
-            if (inInstanceMethod && currentClassNode) {
-                bool isField = false;
+            // Check if we're in a class context and this is a field assignment
+            if (currentClassNode) {
                 for (const auto& field : currentClassNode->getFields()) {
                     if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
                         if (fieldNode->getName() == name) {
-                            isField = true;
+                            // Found a field with this name
+                            if (fieldNode->getIsStatic()) {
+                                // Static field assignment - use SET_STATIC with qualified name
+                                std::string qualifiedName = currentClassNode->getClassName() + "::" + name;
+                                size_t nameIndex = program.getConstantPool().addString(qualifiedName);
+                                emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                                return std::monostate{};
+                            } else if (inInstanceMethod) {
+                                // Instance field assignment - use SET_FIELD with 'this'
+                                // Load 'this' parameter
+                                size_t thisIndex = program.getConstantPool().addString("this");
+                                emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
+
+                                // Swap so stack is: this, value
+                                program.emit(bytecode::OpCode::SWAP);
+
+                                // Set field
+                                size_t fieldNameIndex = program.getConstantPool().addString(name);
+                                emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+
+                                return std::monostate{};
+                            }
+                            // If we're in a static method trying to assign to instance field, fall through to error
                             break;
                         }
                     }
-                }
-
-                if (isField) {
-                    // This is a field assignment - generate this.fieldName = value
-                    // Load 'this' parameter
-                    size_t thisIndex = program.getConstantPool().addString("this");
-                    emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisIndex), node);
-
-                    // Swap so stack is: this, value
-                    program.emit(bytecode::OpCode::SWAP);
-
-                    // Set field
-                    size_t fieldNameIndex = program.getConstantPool().addString(name);
-                    emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
-
-                    return std::monostate{};
                 }
             }
 
@@ -1180,9 +1189,15 @@ namespace vm::compiler
         // Patch skip jump to here (after method)
         patchJump(skipJump);
 
+        // Build qualified method name for registry
+        std::string qualifiedMethodName = methodName;
+        if (currentClassNode) {
+            qualifiedMethodName = currentClassNode->getClassName() + "::" + methodName;
+        }
+
         // Register method metadata
         bytecode::BytecodeProgram::FunctionMetadata metadata;
-        metadata.name = methodName;
+        metadata.name = qualifiedMethodName;
         metadata.startOffset = methodStart;
         metadata.instructionCount = methodEnd - methodStart;
         metadata.localCount = localCount;
@@ -1192,7 +1207,7 @@ namespace vm::compiler
         metadata.isStatic = isStatic;
         metadata.isNative = false;
 
-        program.registerFunction(methodName, metadata);
+        program.registerFunction(qualifiedMethodName, metadata);
 
         return std::monostate{};
     }

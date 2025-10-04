@@ -1,5 +1,6 @@
 #include "VirtualMachine.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/NullPointerException.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -703,42 +704,39 @@ namespace vm::runtime
         }
         std::reverse(args.begin(), args.end());
 
-        // Look up static method in function registry
-        auto funcRegistry = environment->getFunctionRegistry();
-        if (funcRegistry) {
-            auto funcDef = funcRegistry->findFunction(qualifiedName);
-            if (funcDef) {
-                // Bind parameters to arguments using the current environment
-                const auto& params = funcDef->getParameters();
-                if (params.size() != args.size()) {
-                    throw errors::RuntimeException("Argument count mismatch for " + qualifiedName);
-                }
+        // Look up static method bytecode
+        auto funcMetadata = program->getFunction(qualifiedName);
+        if (funcMetadata) {
+            // Create call frame for static method
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size();
+            frame.localBase = operandStack.size();
+            frame.functionName = qualifiedName;
+            frame.thisInstance = nullptr;  // No 'this' for static methods
 
-                // Enter a new scope for the function
-                auto varManager = environment->getVariableManager();
-                varManager->enterScope(qualifiedName);
+            callStack.push_back(frame);
+            stats.functionCalls++;
 
-                for (size_t i = 0; i < params.size(); ++i) {
-                    // params[i] is std::pair<std::string, ParameterType>
-                    const std::string& paramName = params[i].first;
-                    const value::ParameterType& paramType = params[i].second;
+            // Create a new scope for the static method
+            environment->enterScope();
 
-                    // Create a VariableDefinition and declare it
-                    auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                        paramName,
-                        paramType.basicType,
-                        args[i],
-                        false  // parameters are not final by default
-                    );
-                    varManager->declareVariable(paramName, varDef);
-                }
+            // Declare method parameters
+            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size(); ++i) {
+                const std::string& paramName = funcMetadata->parameterNames[i];
+                const value::Value& argValue = args[i];
+                value::ValueType type = value::getValueType(argValue);
 
-                // VM requires bytecode - no AST fallback
-                throw errors::RuntimeException("Static method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, type, argValue, false);
+                environment->declareVariable(paramName, varDef);
             }
-        }
 
-        throw errors::RuntimeException("Function not found: " + qualifiedName);
+            // Jump to static method start
+            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
+        } else {
+            throw errors::RuntimeException("Static method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
+        }
     }
 
     // === Object Operations ===
@@ -866,6 +864,11 @@ namespace vm::runtime
         // Pop object from stack
         value::Value objectValue = pop();
 
+        // Check for null
+        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+            throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object");
+        }
+
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
             throw errors::RuntimeException("GET_FIELD requires an object instance");
         }
@@ -899,6 +902,11 @@ namespace vm::runtime
         // Pop value and object from stack
         value::Value fieldValue = pop();
         value::Value objectValue = pop();
+
+        // Check for null
+        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+            throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object");
+        }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
             throw errors::RuntimeException("SET_FIELD requires an object instance");
@@ -997,6 +1005,11 @@ namespace vm::runtime
         // Pop object from stack
         value::Value objectValue = pop();
 
+        // Check for null
+        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+            throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+        }
+
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
             throw errors::RuntimeException("CALL_METHOD requires an object instance");
         }
@@ -1013,7 +1026,10 @@ namespace vm::runtime
         }
 
         // Look up method in bytecode functions
-        auto funcMetadata = program->getFunction(methodName);
+        // Build qualified method name (ClassName::methodName)
+        std::string className = classDef->getName();
+        std::string qualifiedMethodName = className + "::" + methodName;
+        auto funcMetadata = program->getFunction(qualifiedMethodName);
         if (funcMetadata) {
             // Calculate frameBase BEFORE any stack modifications
             size_t frameBase = operandStack.size();
@@ -1023,7 +1039,7 @@ namespace vm::runtime
             frame.returnAddress = instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = operandStack.size();
-            frame.functionName = methodName;
+            frame.functionName = qualifiedMethodName;
             frame.thisInstance = instance;
 
             callStack.push_back(frame);
