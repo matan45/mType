@@ -1,6 +1,10 @@
 #include "VirtualMachine.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
+#include "../../errors/FieldNotFoundException.hpp"
+#include "../../errors/AccessViolationException.hpp"
+#include "../../errors/SourceLocation.hpp"
+#include "../../ast/AccessModifier.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -849,13 +853,66 @@ namespace vm::runtime
 
         // Get field definition to check access modifiers
         auto fieldDef = instance->getField(fieldName);
-        if (fieldDef) {
-            // TODO: Check access modifiers (public/private/protected)
-            // For now, we allow all access (similar to AST interpreter default behavior)
-            // Access modifier checks would be:
-            // - PUBLIC: Always accessible
-            // - PRIVATE: Only accessible from same class
-            // - PROTECTED: Accessible from same class and subclasses
+        if (!fieldDef) {
+            // Field doesn't exist
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        // Check access modifiers
+        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
+        if (accessMod != ast::AccessModifier::PUBLIC) {
+            // Get current execution context (the class we're executing from)
+            std::string currentClassName;
+            if (!callStack.empty() && callStack.back().thisInstance) {
+                currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+            }
+
+            std::string targetClassName = instance->getClassDefinition()->getName();
+
+            if (accessMod == ast::AccessModifier::PRIVATE) {
+                // PRIVATE: Only accessible from same class
+                if (currentClassName != targetClassName) {
+                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                    throw errors::AccessViolationException(
+                        fieldName,
+                        "field",
+                        ast::AccessModifier::PRIVATE,
+                        targetClassName,
+                        callingFrom,
+                        errors::SourceLocation()
+                    );
+                }
+            } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                // PROTECTED: Accessible from same class and subclasses
+                if (currentClassName != targetClassName) {
+                    // Check if current class is a subclass of target class
+                    bool isSubclass = false;
+                    if (!callStack.empty() && callStack.back().thisInstance) {
+                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
+                        while (currentClass && currentClass->hasParentClass()) {
+                            if (currentClass->getParentClassName() == targetClassName) {
+                                isSubclass = true;
+                                break;
+                            }
+                            // Move to parent class
+                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                            currentClass = parentClass;
+                        }
+                    }
+
+                    if (!isSubclass) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            fieldName,
+                            "field",
+                            ast::AccessModifier::PROTECTED,
+                            targetClassName,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                }
+            }
         }
 
         // Get field value
@@ -885,6 +942,69 @@ namespace vm::runtime
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+        // Get field definition to check access modifiers and existence
+        auto fieldDef = instance->getField(fieldName);
+        if (!fieldDef) {
+            // Field doesn't exist
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        // Check access modifiers (same logic as GET_FIELD)
+        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
+        if (accessMod != ast::AccessModifier::PUBLIC) {
+            // Get current execution context
+            std::string currentClassName;
+            if (!callStack.empty() && callStack.back().thisInstance) {
+                currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+            }
+
+            std::string targetClassName = instance->getClassDefinition()->getName();
+
+            if (accessMod == ast::AccessModifier::PRIVATE) {
+                // PRIVATE: Only accessible from same class
+                if (currentClassName != targetClassName) {
+                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                    throw errors::AccessViolationException(
+                        fieldName,
+                        "field",
+                        ast::AccessModifier::PRIVATE,
+                        targetClassName,
+                        callingFrom,
+                        errors::SourceLocation()
+                    );
+                }
+            } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                // PROTECTED: Accessible from same class and subclasses
+                if (currentClassName != targetClassName) {
+                    // Check if current class is a subclass
+                    bool isSubclass = false;
+                    if (!callStack.empty() && callStack.back().thisInstance) {
+                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
+                        while (currentClass && currentClass->hasParentClass()) {
+                            if (currentClass->getParentClassName() == targetClassName) {
+                                isSubclass = true;
+                                break;
+                            }
+                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                            currentClass = parentClass;
+                        }
+                    }
+
+                    if (!isSubclass) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            fieldName,
+                            "field",
+                            ast::AccessModifier::PROTECTED,
+                            targetClassName,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                }
+            }
+        }
 
         // Set field value
         instance->setField(fieldName, fieldValue);

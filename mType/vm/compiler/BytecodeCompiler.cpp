@@ -448,8 +448,9 @@ namespace vm::compiler
                 local.scopeDepth = currentScopeDepth;
                 locals.push_back(local);
 
-                // The value is already on the stack from the initializer
-                // For stack-based locals, we don't emit DECLARE_VAR
+                // Store the value at the local's slot position and keep a copy on stack
+                emitWithLocation(bytecode::OpCode::DUP, node);
+                emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(local.slot), node);
                 return std::monostate{};
             }
 
@@ -513,6 +514,8 @@ namespace vm::compiler
             size_t localSlot = resolveLocal(name);
             if (localSlot != SIZE_MAX) {
                 // This is a local variable - use STORE_LOCAL with slot index
+                // Duplicate value for assignment expression result (assignment returns the assigned value)
+                emitWithLocation(bytecode::OpCode::DUP, node);
                 emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
                 return std::monostate{};
             }
@@ -551,9 +554,17 @@ namespace vm::compiler
             if (auto* varNode = dynamic_cast<ast::VariableNode*>(node->getOperand())) {
                 std::string varName = varNode->getName();
 
+                // Check if this is a local variable
+                size_t localSlot = resolveLocal(varName);
+                bool isLocal = (localSlot != SIZE_MAX);
+
                 // Load current value
-                size_t nameIndex = program.getConstantPool().addString(varName);
-                program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+                if (isLocal) {
+                    emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
+                } else {
+                    size_t nameIndex = program.getConstantPool().addString(varName);
+                    program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+                }
 
                 // For postfix (i++): duplicate value before incrementing (return original)
                 // For prefix (++i): increment then duplicate (return incremented)
@@ -574,7 +585,12 @@ namespace vm::compiler
                 }
 
                 // Store updated value back to variable (consumes one value from stack)
-                program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
+                if (isLocal) {
+                    emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
+                } else {
+                    size_t nameIndex = program.getConstantPool().addString(varName);
+                    program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
+                }
 
                 // Stack now has either original (postfix) or incremented (prefix) value
                 return std::monostate{};
@@ -1291,6 +1307,21 @@ namespace vm::compiler
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
+        }
+
+        // Check if parent class requires super() call
+        if (currentClassNode && currentClassNode->hasParentClass()) {
+            std::string parentClassName = currentClassNode->getParentClassName();
+            // Check if parent has any constructors defined
+            auto parentClassDef = environment->getClassRegistry()->findClass(parentClassName);
+            if (parentClassDef && !parentClassDef->getConstructors().empty()) {
+                // Parent has constructors - super() call is required
+                if (!node->hasSuperInitializer()) {
+                    throw errors::RuntimeException(
+                        "Constructor must call super() when parent class '" + parentClassName + "' has constructors"
+                    );
+                }
+            }
         }
 
         // Handle super constructor call if present
