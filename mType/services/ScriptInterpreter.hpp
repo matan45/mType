@@ -48,11 +48,15 @@ namespace services
 
         // Cached execution helpers
         void preRegisterClassDefinitions(ast::ASTNode* node);
+        void registerClassesForBytecode(ast::ASTNode* node);
 
         // Execution mode helpers
         value::Value executeAST(ast::ASTNode* ast);
         value::Value executeBytecode(ast::ASTNode* ast);
         value::Value executeDualValidation(ast::ASTNode* ast);
+
+        // Import resolution helper for bytecode compilation
+        void resolveImports(ast::ASTNode* ast);
 
     public:
         ScriptInterpreter();

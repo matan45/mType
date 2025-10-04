@@ -119,6 +119,10 @@ namespace vm::compiler
         std::vector<LocalVariable> locals;
         size_t nextLocalSlot = 0;
 
+        // Class/Method context tracking
+        ast::ClassNode* currentClassNode = nullptr;
+        bool inInstanceMethod = false;
+
         // Helper methods
         void emitWithLocation(bytecode::OpCode opcode, ast::ASTNode* node);
         void emitWithLocation(bytecode::OpCode opcode, uint32_t operand, ast::ASTNode* node);

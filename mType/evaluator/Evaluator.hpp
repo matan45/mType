@@ -77,11 +77,12 @@ namespace evaluator
 
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;
+        std::shared_ptr<base::EvaluationContext> getContext() const;
         bool shouldReturn() const;
         void setReturned(bool returned);
         Value getReturnValue();
         void pushReturnValue(const Value& value);
-        
+
         // Object instance access
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
         

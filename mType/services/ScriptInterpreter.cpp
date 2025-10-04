@@ -20,13 +20,21 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../errors/ReturnException.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/ImportNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
+#include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
+#include "../ast/nodes/classes/MethodNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../ast/nodes/classes/ConstructorNode.hpp"
+#include "../ast/nodes/classes/FieldNode.hpp"
+#include "../ast/nodes/classes/MethodNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -585,6 +593,110 @@ namespace services
         return classDef->getName();
     }
 
+    void ScriptInterpreter::registerClassesForBytecode(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            std::string className = classNode->getClassName();
+
+            // Register class for bytecode WITHOUT using evaluator
+            // This only registers the class structure - bytecode handles all initialization
+
+            // Check if class already registered
+            if (environment->findClass(className)) {
+                return; // Already registered, skip
+            }
+
+            // Create class definition programmatically
+            auto classRegistry = environment->getClassRegistry();
+            if (!classRegistry) {
+                throw std::runtime_error("Class registry not available");
+            }
+
+            // Create a new class definition
+            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
+
+            // Handle parent class
+            if (classNode->hasParentClass()) {
+                classDef->setParentClassName(classNode->getParentClassName());
+            }
+
+            // Register constructors
+            for (const auto& constructor : classNode->getConstructors()) {
+                if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get())) {
+                    auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                        ctorNode->getParametersWithTypes(),
+                        ctorNode->getBody()  // Use getBody() which returns shared_ptr
+                    );
+                    classDef->addConstructor(ctorDef);
+                }
+            }
+
+            // Register methods
+            for (const auto& method : classNode->getMethods()) {
+                if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
+                    auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
+                        methodNode->getName(),
+                        methodNode->getReturnType(),
+                        methodNode->getParameters(),
+                        std::vector<std::pair<std::string, value::Value>>{},  // Empty arguments vector
+                        methodNode->getBody(),
+                        methodNode->getIsStatic()
+                    );
+
+                    if (methodNode->getIsStatic()) {
+                        classDef->addStaticMethod(methodNode->getName(), methodDef);
+                    } else {
+                        classDef->addMethod(methodDef);
+                    }
+                }
+            }
+
+            // Register fields (but don't initialize them - bytecode will do that)
+            for (const auto& field : classNode->getFields()) {
+                if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get())) {
+                    auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
+                        fieldNode->getName(),
+                        fieldNode->getType(),
+                        value::Value{},  // Empty value - bytecode will initialize
+                        fieldNode->getIsStatic(),
+                        fieldNode->getIsFinal()
+                    );
+
+                    if (fieldNode->getIsStatic()) {
+                        classDef->addStaticField(fieldNode->getName(), fieldDef);
+                    } else {
+                        classDef->addInstanceField(fieldNode->getName(), fieldDef);
+                    }
+                }
+            }
+
+            // Register the class
+            classRegistry->registerClass(className, classDef);
+
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                registerClassesForBytecode(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                registerClassesForBytecode(statement.get());
+            }
+        }
+    }
+
     void ScriptInterpreter::preRegisterClassDefinitions(ast::ASTNode* node)
     {
         if (!node) return;
@@ -592,10 +704,53 @@ namespace services
         // Check if this node is a ClassNode
         if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
         {
-            // Pre-register class in environment
+            std::string className = classNode->getClassName();
 
-            // Evaluate the ClassNode to register it in the environment
+            // Pre-register class in environment using evaluator (for AST mode)
             evaluator->evaluate(classNode);
+
+            // For bytecode mode: Also register static methods as global functions
+            // This allows them to be called via CALL opcode with qualified names
+            for (const auto& method : classNode->getMethods()) {
+                if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                    if (methodNode->getIsStatic()) {
+                        // Static methods should already be registered by evaluating the class
+                        // The evaluator registers them in the class definition
+                        // We just need to ensure they're accessible for bytecode execution
+
+                        // Get the class definition from environment
+                        auto classDef = environment->findClass(className);
+                        if (classDef) {
+                            // Check if this static method exists in the class
+                            const auto& staticMethods = classDef->getStaticMethods();
+                            auto it = staticMethods.find(methodNode->getName());
+                            if (it != staticMethods.end()) {
+                                // Register as a global function with qualified name
+                                std::string qualifiedName = className + "::" + methodNode->getName();
+
+                                // Use the existing static method definition from the class
+                                // instead of creating a new one
+                                auto funcRegistry = environment->getFunctionRegistry();
+                                if (funcRegistry) {
+                                    // Register the method definition directly as a callable function
+                                    // We'll use the method definition's body which is already managed
+                                    auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
+                                        qualifiedName,
+                                        methodNode->getReturnType(),
+                                        methodNode->getParameters()
+                                    );
+
+                                    // Copy the body from the static method definition
+                                    funcDef->setBody(it->second->getBodyPtr());
+
+                                    funcRegistry->registerFunction(qualifiedName, funcDef);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             return; // No need to traverse children of ClassNode
         }
 
@@ -638,6 +793,15 @@ namespace services
     {
         try
         {
+            // IMPORTANT: Resolve all imports before bytecode compilation
+            // The bytecode compiler expects imports to be already resolved
+            resolveImports(ast);
+
+            // Register class definitions for bytecode WITHOUT using the evaluator
+            // This registers class structures (methods, fields, constructors) in the environment
+            // but does NOT initialize static fields - bytecode handles all initialization
+            registerClassesForBytecode(ast);
+
             // Compile AST to bytecode
             auto program = compiler->compile(ast);
 
@@ -723,5 +887,104 @@ namespace services
             std::cout << "=== END DUAL VALIDATION ===" << std::endl;
             throw std::runtime_error("Both execution modes failed");
         }
+    }
+
+    void ScriptInterpreter::resolveImports(ast::ASTNode* ast)
+    {
+        // Recursively resolve all imports in the AST
+        // This ensures that all ImportNode objects have their importedAST set
+        // before bytecode compilation
+
+        if (!ast) return;
+
+        auto importManager = environment->getImportManager();
+        if (!importManager)
+        {
+            throw std::runtime_error("ImportManager not available for import resolution");
+        }
+
+        // Check if this is an ImportNode
+        if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(ast))
+        {
+            // Skip if already resolved
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                // Recursively resolve imports in the imported AST
+                resolveImports(importNode->getImportedAST());
+                return;
+            }
+
+            std::string filePath = importNode->getFilePath();
+            std::string resolvedPath = importManager->resolvePath(filePath);
+
+            // Check for circular imports
+            if (importManager->isBeingEvaluated(resolvedPath))
+            {
+                throw std::runtime_error("Circular import detected: " + filePath);
+            }
+
+            // Mark as being evaluated
+            importManager->markAsBeingEvaluated(resolvedPath);
+
+            try
+            {
+                // Parse and cache the imported AST
+                ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
+
+                if (!importedAST)
+                {
+                    throw std::runtime_error("Failed to parse import: " + filePath);
+                }
+
+                // Set the imported AST on the ImportNode
+                importNode->setImportedAST(importedAST);
+
+                // Recursively resolve imports in the imported file
+                resolveImports(importedAST);
+
+                // Pre-register class definitions from the imported AST
+                // This is needed for bytecode compilation to find classes
+                preRegisterClassDefinitions(importedAST);
+
+                // Mark as evaluated
+                importManager->markAsEvaluated(resolvedPath);
+            }
+            catch (...)
+            {
+                // Unmark as being evaluated on error
+                importManager->unmarkAsBeingEvaluated(resolvedPath);
+                throw;
+            }
+
+            // Unmark as being evaluated (successful completion)
+            importManager->unmarkAsBeingEvaluated(resolvedPath);
+            return;
+        }
+
+        // Recursively process child nodes
+        // Check for ProgramNode
+        if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(ast))
+        {
+            const auto& statements = programNode->getStatements();
+            for (const auto& stmt : statements)
+            {
+                resolveImports(stmt.get());
+            }
+            return;
+        }
+
+        // Check for BlockNode
+        if (auto blockNode = dynamic_cast<ast::nodes::statements::BlockNode*>(ast))
+        {
+            const auto& statements = blockNode->getStatements();
+            for (const auto& stmt : statements)
+            {
+                resolveImports(stmt.get());
+            }
+            return;
+        }
+
+        // For other node types, we don't need to traverse further
+        // Imports are typically at the top level
     }
 }

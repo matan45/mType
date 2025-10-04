@@ -145,11 +145,14 @@ namespace vm::runtime
         // Function operations
         void handleCall(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallNative(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Object operations
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
         void handleGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetField(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Array operations

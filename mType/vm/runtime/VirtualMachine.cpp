@@ -4,6 +4,8 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../evaluator/Evaluator.hpp"
+#include "../../errors/ReturnException.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -145,11 +147,14 @@ namespace vm::runtime
             // Functions
             case OpCode::CALL: handleCall(instr); break;
             case OpCode::CALL_NATIVE: handleCallNative(instr); break;
+            case OpCode::CALL_STATIC: handleCallStatic(instr); break;
 
             // Objects
             case OpCode::NEW_OBJECT: handleNewObject(instr); break;
             case OpCode::GET_FIELD: handleGetField(instr); break;
             case OpCode::SET_FIELD: handleSetField(instr); break;
+            case OpCode::GET_STATIC: handleGetStatic(instr); break;
+            case OpCode::SET_STATIC: handleSetStatic(instr); break;
             case OpCode::CALL_METHOD: handleCallMethod(instr); break;
 
             // Arrays
@@ -685,6 +690,79 @@ namespace vm::runtime
         throw errors::RuntimeException("CALL_NATIVE not yet implemented");
     }
 
+    void VirtualMachine::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Get static method name from constant pool (should be fully qualified: ClassName::methodName)
+        std::string qualifiedName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Pop arguments from stack (in reverse order)
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        // Look up static method in function registry
+        auto funcRegistry = environment->getFunctionRegistry();
+        if (funcRegistry) {
+            auto funcDef = funcRegistry->findFunction(qualifiedName);
+            if (funcDef) {
+                // Bind parameters to arguments using the current environment
+                const auto& params = funcDef->getParameters();
+                if (params.size() != args.size()) {
+                    throw errors::RuntimeException("Argument count mismatch for " + qualifiedName);
+                }
+
+                // Enter a new scope for the function
+                auto varManager = environment->getVariableManager();
+                varManager->enterScope(qualifiedName);
+
+                for (size_t i = 0; i < params.size(); ++i) {
+                    // params[i] is std::pair<std::string, ParameterType>
+                    const std::string& paramName = params[i].first;
+                    const value::ParameterType& paramType = params[i].second;
+
+                    // Create a VariableDefinition and declare it
+                    auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                        paramName,
+                        paramType.basicType,
+                        args[i],
+                        false  // parameters are not final by default
+                    );
+                    varManager->declareVariable(paramName, varDef);
+                }
+
+                // Execute function body using evaluator (AST mode)
+                evaluator::Evaluator eval(environment);
+
+                // Extract class name from qualified name (e.g., "Calculator::getVersion" -> "Calculator")
+                std::string className = qualifiedName.substr(0, qualifiedName.find("::"));
+
+                // Push the class name as the calling context so private member access works
+                eval.getContext()->pushCallingClass(className);
+
+                value::Value result;
+                try {
+                    result = eval.evaluate(funcDef->getBody().get());
+                } catch (const errors::ReturnException& returnEx) {
+                    result = returnEx.returnValue;
+                }
+
+                // Pop the calling class context
+                eval.getContext()->popCallingClass();
+
+                // Exit the function scope
+                varManager->exitScope();
+
+                push(result);
+                return;
+            }
+        }
+
+        throw errors::RuntimeException("Function not found: " + qualifiedName);
+    }
+
     // === Object Operations ===
 
     void VirtualMachine::handleNewObject(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -757,8 +835,9 @@ namespace vm::runtime
         }
 
         // Call constructor - it will initialize the object and return it
-        // For bytecode: Look up constructor function by name "<init>"
-        auto funcMetadata = program->getFunction("<init>");
+        // For bytecode: Look up constructor function by name "<init>/<paramCount>"
+        std::string constructorName = "<init>/" + std::to_string(argCount);
+        auto funcMetadata = program->getFunction(constructorName);
         if (funcMetadata) {
             // Create call frame
             CallFrame frame;
@@ -793,7 +872,41 @@ namespace vm::runtime
             // Jump to constructor start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
         } else {
-            // No bytecode constructor, just push the instance
+            // No bytecode constructor found - execute using evaluator (for imported classes)
+            // Execute constructor body using evaluator
+            evaluator::Evaluator eval(environment);
+
+            // Enter scope and declare variables through the evaluator's environment
+            auto evalEnv = eval.getEnvironment();
+            evalEnv->enterScope();
+
+            // Declare 'this' in the scope
+            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                "this", value::ValueType::OBJECT, instance, false);
+            evalEnv->declareVariable("this", thisDef);
+
+            // Declare constructor parameters
+            const auto& params = constructor->getParameters();
+            for (size_t i = 0; i < args.size() && i < params.size(); ++i) {
+                const std::string& paramName = params[i].first;
+                const value::ValueType& paramType = params[i].second;
+
+                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    paramName, paramType, args[i], false);
+                evalEnv->declareVariable(paramName, varDef);
+            }
+
+            eval.getContext()->pushCallingClass(baseClassName);
+
+            try {
+                eval.evaluate(constructor->getBodyPtr().get());
+            } catch (const errors::ReturnException&) {
+                // Constructors shouldn't return, but handle it gracefully
+            }
+
+            eval.getContext()->popCallingClass();
+            evalEnv->exitScope();
+
             push(instance);
         }
     }
@@ -854,6 +967,70 @@ namespace vm::runtime
 
         // Push value back for assignment expressions
         push(fieldValue);
+    }
+
+    void VirtualMachine::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("GET_STATIC requires operand");
+        }
+
+        // Get variable/field name from constant pool
+        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Find variable in environment
+        auto varManager = environment->getVariableManager();
+        auto varDef = varManager->findVariable(varName);
+
+        if (!varDef) {
+            throw errors::RuntimeException("Static variable not found: " + varName);
+        }
+
+        // Get and push the value
+        value::Value varValue = varDef->getValue();
+        push(varValue);
+    }
+
+    void VirtualMachine::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("SET_STATIC requires operand");
+        }
+
+        // Get variable/field name from constant pool
+        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
+
+        // Pop value from stack
+        value::Value varValue = pop();
+
+        // Find or create variable in environment
+        auto varManager = environment->getVariableManager();
+        auto varDef = varManager->findVariable(varName);
+
+        if (!varDef) {
+            // Determine type from the value
+            value::ValueType varType = value::ValueType::OBJECT; // Default to OBJECT
+
+            if (std::holds_alternative<int>(varValue)) {
+                varType = value::ValueType::INT;
+            } else if (std::holds_alternative<float>(varValue)) {
+                varType = value::ValueType::FLOAT;
+            } else if (std::holds_alternative<bool>(varValue)) {
+                varType = value::ValueType::BOOL;
+            } else if (std::holds_alternative<std::string>(varValue) ||
+                       std::holds_alternative<value::InternedString>(varValue)) {
+                varType = value::ValueType::STRING;
+            }
+
+            // Create new global variable with inferred type
+            varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                varName, varType, varValue, false);
+            varManager->declareGlobalVariable(varName, varDef);
+        } else {
+            // Variable already exists, update its value
+            varDef->setValue(varValue);
+        }
+
+        // Push value back for assignment expressions
+        push(varValue);
     }
 
     void VirtualMachine::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {

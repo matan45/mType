@@ -62,6 +62,12 @@ namespace environment::manager
         }
     }
 
+    void VariableManager::declareGlobalVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable)
+    {
+        // Always declare in global scope, regardless of current scope
+        globalVariables[varName] = variable;
+    }
+
     std::shared_ptr<VariableDefinition> VariableManager::findVariable(const std::string& varName) const
     {
         // Create a copy of the scope stack for traversal
