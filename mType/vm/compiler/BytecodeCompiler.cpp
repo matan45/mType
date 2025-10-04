@@ -1,6 +1,7 @@
 #include "BytecodeCompiler.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../evaluator/utils/ValueConverter.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/DeclarationNode.hpp"
@@ -10,8 +11,6 @@
 #include "../../ast/nodes/statements/DoWhileNode.hpp"
 #include "../../ast/nodes/statements/ForNode.hpp"
 #include "../../ast/nodes/statements/ForEachNode.hpp"
-#include "../../ast/nodes/statements/BreakNode.hpp"
-#include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
 #include "../../ast/nodes/statements/CaseNode.hpp"
 #include "../../ast/nodes/statements/DefaultCaseNode.hpp"
@@ -174,16 +173,53 @@ namespace vm::compiler
 
     void BytecodeCompiler::beginScope()
     {
-        // Mark the start of a new scope (can track for cleanup)
+        currentScopeDepth++;
     }
 
     void BytecodeCompiler::endScope()
     {
+        currentScopeDepth--;
+
         // Pop locals that went out of scope
-        while (!locals.empty() && locals.back().slot >= nextLocalSlot) {
+        while (!locals.empty() && locals.back().scopeDepth > currentScopeDepth) {
             locals.pop_back();
+            nextLocalSlot--;
             emitWithLocation(bytecode::OpCode::POP, nullptr);
         }
+    }
+
+    void BytecodeCompiler::enterFunctionFrame(const std::string& returnType)
+    {
+        FunctionFrame frame;
+        frame.localStartSlot = nextLocalSlot;
+        frame.scopeDepthStart = currentScopeDepth;
+        frame.returnType = returnType;
+        functionFrameStack.push_back(frame);
+    }
+
+    void BytecodeCompiler::exitFunctionFrame()
+    {
+        if (!functionFrameStack.empty()) {
+            FunctionFrame frame = functionFrameStack.back();
+            functionFrameStack.pop_back();
+
+            // Clean up all locals from this function frame
+            while (!locals.empty() && locals.back().slot >= frame.localStartSlot) {
+                locals.pop_back();
+            }
+
+            // Reset slot counter
+            nextLocalSlot = frame.localStartSlot;
+            currentScopeDepth = frame.scopeDepthStart;
+        }
+    }
+
+    size_t BytecodeCompiler::getLocalCount() const
+    {
+        if (functionFrameStack.empty()) {
+            return 0;
+        }
+        return nextLocalSlot - functionFrameStack.back().localStartSlot;
     }
 
     void BytecodeCompiler::enterLoop(size_t loopStart, size_t continueTarget)
@@ -343,8 +379,16 @@ namespace vm::compiler
         // Store in variable
         value::ValueType valueType = node->getType();
 
-        // For now, always use global variables for simplicity
-        // TODO: Implement proper stack-based local variables with function frames
+        // Track local variable if we're in a function
+        if (!functionFrameStack.empty() && currentScopeDepth > 0) {
+            // This is a local variable - add to locals tracking
+            LocalVariable local;
+            local.name = name;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
+
         std::string typeStr = "auto";  // Default type string
         size_t nameIndex = program.getConstantPool().addString(name);
         size_t typeIndex = program.getConstantPool().addString(typeStr);
@@ -881,6 +925,22 @@ namespace vm::compiler
             paramNames.push_back(param.first);
         }
 
+        // Convert return type to string
+        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(node->getReturnType());
+
+        // Enter function frame for local variable tracking
+        enterFunctionFrame(returnTypeStr);
+        beginScope();  // Function body scope
+
+        // Track parameters as locals
+        for (const auto& param : params) {
+            LocalVariable local;
+            local.name = param.first;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
+
         // Compile function body
         auto* body = node->getBodyPtr();
         if (body) {
@@ -893,6 +953,12 @@ namespace vm::compiler
             program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
+        // Calculate local count before exiting frame
+        size_t localCount = getLocalCount();
+
+        endScope();      // End function body scope
+        exitFunctionFrame();
+
         size_t functionEnd = program.getCurrentOffset();
 
         // Patch skip jump to here (after function)
@@ -903,10 +969,10 @@ namespace vm::compiler
         metadata.name = funcName;
         metadata.startOffset = functionStart;
         metadata.instructionCount = functionEnd - functionStart;
-        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.localCount = localCount;
         metadata.parameterCount = params.size();
         metadata.parameterNames = paramNames;
-        metadata.returnType = "auto";  // TODO: Get actual return type
+        metadata.returnType = returnTypeStr;
         metadata.isNative = false;
 
         program.registerFunction(funcName, metadata);
@@ -1071,6 +1137,23 @@ namespace vm::compiler
             paramNames.insert(paramNames.begin(), "this");
         }
 
+        // Convert return type to string
+        value::ValueType returnType = node->getReturnType();
+        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(returnType);
+
+        // Enter function frame for local variable tracking
+        enterFunctionFrame(returnTypeStr);
+        beginScope();  // Method body scope
+
+        // Track parameters as locals (including 'this' for instance methods)
+        for (const auto& paramName : paramNames) {
+            LocalVariable local;
+            local.name = paramName;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
+
         // Compile method body
         auto* body = node->getBodyPtr();
         if (body) {
@@ -1081,11 +1164,16 @@ namespace vm::compiler
         inInstanceMethod = wasInInstanceMethod;
 
         // Emit implicit return for void methods (if no explicit return)
-        value::ValueType returnType = node->getReturnType();
         if (returnType == value::ValueType::VOID) {
             program.emit(bytecode::OpCode::PUSH_NULL);
             program.emit(bytecode::OpCode::RETURN_VALUE);
         }
+
+        // Calculate local count before exiting frame
+        size_t localCount = getLocalCount();
+
+        endScope();      // End method body scope
+        exitFunctionFrame();
 
         size_t methodEnd = program.getCurrentOffset();
 
@@ -1097,10 +1185,10 @@ namespace vm::compiler
         metadata.name = methodName;
         metadata.startOffset = methodStart;
         metadata.instructionCount = methodEnd - methodStart;
-        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.localCount = localCount;
         metadata.parameterCount = paramNames.size();
         metadata.parameterNames = paramNames;
-        metadata.returnType = "auto";  // TODO: Get actual return type
+        metadata.returnType = returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
 
@@ -1132,6 +1220,22 @@ namespace vm::compiler
             paramNames.push_back(param.first);
         }
 
+        // Constructor returns an object instance
+        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(value::ValueType::OBJECT);
+
+        // Enter function frame for local variable tracking
+        enterFunctionFrame(returnTypeStr);
+        beginScope();  // Constructor body scope
+
+        // Track parameters as locals (including 'this')
+        for (const auto& paramName : paramNames) {
+            LocalVariable local;
+            local.name = paramName;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
+
         // Handle super constructor call if present
         if (node->hasSuperInitializer()) {
             auto* superInit = node->getSuperInitializer();
@@ -1155,6 +1259,12 @@ namespace vm::compiler
         program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
         program.emit(bytecode::OpCode::RETURN_VALUE);
 
+        // Calculate local count before exiting frame
+        size_t localCount = getLocalCount();
+
+        endScope();      // End constructor body scope
+        exitFunctionFrame();
+
         size_t constructorEnd = program.getCurrentOffset();
 
         // Patch skip jump to here (after constructor)
@@ -1165,10 +1275,10 @@ namespace vm::compiler
         metadata.name = "<init>";
         metadata.startOffset = constructorStart;
         metadata.instructionCount = constructorEnd - constructorStart;
-        metadata.localCount = 0;  // TODO: Calculate actual local count
+        metadata.localCount = localCount;
         metadata.parameterCount = paramNames.size();
         metadata.parameterNames = paramNames;
-        metadata.returnType = "auto";  // Constructors return the object instance
+        metadata.returnType = returnTypeStr;
         metadata.isStatic = false;
         metadata.isNative = false;
 
@@ -1532,9 +1642,48 @@ namespace vm::compiler
         // Get parameters
         const auto& params = node->getParameters();
 
-        // Set up lambda parameter locals (they'll be passed on stack when invoked)
-        // Parameters are already on stack when lambda is invoked
-        // We just need to compile the body
+        // Capture variables from outer scope for closure support
+        // Save current closure captures
+        std::vector<ClosureVariable> previousCaptures = closureCaptures;
+        closureCaptures.clear();
+
+        // Scan lambda body for variable references and capture from outer scopes
+        // For now, we capture all locals from parent scopes
+        for (const auto& local : locals) {
+            ClosureVariable capture;
+            capture.name = local.name;
+            capture.slot = local.slot;
+            capture.isFromParent = true;
+            closureCaptures.push_back(capture);
+        }
+
+        // Emit captured variables onto stack (they will be part of lambda closure)
+        for (const auto& capture : closureCaptures) {
+            size_t nameIndex = program.getConstantPool().addString(capture.name);
+            program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+        }
+
+        // Enter function frame for lambda
+        enterFunctionFrame("auto");
+        beginScope();
+
+        // Track lambda parameters as locals
+        for (const auto& param : params) {
+            LocalVariable local;
+            local.name = param.name;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
+
+        // Add captured variables as locals (so they can be referenced in lambda body)
+        for (const auto& capture : closureCaptures) {
+            LocalVariable local;
+            local.name = capture.name;
+            local.slot = nextLocalSlot++;
+            local.scopeDepth = currentScopeDepth;
+            locals.push_back(local);
+        }
 
         // Compile lambda body
         auto* body = node->getBody();
@@ -1554,6 +1703,9 @@ namespace vm::compiler
             program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
+        endScope();
+        exitFunctionFrame();
+
         // Lambda function ends here
         size_t lambdaEnd = program.getCurrentOffset();
 
@@ -1561,13 +1713,16 @@ namespace vm::compiler
         program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
 
         // Now emit instruction to create lambda value with captured environment
-        // Store lambda function start address and parameter count
+        // Store lambda function start address, parameter count, and capture count
         program.emit(bytecode::OpCode::LAMBDA,
-                    static_cast<uint32_t>(lambdaStart),
-                    static_cast<uint32_t>(params.size()));
+                    std::vector<uint32_t>{
+                        static_cast<uint32_t>(lambdaStart),
+                        static_cast<uint32_t>(params.size()),
+                        static_cast<uint32_t>(closureCaptures.size())
+                    });
 
-        // TODO: Handle closure - capture variables from current scope
-        // For now, lambdas without closure support
+        // Restore previous closure captures
+        closureCaptures = previousCaptures;
 
         return std::monostate{};
     }

@@ -115,9 +115,27 @@ namespace vm::compiler
         struct LocalVariable {
             std::string name;
             size_t slot;
+            int scopeDepth;
         };
         std::vector<LocalVariable> locals;
         size_t nextLocalSlot = 0;
+        int currentScopeDepth = 0;
+
+        // Function frame tracking
+        struct FunctionFrame {
+            size_t localStartSlot;
+            int scopeDepthStart;
+            std::string returnType;
+        };
+        std::vector<FunctionFrame> functionFrameStack;
+
+        // Closure tracking
+        struct ClosureVariable {
+            std::string name;
+            size_t slot;
+            bool isFromParent;
+        };
+        std::vector<ClosureVariable> closureCaptures;
 
         // Class/Method context tracking
         ast::ClassNode* currentClassNode = nullptr;
@@ -138,6 +156,11 @@ namespace vm::compiler
         size_t resolveLocal(const std::string& name);
         void beginScope();
         void endScope();
+
+        // Function frame management
+        void enterFunctionFrame(const std::string& returnType);
+        void exitFunctionFrame();
+        size_t getLocalCount() const;
 
         // Loop management
         void enterLoop(size_t loopStart, size_t continueTarget = SIZE_MAX);

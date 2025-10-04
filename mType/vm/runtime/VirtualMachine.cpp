@@ -4,8 +4,6 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
-#include "../../evaluator/Evaluator.hpp"
-#include "../../errors/ReturnException.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -733,30 +731,8 @@ namespace vm::runtime
                     varManager->declareVariable(paramName, varDef);
                 }
 
-                // Execute function body using evaluator (AST mode)
-                evaluator::Evaluator eval(environment);
-
-                // Extract class name from qualified name (e.g., "Calculator::getVersion" -> "Calculator")
-                std::string className = qualifiedName.substr(0, qualifiedName.find("::"));
-
-                // Push the class name as the calling context so private member access works
-                eval.getContext()->pushCallingClass(className);
-
-                value::Value result;
-                try {
-                    result = eval.evaluate(funcDef->getBody().get());
-                } catch (const errors::ReturnException& returnEx) {
-                    result = returnEx.returnValue;
-                }
-
-                // Pop the calling class context
-                eval.getContext()->popCallingClass();
-
-                // Exit the function scope
-                varManager->exitScope();
-
-                push(result);
-                return;
+                // VM requires bytecode - no AST fallback
+                throw errors::RuntimeException("Static method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
             }
         }
 
@@ -872,42 +848,8 @@ namespace vm::runtime
             // Jump to constructor start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
         } else {
-            // No bytecode constructor found - execute using evaluator (for imported classes)
-            // Execute constructor body using evaluator
-            evaluator::Evaluator eval(environment);
-
-            // Enter scope and declare variables through the evaluator's environment
-            auto evalEnv = eval.getEnvironment();
-            evalEnv->enterScope();
-
-            // Declare 'this' in the scope
-            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "this", value::ValueType::OBJECT, instance, false);
-            evalEnv->declareVariable("this", thisDef);
-
-            // Declare constructor parameters
-            const auto& params = constructor->getParameters();
-            for (size_t i = 0; i < args.size() && i < params.size(); ++i) {
-                const std::string& paramName = params[i].first;
-                const value::ValueType& paramType = params[i].second;
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, paramType, args[i], false);
-                evalEnv->declareVariable(paramName, varDef);
-            }
-
-            eval.getContext()->pushCallingClass(baseClassName);
-
-            try {
-                eval.evaluate(constructor->getBodyPtr().get());
-            } catch (const errors::ReturnException&) {
-                // Constructors shouldn't return, but handle it gracefully
-            }
-
-            eval.getContext()->popCallingClass();
-            evalEnv->exitScope();
-
-            push(instance);
+            // VM requires bytecode - no AST fallback
+            throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName + "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
         }
     }
 
