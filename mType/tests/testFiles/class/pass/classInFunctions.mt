@@ -1,13 +1,13 @@
 class Point {
-    int x;
-    int y;
-    
-    constructor(int px, int py) {
+    public int x;
+    public int y;
+
+    public constructor(int px, int py) {
         x = px;
         y = py;
     }
-    
-    function distance(): float {
+
+    public function distance(): float {
         // Distance from origin
         return x * x + y * y; // Simplified (should be sqrt)
     }

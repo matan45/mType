@@ -2,25 +2,25 @@
 // Expected: Pass - demonstrates basic extends syntax and inherited fields
 
 class Animal {
-    string name;
+    public string name;
 
-    constructor(string name) {
+    public constructor(string name) {
         this.name = name;
     }
 
-    function speak(): void {
+    public function speak(): void {
         print("Animal makes a sound");
     }
 }
 
 class Dog extends Animal {
-    string breed;
+    public string breed;
 
-    constructor(string name, string breed) : super(name) {
+    public constructor(string name, string breed) : super(name) {
         this.breed = breed;
     }
 
-    function getInfo(): string {
+    public function getInfo(): string {
         return this.name + " is a " + this.breed;
     }
 }

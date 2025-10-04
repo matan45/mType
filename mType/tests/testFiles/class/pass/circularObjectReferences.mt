@@ -5,23 +5,23 @@
 print("Testing simple circular reference:");
 
 class Node {
-    string name;
-    Node next;
-    
-    constructor(string n) {
+    public string name;
+    public Node next;
+
+    public constructor(string n) {
         name = n;
         next = null;
     }
-    
-    function setNext(Node n): void {
+
+    public function setNext(Node n): void {
         next = n;
     }
-    
-    function getNext(): Node {
+
+    public function getNext(): Node {
         return next;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
 }
@@ -44,23 +44,23 @@ print("NodeB -> NodeA -> " + tempB.getNext().getName());
 print("\nTesting self-reference:");
 
 class SelfRef {
-    string value;
-    SelfRef self;
-    
-    constructor(string v) {
+    public string value;
+    public SelfRef self;
+
+    public constructor(string v) {
         value = v;
         self = null;
     }
-    
-    function setSelf(): void {
+
+    public function setSelf(): void {
         self = this;
     }
-    
-    function getSelf(): SelfRef {
+
+    public function getSelf(): SelfRef {
         return self;
     }
-    
-    function getValue(): string {
+
+    public function getValue(): string {
         return value;
     }
 }
@@ -77,29 +77,29 @@ print("Self->Self value: " + tempSelf.getSelf().getValue());
 print("\nTesting complex circular chain:");
 
 class ChainNode {
-    string id;
-    ChainNode link;
-    int data;
-    
-    constructor(string i, int d) {
+    public string id;
+    public ChainNode link;
+    public int data;
+
+    public constructor(string i, int d) {
         id = i;
         data = d;
         link = null;
     }
-    
-    function setLink(ChainNode n): void {
+
+    public function setLink(ChainNode n): void {
         link = n;
     }
-    
-    function getLink(): ChainNode {
+
+    public function getLink(): ChainNode {
         return link;
     }
-    
-    function getId(): string {
+
+    public function getId(): string {
         return id;
     }
-    
-    function getData(): int {
+
+    public function getData(): int {
         return data;
     }
 }
@@ -130,45 +130,45 @@ for (int i = 0; i < 6; i++) {
 print("\nTesting parent-child circular reference:");
 
 class Parent {
-    string name;
-    Child child;
-    
-    constructor(string n) {
+    public string name;
+    public Child child;
+
+    public constructor(string n) {
         name = n;
         child = null;
     }
-    
-    function setChild(Child c): void {
+
+    public function setChild(Child c): void {
         child = c;
     }
-    
-    function getChild(): Child {
+
+    public function getChild(): Child {
         return child;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
 }
 
 class Child {
-    string name;
-    Parent parent;
-    
-    constructor(string n) {
+    public string name;
+    public Parent parent;
+
+    public constructor(string n) {
         name = n;
         parent = null;
     }
-    
-    function setParent(Parent p): void {
+
+    public function setParent(Parent p): void {
         parent = p;
     }
-    
-    function getParent(): Parent {
+
+    public function getParent(): Parent {
         return parent;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
 }
@@ -191,33 +191,33 @@ print("Child -> Parent -> Child: " + tempParent2.getChild().getName());
 print("\nTesting doubly linked circular structure:");
 
 class DNode {
-    string data;
-    DNode prev;
-    DNode next;
-    
-    constructor(string d) {
+    public string data;
+    public DNode prev;
+    public DNode next;
+
+    public constructor(string d) {
         data = d;
         prev = null;
         next = null;
     }
-    
-    function setPrev(DNode p): void {
+
+    public function setPrev(DNode p): void {
         prev = p;
     }
-    
-    function setNext(DNode n): void {
+
+    public function setNext(DNode n): void {
         next = n;
     }
-    
-    function getPrev(): DNode {
+
+    public function getPrev(): DNode {
         return prev;
     }
-    
-    function getNext(): DNode {
+
+    public function getNext(): DNode {
         return next;
     }
-    
-    function getData(): string {
+
+    public function getData(): string {
         return data;
     }
 }
@@ -245,30 +245,30 @@ print(dnode3.getData() + " -> next: " + dnode3.getNext().getData() + ", prev: " 
 print("\nTesting graph-like circular references:");
 
 class GraphNode {
-    string label;
-    GraphNode neighbor1;
-    GraphNode neighbor2;
-    
-    constructor(string l) {
+    public string label;
+    public GraphNode neighbor1;
+    public GraphNode neighbor2;
+
+    public constructor(string l) {
         label = l;
         neighbor1 = null;
         neighbor2 = null;
     }
-    
-    function setNeighbors(GraphNode n1, GraphNode n2): void {
+
+    public function setNeighbors(GraphNode n1, GraphNode n2): void {
         neighbor1 = n1;
         neighbor2 = n2;
     }
-    
-    function getNeighbor1(): GraphNode {
+
+    public function getNeighbor1(): GraphNode {
         return neighbor1;
     }
-    
-    function getNeighbor2(): GraphNode {
+
+    public function getNeighbor2(): GraphNode {
         return neighbor2;
     }
-    
-    function getLabel(): string {
+
+    public function getLabel(): string {
         return label;
     }
 }
@@ -312,37 +312,37 @@ if (afterBreak.getNext() == null) {
 print("\nTesting multiple circular references:");
 
 class MultiRef {
-    string name;
-    MultiRef ref1;
-    MultiRef ref2;
-    MultiRef ref3;
-    
-    constructor(string n) {
+    public string name;
+    public MultiRef ref1;
+    public MultiRef ref2;
+    public MultiRef ref3;
+
+    public constructor(string n) {
         name = n;
         ref1 = null;
         ref2 = null;
         ref3 = null;
     }
-    
-    function setRefs(MultiRef r1, MultiRef r2, MultiRef r3): void {
+
+    public function setRefs(MultiRef r1, MultiRef r2, MultiRef r3): void {
         ref1 = r1;
         ref2 = r2;
         ref3 = r3;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
-    
-    function getRef1(): MultiRef {
+
+    public function getRef1(): MultiRef {
         return ref1;
     }
-    
-    function getRef2(): MultiRef {
+
+    public function getRef2(): MultiRef {
         return ref2;
     }
-    
-    function getRef3(): MultiRef {
+
+    public function getRef3(): MultiRef {
         return ref3;
     }
 }
@@ -361,30 +361,30 @@ print("Multi2 refs: " + multi2.getRef1().getName() + ", " + multi2.getRef2().get
 print("\nTesting indirect circular references:");
 
 class IndirectRef {
-    string id;
-    IndirectRef partner;
-    
-    constructor(string i) {
+    public string id;
+    public IndirectRef partner;
+
+    public constructor(string i) {
         id = i;
         partner = null;
     }
-    
-    function setPartner(IndirectRef p): void {
+
+    public function setPartner(IndirectRef p): void {
         partner = p;
     }
-    
-    function getPartner(): IndirectRef {
+
+    public function getPartner(): IndirectRef {
         return partner;
     }
-    
-    function getPartnerOfPartner(): IndirectRef {
+
+    public function getPartnerOfPartner(): IndirectRef {
         if (partner != null) {
             return partner.getPartner();
         }
         return null;
     }
-    
-    function getId(): string {
+
+    public function getId(): string {
         return id;
     }
 }
@@ -401,29 +401,29 @@ print("Indirect reference: " + ind1.getId() + " -> partner's partner: " + ind1.g
 print("\nTesting circular reference with modification:");
 
 class ModNode {
-    string value;
-    int counter;
-    ModNode next;
-    
-    constructor(string v, int c) {
+    public string value;
+    public int counter;
+    public ModNode next;
+
+    public constructor(string v, int c) {
         value = v;
         counter = c;
         next = null;
     }
-    
-    function setNext(ModNode n): void {
+
+    public function setNext(ModNode n): void {
         next = n;
     }
-    
-    function increment(): void {
+
+    public function increment(): void {
         counter = counter + 1;
     }
-    
-    function getValue(): string {
+
+    public function getValue(): string {
         return value + "(" + counter + ")";
     }
-    
-    function getNext(): ModNode {
+
+    public function getNext(): ModNode {
         return next;
     }
 }

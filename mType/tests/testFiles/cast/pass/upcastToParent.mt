@@ -1,21 +1,21 @@
 // Test: Upcast from child to parent class
 class Animal {
-    string name;
+    public string name;
 
-    constructor(string n) {
+    public constructor(string n) {
         this.name = n;
     }
 
-    function speak(): void {
+    public function speak(): void {
         print("Animal speaks");
     }
 }
 
 class Dog extends Animal {
-    constructor(string n):super(n) {
+    public constructor(string n):super(n) {
 	}
 
-    function speak():void {
+    public function speak():void {
         print("Dog barks");
     }
 }

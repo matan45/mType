@@ -1,15 +1,15 @@
 class Counter {
-    int count;
-    
-    constructor(int initial) {
+    public int count;
+
+    public constructor(int initial) {
         count = initial;
     }
-    
-    function increment(): void {
+
+    public function increment(): void {
         count = count + 1;
     }
-    
-    function getCount(): int {
+
+    public function getCount(): int {
         return count;
     }
 }

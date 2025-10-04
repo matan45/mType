@@ -2,7 +2,7 @@
 // Loop variables should be properly scoped
 
 class TestClass {
-    function testForLoop(): void {
+    public function testForLoop(): void {
         print("=== For Loop Test ===");
         int outerVar = 100;
         for (int i = 0; i < 3; i = i + 1) {
@@ -12,7 +12,7 @@ class TestClass {
         print("after for loop: outerVar = " + outerVar);
     }
 
-    function testWhileLoop(): void {
+    public function testWhileLoop(): void {
         print("=== While Loop Test ===");
         int outerVar = 200;
         int counter = 0;
@@ -24,7 +24,7 @@ class TestClass {
         print("after while loop: outerVar = " + outerVar + ", counter = " + counter);
     }
 
-    function testDoWhileLoop(): void {
+    public function testDoWhileLoop(): void {
         print("=== Do-While Loop Test ===");
         int outerVar = 300;
         int counter = 0;
@@ -36,7 +36,7 @@ class TestClass {
         print("after do-while loop: outerVar = " + outerVar + ", counter = " + counter);
     }
 
-    function testNestedLoops(): void {
+    public function testNestedLoops(): void {
         print("=== Nested Loop Test ===");
         for (int i = 0; i < 2; i = i + 1) {
             int outerLoopVar = i * 100;

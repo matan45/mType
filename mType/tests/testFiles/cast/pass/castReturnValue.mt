@@ -1,11 +1,11 @@
 // Test: Cast return value
 class Base {
-    int id;
-    constructor(int i) { this.id = i; }
+    public int id;
+    public constructor(int i) { this.id = i; }
 }
 
 class Derived extends Base {
-    constructor(int i):super(i) {
+    public constructor(int i):super(i) {
 	}
 }
 

@@ -1,16 +1,16 @@
 // Test: Cast and access members
 class Vehicle {
-    int wheels;
+    public int wheels;
 
-    constructor(int w) {
+    public constructor(int w) {
         this.wheels = w;
     }
 }
 
 class Car extends Vehicle {
-    string model;
+    public string model;
 
-    constructor(int w, string m):super(w) {
+    public constructor(int w, string m):super(w) {
         this.model = m;
     }
 }

@@ -4,10 +4,10 @@ interface Shape {
 }
 
 class Rectangle implements Shape {
-    int width = 5;
-    int height = 10;
+    public int width = 5;
+    public int height = 10;
 
-    function area(): void {
+    public function area(): void {
         print(this.width * this.height);
     }
 }

@@ -3,8 +3,8 @@ interface I1 { function m1() : void; }
 interface I2 { function m2() : void; }
 
 class C implements I1, I2 {
-    function m1() : void { print("M1"); }
-    function m2() : void { print("M2"); }
+    public function m1() : void { print("M1"); }
+    public function m2() : void { print("M2"); }
 }
 
 C obj = new C();

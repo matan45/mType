@@ -1,15 +1,15 @@
 class Student {
-    string name;
-    int id;
-    float gpa;
-    
-    constructor(string n, int i, float g) {
+    public string name;
+    public int id;
+    public float gpa;
+
+    public constructor(string n, int i, float g) {
         name = n;
         id = i;
         gpa = g;
     }
-    
-    function display(): void {
+
+    public function display(): void {
         print(name);
         print(id);
         print(gpa);

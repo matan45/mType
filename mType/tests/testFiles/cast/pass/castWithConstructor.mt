@@ -1,17 +1,17 @@
 // Test: Cast with constructor calls
 class Parent {
-    string name;
+    public string name;
 
-    constructor(string n) {
+    public constructor(string n) {
         this.name = n;
         print("Parent constructor: " + n);
     }
 }
 
 class Child extends Parent {
-    int age;
+    public int age;
 
-    constructor(string n, int a) : super(n) {
+    public constructor(string n, int a) : super(n) {
         this.age = a;
         print("Child constructor: " + (string)a);
     }

@@ -1,59 +1,59 @@
 class ComplexClass {
     // Instance members
-    int instanceInt;
-    float instanceFloat;
-    string instanceString;
-    
+    public int instanceInt;
+    public float instanceFloat;
+    public string instanceString;
+
     // Static members
-    static int staticCounter = 0;
-    static final string CLASS_NAME = "ComplexClass";
-    
+    public static int staticCounter = 0;
+    public static final string CLASS_NAME = "ComplexClass";
+
     // Default constructor
-    constructor() {
+    public constructor() {
         instanceInt = 0;
         instanceFloat = 0.0;
         instanceString = "default";
         staticCounter = staticCounter + 1;
     }
-    
+
     // Parameterized constructor
-    constructor(int i, float f, string s) {
+    public constructor(int i, float f, string s) {
         instanceInt = i;
         instanceFloat = f;
         instanceString = s;
         staticCounter = staticCounter + 1;
     }
-    
+
     // Instance methods
-    function setValues(int i, float f, string s): void {
+    public function setValues(int i, float f, string s): void {
         instanceInt = i;
         instanceFloat = f;
         instanceString = s;
     }
-    
-    function display(): void {
+
+    public function display(): void {
         print(instanceInt);
         print(instanceFloat);
         print(instanceString);
     }
-    
-    function calculate(): float {
+
+    public function calculate(): float {
         return instanceInt * instanceFloat;
     }
-    
+
     // Static methods
-    static function getCounter(): int {
+    public static function getCounter(): int {
         return staticCounter;
     }
-    
-    static function getClassName(): string {
+
+    public static function getClassName(): string {
         return CLASS_NAME;
     }
-    
-    static function resetCounter(): void {
+
+    public static function resetCounter(): void {
         staticCounter = 0;
     }
-    
+
 }
 
 // Test static access

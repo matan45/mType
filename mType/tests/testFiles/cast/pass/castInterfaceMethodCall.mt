@@ -4,9 +4,9 @@ interface Printable {
 }
 
 class Document implements Printable {
-    string title = "Report";
+    public string title = "Report";
 
-    function print(): void {
+    public function print(): void {
         print(this.title);
     }
 }

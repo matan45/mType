@@ -4,7 +4,7 @@ interface Drawable {
 }
 
 class Circle implements Drawable {
-    function draw(): void {
+    public function draw(): void {
         print("Drawing circle");
     }
 }

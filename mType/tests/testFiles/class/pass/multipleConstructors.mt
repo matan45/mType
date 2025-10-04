@@ -1,26 +1,26 @@
 class Rectangle {
-    int width;
-    int height;
-    
+    public int width;
+    public int height;
+
     // Default constructor
-    constructor() {
+    public constructor() {
         width = 0;
         height = 0;
     }
-    
+
     // Constructor with parameters
-    constructor(int w, int h) {
+    public constructor(int w, int h) {
         width = w;
         height = h;
     }
-    
+
     // Constructor with single parameter (square)
-    constructor(int size) {
+    public constructor(int size) {
         width = size;
         height = size;
     }
-    
-    function area(): int {
+
+    public function area(): int {
         return width * height;
     }
 }

@@ -1,17 +1,17 @@
 class Calculator {
-    int result;
-    
-    function add(int a, int b): int {
+    public int result;
+
+    public function add(int a, int b): int {
         result = a + b;
         return result;
     }
-    
-    function multiply(int a, int b): int {
+
+    public function multiply(int a, int b): int {
         result = a * b;
         return result;
     }
-    
-    function getResult(): int {
+
+    public function getResult(): int {
         return result;
     }
 }

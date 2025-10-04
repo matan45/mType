@@ -2,89 +2,89 @@
 
 // Example 1: Simple this return for self-reference
 class Vehicle {
-    string brand;
-    int year;
-    
-    constructor(string b, int y) {
+    public string brand;
+    public int year;
+
+    public constructor(string b, int y) {
         brand = b;
         year = y;
     }
-    
-    function getVehicle(): Vehicle {
+
+    public function getVehicle(): Vehicle {
         return this;
     }
-    
-    function setBrand(string newBrand): Vehicle {
+
+    public function setBrand(string newBrand): Vehicle {
         this.brand = newBrand;
         return this;
     }
-    
-    function setYear(int newYear): Vehicle {
+
+    public function setYear(int newYear): Vehicle {
         this.year = newYear;
         return this;
     }
-    
-    function getInfo(): string {
+
+    public function getInfo(): string {
         return brand + " (" + year + ")";
     }
 }
 
 // Example 2: Builder pattern with method chaining
 class StringBuilder {
-    string content;
-    
-    constructor() {
+    public string content;
+
+    public constructor() {
         content = "";
     }
-    
-    function append(string text): StringBuilder {
+
+    public function append(string text): StringBuilder {
         content = content + text;
         return this;
     }
-    
-    function appendNumber(int num): StringBuilder {
+
+    public function appendNumber(int num): StringBuilder {
         content = content + num;
         return this;
     }
-    
-    function clear(): StringBuilder {
+
+    public function clear(): StringBuilder {
         content = "";
         return this;
     }
-    
-    function toString(): string {
+
+    public function toString(): string {
         return content;
     }
 }
 
 // Example 3: Configuration object with fluent interface
 class Config {
-    string host;
-    int port;
-    bool secure;
-    
-    constructor() {
+    public string host;
+    public int port;
+    public bool secure;
+
+    public constructor() {
         host = "localhost";
         port = 8080;
         secure = false;
     }
-    
-    function setHost(string h): Config {
+
+    public function setHost(string h): Config {
         this.host = h;
         return this;
     }
-    
-    function setPort(int p): Config {
+
+    public function setPort(int p): Config {
         this.port = p;
         return this;
     }
-    
-    function setSecure(bool s): Config {
+
+    public function setSecure(bool s): Config {
         this.secure = s;
         return this;
     }
-    
-    function getConnectionString(): string {
+
+    public function getConnectionString(): string {
         string protocol = secure ? "https" : "http";
         return protocol + "://" + host + ":" + port;
     }

@@ -1,23 +1,23 @@
 class StringProcessor {
-    string data;
-    
-    constructor(string initial) {
+    public string data;
+
+    public constructor(string initial) {
         data = initial;
     }
-    
-    function append(string suffix): void {
+
+    public function append(string suffix): void {
         data = data + suffix;
     }
-    
-    function prepend(string prefix): void {
+
+    public function prepend(string prefix): void {
         data = prefix + data;
     }
-    
-    function getData(): string {
+
+    public function getData(): string {
         return data;
     }
-    
-    function getLength(): int {
+
+    public function getLength(): int {
         // Simulated length (would need actual string length function)
         return 10;
     }

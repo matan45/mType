@@ -1,8 +1,8 @@
 class Data {
-    int value;
-    string label;
-    
-    constructor() {
+    public int value;
+    public string label;
+
+    public constructor() {
         value = 0;
         label = "default";
     }

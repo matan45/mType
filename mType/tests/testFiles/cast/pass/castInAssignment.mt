@@ -1,11 +1,11 @@
 // Test: Cast in assignment
 class Base {
-    int value;
-    constructor(int v) { this.value = v; }
+    public int value;
+    public constructor(int v) { this.value = v; }
 }
 
 class Derived extends Base {
-    constructor(int v):super(v) {
+    public constructor(int v):super(v) {
 	}
 }
 

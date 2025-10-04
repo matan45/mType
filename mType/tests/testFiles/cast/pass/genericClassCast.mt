@@ -1,13 +1,13 @@
 // Test: Generic class casting
 import "../../lib/primitives/Int.mt";
 class Container<T> {
-    T value;
-    constructor(T v) { this.value = v; }
-    function getValue(): T { return this.value; }
+    public T value;
+    public constructor(T v) { this.value = v; }
+    public function getValue(): T { return this.value; }
 }
 
 class Box<T> extends Container<T> {
-    constructor(T v): super(v) {  }
+    public constructor(T v): super(v) {  }
 }
 
 Box<Int> intBox = new Box<Int>(new Int(42));
