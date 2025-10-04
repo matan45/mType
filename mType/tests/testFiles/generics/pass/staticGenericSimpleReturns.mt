@@ -3,22 +3,22 @@ import "../../lib/primitives/Int.mt";
 
 class SimpleFactory {
     // Return the same object passed in
-    static function <T> echo(T item): T {
+    public static function <T> echo(T item): T {
         return item;
     }
 
     // Return null for any type
-    static function <T> createNull(): T {
+    public static function <T> createNull(): T {
         return null;
     }
 
     // Work with multiple parameters and return first one
-    static function <T, U> selectFirst(T first, U second): T {
+    public static function <T, U> selectFirst(T first, U second): T {
         return first;
     }
 
     // Work with multiple parameters and return second one
-    static function <T, U> selectSecond(T first, U second): U {
+    public static function <T, U> selectSecond(T first, U second): U {
         return second;
     }
 }

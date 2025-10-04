@@ -1,13 +1,13 @@
 class Configuration {
-    final int MAX_ITERATIONS = 100;
-    final string CONFIG_NAME = "Default";
-    static int totalConfigs = 0;
-    
-    constructor() {
+    public final int MAX_ITERATIONS = 100;
+    public final string CONFIG_NAME = "Default";
+    public static int totalConfigs = 0;
+
+    public constructor() {
         totalConfigs = totalConfigs + 1;
     }
-    
-    function runSimulation(): int {
+
+    public function runSimulation(): int {
         final int BATCH_SIZE = 10;
         int total = 0;
         
@@ -23,7 +23,7 @@ class Configuration {
         return total;
     }
     
-    function processWithWhile(): int {
+    public function processWithWhile(): int {
         final int TARGET = 42;
         int current = 0;
         int iterations = 0;

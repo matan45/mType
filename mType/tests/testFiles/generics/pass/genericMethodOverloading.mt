@@ -5,17 +5,17 @@ import "../../lib/primitives/Bool.mt";
 class Storage<T> {
     T data;
 
-    function store(T value): void {
+    public function store(T value): void {
         data = value;
         print("Stored: " + value);
     }
 
-    function retrieve(): T {
+    public function retrieve(): T {
         print("Retrieved: " + data);
         return data;
     }
 
-    function hasData(): Bool {
+    public function hasData(): Bool {
         return new Bool(data != null);
     }
 }

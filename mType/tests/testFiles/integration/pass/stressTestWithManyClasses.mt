@@ -10,12 +10,12 @@
             task = taskName;
             totalWorkers = totalWorkers + 1;
         }
-        
-        function doWork(): int {
+
+        public function doWork(): int {
             return id * 10;
         }
         
-        static function getTotalWorkers(): int {
+        public static function getTotalWorkers(): int {
             return totalWorkers;
         }
     }

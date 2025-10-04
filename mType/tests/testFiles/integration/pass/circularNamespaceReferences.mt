@@ -3,13 +3,13 @@
     final int VALUE_A = 100;
     
     class ComponentA {
-        int data;
-        
-        constructor() {
+        public int data;
+
+        public constructor() {
             data = VALUE_A;
         }
-        
-        function processWithB(): int {
+
+        public function processWithB(): int {
             // This should work - forward reference
             return ComponentB::processData(data);
         }
@@ -20,14 +20,14 @@
     final int VALUE_B = 200;
     
     class ComponentB {
-        
-        constructor() {}
 
-        static function processData(int input): int {
+        public constructor() {}
+
+        public static function processData(int input): int {
             return input + VALUE_B;
         }
-        
-        function processWithA(): int {
+
+        public function processWithA(): int {
             ComponentA compA = new ComponentA();
             return compA.data + VALUE_B;
         }

@@ -17,27 +17,27 @@ class DataContainer {
         this.numberCount = 0;
     }
 
-    function addNumber(int num): void {
+    public function addNumber(int num): void {
         if (this.numberCount < this.numbers.length) {
             this.numbers[this.numberCount] = num;
             this.numberCount++;
         }
     }
 
-    function addPerson(String name, Int age): void {
+    public function addPerson(String name, Int age): void {
         this.nameToAge.put(name, age);
         this.uniqueNames.add(name);
     }
 
-    function getNumberCount(): int {
+    public function getNumberCount(): int {
         return this.numberCount;
     }
 
-    function getPersonAge(String name): Int {
+    public function getPersonAge(String name): Int {
         return this.nameToAge.get(name);
     }
 
-    function hasUniqueName(String name): bool {
+    public function hasUniqueName(String name): bool {
         return this.uniqueNames.contains(name);
     }
 }

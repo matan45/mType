@@ -1,8 +1,10 @@
 // Test name collision scenarios
 class GraphicsRenderer {
     string type = "Graphics";
-    
-    function render(): string {
+
+    public constructor() {}
+
+    public function render(): string {
         return "Graphics rendering";
     }
 }
@@ -11,8 +13,10 @@ final string GRAPHICS_TYPE = "Graphics";
 
 class AudioRenderer {
     string type = "Audio";
-    
-    function render(): string {
+
+    public constructor() {}
+
+    public function render(): string {
         return "Audio rendering";
     }
 }

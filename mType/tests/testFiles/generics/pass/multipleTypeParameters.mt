@@ -6,19 +6,19 @@ class Pair<T, U> {
     T first;
     U second;
 
-    function setFirst(T value): void {
+    public function setFirst(T value): void {
         first = value;
     }
 
-    function setSecond(U value): void {
+    public function setSecond(U value): void {
         second = value;
     }
 
-    function getFirst(): T {
+    public function getFirst(): T {
         return first;
     }
 
-    function getSecond(): U {
+    public function getSecond(): U {
         return second;
     }
 }

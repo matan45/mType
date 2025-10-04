@@ -1,8 +1,8 @@
 // Test invalid combinations and edge cases
 class EdgeCaseHandler {
     final int MAX_SAFE_VALUE = 1000;
-    
-    function handleEdgeCases(int value, string operation): string {
+
+    public function handleEdgeCases(int value, string operation): string {
         if (value < 0) {
             return "ERROR: Negative value not supported";
         }

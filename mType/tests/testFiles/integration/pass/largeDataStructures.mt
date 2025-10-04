@@ -4,12 +4,12 @@ final int LARGE_SIZE = 100;
 class DataProcessor {
     int processedCount;
     final int BATCH_SIZE = 10;
-    
-    constructor() {
+
+    public constructor() {
         processedCount = 0;
     }
-    
-    function processLargeDataset(): int {
+
+    public function processLargeDataset(): int {
         int totalSum = 0;
         
         // Simulate processing large dataset
@@ -38,7 +38,7 @@ class DataProcessor {
         return totalSum;
     }
     
-    function getProcessedCount(): int {
+    public function getProcessedCount(): int {
         return processedCount;
     }
 }

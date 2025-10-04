@@ -5,23 +5,23 @@ import "../../lib/primitives/Int.mt";
 class SimpleContainer<T> {
     T value;
 
-    constructor(T val) {
+    public constructor(T val) {
         value = val;
     }
 
-    function getValue(): T {
+    public function getValue(): T {
         return value;
     }
 }
 
 class ContainerFactory {
     // Static generic method that returns a simple generic class
-    static function <T> createContainer(T item): SimpleContainer<T> {
+    public static function <T> createContainer(T item): SimpleContainer<T> {
         return new SimpleContainer<T>(item);
     }
 
     // Static generic method that creates and accesses the container
-    static function <T> createAndAccess(T item): T {
+    public static function <T> createAndAccess(T item): T {
         SimpleContainer<T> container = new SimpleContainer<T>(item);
         return container.getValue();
     }

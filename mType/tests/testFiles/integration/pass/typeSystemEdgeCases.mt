@@ -1,10 +1,10 @@
 // Test type system edge cases
 
     class TypeContainer {
-        int intValue;
-        float floatValue;
-        string stringValue;
-        bool boolValue;
+        public int intValue;
+        public float floatValue;
+        public string stringValue;
+        public bool boolValue;
         
         constructor() {
             intValue = 42;
@@ -12,8 +12,8 @@
             stringValue = "test";
             boolValue = true;
         }
-        
-        function typeConversions(): string {
+
+        public function typeConversions(): string {
             string result = "";
             
             // Test implicit conversions and operations
@@ -29,25 +29,25 @@
             return result;
         }
         
-        function compareTypes(): string {
+        public function compareTypes(): string {
             string result = "";
-            
+
             if (intValue == 42) {
                 result = result + "Int match | ";
             }
-            
+
             if (floatValue > 3.0) {
                 result = result + "Float compare | ";
             }
-            
+
             if (stringValue == "test") {
                 result = result + "String match | ";
             }
-            
+
             if (boolValue) {
                 result = result + "Bool true";
             }
-            
+
             return result;
         }
     }

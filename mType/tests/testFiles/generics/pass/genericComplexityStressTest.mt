@@ -10,25 +10,25 @@ class Container<T, U, V> {
     U second;
     V third;
 
-    constructor(T f, U s, V t) {
+    public constructor(T f, U s, V t) {
         first = f;
         second = s;
         third = t;
     }
 
-    function getFirst(): T {
+    public function getFirst(): T {
         return first;
     }
 
-    function getSecond(): U {
+    public function getSecond(): U {
         return second;
     }
 
-    function getThird(): V {
+    public function getThird(): V {
         return third;
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         int hash = 7;
         hash = hash * 31 + first.hashCode();
         hash = hash * 31 + second.hashCode();
@@ -36,7 +36,7 @@ class Container<T, U, V> {
         return hash;
     }
 
-    function equals(Container<T, U, V> other): bool {
+    public function equals(Container<T, U, V> other): bool {
         if (other == null) return false;
         return first.equals(other.first) &&
                second.equals(other.second) &&
@@ -47,19 +47,19 @@ class Container<T, U, V> {
 class Wrapper<T> {
     T data;
 
-    constructor(T d) {
+    public constructor(T d) {
         data = d;
     }
 
-    function getData(): T {
+    public function getData(): T {
         return data;
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         return data.hashCode();
     }
 
-    function equals(Wrapper<T> other): bool {
+    public function equals(Wrapper<T> other): bool {
         if (other == null) return false;
         return data.equals(other.data);
     }

@@ -7,8 +7,8 @@ class FailureProneOperation {
         operation = op;
         attempt = 0;
     }
-    
-    function tryOperation(): string {
+
+    public function tryOperation(): string {
         attempt = attempt + 1;
         
         if (attempt <= 2) {

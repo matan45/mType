@@ -7,7 +7,7 @@ import "../../lib/primitives/String.mt";
 // Test serialization with static generic methods and collections
 class DataProcessor {
     // Static generic method that returns a collection
-    static function <T> createCollection(T item1, T item2, T item3): HashSet<T> {
+    public static function <T> createCollection(T item1, T item2, T item3): HashSet<T> {
         HashSet<T> collection = new HashSet<T>();
         collection.add(item1);
         collection.add(item2);
@@ -16,7 +16,7 @@ class DataProcessor {
     }
 
     // Static generic method that processes a map
-    static function <K, V> processMap(HashMap<K, V> map, K key, V value): HashMap<K, V> {
+    public static function <K, V> processMap(HashMap<K, V> map, K key, V value): HashMap<K, V> {
         HashMap<K, V> result = new HashMap<K, V>();
         // Copy existing entries
         K[] keys = map.getKeys();
@@ -31,7 +31,7 @@ class DataProcessor {
     }
 
     // Static generic method with multiple type parameters
-    static function <T, U> createMixedCollection(T item1, U item2): LinkedList<String> {
+    public static function <T, U> createMixedCollection(T item1, U item2): LinkedList<String> {
         LinkedList<String> result = new LinkedList<String>();
         result.add(new String("Type1: " + item1.toString()));
         result.add(new String("Type2: " + item2.toString()));
@@ -39,7 +39,7 @@ class DataProcessor {
     }
 
     // Static generic method that returns count
-    static function <T> countUniqueItems(HashSet<T> set, T newItem): int {
+    public static function <T> countUniqueItems(HashSet<T> set, T newItem): int {
         int originalSize = set.size();
         set.add(newItem);
         int newSize = set.size();
@@ -47,7 +47,7 @@ class DataProcessor {
     }
 
     // Static generic method for data transformation
-    static function <T> transformToMap(HashSet<T> set): HashMap<String, T> {
+    public static function <T> transformToMap(HashSet<T> set): HashMap<String, T> {
         HashMap<String, T> result = new HashMap<String, T>();
         int index = 0;
         T[] items = set.toArray();

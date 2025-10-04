@@ -2,15 +2,15 @@
 class Wrapper<T> {
     T data;
 
-    function wrap(T item): void {
+    public function wrap(T item): void {
         data = item;
     }
 
-    function unwrap(): T {
+    public function unwrap(): T {
         return data;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return "Wrapped: " + data;
     }
 }

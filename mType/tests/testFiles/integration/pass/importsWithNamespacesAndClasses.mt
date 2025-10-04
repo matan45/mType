@@ -4,19 +4,19 @@
 final float PI = 3.14159;
 
 class Calculator {
-    static int operationCount = 0;
-    
-    static function add(int a, int b): int {
+    public static int operationCount = 0;
+
+    public static function add(int a, int b): int {
         operationCount = operationCount + 1;
         return a + b;
     }
-    
-    static function multiply(float a, float b): float {
+
+    public static function multiply(float a, float b): float {
         operationCount = operationCount + 1;
         return a * b;
     }
-    
-    static function getOperationCount(): int {
+
+    public static function getOperationCount(): int {
         return operationCount;
     }
 }
@@ -28,16 +28,16 @@ function circleArea(float radius): float {
 final string APP_NAME = "Advanced Calculator";
 
 class CalculationSession {
-    string sessionName;
-    int totalCalculations;
-    final int MAX_CALCULATIONS = 100;
-    
-    constructor(string name) {
+    public string sessionName;
+    public int totalCalculations;
+    public final int MAX_CALCULATIONS = 100;
+
+    public constructor(string name) {
         sessionName = name;
         totalCalculations = 0;
     }
-    
-    function performCalculation(int a, int b): int {
+
+    public function performCalculation(int a, int b): int {
         if (totalCalculations >= MAX_CALCULATIONS) {
             return -1; // Session limit reached
         }
@@ -46,16 +46,16 @@ class CalculationSession {
         return Calculator::add(a, b);
     }
     
-    function calculateCircleArea(float radius): float {
+    public function calculateCircleArea(float radius): float {
         if (totalCalculations >= MAX_CALCULATIONS) {
             return -1.0;
         }
-        
+
         totalCalculations = totalCalculations + 1;
         return circleArea(radius);
     }
-    
-    function getSessionInfo(): string {
+
+    public function getSessionInfo(): string {
         return sessionName + ": " + totalCalculations + "/" + MAX_CALCULATIONS;
     }
 }

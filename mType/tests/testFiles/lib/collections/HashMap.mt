@@ -6,7 +6,7 @@ class HashMap<K,V> {
     int capacity;
     int count;
 
-    constructor() {
+    public constructor() {
         this.capacity = 16; // Power of 2 for efficient modulo
         this.keyBuckets = new K[this.capacity][4]; // 16 buckets, each starts with capacity 4
         this.valueBuckets = new V[this.capacity][4];
@@ -19,7 +19,7 @@ class HashMap<K,V> {
         }
     }
 
-    function put(K key, V value): void {
+    public function put(K key, V value): void {
         // Null key validation
         if (key == null) {
             print("Error: HashMap.put() - key cannot be null");
@@ -51,7 +51,7 @@ class HashMap<K,V> {
         }
     }
 
-    function get(K key): V {
+    public function get(K key): V {
         // Null key validation
         if (key == null) {
             print("Error: HashMap.get() - key cannot be null");
@@ -67,7 +67,7 @@ class HashMap<K,V> {
         return null; // Key not found
     }
 
-    function containsKey(K key): bool {
+    public function containsKey(K key): bool {
         // Null key validation
         if (key == null) {
             print("Error: HashMap.containsKey() - key cannot be null");
@@ -78,7 +78,7 @@ class HashMap<K,V> {
         return this.findKeyInBucket(bucketIndex, key) >= 0;
     }
 
-    function remove(K key): bool {
+    public function remove(K key): bool {
         // Null key validation
         if (key == null) {
             print("Error: HashMap.remove() - key cannot be null");
@@ -101,15 +101,15 @@ class HashMap<K,V> {
         return false;
     }
 
-    function size(): int {
+    public function size(): int {
         return this.count;
     }
 
-    function empty(): bool {
+    public function empty(): bool {
         return this.count == 0;
     }
 
-    function clear(): void {
+    public function clear(): void {
         for (int i = 0; i < this.capacity; i++) {
             this.bucketSizes[i] = 0;
         }
@@ -117,7 +117,7 @@ class HashMap<K,V> {
     }
 
     // Get all keys
-    function getKeys(): K[] {
+    public function getKeys(): K[] {
         K[] result = new K[this.count];
         int index = 0;
 
@@ -131,7 +131,7 @@ class HashMap<K,V> {
     }
 
     // Get all values
-    function getValues(): V[] {
+    public function getValues(): V[] {
         V[] result = new V[this.count];
         int index = 0;
 
@@ -145,7 +145,7 @@ class HashMap<K,V> {
     }
 
     // Content-based hash code (order-independent)
-    function hashCode(): int {
+    public function hashCode(): int {
         int hash = 0;
         for (int bucket = 0; bucket < this.capacity; bucket++) {
             for (int i = 0; i < this.bucketSizes[bucket]; i++) {

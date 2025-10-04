@@ -9,23 +9,23 @@ class StateMachine {
         stateValue = 0;
     }
     
-    function transition(string newState): bool {
+    public function transition(string newState): bool {
         if (state == "CORRUPTED") {
             return false; // Can't transition from corrupted state
         }
-        
+
         if (newState == "CORRUPTED") {
             state = "CORRUPTED";
             stateValue = -1;
             return true;
         }
-        
+
         state = newState;
         stateValue = stateValue + 1;
         return true;
     }
     
-    function recover(): bool {
+    public function recover(): bool {
         if (state == "CORRUPTED") {
             state = INITIAL_STATE;
             stateValue = 0;
@@ -33,8 +33,8 @@ class StateMachine {
         }
         return false;
     }
-    
-    function getState(): string {
+
+    public function getState(): string {
         return state + ":" + stateValue;
     }
 }

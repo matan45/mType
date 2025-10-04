@@ -27,7 +27,7 @@ class Container<T> {
         data = value;
     }
 
-    function test(): void {
+    public function test(): void {
         print("Container data: " + data.toString());
     }
 }
@@ -50,7 +50,7 @@ class Pair<K, V> {
         return second;
     }
 
-    function test(): void {
+    public function test(): void {
         print("Pair: (" + first.toString() + ", " + second.toString() + ")");
     }
 }
@@ -63,7 +63,7 @@ class NestedContainer<T> {
         items = new List<T>();
     }
 
-    function add(T item): void {
+    public function add(T item): void {
         items.add(item);
     }
 
@@ -75,7 +75,7 @@ class NestedContainer<T> {
         return items.size();
     }
 
-    function test(): void {
+    public function test(): void {
         print("NestedContainer size: " + size());
     }
 }
@@ -94,7 +94,7 @@ class DeepChainE<X> { X finalNext; }
 
 // Test 4: Fast cache patterns - commonly used generic instantiations
 class FastCacheTest {
-    static function testCommonPatterns(): void {
+    public static function testCommonPatterns(): void {
         print("=== Fast Cache Performance Tests ===");
 
         // These should hit fast cache (common patterns)

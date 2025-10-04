@@ -5,15 +5,15 @@ class FileHandle {
     bool isOpen;
     static int openHandles = 0;
     static string operationLog = "";
-    
+
     constructor(string name) {
     filename = name;
     isOpen = true;
     openHandles = openHandles + 1;
     operationLog = operationLog + "OPEN:" + name + " | ";
     }
-    
-    function close(): void {
+
+    public function close(): void {
     if (isOpen) {
         isOpen = false;
         openHandles = openHandles - 1;
@@ -21,23 +21,23 @@ class FileHandle {
     }
     }
     
-    function isFileOpen(): bool {
+    public function isFileOpen(): bool {
     return isOpen;
     }
     
-    function getFilename(): string {
+    public function getFilename(): string {
     return filename;
     }
     
-    static function getOpenHandleCount(): int {
+    public static function getOpenHandleCount(): int {
     return openHandles;
     }
     
-    static function getOperationLog(): string {
+    public static function getOperationLog(): string {
     return operationLog;
     }
-    
-    static function clearLog(): void {
+
+    public static function clearLog(): void {
     operationLog = "";
     openHandles = 0;
     }
@@ -141,7 +141,7 @@ function testResourcePoolPattern(): void {
         activeResources = 3;
         }
         
-        function getAvailableResource(): FileHandle {
+        public function getAvailableResource(): FileHandle {
         // Simple round-robin allocation
         if (resource1.isFileOpen()) {
             return resource1;
@@ -155,7 +155,7 @@ function testResourcePoolPattern(): void {
         return null;
         }
         
-        function releaseResource(FileHandle resource): void {
+        public function releaseResource(FileHandle resource): void {
         if (resource != null) {
             resource.close();
             activeResources = activeResources - 1;

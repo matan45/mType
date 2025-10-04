@@ -7,11 +7,11 @@ import "../../lib/primitives/Bool.mt";
 class Box<T> {
     T item;
 
-    function set(T value): void {
+    public function set(T value): void {
         item = value;
     }
 
-    function get(): T {
+    public function get(): T {
         return item;
     }
 }

@@ -5,12 +5,12 @@ import "../../lib/primitives/Int.mt";
 
 class CollectionFactory {
     // Return empty generic set
-    static function <T> createEmptySet(): HashSet<T> {
+    public static function <T> createEmptySet(): HashSet<T> {
         return new HashSet<T>();
     }
 
     // Return set (ready for items to be added later)
-    static function <T> createSetForItem(T item): HashSet<T> {
+    public static function <T> createSetForItem(T item): HashSet<T> {
         HashSet<T> result = new HashSet<T>();
         // Note: adding items inside static method has context issues
         // Items can be added after the set is returned
@@ -18,19 +18,19 @@ class CollectionFactory {
     }
 
     // Return empty generic map
-    static function <K, V> createEmptyMap(): HashMap<K, V> {
+    public static function <K, V> createEmptyMap(): HashMap<K, V> {
         return new HashMap<K, V>();
     }
 
     // Return map with single entry
-    static function <K, V> createMapWithEntry(K key, V value): HashMap<K, V> {
+    public static function <K, V> createMapWithEntry(K key, V value): HashMap<K, V> {
         HashMap<K, V> result = new HashMap<K, V>();
         result.put(key, value);
         return result;
     }
 
     // Return set with multiple items
-    static function <T> createSetWithItems(T item1, T item2): HashSet<T> {
+    public static function <T> createSetWithItems(T item1, T item2): HashSet<T> {
         HashSet<T> result = new HashSet<T>();
         result.add(item1);
         result.add(item2);

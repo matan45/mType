@@ -5,11 +5,11 @@ import "../../lib/primitives/String.mt";
 class Container<T> {
     T value;
 
-    function setValue(T newValue): void {
+    public function setValue(T newValue): void {
         value = newValue;
     }
 
-    function getValue(): T {
+    public function getValue(): T {
         return value;
     }
 }

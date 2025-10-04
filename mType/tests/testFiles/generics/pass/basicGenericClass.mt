@@ -4,11 +4,11 @@ import "../../lib/primitives/Int.mt";
 class Box<T> {
     T value;
 
-    function setValue(T newValue): void {
+    public function setValue(T newValue): void {
         value = newValue;
     }
 
-    function getValue(): T {
+    public function getValue(): T {
         return value;
     }
 }

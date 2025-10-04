@@ -4,18 +4,18 @@ string sharedMessage = "Initial";
 
 class Counter {
     int localCount;
-    
-    constructor() {
+
+    public constructor() {
         localCount = 0;
     }
-    
-    function increment(): int {
+
+    public function increment(): int {
         localCount = localCount + 1;
         globalCounter = globalCounter + 1;
         return localCount;
     }
-    
-    function getGlobalCount(): int {
+
+    public function getGlobalCount(): int {
         return globalCounter;
     }
 }

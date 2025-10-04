@@ -3,23 +3,23 @@
     class Node {
         int value;
         string name;
-        
-        constructor(int val, string nodeName) {
+
+        public constructor(int val, string nodeName) {
             value = val;
             name = nodeName;
         }
-        
-        function processNode(int depth): int {
+
+        public function processNode(int depth): int {
             if (depth <= 0) {
                 return value;
             }
-            
+
             // Create child node
             Node child = new Node(value + 1, name + "_child");
             return value + child.processNode(depth - 1);
         }
-        
-        function getValue(): int {
+
+        public function getValue(): int {
             return value;
         }
     }

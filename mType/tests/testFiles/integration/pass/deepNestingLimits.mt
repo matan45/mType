@@ -7,12 +7,12 @@ final int VALUE5 = 5;
 
 class DeepClass {
     int depth;
-    
-    constructor() {
+
+    public constructor() {
         depth = VALUE1 + VALUE2 + VALUE3 + VALUE4 + VALUE5;
     }
-    
-    function getDepthInfo(): string {
+
+    public function getDepthInfo(): string {
         string info = "Depth: " + depth;
         
         // Deep nested control flow

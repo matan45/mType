@@ -5,21 +5,21 @@ class Developer {
     final string ROLE = "Developer";
     static int totalDevelopers = 0;
     static final int MAX_PROJECTS = 5;
-    
-    constructor(string devName) {
+
+    public constructor(string devName) {
         name = devName;
         totalDevelopers = totalDevelopers + 1;
     }
-    
-    static function getTeamSize(): int {
+
+    public static function getTeamSize(): int {
         return totalDevelopers;
     }
-    
-    static function canTakeMoreProjects(int currentProjects): bool {
+
+    public static function canTakeMoreProjects(int currentProjects): bool {
         return currentProjects < MAX_PROJECTS;
     }
-    
-    function getInfo(): string {
+
+    public function getInfo(): string {
         return name + " - " + ROLE;
     }
 }

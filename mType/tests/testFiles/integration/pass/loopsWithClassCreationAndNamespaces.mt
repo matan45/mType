@@ -3,18 +3,18 @@ class Worker {
         int workerId;
         string task;
         static int totalWorkers = 0;
-        
-        constructor(int id, string taskName) {
+
+        public constructor(int id, string taskName) {
             workerId = id;
             task = taskName;
             totalWorkers = totalWorkers + 1;
         }
-        
-        function work(): int {
+
+        public function work(): int {
             return workerId * 10; // Simulate work output
         }
-        
-        static function getTotalWorkers(): int {
+
+        public static function getTotalWorkers(): int {
             return totalWorkers;
         }
 }

@@ -1,41 +1,41 @@
 // Test edge cases in object lifecycle management
 class LifecycleCounter {
-    static int instanceCount = 0;
-    static int maxInstanceCount = 0;
-    int instanceId;
-    string phase;
-    
-    constructor() {
+    public static int instanceCount = 0;
+    public static int maxInstanceCount = 0;
+    public int instanceId;
+    public string phase;
+
+    public constructor() {
         instanceCount = instanceCount + 1;
         instanceId = instanceCount;
         phase = "Created";
-        
+
         if (instanceCount > maxInstanceCount) {
             maxInstanceCount = instanceCount;
         }
     }
-    
-    function getId(): int {
+
+    public function getId(): int {
         return instanceId;
     }
-    
-    function getPhase(): string {
+
+    public function getPhase(): string {
         return phase;
     }
-    
-    function setPhase(string newPhase): void {
+
+    public function setPhase(string newPhase): void {
         phase = newPhase;
     }
-    
-    static function getCurrentCount(): int {
+
+    public static function getCurrentCount(): int {
         return instanceCount;
     }
-    
-    static function getMaxCount(): int {
+
+    public static function getMaxCount(): int {
         return maxInstanceCount;
     }
-    
-    static function resetCounters(): void {
+
+    public static function resetCounters(): void {
         instanceCount = 0;
         maxInstanceCount = 0;
     }
