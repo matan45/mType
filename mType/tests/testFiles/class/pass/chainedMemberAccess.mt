@@ -1,18 +1,18 @@
 class Address {
-    string street;
-    string city;
-    
-    constructor(string s, string c) {
+    public string street;
+    public string city;
+
+    public constructor(string s, string c) {
         street = s;
         city = c;
     }
 }
 
 class Person {
-    string name;
-    Address address;
-    
-    constructor(string n, Address a) {
+    public string name;
+    public Address address;
+
+    public constructor(string n, Address a) {
         name = n;
         address = a;
     }

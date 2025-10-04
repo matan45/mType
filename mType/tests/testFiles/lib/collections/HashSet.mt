@@ -5,7 +5,7 @@ class HashSet<T> {
     int capacity;
     int count;
 
-    constructor() {
+    public constructor() {
         this.capacity = 16; // Power of 2 for efficient modulo
         this.buckets = new T[this.capacity][4]; // 16 buckets, each starts with capacity 4
         this.bucketSizes = new int[this.capacity];
@@ -17,7 +17,7 @@ class HashSet<T> {
         }
     }
 
-    function add(T item): bool {
+    public function add(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: HashSet.add() - item cannot be null");
@@ -49,7 +49,7 @@ class HashSet<T> {
         return true;
     }
 
-    function contains(T item): bool {
+    public function contains(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: HashSet.contains() - item cannot be null");
@@ -60,7 +60,7 @@ class HashSet<T> {
         return this.findItemInBucket(bucketIndex, item) >= 0;
     }
 
-    function remove(T item): bool {
+    public function remove(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: HashSet.remove() - item cannot be null");
@@ -82,15 +82,15 @@ class HashSet<T> {
         return false;
     }
 
-    function size(): int {
+    public function size(): int {
         return this.count;
     }
 
-    function empty(): bool {
+    public function empty(): bool {
         return this.count == 0;
     }
 
-    function clear(): void {
+    public function clear(): void {
         for (int i = 0; i < this.capacity; i++) {
             this.bucketSizes[i] = 0;
         }
@@ -98,7 +98,7 @@ class HashSet<T> {
     }
 
     // Convert to array
-    function toArray(): T[] {
+    public function toArray(): T[] {
         T[] result = new T[this.count];
         int index = 0;
 
@@ -112,7 +112,7 @@ class HashSet<T> {
     }
 
     // Content-based hash code (order-independent)
-    function hashCode(): int {
+    public function hashCode(): int {
         int hash = 0;
         for (int bucket = 0; bucket < this.capacity; bucket++) {
             for (int i = 0; i < this.bucketSizes[bucket]; i++) {
@@ -123,7 +123,7 @@ class HashSet<T> {
     }
 
     // Union with another HashSet
-    function union(HashSet<T> other): HashSet<T> {
+    public function union(HashSet<T> other): HashSet<T> {
         HashSet<T> result = new HashSet<T>();
 
         // Add all elements from this set

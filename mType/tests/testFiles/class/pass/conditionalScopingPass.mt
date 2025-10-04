@@ -2,7 +2,7 @@
 // Variables in if/else and switch blocks should be properly scoped
 
 class TestClass {
-    function testIfElseScoping(): void {
+    public function testIfElseScoping(): void {
         print("=== If-Else Scoping Test ===");
         int outerVar = 500;
         bool condition = true;
@@ -18,7 +18,7 @@ class TestClass {
         print("after if-else: outerVar = " + outerVar);
     }
 
-    function testNestedIf(): void {
+    public function testNestedIf(): void {
         print("=== Nested If Test ===");
         int outerVar = 600;
         bool cond1 = true;
@@ -37,7 +37,7 @@ class TestClass {
         }
     }
 
-    function testSwitchScoping(): void {
+    public function testSwitchScoping(): void {
         print("=== Switch Scoping Test ===");
         int outerVar = 700;
         int value = 1;

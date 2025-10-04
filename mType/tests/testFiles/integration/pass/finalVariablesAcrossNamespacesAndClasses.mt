@@ -6,19 +6,19 @@ class Settings {
         final int DEFAULT_VOLUME = 75;
         static final string VERSION = "1.0.0";
 
-        constructor() {
+        public constructor() {
             // Constructor logic if needed
         }
-        
-        function getMaxLevel(): int {
+
+        public function getMaxLevel(): int {
             return MAX_LEVEL; // Access namespace final
         }
-        
-        function getGameInfo(): string {
+
+        public function getGameInfo(): string {
             return GAME_NAME + " v" + VERSION;
         }
-        
-        static function getDefaultVolume(): int {
+
+        public static function getDefaultVolume(): int {
             return 75; // Can't access instance final from static
         }
 }
@@ -27,8 +27,10 @@ final float DEFAULT_PITCH = 1.0;
 
 class AudioManager {
     final int CHANNELS = 32;
-    
-    function configure(): string {
+
+    public constructor() {}
+
+    public function configure(): string {
         return "Audio: " + CHANNELS + " channels, pitch: " + DEFAULT_PITCH;
     }
 }

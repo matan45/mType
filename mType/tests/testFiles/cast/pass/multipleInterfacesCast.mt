@@ -8,8 +8,8 @@ interface B {
 }
 
 class Multi implements A, B {
-    function methodA(): void { print("A"); }
-    function methodB(): void { print("B"); }
+    public function methodA(): void { print("A"); }
+    public function methodB(): void { print("B"); }
 }
 
 Multi obj = new Multi();

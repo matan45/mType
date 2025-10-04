@@ -39,7 +39,7 @@ function nestedScopeFunction(): void {
 }
 
 class TestClass {
-    function callFunctions(): void {
+    public function callFunctions(): void {
         print("=== Calling Functions from Class ===");
         mainFunction();
         nestedScopeFunction();

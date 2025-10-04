@@ -1,8 +1,8 @@
 // Test: Cast to same class (no-op)
 class MyClass {
-    int value;
+    public int value;
 
-    constructor(int v) {
+    public constructor(int v) {
         this.value = v;
     }
 }

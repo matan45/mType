@@ -8,8 +8,8 @@ interface Extended extends Base {
 }
 
 class Impl implements Extended {
-    function baseMethod(): void { print("Base"); }
-    function extendedMethod(): void { print("Extended"); }
+    public function baseMethod(): void { print("Base"); }
+    public function extendedMethod(): void { print("Extended"); }
 }
 
 Impl obj = new Impl();

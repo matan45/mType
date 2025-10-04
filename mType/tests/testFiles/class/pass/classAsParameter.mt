@@ -1,8 +1,8 @@
 class Employee {
-    string name;
-    int salary;
-    
-    constructor(string n, int s) {
+    public string name;
+    public int salary;
+
+    public constructor(string n, int s) {
         name = n;
         salary = s;
     }

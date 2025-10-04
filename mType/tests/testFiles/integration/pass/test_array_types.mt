@@ -87,12 +87,12 @@ function testArraysWithObjects():void {
         string name;
         int age;
 
-        constructor(string n, int a) {
+        public constructor(string n, int a) {
             this.name = n;
             this.age = a;
         }
 
-        function toString():string {
+        public function toString():string {
             return name + "(" + age + ")";
         }
     }

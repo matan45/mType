@@ -1,21 +1,21 @@
 class Point {
     float x;
     float y;
-    
-    constructor(float px, float py) {
+
+    public constructor(float px, float py) {
         x = px;
         y = py;
     }
-    
-    function distanceFromOrigin(): float {
+
+    public function distanceFromOrigin(): float {
         return sqrt(x * x + y * y);
     }
-    
-    function getCoordinates(): string {
+
+    public function getCoordinates(): string {
         return "(" + toString(x) + ", " + toString(y) + ")";
     }
-    
-    static function createOrigin(): Point {
+
+    public static function createOrigin(): Point {
         return new Point(0.0, 0.0);
     }
 }

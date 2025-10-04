@@ -10,19 +10,19 @@ class GenericContainer<T> {
         this.items = new HashSet<T>();
     }
 
-    function add(T item): void {
+    public function add(T item): void {
         this.items.add(item);
     }
 
-    function size(): int {
+    public function size(): int {
         return this.items.size();
     }
 
-    function contains(T item): bool {
+    public function contains(T item): bool {
         return this.items.contains(item);
     }
 
-    function getFirst(): T {
+    public function getFirst(): T {
         // Simple way to get first item from HashSet
         T[] allItems = this.items.toArray();
         if (allItems.length > 0) {

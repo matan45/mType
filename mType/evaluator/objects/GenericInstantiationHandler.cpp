@@ -10,6 +10,8 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../environment/manager/Scope.hpp"
+#include "../validation/AccessValidator.hpp"
+#include "../base/AccessContext.hpp"
 #include <iostream>
 
 using namespace errors;
@@ -194,6 +196,18 @@ namespace objects {
                 throw TypeException("No matching constructor for class '" + node->getClassName() +
                                     "' with " + std::to_string(args.size()) + " argument(s)", node->getLocation());
             }
+
+            // ACCESS CONTROL: Validate constructor access permissions
+            auto callingClassName = context->getCurrentCallingClass();
+            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
+            auto accessContext = base::AccessContext::forStaticAccess(
+                callingClassName,
+                classDef,
+                node->getLocation(),
+                callingClassDef
+            );
+            validation::AccessValidator::validateConstructorAccess(accessContext, *constructor);
+
             if (constructor && constructor->getBody())
             {
                 // Set the current instance for constructor execution

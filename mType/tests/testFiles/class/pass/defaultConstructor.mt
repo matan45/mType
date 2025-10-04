@@ -1,8 +1,8 @@
 class Point {
-    int x;
-    int y;
-    
-    constructor() {
+    public int x;
+    public int y;
+
+    public constructor() {
         x = 0;
         y = 0;
         print(999); // Constructor called

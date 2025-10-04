@@ -2,51 +2,51 @@
 // Expected: Pass - demonstrates polymorphic assignment and method dispatch
 
 class Shape {
-    string color;
+    public string color;
 
-    constructor(string color) {
+    public constructor(string color) {
         this.color = color;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing a shape");
     }
 
-    function getArea(): float {
+    public function getArea(): float {
         return 0.0;
     }
 }
 
 class Circle extends Shape {
-    float radius;
+    public float radius;
 
-    constructor(string color, float radius) : super(color) {
+    public constructor(string color, float radius) : super(color) {
         this.radius = radius;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing a circle with color: " + this.color);
     }
 
-    function getArea(): float {
+    public function getArea(): float {
         return 3.14159 * this.radius * this.radius;
     }
 }
 
 class Rectangle extends Shape {
-    float width;
-    float height;
+    public float width;
+    public float height;
 
-    constructor(string color, float width, float height): super(color) {
+    public constructor(string color, float width, float height): super(color) {
         this.width = width;
         this.height = height;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing a rectangle with color: " + this.color);
     }
 
-    function getArea(): float {
+    public function getArea(): float {
         return this.width * this.height;
     }
 }

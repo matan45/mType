@@ -27,11 +27,11 @@ function testObjectTypes(): void {
     class TestClass {
          int value;
 
-        constructor(int val) {
+        public constructor(int val) {
             this.value = val;
         }
 
-        function toString(): string {
+        public function toString(): string {
             return "TestClass(" + value + ")";
         }
     }
@@ -44,8 +44,8 @@ function testNullHandling(): void {
     print("=== Testing Null Handling ===");
 
     class NullTestClass {
-        int data;
-        constructor(int d) { this.data = d; }
+        public int data;
+        public constructor(int d) { this.data = d; }
     }
 
     NullTestClass nullObj = null;

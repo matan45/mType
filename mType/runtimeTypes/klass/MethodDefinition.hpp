@@ -6,6 +6,7 @@
 #include "../../value/ValueType.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
+#include "../../ast/AccessModifier.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../Definition.hpp"
@@ -35,6 +36,7 @@ namespace runtimeTypes::klass
         std::vector<std::pair<std::string, Value>> arguments;
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
+        ast::AccessModifier accessModifier;
 
         // Lambda implementation storage for interface methods
         std::shared_ptr<value::LambdaValue> lambdaImplementation;
@@ -54,9 +56,10 @@ namespace runtimeTypes::klass
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ValueType>>& params,
                                   const std::vector<std::pair<std::string, Value>>& args,
-                                  std::shared_ptr<ASTNode> b, bool s)
+                                  std::shared_ptr<ASTNode> b, bool s,
+                                  ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
-              body(b), isStaticMethod(s),
+              body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
               typeSubstitutionMap()
         {
@@ -66,10 +69,11 @@ namespace runtimeTypes::klass
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ParameterType>>& params,
                                   const std::vector<std::pair<std::string, Value>>& args,
-                                  std::shared_ptr<ASTNode> b, bool s)
+                                  std::shared_ptr<ASTNode> b, bool s,
+                                  ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
-              typeSubstitutionMap()
+              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
+              genericParameters(), typeSubstitutionMap()
         {
         }
 
@@ -82,9 +86,10 @@ namespace runtimeTypes::klass
                                   const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
                                   genParams,
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
-                                  const std::unordered_map<std::string, std::string>& substitutions = {})
+                                  const std::unordered_map<std::string, std::string>& substitutions = {},
+                                  ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
-              body(b), isStaticMethod(s),
+              body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
         {
@@ -99,10 +104,11 @@ namespace runtimeTypes::klass
                                   const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
                                   genParams,
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
-                                  const std::unordered_map<std::string, std::string>& substitutions = {})
+                                  const std::unordered_map<std::string, std::string>& substitutions = {},
+                                  ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
-              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
-              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
+              genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
         {
         }
 
@@ -129,6 +135,9 @@ namespace runtimeTypes::klass
 
         bool isStatic() const { return isStaticMethod; }
         void setStatic(bool s) { isStaticMethod = s; }
+
+        ast::AccessModifier getAccessModifier() const { return accessModifier; }
+        void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
 
         // NEW: Generic type information getters and setters
         std::shared_ptr<ast::GenericType> getGenericReturnType() const { return genericReturnType; }

@@ -1,60 +1,60 @@
 // Bool - Wrapper class for bool primitive
 class Bool {
-    bool value;
+    public bool value;
 
     // Constructor
-    constructor(bool val) {
+    public constructor(bool val) {
         this.value = val;
     }
 
     // Default constructor
-    constructor() {
+    public constructor() {
         this.value = false;
     }
 
     // Get the primitive value
-    function getValue(): bool {
+    public function getValue(): bool {
         return this.value;
     }
 
     // Set the primitive value
-    function setValue(bool val): void {
+    public function setValue(bool val): void {
         this.value = val;
     }
 
     // Logical operations
-    function and(Bool other): Bool {
+    public function and(Bool other): Bool {
         return new Bool(this.value && other.value);
     }
 
-    function or(Bool other): Bool {
+    public function or(Bool other): Bool {
         return new Bool(this.value || other.value);
     }
 
-    function not(): Bool {
+    public function not(): Bool {
         return new Bool(!this.value);
     }
 
     // Comparison
-    function equals(Bool other): bool {
+    public function equals(Bool other): bool {
         return this.value == other.value;
     }
 
     // Utility
-    function toString(): string {
+    public function toString(): string {
         return parsePrimitive(this.value);
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         return hashCode(this.value);
     }
 
     // Static factory methods
-    static function bool_TRUE(): Bool {
+    public static function bool_TRUE(): Bool {
         return new Bool(true);
     }
 
-    static function bool_FALSE(): Bool {
+    public static function bool_FALSE(): Bool {
         return new Bool(false);
     }
 }

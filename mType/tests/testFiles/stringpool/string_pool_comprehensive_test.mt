@@ -18,19 +18,19 @@ int testsPassed = 0;
 
 
 class StringTestClass {
-        string name;
-        string type;
+        public string name;
+        public string type;
 
-        function init(string n, string t) {
+        public function init(string n, string t) {
             this.name = n;
             this.type = t;
         }
 
-        function getName() {
+        public function getName() {
             return this.name;
         }
 
-        function getFullName() {
+        public function getFullName() {
             return this.type + ":" + this.name;
         }
     }

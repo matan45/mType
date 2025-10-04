@@ -8,27 +8,27 @@ class Person {
     String name;
     Int age;
 
-    constructor(String name, Int age) {
+    public constructor(String name, Int age) {
         this.name = name;
         this.age = age;
     }
 
-    function getName(): String {
+    public function getName(): String {
         return this.name;
     }
 
-    function getAge(): Int {
+    public function getAge(): Int {
         return this.age;
     }
 
-    function equals(Person other): bool {
+    public function equals(Person other): bool {
         if (other == null) {
             return false;
         }
         return this.name.equals(other.name) && this.age.equals(other.age);
     }
 
-    function hashCode(): int {
+    public function hashCode(): int {
         int nameHash = this.name.hashCode();
         int ageHash = this.age.hashCode();
         return nameHash + ageHash * 31; // Combine hash codes

@@ -1,6 +1,7 @@
 #include "FieldParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/AccessModifierParser.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -27,7 +28,10 @@ namespace parser
 
     bool FieldParser::canParse(const TokenStream& stream) const
     {
-        return stream.check(TokenType::STATIC) ||
+        return stream.check(TokenType::PRIVATE) ||
+            stream.check(TokenType::PUBLIC) ||
+            stream.check(TokenType::PROTECTED) ||
+            stream.check(TokenType::STATIC) ||
             stream.check(TokenType::FINAL) ||
             stream.check(TokenType::INT) ||
             stream.check(TokenType::FLOAT) ||
@@ -38,7 +42,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> FieldParser::parseField()
     {
-        auto [isStatic, isFinal] = parseFieldModifiers();
+        auto [accessModifier, isStatic, isFinal] = parseFieldModifiers();
 
         // Check if this is actually a method (static/final function)
         if (tokenStream.current().type == TokenType::FUNCTION)
@@ -92,16 +96,20 @@ namespace parser
             // Parse method body
             auto body = context.parseStatement();
 
-            // Create MethodNode with generic support
+            // Create MethodNode with generic support and access modifier
             return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                                std::move(body), isStatic, methodGenericParameters);
+                                                std::move(body), isStatic, methodGenericParameters, accessModifier);
         }
 
-        return parseFieldDeclaration(isStatic, isFinal);
+        return parseFieldDeclaration(accessModifier, isStatic, isFinal);
     }
 
-    std::pair<bool, bool> FieldParser::parseFieldModifiers()
+    std::tuple<ast::AccessModifier, bool, bool> FieldParser::parseFieldModifiers()
     {
+        // Parse access modifier first (default to PRIVATE for class fields)
+        ast::AccessModifier accessModifier =
+            utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PRIVATE);
+
         bool isStatic = false;
         bool isFinal = false;
 
@@ -117,10 +125,10 @@ namespace parser
             tokenStream.advance();
         }
 
-        return {isStatic, isFinal};
+        return {accessModifier, isStatic, isFinal};
     }
 
-    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(bool isStatic, bool isFinal)
+    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic, bool isFinal)
     {
         // Parse the complete type information using TypeParser
         auto fieldGenericType = TypeParser::parseGenericType(tokenStream);
@@ -138,7 +146,7 @@ namespace parser
         tokenStream.expect(TokenType::SEMICOLON);
 
         return std::make_unique<FieldNode>(fieldName, fieldGenericType, std::move(initialValue),
-                                           isStatic, isFinal);
+                                           isStatic, isFinal, accessModifier);
     }
 
     std::unique_ptr<ASTNode> FieldParser::parseInitialValue()

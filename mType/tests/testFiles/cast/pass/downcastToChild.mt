@@ -1,17 +1,17 @@
 // Test: Downcast from parent to child class
 class Animal {
-    string name;
-    constructor(string n) { this.name = n; }
+    public string name;
+    public constructor(string n) { this.name = n; }
 }
 
 class Dog extends Animal {
-    string breed;
+    public string breed;
 
-    constructor(string n, string b):super(n)  {
+    public constructor(string n, string b):super(n)  {
         this.breed = b;
     }
 
-    function bark(): void {
+    public function bark(): void {
         print("Woof!");
     }
 }

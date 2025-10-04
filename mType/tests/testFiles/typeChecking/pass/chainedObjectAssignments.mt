@@ -1,13 +1,13 @@
 class Vehicle {
-    string brand;
+    public string brand;
     constructor(string b) {
         brand = b;
     }
 }
 
 class Car {
-    string brand;
-    int doors;
+    public string brand;
+    public int doors;
     constructor(string b, int d) {
         brand = b;
         doors = d;

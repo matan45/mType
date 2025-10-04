@@ -1,9 +1,9 @@
 class Result {
-    bool success;
-    string message;
-    int value;
-    
-    constructor(bool s, string m, int v) {
+    public bool success;
+    public string message;
+    public int value;
+
+    public constructor(bool s, string m, int v) {
         success = s;
         message = m;
         value = v;

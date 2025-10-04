@@ -5,14 +5,14 @@ class List<T> {
     int count;
 
     // Constructor
-    constructor() {
+    public constructor() {
             this.capacity = 10;
             this.data = new T[this.capacity];
             this.count = 0;
         }
 
         // Core operations
-        function add(T item): void {
+        public function add(T item): void {
             // Null item validation
             if (item == null) {
                 print("Error: List.add() - item cannot be null");
@@ -26,7 +26,7 @@ class List<T> {
             this.count++;
         }
 
-        function get(int index): T {
+        public function get(int index): T {
             if (index < 0 || index >= this.count) {
                 // TODO: Error handling - for now return default
                 return null;
@@ -34,7 +34,7 @@ class List<T> {
             return this.data[index];
         }
 
-        function set(int index, T item): void {
+        public function set(int index, T item): void {
             if (index < 0 || index >= this.count) {
                 // TODO: Error handling
                 return;
@@ -47,7 +47,7 @@ class List<T> {
             this.data[index] = item;
         }
 
-        function contains(T item): bool {
+        public function contains(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.contains() - item cannot be null");
@@ -64,7 +64,7 @@ class List<T> {
         }
 
         // Content-based comparison using equals() method
-        function containsEquals(T item): bool {
+        public function containsEquals(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.containsEquals() - item cannot be null");
@@ -80,21 +80,21 @@ class List<T> {
             return false;
         }
 
-        function size(): int {
+        public function size(): int {
             return this.count;
         }
 
-        function empty(): bool {
+        public function empty(): bool {
             return this.count == 0;
         }
 
-        function clear(): void {
+        public function clear(): void {
             this.count = 0;
             // Keep capacity for efficiency
         }
 
         // Remove element at index
-        function removeAt(int index): bool {
+        public function removeAt(int index): bool {
             if (index < 0 || index >= this.count) {
                 return false;
             }
@@ -108,7 +108,7 @@ class List<T> {
         }
 
         // Remove first occurrence of item (content comparison)
-        function remove(T item): bool {
+        public function remove(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.remove() - item cannot be null");
@@ -124,7 +124,7 @@ class List<T> {
         }
 
         // Remove first occurrence of item (content comparison using equals)
-        function removeEquals(T item): bool {
+        public function removeEquals(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.removeEquals() - item cannot be null");
@@ -140,7 +140,7 @@ class List<T> {
         }
 
         // Get first element
-        function first(): T {
+        public function first(): T {
             if (this.count == 0) {
                 return null;
             }
@@ -148,7 +148,7 @@ class List<T> {
         }
 
         // Get last element
-        function last(): T {
+        public function last(): T {
             if (this.count == 0) {
                 return null;
             }
@@ -156,7 +156,7 @@ class List<T> {
         }
 
         // Convert to array for iteration
-        function toArray(): T[] {
+        public function toArray(): T[] {
             T[] result = new T[this.count];
             for (int i = 0; i < this.count; i++) {
                 result[i] = this.data[i];
@@ -165,7 +165,7 @@ class List<T> {
         }
 
         // Content-based hash code
-        function hashCode(): int {
+        public function hashCode(): int {
             int hash = 1;
             for (int i = 0; i < this.count; i++) {
                 hash = 31 * hash + hashCode(this.data[i]);

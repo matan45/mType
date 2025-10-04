@@ -1,12 +1,12 @@
 // Test: Casting with method override (polymorphism)
 class Shape {
-    function draw(): void {
+    public function draw(): void {
         print("Drawing shape");
     }
 }
 
 class Circle extends Shape {
-    function draw(): void {
+    public function draw(): void {
         print("Drawing circle");
     }
 }

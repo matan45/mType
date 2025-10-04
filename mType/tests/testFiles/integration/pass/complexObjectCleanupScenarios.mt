@@ -5,28 +5,28 @@ class ResourceManager {
     int resourceCount;
     static int totalResourcesAllocated = 0;
     static int totalResourcesReleased = 0;
-    
-    constructor(string name, int count) {
+
+    public constructor(string name, int count) {
         resourceName = name;
         resourceCount = count;
         totalResourcesAllocated = totalResourcesAllocated + count;
     }
-    
-    function releaseResource(): void {
+
+    public function releaseResource(): void {
         totalResourcesReleased = totalResourcesReleased + resourceCount;
         resourceCount = 0;
     }
-    
-    function getResourceInfo(): string {
+
+    public function getResourceInfo(): string {
         return resourceName + ": " + resourceCount + " units";
     }
-    
-    static function getResourceStats(): string {
+
+    public static function getResourceStats(): string {
         return "Allocated: " + totalResourcesAllocated +
                ", Released: " + totalResourcesReleased;
     }
-    
-    static function resetStats(): void {
+
+    public static function resetStats(): void {
         totalResourcesAllocated = 0;
         totalResourcesReleased = 0;
     }
@@ -35,26 +35,26 @@ class Node {
     string data;
     Node next;
     ResourceManager resource;
-    
-    constructor(string nodeData) {
+
+    public constructor(string nodeData) {
         data = nodeData;
         next = null;
         resource = new ResourceManager(nodeData + "_Resource", 10);
     }
-    
-    function setNext(Node nextNode): void {
+
+    public function setNext(Node nextNode): void {
         next = nextNode;
     }
-    
-    function getData(): string {
+
+    public function getData(): string {
         return data;
     }
-    
-    function getNext(): Node {
+
+    public function getNext(): Node {
         return next;
     }
-    
-    function cleanup(): void {
+
+    public function cleanup(): void {
         if (resource != null) {
             resource.releaseResource();
         }

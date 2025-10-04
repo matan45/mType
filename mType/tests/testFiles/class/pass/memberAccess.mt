@@ -1,10 +1,10 @@
 class Car {
-    string brand;
-    string model;
-    int year;
-    float price;
-    
-    constructor(string b, string m, int y, float p) {
+    public string brand;
+    public string model;
+    public int year;
+    public float price;
+
+    public constructor(string b, string m, int y, float p) {
         brand = b;
         model = m;
         year = y;

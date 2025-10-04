@@ -12,17 +12,17 @@ class Calculator {
         offset = off;
     }
 
-    function getMultiplierLambda() : Function {
+    public function getMultiplierLambda() : Function {
         // Lambda accessing instance field directly
         return x -> x * multiplier;
     }
 
-    function getComplexLambda() : Function {
+    public function getComplexLambda() : Function {
         // Lambda accessing multiple instance fields
         return x -> (x + offset) * multiplier;
     }
 
-    function getBlockLambda() : Function {
+    public function getBlockLambda() : Function {
         // Block lambda with instance field access
         return x -> {
             int temp = x + offset;

@@ -3,21 +3,21 @@ final int MAX_ENTITIES = 1000;
 final string VERSION = "2.0";
 
 class Entity {
-    final int id;
-    string name;
-    static int nextId = 1;
-    
-    constructor(string entityName) {
+    public final int id;
+    public string name;
+    public static int nextId = 1;
+
+    public constructor(string entityName) {
         id = nextId;
         nextId = nextId + 1;
         name = entityName;
     }
-    
-    function getId(): int {
+
+    public function getId(): int {
         return id;
     }
-    
-    static function getNextId(): int {
+
+    public static function getNextId(): int {
         return nextId;
     }
 }
@@ -25,17 +25,17 @@ class Entity {
 final float GRAVITY = 9.8;
 
 class Vector3 {
-    float x;
-    float y;
-    float z;
-    
-    constructor(float x_val, float y_val, float z_val) {
+    public float x;
+    public float y;
+    public float z;
+
+    public constructor(float x_val, float y_val, float z_val) {
         x = x_val;
         y = y_val;
         z = z_val;
     }
-    
-    function magnitude(): float {
+
+    public function magnitude(): float {
         return x * x + y * y + z * z; // Simplified
     }
 }
@@ -53,7 +53,7 @@ function renderEntity(Entity entity): int {
 }
 
 class Calculator {
-    function fibonacci(int n): int {
+    public function fibonacci(int n): int {
         if (n <= 1) return n;
         return fibonacci(n - 1) + fibonacci(n - 2);
     }

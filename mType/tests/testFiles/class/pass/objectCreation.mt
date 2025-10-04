@@ -1,13 +1,13 @@
 class Widget {
-    int id;
-    static int nextId = 1;
-    
-    constructor() {
+    public int id;
+    public static int nextId = 1;
+
+    public constructor() {
         id = nextId;
         nextId = nextId + 1;
     }
-    
-    function getId(): int {
+
+    public function getId(): int {
         return id;
     }
 }

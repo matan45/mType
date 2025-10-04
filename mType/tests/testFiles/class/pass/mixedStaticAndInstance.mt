@@ -1,39 +1,39 @@
 class BankAccount {
-    static int totalAccounts = 0;
-    static float interestRate = 0.03;
-    
-    int accountNumber;
-    float balance;
-    
-    constructor(float initialBalance) {
+    public static int totalAccounts = 0;
+    public static float interestRate = 0.03;
+
+    public int accountNumber;
+    public float balance;
+
+    public constructor(float initialBalance) {
         totalAccounts = totalAccounts + 1;
         accountNumber = totalAccounts;
         balance = initialBalance;
     }
-    
-    function deposit(float amount): void {
+
+    public function deposit(float amount): void {
         balance = balance + amount;
     }
-    
-    function withdraw(float amount): void {
+
+    public function withdraw(float amount): void {
         if (amount <= balance) {
             balance = balance - amount;
         }
     }
-    
-    function applyInterest(): void {
+
+    public function applyInterest(): void {
         balance = balance * (1.0 + interestRate);
     }
-    
-    function getBalance(): float {
+
+    public function getBalance(): float {
         return balance;
     }
-    
-    static function setInterestRate(float rate): void {
+
+    public static function setInterestRate(float rate): void {
         interestRate = rate;
     }
-    
-    static function getTotalAccounts(): int {
+
+    public static function getTotalAccounts(): int {
         return totalAccounts;
     }
 }

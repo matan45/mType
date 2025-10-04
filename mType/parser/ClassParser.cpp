@@ -53,7 +53,10 @@ namespace parser
         {
             TokenType currentToken = tokenStream.current().type;
 
-            if (currentToken == TokenType::CONSTRUCTOR)
+            // Check for constructor (with or without access modifier)
+            if (currentToken == TokenType::CONSTRUCTOR ||
+                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
+                 tokenStream.peekAhead(1).type == TokenType::CONSTRUCTOR))
             {
                 auto constructor = constructorParser->parseConstructor();
                 if (constructor)
@@ -61,8 +64,13 @@ namespace parser
                     classNodePtr->addConstructor(std::move(constructor));
                 }
             }
+            // Check for method (with access modifiers, static, or just function)
             else if (currentToken == TokenType::FUNCTION ||
-                (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION))
+                (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION) ||
+                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
+                 tokenStream.peekAhead(1).type == TokenType::FUNCTION) ||
+                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
+                 tokenStream.peekAhead(1).type == TokenType::STATIC && tokenStream.peekAhead(2).type == TokenType::FUNCTION))
             {
                 auto method = methodParser->parseMethod();
                 if (method)

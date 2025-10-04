@@ -126,7 +126,8 @@ namespace evaluator
                     fieldNode->getType(),
                     initialValue,
                     fieldNode->getIsStatic(),
-                    fieldNode->getIsFinal()
+                    fieldNode->getIsFinal(),
+                    fieldNode->getAccessModifier() // Pass access modifier from AST
                 );
                 classDef->addField(fieldDef);
             }
@@ -227,7 +228,8 @@ namespace evaluator
                         methodNode->getGenericReturnType(), // NEW: Preserve generic return type
                         methodNode->getGenericParameters(), // NEW: Preserve generic method parameters
                         methodNode->getGenericTypeParameters(), // NEW: Preserve generic type parameter declarations
-                        std::unordered_map<std::string, std::string>{} // Empty substitution map for template
+                        std::unordered_map<std::string, std::string>{}, // Empty substitution map for template
+                        methodNode->getAccessModifier() // Pass access modifier from AST
                     );
                 }
                 else
@@ -243,7 +245,8 @@ namespace evaluator
                         methodNode->getGenericReturnType(), // NEW: Preserve return type for object types
                         methodNode->getGenericParameters(), // NEW: Preserve parameter types for object types
                         std::vector<GenericTypeParameter>{}, // No generic type parameters for non-generic methods
-                        std::unordered_map<std::string, std::string>{} // Empty substitution map
+                        std::unordered_map<std::string, std::string>{}, // Empty substitution map
+                        methodNode->getAccessModifier() // Pass access modifier from AST
                     );
                 }
 
@@ -262,7 +265,8 @@ namespace evaluator
                 // Create constructor definition with full type information
                 auto ctorDef = std::make_shared<ConstructorDefinition>(
                     constructorNode->getParametersWithTypes(),
-                    bodyPtr
+                    bodyPtr,
+                    constructorNode->getAccessModifier() // Pass access modifier from AST
                 );
 
                 // Copy super initializer if present

@@ -1,18 +1,18 @@
 // Test: Deep inheritance hierarchy casting
 class A {
-    int a = 1;
+    public int a = 1;
 }
 
 class B extends A {
-    int b = 2;
+    public int b = 2;
 }
 
 class C extends B {
-    int c = 3;
+    public int c = 3;
 }
 
 class D extends C {
-    int d = 4;
+    public int d = 4;
 }
 
 D objD = new D();

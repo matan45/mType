@@ -4,16 +4,16 @@ class Entity {
     int id;
     string name;
 
-    constructor(int entityId, string entityName) {
+    public constructor(int entityId, string entityName) {
         id = entityId;
         name = entityName;
     }
 
-    function getName() : string {
+    public function getName() : string {
         return name;
     }
 
-    function getId() : int {
+    public function getId() : int {
         return id;
     }
 }
@@ -23,11 +23,11 @@ class GameObject {
     Entity entity;
     final string TYPE = "GameObject";
 
-    constructor(int id, string name) {
+    public constructor(int id, string name) {
         entity = new Entity(id, name);
     }
 
-    function getEntityInfo() : string {
+    public function getEntityInfo() : string {
         return TYPE + " : " + entity.getName() + " [" + entity.getId() + "]";
     }
 }

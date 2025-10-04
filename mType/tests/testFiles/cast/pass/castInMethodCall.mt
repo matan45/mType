@@ -1,12 +1,12 @@
 // Test: Cast in method call
 class Animal {
-    function makeSound(): void {
+    public function makeSound(): void {
         print("Generic sound");
     }
 }
 
 class Dog extends Animal {
-    function makeSound(): void {
+    public function makeSound(): void {
         print("Woof");
     }
 }

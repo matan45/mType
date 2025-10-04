@@ -2,23 +2,23 @@
 // Tests key scenarios where null values propagate through complex nested expressions
 
 class TestData {
-    int value;
-    string name;
-    
+    public int value;
+    public string name;
+
     constructor(int v, string n) {
         value = v;
         name = n;
     }
-    
-    function getValue(): int {
+
+    public function getValue(): int {
         return value;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
-    
-    function toString(): string {
+
+    public function toString(): string {
         return name + "(" + value + ")";
     }
 }

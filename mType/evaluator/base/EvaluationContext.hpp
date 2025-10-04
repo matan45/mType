@@ -36,6 +36,9 @@ namespace evaluator::base
         // Generic type bindings from the current object instance (e.g., T -> String)
         std::unordered_map<std::string, std::string> currentGenericTypeBindings;
 
+        // Calling class stack for access control validation
+        std::stack<std::string> callingClassStack;
+
         // Performance optimization: cache frequently accessed values
         mutable std::shared_ptr<Environment> cachedEnv;
         mutable bool envCacheValid;
@@ -86,6 +89,12 @@ namespace evaluator::base
         // Super initializer context management
         void setInSuperInitializerContext(bool inContext);
         bool isInSuperInitializerContext() const;
+
+        // Calling class stack management for access control
+        void pushCallingClass(const std::string& className);
+        void popCallingClass();
+        std::string getCurrentCallingClass() const;
+        bool hasCallingClass() const;
 
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;

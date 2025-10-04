@@ -152,7 +152,8 @@ namespace evaluator::utils
                 substituteFieldType(field->getType(), substitutionMap),
                 field->getValue(),
                 field->isStatic(),
-                field->isFinal()
+                field->isFinal(),
+                field->getAccessModifier() // Preserve access modifier
             );
             target->addInstanceField(fieldName, newField);
         }
@@ -165,7 +166,8 @@ namespace evaluator::utils
                 substituteFieldType(field->getType(), substitutionMap),
                 field->getValue(),
                 field->isStatic(),
-                field->isFinal()
+                field->isFinal(),
+                field->getAccessModifier() // Preserve access modifier
             );
             target->addStaticField(fieldName, newField);
         }
@@ -390,7 +392,8 @@ namespace evaluator::utils
             originalMethod->getGenericReturnType(), // Preserve generic return type
             originalMethod->getGenericParameters(), // Preserve generic parameters
             originalMethod->getGenericTypeParameters(), // Preserve generic type parameter declarations
-            substitutionMap // Store substitution map for runtime resolution
+            substitutionMap, // Store substitution map for runtime resolution
+            originalMethod->getAccessModifier() // Preserve access modifier
         );
     }
 
@@ -421,7 +424,8 @@ namespace evaluator::utils
         // Create new constructor definition with substituted parameter types
         return std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
             newParams,
-            originalConstructor->getBodyPtr()
+            originalConstructor->getBodyPtr(),
+            originalConstructor->getAccessModifier() // Preserve access modifier
         );
     }
 

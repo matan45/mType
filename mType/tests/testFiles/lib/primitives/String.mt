@@ -1,50 +1,50 @@
 // String - Wrapper class for string primitive
 class String {
-    string value;
+    public string value;
 
     // Constructor
-    constructor(string val) {
+    public constructor(string val) {
         value = val;
     }
 
     // Default constructor
-    constructor() {
+    public constructor() {
         value = "";
     }
 
     // Get the primitive value
-    function getValue() : string {
+    public function getValue() : string {
         return value;
     }
 
     // Set the primitive value
-    function setValue(string val) : void {
+    public function setValue(string val) : void {
         value = val;
     }
 
     // String operations
-    function length() : int {
+    public function length() : int {
         return strLength(value);
     }
 
-    function isEmpty() : bool {
+    public function isEmpty() : bool {
         return value == "";
     }
 
-    function equals(String other) : bool {
+    public function equals(String other) : bool {
         return value == other.value;
     }
 
-    function toString() : string {
+    public function toString() : string {
         return this.value;
     }
 
-    function hashCode() : int {
+    public function hashCode() : int {
         return hashCode(value);
     }
 
     // Concatenation
-    function concat(String other) : String {
+    public function concat(String other) : String {
         return new String(value + other.value);
     }
 }

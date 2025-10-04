@@ -12,13 +12,13 @@ interface AsyncProcessor {
 class ProblematicAsyncProcessor implements AsyncProcessor {
     Callback storedCallback;
 
-    function processAsync(int value, Callback callback): void {
+    public function processAsync(int value, Callback callback): void {
         // Store the callback for later use (potential weak_ptr issue)
         storedCallback = callback;
         print("Stored callback for later execution with value: " + value);
     }
 
-    function executeStoredCallback(int value): void {
+    public function executeStoredCallback(int value): void {
         if (storedCallback != null) {
             int result = storedCallback.execute(value);
             print("Delayed execution result: " + result);

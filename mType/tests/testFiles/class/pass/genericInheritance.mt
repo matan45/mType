@@ -4,33 +4,33 @@ import "../../lib/primitives/String.mt";
 import "../../lib/primitives/Int.mt";
 
 class Container<T> {
-    T value;
+    public T value;
 
-    constructor(T val) {
+    public constructor(T val) {
         this.value = val;
     }
 
-    function getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 
-    function setValue(T val): void {
+    public function setValue(T val): void {
         this.value = val;
     }
 }
 
 class Box<T> extends Container<T> {
-    String label;
+    public String label;
 
-    constructor(T val, String label): super(val) {
+    public constructor(T val, String label): super(val) {
         this.label = label;
     }
 
-    function getLabel(): String {
+    public function getLabel(): String {
         return this.label;
     }
 
-    function describe(): String {
+    public function describe(): String {
         return new String("Box '" + this.label + "' contains: " + this.value);
     }
 }

@@ -167,13 +167,13 @@ class TestClass {
         string methodName;
         string fieldName;
 
-        function init(string cName, string mName, string fName) {
+        public function init(string cName, string mName, string fName) {
             this.className = cName;   // Should pool common class names
             this.methodName = mName;  // Should pool common method names
             this.fieldName = fName;   // Should pool common field names
         }
 
-        function getInfo(): string {
+        public function getInfo(): string {
             return this.className + "." + this.methodName + "(" + this.fieldName + ")";
         }
     }

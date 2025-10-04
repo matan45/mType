@@ -1,13 +1,13 @@
 class Counter {
-    static int count = 0;
-    int id;
-    
-    constructor() {
+    public static int count = 0;
+    public int id;
+
+    public constructor() {
         count = count + 1;
         id = count;
     }
-    
-    function getId(): int {
+
+    public function getId(): int {
         return id;
     }
 }

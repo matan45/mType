@@ -1,21 +1,21 @@
 class Person {
-    string name;
-    int age;
-    
+    public string name;
+    public int age;
+
     constructor(string n, int a) {
         name = n;
         age = a;
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
-    
-    function getAge(): int {
+
+    public function getAge(): int {
         return age;
     }
-    
-    function isAdult(): bool {
+
+    public function isAdult(): bool {
         return age >= 18;
     }
 }

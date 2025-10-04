@@ -1,19 +1,19 @@
 class MathUtils {
-    static function max(int a, int b): int {
+    public static function max(int a, int b): int {
         if (a > b) {
             return a;
         }
         return b;
     }
-    
-    static function min(int a, int b): int {
+
+    public static function min(int a, int b): int {
         if (a < b) {
             return a;
         }
         return b;
     }
-    
-    static function abs(int x): int {
+
+    public static function abs(int x): int {
         if (x < 0) {
             return -x;
         }

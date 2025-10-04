@@ -2,20 +2,20 @@ final int MAX_HEALTH = 100;
 final int MAX_LEVEL = 50;
 
 class Player {
-        int health;
-        int level;
-        string name;
-        final int MAX_EXPERIENCE = 1000;
-        static int playerCount = 0;
-        
-        constructor(string playerName) {
+        public int health;
+        public int level;
+        public string name;
+        public final int MAX_EXPERIENCE = 1000;
+        public static int playerCount = 0;
+
+        public constructor(string playerName) {
             name = playerName;
             health = MAX_HEALTH;
             level = 1;
             playerCount = playerCount + 1;
         }
-        
-        function takeDamage(int damage): bool {
+
+        public function takeDamage(int damage): bool {
             health = health - damage;
             if (health <= 0) {
                 health = 0;
@@ -23,8 +23,8 @@ class Player {
             }
             return true; // Player alive
         }
-        
-        function levelUp(): bool {
+
+        public function levelUp(): bool {
             if (level < MAX_LEVEL) {
                 level = level + 1;
                 health = MAX_HEALTH; // Full heal on level up
@@ -32,8 +32,8 @@ class Player {
             }
             return false;
         }
-        
-        function getStatus(): string {
+
+        public function getStatus(): string {
             if (health == 0) {
                 return "Dead";
             } else if (health < 20) {

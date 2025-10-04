@@ -3,16 +3,16 @@ import "../../lib/primitives/Int.mt";
 
 class Factory {
     // Parameterless generic methods - useful for factory patterns
-    static function <T> createDefault(): void {
+    public static function <T> createDefault(): void {
         print("Creating default instance of type");
     }
 
-    static function <T> getTypeName(): void {
+    public static function <T> getTypeName(): void {
         print("Getting type name");
     }
 
     // Multiple type parameters without using them in parameters
-    static function <K, V> initializeMapping(): void {
+    public static function <K, V> initializeMapping(): void {
         print("Initializing mapping for key-value types");
     }
 }

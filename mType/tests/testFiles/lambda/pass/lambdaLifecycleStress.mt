@@ -14,7 +14,7 @@ interface TaskManager {
 }
 
 class StressTaskManager implements TaskManager {
-    function executeTasks(WorkerFactory factory, int taskCount): void {
+    public function executeTasks(WorkerFactory factory, int taskCount): void {
         print("Executing " + taskCount + " tasks...");
 
         for (int i = 0; i < taskCount; i++) {
@@ -30,7 +30,7 @@ class StressTaskManager implements TaskManager {
 }
 
 class LambdaWorkerFactory implements WorkerFactory {
-    function createWorker(int id): Worker {
+    public function createWorker(int id): Worker {
         // Create a new lambda for each worker
         // This tests rapid lambda creation and cleanup
         if (id % 4 == 0) {

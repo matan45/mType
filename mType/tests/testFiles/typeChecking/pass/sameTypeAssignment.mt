@@ -1,5 +1,5 @@
 class Person {
-    string name;
+    public string name;
     constructor(string n) {
         name = n;
     }

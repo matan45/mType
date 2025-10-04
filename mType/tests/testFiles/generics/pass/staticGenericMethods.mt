@@ -3,22 +3,22 @@ import "../../lib/primitives/Int.mt";
 
 class Utils {
     // Single type parameter - identity function
-    static function <T> identity(T value): T {
+    public static function <T> identity(T value): T {
         return value;
     }
 
     // Single type parameter - void return
-    static function <T> process(T item): void {
+    public static function <T> process(T item): void {
         print("Processing: " + item);
     }
 
     // Multiple type parameters
-    static function <K, V> createPair(K key, V value): void {
+    public static function <K, V> createPair(K key, V value): void {
         print(key + " = " + value);
     }
 
     // Mixed static methods (generic and non-generic)
-    static function regularMethod(): void {
+    public static function regularMethod(): void {
         print("Regular static method");
     }
 }

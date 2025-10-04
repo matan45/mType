@@ -2,21 +2,21 @@
 class DestructionTracker {
     string name;
     static string destructionLog = "";
-    
-    constructor(string objectName) {
+
+    public constructor(string objectName) {
         name = objectName;
         destructionLog = destructionLog + "Created: " + name + " | ";
     }
-    
-    function getName(): string {
+
+    public function getName(): string {
         return name;
     }
-    
-    static function getDestructionLog(): string {
+
+    public static function getDestructionLog(): string {
         return destructionLog;
     }
-    
-    static function clearLog(): void {
+
+    public static function clearLog(): void {
         destructionLog = "";
     }
 }

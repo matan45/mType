@@ -10,7 +10,7 @@ interface CallbackManager {
 }
 
 class SimpleCallbackManager implements CallbackManager {
-    function executeCallback(Calculator calc, int x, int y): int {
+    public function executeCallback(Calculator calc, int x, int y): int {
         return calc.calculate(x, y);
     }
 }

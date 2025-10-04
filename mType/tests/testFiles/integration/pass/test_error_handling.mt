@@ -6,8 +6,8 @@ function testTypeErrors():void {
 
     class TestClass {
         int value;
-        constructor(int v) { this.value = v; }
-        function toString():string { return "TestClass(" + value + ")"; }
+        public constructor(int v) { this.value = v; }
+        public function toString():string { return "TestClass(" + value + ")"; }
     }
 
     // Test basic type operations that should work
@@ -48,29 +48,29 @@ function testGenericErrors():void {
     class Container<T> {
         T data;
 
-        constructor(T item) {
+        public constructor(T item) {
             this.data = item;
         }
 
-        function get():T {
+        public function get():T {
             return this.data;
         }
 
-        function toString():string {
+        public function toString():string {
             return "Container(" + data.toString() + ")";
         }
     }
 
     class SimpleValue {
         int value;
-        constructor(int v) { this.value = v; }
-        function toString():string { return "" + value; }
+        public constructor(int v) { this.value = v; }
+        public function toString():string { return "" + value; }
     }
 
     class TextValue {
         string text;
-        constructor(string t) { this.text = t; }
-        function toString():string { return text; }
+        public constructor(string t) { this.text = t; }
+        public function toString():string { return text; }
     }
 
     // Test valid generic operations
@@ -94,11 +94,11 @@ function testMethodErrors():void {
     print("=== Testing Method Error Handling ===");
 
     class Calculator {
-        function add(int a, int b):int {
+        public function add(int a, int b):int {
             return a + b;
         }
 
-        function divide(int a, int b):int {
+        public function divide(int a, int b):int {
             if (b == 0) {
                 print("Division by zero detected!");
                 return 0;
@@ -106,7 +106,7 @@ function testMethodErrors():void {
             return a / b;
         }
 
-        function toString():string {
+        public function toString():string {
             return "Calculator";
         }
     }
@@ -132,12 +132,12 @@ function testComplexErrorScenarios():void {
         string name;
         int age;
 
-        constructor(string n, int a) {
+        public constructor(string n, int a) {
             this.name = n;
             this.age = a;
         }
 
-        function toString():string {
+        public function toString():string {
             return name + "(" + age + ")";
         }
     }
@@ -151,7 +151,7 @@ function testComplexErrorScenarios():void {
             this.count = 0;
         }
 
-        function add(T member):void {
+        public function add(T member):void {
             if (this.count < this.members.length) {
                 this.members[this.count] = member;
                 this.count++;
@@ -160,7 +160,7 @@ function testComplexErrorScenarios():void {
             }
         }
 
-        function get(int index):T {
+        public function get(int index):T {
             if (index >= 0 && index < this.count) {
                 return this.members[index];
             }
@@ -168,7 +168,7 @@ function testComplexErrorScenarios():void {
             return null;
         }
 
-        function size():int {
+        public function size():int {
             return this.count;
         }
     }

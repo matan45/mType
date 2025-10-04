@@ -18,7 +18,7 @@ class StaticCapture {
     static final int CONSTANT = 42;
     int instanceField = 10;
 
-    static function testStaticCapture(): void {
+    public static function testStaticCapture(): void {
         print("=== Static Member Capture Edge Cases ===");
 
         // Static method capturing static field (should work)
@@ -34,7 +34,7 @@ class StaticCapture {
         print("Final capture: " + finalCapture.apply(2)); // Should be 84
     }
 
-    function testInstanceToStatic(): void {
+    public function testInstanceToStatic(): void {
         print("=== Instance Method Capturing Static ===");
 
         // Instance method capturing static field
@@ -52,7 +52,7 @@ class StaticCapture {
 class NestedCapture {
     int outerField = 50;
 
-    function testNestedLambdaCapture(): void {
+    public function testNestedLambdaCapture(): void {
         print("=== Nested Lambda Capture ===");
 
         int outerLocal = 15;
@@ -86,7 +86,7 @@ class NestedCapture {
 
 // Test 3: Mutable vs Immutable capture semantics
 class MutabilityCapture {
-    function testMutableCapture(): void {
+    public function testMutableCapture(): void {
         print("=== Mutable vs Immutable Capture ===");
 
         int mutableVar = 10;
@@ -123,7 +123,7 @@ class ComplexCapture {
         staticCounter = staticCounter + 1;
     }
 
-    function testComplexCapture(): void {
+    public function testComplexCapture(): void {
         print("=== Complex Capture Scenarios ===");
 
         int localValue = instanceId * 10;

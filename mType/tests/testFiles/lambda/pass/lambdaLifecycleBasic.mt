@@ -10,7 +10,7 @@ interface AdvancedProcessor {
 }
 
 class ProcessorManager implements AdvancedProcessor {
-    function processWithCallback(int value, Processor callback): int {
+    public function processWithCallback(int value, Processor callback): int {
         print("Processing value: " + value);
         int result = callback.process(value);
         print("Callback returned: " + result);

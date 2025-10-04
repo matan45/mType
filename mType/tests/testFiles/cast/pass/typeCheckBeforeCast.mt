@@ -1,7 +1,7 @@
 // Test: Type check before cast
 class Shape {}
-class Circle extends Shape { int radius = 5; }
-class Square extends Shape { int side = 4; }
+class Circle extends Shape { public int radius = 5; }
+class Square extends Shape { public int side = 4; }
 
 Shape shape = new Circle();
 

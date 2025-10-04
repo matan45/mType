@@ -6,29 +6,29 @@ class MixedClass {
     String instanceField;
 
     // Constructor
-    constructor(String field) {
+    public constructor(String field) {
         instanceField = field;
     }
 
     // Instance generic method
-    function instanceGeneric(T value): T {
+    public function instanceGeneric(T value): T {
         print("Instance generic: " + value);
         return value;
     }
 
     // Static generic method
-    static function <T> staticGeneric(T value): T {
+    public static function <T> staticGeneric(T value): T {
         print("Static generic: " + value);
         return value;
     }
 
     // Regular instance method
-    function regularInstance(): void {
+    public function regularInstance(): void {
         print("Regular instance method");
     }
 
     // Regular static method
-    static function regularStatic(): void {
+    public static function regularStatic(): void {
         print("Regular static method");
     }
 }

@@ -15,11 +15,11 @@ class Circle implements Drawable {
         this.radius = r;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing circle");
     }
 
-    function getArea(): float {
+    public function getArea(): float {
         return 3.14159 * this.radius * this.radius;
     }
 }
@@ -33,25 +33,25 @@ class ShapeProcessor {
     }
 
     // Interface as parameter type
-    function processShape(Drawable shape): void {
+    public function processShape(Drawable shape): void {
         shape.draw();
         print("Processing shape with area: " + shape.getArea());
     }
 
     // Interface as return type
-    function getCurrentShape(): Drawable {
+    public function getCurrentShape(): Drawable {
         return this.currentShape;
     }
 
     // Interface as local variable
-    function demonstrateLocalVariable(): void {
+    public function demonstrateLocalVariable(): void {
         Drawable localShape = new Circle(2.5);
         localShape.draw();
         this.currentShape = localShape;
     }
 
     // Static method with interface parameter
-    static function compareShapes(Drawable shape1, Drawable shape2): bool {
+    public static function compareShapes(Drawable shape1, Drawable shape2): bool {
         return shape1.getArea() > shape2.getArea();
     }
 }

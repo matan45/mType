@@ -1,15 +1,15 @@
 class Book {
-    string title;
-    string author;
-    int pages;
-    
-    constructor(string t, string a, int p) {
+    public string title;
+    public string author;
+    public int pages;
+
+    public constructor(string t, string a, int p) {
         title = t;
         author = a;
         pages = p;
     }
-    
-    function getInfo(): string {
+
+    public function getInfo(): string {
         return title + " by " + author;
     }
 }

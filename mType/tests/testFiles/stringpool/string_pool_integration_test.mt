@@ -26,12 +26,12 @@ string errorMessage = "test_error_message";
         string memberField;
         static string staticField = "shared_static_field";
 
-        function init(string name): void {
+        public function init(string name): void {
             this.className = name;
             this.memberField = "member_" + name;
         }
 
-        function testMethodStrings(): void {
+        public function testMethodStrings(): void {
             string methodName = "testMethodStrings";
             string localVar = "local_variable";
 
@@ -44,7 +44,7 @@ string errorMessage = "test_error_message";
             return methodName + " completed";
         }
 
-        static function testStaticMethodStrings(): void {
+        public static function testStaticMethodStrings(): void {
             string staticMethodName = "testStaticMethodStrings";
             string staticLocal = "static_local_var";
 
@@ -55,7 +55,7 @@ string errorMessage = "test_error_message";
             return staticMethodName + " completed";
         }
 
-        function testStringReturnTypes(): void {
+        public function testStringReturnTypes(): void {
             return "string_return_value";
         }
     }

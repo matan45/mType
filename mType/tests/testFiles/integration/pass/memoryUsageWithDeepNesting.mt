@@ -7,8 +7,8 @@ class NestedContainer {
         level = containerLevel;
         data = "Level" + level;
     }
-    
-    function processDeepNesting(int depth): int {
+
+    public function processDeepNesting(int depth): int {
         if (depth <= 0) {
             return level;
         }

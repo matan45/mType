@@ -5,19 +5,19 @@ import "../../lib/primitives/Bool.mt";
 class Optional<T> {
     T value;
 
-    function setValue(T newValue): void {
+    public function setValue(T newValue): void {
         value = newValue;
     }
 
-    function getValue(): T {
+    public function getValue(): T {
         return value;
     }
 
-    function hasValue(): Bool {
+    public function hasValue(): Bool {
         return new Bool(value != null);
     }
 
-    function clear(): void {
+    public function clear(): void {
         value = null;
     }
 }

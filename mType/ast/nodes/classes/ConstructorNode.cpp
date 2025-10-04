@@ -6,9 +6,10 @@ namespace ast::nodes::classes
     // Constructor with ParameterType (preserves class/interface information)
     ConstructorNode::ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
                                      std::shared_ptr<ASTNode> constructorBody,
+                                     AccessModifier modifier,
                                      const SourceLocation& loc)
         : ASTNode(loc), parametersWithTypes(std::move(params)),
-          body(std::move(constructorBody))
+          body(std::move(constructorBody)), accessModifier(modifier)
     {
         // No dual storage - parametersWithTypes is the single source of truth
     }
@@ -65,6 +66,16 @@ namespace ast::nodes::classes
     bool ConstructorNode::hasSuperInitializer() const noexcept
     {
         return superInitializer != nullptr;
+    }
+
+    AccessModifier ConstructorNode::getAccessModifier() const
+    {
+        return accessModifier;
+    }
+
+    void ConstructorNode::setAccessModifier(AccessModifier modifier)
+    {
+        accessModifier = modifier;
     }
 
     size_t ConstructorNode::getParameterCount() const

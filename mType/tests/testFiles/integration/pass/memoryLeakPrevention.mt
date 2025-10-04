@@ -15,17 +15,17 @@ class LeakDetector {
             }
         }
         
-        function getName(): string {
+        public function getName(): string {
             return name;
         }
         
-        static function getAllocationStats(): string {
+        public static function getAllocationStats(): string {
             return "Total: " + totalAllocations +
                    ", Current: " + currentAllocations +
                    ", Peak: " + peakAllocations;
         }
-        
-        static function resetStats(): void {
+
+        public static function resetStats(): void {
             totalAllocations = 0;
             peakAllocations = 0;
             currentAllocations = 0;
@@ -130,18 +130,18 @@ class LeakDetector {
             LeakDetector item1;
             LeakDetector item2;
             string containerName;
-            
+
             constructor(string name) {
                 containerName = name;
                 item1 = new LeakDetector(name + "_Item1");
                 item2 = new LeakDetector(name + "_Item2");
             }
-            
-            function getContainerInfo(): string {
+
+            public function getContainerInfo(): string {
                 return containerName + ": [" + item1.getName() + ", " + item2.getName() + "]";
             }
-            
-            function swapItems(): void {
+
+            public function swapItems(): void {
                 LeakDetector temp = item1;
                 item1 = item2;
                 item2 = temp;

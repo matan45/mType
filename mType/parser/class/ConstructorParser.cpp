@@ -1,5 +1,6 @@
 #include "ConstructorParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/AccessModifierParser.hpp"
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -23,11 +24,19 @@ namespace parser
 
     bool ConstructorParser::canParse(const TokenStream& stream) const
     {
-        return stream.check(TokenType::CONSTRUCTOR);
+        // Check for access modifiers or constructor keyword
+        return stream.check(TokenType::PRIVATE) ||
+               stream.check(TokenType::PUBLIC) ||
+               stream.check(TokenType::PROTECTED) ||
+               stream.check(TokenType::CONSTRUCTOR);
     }
 
     std::unique_ptr<ASTNode> ConstructorParser::parseConstructor()
     {
+        // Parse access modifier first (default to PUBLIC for constructors)
+        ast::AccessModifier accessModifier =
+            utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PUBLIC);
+
         auto constructorLocation = tokenStream.current().location;
         tokenStream.expect(TokenType::CONSTRUCTOR);
 
@@ -80,9 +89,10 @@ namespace parser
 
         auto body = context.parseStatement();
 
-        // Create constructor node
+        // Create constructor node with parsed access modifier
         auto constructorNode = std::make_unique<ConstructorNode>(
-            std::move(parametersWithTypes), std::move(body), constructorLocation);
+            std::move(parametersWithTypes), std::move(body),
+            accessModifier, constructorLocation);
 
         // Set super initializer if present
         if (superInitializer)

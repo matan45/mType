@@ -1,14 +1,14 @@
 // Test: Multi-level inheritance casting
 class Animal {
-    function sound(): void { print("Some sound"); }
+    public function sound(): void { print("Some sound"); }
 }
 
 class Mammal extends Animal {
-    function breathe(): void { print("Breathing"); }
+    public function breathe(): void { print("Breathing"); }
 }
 
 class Dog extends Mammal {
-    function bark(): void { print("Bark"); }
+    public function bark(): void { print("Bark"); }
 }
 
 Dog dog = new Dog();

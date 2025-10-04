@@ -3,18 +3,18 @@ class Resource {
     string name;
     int id;
     static int totalResources = 0;
-    
-    constructor(string resourceName, int resourceId) {
+
+    public constructor(string resourceName, int resourceId) {
         name = resourceName;
         id = resourceId;
         totalResources = totalResources + 1;
     }
-    
-    function getInfo(): string {
+
+    public function getInfo(): string {
         return "Resource " + name + " [" + id + "]";
     }
-    
-    static function getTotalResources(): int {
+
+    public static function getTotalResources(): int {
         return totalResources;
     }
 }
@@ -23,20 +23,20 @@ class Manager {
     Resource primaryResource;
     Resource secondaryResource;
     final int MAX_MANAGED_RESOURCES = 2;
-    
-    constructor(string primary, string secondary) {
+
+    public constructor(string primary, string secondary) {
         primaryResource = new Resource(primary, 1);
         secondaryResource = new Resource(secondary, 2);
     }
-    
-    function processResources(): string {
+
+    public function processResources(): string {
         string result = "";
         result = result + primaryResource.getInfo() + " | ";
         result = result + secondaryResource.getInfo();
         return result;
     }
-    
-    function swapResources(): void {
+
+    public function swapResources(): void {
         Resource temp = primaryResource;
         primaryResource = secondaryResource;
         secondaryResource = temp;

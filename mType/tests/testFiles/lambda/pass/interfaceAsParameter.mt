@@ -21,7 +21,7 @@ interface Runnable {
 
 // Class that implements Function interface
 class Doubler implements Function {
-    function apply(int x) : int {
+    public function apply(int x) : int {
         return x * 2;
     }
 }
@@ -30,57 +30,57 @@ class Doubler implements Function {
 class Multiplier implements Function {
     int factor;
 
-    constructor(int f) {
+    public constructor(int f) {
         factor = f;
     }
 
-    function apply(int x) : int {
+    public function apply(int x) : int {
         return x * factor;
     }
 }
 
 // Class that implements BinaryFunction interface
 class Calculator implements BinaryFunction {
-    function apply(int a, int b) : int {
+    public function apply(int a, int b) : int {
         return a + b * 2;
     }
 }
 
 // Class that implements Predicate interface
 class EvenChecker implements Predicate {
-    function test(int x) : bool {
+    public function test(int x) : bool {
         return (x % 2) == 0;
     }
 }
 
 class FunctionalProcessor {
     // Method that accepts Function interface as parameter
-    function processWithFunction(Function f, int value) : int {
+    public function processWithFunction(Function f, int value) : int {
         return f.apply(value);
     }
 
     // Method that accepts BinaryFunction interface as parameter
-    function processWithBinaryFunction(BinaryFunction bf, int a, int b) : int {
+    public function processWithBinaryFunction(BinaryFunction bf, int a, int b) : int {
         return bf.apply(a, b);
     }
 
     // Method that accepts Predicate interface as parameter
-    function filterValue(Predicate pred, int value) : bool {
+    public function filterValue(Predicate pred, int value) : bool {
         return pred.test(value);
     }
 
     // Method that accepts Consumer interface as parameter
-    function consumeValue(Consumer consumer, int value) : void {
+    public function consumeValue(Consumer consumer, int value) : void {
         consumer.accept(value);
     }
 
     // Method that accepts Runnable interface as parameter
-    function executeTask(Runnable task) : void {
+    public function executeTask(Runnable task) : void {
         task.run();
     }
 
     // Method that accepts multiple interface parameters
-    function complexOperation(Function mapper, Predicate filter, int value) : int {
+    public function complexOperation(Function mapper, Predicate filter, int value) : int {
         if (filter.test(value)) {
             return mapper.apply(value);
         }
@@ -88,23 +88,23 @@ class FunctionalProcessor {
     }
 
     // Methods that return interfaces implemented by class objects
-    function createDoubler() : Function {
+    public function createDoubler() : Function {
         return new Doubler();
     }
 
-    function createMultiplier(int factor) : Function {
+    public function createMultiplier(int factor) : Function {
         return new Multiplier(factor);
     }
 
-    function createCalculator() : BinaryFunction {
+    public function createCalculator() : BinaryFunction {
         return new Calculator();
     }
 
-    function createEvenChecker() : Predicate {
+    public function createEvenChecker() : Predicate {
         return new EvenChecker();
     }
 
-    function createFunctionBasedOnType(int type) : Function {
+    public function createFunctionBasedOnType(int type) : Function {
         if (type == 1) {
             return new Doubler();
         } else {
@@ -115,38 +115,38 @@ class FunctionalProcessor {
 
 // Utility class with static functions that accept interfaces as parameters
 class FunctionUtils {
-    static function applyTwice(Function f, int value) : int {
+    public static function applyTwice(Function f, int value) : int {
         return f.apply(f.apply(value));
     }
 
-    static function combineOperations(Function f1, Function f2, int value) : int {
+    public static function combineOperations(Function f1, Function f2, int value) : int {
         return f1.apply(value) + f2.apply(value);
     }
 
-    static function conditionalExecute(Predicate condition, Runnable task, int testValue) : void {
+    public static function conditionalExecute(Predicate condition, Runnable task, int testValue) : void {
         if (condition.test(testValue)) {
             task.run();
         }
     }
 
     // Static factory methods that return interfaces implemented by class objects
-    static function createDefaultDoubler() : Function {
+    public static function createDefaultDoubler() : Function {
         return new Doubler();
     }
 
-    static function createCustomMultiplier(int factor) : Function {
+    public static function createCustomMultiplier(int factor) : Function {
         return new Multiplier(factor);
     }
 
-    static function createDefaultCalculator() : BinaryFunction {
+    public static function createDefaultCalculator() : BinaryFunction {
         return new Calculator();
     }
 
-    static function createDefaultEvenChecker() : Predicate {
+    public static function createDefaultEvenChecker() : Predicate {
         return new EvenChecker();
     }
 
-    static function getOptimalFunction(int inputSize) : Function {
+    public static function getOptimalFunction(int inputSize) : Function {
         if (inputSize < 10) {
             return new Doubler();  // Simple doubling for small inputs
         } else {

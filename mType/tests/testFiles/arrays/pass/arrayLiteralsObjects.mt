@@ -2,23 +2,23 @@
 print("Testing array literals with objects");
 
 class Person {
-    string name;
-    int age;
+    public string name;
+    public int age;
 
-    constructor(string n, int a) {
+    public constructor(string n, int a) {
         name = n;
         age = a;
     }
 
-    function toString():string {
+    public function toString(): string {
         return name + " (" + age + ")";
     }
 
-    function getName(): string {
+    public function getName(): string {
         return name;
     }
 
-    function getAge():int {
+    public function getAge(): int {
         return age;
     }
 }

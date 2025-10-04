@@ -13,11 +13,11 @@ class Rectangle implements Drawable {
         this.height = h;
     }
 
-    function draw(): void {
+    public function draw(): void {
         print("Drawing rectangle");
     }
 
-    function getArea(): float {
+    public function getArea(): float {
         return this.width * this.height;
     }
 }

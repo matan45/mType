@@ -1,19 +1,19 @@
 class Calculator {
-    int base;
-    
+    public int base;
+
     constructor(int b) {
         base = b;
     }
-    
-    function add(int x): int {
+
+    public function add(int x): int {
         return base + x;
     }
-    
-    function concat(string s): string {
+
+    public function concat(string s): string {
         return base + s;
     }
-    
-    static function multiply(int a, int b): int {
+
+    public static function multiply(int a, int b): int {
         return a * b;
     }
 }

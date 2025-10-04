@@ -1,9 +1,9 @@
 class Calculator {
-    static function compute(): int {
+    public static function compute(): int {
         return 100;
     }
-    
-    static function getMessage(): string {
+
+    public static function getMessage(): string {
         return "Computed";
     }
 }

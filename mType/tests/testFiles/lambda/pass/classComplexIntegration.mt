@@ -8,7 +8,7 @@ interface BinaryFunction {
 }
 
 class Math {
-    static int CONSTANT = 100;
+    public static int CONSTANT = 100;
 }
 
 class ComplexCalculator {
@@ -21,7 +21,7 @@ class ComplexCalculator {
         instanceMultiplier = mult;
     }
 
-    function createComprehensiveLambda(int methodParam) : Function {
+    public function createComprehensiveLambda(int methodParam) : Function {
         // Lambda using all types of access: static, qualified static, instance, this, parameter
         return x -> {
             int temp = x + this.instanceBase;           // this access
@@ -32,7 +32,7 @@ class ComplexCalculator {
         };
     }
 
-    function createNestedLambdaContext(int outer) : Function {
+    public function createNestedLambdaContext(int outer) : Function {
         // Method that creates lambda which creates another operation
         int localVar = outer * 2;
 
@@ -43,12 +43,12 @@ class ComplexCalculator {
         };
     }
 
-    static function createStaticContextLambda() : BinaryFunction {
+    public static function createStaticContextLambda() : BinaryFunction {
         // Lambda from static method
         return (a, b) -> a * STATIC_MULTIPLIER + b + Math::CONSTANT;
     }
 
-    function getDynamicLambdaGenerator(int seed) : Function {
+    public function getDynamicLambdaGenerator(int seed) : Function {
         // Returns lambda that generates other lambdas (functional programming style)
         return x -> {
             int result = x * seed;

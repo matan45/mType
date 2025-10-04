@@ -4,7 +4,7 @@ class TestClass {
         value = val;
     }
     
-    function getValue(): int {
+    public function getValue(): int {
         return value;
     }
 }

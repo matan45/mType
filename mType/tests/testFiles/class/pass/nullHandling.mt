@@ -1,13 +1,13 @@
 class Node {
-    int value;
-    Node next;
-    
-    constructor(int val) {
+    public int value;
+    public Node next;
+
+    public constructor(int val) {
         value = val;
         next = null;
     }
-    
-    function hasNext(): bool {
+
+    public function hasNext(): bool {
         if (next == null) {
             return false;
         }

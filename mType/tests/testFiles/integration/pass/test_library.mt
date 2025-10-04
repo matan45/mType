@@ -1,7 +1,7 @@
 // Comprehensive class library for testing serialization
 class Calculator {
     // Static members
-    static int operationCount = 0;
+    public static int operationCount = 0;
     static final string VERSION = "1.0.0";
 
     // Instance fields
@@ -23,7 +23,7 @@ class Calculator {
     }
 
     // Instance methods
-    function add(int a, int b): int {
+    public function add(int a, int b): int {
         if (isActive) {
             Calculator::operationCount = Calculator::operationCount + 1;
             return a + b;
@@ -31,7 +31,7 @@ class Calculator {
         return 0;
     }
 
-    function multiply(int x, int y): int {
+    public function multiply(int x, int y): int {
         if (isActive) {
             Calculator::operationCount = Calculator::operationCount + 1;
             return x * y;
@@ -39,24 +39,24 @@ class Calculator {
         return 0;
     }
 
-    function getName(): string {
+    public function getName(): string {
         return name;
     }
 
-    function setActive(bool active): void {
+    public function setActive(bool active): void {
         isActive = active;
     }
 
     // Static methods
-    static function getOperationCount(): int {
+    public static function getOperationCount(): int {
         return Calculator::operationCount;
     }
 
-    static function getVersion(): string {
+    public static function getVersion(): string {
         return Calculator::VERSION;
     }
 
-    static function resetCounter(): void {
+    public static function resetCounter(): void {
         Calculator::operationCount = 0;
     }
 }

@@ -1,8 +1,8 @@
 class Person {
-    string name;
-    int age;
-    bool active;
-    
+    public string name;
+    public int age;
+    public bool active;
+
     constructor(string n, int a, bool act) {
         name = n;
         age = a;

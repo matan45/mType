@@ -56,46 +56,46 @@ interface Draggable extends Focusable {
 // Implementation that uses all chains
 class ComplexComponent implements DataPersister, EventAggregator, Draggable {
     // DataSource methods
-    function getData(): string { return "test data"; }
+    public function getData(): string { return "test data"; }
 
     // DataProcessor methods
-    function processData(string data): string { return "processed: " + data; }
+    public function processData(string data): string { return "processed: " + data; }
 
     // DataValidator methods
-    function validateData(string data): bool { return true; }
+    public function validateData(string data): bool { return true; }
 
     // DataPersister methods
-    function persistData(string data): void { print("Persisting: " + data); }
+    public function persistData(string data): void { print("Persisting: " + data); }
 
     // EventListener methods
-    function onEvent(string eventType): void { print("Event: " + eventType); }
+    public function onEvent(string eventType): void { print("Event: " + eventType); }
 
     // EventHandler methods
-    function handleEvent(string eventType, string payload): void {
+    public function handleEvent(string eventType, string payload): void {
         print("Handling: " + eventType + " with " + payload);
     }
 
     // EventDispatcher methods
-    function dispatchEvent(string eventType, string payload): void {
+    public function dispatchEvent(string eventType, string payload): void {
         print("Dispatching: " + eventType);
     }
 
     // EventAggregator methods
-    function aggregateEvents(): void { print("Aggregating events"); }
+    public function aggregateEvents(): void { print("Aggregating events"); }
 
     // Renderable methods
-    function render(): void { print("Rendering component"); }
+    public function render(): void { print("Rendering component"); }
 
     // Interactive methods
-    function onClick(): void { print("Click handled"); }
+    public function onClick(): void { print("Click handled"); }
 
     // Focusable methods
-    function onFocus(): void { print("Focus gained"); }
-    function onBlur(): void { print("Focus lost"); }
+    public function onFocus(): void { print("Focus gained"); }
+    public function onBlur(): void { print("Focus lost"); }
 
     // Draggable methods
-    function onDragStart(): void { print("Drag started"); }
-    function onDragEnd(): void { print("Drag ended"); }
+    public function onDragStart(): void { print("Drag started"); }
+    public function onDragEnd(): void { print("Drag ended"); }
 }
 
 function main(): void {

@@ -3,6 +3,7 @@
 #include "../TokenStream.hpp"
 #include "../ParseContext.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
+#include "../../ast/AccessModifier.hpp"
 #include "../core/BaseParser.hpp"
 #include <vector>
 
@@ -21,7 +22,7 @@ namespace parser
         std::unique_ptr<ASTNode> parseStaticMethod();
 
     private:
-        std::unique_ptr<ASTNode> parseMethodWithModifiers(bool isStatic);
+        std::unique_ptr<ASTNode> parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic);
         std::vector<GenericTypeParameter> parseMethodGenericParameters();
         void validateMethodName(const std::string& methodName, bool isStatic);
     };

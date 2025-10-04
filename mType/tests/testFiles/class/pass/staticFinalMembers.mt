@@ -1,17 +1,17 @@
 class Constants {
-    static final int MAX_SIZE = 100;
-    static final float PI = 3.14159;
-    static final string VERSION = "1.0.0";
-    
-    static function getMaxSize(): int {
+    public static final int MAX_SIZE = 100;
+    public static final float PI = 3.14159;
+    public static final string VERSION = "1.0.0";
+
+    public static function getMaxSize(): int {
         return MAX_SIZE;
     }
-    
-    static function getPi(): float {
+
+    public static function getPi(): float {
         return PI;
     }
-    
-    static function getVersion(): string {
+
+    public static function getVersion(): string {
         return VERSION;
     }
 }

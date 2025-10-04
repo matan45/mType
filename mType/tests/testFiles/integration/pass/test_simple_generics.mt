@@ -9,19 +9,19 @@ import "../../lib/collections/List.mt";
 class GenericBox<T> {
     T value;
 
-    constructor(T val) {
+    public constructor(T val) {
         this.value = val;
     }
 
-    function getValue():T {
+    public function getValue():T {
         return this.value;
     }
 
-    function setValue(T val):void {
+    public function setValue(T val):void {
         this.value = val;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return "Box(" + value.toString() + ")";
     }
 }
@@ -30,20 +30,20 @@ class Pair<K, V> {
     K key;
     V value;
 
-    constructor(K k, V v) {
+    public constructor(K k, V v) {
         this.key = k;
         this.value = v;
     }
 
-    function getKey(): K {
+    public function getKey(): K {
         return this.key;
     }
 
-    function getValue(): V {
+    public function getValue(): V {
         return this.value;
     }
 
-    function toString(): string {
+    public function toString(): string {
         return "(" + key.toString() + ", " + value.toString() + ")";
     }
 }
@@ -92,12 +92,12 @@ function testGenericWithCustomObjects():void {
         string name;
         int grade;
 
-        constructor(string n, int g) {
+        public constructor(string n, int g) {
             this.name = n;
             this.grade = g;
         }
 
-        function toString(): string {
+        public function toString(): string {
             return name + " (Grade: " + grade + ")";
         }
     }
