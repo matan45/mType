@@ -228,28 +228,33 @@ namespace vm::compiler
     {
         size_t index = program.getConstantPool().addInteger(node->getValue());
         emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(index), node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitFloatNode(ast::FloatNode* node)
     {
         size_t index = program.getConstantPool().addFloat(node->getValue());
         emitWithLocation(bytecode::OpCode::PUSH_FLOAT, static_cast<uint32_t>(index), node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitStringNode(ast::StringNode* node)
     {
         size_t index = program.getConstantPool().addString(node->getValue());
         emitWithLocation(bytecode::OpCode::PUSH_STRING, static_cast<uint32_t>(index), node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitBoolNode(ast::BoolNode* node)
     {
         emitWithLocation(bytecode::OpCode::PUSH_BOOL, node->getValue() ? 1 : 0, node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitNullNode(ast::NullNode* node)
     {
         emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+        return std::monostate{};
     }
 
     // ==================== Variables ====================
@@ -267,6 +272,7 @@ namespace vm::compiler
             size_t nameIndex = program.getConstantPool().addString(name);
             emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
         }
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitDeclarationNode(ast::DeclarationNode* node)
@@ -300,6 +306,7 @@ namespace vm::compiler
             local.slot = nextLocalSlot++;
             locals.push_back(local);
         }
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitAssignmentNode(ast::AssignmentNode* node)
@@ -318,6 +325,7 @@ namespace vm::compiler
             size_t nameIndex = program.getConstantPool().addString(name);
             emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
         }
+        return std::monostate{};
     }
 
     // ==================== Operators ====================
@@ -333,6 +341,7 @@ namespace vm::compiler
         // Emit operation
         bytecode::OpCode opcode = getBinaryOpCode(node->getOperator(), false);
         emitWithLocation(opcode, node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitUnaryOpNode(ast::UnaryOpNode* node)
@@ -343,6 +352,7 @@ namespace vm::compiler
         // Emit operation
         bytecode::OpCode opcode = getUnaryOpCode(node->getOperator());
         emitWithLocation(opcode, node);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitTernaryOpNode(ast::TernaryOpNode* node)
@@ -363,6 +373,7 @@ namespace vm::compiler
 
         // Patch end jump
         patchJump(endJump);
+        return std::monostate{};
     }
 
     // ==================== Control Flow ====================
@@ -393,6 +404,7 @@ namespace vm::compiler
             // No else branch, just patch the jump
             patchJump(elseJump);
         }
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitWhileNode(ast::WhileNode* node)
@@ -416,6 +428,7 @@ namespace vm::compiler
         patchJump(exitJump);
 
         exitLoop();
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitDoWhileNode(ast::DoWhileNode* node)
@@ -433,6 +446,7 @@ namespace vm::compiler
         program.emit(bytecode::OpCode::JUMP_IF_TRUE, static_cast<uint32_t>(loopStart));
 
         exitLoop();
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitForNode(ast::ForNode* node)
@@ -476,6 +490,7 @@ namespace vm::compiler
 
         exitLoop();
         endScope();
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitBreakNode(ast::BreakNode* node)
@@ -486,6 +501,7 @@ namespace vm::compiler
 
         size_t breakJump = emitJump(bytecode::OpCode::JUMP);
         currentLoop().breakJumps.push_back(breakJump);
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitContinueNode(ast::ContinueNode* node)
@@ -496,6 +512,7 @@ namespace vm::compiler
 
         size_t continueJump = emitJump(bytecode::OpCode::JUMP);
         currentLoop().continueJumps.push_back(continueJump);
+        return std::monostate{};
     }
 
     // ==================== Placeholder Implementations ====================
@@ -540,6 +557,7 @@ namespace vm::compiler
         } else {
             emitWithLocation(bytecode::OpCode::RETURN, node);
         }
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitNativeFunctionNode(ast::NativeFunctionNode* node)
