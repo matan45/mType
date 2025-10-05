@@ -141,15 +141,15 @@ namespace services
             value::Value result;
             switch (executionMode)
             {
-                case constants::ExecutionMode::AST_INTERPRETER:
-                    result = executeAST(ast.get());
-                    break;
-                case constants::ExecutionMode::BYTECODE_VM:
-                    result = executeBytecode(ast.get());
-                    break;
-                case constants::ExecutionMode::DUAL_VALIDATION:
-                    result = executeDualValidation(ast.get());
-                    break;
+            case constants::ExecutionMode::AST_INTERPRETER:
+                result = executeAST(ast.get());
+                break;
+            case constants::ExecutionMode::BYTECODE_VM:
+                result = executeBytecode(ast.get());
+                break;
+            case constants::ExecutionMode::DUAL_VALIDATION:
+                result = executeDualValidation(ast.get());
+                break;
             }
 
             // Automatic cleanup after script execution to prevent memory growth
@@ -387,7 +387,7 @@ namespace services
             {
                 environment->exitScope();
                 throw errors::ParameterMismatchException("constructor", static_cast<int>(params.size()),
-                                                                    static_cast<int>(constructorArgs.size()));
+                                                         static_cast<int>(constructorArgs.size()));
             }
 
             // Bind parameters
@@ -443,7 +443,7 @@ namespace services
         {
             environment->exitScope();
             throw errors::ParameterMismatchException(funcDef->getName(), static_cast<int>(params.size()),
-                                                                static_cast<int>(args.size()));
+                                                     static_cast<int>(args.size()));
         }
 
         for (size_t i = 0; i < params.size(); ++i)
@@ -608,27 +608,33 @@ namespace services
 
             // For bytecode mode: Also register static methods as global functions
             // This allows them to be called via CALL opcode with qualified names
-            for (const auto& method : classNode->getMethods()) {
-                if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
-                    if (methodNode->getIsStatic()) {
+            for (const auto& method : classNode->getMethods())
+            {
+                if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get()))
+                {
+                    if (methodNode->getIsStatic())
+                    {
                         // Static methods should already be registered by evaluating the class
                         // The evaluator registers them in the class definition
                         // We just need to ensure they're accessible for bytecode execution
 
                         // Get the class definition from environment
                         auto classDef = environment->findClass(className);
-                        if (classDef) {
+                        if (classDef)
+                        {
                             // Check if this static method exists in the class
                             const auto& staticMethods = classDef->getStaticMethods();
                             auto it = staticMethods.find(methodNode->getName());
-                            if (it != staticMethods.end()) {
+                            if (it != staticMethods.end())
+                            {
                                 // Register as a global function with qualified name
                                 std::string qualifiedName = className + "::" + methodNode->getName();
 
                                 // Use the existing static method definition from the class
                                 // instead of creating a new one
                                 auto funcRegistry = environment->getFunctionRegistry();
-                                if (funcRegistry) {
+                                if (funcRegistry)
+                                {
                                     // Register the method definition directly as a callable function
                                     // We'll use the method definition's body which is already managed
                                     auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(

@@ -65,6 +65,9 @@ namespace vm::compiler
         // First, register all classes in the environment for bytecode execution
         registerClassesForBytecode(root);
 
+        // Second, establish parent-child relationships between classes
+        linkParentClasses(root);
+
         // Visit the root node to generate bytecode
         root->accept(*this);
 
@@ -175,6 +178,51 @@ namespace vm::compiler
             for (const auto& statement : blockNode->getStatements())
             {
                 registerClassesForBytecode(statement.get());
+            }
+        }
+    }
+
+    void BytecodeCompiler::linkParentClasses(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a ClassNode with a parent
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            if (classNode->hasParentClass()) {
+                std::string className = classNode->getClassName();
+                std::string parentClassName = classNode->getParentClassName();
+
+                auto classRegistry = environment->getClassRegistry();
+                if (!classRegistry) {
+                    throw std::runtime_error("Class registry not available");
+                }
+
+                // Get both class definitions
+                auto classDef = classRegistry->findClass(className);
+                auto parentDef = classRegistry->findClass(parentClassName);
+
+                if (classDef && parentDef) {
+                    // Establish the parent-child link
+                    classDef->setParentClass(parentDef);
+                }
+            }
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                linkParentClasses(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                linkParentClasses(statement.get());
             }
         }
     }
@@ -305,10 +353,12 @@ namespace vm::compiler
     void BytecodeCompiler::enterFunctionFrame(const std::string& returnType)
     {
         FunctionFrame frame;
-        frame.localStartSlot = nextLocalSlot;
+        frame.localStartSlot = nextLocalSlot;  // Remember where this function's locals start
         frame.scopeDepthStart = currentScopeDepth;
         frame.returnType = returnType;
         functionFrameStack.push_back(frame);
+        // NOTE: nextLocalSlot continues from where it was - NOT reset to 0
+        // The resolveLocal function will return relative slots by subtracting localStartSlot
     }
 
     void BytecodeCompiler::exitFunctionFrame()
@@ -322,7 +372,7 @@ namespace vm::compiler
                 locals.pop_back();
             }
 
-            // Reset slot counter and scope depth
+            // Restore nextLocalSlot and scope depth to values before entering this function
             nextLocalSlot = frame.localStartSlot;
             currentScopeDepth = frame.scopeDepthStart;
         }
@@ -444,6 +494,14 @@ namespace vm::compiler
             return std::monostate{};
         }
 
+        // Check if this is a local variable FIRST (parameters and local vars take precedence over fields)
+        size_t localSlot = resolveLocal(name);
+        if (localSlot != SIZE_MAX) {
+            // This is a local variable - use LOAD_LOCAL with slot index
+            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
+            return std::monostate{};
+        }
+
         // Check if we're in a class context (instance or static method)
         if (currentClassNode) {
             // Check if it's a field of the current class
@@ -472,14 +530,6 @@ namespace vm::compiler
                     }
                 }
             }
-        }
-
-        // Check if this is a local variable
-        size_t localSlot = resolveLocal(name);
-        if (localSlot != SIZE_MAX) {
-            // This is a local variable - use LOAD_LOCAL with slot index
-            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
-            return std::monostate{};
         }
 
         // Global variable lookup
@@ -1647,19 +1697,20 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitSuperConstructorCallNode(ast::SuperConstructorCallNode* node)
     {
-        // Push 'this' onto stack (for super constructor to initialize)
-        size_t thisNameIndex = program.getConstantPool().addString("this");
-        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
-
         // Push arguments onto stack
+        // Note: 'this' is NOT pushed here - the VM will get it from the current frame's slot 0
         const auto& arguments = node->getArguments();
         for (const auto& arg : arguments) {
             arg->accept(*this);
         }
 
-        // Emit SUPER_CONSTRUCTOR instruction
-        // This will call the parent class constructor
-        program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR, static_cast<uint32_t>(arguments.size()));
+        // Emit SUPER_CONSTRUCTOR instruction with current class name
+        // The VM needs to know which class's parent constructor to call
+        std::string currentClassName = currentClassNode ? currentClassNode->getClassName() : "";
+        size_t classNameIndex = program.getConstantPool().addString(currentClassName);
+        program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                     static_cast<uint32_t>(classNameIndex),
+                     static_cast<uint32_t>(arguments.size()));
 
         return std::monostate{};
     }
@@ -1668,21 +1719,23 @@ namespace vm::compiler
     {
         std::string methodName = node->getMethodName();
 
-        // Push 'this' onto stack
-        size_t thisNameIndex = program.getConstantPool().addString("this");
-        program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(thisNameIndex));
-
         // Push arguments onto stack
+        // Note: 'this' is NOT pushed here - the VM will get it from the current frame's slot 0
         const auto& arguments = node->getArguments();
         for (const auto& arg : arguments) {
             arg->accept(*this);
         }
 
-        // Emit SUPER_INVOKE instruction
+        // Emit SUPER_INVOKE instruction with current class name
+        // The VM needs to know which class's parent method to call
+        std::string currentClassName = currentClassNode ? currentClassNode->getClassName() : "";
+        size_t classNameIndex = program.getConstantPool().addString(currentClassName);
         size_t methodNameIndex = program.getConstantPool().addString(methodName);
-        program.emit(bytecode::OpCode::SUPER_INVOKE,
-                     static_cast<uint32_t>(methodNameIndex),
-                     static_cast<uint32_t>(arguments.size()));
+        program.emit(bytecode::OpCode::SUPER_INVOKE, std::vector<uint32_t>{
+            static_cast<uint32_t>(classNameIndex),
+            static_cast<uint32_t>(methodNameIndex),
+            static_cast<uint32_t>(arguments.size())
+        });
 
         return std::monostate{};
     }

@@ -774,9 +774,20 @@ namespace vm::runtime
         // Create new object instance with generic type bindings
         auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
 
-        // Initialize instance fields with default values
-        for (const auto& [fieldName, fieldDef] : classDef->getInstanceFields()) {
-            instance->setField(fieldName, nullptr);  // Initialize to null
+        // Initialize instance fields with default values (including inherited fields)
+        // First, collect all classes in hierarchy (parent to child order)
+        std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
+        auto current = classDef;
+        while (current) {
+            hierarchy.insert(hierarchy.begin(), current);  // Insert at front for parent-first order
+            current = current->getParentClass();
+        }
+
+        // Initialize fields from all classes in hierarchy
+        for (const auto& classInHierarchy : hierarchy) {
+            for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
+                instance->setField(fieldName, nullptr);  // Initialize to null
+            }
         }
 
         // Find and call constructor
@@ -802,16 +813,8 @@ namespace vm::runtime
         std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = program->getFunction(constructorName);
         if (funcMetadata) {
-            // Create call frame
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size();
-            frame.localBase = operandStack.size();
-            frame.functionName = "<init>";
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
+            // Save the current stack size - this is where locals will start
+            size_t localBase = operandStack.size();
 
             // Push 'this' onto stack as first local (slot 0)
             push(instance);
@@ -820,6 +823,17 @@ namespace vm::runtime
             for (size_t i = 0; i < argCount; ++i) {
                 push(args[i]);
             }
+
+            // Create call frame AFTER pushing locals
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = localBase;
+            frame.localBase = localBase;
+            frame.functionName = "<init>";
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
 
             // Jump to constructor start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
@@ -1108,34 +1122,40 @@ namespace vm::runtime
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
 
-        // Find method in class hierarchy
+        // Find method in class hierarchy and determine which class defines it
         auto classDef = instance->getClassDefinition();
-        auto method = classDef->findMethod(methodName, argCount);
+        std::string definingClassName;
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method;
+
+        // Search in this class first
+        method = classDef->findMethod(methodName, argCount);
+        if (method) {
+            definingClassName = classDef->getName();
+        } else {
+            // Search in parent hierarchy
+            auto current = classDef->getParentClass();
+            while (current && !method) {
+                method = current->findMethod(methodName, argCount);
+                if (method) {
+                    definingClassName = current->getName();
+                    break;
+                }
+                current = current->getParentClass();
+            }
+        }
 
         if (!method) {
             throw errors::RuntimeException("Method not found: " + methodName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        // Look up method in bytecode functions
-        // Build qualified method name (ClassName::methodName)
-        std::string className = classDef->getName();
+        // Look up method in bytecode functions using the class that defines it
+        std::string className = definingClassName;
         std::string qualifiedMethodName = className + "::" + methodName;
         auto funcMetadata = program->getFunction(qualifiedMethodName);
         if (funcMetadata) {
-            // Calculate frameBase BEFORE any stack modifications
-            size_t frameBase = operandStack.size();
-
-            // Create call frame
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = frameBase;
-            frame.localBase = operandStack.size();
-            frame.functionName = qualifiedMethodName;
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
+            // Save the current stack size - this is where locals will start
+            size_t localBase = operandStack.size();
 
             // Push 'this' onto stack as first local (slot 0)
             push(instance);
@@ -1144,6 +1164,17 @@ namespace vm::runtime
             for (size_t i = 0; i < argCount; ++i) {
                 push(args[i]);
             }
+
+            // Create call frame AFTER pushing locals
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = localBase;
+            frame.localBase = localBase;
+            frame.functionName = qualifiedMethodName;
+            frame.thisInstance = instance;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
 
             // Jump to method start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
@@ -1155,11 +1186,13 @@ namespace vm::runtime
     }
 
     void VirtualMachine::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires operand (argument count)");
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands: class name index and argument count");
         }
 
-        size_t argCount = instr.operands[0];
+        // Get current class name and argument count
+        const std::string& currentClassName = program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
 
         // Pop arguments from stack (in reverse order)
         std::vector<value::Value> args;
@@ -1169,22 +1202,33 @@ namespace vm::runtime
         }
         std::reverse(args.begin(), args.end());
 
-        // Get current 'this' instance from the environment
-        auto thisVar = environment->findVariable("this");
-        if (!thisVar || !std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue())) {
+        // Get current 'this' instance from local slot 0
+        // In bytecode mode, 'this' is the first parameter (slot 0) of the current constructor
+        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
+
+        if (frameBase >= operandStack.size()) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR: cannot access 'this' - invalid frame base");
+        }
+
+        value::Value thisValue = operandStack[frameBase];  // 'this' is always at slot 0
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue)) {
             throw errors::RuntimeException("SUPER_CONSTRUCTOR: 'this' not found or not an object");
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue());
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue);
 
-        // Get parent class
-        auto classDef = instance->getClassDefinition();
-        if (!classDef->hasParentClass()) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR: class has no parent");
+        // Get the current class (the one whose constructor is executing) and find its parent
+        auto classRegistry = environment->getClassRegistry();
+        auto currentClassDef = classRegistry->findClass(currentClassName);
+        if (!currentClassDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
 
-        std::string parentClassName = classDef->getParentClassName();
-        auto classRegistry = environment->getClassRegistry();
+        if (!currentClassDef->hasParentClass()) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR: class " + currentClassName + " has no parent");
+        }
+
+        std::string parentClassName = currentClassDef->getParentClassName();
         auto parentClassDef = classRegistry->findClass(parentClassName);
 
         if (!parentClassDef) {
@@ -1202,35 +1246,27 @@ namespace vm::runtime
         std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = program->getFunction(constructorName);
         if (funcMetadata) {
-            // Create call frame for parent constructor
+            // Save the current stack size - this is where locals will start
+            size_t localBase = operandStack.size();
+
+            // Push 'this' onto stack as first local (slot 0) - same instance as child
+            push(instance);
+
+            // Push constructor arguments onto stack as locals (slot 1, 2, ...)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
+            }
+
+            // Create call frame for parent constructor AFTER pushing locals
             CallFrame frame;
             frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size();
-            frame.localBase = operandStack.size();
+            frame.frameBase = localBase;
+            frame.localBase = localBase;
             frame.functionName = "<init>";
             frame.thisInstance = instance;
 
             callStack.push_back(frame);
             stats.functionCalls++;
-
-            // Create a new scope for parent constructor
-            environment->enterScope();
-
-            // Declare 'this' parameter (same instance)
-            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "this", value::ValueType::OBJECT, instance, false);
-            environment->declareVariable("this", thisDef);
-
-            // Declare constructor parameters
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
-                const value::Value& argValue = args[i];
-                value::ValueType type = value::getValueType(argValue);
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-                environment->declareVariable(paramName, varDef);
-            }
 
             // Jump to parent constructor start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
@@ -1242,13 +1278,14 @@ namespace vm::runtime
     }
 
     void VirtualMachine::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
-            throw errors::RuntimeException("SUPER_INVOKE requires 2 operands: method name index and argument count");
+        if (instr.operands.size() < 3) {
+            throw errors::RuntimeException("SUPER_INVOKE requires 3 operands: class name index, method name index, and argument count");
         }
 
-        // Get method name and argument count
-        const std::string& methodName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        // Get current class name, method name, and argument count
+        const std::string& currentClassName = program->getConstantPool().getString(instr.operands[0]);
+        const std::string& methodName = program->getConstantPool().getString(instr.operands[1]);
+        size_t argCount = instr.operands[2];
 
         // Pop arguments from stack (in reverse order)
         std::vector<value::Value> args;
@@ -1258,22 +1295,33 @@ namespace vm::runtime
         }
         std::reverse(args.begin(), args.end());
 
-        // Get current 'this' instance from the environment
-        auto thisVar = environment->findVariable("this");
-        if (!thisVar || !std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue())) {
+        // Get current 'this' instance from local slot 0
+        // In bytecode mode, 'this' is the first parameter (slot 0) of the current method
+        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
+
+        if (frameBase >= operandStack.size()) {
+            throw errors::RuntimeException("SUPER_INVOKE: cannot access 'this' - invalid frame base");
+        }
+
+        value::Value thisValue = operandStack[frameBase];  // 'this' is always at slot 0
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue)) {
             throw errors::RuntimeException("SUPER_INVOKE: 'this' not found or not an object");
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisVar->getValue());
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue);
 
-        // Get parent class
-        auto classDef = instance->getClassDefinition();
-        if (!classDef->hasParentClass()) {
-            throw errors::RuntimeException("SUPER_INVOKE: class has no parent");
+        // Get the current class (the one whose method is executing) and find its parent
+        auto classRegistry = environment->getClassRegistry();
+        auto currentClassDef = classRegistry->findClass(currentClassName);
+        if (!currentClassDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
 
-        std::string parentClassName = classDef->getParentClassName();
-        auto classRegistry = environment->getClassRegistry();
+        if (!currentClassDef->hasParentClass()) {
+            throw errors::RuntimeException("SUPER_INVOKE: class " + currentClassName + " has no parent");
+        }
+
+        std::string parentClassName = currentClassDef->getParentClassName();
         auto parentClassDef = classRegistry->findClass(parentClassName);
 
         if (!parentClassDef) {
@@ -1293,35 +1341,27 @@ namespace vm::runtime
         // Look up parent method bytecode
         auto funcMetadata = program->getFunction(qualifiedMethodName);
         if (funcMetadata) {
-            // Create call frame for parent method
+            // Save the current stack size - this is where locals will start
+            size_t localBase = operandStack.size();
+
+            // Push 'this' onto stack as first local (slot 0) - same instance
+            push(instance);
+
+            // Push method arguments onto stack as locals (slot 1, 2, ...)
+            for (size_t i = 0; i < argCount; ++i) {
+                push(args[i]);
+            }
+
+            // Create call frame for parent method AFTER pushing locals
             CallFrame frame;
             frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size();
-            frame.localBase = operandStack.size();
+            frame.frameBase = localBase;
+            frame.localBase = localBase;
             frame.functionName = qualifiedMethodName;
             frame.thisInstance = instance;
 
             callStack.push_back(frame);
             stats.functionCalls++;
-
-            // Create a new scope for parent method
-            environment->enterScope();
-
-            // Declare 'this' parameter (same instance)
-            auto thisDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                "this", value::ValueType::OBJECT, instance, false);
-            environment->declareVariable("this", thisDef);
-
-            // Declare method parameters
-            for (size_t i = 0; i < argCount && i < funcMetadata->parameterNames.size() - 1; ++i) {
-                const std::string& paramName = funcMetadata->parameterNames[i + 1];  // Skip 'this'
-                const value::Value& argValue = args[i];
-                value::ValueType type = value::getValueType(argValue);
-
-                auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    paramName, type, argValue, false);
-                environment->declareVariable(paramName, varDef);
-            }
 
             // Jump to parent method start
             instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
