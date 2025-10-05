@@ -117,7 +117,8 @@ namespace vm::compiler
                     if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get())) {
                         auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
                             ctorNode->getParametersWithTypes(),
-                            ctorNode->getBody()
+                            ctorNode->getBody(),
+                            ctorNode->getAccessModifier()
                         );
                         classDef->addConstructor(ctorDef);
                     }
@@ -142,7 +143,8 @@ namespace vm::compiler
                         methodNode->getParameters(),
                         std::vector<std::pair<std::string, value::Value>>{},
                         methodNode->getBody(),
-                        methodNode->getIsStatic()
+                        methodNode->getIsStatic(),
+                        methodNode->getAccessModifier()
                     );
 
                     if (methodNode->getIsStatic()) {

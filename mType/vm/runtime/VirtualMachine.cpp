@@ -691,6 +691,98 @@ namespace vm::runtime
         std::string qualifiedName = program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
+        // Parse qualified name: ClassName::methodName
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos == std::string::npos) {
+            throw errors::RuntimeException("Static method call requires qualified name (ClassName::methodName): " + qualifiedName);
+        }
+
+        std::string className = qualifiedName.substr(0, colonPos);
+        std::string methodName = qualifiedName.substr(colonPos + 2);
+
+        // Get class definition
+        auto classRegistry = environment->getClassRegistry();
+        auto classDef = classRegistry->findClass(className);
+        if (!classDef) {
+            throw errors::RuntimeException("Class not found: " + className);
+        }
+
+        // Find static method in class
+        auto method = classDef->findMethod(methodName, argCount);
+        if (!method) {
+            throw errors::RuntimeException("Static method not found: " + qualifiedName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        if (!method->isStatic()) {
+            throw errors::RuntimeException("Method '" + methodName + "' is not static");
+        }
+
+        // Check access modifiers
+        ast::AccessModifier accessMod = method->getAccessModifier();
+        if (accessMod != ast::AccessModifier::PUBLIC) {
+            // Get current execution context (the class we're executing from)
+            std::string currentClassName;
+            if (!callStack.empty()) {
+                if (callStack.back().thisInstance) {
+                    // Instance method context
+                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+                } else {
+                    // Static method context - extract class name from function name (ClassName::methodName)
+                    const std::string& funcName = callStack.back().functionName;
+                    size_t colonPos = funcName.find("::");
+                    if (colonPos != std::string::npos) {
+                        currentClassName = funcName.substr(0, colonPos);
+                    }
+                }
+            }
+
+            if (accessMod == ast::AccessModifier::PRIVATE) {
+                // PRIVATE: Only accessible from same class
+                if (currentClassName != className) {
+                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                    throw errors::AccessViolationException(
+                        methodName,
+                        "method",
+                        ast::AccessModifier::PRIVATE,
+                        className,
+                        callingFrom,
+                        errors::SourceLocation()
+                    );
+                }
+            } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                // PROTECTED: Accessible from same class and subclasses
+                if (currentClassName != className) {
+                    // Check if current class is a subclass of target class
+                    bool isSubclass = false;
+                    if (!currentClassName.empty()) {
+                        auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
+                        while (currentClass && currentClass->hasParentClass()) {
+                            if (currentClass->getParentClassName() == className) {
+                                isSubclass = true;
+                                break;
+                            }
+                            // Move to parent class
+                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                            currentClass = parentClass;
+                        }
+                    }
+
+                    if (!isSubclass) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            methodName,
+                            "method",
+                            ast::AccessModifier::PROTECTED,
+                            className,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                }
+            }
+        }
+
         // Pop arguments from stack (in reverse order)
         std::vector<value::Value> args;
         args.reserve(argCount);
@@ -810,6 +902,71 @@ namespace vm::runtime
             // Either argCount != 0 or class has constructors but none match
             throw errors::RuntimeException("No constructor found for " + baseClassName +
                                          " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Check constructor access modifiers
+        ast::AccessModifier accessMod = constructor->getAccessModifier();
+        if (accessMod != ast::AccessModifier::PUBLIC) {
+            // Get current execution context (the class we're executing from)
+            std::string currentClassName;
+            if (!callStack.empty()) {
+                if (callStack.back().thisInstance) {
+                    // Instance method context
+                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+                } else {
+                    // Static method context - extract class name from function name (ClassName::methodName)
+                    const std::string& funcName = callStack.back().functionName;
+                    size_t colonPos = funcName.find("::");
+                    if (colonPos != std::string::npos) {
+                        currentClassName = funcName.substr(0, colonPos);
+                    }
+                }
+            }
+
+            if (accessMod == ast::AccessModifier::PRIVATE) {
+                // PRIVATE: Only accessible from same class
+                if (currentClassName != baseClassName) {
+                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                    throw errors::AccessViolationException(
+                        baseClassName + " constructor",
+                        "constructor",
+                        ast::AccessModifier::PRIVATE,
+                        baseClassName,
+                        callingFrom,
+                        errors::SourceLocation()
+                    );
+                }
+            } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                // PROTECTED: Accessible from same class and subclasses
+                if (currentClassName != baseClassName) {
+                    // Check if current class is a subclass of target class
+                    bool isSubclass = false;
+                    if (!currentClassName.empty()) {
+                        auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
+                        while (currentClass && currentClass->hasParentClass()) {
+                            if (currentClass->getParentClassName() == baseClassName) {
+                                isSubclass = true;
+                                break;
+                            }
+                            // Move to parent class
+                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                            currentClass = parentClass;
+                        }
+                    }
+
+                    if (!isSubclass) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            baseClassName + " constructor",
+                            "constructor",
+                            ast::AccessModifier::PROTECTED,
+                            baseClassName,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                }
+            }
         }
 
         // Call constructor - it will initialize the object and return it
@@ -1039,17 +1196,111 @@ namespace vm::runtime
         // Get variable/field name from constant pool
         const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
 
-        // Find variable in environment
-        auto varManager = environment->getVariableManager();
-        auto varDef = varManager->findVariable(varName);
+        // Check if this is a qualified static field access (ClassName::fieldName)
+        size_t colonPos = varName.find("::");
+        if (colonPos != std::string::npos) {
+            // Parse qualified name: ClassName::fieldName
+            std::string className = varName.substr(0, colonPos);
+            std::string fieldName = varName.substr(colonPos + 2);
 
-        if (!varDef) {
-            throw errors::RuntimeException("Static variable not found: " + varName);
+            // Get class definition
+            auto classRegistry = environment->getClassRegistry();
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef) {
+                throw errors::RuntimeException("Class not found: " + className);
+            }
+
+            // Get static field definition
+            auto fieldDef = classDef->getField(fieldName);
+            if (!fieldDef) {
+                throw errors::RuntimeException("Static field not found: " + varName);
+            }
+
+            if (!fieldDef->isStatic()) {
+                throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            }
+
+            // Check access modifiers
+            ast::AccessModifier accessMod = fieldDef->getAccessModifier();
+            if (accessMod != ast::AccessModifier::PUBLIC) {
+                // Get current execution context (the class we're executing from)
+                std::string currentClassName;
+                if (!callStack.empty()) {
+                    if (callStack.back().thisInstance) {
+                        // Instance method context
+                        currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+                    } else {
+                        // Static method context - extract class name from function name (ClassName::methodName)
+                        const std::string& funcName = callStack.back().functionName;
+                        size_t colonPos = funcName.find("::");
+                        if (colonPos != std::string::npos) {
+                            currentClassName = funcName.substr(0, colonPos);
+                        }
+                    }
+                }
+
+                if (accessMod == ast::AccessModifier::PRIVATE) {
+                    // PRIVATE: Only accessible from same class
+                    if (currentClassName != className) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            fieldName,
+                            "field",
+                            ast::AccessModifier::PRIVATE,
+                            className,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                    // PROTECTED: Accessible from same class and subclasses
+                    if (currentClassName != className) {
+                        // Check if current class is a subclass of target class
+                        bool isSubclass = false;
+                        if (!currentClassName.empty()) {
+                            auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
+                            while (currentClass && currentClass->hasParentClass()) {
+                                if (currentClass->getParentClassName() == className) {
+                                    isSubclass = true;
+                                    break;
+                                }
+                                // Move to parent class
+                                auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                                currentClass = parentClass;
+                            }
+                        }
+
+                        if (!isSubclass) {
+                            std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                            throw errors::AccessViolationException(
+                                fieldName,
+                                "field",
+                                ast::AccessModifier::PROTECTED,
+                                className,
+                                callingFrom,
+                                errors::SourceLocation()
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Get and push the value
+            value::Value fieldValue = fieldDef->getValue();
+            push(fieldValue);
+        } else {
+            // Global variable access (not a class static field)
+            auto varManager = environment->getVariableManager();
+            auto varDef = varManager->findVariable(varName);
+
+            if (!varDef) {
+                throw errors::RuntimeException("Static variable not found: " + varName);
+            }
+
+            // Get and push the value
+            value::Value varValue = varDef->getValue();
+            push(varValue);
         }
-
-        // Get and push the value
-        value::Value varValue = varDef->getValue();
-        push(varValue);
     }
 
     void VirtualMachine::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -1063,36 +1314,67 @@ namespace vm::runtime
         // Pop value from stack
         value::Value varValue = pop();
 
-        // Find or create variable in environment
-        auto varManager = environment->getVariableManager();
-        auto varDef = varManager->findVariable(varName);
+        // Check if this is a qualified static field assignment (ClassName::fieldName)
+        size_t colonPos = varName.find("::");
+        if (colonPos != std::string::npos) {
+            // Parse qualified name: ClassName::fieldName
+            std::string className = varName.substr(0, colonPos);
+            std::string fieldName = varName.substr(colonPos + 2);
 
-        if (!varDef) {
-            // Determine type from the value
-            value::ValueType varType = value::ValueType::OBJECT; // Default to OBJECT
-
-            if (std::holds_alternative<int>(varValue)) {
-                varType = value::ValueType::INT;
-            } else if (std::holds_alternative<float>(varValue)) {
-                varType = value::ValueType::FLOAT;
-            } else if (std::holds_alternative<bool>(varValue)) {
-                varType = value::ValueType::BOOL;
-            } else if (std::holds_alternative<std::string>(varValue) ||
-                       std::holds_alternative<value::InternedString>(varValue)) {
-                varType = value::ValueType::STRING;
+            // Get class definition
+            auto classRegistry = environment->getClassRegistry();
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef) {
+                throw errors::RuntimeException("Class not found: " + className);
             }
 
-            // Create new global variable with inferred type
-            varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                varName, varType, varValue, false);
-            varManager->declareGlobalVariable(varName, varDef);
-        } else {
-            // Variable already exists, update its value
-            varDef->setValue(varValue);
-        }
+            // Get static field definition
+            auto fieldDef = classDef->getField(fieldName);
+            if (!fieldDef) {
+                throw errors::RuntimeException("Static field not found: " + varName);
+            }
 
-        // Push value back for assignment expressions
-        push(varValue);
+            if (!fieldDef->isStatic()) {
+                throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            }
+
+            // Set the field value directly in the FieldDefinition
+            fieldDef->setValue(varValue);
+
+            // Push value back for assignment expressions
+            push(varValue);
+        } else {
+            // Global variable assignment (not a class static field)
+            auto varManager = environment->getVariableManager();
+            auto varDef = varManager->findVariable(varName);
+
+            if (!varDef) {
+                // Determine type from the value
+                value::ValueType varType = value::ValueType::OBJECT; // Default to OBJECT
+
+                if (std::holds_alternative<int>(varValue)) {
+                    varType = value::ValueType::INT;
+                } else if (std::holds_alternative<float>(varValue)) {
+                    varType = value::ValueType::FLOAT;
+                } else if (std::holds_alternative<bool>(varValue)) {
+                    varType = value::ValueType::BOOL;
+                } else if (std::holds_alternative<std::string>(varValue) ||
+                           std::holds_alternative<value::InternedString>(varValue)) {
+                    varType = value::ValueType::STRING;
+                }
+
+                // Create new global variable with inferred type
+                varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                    varName, varType, varValue, false);
+                varManager->declareGlobalVariable(varName, varDef);
+            } else {
+                // Variable already exists, update its value
+                varDef->setValue(varValue);
+            }
+
+            // Push value back for assignment expressions
+            push(varValue);
+        }
     }
 
     void VirtualMachine::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -1151,6 +1433,80 @@ namespace vm::runtime
         if (!method) {
             throw errors::RuntimeException("Method not found: " + methodName +
                                          " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Check access modifiers
+        ast::AccessModifier accessMod = method->getAccessModifier();
+        if (accessMod != ast::AccessModifier::PUBLIC) {
+            // Get current execution context (the class we're executing from)
+            std::string currentClassName;
+            if (!callStack.empty()) {
+                if (callStack.back().thisInstance) {
+                    // Instance method context
+                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+                } else {
+                    // Static method context - extract class name from function name (ClassName::methodName)
+                    const std::string& funcName = callStack.back().functionName;
+                    size_t colonPos = funcName.find("::");
+                    if (colonPos != std::string::npos) {
+                        currentClassName = funcName.substr(0, colonPos);
+                    }
+                }
+            }
+
+            // The actual instance's class (might be a subclass)
+            std::string targetClassName = instance->getClassDefinition()->getName();
+
+            if (accessMod == ast::AccessModifier::PRIVATE) {
+                // PRIVATE: Only accessible from the class that defines it
+                // Check if we're calling from within the same class (or same instance)
+                bool sameInstance = (!callStack.empty() &&
+                                   callStack.back().thisInstance &&
+                                   callStack.back().thisInstance.get() == instance.get());
+                bool sameClass = (currentClassName == definingClassName);
+
+                if (!sameClass && !sameInstance) {
+                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                    throw errors::AccessViolationException(
+                        methodName,
+                        "method",
+                        ast::AccessModifier::PRIVATE,
+                        definingClassName,
+                        callingFrom,
+                        errors::SourceLocation()
+                    );
+                }
+            } else if (accessMod == ast::AccessModifier::PROTECTED) {
+                // PROTECTED: Accessible from same class and subclasses
+                if (currentClassName != definingClassName) {
+                    // Check if current class is a subclass of the defining class
+                    bool isSubclass = false;
+                    if (!callStack.empty() && callStack.back().thisInstance) {
+                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
+                        while (currentClass && currentClass->hasParentClass()) {
+                            if (currentClass->getParentClassName() == definingClassName) {
+                                isSubclass = true;
+                                break;
+                            }
+                            // Move to parent class
+                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+                            currentClass = parentClass;
+                        }
+                    }
+
+                    if (!isSubclass) {
+                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+                        throw errors::AccessViolationException(
+                            methodName,
+                            "method",
+                            ast::AccessModifier::PROTECTED,
+                            definingClassName,
+                            callingFrom,
+                            errors::SourceLocation()
+                        );
+                    }
+                }
+            }
         }
 
         // Look up method in bytecode functions using the class that defines it
