@@ -9,6 +9,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/StringPool.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -238,7 +239,9 @@ namespace vm::runtime
             throw errors::RuntimeException("PUSH_STRING requires operand");
         }
         const std::string& value = program->getConstantPool().getString(instr.operands[0]);
-        push(value);
+        // Use StringPool to intern the string
+        auto& pool = value::StringPool::getInstance();
+        push(pool.intern(value));
     }
 
     void VirtualMachine::handlePushBool(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -1847,6 +1850,9 @@ namespace vm::runtime
         if (std::holds_alternative<std::string>(val)) {
             return std::get<std::string>(val);
         }
+        if (std::holds_alternative<value::InternedString>(val)) {
+            return std::get<value::InternedString>(val).getString();
+        }
         if (std::holds_alternative<nullptr_t>(val)) {
             return "null";
         }
@@ -1903,8 +1909,12 @@ namespace vm::runtime
 
         // String concatenation
         if (op == OpCode::ADD &&
-            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right))) {
-            return valueToString(left) + valueToString(right);
+            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
+             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right))) {
+            // Concatenate and intern the result
+            std::string result = valueToString(left) + valueToString(right);
+            auto& pool = value::StringPool::getInstance();
+            return pool.intern(std::move(result));
         }
 
         throw errors::RuntimeException("Invalid binary operation");
