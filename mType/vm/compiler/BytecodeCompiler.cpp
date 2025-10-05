@@ -176,6 +176,10 @@ namespace vm::compiler
             // Register the class
             classRegistry->registerClass(className, classDef);
 
+            // Extract and store class metadata for bytecode serialization
+            auto classMetadata = extractClassMetadata(classNode);
+            program.registerClass(classMetadata);
+
             return; // No need to traverse children of ClassNode
         }
 
@@ -261,6 +265,106 @@ namespace vm::compiler
                 linkParentClasses(importNode->getImportedAST());
             }
         }
+    }
+
+    bytecode::BytecodeProgram::ClassMetadata BytecodeCompiler::extractClassMetadata(ast::ClassNode* classNode)
+    {
+        bytecode::BytecodeProgram::ClassMetadata metadata;
+
+        // Extract basic class information
+        metadata.name = classNode->getClassName();
+        metadata.parentClassName = classNode->hasParentClass() ? classNode->getParentClassName() : "";
+
+        // Extract implemented interfaces
+        const auto& interfaces = classNode->getImplementedInterfaces();
+        for (const auto& iface : interfaces) {
+            metadata.implementedInterfaces.push_back(iface);
+        }
+
+        // Extract generic parameters
+        const auto& genericParams = classNode->getGenericParameters();
+        for (const auto& param : genericParams) {
+            metadata.genericParameters.push_back(param.name);
+        }
+
+        // Extract fields
+        const auto& fields = classNode->getFields();
+        for (const auto& fieldNode : fields) {
+            auto* field = dynamic_cast<ast::FieldNode*>(fieldNode.get());
+            if (!field) continue;
+
+            bytecode::BytecodeProgram::FieldMetadata fieldMeta;
+            fieldMeta.name = field->getName();
+            fieldMeta.type = evaluator::utils::ValueConverter::valueTypeToString(field->getType());
+            fieldMeta.isStatic = field->getIsStatic();
+            fieldMeta.isFinal = field->getIsFinal();
+
+            // Get access modifiers
+            auto accessMod = field->getAccessModifier();
+            fieldMeta.isPrivate = (accessMod == ast::AccessModifier::PRIVATE);
+            fieldMeta.isProtected = (accessMod == ast::AccessModifier::PROTECTED);
+
+            if (field->getIsStatic()) {
+                metadata.staticFields.push_back(fieldMeta);
+            } else {
+                metadata.instanceFields.push_back(fieldMeta);
+            }
+        }
+
+        // Extract methods
+        const auto& methods = classNode->getMethods();
+        for (const auto& methodNode : methods) {
+            auto* method = dynamic_cast<ast::MethodNode*>(methodNode.get());
+            if (!method) continue;
+
+            bytecode::BytecodeProgram::MethodMetadata methodMeta;
+            methodMeta.name = method->getName();
+            methodMeta.returnType = evaluator::utils::ValueConverter::valueTypeToString(method->getReturnType());
+            methodMeta.isStatic = method->getIsStatic();
+            methodMeta.isFinal = false;  // Methods don't currently support final modifier
+
+            // Get access modifiers
+            auto accessMod = method->getAccessModifier();
+            methodMeta.isPrivate = (accessMod == ast::AccessModifier::PRIVATE);
+            methodMeta.isProtected = (accessMod == ast::AccessModifier::PROTECTED);
+            methodMeta.startOffset = 0;  // Will be set during bytecode generation if needed
+
+            // Extract parameter types and names
+            const auto& params = method->getParameters();
+            for (const auto& param : params) {
+                methodMeta.parameterTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(param.second));
+                methodMeta.parameterNames.push_back(param.first);
+            }
+
+            if (method->getIsStatic()) {
+                metadata.staticMethods.push_back(methodMeta);
+            } else {
+                metadata.instanceMethods.push_back(methodMeta);
+            }
+        }
+
+        // Extract constructors
+        const auto& constructors = classNode->getConstructors();
+        for (const auto& ctorNode : constructors) {
+            auto* ctor = dynamic_cast<ast::ConstructorNode*>(ctorNode.get());
+            if (!ctor) continue;
+
+            bytecode::BytecodeProgram::ConstructorMetadata ctorMeta;
+            ctorMeta.startOffset = 0;  // Will be set during bytecode generation if needed
+
+            // Extract parameter types and names from ParametersWithTypes
+            // Parameters are std::pair<std::string, ParameterType>
+            const auto& params = ctor->getParametersWithTypes();
+            for (const auto& param : params) {
+                ctorMeta.parameterNames.push_back(param.first);  // name
+                // Convert ParameterType to string using its toString() method
+                ctorMeta.parameterTypes.push_back(param.second.toString());
+            }
+
+            metadata.constructors.push_back(ctorMeta);
+        }
+
+        return metadata;
     }
 
     // ==================== Helper Methods ====================

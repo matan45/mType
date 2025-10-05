@@ -151,6 +151,7 @@ namespace vm::compiler
         // Class registration for bytecode
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
+        bytecode::BytecodeProgram::ClassMetadata extractClassMetadata(ast::ClassNode* classNode);
 
         // Type conversion helpers
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);

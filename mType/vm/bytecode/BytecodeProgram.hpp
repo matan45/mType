@@ -69,12 +69,56 @@ namespace vm::bytecode
             std::string filename;
         };
 
+        /**
+         * Class metadata for registration when loading cached bytecode
+         */
+        struct FieldMetadata {
+            std::string name;
+            std::string type;
+            bool isStatic;
+            bool isFinal;
+            bool isPrivate;
+            bool isProtected;
+        };
+
+        struct MethodMetadata {
+            std::string name;
+            std::string returnType;
+            std::vector<std::string> parameterTypes;
+            std::vector<std::string> parameterNames;
+            bool isStatic;
+            bool isFinal;
+            bool isPrivate;
+            bool isProtected;
+            size_t startOffset;  // Where the method bytecode starts
+        };
+
+        struct ConstructorMetadata {
+            std::vector<std::string> parameterTypes;
+            std::vector<std::string> parameterNames;
+            size_t startOffset;  // Where the constructor bytecode starts
+        };
+
+        struct ClassMetadata {
+            std::string name;
+            std::string parentClassName;
+            std::vector<std::string> implementedInterfaces;
+            std::vector<std::string> genericParameters;
+            std::vector<FieldMetadata> instanceFields;
+            std::vector<FieldMetadata> staticFields;
+            std::vector<MethodMetadata> instanceMethods;
+            std::vector<MethodMetadata> staticMethods;
+            std::vector<ConstructorMetadata> constructors;
+        };
+
     private:
         std::vector<Instruction> instructions;
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
+        std::vector<ClassMetadata> classes;  // Class metadata for cached bytecode
         size_t entryPoint;
+        std::string sourceFilePath;  // For class registration when loading cached bytecode
 
     public:
         BytecodeProgram();
@@ -109,6 +153,14 @@ namespace vm::bytecode
         void setEntryPoint(size_t offset);
         size_t getEntryPoint() const;
 
+        // Source File Path (for class registration when loading cached bytecode)
+        void setSourceFilePath(const std::string& path);
+        const std::string& getSourceFilePath() const;
+
+        // Class Metadata Management
+        void registerClass(const ClassMetadata& classMeta);
+        const std::vector<ClassMetadata>& getClasses() const;
+
         // Disassembly and Serialization
         std::string disassemble() const;
         void serialize(std::ostream& out) const;
@@ -124,6 +176,8 @@ namespace vm::bytecode
         void readFunctions(std::istream& in);
         void writeSourceLocations(std::ostream& out) const;
         void readSourceLocations(std::istream& in);
+        void writeClasses(std::ostream& out) const;
+        void readClasses(std::istream& in);
     };
 }
 
