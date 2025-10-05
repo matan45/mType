@@ -1349,13 +1349,7 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitFunctionCallNode(ast::FunctionCallNode* node)
     {
-        // Compile all arguments (left to right)
-        const auto& arguments = node->getArguments();
-        for (const auto& arg : arguments) {
-            arg->accept(*this);
-        }
-
-        // Get function name and add to constant pool
+        // Get function name
         std::string functionName = node->getFunctionName();
 
         // Check if this is a static method call (ClassName::methodName)
@@ -1366,12 +1360,69 @@ namespace vm::compiler
                 functionName = currentClassNode->getClassName() + "::" + methodName;
             }
 
+            // Compile all arguments (left to right)
+            const auto& arguments = node->getArguments();
+            for (const auto& arg : arguments) {
+                arg->accept(*this);
+            }
+
             size_t nameIndex = program.getConstantPool().addString(functionName);
             // Static method call - use CALL_STATIC
             program.emit(bytecode::OpCode::CALL_STATIC,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+        } else if (inInstanceMethod && currentClassNode) {
+            // Unqualified call inside an instance method - could be either:
+            // 1. Method call on 'this' (recursive or calling another method)
+            // 2. Regular function call (global function)
+            //
+            // Check if a method with this name exists in the current class
+            bool isMethodCall = false;
+            const auto& methods = currentClassNode->getMethods();
+            const auto& arguments = node->getArguments();
+
+            for (const auto& method : methods) {
+                if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                    if (methodNode->getName() == functionName &&
+                        methodNode->getParameters().size() == arguments.size()) {
+                        isMethodCall = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isMethodCall) {
+                // Push 'this' onto stack BEFORE arguments
+                program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+
+                // Now compile arguments
+                for (const auto& arg : arguments) {
+                    arg->accept(*this);
+                }
+
+                size_t nameIndex = program.getConstantPool().addString(functionName);
+                // Call method on 'this'
+                program.emit(bytecode::OpCode::CALL_METHOD,
+                             static_cast<uint32_t>(nameIndex),
+                             static_cast<uint32_t>(arguments.size()));
+            } else {
+                // Regular function call
+                for (const auto& arg : arguments) {
+                    arg->accept(*this);
+                }
+
+                size_t nameIndex = program.getConstantPool().addString(functionName);
+                program.emit(bytecode::OpCode::CALL,
+                             static_cast<uint32_t>(nameIndex),
+                             static_cast<uint32_t>(arguments.size()));
+            }
         } else {
+            // Compile all arguments (left to right)
+            const auto& arguments = node->getArguments();
+            for (const auto& arg : arguments) {
+                arg->accept(*this);
+            }
+
             size_t nameIndex = program.getConstantPool().addString(functionName);
             // Regular function call - use CALL
             program.emit(bytecode::OpCode::CALL,
