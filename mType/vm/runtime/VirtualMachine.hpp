@@ -176,6 +176,7 @@ namespace vm::runtime
         std::string valueToString(const value::Value& val) const;
         value::Value performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op);
         void checkStackUnderflow(size_t required) const;
+        value::ValueType stringToValueType(const std::string& typeName);
         std::shared_ptr<value::NativeArray> createJaggedArray(const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName, size_t totalDimensions);
         std::shared_ptr<value::NativeArray> createNestedArray(const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName);
     };

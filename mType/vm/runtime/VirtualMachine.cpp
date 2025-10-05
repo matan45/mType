@@ -1939,6 +1939,16 @@ namespace vm::runtime
         stats = ExecutionStats{};
     }
 
+    value::ValueType VirtualMachine::stringToValueType(const std::string& typeName) {
+        if (typeName == "int") return value::ValueType::INT;
+        if (typeName == "float") return value::ValueType::FLOAT;
+        if (typeName == "bool") return value::ValueType::BOOL;
+        if (typeName == "string") return value::ValueType::STRING;
+        if (typeName == "void") return value::ValueType::VOID;
+        // For any object/class type
+        return value::ValueType::OBJECT;
+    }
+
     std::shared_ptr<value::NativeArray> VirtualMachine::createJaggedArray(
         const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName, size_t totalDimensions)
     {
@@ -1954,7 +1964,9 @@ namespace vm::runtime
             // Otherwise, create array of null references (for jagged arrays)
             if (dimensions.size() == totalDimensions) {
                 // Fully specified - create array of elements
-                return std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, elementTypeName);
+                // Convert element type name to ValueType
+                value::ValueType elemType = stringToValueType(elementTypeName);
+                return std::make_shared<value::NativeArray>(currentDimSize, elemType, elementTypeName);
             } else {
                 // Jagged - create array of null array references
                 auto array = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");

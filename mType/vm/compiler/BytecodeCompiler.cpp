@@ -85,9 +85,8 @@ namespace vm::compiler
         // Check if this node is a ClassNode
         if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
         {
-            // Use full class name with generic parameters for generic classes
-            std::string className = classNode->isGeneric() ?
-                classNode->getFullClassName() : classNode->getClassName();
+            // Use base class name for registration (VM looks up by base name)
+            std::string className = classNode->getClassName();
 
             // Register class for bytecode WITHOUT using evaluator
             // This only registers the class structure - bytecode handles all initialization
@@ -2114,6 +2113,68 @@ namespace vm::compiler
     {
         const auto& elements = node->getElements();
         size_t elementCount = elements.size();
+
+        // Type validation - check that all elements have compatible types
+        if (elementCount > 0) {
+            std::string expectedType;
+            bool isFirstElement = true;
+
+            for (size_t i = 0; i < elementCount; ++i) {
+                std::string currentType;
+
+                // Determine type of current element
+                if (dynamic_cast<ast::IntegerNode*>(elements[i].get())) {
+                    currentType = "int";
+                } else if (dynamic_cast<ast::FloatNode*>(elements[i].get())) {
+                    currentType = "float";
+                } else if (dynamic_cast<ast::StringNode*>(elements[i].get())) {
+                    currentType = "string";
+                } else if (dynamic_cast<ast::BoolNode*>(elements[i].get())) {
+                    currentType = "bool";
+                } else if (dynamic_cast<ast::NullNode*>(elements[i].get())) {
+                    currentType = "null";
+                } else if (auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get())) {
+                    // Object type - use class name
+                    currentType = "object:" + newNode->getClassName();
+                } else {
+                    // For complex expressions, we can't determine type at compile time
+                    currentType = "unknown";
+                }
+
+                if (isFirstElement) {
+                    expectedType = currentType;
+                    isFirstElement = false;
+                } else {
+                    // Validate type compatibility
+                    if (currentType != "unknown" && expectedType != "unknown") {
+                        // Special case: allow int in float arrays
+                        bool compatible = (currentType == expectedType) ||
+                                        (expectedType == "float" && currentType == "int") ||
+                                        (currentType == "null" && expectedType.find("object:") == 0) ||
+                                        (expectedType == "null" && currentType.find("object:") == 0);
+
+                        if (!compatible) {
+                            // For better error messages, extract class names from object types
+                            std::string expectedTypeName = expectedType;
+                            std::string currentTypeName = currentType;
+
+                            if (expectedType.find("object:") == 0) {
+                                expectedTypeName = expectedType.substr(7); // Remove "object:" prefix
+                            }
+                            if (currentType.find("object:") == 0) {
+                                currentTypeName = currentType.substr(7); // Remove "object:" prefix
+                            }
+
+                            throw errors::TypeException(
+                                "Array literal type mismatch: expected " + expectedTypeName +
+                                " but found " + currentTypeName,
+                                node->getLocation()
+                            );
+                        }
+                    }
+                }
+            }
+        }
 
         // Push array size onto stack
         program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(static_cast<int>(elementCount))));
