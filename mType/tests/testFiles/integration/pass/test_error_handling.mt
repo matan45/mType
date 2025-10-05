@@ -1,14 +1,14 @@
 // Error Handling Test
 // Tests improved domain-specific exception handling
 
-function testTypeErrors():void {
-    print("=== Testing Type Error Handling ===");
-
-    class TestClass {
+class TestClass {
         int value;
         public constructor(int v) { this.value = v; }
         public function toString():string { return "TestClass(" + value + ")"; }
     }
+
+function testTypeErrors():void {
+    print("=== Testing Type Error Handling ===");
 
     // Test basic type operations that should work
     TestClass obj = new TestClass(42);
@@ -42,10 +42,7 @@ function testArrayErrors():void {
     print("2D array access: matrix[1][1] = " + matrix[1][1]);
 }
 
-function testGenericErrors():void {
-    print("=== Testing Generic Type Error Handling ===");
-
-    class Container<T> {
+class Container<T> {
         T data;
 
         public constructor(T item) {
@@ -60,8 +57,8 @@ function testGenericErrors():void {
             return "Container(" + data.toString() + ")";
         }
     }
-
-    class SimpleValue {
+	
+	class SimpleValue {
         int value;
         public constructor(int v) { this.value = v; }
         public function toString():string { return "" + value; }
@@ -72,6 +69,10 @@ function testGenericErrors():void {
         public constructor(string t) { this.text = t; }
         public function toString():string { return text; }
     }
+
+function testGenericErrors():void {
+    print("=== Testing Generic Type Error Handling ===");
+
 
     // Test valid generic operations
     Container<SimpleValue> valueContainer = new Container<SimpleValue>(new SimpleValue(123));
@@ -90,10 +91,7 @@ function testGenericErrors():void {
     print("  text: " + retrievedText.toString());
 }
 
-function testMethodErrors():void {
-    print("=== Testing Method Error Handling ===");
-
-    class Calculator {
+class Calculator {
         public function add(int a, int b):int {
             return a + b;
         }
@@ -111,6 +109,9 @@ function testMethodErrors():void {
         }
     }
 
+function testMethodErrors():void {
+    print("=== Testing Method Error Handling ===");
+
     Calculator calc = new Calculator();
 
     // Test valid method calls
@@ -125,10 +126,7 @@ function testMethodErrors():void {
     print("Division by zero result: " + zeroResult);
 }
 
-function testComplexErrorScenarios():void {
-    print("=== Testing Complex Error Scenarios ===");
-
-    class Person {
+class Person {
         string name;
         int age;
 
@@ -172,6 +170,10 @@ function testComplexErrorScenarios():void {
             return this.count;
         }
     }
+
+function testComplexErrorScenarios():void {
+    print("=== Testing Complex Error Scenarios ===");
+
 
     // Test complex nested operations
     Group<Person> personGroup = new Group<Person>(3);

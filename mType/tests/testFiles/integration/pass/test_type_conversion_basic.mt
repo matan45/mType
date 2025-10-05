@@ -20,10 +20,7 @@ function testPrimitiveTypes(): void {
     print("int to float: " + convertedInt);
 }
 
-function testObjectTypes(): void {
-    print("=== Testing Object Types ===");
-
-    // Test with a simple class
+// Test with a simple class
     class TestClass {
          int value;
 
@@ -36,14 +33,14 @@ function testObjectTypes(): void {
         }
     }
 
+function testObjectTypes(): void {
+    print("=== Testing Object Types ===");
+
     TestClass obj = new TestClass(100);
     print("Custom object: " + obj.toString());
 }
 
-function testNullHandling(): void {
-    print("=== Testing Null Handling ===");
-
-    class NullTestClass {
+class NullTestClass {
         public int data;
         public constructor(int d) { this.data = d; }
     }
@@ -54,6 +51,10 @@ function testNullHandling(): void {
     if (nullObj == null) {
         print("Null check passed");
     }
+
+function testNullHandling(): void {
+    print("=== Testing Null Handling ===");
+
 
     nullObj = new NullTestClass(50);
     print("Object assigned: " + nullObj.data);

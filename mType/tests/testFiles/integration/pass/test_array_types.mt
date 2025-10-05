@@ -80,10 +80,7 @@ function testArrayAssignments():void {
     print("  Assigned: [" + targetArray[0] + ", " + targetArray[1] + ", " + targetArray[2] + "]");
 }
 
-function testArraysWithObjects():void {
-    print("=== Testing Arrays with Objects ===");
-
-    class Person {
+class Person {
         string name;
         int age;
 
@@ -96,6 +93,11 @@ function testArraysWithObjects():void {
             return name + "(" + age + ")";
         }
     }
+
+function testArraysWithObjects():void {
+    print("=== Testing Arrays with Objects ===");
+
+    
 
     Person[] people = new Person[3];
     people[0] = new Person("Alice", 25);
