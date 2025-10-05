@@ -707,9 +707,8 @@ namespace services
             // Execute bytecode in VM
             return vm->execute(program);
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Bytecode execution error: " << e.what() << std::endl;
             throw;
         }
     }
@@ -805,6 +804,8 @@ namespace services
         // Check if this is an ImportNode
         if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(ast))
         {
+            std::string filePath = importNode->getFilePath();
+
             // Skip if already resolved
             if (importNode->isResolved() && importNode->getImportedAST())
             {
@@ -813,7 +814,6 @@ namespace services
                 return;
             }
 
-            std::string filePath = importNode->getFilePath();
             std::string resolvedPath = importManager->resolvePath(filePath);
 
             // Check for circular imports

@@ -732,7 +732,7 @@ namespace vm::runtime
         // Get class name from constant pool (may include generics like "Box<Int>")
         const std::string& fullClassName = program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
-
+        
         // Parse generic type arguments from className
         std::string baseClassName = fullClassName;
         std::unordered_map<std::string, std::string> genericTypeBindings;
@@ -771,10 +771,10 @@ namespace vm::runtime
         if (!classDef) {
             throw errors::RuntimeException("Class not found: " + baseClassName);
         }
-
+        
         // Create new object instance with generic type bindings
         auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
-
+        
         // Initialize instance fields with default values (including inherited fields)
         // First, collect all classes in hierarchy (parent to child order)
         std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
@@ -1850,45 +1850,7 @@ namespace vm::runtime
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
             if (obj) {
-                // Try to call toString() method
-                auto classDef = obj->getClassDefinition();
-                if (classDef) {
-                    auto toStringMethod = classDef->findMethod("toString", 0);
-                    if (toStringMethod && !toStringMethod->isStatic()) {
-                        try {
-                            // Call toString() using the interpreter method call
-                            value::Value result = obj->callMethod("toString", {});
-
-                            // Handle string result
-                            if (std::holds_alternative<std::string>(result)) {
-                                return std::get<std::string>(result);
-                            }
-
-                            // Handle InternedString result
-                            if (std::holds_alternative<value::InternedString>(result)) {
-                                return std::get<value::InternedString>(result).getString();
-                            }
-
-                            // Handle object result with value field (like String wrapper)
-                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result)) {
-                                auto resultObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result);
-                                if (resultObj && resultObj->getField("value")) {
-                                    value::Value fieldValue = resultObj->getFieldValue("value");
-                                    if (std::holds_alternative<std::string>(fieldValue)) {
-                                        return std::get<std::string>(fieldValue);
-                                    }
-                                    if (std::holds_alternative<value::InternedString>(fieldValue)) {
-                                        return std::get<value::InternedString>(fieldValue).getString();
-                                    }
-                                }
-                            }
-                        } catch (...) {
-                            // If toString() fails, fall through to default
-                        }
-                    }
-                }
-
-                // Fallback: For primitive wrapper objects without toString, extract the "value" field
+                // For primitive wrapper objects (String, Int, etc.), extract the "value" field
                 if (obj->getField("value")) {
                     value::Value fieldValue = obj->getFieldValue("value");
                     // Recursively convert the field value to string

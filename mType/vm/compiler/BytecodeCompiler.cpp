@@ -2,6 +2,7 @@
 #include "../../errors/ParseException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../evaluator/utils/ValueConverter.hpp"
+#include <typeinfo>
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/DeclarationNode.hpp"
@@ -191,6 +192,14 @@ namespace vm::compiler
                 registerClassesForBytecode(statement.get());
             }
         }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process classes from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                registerClassesForBytecode(importNode->getImportedAST());
+            }
+        }
     }
 
     void BytecodeCompiler::linkParentClasses(ast::ASTNode* node)
@@ -240,6 +249,14 @@ namespace vm::compiler
             for (const auto& statement : blockNode->getStatements())
             {
                 linkParentClasses(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process classes from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                linkParentClasses(importNode->getImportedAST());
             }
         }
     }
@@ -569,7 +586,13 @@ namespace vm::compiler
         }
 
         // Store in variable
-        value::ValueType valueType = node->getType();
+        value::ValueType valueType = value::ValueType::VOID;
+        try {
+            valueType = node->getType();
+        } catch (...) {
+            // If getType() fails (e.g., for generic types like Node<T>), treat as OBJECT
+            valueType = value::ValueType::OBJECT;
+        }
 
         // Track local variable if we're in a function
         if (!functionFrameStack.empty() && currentScopeDepth > 0) {
@@ -768,6 +791,69 @@ namespace vm::compiler
                 }
 
                 // Stack now has either original (postfix) or incremented (prefix) value
+                return std::monostate{};
+            }
+            // Check if operand is a field access (e.g., this.count++)
+            else if (auto* memberNode = dynamic_cast<ast::MemberAccessNode*>(node->getOperand())) {
+                std::string fieldName = memberNode->getMemberName();
+                size_t fieldNameIndex = program.getConstantPool().addString(fieldName);
+
+                bool isPostfix = (node->getPosition() == ast::nodes::expressions::UnaryPosition::POSTFIX);
+                bytecode::OpCode opcode = (op == token::TokenType::INCREMENT)
+                    ? bytecode::OpCode::INC
+                    : bytecode::OpCode::DEC;
+
+                // Simpler strategy: Load object twice
+                // 1. Load obj, get field value
+                // 2. Save original if postfix, increment
+                // 3. Load obj again, set field to incremented
+                // 4. Return appropriate value (original for postfix, incremented for prefix)
+
+                // Step 1: Get current value
+                memberNode->getObject()->accept(*this);  // [obj]
+                emitWithLocation(bytecode::OpCode::DUP, node);  // [obj, obj]
+                emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);  // [obj, val]
+
+                // Step 2: Calculate new value
+                if (isPostfix) {
+                    emitWithLocation(bytecode::OpCode::DUP, node);  // [obj, val, val] - save original
+                }
+                emitWithLocation(opcode, node);  // [obj, val, newval] (postfix) or [obj, newval] (prefix)
+
+                // Step 3: Prepare for SET_FIELD
+                // SET_FIELD needs [obj, newval] with newval on top
+                if (isPostfix) {
+                    // We have [obj, oldval, newval]
+                    // We need [oldval, obj, newval] so that SET_FIELD consumes [obj, newval] and leaves [oldval]
+
+                    // Pop newval temporarily, swap obj and oldval, push newval back
+                    // Actually that won't work with the stack model...
+
+                    // Different approach: Load obj again
+                    // Currently [obj, oldval, newval]
+                    // We want to: store newval to field, return oldval
+                    // Problem: obj is buried in stack
+
+                    // Solution: compile object again
+                    memberNode->getObject()->accept(*this);  // [obj, oldval, newval, obj]
+                    emitWithLocation(bytecode::OpCode::SWAP, node);  // [obj, oldval, obj, newval]
+                    emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);  // [obj, oldval, newval] (SET_FIELD pushes value)
+                    emitWithLocation(bytecode::OpCode::POP, node);  // [obj, oldval] - discard pushed value
+                    emitWithLocation(bytecode::OpCode::SWAP, node);  // [oldval, obj]
+                    emitWithLocation(bytecode::OpCode::POP, node);  // [oldval] - discard obj
+                } else {
+                    // We have [obj, newval]
+                    // Dup the new value for return, then set field
+                    emitWithLocation(bytecode::OpCode::DUP, node);  // [obj, newval, newval]
+                    emitWithLocation(bytecode::OpCode::SWAP, node);  // [obj, newval, newval] -> [newval, obj, newval]
+                    // Wait that's wrong... let me reconsider
+
+                    // [obj, newval] -> want to return newval and store to field
+                    // SET_FIELD: pops value, pops obj, stores, pushes value
+                    emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);  // pushes newval back
+                    // Stack now has newval, which is what we want for prefix
+                }
+
                 return std::monostate{};
             }
         }
@@ -1526,6 +1612,8 @@ namespace vm::compiler
         // Constructors are compiled similar to methods, but with special handling
         // They implicitly return 'this' after initialization
 
+        auto params = node->getParameters();
+
         // Set instance method context (constructors are like instance methods)
         bool wasInInstanceMethod = inInstanceMethod;
         inInstanceMethod = true;
@@ -1537,7 +1625,6 @@ namespace vm::compiler
         size_t constructorStart = program.getCurrentOffset();
 
         // Get parameters
-        auto params = node->getParameters();
         std::vector<std::string> paramNames;
         paramNames.push_back("this");  // 'this' is always the first parameter for constructors
         for (const auto& param : params) {
@@ -1748,9 +1835,15 @@ namespace vm::compiler
             // First, compile the object expression
             node->getObject()->accept(*this);
 
-            // Then emit GET_FIELD instruction
-            size_t fieldNameIndex = program.getConstantPool().addString(memberName);
-            emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+            // Check if this is array.length access
+            if (memberName == "length") {
+                // Special case: array.length should use ARRAY_LENGTH opcode
+                emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+            } else {
+                // Regular field access - emit GET_FIELD instruction
+                size_t fieldNameIndex = program.getConstantPool().addString(memberName);
+                emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+            }
         }
 
         return std::monostate{};
@@ -2149,7 +2242,7 @@ namespace vm::compiler
         // For bytecode compilation, imports are handled at compile time
         // The imported AST has already been processed and symbols registered in the environment
         // We need to compile any imported declarations that aren't already compiled
-
+        
         // Get the imported AST
         auto* importedAST = node->getImportedAST();
 
