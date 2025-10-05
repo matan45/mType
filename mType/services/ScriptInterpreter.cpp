@@ -723,6 +723,10 @@ namespace services
 
         std::cout << "=== DUAL VALIDATION MODE ===" << std::endl;
 
+        // IMPORTANT: Resolve imports BEFORE any execution
+        // This ensures ImportNodes have their importedAST set for both modes
+        resolveImports(ast);
+
         // Try AST execution with original environment
         try
         {
@@ -736,19 +740,26 @@ namespace services
             std::cerr << "[AST] Error: " << e.what() << std::endl;
         }
 
-        // Create fresh environment for VM execution
+        // Try bytecode execution with fresh environment
         // This ensures variables from AST execution don't leak into VM execution
-        environment::EnvironmentBuilder vmEnvBuilder;
-        auto vmEnvironment = vmEnvBuilder.build();
-
-        // Create fresh VM and compiler with new environment
-        auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
-        auto vmMachine = std::make_unique<vm::runtime::VirtualMachine>(vmEnvironment);
-
-        // Try bytecode execution
         try
         {
             std::cout << "[VM] Compiling and executing..." << std::endl;
+
+            // Create fresh environment for VM
+            environment::EnvironmentBuilder vmEnvBuilder;
+            auto vmEnvironment = vmEnvBuilder.build();
+
+            // Set ImportManager on the VM environment (imports are already resolved in the AST)
+            vmEnvironment->setImportManager(environment->getImportManager());
+
+            // Create fresh VM and compiler with new environment
+            auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
+            auto vmMachine = std::make_unique<vm::runtime::VirtualMachine>(vmEnvironment);
+
+            // The imports are already resolved in the AST (from AST execution)
+            // But we need to ensure the BytecodeCompiler can access them
+            // The compiler will call registerClassesForBytecode which processes ImportNodes
             auto program = vmCompiler->compile(ast);
             vmResult = vmMachine->execute(program);
             vmSuccess = true;
