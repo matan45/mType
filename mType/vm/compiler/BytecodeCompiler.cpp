@@ -1056,63 +1056,82 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitForEachNode(ast::ForEachNode* node)
     {
         // ForEach loop: for (Type element : collection) { body }
-        // Compiles to:
-        // 1. Evaluate collection
-        // 2. Get iterator/length
-        // 3. Loop: get next element, assign to variable, execute body
+        // Strategy: Desugar to regular for loop
+        // for (Type element : array) { body }
+        // becomes:
+        // Type[] __temp = array;
+        // for (int __i = 0; __i < __temp.length; __i++) {
+        //     Type element = __temp[__i];
+        //     body;
+        // }
 
         std::string varName = node->getVariableName();
         value::ValueType varType = node->getVariableType();
 
-        // Compile the collection expression
+        beginScope();
+
+        // Evaluate and store the collection in a local variable
         node->getCollection()->accept(*this);
 
-        // Duplicate collection on stack for iteration
-        program.emit(bytecode::OpCode::DUP);
+        // Store collection in local variable (at current slot)
+        LocalVariable arrayLocal;
+        arrayLocal.name = "__foreach_array__";
+        arrayLocal.slot = nextLocalSlot++;
+        arrayLocal.scopeDepth = currentScopeDepth;
+        locals.push_back(arrayLocal);
+        // Collection is already on stack, it stays there as the local
 
-        // Get collection length/size
-        // For arrays: use .length field
-        // For collections: call .size() method or iterate directly
-        program.emit(bytecode::OpCode::ARRAY_LENGTH);  // Will work for arrays
+        // Get array length and store it in a local variable
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arrayLocal.slot));
+        program.emit(bytecode::OpCode::ARRAY_LENGTH);
 
-        // Initialize loop counter (stored in local variable)
+        LocalVariable lengthLocal;
+        lengthLocal.name = "__foreach_length__";
+        lengthLocal.slot = nextLocalSlot++;
+        lengthLocal.scopeDepth = currentScopeDepth;
+        locals.push_back(lengthLocal);
+        // Length is on stack, it stays there as the local
+
+        // Initialize counter to 0
         program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(0)));
-        size_t counterIndex = program.getConstantPool().addString("__foreach_counter__");
-        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(0)); // Counter at slot 0
 
-        // Loop start
+        LocalVariable counterLocal;
+        counterLocal.name = "__foreach_counter__";
+        counterLocal.slot = nextLocalSlot++;
+        counterLocal.scopeDepth = currentScopeDepth;
+        locals.push_back(counterLocal);
+        // Counter is on stack, it stays there as the local
+
+        // Loop start - check condition: counter < length
         size_t loopStart = program.getCurrentOffset();
 
-        // Load counter and length, compare
-        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
-        program.emit(bytecode::OpCode::SWAP); // Swap to get: counter, length
-        program.emit(bytecode::OpCode::DUP);  // Duplicate length: counter, length, length
-        program.emit(bytecode::OpCode::SWAP); // Swap: counter, length, length -> length, counter, length
-        // Stack: length, counter, length
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterLocal.slot));
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(lengthLocal.slot));
+        program.emit(bytecode::OpCode::LT);
 
-        // Compare counter < length
-        size_t loopConditionOffset = program.getCurrentOffset();
-        program.emit(bytecode::OpCode::LT); // counter < length
-
-        // Jump to end if false
         size_t exitJump = emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
-        // Get current element: collection[counter]
-        program.emit(bytecode::OpCode::DUP);  // Duplicate collection
-        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
-        program.emit(bytecode::OpCode::ARRAY_GET); // Get collection[counter]
+        // Get current element: array[counter]
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arrayLocal.slot));
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterLocal.slot));
+        program.emit(bytecode::OpCode::ARRAY_GET);
 
-        // Declare loop variable and assign current element
-        size_t varNameIndex = program.getConstantPool().addString(varName);
-        program.emit(bytecode::OpCode::DECLARE_VAR, static_cast<uint32_t>(varNameIndex));
+        // Store in loop variable as a local
+        LocalVariable loopVar;
+        loopVar.name = varName;
+        loopVar.slot = nextLocalSlot++;
+        loopVar.scopeDepth = currentScopeDepth;
+        locals.push_back(loopVar);
+        // Element is on stack, it stays there as the local
 
         // Compile loop body
         auto* body = node->getBody();
         if (body) {
             // Track loop for break/continue
+            size_t continueTarget = program.getCurrentOffset();
             LoopContext ctx;
             ctx.loopStart = loopStart;
-            ctx.continueTarget = loopStart;  // Continue jumps back to loop condition
+            ctx.continueTarget = continueTarget;
             loopStack.push_back(ctx);
 
             body->accept(*this);
@@ -1120,10 +1139,19 @@ namespace vm::compiler
             loopStack.pop_back();
         }
 
-        // Increment counter
-        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0)); // Load counter
-        program.emit(bytecode::OpCode::INC); // Increment
-        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(0)); // Store counter
+        // Pop loop variable from stack (end of iteration)
+        program.emit(bytecode::OpCode::POP);
+
+        // Remove loop variable from locals
+        locals.pop_back();
+        nextLocalSlot--;
+
+        // Increment counter: counter++
+        program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterLocal.slot));
+        program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(1)));
+        program.emit(bytecode::OpCode::ADD);
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterLocal.slot));
+        program.emit(bytecode::OpCode::POP); // Pop the result of assignment
 
         // Jump back to loop start
         emitLoop(loopStart);
@@ -1131,9 +1159,12 @@ namespace vm::compiler
         // Patch exit jump
         patchJump(exitJump);
 
-        // Clean up stack (pop collection and length)
-        program.emit(bytecode::OpCode::POP);
-        program.emit(bytecode::OpCode::POP);
+        // Clean up: pop counter, length, and array from stack
+        program.emit(bytecode::OpCode::POP); // counter
+        program.emit(bytecode::OpCode::POP); // length
+        program.emit(bytecode::OpCode::POP); // array
+
+        endScope();
 
         return std::monostate{};
     }
@@ -1486,6 +1517,7 @@ namespace vm::compiler
             patchJump(skipJump);
 
             // Register default constructor with proper naming: ClassName::<init>/0
+            // For generic classes, register with base name for runtime instantiation
             std::string className = node->getClassName();
             std::string constructorName = className + "::<init>/0";  // 0 args (only 'this' is implicit)
 
@@ -1501,6 +1533,14 @@ namespace vm::compiler
             metadata.isNative = false;
 
             program.registerFunction(metadata.name, metadata);
+
+            // If this is a generic class, also register with full generic name
+            if (node->isGeneric()) {
+                std::string fullClassName = node->getFullClassName();
+                std::string genericConstructorName = fullClassName + "::<init>/0";
+                metadata.name = genericConstructorName;
+                program.registerFunction(genericConstructorName, metadata);
+            }
         }
 
         // Compile instance methods
@@ -1756,13 +1796,20 @@ namespace vm::compiler
 
         // Register constructor with parameter count to support overloading
         // Format: ClassName::<init>/<paramCount> (e.g., "MyClass::<init>/0", "MyClass::<init>/2")
-        // For generic classes, use full generic name (e.g., "Box<T>::<init>/0")
-        std::string className = currentClassNode ?
-            (currentClassNode->isGeneric() ? currentClassNode->getFullClassName() : currentClassNode->getClassName())
-            : "";
+        // For generic classes, register constructor with BOTH the full generic name AND the base name
+        // Full name (e.g., "LinkedList<T>::<init>/0") for compile-time type checking
+        // Base name (e.g., "LinkedList::<init>/0") for runtime instantiation
+        std::string className = currentClassNode ? currentClassNode->getClassName() : "";
         std::string constructorName = className + "::<init>/" + std::to_string(params.size());
 
         program.registerFunction(constructorName, metadata);
+
+        // If this is a generic class, also register with full generic name for type checking
+        if (currentClassNode && currentClassNode->isGeneric()) {
+            std::string fullClassName = currentClassNode->getFullClassName();
+            std::string genericConstructorName = fullClassName + "::<init>/" + std::to_string(params.size());
+            program.registerFunction(genericConstructorName, metadata);
+        }
 
         return std::monostate{};
     }

@@ -35,8 +35,8 @@ namespace tests::testSuite
         addOutputVerificationTest("Multi-dimensional Edge Cases",
                                   passPath + "multiDimensionalEdgeCases.mt");
 
-        /*addOutputVerificationTest("LinkedList Comprehensive",
-                                  passPath + "linkedListComprehensive.mt");*/
+        addOutputVerificationTest("LinkedList Comprehensive",
+                                  passPath + "linkedListComprehensive.mt");
 
         // Add array literal tests
         addOutputVerificationTest("Array Literals Basic",
