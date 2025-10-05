@@ -419,6 +419,27 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::writeSourceLocations(std::ostream& out) const {
+        // Build filename string pool
+        std::vector<std::string> filenamePool;
+        std::unordered_map<std::string, uint32_t> filenameIndexMap;
+
+        for (const auto& [offset, loc] : sourceLocations) {
+            if (filenameIndexMap.find(loc.filename) == filenameIndexMap.end()) {
+                filenameIndexMap[loc.filename] = static_cast<uint32_t>(filenamePool.size());
+                filenamePool.push_back(loc.filename);
+            }
+        }
+
+        // Write filename pool
+        size_t poolSize = filenamePool.size();
+        out.write(reinterpret_cast<const char*>(&poolSize), sizeof(poolSize));
+        for (const auto& filename : filenamePool) {
+            size_t len = filename.size();
+            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            out.write(filename.data(), len);
+        }
+
+        // Write source locations with filename indices
         size_t count = sourceLocations.size();
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
         for (const auto& [offset, loc] : sourceLocations) {
@@ -426,13 +447,25 @@ namespace vm::bytecode
             out.write(reinterpret_cast<const char*>(&loc.line), sizeof(loc.line));
             out.write(reinterpret_cast<const char*>(&loc.column), sizeof(loc.column));
 
-            size_t len = loc.filename.size();
-            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-            out.write(loc.filename.data(), len);
+            uint32_t filenameIndex = filenameIndexMap[loc.filename];
+            out.write(reinterpret_cast<const char*>(&filenameIndex), sizeof(filenameIndex));
         }
     }
 
     void BytecodeProgram::readSourceLocations(std::istream& in) {
+        // Read filename pool
+        size_t poolSize;
+        in.read(reinterpret_cast<char*>(&poolSize), sizeof(poolSize));
+        std::vector<std::string> filenamePool(poolSize);
+        for (size_t i = 0; i < poolSize; ++i) {
+            size_t len;
+            in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            std::string filename(len, '\0');
+            in.read(&filename[0], len);
+            filenamePool[i] = filename;
+        }
+
+        // Read source locations with filename indices
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
         for (size_t i = 0; i < count; ++i) {
@@ -443,11 +476,9 @@ namespace vm::bytecode
             in.read(reinterpret_cast<char*>(&loc.line), sizeof(loc.line));
             in.read(reinterpret_cast<char*>(&loc.column), sizeof(loc.column));
 
-            size_t len;
-            in.read(reinterpret_cast<char*>(&len), sizeof(len));
-            std::string filename(len, '\0');
-            in.read(&filename[0], len);
-            loc.filename = filename;
+            uint32_t filenameIndex;
+            in.read(reinterpret_cast<char*>(&filenameIndex), sizeof(filenameIndex));
+            loc.filename = filenamePool[filenameIndex];
 
             sourceLocations[offset] = loc;
         }
