@@ -3,6 +3,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../evaluator/utils/ValueConverter.hpp"
 #include <typeinfo>
+#include <unordered_set>
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/DeclarationNode.hpp"
@@ -1863,8 +1864,42 @@ namespace vm::compiler
             if (genericEnd != std::string::npos && genericEnd > genericStart) {
                 std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
-                // Store full generic class name (Box<Int>) for proper type identification
-                // This is used at runtime to create the correct type bindings
+                // Parse individual type arguments
+                size_t start = 0;
+                size_t depth = 0;
+                for (size_t i = 0; i < typeArgsStr.length(); ++i) {
+                    if (typeArgsStr[i] == '<') depth++;
+                    else if (typeArgsStr[i] == '>') depth--;
+                    else if (typeArgsStr[i] == ',' && depth == 0) {
+                        std::string arg = typeArgsStr.substr(start, i - start);
+                        // Trim whitespace
+                        arg.erase(0, arg.find_first_not_of(" \t"));
+                        arg.erase(arg.find_last_not_of(" \t") + 1);
+                        typeArguments.push_back(arg);
+                        start = i + 1;
+                    }
+                }
+                // Add last argument
+                std::string arg = typeArgsStr.substr(start);
+                arg.erase(0, arg.find_first_not_of(" \t"));
+                arg.erase(arg.find_last_not_of(" \t") + 1);
+                if (!arg.empty()) {
+                    typeArguments.push_back(arg);
+                }
+
+                // Validate that type arguments are not primitive types
+                static const std::unordered_set<std::string> primitiveTypes = {
+                    "int", "float", "bool", "string", "void"
+                };
+
+                for (const auto& typeArg : typeArguments) {
+                    if (primitiveTypes.find(typeArg) != primitiveTypes.end()) {
+                        throw errors::TypeException(
+                            "Generic type arguments cannot be primitive types. Use wrapper classes instead (Int, Float, Bool, String). Found: " + typeArg,
+                            node->getLocation()
+                        );
+                    }
+                }
             }
         }
 

@@ -237,7 +237,6 @@ int main(int argc, char* argv[])
         std::cout << "  -O0 - No optimization (default)\n";
         std::cout << "  -O1 - Basic optimization\n";
         std::cout << "  -O2 - Advanced optimization\n";
-        std::cout << "  -O3 - Aggressive optimization\n\n";
         printAvailableTestSuites();
         return 0;
     }
