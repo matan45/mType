@@ -519,6 +519,7 @@ namespace vm::runtime
         // Get the current frame base (or 0 if no call frame)
         size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
 
+
         // Calculate absolute stack position
         size_t stackPos = frameBase + slot;
 
@@ -1818,7 +1819,10 @@ namespace vm::runtime
             return std::to_string(std::get<int>(val));
         }
         if (std::holds_alternative<float>(val)) {
-            return std::to_string(std::get<float>(val));
+            // Format float to match interpreter behavior (remove trailing zeros)
+            std::ostringstream oss;
+            oss << std::get<float>(val);
+            return oss.str();
         }
         if (std::holds_alternative<bool>(val)) {
             return std::get<bool>(val) ? "true" : "false";

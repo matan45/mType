@@ -109,14 +109,25 @@ namespace vm::compiler
             }
 
             // Register constructors
-            for (const auto& constructor : classNode->getConstructors()) {
-                if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get())) {
-                    auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
-                        ctorNode->getParametersWithTypes(),
-                        ctorNode->getBody()
-                    );
-                    classDef->addConstructor(ctorDef);
+            if (!classNode->getConstructors().empty()) {
+                for (const auto& constructor : classNode->getConstructors()) {
+                    if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get())) {
+                        auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                            ctorNode->getParametersWithTypes(),
+                            ctorNode->getBody()
+                        );
+                        classDef->addConstructor(ctorDef);
+                    }
                 }
+            } else {
+                // No explicit constructors - register a default constructor
+                // This is needed so ClassDefinition knows a constructor exists (even though it's in bytecode)
+                std::vector<std::pair<std::string, value::ParameterType>> emptyParams;
+                auto defaultCtor = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                    emptyParams,
+                    nullptr  // No AST body - bytecode will handle it
+                );
+                classDef->addConstructor(defaultCtor);
             }
 
             // Register methods
@@ -1215,15 +1226,22 @@ namespace vm::compiler
 
         // Get function name and add to constant pool
         std::string functionName = node->getFunctionName();
-        size_t nameIndex = program.getConstantPool().addString(functionName);
 
         // Check if this is a static method call (ClassName::methodName)
         if (functionName.find("::") != std::string::npos) {
+            // Replace "this::" with actual class name if inside a class
+            if (functionName.substr(0, 6) == "this::" && currentClassNode) {
+                std::string methodName = functionName.substr(6); // Remove "this::"
+                functionName = currentClassNode->getClassName() + "::" + methodName;
+            }
+
+            size_t nameIndex = program.getConstantPool().addString(functionName);
             // Static method call - use CALL_STATIC
             program.emit(bytecode::OpCode::CALL_STATIC,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
         } else {
+            size_t nameIndex = program.getConstantPool().addString(functionName);
             // Regular function call - use CALL
             program.emit(bytecode::OpCode::CALL,
                          static_cast<uint32_t>(nameIndex),
@@ -1307,8 +1325,77 @@ namespace vm::compiler
         }
 
         // Compile constructors
-        for (const auto& constructor : node->getConstructors()) {
-            constructor->accept(*this);
+        if (!node->getConstructors().empty()) {
+            for (const auto& constructor : node->getConstructors()) {
+                constructor->accept(*this);
+            }
+        } else {
+            // No explicit constructor - generate a default one that initializes fields
+            // Emit JUMP to skip over default constructor during main execution
+            size_t skipJump = emitJump(bytecode::OpCode::JUMP);
+            size_t constructorStart = program.getCurrentOffset();
+
+            // Default constructor has only 'this' as parameter
+            std::vector<std::string> paramNames = {"this"};
+
+            // Enter function frame
+            enterFunctionFrame("object");
+            beginScope();
+
+            // Track 'this' as local
+            LocalVariable thisLocal;
+            thisLocal.name = "this";
+            thisLocal.slot = nextLocalSlot++;
+            thisLocal.scopeDepth = currentScopeDepth;
+            locals.push_back(thisLocal);
+
+            // Initialize instance fields with their default values
+            auto& fields = node->getFields();
+            for (const auto& fieldPtr : fields) {
+                if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get())) {
+                    // Only initialize instance fields (not static)
+                    if (!fieldNode->getIsStatic() && fieldNode->getInitialValue()) {
+                        // Load 'this' FIRST (which is in local slot 0)
+                        program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
+
+                        // Compile the initializer expression (pushes value)
+                        fieldNode->getInitialValue()->accept(*this);
+
+                        // Store in field (SET_FIELD expects stack: [object, value] with value on top, pops value first then object)
+                        std::string fieldName = fieldNode->getName();
+                        size_t fieldNameIndex = program.getConstantPool().addString(fieldName);
+                        program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+                    }
+                }
+            }
+
+            // Return 'this'
+            program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
+            program.emit(bytecode::OpCode::RETURN_VALUE);
+
+            size_t localCount = getLocalCount();
+            endScope();
+            exitFunctionFrame();
+
+            size_t constructorEnd = program.getCurrentOffset();
+            patchJump(skipJump);
+
+            // Register default constructor with proper naming: ClassName::<init>/0
+            std::string className = node->getClassName();
+            std::string constructorName = className + "::<init>/0";  // 0 args (only 'this' is implicit)
+
+            bytecode::BytecodeProgram::FunctionMetadata metadata;
+            metadata.name = constructorName;
+            metadata.startOffset = constructorStart;
+            metadata.instructionCount = constructorEnd - constructorStart;
+            metadata.localCount = localCount;
+            metadata.parameterCount = 1;  // Just 'this'
+            metadata.parameterNames = paramNames;
+            metadata.returnType = "object";
+            metadata.isStatic = false;
+            metadata.isNative = false;
+
+            program.registerFunction(metadata.name, metadata);
         }
 
         // Compile instance methods
@@ -1490,6 +1577,29 @@ namespace vm::compiler
             }
         }
 
+        // Initialize instance fields with their default values (before constructor body)
+        // This ensures fields are initialized even if not explicitly set in constructor
+        if (currentClassNode) {
+            auto& fields = currentClassNode->getFields();
+            for (const auto& fieldPtr : fields) {
+                if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get())) {
+                    // Only initialize instance fields (not static)
+                    if (!fieldNode->getIsStatic() && fieldNode->getInitialValue()) {
+                        // Load 'this' FIRST (which is in local slot 0)
+                        program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
+
+                        // Compile the initializer expression (pushes value)
+                        fieldNode->getInitialValue()->accept(*this);
+
+                        // Store in field (SET_FIELD expects stack: [object, value] with value on top, pops value first then object)
+                        std::string fieldName = fieldNode->getName();
+                        size_t fieldNameIndex = program.getConstantPool().addString(fieldName);
+                        program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+                    }
+                }
+            }
+        }
+
         // Compile constructor body
         auto* body = node->getBodyPtr();
         if (body) {
@@ -1664,14 +1774,26 @@ namespace vm::compiler
         const auto& arguments = node->getArguments();
 
         if (isStaticCall) {
-            // Static method call: ClassName::methodName(args)
+            // Static method call: ClassName::methodName(args) or this::methodName(args)
             // Push all arguments onto stack
             for (const auto& arg : arguments) {
                 arg->accept(*this);
             }
 
-            // Emit CALL_STATIC instruction
-            size_t methodNameIndex = program.getConstantPool().addString(methodName);
+            // Build fully qualified method name
+            std::string className;
+            auto* objectNode = node->getObject();
+            if (auto* varNode = dynamic_cast<ast::VariableNode*>(objectNode)) {
+                className = varNode->getName();
+                // If using "this::", replace with actual class name
+                if (className == "this" && currentClassNode) {
+                    className = currentClassNode->getClassName();
+                }
+            }
+            std::string qualifiedName = className + "::" + methodName;
+
+            // Emit CALL_STATIC instruction with fully qualified name
+            size_t methodNameIndex = program.getConstantPool().addString(qualifiedName);
             program.emit(bytecode::OpCode::CALL_STATIC,
                          static_cast<uint32_t>(methodNameIndex),
                          static_cast<uint32_t>(arguments.size()));
