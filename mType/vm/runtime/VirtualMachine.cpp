@@ -787,7 +787,7 @@ namespace vm::runtime
         // Initialize fields from all classes in hierarchy
         for (const auto& classInHierarchy : hierarchy) {
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
-                instance->setField(fieldName, nullptr);  // Initialize to null
+                instance->setField(fieldName, std::monostate{});  // Initialize to null
             }
         }
 

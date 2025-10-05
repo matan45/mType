@@ -74,7 +74,18 @@ namespace evaluator::utils
                 // Format float to remove unnecessary trailing zeros
                 std::ostringstream oss;
                 oss << val;
-                return oss.str();
+                std::string result = oss.str();
+
+                // Remove trailing zeros after decimal point
+                if (result.find('.') != std::string::npos) {
+                    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+                    // Remove trailing decimal point if no digits after it
+                    if (result.back() == '.') {
+                        result.pop_back();
+                    }
+                }
+
+                return result;
             }
             else if constexpr (std::is_same_v<T, bool>) {
                 return val ? "true" : "false";
