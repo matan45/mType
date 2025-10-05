@@ -566,6 +566,18 @@ namespace vm::compiler
                     }
                 }
             }
+
+            // Check parent class for static fields (for inheritance)
+            if (currentClassNode->hasParentClass()) {
+                std::string parentClassName = currentClassNode->getParentClassName();
+                // Try to access parent's static field with qualified name
+                // The runtime will check access modifiers (protected/public)
+                std::string qualifiedName = parentClassName + "::" + name;
+                size_t nameIndex = program.getConstantPool().addString(qualifiedName);
+                // Try to load it - if it doesn't exist, will fall through to global variable lookup
+                emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                return std::monostate{};
+            }
         }
 
         // Global variable lookup
