@@ -1230,7 +1230,14 @@ namespace vm::runtime
         }
 
         std::string parentClassName = currentClassDef->getParentClassName();
-        auto parentClassDef = classRegistry->findClass(parentClassName);
+
+        // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
+        size_t genericStart = parentClassName.find('<');
+        std::string baseParentClassName = (genericStart != std::string::npos)
+            ? parentClassName.substr(0, genericStart)
+            : parentClassName;
+
+        auto parentClassDef = classRegistry->findClass(baseParentClassName);
 
         if (!parentClassDef) {
             throw errors::RuntimeException("Parent class not found: " + parentClassName);
@@ -1323,7 +1330,14 @@ namespace vm::runtime
         }
 
         std::string parentClassName = currentClassDef->getParentClassName();
-        auto parentClassDef = classRegistry->findClass(parentClassName);
+
+        // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
+        size_t genericStart = parentClassName.find('<');
+        std::string baseParentClassName = (genericStart != std::string::npos)
+            ? parentClassName.substr(0, genericStart)
+            : parentClassName;
+
+        auto parentClassDef = classRegistry->findClass(baseParentClassName);
 
         if (!parentClassDef) {
             throw errors::RuntimeException("Parent class not found: " + parentClassName);
@@ -1832,6 +1846,55 @@ namespace vm::runtime
         }
         if (std::holds_alternative<nullptr_t>(val)) {
             return "null";
+        }
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj) {
+                // Try to call toString() method
+                auto classDef = obj->getClassDefinition();
+                if (classDef) {
+                    auto toStringMethod = classDef->findMethod("toString", 0);
+                    if (toStringMethod && !toStringMethod->isStatic()) {
+                        try {
+                            // Call toString() using the interpreter method call
+                            value::Value result = obj->callMethod("toString", {});
+
+                            // Handle string result
+                            if (std::holds_alternative<std::string>(result)) {
+                                return std::get<std::string>(result);
+                            }
+
+                            // Handle InternedString result
+                            if (std::holds_alternative<value::InternedString>(result)) {
+                                return std::get<value::InternedString>(result).getString();
+                            }
+
+                            // Handle object result with value field (like String wrapper)
+                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result)) {
+                                auto resultObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result);
+                                if (resultObj && resultObj->getField("value")) {
+                                    value::Value fieldValue = resultObj->getFieldValue("value");
+                                    if (std::holds_alternative<std::string>(fieldValue)) {
+                                        return std::get<std::string>(fieldValue);
+                                    }
+                                    if (std::holds_alternative<value::InternedString>(fieldValue)) {
+                                        return std::get<value::InternedString>(fieldValue).getString();
+                                    }
+                                }
+                            }
+                        } catch (...) {
+                            // If toString() fails, fall through to default
+                        }
+                    }
+                }
+
+                // Fallback: For primitive wrapper objects without toString, extract the "value" field
+                if (obj->getField("value")) {
+                    value::Value fieldValue = obj->getFieldValue("value");
+                    // Recursively convert the field value to string
+                    return valueToString(fieldValue);
+                }
+            }
         }
         return "<object>";
     }

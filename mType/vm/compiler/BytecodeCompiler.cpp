@@ -209,9 +209,15 @@ namespace vm::compiler
                     throw std::runtime_error("Class registry not available");
                 }
 
+                // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
+                size_t genericStart = parentClassName.find('<');
+                std::string baseParentClassName = (genericStart != std::string::npos)
+                    ? parentClassName.substr(0, genericStart)
+                    : parentClassName;
+
                 // Get both class definitions
                 auto classDef = classRegistry->findClass(className);
-                auto parentDef = classRegistry->findClass(parentClassName);
+                auto parentDef = classRegistry->findClass(baseParentClassName);
 
                 if (classDef && parentDef) {
                     // Establish the parent-child link
