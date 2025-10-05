@@ -1410,12 +1410,14 @@ namespace vm::runtime
     void VirtualMachine::handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get element type name from constant pool
         const std::string& elementTypeName = program->getConstantPool().getString(instr.operands[0]);
-        size_t dimensionCount = instr.operands[1];
+        size_t specifiedDimensions = instr.operands[1];  // Number of dimensions with sizes specified
+        size_t totalDimensions = instr.operands.size() > 2 ? instr.operands[2] : specifiedDimensions;
 
         // Pop dimension sizes from stack (in reverse order - last dimension first)
+        // Only pop the number of specified dimensions
         std::vector<int> dimensions;
-        dimensions.reserve(dimensionCount);
-        for (size_t i = 0; i < dimensionCount; ++i) {
+        dimensions.reserve(specifiedDimensions);
+        for (size_t i = 0; i < specifiedDimensions; ++i) {
             value::Value sizeVal = pop();
             int size = std::get<int>(sizeVal);
             if (size < 0) {
@@ -1425,12 +1427,13 @@ namespace vm::runtime
         }
         std::reverse(dimensions.begin(), dimensions.end());
 
-        // For now, create using FlatMultiArray or nested arrays
-        // Simple approach: create nested single-dimensional arrays
-        // TODO: Use FlatMultiArray for better performance
+        // For jagged arrays (totalDimensions > specifiedDimensions), we only create
+        // the specified outer dimensions. Inner dimensions remain as null references.
+        // For fully specified arrays, create nested arrays for all dimensions.
 
-        // Create the innermost arrays first, then work outward
-        std::shared_ptr<value::NativeArray> result = createNestedArray(dimensions, 0, elementTypeName);
+        // Create the array structure based on specified dimensions
+        std::shared_ptr<value::NativeArray> result = createJaggedArray(dimensions, 0, elementTypeName, totalDimensions);
+
         push(result);
     }
 
@@ -1934,6 +1937,43 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+    }
+
+    std::shared_ptr<value::NativeArray> VirtualMachine::createJaggedArray(
+        const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName, size_t totalDimensions)
+    {
+        if (dimIndex >= dimensions.size()) {
+            throw errors::RuntimeException("Invalid dimension index in jagged array creation");
+        }
+
+        int currentDimSize = dimensions[dimIndex];
+
+        if (dimIndex == dimensions.size() - 1) {
+            // Last specified dimension
+            // If this is also the last total dimension, create array of actual elements
+            // Otherwise, create array of null references (for jagged arrays)
+            if (dimensions.size() == totalDimensions) {
+                // Fully specified - create array of elements
+                return std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, elementTypeName);
+            } else {
+                // Jagged - create array of null array references
+                auto array = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+                // Elements are initialized to std::monostate{} (null) by default
+                return array;
+            }
+        }
+        else {
+            // Not last dimension - create array of arrays
+            auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+
+            // Fill with nested arrays
+            for (int i = 0; i < currentDimSize; ++i) {
+                auto innerArray = createJaggedArray(dimensions, dimIndex + 1, elementTypeName, totalDimensions);
+                outerArray->set(i, innerArray);
+            }
+
+            return outerArray;
+        }
     }
 
     std::shared_ptr<value::NativeArray> VirtualMachine::createNestedArray(

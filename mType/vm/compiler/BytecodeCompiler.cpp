@@ -2008,19 +2008,28 @@ namespace vm::compiler
         }
         else {
             // Multi-dimensional array: new Type[size1][size2]...
-            // Push all dimension sizes onto stack (in order)
+            // Count and push only non-null dimension sizes onto stack
+            // For jagged arrays like int[5][], sizeExpressions contains [expr, nullptr]
+            size_t specifiedDimensions = 0;
             for (const auto& sizeExpr : sizeExpressions) {
-                sizeExpr->accept(*this);
+                if (sizeExpr) {
+                    sizeExpr->accept(*this);
+                    specifiedDimensions++;
+                }
             }
 
             // Get element type info
             const auto& typeInfo = node->getElementTypeInfo();
             size_t typeNameIndex = program.getConstantPool().addString(typeInfo.toString());
 
-            // Emit NEW_ARRAY_MULTI with element type and dimension count
-            program.emit(bytecode::OpCode::NEW_ARRAY_MULTI,
-                        static_cast<uint32_t>(typeNameIndex),
-                        static_cast<uint32_t>(dimensionCount));
+            // Emit NEW_ARRAY_MULTI with element type and number of specified dimensions
+            // operands: [typeNameIndex, specifiedDimensions, totalDimensions]
+            std::vector<uint32_t> operands = {
+                static_cast<uint32_t>(typeNameIndex),
+                static_cast<uint32_t>(specifiedDimensions),
+                static_cast<uint32_t>(dimensionCount)
+            };
+            program.emit(bytecode::OpCode::NEW_ARRAY_MULTI, operands);
         }
 
         return std::monostate{};

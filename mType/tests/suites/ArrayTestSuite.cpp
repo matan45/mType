@@ -45,14 +45,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Array Literals with Objects",
                                   passPath + "arrayLiteralsObjects.mt");
 
-        /*addOutputVerificationTest("Array Literals Multi-dimensional",
-                                  passPath + "arrayLiteralsMultiDimensional.mt");*/
+        addOutputVerificationTest("Array Literals Multi-dimensional",
+                                  passPath + "arrayLiteralsMultiDimensional.mt");
 
-       /* addOutputVerificationTest("Array Literals 4D",
-                                  passPath + "arrayLiterals4D.mt");*/
+        addOutputVerificationTest("Array Literals 4D",
+                                  passPath + "arrayLiterals4D.mt");
 
-        /*addOutputVerificationTest("N-Dimensional Arrays",
-                                  passPath + "nDimensionalArrays.mt");*/
+        addOutputVerificationTest("N-Dimensional Arrays",
+                                  passPath + "nDimensionalArrays.mt");
 
         // Add error tests
         addTestFromFile("Negative Array Size",
