@@ -43,7 +43,7 @@ namespace ast::nodes::classes
         return body;
     }
 
-    ASTNode* ConstructorNode::getBodyPtr() const noexcept
+    ASTNode* ConstructorNode::getBodyPtr() const
     {
         return body.get();
     }

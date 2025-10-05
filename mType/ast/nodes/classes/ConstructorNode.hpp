@@ -43,7 +43,7 @@ namespace ast::nodes::classes
         [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
 
         // For code that just needs to read
-        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
+        [[nodiscard]] ASTNode* getBodyPtr() const;
 
         void setBody(std::shared_ptr<ASTNode> constructorBody);
 

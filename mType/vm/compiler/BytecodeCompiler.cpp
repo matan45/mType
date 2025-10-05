@@ -85,7 +85,9 @@ namespace vm::compiler
         // Check if this node is a ClassNode
         if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
         {
-            std::string className = classNode->getClassName();
+            // Use full class name with generic parameters for generic classes
+            std::string className = classNode->isGeneric() ?
+                classNode->getFullClassName() : classNode->getClassName();
 
             // Register class for bytecode WITHOUT using evaluator
             // This only registers the class structure - bytecode handles all initialization
@@ -631,7 +633,13 @@ namespace vm::compiler
         value::ValueType varType = node->getVariableType();
 
         // Compile the value
-        node->getValue()->accept(*this);
+        auto* value = node->getValue();
+        if (value) {
+            value->accept(*this);
+        } else {
+            // Declaration without initializer - push null
+            program.emit(bytecode::OpCode::PUSH_NULL);
+        }
 
         // Check if this is a declaration (has a type) or pure assignment (type is VOID)
         if (varType != value::ValueType::VOID) {
@@ -1362,14 +1370,19 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitClassNode(ast::ClassNode* node)
     {
-        std::string className = node->getClassName();
+        // Use full class name with generic parameters for generic classes
+        std::string className = node->isGeneric() ?
+            node->getFullClassName() : node->getClassName();
+
 
         // Set current class context for field access resolution
         auto previousClass = currentClassNode;
         currentClassNode = node;
 
+
         // Register class metadata (for runtime type checking and instanceof)
         size_t classNameIndex = program.getConstantPool().addString(className);
+
 
         // Handle generics - store generic parameter names
         if (node->isGeneric()) {
@@ -1491,16 +1504,20 @@ namespace vm::compiler
         }
 
         // Compile instance methods
+        int methodIndex = 0;
         for (const auto& method : node->getMethods()) {
             if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
                 if (!methodNode->getIsStatic()) {
                     method->accept(*this);
                 }
+            } else {
             }
+            methodIndex++;
         }
 
         // Restore previous class context
         currentClassNode = previousClass;
+
 
         return std::monostate{};
     }
@@ -1561,7 +1578,13 @@ namespace vm::compiler
         // Compile method body
         auto* body = node->getBodyPtr();
         if (body) {
-            body->accept(*this);
+            try {
+                body->accept(*this);
+            } catch (const std::exception&) {
+                throw;
+            } catch (...) {
+                throw;
+            }
         }
 
         // Restore instance method context
@@ -1603,6 +1626,7 @@ namespace vm::compiler
         metadata.isNative = false;
 
         program.registerFunction(qualifiedMethodName, metadata);
+
 
         return std::monostate{};
     }
@@ -1732,8 +1756,12 @@ namespace vm::compiler
 
         // Register constructor with parameter count to support overloading
         // Format: ClassName::<init>/<paramCount> (e.g., "MyClass::<init>/0", "MyClass::<init>/2")
-        std::string className = currentClassNode ? currentClassNode->getClassName() : "";
+        // For generic classes, use full generic name (e.g., "Box<T>::<init>/0")
+        std::string className = currentClassNode ?
+            (currentClassNode->isGeneric() ? currentClassNode->getFullClassName() : currentClassNode->getClassName())
+            : "";
         std::string constructorName = className + "::<init>/" + std::to_string(params.size());
+
         program.registerFunction(constructorName, metadata);
 
         return std::monostate{};
