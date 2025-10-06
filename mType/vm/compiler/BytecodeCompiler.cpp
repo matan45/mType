@@ -33,6 +33,7 @@
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
+#include "../../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
@@ -69,10 +70,22 @@ namespace vm::compiler
             throw std::runtime_error("Cannot compile null AST root");
         }
 
-        // First, register all classes in the environment for bytecode execution
+        // First, register all native functions from the environment
+        auto nativeFunctionNames = environment->getNativeRegistry()->getAllNativeFunctionNames();
+        for (const auto& name : nativeFunctionNames) {
+            bytecode::BytecodeProgram::FunctionMetadata metadata;
+            metadata.name = name;
+            metadata.isNative = true;
+            metadata.parameterCount = 0;  // Native functions handle their own parameter validation
+            metadata.startOffset = 0;      // Not used for native functions
+            metadata.returnType = "";      // Native functions handle their own return types
+            program.registerFunction(name, metadata);
+        }
+
+        // Second, register all classes in the environment for bytecode execution
         registerClassesForBytecode(root);
 
-        // Second, establish parent-child relationships between classes
+        // Third, establish parent-child relationships between classes
         linkParentClasses(root);
 
         // Visit the root node to generate bytecode
@@ -480,6 +493,26 @@ namespace vm::compiler
             }
         }
 
+        // For unary operations, infer from operand
+        if (auto* unaryOp = dynamic_cast<ast::UnaryOpNode*>(node)) {
+            auto operandType = inferExpressionType(unaryOp->getOperand());
+            auto op = unaryOp->getOperator();
+
+            // Unary minus and plus preserve numeric type
+            if (op == token::TokenType::MINUS || op == token::TokenType::PLUS) {
+                if (operandType == value::ValueType::INT || operandType == value::ValueType::FLOAT) {
+                    return operandType;
+                }
+            }
+
+            // Logical NOT returns bool
+            if (op == token::TokenType::NOT) {
+                return value::ValueType::BOOL;
+            }
+
+            return operandType; // Default: preserve operand type
+        }
+
         // For binary operations, infer result type
         if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
             auto leftType = inferExpressionType(binOp->getLeft());
@@ -518,6 +551,130 @@ namespace vm::compiler
 
         // Default: unknown type
         return value::ValueType::VOID;
+    }
+
+    bool BytecodeCompiler::isClassCompatible(const std::string& derivedClass, const std::string& baseClass)
+    {
+        if (derivedClass == baseClass) {
+            return true;
+        }
+
+        // Check if derivedClass inherits from baseClass
+        auto classDef = environment->findClass(derivedClass);
+        if (!classDef) {
+            return false;
+        }
+
+        // Check parent chain
+        auto parentClass = classDef->getParentClass();
+        while (parentClass) {
+            if (parentClass->getName() == baseClass) {
+                return true;
+            }
+            parentClass = parentClass->getParentClass();
+        }
+
+        // Helper lambda to recursively check if an interface extends the target interface
+        std::function<bool(const std::string&, const std::string&, std::unordered_set<std::string>&)> checkInterfaceHierarchy;
+        checkInterfaceHierarchy = [&](const std::string& interfaceName, const std::string& targetInterface, std::unordered_set<std::string>& visited) -> bool {
+            // Avoid infinite loops with circular dependencies
+            if (visited.count(interfaceName)) {
+                return false;
+            }
+            visited.insert(interfaceName);
+
+            // Strip generic parameters for comparison
+            auto stripGenerics = [](const std::string& name) -> std::string {
+                size_t genericStart = name.find('<');
+                return (genericStart != std::string::npos) ? name.substr(0, genericStart) : name;
+            };
+
+            std::string interfaceBaseName = stripGenerics(interfaceName);
+            std::string targetBaseName = stripGenerics(targetInterface);
+
+            // Direct match
+            if (interfaceBaseName == targetBaseName) {
+                return true;
+            }
+
+            // Check extended interfaces recursively
+            auto interfaceDef = environment->findInterface(interfaceName);
+            if (interfaceDef) {
+                const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+                for (const auto& extendedInterface : extendedInterfaces) {
+                    if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        };
+
+        // Check implemented interfaces (with full recursive hierarchy checking)
+        const auto& interfaces = classDef->getImplementedInterfaces();
+        for (const auto& interfaceName : interfaces) {
+            std::unordered_set<std::string> visited;
+            if (checkInterfaceHierarchy(interfaceName, baseClass, visited)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    std::string BytecodeCompiler::inferExpressionClassName(ast::ASTNode* node)
+    {
+        if (!node) return "";
+
+        // For NewNode, get the class name directly
+        if (auto* newNode = dynamic_cast<ast::NewNode*>(node)) {
+            return newNode->getClassName();
+        }
+
+        // For variable references, check locals then globals
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node)) {
+            std::string varName = varNode->getName();
+            // Check locals
+            for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+                if (it->name == varName) {
+                    return it->className;
+                }
+            }
+            // Check globals
+            auto globalIt = globalVariableClassNames.find(varName);
+            if (globalIt != globalVariableClassNames.end()) {
+                return globalIt->second;
+            }
+            return ""; // Unknown
+        }
+
+        // For function calls, check return type class
+        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
+            std::string functionName = funcCall->getFunctionName();
+            const auto* funcMetadata = program.getFunction(functionName);
+            if (funcMetadata && !funcMetadata->returnType.empty()) {
+                // If return type is not a primitive, it's a class name
+                if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
+                    funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
+                    funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
+                    return funcMetadata->returnType;
+                }
+            }
+            // Also check in the environment for functions
+            auto funcDef = environment->findFunction(functionName);
+            if (funcDef) {
+                std::string returnClassName = funcDef->getReturnClassName();
+                if (!returnClassName.empty()) {
+                    return returnClassName;
+                }
+            }
+            return "";
+        }
+
+        // For member access, we would need more complex tracking
+        // For now, return empty
+        return "";
     }
 
     bytecode::OpCode BytecodeCompiler::getBinaryOpCode(token::TokenType op, bool typeSpecialized)
@@ -868,6 +1025,9 @@ namespace vm::compiler
             valueType = value::ValueType::OBJECT;
         }
 
+        // For DeclarationNode, type checking is less strict since we infer types from initializer
+        // Main type checking happens in AssignmentNode for explicit type declarations
+
         // Track local variable if we're in a function
         if (!functionFrameStack.empty()) {
             // Check for variable redefinition in the current scope
@@ -888,6 +1048,8 @@ namespace vm::compiler
             local.name = name;
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
+            local.type = valueType;
+            local.className = (valueType == value::ValueType::OBJECT && initializer) ? inferExpressionClassName(initializer) : "";
             locals.push_back(local);
 
             // Track maximum local slot for this function
@@ -927,6 +1089,7 @@ namespace vm::compiler
         }
         globalVariables.insert(name);
         globalVariableTypes[name] = node->getType();
+        globalVariableClassNames[name] = (node->getType() == value::ValueType::OBJECT && initializer) ? inferExpressionClassName(initializer) : "";
         globalVariableScopes[name] = currentScopeDepth;
 
         std::string typeStr = "auto";  // Default type string
@@ -1004,9 +1167,46 @@ namespace vm::compiler
         }
 
         // Type checking: validate assignment type compatibility
-        if (value && varType != value::ValueType::VOID && varType != value::ValueType::OBJECT) {
+        if (value && varType != value::ValueType::VOID) {
             value::ValueType valueType = inferExpressionType(value);
-            if (valueType != value::ValueType::VOID && valueType != varType) {
+
+            // For OBJECT types, check class compatibility
+            if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
+                // Get class names
+                std::string varClassName = node->getClassName();
+                std::string valueClassName = inferExpressionClassName(value);
+
+                // null can be assigned to any object type
+                if (dynamic_cast<ast::NullNode*>(value)) {
+                    // Allow null assignment
+                }
+                // Check if class names match (ignoring generic parameters for now)
+                else if (!varClassName.empty() && !valueClassName.empty()) {
+                    // Extract base class names (remove generic parameters)
+                    std::string baseVarClass = varClassName;
+                    std::string baseValueClass = valueClassName;
+
+                    size_t varGenericStart = varClassName.find('<');
+                    if (varGenericStart != std::string::npos) {
+                        baseVarClass = varClassName.substr(0, varGenericStart);
+                    }
+
+                    size_t valueGenericStart = valueClassName.find('<');
+                    if (valueGenericStart != std::string::npos) {
+                        baseValueClass = valueClassName.substr(0, valueGenericStart);
+                    }
+
+                    // Check class compatibility (including inheritance)
+                    if (!isClassCompatible(baseValueClass, baseVarClass)) {
+                        throw errors::TypeException(
+                            "Type mismatch: cannot assign " + valueClassName + " to " + varClassName,
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+            // For non-OBJECT types, check primitive type compatibility
+            else if (varType != value::ValueType::OBJECT && valueType != value::ValueType::VOID && valueType != varType) {
                 // Special case: null can be assigned to object types
                 if (valueType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(value)) {
                     // Allow null assignment
@@ -1134,6 +1334,7 @@ namespace vm::compiler
             }
             globalVariables.insert(name);
             globalVariableTypes[name] = varType;
+            globalVariableClassNames[name] = node->getClassName();
             globalVariableScopes[name] = currentScopeDepth;
 
             std::string typeStr = "auto";
@@ -1195,6 +1396,88 @@ namespace vm::compiler
                         "Cannot reassign lambda to variable '" + name + "'. " +
                         "Lambda variables cannot be reassigned once initialized.",
                         node->getLocation());
+                }
+            }
+
+            // Type checking for pure reassignment
+            if (value) {
+                value::ValueType valueType = inferExpressionType(value);
+
+                // Find the variable's declared type
+                value::ValueType varType = value::ValueType::VOID;
+                std::string varClassName = "";
+
+                // Check locals first
+                bool foundInLocals = false;
+                for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+                    if (it->name == name) {
+                        varType = it->type;
+                        varClassName = it->className;
+                        foundInLocals = true;
+                        break;
+                    }
+                }
+
+                // If not in locals, check globals
+                if (!foundInLocals) {
+                    auto globalTypeIt = globalVariableTypes.find(name);
+                    if (globalTypeIt != globalVariableTypes.end()) {
+                        varType = globalTypeIt->second;
+                        auto globalClassIt = globalVariableClassNames.find(name);
+                        if (globalClassIt != globalVariableClassNames.end()) {
+                            varClassName = globalClassIt->second;
+                        }
+                    }
+                }
+
+                // Perform type checking if we found the variable
+                if (varType != value::ValueType::VOID) {
+                    // For OBJECT types, check class compatibility
+                    if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
+                        std::string valueClassName = inferExpressionClassName(value);
+
+                        // null can be assigned to any object type
+                        if (!dynamic_cast<ast::NullNode*>(value)) {
+                            if (!varClassName.empty() && !valueClassName.empty()) {
+                                // Extract base class names (remove generic parameters)
+                                std::string baseVarClass = varClassName;
+                                std::string baseValueClass = valueClassName;
+
+                                size_t varGenericStart = varClassName.find('<');
+                                if (varGenericStart != std::string::npos) {
+                                    baseVarClass = varClassName.substr(0, varGenericStart);
+                                }
+
+                                size_t valueGenericStart = valueClassName.find('<');
+                                if (valueGenericStart != std::string::npos) {
+                                    baseValueClass = valueClassName.substr(0, valueGenericStart);
+                                }
+
+                                // Check class compatibility (including inheritance)
+                                if (!isClassCompatible(baseValueClass, baseVarClass)) {
+                                    throw errors::TypeException(
+                                        "Type mismatch: cannot assign " + valueClassName + " to " + varClassName,
+                                        node->getLocation()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    // For primitive types, check compatibility
+                    else if (varType != value::ValueType::OBJECT && valueType != value::ValueType::VOID && valueType != varType) {
+                        // Allow int to float conversion
+                        if (!(valueType == value::ValueType::INT && varType == value::ValueType::FLOAT)) {
+                            // null can be assigned to object types
+                            if (!(valueType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(value))) {
+                                std::string varTypeStr = evaluator::utils::ValueConverter::valueTypeToString(varType);
+                                std::string valueTypeStr = evaluator::utils::ValueConverter::valueTypeToString(valueType);
+                                throw errors::TypeException(
+                                    "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
+                                    node->getLocation()
+                                );
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1911,32 +2194,55 @@ namespace vm::compiler
     {
         std::string funcName = node->getName();
 
+        // Check if this function is already registered as a native function
+        const auto* existingFunc = program.getFunction(funcName);
+        if (existingFunc && existingFunc->isNative) {
+            // Skip compilation - native functions are implemented in C++ and already registered
+            return std::monostate{};
+        }
+
         // Emit JUMP to skip over function body during main execution
         size_t skipJump = emitJump(bytecode::OpCode::JUMP);
 
         // Function starts here
         size_t functionStart = program.getCurrentOffset();
 
-        // Get parameters
-        auto params = node->getParameters();
+        // Get parameters with type information preserved
+        auto paramTypesVec = node->getParameterTypes();
         std::vector<std::string> paramNames;
-        for (const auto& param : params) {
+        std::vector<std::string> paramTypes;
+        for (const auto& param : paramTypesVec) {
             paramNames.push_back(param.first);
+            // ParameterType preserves class names for object types
+            const auto& paramType = param.second;
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                paramTypes.push_back(paramType.className.value());
+            } else {
+                paramTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(paramType.basicType));
+            }
         }
 
-        // Convert return type to string
-        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(node->getReturnType());
+        // Convert return type to string, preserving class names for object types
+        std::string returnTypeStr;
+        auto genericReturnType = node->getGenericReturnType();
+        if (genericReturnType) {
+            returnTypeStr = genericReturnType->toString();
+        } else {
+            returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(node->getReturnType());
+        }
 
         // Enter function frame for local variable tracking
         enterFunctionFrame(returnTypeStr);
         beginScope();  // Function body scope
 
         // Track parameters as locals
-        for (const auto& param : params) {
+        for (const auto& param : paramTypesVec) {
             LocalVariable local;
             local.name = param.first;
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
+            local.type = param.second.basicType;
+            local.className = param.second.className.value_or("");
             locals.push_back(local);
         }
 
@@ -1969,8 +2275,9 @@ namespace vm::compiler
         metadata.startOffset = functionStart;
         metadata.instructionCount = functionEnd - functionStart;
         metadata.localCount = localCount;
-        metadata.parameterCount = params.size();
+        metadata.parameterCount = paramTypesVec.size();
         metadata.parameterNames = paramNames;
+        metadata.parameterTypes = paramTypes;
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
 
@@ -1985,18 +2292,76 @@ namespace vm::compiler
         std::string functionName = node->getFunctionName();
         const auto& arguments = node->getArguments();
 
-        // Validate parameter count for non-method calls
+        // Validate parameter count and types for non-method calls
         if (functionName.find("::") == std::string::npos) {
             // Check if function is registered
             const auto* funcMetadata = program.getFunction(functionName);
             if (funcMetadata) {
-                if (funcMetadata->parameterCount != arguments.size()) {
-                    throw errors::EnvironmentException(
-                        "Function '" + functionName + "' expects " +
-                        std::to_string(funcMetadata->parameterCount) +
-                        " parameter(s) but got " + std::to_string(arguments.size()),
-                        node->getLocation()
-                    );
+                // Skip all validation for native functions (they handle their own parameter checking at runtime)
+                if (!funcMetadata->isNative) {
+                    if (funcMetadata->parameterCount != arguments.size()) {
+                        throw errors::EnvironmentException(
+                            "Function '" + functionName + "' expects " +
+                            std::to_string(funcMetadata->parameterCount) +
+                            " parameter(s) but got " + std::to_string(arguments.size()),
+                            node->getLocation()
+                        );
+                    }
+
+                    // Validate parameter types
+                    if (!funcMetadata->parameterTypes.empty()) {
+                        for (size_t i = 0; i < arguments.size(); ++i) {
+                            std::string expectedType = funcMetadata->parameterTypes[i];
+                            value::ValueType argType = inferExpressionType(arguments[i].get());
+
+                            // Convert argType to string for comparison
+                            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+
+                            // For object types, need to check class names
+                            if (expectedType != "int" && expectedType != "float" &&
+                                expectedType != "string" && expectedType != "bool" &&
+                                expectedType != "void") {
+                                // Expected type is an object/class
+                                if (argType != value::ValueType::OBJECT) {
+                                    // null can be passed to object types
+                                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                        throw errors::TypeException(
+                                            "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                            " expects " + expectedType + " but got " + argTypeStr,
+                                            node->getLocation()
+                                        );
+                                    }
+                                }
+                                // For objects, check class name compatibility
+                                else if (expectedType != "object") {
+                                    // If expected type is "object", accept any object type
+                                    // Otherwise, check specific class name
+                                    std::string argClassName = inferExpressionClassName(arguments[i].get());
+                                    if (!argClassName.empty() && argClassName != expectedType) {
+                                        // null can be passed to any object type
+                                        if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                            throw errors::TypeException(
+                                                "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                                " expects " + expectedType + " but got " + argClassName,
+                                                node->getLocation()
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            // For primitive types, check exact match (with int->float exception)
+                            else if (expectedType != argTypeStr) {
+                                // Allow int to float conversion
+                                if (!(expectedType == "float" && argTypeStr == "int")) {
+                                    throw errors::TypeException(
+                                        "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                        " expects " + expectedType + " but got " + argTypeStr,
+                                        node->getLocation()
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2147,7 +2512,9 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitNativeFunctionNode(ast::NativeFunctionNode* node)
     {
-        throw std::runtime_error("NativeFunction compilation not yet implemented");
+        // Native function declarations are already registered at the start of compilation
+        // from the environment's native registry, so we just skip them here
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitClassNode(ast::ClassNode* node)
@@ -2358,11 +2725,25 @@ namespace vm::compiler
         beginScope();  // Method body scope
 
         // Track parameters as locals (including 'this' for instance methods)
-        for (const auto& paramName : paramNames) {
+        if (!isStatic) {
+            // Add 'this' parameter
+            LocalVariable thisLocal;
+            thisLocal.name = "this";
+            thisLocal.slot = nextLocalSlot++;
+            thisLocal.scopeDepth = currentScopeDepth;
+            thisLocal.type = value::ValueType::OBJECT;
+            thisLocal.className = currentClassNode ? currentClassNode->getClassName() : "";
+            locals.push_back(thisLocal);
+        }
+
+        // Add actual method parameters with their types
+        for (const auto& param : params) {
             LocalVariable local;
-            local.name = paramName;
+            local.name = param.first;  // parameter name
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
+            local.type = param.second;  // parameter type
+            local.className = "";  // Will be set if type is OBJECT (TODO: track class names for object params)
             locals.push_back(local);
         }
 
@@ -2659,8 +3040,89 @@ namespace vm::compiler
             }
         }
 
-        // Push constructor arguments onto stack (left to right)
+        // Validate constructor parameters
         const auto& arguments = node->getArguments();
+
+        // Try to find the class definition to get constructor parameter types
+        auto classDef = environment->findClass(baseClassName);
+        if (classDef) {
+            // Get constructors from the class
+            const auto& constructors = classDef->getConstructors();
+
+            // Find a constructor that matches the argument count
+            bool foundMatchingConstructor = false;
+            for (const auto& constructor : constructors) {
+                if (constructor->getParameterCount() == arguments.size()) {
+                    foundMatchingConstructor = true;
+
+                    // Validate parameter types
+                    const auto& params = constructor->getParametersWithTypes();
+                    for (size_t i = 0; i < arguments.size(); ++i) {
+                        const auto& paramType = params[i].second;
+                        value::ValueType argType = inferExpressionType(arguments[i].get());
+
+                        // Skip validation if we can't infer the type (e.g., constructor parameters)
+                        if (argType == value::ValueType::VOID) {
+                            continue;
+                        }
+
+                        // For object types, check class names
+                        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                            std::string expectedClass = paramType.className.value();
+
+                            // Skip generic type parameters (like T, E, K, V)
+                            // They are single uppercase letters or short names
+                            if (expectedClass.length() <= 2 && std::isupper(expectedClass[0])) {
+                                continue;
+                            }
+
+                            if (argType != value::ValueType::OBJECT) {
+                                // Allow null
+                                if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                    std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+                                    throw errors::TypeException(
+                                        "Constructor parameter " + std::to_string(i + 1) +
+                                        " expects " + expectedClass + " but got " + argTypeStr,
+                                        node->getLocation()
+                                    );
+                                }
+                            } else {
+                                // Check class name match
+                                std::string argClassName = inferExpressionClassName(arguments[i].get());
+                                if (!argClassName.empty() && argClassName != expectedClass && expectedClass != "object") {
+                                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                        throw errors::TypeException(
+                                            "Constructor parameter " + std::to_string(i + 1) +
+                                            " expects " + expectedClass + " but got " + argClassName,
+                                            node->getLocation()
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        // For primitive types
+                        else {
+                            std::string expectedTypeStr = evaluator::utils::ValueConverter::valueTypeToString(paramType.basicType);
+                            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+
+                            if (paramType.basicType != argType) {
+                                // Allow int to float conversion
+                                if (!(paramType.basicType == value::ValueType::FLOAT && argType == value::ValueType::INT)) {
+                                    throw errors::TypeException(
+                                        "Constructor parameter " + std::to_string(i + 1) +
+                                        " expects " + expectedTypeStr + " but got " + argTypeStr,
+                                        node->getLocation()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    break;  // Found matching constructor, stop checking
+                }
+            }
+        }
+
+        // Push constructor arguments onto stack (left to right)
         for (const auto& arg : arguments) {
             arg->accept(*this);
         }

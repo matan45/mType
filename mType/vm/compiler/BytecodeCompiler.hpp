@@ -126,6 +126,7 @@ namespace vm::compiler
         // Global variable tracking (for compile-time validation)
         std::unordered_set<std::string> globalVariables;
         std::unordered_map<std::string, value::ValueType> globalVariableTypes;
+        std::unordered_map<std::string, std::string> globalVariableClassNames;  // For OBJECT types
         std::unordered_map<std::string, int> globalVariableScopes;  // Track scope depth where global var was declared
 
         // Import tracking (to avoid recompiling the same file)
@@ -180,6 +181,8 @@ namespace vm::compiler
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
         bytecode::OpCode getUnaryOpCode(token::TokenType op);
         value::ValueType inferExpressionType(ast::ASTNode* node);
+        std::string inferExpressionClassName(ast::ASTNode* node);
+        bool isClassCompatible(const std::string& derivedClass, const std::string& baseClass);
 
         // Variable management
         size_t resolveLocal(const std::string& name);

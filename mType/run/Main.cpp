@@ -375,9 +375,23 @@ void resolveImports(ast::ASTNode* node, services::ImportManager* importManager, 
     }
 }
 
-void runAllTests()
+void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
-    std::cout << "Running all test suites...\n\n";
+    std::cout << "Running all test suites...\n";
+    std::cout << "Execution Mode: ";
+    switch (execMode)
+    {
+        case constants::ExecutionMode::AST_INTERPRETER:
+            std::cout << "AST Interpreter\n";
+            break;
+        case constants::ExecutionMode::BYTECODE_VM:
+            std::cout << "Bytecode VM\n";
+            break;
+        case constants::ExecutionMode::DUAL_VALIDATION:
+            std::cout << "Dual Validation\n";
+            break;
+    }
+    std::cout << "\n";
 
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
@@ -397,6 +411,7 @@ void runAllTests()
     for (auto& suite : suites)
     {
         suite->setupTests(); // Initialize test cases
+        suite->setExecutionModeForAll(execMode); // Set execution mode
         suite->run(); // Run tests and generate reports
     }
 
@@ -436,13 +451,13 @@ int main(int argc, char* argv[])
     }
 
     if (argc >= 2 && std::string(argv[argc-1]) == "--tests") {
-        runAllTests();
+        runAllTests(execMode);
         return 0;
     }
 
     if (argc == 2 && std::string(argv[1]) == "--tests")
     {
-        runAllTests();
+        runAllTests(execMode);
         return 0;
     }
 
@@ -464,7 +479,9 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
+        std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --bytecode --test <suite>  - Run test suite in bytecode mode\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         std::cout << "Execution Modes:\n";
         std::cout << "  AST Interpreter (default) - Traditional AST walking interpreter\n";
