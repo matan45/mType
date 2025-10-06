@@ -116,6 +116,8 @@ namespace vm::compiler
             std::string name;
             size_t slot;
             int scopeDepth;
+            value::ValueType type = value::ValueType::VOID;
+            std::string className;  // For OBJECT types (interfaces/classes)
         };
         std::vector<LocalVariable> locals;
         size_t nextLocalSlot = 0;

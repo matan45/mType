@@ -2,6 +2,7 @@
 #include "../../errors/ParseException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/TypeException.hpp"
+#include "../../errors/UndefinedException.hpp"
 #include "../../evaluator/utils/ValueConverter.hpp"
 #include "../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include <typeinfo>
@@ -792,6 +793,31 @@ namespace vm::compiler
         // Compile the value
         auto* value = node->getValue();
         if (value) {
+            // Validation 1 & 2: Check if assigning lambda to non-functional or undefined interface
+            if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
+                if (auto* lambdaNode = dynamic_cast<ast::LambdaNode*>(value)) {
+                    std::string interfaceName = node->getClassName();
+
+                    // Check if the interface exists
+                    auto interfaceDef = environment->findInterface(interfaceName);
+                    if (!interfaceDef) {
+                        throw errors::UndefinedException(
+                            "Cannot assign lambda to undefined interface '" + interfaceName + "'",
+                            node->getLocation());
+                    }
+
+                    // Check if the interface is functional (has exactly one method)
+                    if (!interfaceDef->isFunctionalInterface()) {
+                        auto methodSignatures = interfaceDef->getMethodSignatures();
+                        throw errors::TypeException(
+                            "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
+                            "Lambdas can only be assigned to interfaces with exactly one method. " +
+                            "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods.",
+                            node->getLocation());
+                    }
+                }
+            }
+
             value->accept(*this);
         } else {
             // Declaration without initializer - push null
@@ -809,6 +835,8 @@ namespace vm::compiler
                 local.name = name;
                 local.slot = nextLocalSlot++;
                 local.scopeDepth = currentScopeDepth;
+                local.type = varType;
+                local.className = node->getClassName();
                 locals.push_back(local);
 
                 // Store the value at the local's slot position and keep a copy on stack
@@ -836,6 +864,54 @@ namespace vm::compiler
                          });
         } else {
             // This is a pure assignment (e.g., "x = 5;")
+
+            // Validation 3: Lambda Reassignment Not Allowed
+            // Check if we're trying to reassign a lambda to a functional interface variable
+            if (value && dynamic_cast<ast::LambdaNode*>(value)) {
+                // First check local variables
+                bool isLambdaReassignment = false;
+                std::string interfaceName;
+
+                // Check if this is a local variable
+                size_t startSlot = functionFrameStack.empty() ? 0 : functionFrameStack.back().localStartSlot;
+                for (size_t i = locals.size(); i > 0; --i) {
+                    const LocalVariable& local = locals[i - 1];
+                    if (local.slot >= startSlot && local.name == name) {
+                        // Found the local variable
+                        if (local.type == value::ValueType::OBJECT && !local.className.empty()) {
+                            auto interfaceDef = environment->findInterface(local.className);
+                            if (interfaceDef && interfaceDef->isFunctionalInterface()) {
+                                isLambdaReassignment = true;
+                                interfaceName = local.className;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                // If not found in locals, check global variables
+                if (!isLambdaReassignment) {
+                    auto varDef = environment->findVariable(name);
+                    if (varDef) {
+                        // Check if it's an OBJECT type with a class name (interface)
+                        if (varDef->getType() == value::ValueType::OBJECT && !varDef->getClassName().empty()) {
+                            auto interfaceDef = environment->findInterface(varDef->getClassName());
+                            if (interfaceDef && interfaceDef->isFunctionalInterface()) {
+                                isLambdaReassignment = true;
+                                interfaceName = varDef->getClassName();
+                            }
+                        }
+                    }
+                }
+
+                // Throw error if this is a lambda reassignment
+                if (isLambdaReassignment) {
+                    throw errors::TypeException(
+                        "Cannot reassign lambda to variable '" + name + "'. " +
+                        "Lambda variables cannot be reassigned once initialized.",
+                        node->getLocation());
+                }
+            }
 
             // Check if this is a qualified static assignment (contains ::)
             if (name.find("::") != std::string::npos) {
