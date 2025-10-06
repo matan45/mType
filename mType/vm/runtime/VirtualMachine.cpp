@@ -16,6 +16,8 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <functional>
+#include <unordered_set>
 
 namespace vm::runtime
 {
@@ -924,7 +926,31 @@ namespace vm::runtime
         // Initialize fields from all classes in hierarchy
         for (const auto& classInHierarchy : hierarchy) {
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
-                instance->setField(fieldName, std::monostate{});  // Initialize to null
+                // Try to use the field's stored value from FieldDefinition
+                value::Value initialValue = fieldDef->getValue();
+
+                // If the value is null/monostate, use type-appropriate default
+                if (std::holds_alternative<std::monostate>(initialValue)) {
+                    // Use default value based on type
+                    switch (fieldDef->getType()) {
+                        case value::ValueType::INT:
+                            initialValue = 0;
+                            break;
+                        case value::ValueType::FLOAT:
+                            initialValue = 0.0f;
+                            break;
+                        case value::ValueType::BOOL:
+                            initialValue = false;
+                            break;
+                        case value::ValueType::STRING:
+                            initialValue = std::string("");
+                            break;
+                        default:
+                            initialValue = std::monostate{};  // null for objects
+                            break;
+                    }
+                }
+                instance->setField(fieldName, initialValue);
             }
         }
 
@@ -2089,6 +2115,31 @@ namespace vm::runtime
             // Cast to string
             push(valueToString(val));
         }
+        else if (targetTypeName == "Bool" || targetTypeName == "bool") {
+            // Cast to bool
+            if (std::holds_alternative<bool>(val)) {
+                push(val); // Already bool
+            }
+            else if (std::holds_alternative<int>(val)) {
+                push(std::get<int>(val) != 0);
+            }
+            else if (std::holds_alternative<float>(val)) {
+                push(std::get<float>(val) != 0.0f);
+            }
+            else if (std::holds_alternative<std::string>(val)) {
+                const std::string& str = std::get<std::string>(val);
+                // Non-empty strings are true
+                push(!str.empty());
+            }
+            else if (std::holds_alternative<value::InternedString>(val)) {
+                const value::InternedString& str = std::get<value::InternedString>(val);
+                // Non-empty strings are true
+                push(str.length() > 0);
+            }
+            else {
+                throw errors::RuntimeException("Cannot cast to bool from this type");
+            }
+        }
         else {
             // Object cast - check if it's a valid object type
             if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
@@ -2160,29 +2211,63 @@ namespace vm::runtime
                             }
                         }
                     }
-                    // 6. Interface check
+                    // 6. Interface check (with recursive hierarchy checking)
                     if (!canCast) {
-                        const auto& interfaces = classDef->getImplementedInterfaces();
-                        for (const auto& iface : interfaces) {
-                            // Extract base interface name
-                            std::string baseIfaceName = iface;
-                            std::string ifaceTypeParams = "";
-                            size_t ifaceGenericStart = iface.find('<');
+                        // Helper lambda to recursively check if an interface extends the target interface
+                        std::function<bool(const std::string&, const std::string&, std::unordered_set<std::string>&)> checkInterfaceHierarchy;
+                        checkInterfaceHierarchy = [&](const std::string& interfaceName, const std::string& targetInterface, std::unordered_set<std::string>& visited) -> bool {
+                            // Avoid infinite loops with circular dependencies
+                            if (visited.count(interfaceName)) {
+                                return false;
+                            }
+                            visited.insert(interfaceName);
+
+                            // Strip generic parameters for comparison
+                            auto stripGenerics = [](const std::string& name) -> std::string {
+                                size_t genericStart = name.find('<');
+                                return (genericStart != std::string::npos) ? name.substr(0, genericStart) : name;
+                            };
+
+                            std::string interfaceBaseName = stripGenerics(interfaceName);
+                            std::string targetBaseName = stripGenerics(targetInterface);
+
+                            // Extract type parameters
+                            std::string interfaceTypeParams = "";
+                            size_t ifaceGenericStart = interfaceName.find('<');
                             if (ifaceGenericStart != std::string::npos) {
-                                baseIfaceName = iface.substr(0, ifaceGenericStart);
-                                ifaceTypeParams = iface.substr(ifaceGenericStart);
+                                interfaceTypeParams = interfaceName.substr(ifaceGenericStart);
                             }
 
-                            // Check exact match or base match
-                            if (iface == targetTypeName ||
-                                (baseIfaceName == baseTargetName && targetTypeParams.empty())) {
+                            // Direct match (exact or base without type params)
+                            if (interfaceName == targetInterface ||
+                                (interfaceBaseName == targetBaseName && targetTypeParams.empty())) {
+                                return true;
+                            }
+                            // Type param match
+                            if (interfaceBaseName == targetBaseName && !targetTypeParams.empty()) {
+                                return (interfaceTypeParams == targetTypeParams);
+                            }
+
+                            // Check extended interfaces recursively
+                            auto interfaceDef = environment->findInterface(interfaceName);
+                            if (interfaceDef) {
+                                const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+                                for (const auto& extendedInterface : extendedInterfaces) {
+                                    if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
+                                        return true;
+                                    }
+                                }
+                            }
+
+                            return false;
+                        };
+
+                        const auto& interfaces = classDef->getImplementedInterfaces();
+                        for (const auto& iface : interfaces) {
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
                                 canCast = true;
                                 break;
-                            }
-                            // Check type param compatibility
-                            if (baseIfaceName == baseTargetName && !targetTypeParams.empty()) {
-                                canCast = (ifaceTypeParams == targetTypeParams);
-                                if (canCast) break;
                             }
                         }
                     }

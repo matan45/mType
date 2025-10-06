@@ -278,6 +278,29 @@ namespace vm::compiler
                 auto parentDef = classRegistry->findClass(baseParentClassName);
 
                 if (classDef && parentDef) {
+                    // Check for circular inheritance before establishing the link
+                    std::unordered_set<std::string> visited;
+                    auto currentCheck = parentDef;
+                    while (currentCheck) {
+                        std::string checkName = currentCheck->getName();
+                        if (visited.count(checkName)) {
+                            // Circular inheritance detected
+                            throw errors::RuntimeException(
+                                "Circular inheritance detected: class '" + className +
+                                "' cannot extend '" + parentClassName + "'"
+                            );
+                        }
+                        if (checkName == className) {
+                            // Parent's ancestor is the current class - circular!
+                            throw errors::RuntimeException(
+                                "Circular inheritance detected: class '" + className +
+                                "' cannot extend '" + parentClassName + "'"
+                            );
+                        }
+                        visited.insert(checkName);
+                        currentCheck = currentCheck->getParentClass();
+                    }
+
                     // Establish the parent-child link
                     classDef->setParentClass(parentDef);
                 }
@@ -513,6 +536,21 @@ namespace vm::compiler
             return operandType; // Default: preserve operand type
         }
 
+        // For cast expressions, return the target type
+        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node)) {
+            const auto* targetType = castExpr->getTargetType();
+            if (targetType) {
+                std::string targetTypeName = targetType->toString();
+                // Convert target type name to ValueType
+                if (targetTypeName == "int") return value::ValueType::INT;
+                if (targetTypeName == "float") return value::ValueType::FLOAT;
+                if (targetTypeName == "string") return value::ValueType::STRING;
+                if (targetTypeName == "bool") return value::ValueType::BOOL;
+                // Object types (classes/interfaces)
+                return value::ValueType::OBJECT;
+            }
+        }
+
         // For binary operations, infer result type
         if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
             auto leftType = inferExpressionType(binOp->getLeft());
@@ -626,6 +664,21 @@ namespace vm::compiler
     std::string BytecodeCompiler::inferExpressionClassName(ast::ASTNode* node)
     {
         if (!node) return "";
+
+        // For cast expressions, return the target class name
+        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node)) {
+            const auto* targetType = castExpr->getTargetType();
+            if (targetType) {
+                std::string targetTypeName = targetType->toString();
+                // Only return class name if it's not a primitive type
+                if (targetTypeName != "int" && targetTypeName != "float" &&
+                    targetTypeName != "string" && targetTypeName != "bool" &&
+                    targetTypeName != "void") {
+                    return targetTypeName;
+                }
+            }
+            return "";
+        }
 
         // For NewNode, get the class name directly
         if (auto* newNode = dynamic_cast<ast::NewNode*>(node)) {
@@ -2603,7 +2656,40 @@ namespace vm::compiler
             thisLocal.scopeDepth = currentScopeDepth;
             locals.push_back(thisLocal);
 
-            // Initialize instance fields with their default values
+            // If parent class exists and has a default constructor, call it
+            if (node->hasParentClass()) {
+                std::string parentClassName = node->getParentClassName();
+                auto parentClassDef = environment->getClassRegistry()->findClass(parentClassName);
+                if (parentClassDef) {
+                    // Check if parent has a default constructor (0 args)
+                    auto parentDefaultCtor = parentClassDef->findConstructor(0);
+                    if (parentDefaultCtor) {
+                        // Call parent's default constructor: super()
+                        // No arguments to push for default constructor
+                        // Emit SUPER_CONSTRUCTOR instruction (VM will get 'this' from slot 0)
+                        std::string currentClassName = node->getClassName();
+                        size_t classNameIndex = program.getConstantPool().addString(currentClassName);
+                        program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     static_cast<uint32_t>(0));  // 0 arguments
+                    }
+                }
+            }
+
+            // Initialize ALL instance fields (including inherited ones) with their default values
+            // Collect all classes in hierarchy using ClassDefinition (parent to child order)
+            std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
+            auto classDef = environment->getClassRegistry()->findClass(node->getClassName());
+            auto currentDef = classDef;
+            while (currentDef) {
+                hierarchy.insert(hierarchy.begin(), currentDef);  // Insert at front for parent-first order
+                currentDef = currentDef->getParentClass();
+            }
+
+            // For each class in hierarchy, initialize its fields
+            // Note: We can only initialize fields from the current AST node since we don't have parent AST nodes
+            // So for now, just initialize the current class's fields
+            // Parent fields will be initialized with default values in VirtualMachine::handleNewObject
             auto& fields = node->getFields();
             for (const auto& fieldPtr : fields) {
                 if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get())) {
@@ -2848,26 +2934,28 @@ namespace vm::compiler
             locals.push_back(local);
         }
 
-        // Check if parent class requires super() call
+        // Handle super constructor call
         if (currentClassNode && currentClassNode->hasParentClass()) {
             std::string parentClassName = currentClassNode->getParentClassName();
-            // Check if parent has any constructors defined
             auto parentClassDef = environment->getClassRegistry()->findClass(parentClassName);
-            if (parentClassDef && !parentClassDef->getConstructors().empty()) {
-                // Parent has constructors - super() call is required
-                if (!node->hasSuperInitializer()) {
-                    throw errors::RuntimeException(
-                        "Constructor must call super() when parent class '" + parentClassName + "' has constructors"
-                    );
-                }
-            }
-        }
 
-        // Handle super constructor call if present
-        if (node->hasSuperInitializer()) {
-            auto* superInit = node->getSuperInitializer();
-            if (superInit) {
-                superInit->accept(*this);
+            if (node->hasSuperInitializer()) {
+                // Explicit super() call - compile it
+                auto* superInit = node->getSuperInitializer();
+                if (superInit) {
+                    superInit->accept(*this);
+                }
+            } else if (parentClassDef) {
+                // No explicit super() - automatically call parent's default constructor if it exists
+                auto parentDefaultCtor = parentClassDef->findConstructor(0);
+                if (parentDefaultCtor) {
+                    // Emit SUPER_CONSTRUCTOR call with 0 arguments
+                    std::string currentClassName = currentClassNode->getClassName();
+                    size_t classNameIndex = program.getConstantPool().addString(currentClassName);
+                    program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                                 static_cast<uint32_t>(classNameIndex),
+                                 static_cast<uint32_t>(0));  // 0 arguments
+                }
             }
         }
 
