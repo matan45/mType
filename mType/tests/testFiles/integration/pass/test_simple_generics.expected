@@ -13,9 +13,9 @@ Age: 25
 ID-Name pair: (101, Bob)
 ID: 101
 Name: Bob
-Status-Score pair: (true, 95.500000)
+Status-Score pair: (true, 95.5)
 Status: true
-Score: 95.500000
+Score: 95.5
 === Testing Generics with Custom Objects ===
 Student box: Box(Alice (Grade: 90))
 Retrieved student: Alice (Grade: 90)

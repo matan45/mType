@@ -62,14 +62,16 @@ namespace evaluator
                 return handleQualifiedStaticAccess(varName, node);
             }
 
-            // Check variables first (parameters, local variables, etc.)
+            // Check variables first (parameters, local variables, global variables)
+            // Parameters and local variables should always take priority over fields
             auto varDef = env->findVariable(varName);
             if (varDef)
             {
                 return varDef->getValue();
             }
 
-            // Check instance fields if no variable found
+            // Check instance fields if no variable found (implicit this.field references)
+            // This allows bare field names in instance methods to resolve to instance fields
             auto currentInstance = context->getCurrentInstance();
             if (currentInstance)
             {

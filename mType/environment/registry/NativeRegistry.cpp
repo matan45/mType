@@ -186,7 +186,15 @@ namespace environment::registry
                 }
                 else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
                 {
-                    return std::to_string(value);
+                    // Format float with proper precision, removing trailing zeros
+                    std::string str = std::to_string(value);
+                    // Remove trailing zeros
+                    str.erase(str.find_last_not_of('0') + 1, std::string::npos);
+                    // Remove trailing decimal point if no fractional part
+                    if (str.back() == '.') {
+                        str += '0'; // Keep at least one decimal place (e.g., "3.0" not "3")
+                    }
+                    return str;
                 }
                 else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)
                 {

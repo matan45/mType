@@ -3,6 +3,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../environment/Environment.hpp"
+#include <iostream>
 
 namespace evaluator::managers
 {
