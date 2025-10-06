@@ -316,13 +316,31 @@ namespace evaluator
             Value newValue = exprEvaluator->evaluate(node->getValue());
             newValue = handleLambdaConversion(newValue, node);
 
-            // Try implicit field assignment first (priority for constructor/instance context)
+            auto env = context->getEnvironment();
+
+            // Check if there's a local variable (parameter or local var) in current scope
+            auto scopeManager = env->getScopeManager();
+            auto localVarDef = scopeManager->findVariableInCurrentScope(node->getVariableName());
+
+            // If there's a local variable, prioritize it over instance fields
+            if (localVarDef)
+            {
+                // Variable exists in local scope
+                if (node->getVariableType() != ValueType::VOID)
+                {
+                    return handleScopeShadowing(newValue, node, localVarDef);
+                }
+                return handleExistingVariableAssignment(newValue, node, localVarDef);
+            }
+
+            // Try implicit field assignment (for instance methods with no local variable)
+            // This allows bare field names like "value = x" to assign to this.value
             if (tryImplicitFieldAssignment(newValue, node))
             {
                 return newValue;
             }
 
-            auto env = context->getEnvironment();
+            // Check outer scopes (global variables, parent function scopes, etc.)
             auto varDef = env->findVariable(node->getVariableName());
 
             // Variable not found
