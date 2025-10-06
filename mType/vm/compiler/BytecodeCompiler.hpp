@@ -123,6 +123,14 @@ namespace vm::compiler
         size_t nextLocalSlot = 0;
         int currentScopeDepth = 0;
 
+        // Global variable tracking (for compile-time validation)
+        std::unordered_set<std::string> globalVariables;
+        std::unordered_map<std::string, value::ValueType> globalVariableTypes;
+        std::unordered_map<std::string, int> globalVariableScopes;  // Track scope depth where global var was declared
+
+        // Import tracking (to avoid recompiling the same file)
+        std::unordered_set<std::string> compiledImports;
+
         // Function frame tracking
         struct FunctionFrame {
             size_t localStartSlot;
@@ -171,6 +179,7 @@ namespace vm::compiler
         // Type conversion helpers
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
         bytecode::OpCode getUnaryOpCode(token::TokenType op);
+        value::ValueType inferExpressionType(ast::ASTNode* node);
 
         // Variable management
         size_t resolveLocal(const std::string& name);

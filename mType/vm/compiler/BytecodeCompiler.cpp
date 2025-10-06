@@ -3,6 +3,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
+#include "../../errors/EnvironmentException.hpp"
 #include "../../evaluator/utils/ValueConverter.hpp"
 #include "../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include <typeinfo>
@@ -437,6 +438,88 @@ namespace vm::compiler
         program.emit(bytecode::OpCode::JUMP_BACK, static_cast<uint32_t>(loopStart));
     }
 
+    // Helper to infer the type of an expression node
+    value::ValueType BytecodeCompiler::inferExpressionType(ast::ASTNode* node)
+    {
+        if (!node) return value::ValueType::VOID;
+
+        if (dynamic_cast<ast::IntegerNode*>(node)) return value::ValueType::INT;
+        if (dynamic_cast<ast::FloatNode*>(node)) return value::ValueType::FLOAT;
+        if (dynamic_cast<ast::StringNode*>(node)) return value::ValueType::STRING;
+        if (dynamic_cast<ast::BoolNode*>(node)) return value::ValueType::BOOL;
+        if (dynamic_cast<ast::NullNode*>(node)) return value::ValueType::OBJECT; // null is compatible with object types
+        if (dynamic_cast<ast::NewNode*>(node)) return value::ValueType::OBJECT;
+        if (dynamic_cast<ast::LambdaNode*>(node)) return value::ValueType::OBJECT;
+
+        // For variable references, check locals then globals
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node)) {
+            std::string varName = varNode->getName();
+            // Check locals
+            for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+                if (it->name == varName) {
+                    return it->type;
+                }
+            }
+            // Check globals
+            auto globalIt = globalVariableTypes.find(varName);
+            if (globalIt != globalVariableTypes.end()) {
+                return globalIt->second;
+            }
+            return value::ValueType::VOID; // Unknown
+        }
+
+        // For function calls, check return type
+        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
+            const auto* funcMetadata = program.getFunction(funcCall->getFunctionName());
+            if (funcMetadata && !funcMetadata->returnType.empty()) {
+                if (funcMetadata->returnType == "int") return value::ValueType::INT;
+                if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
+                if (funcMetadata->returnType == "string") return value::ValueType::STRING;
+                if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+                return value::ValueType::OBJECT;
+            }
+        }
+
+        // For binary operations, infer result type
+        if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
+            auto leftType = inferExpressionType(binOp->getLeft());
+            auto rightType = inferExpressionType(binOp->getRight());
+            auto op = binOp->getOperator();
+
+            // String concatenation with + always results in string
+            if (op == token::TokenType::PLUS &&
+                (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
+                return value::ValueType::STRING;
+            }
+
+            // Arithmetic operations on int/float
+            if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+                op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE) {
+                if (leftType == value::ValueType::FLOAT || rightType == value::ValueType::FLOAT) {
+                    return value::ValueType::FLOAT;
+                }
+                if (leftType == value::ValueType::INT && rightType == value::ValueType::INT) {
+                    return value::ValueType::INT;
+                }
+            }
+
+            // Comparison operations return bool
+            if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
+                op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
+                return value::ValueType::BOOL;
+            }
+
+            // Logical operations return bool
+            if (op == token::TokenType::AND || op == token::TokenType::OR) {
+                return value::ValueType::BOOL;
+            }
+        }
+
+        // Default: unknown type
+        return value::ValueType::VOID;
+    }
+
     bytecode::OpCode BytecodeCompiler::getBinaryOpCode(token::TokenType op, bool typeSpecialized)
     {
         switch (op) {
@@ -516,6 +599,20 @@ namespace vm::compiler
             locals.pop_back();
             nextLocalSlot--;
             emitWithLocation(bytecode::OpCode::POP, nullptr);
+        }
+
+        // Remove global variables that went out of scope
+        // (variables declared in nested blocks at global scope)
+        std::vector<std::string> toRemove;
+        for (const auto& pair : globalVariableScopes) {
+            if (pair.second > currentScopeDepth) {
+                toRemove.push_back(pair.first);
+            }
+        }
+        for (const auto& name : toRemove) {
+            globalVariables.erase(name);
+            globalVariableTypes.erase(name);
+            globalVariableScopes.erase(name);
         }
     }
 
@@ -719,7 +816,31 @@ namespace vm::compiler
             }
         }
 
-        // Global variable lookup
+        // Global variable lookup - validate it exists and is in scope
+        // Skip validation if we're inside a lambda (lambdas can reference variables not yet defined)
+        bool inLambda = !functionFrameStack.empty() && functionFrameStack.back().isLambda;
+
+        if (!inLambda) {
+            auto globalIt = globalVariables.find(name);
+            if (globalIt == globalVariables.end()) {
+                throw errors::UndefinedException(
+                    "Variable '" + name + "' is not defined",
+                    node->getLocation()
+                );
+            }
+
+            // Check if the variable is still in scope
+            auto scopeIt = globalVariableScopes.find(name);
+            if (scopeIt != globalVariableScopes.end()) {
+                if (scopeIt->second > currentScopeDepth) {
+                    throw errors::UndefinedException(
+                        "Variable '" + name + "' is not defined or is out of scope",
+                        node->getLocation()
+                    );
+                }
+            }
+        }
+
         size_t nameIndex = program.getConstantPool().addString(name);
         emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
 
@@ -749,6 +870,19 @@ namespace vm::compiler
 
         // Track local variable if we're in a function
         if (!functionFrameStack.empty()) {
+            // Check for variable redefinition in the current scope
+            for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+                if (it->scopeDepth < currentScopeDepth) {
+                    break; // Different scope, no conflict
+                }
+                if (it->name == name) {
+                    throw errors::EnvironmentException(
+                        "Variable '" + name + "' is already defined in this scope",
+                        node->getLocation()
+                    );
+                }
+            }
+
             // This is a local variable - add to locals tracking
             LocalVariable local;
             local.name = name;
@@ -776,6 +910,25 @@ namespace vm::compiler
         }
 
         // This is a global variable - use DECLARE_VAR
+        // Check if variable already exists in current or parent scope
+        auto existingIt = globalVariables.find(name);
+        if (existingIt != globalVariables.end()) {
+            auto scopeIt = globalVariableScopes.find(name);
+            if (scopeIt != globalVariableScopes.end()) {
+                // Only error if the existing variable is in current or parent scope
+                // Variables from sibling scopes (that have closed) can be reused
+                if (scopeIt->second <= currentScopeDepth) {
+                    throw errors::EnvironmentException(
+                        "Variable '" + name + "' is already defined",
+                        node->getLocation()
+                    );
+                }
+            }
+        }
+        globalVariables.insert(name);
+        globalVariableTypes[name] = node->getType();
+        globalVariableScopes[name] = currentScopeDepth;
+
         std::string typeStr = "auto";  // Default type string
         size_t nameIndex = program.getConstantPool().addString(name);
         size_t typeIndex = program.getConstantPool().addString(typeStr);
@@ -798,6 +951,84 @@ namespace vm::compiler
 
         // Compile the value
         auto* value = node->getValue();
+
+        // Type checking: validate object/class type exists
+        if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
+            std::string className = node->getClassName();
+
+            // Skip validation for array types (e.g., K[], T[], int[])
+            // Also skip validation for generic type parameters (single uppercase letters like T, K, V, E)
+            bool isArrayType = className.find("[]") != std::string::npos;
+            bool isGenericParam = (className.length() == 1 && std::isupper(className[0]));
+
+            if (isArrayType || isGenericParam) {
+                // Array types and generic type parameters are not actual classes, skip validation
+            } else {
+                // Extract base class name if it's a generic type (e.g., Box<String> -> Box)
+                std::string baseClassName = className;
+                size_t genericStart = className.find('<');
+                if (genericStart != std::string::npos) {
+                    baseClassName = className.substr(0, genericStart);
+                }
+
+                // Check if class exists in the environment or program's class registry
+                bool classExists = false;
+
+                // First check in environment (includes classes from current and imported files)
+                if (environment->findClass(baseClassName)) {
+                    classExists = true;
+                }
+
+                // Also check in program's class registry
+                if (!classExists) {
+                    const auto& classes = program.getClasses();
+                    for (const auto& classMeta : classes) {
+                        if (classMeta.name == baseClassName) {
+                            classExists = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!classExists) {
+                    // Also check if it's an interface
+                    auto interfaceDef = environment->findInterface(baseClassName);
+                    if (!interfaceDef) {
+                        throw errors::UndefinedException(
+                            "Undefined class or interface: '" + baseClassName + "'",
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+        }
+
+        // Type checking: validate assignment type compatibility
+        if (value && varType != value::ValueType::VOID && varType != value::ValueType::OBJECT) {
+            value::ValueType valueType = inferExpressionType(value);
+            if (valueType != value::ValueType::VOID && valueType != varType) {
+                // Special case: null can be assigned to object types
+                if (valueType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(value)) {
+                    // Allow null assignment
+                }
+                // Special case: OBJECT can be assigned to STRING (String class to string primitive)
+                else if (valueType == value::ValueType::OBJECT && varType == value::ValueType::STRING) {
+                    // Allow object-to-string assignment (String class instances)
+                }
+                // Special case: INT can be assigned to FLOAT (implicit conversion)
+                else if (valueType == value::ValueType::INT && varType == value::ValueType::FLOAT) {
+                    // Allow int-to-float implicit conversion
+                }
+                else {
+                    std::string varTypeStr = evaluator::utils::ValueConverter::valueTypeToString(varType);
+                    std::string valueTypeStr = evaluator::utils::ValueConverter::valueTypeToString(valueType);
+                    throw errors::TypeException(
+                        "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
+                        node->getLocation()
+                    );
+                }
+            }
+        }
         if (value) {
             // Validation 1 & 2: Check if assigning lambda to non-functional or undefined interface
             if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
@@ -836,6 +1067,30 @@ namespace vm::compiler
 
             // Track local variable if we're in a function
             if (!functionFrameStack.empty() && currentScopeDepth > 0) {
+                // Check for variable redefinition in current scope
+                for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+                    if (it->scopeDepth < currentScopeDepth) {
+                        break; // Different scope, no conflict
+                    }
+                    if (it->name == name) {
+                        throw errors::EnvironmentException(
+                            "Variable '" + name + "' is already defined in this scope",
+                            node->getLocation()
+                        );
+                    }
+                }
+
+                // Also check for shadowing function parameters (they are in parent scope)
+                size_t funcStartSlot = functionFrameStack.back().localStartSlot;
+                for (size_t i = funcStartSlot; i < locals.size(); ++i) {
+                    if (locals[i].name == name && locals[i].scopeDepth < currentScopeDepth) {
+                        throw errors::EnvironmentException(
+                            "Variable '" + name + "' shadows a function parameter",
+                            node->getLocation()
+                        );
+                    }
+                }
+
                 // This is a local variable - add to locals tracking
                 LocalVariable local;
                 local.name = name;
@@ -862,6 +1117,25 @@ namespace vm::compiler
             }
 
             // This is a global variable - use DECLARE_VAR
+            // Check if variable already exists in current or parent scope
+            auto existingIt = globalVariables.find(name);
+            if (existingIt != globalVariables.end()) {
+                auto scopeIt = globalVariableScopes.find(name);
+                if (scopeIt != globalVariableScopes.end()) {
+                    // Only error if the existing variable is in current or parent scope
+                    // Variables from sibling scopes (that have closed) can be reused
+                    if (scopeIt->second <= currentScopeDepth) {
+                        throw errors::EnvironmentException(
+                            "Variable '" + name + "' is already defined",
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+            globalVariables.insert(name);
+            globalVariableTypes[name] = varType;
+            globalVariableScopes[name] = currentScopeDepth;
+
             std::string typeStr = "auto";
             size_t nameIndex = program.getConstantPool().addString(name);
             size_t typeIndex = program.getConstantPool().addString(typeStr);
@@ -992,6 +1266,76 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitBinaryOpNode(ast::BinaryOpNode* node)
     {
+        // Type validation: check operand types for compatibility
+        auto leftType = inferExpressionType(node->getLeft());
+        auto rightType = inferExpressionType(node->getRight());
+        auto op = node->getOperator();
+
+        // Only validate if we know both types
+        if (leftType != value::ValueType::VOID && rightType != value::ValueType::VOID) {
+            bool isValid = false;
+
+            // Arithmetic operations: +, -, *, /, %
+            if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+                op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE ||
+                op == token::TokenType::MODULO) {
+
+                // String concatenation with +
+                if (op == token::TokenType::PLUS &&
+                    (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
+                    isValid = true;
+                }
+                // Numeric operations: both must be int or float
+                else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                         (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                    isValid = true;
+                }
+            }
+            // Comparison operations: ==, !=, <, >, <=, >=
+            else if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
+                     op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                     op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
+                // Comparisons work on same types or numeric types
+                if (leftType == rightType) {
+                    isValid = true;
+                } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                          (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                    isValid = true;
+                }
+            }
+            // Logical operations: &&, ||
+            else if (op == token::TokenType::AND || op == token::TokenType::OR) {
+                // Both must be bool
+                if (leftType == value::ValueType::BOOL && rightType == value::ValueType::BOOL) {
+                    isValid = true;
+                }
+            }
+            else {
+                // Unknown operator, allow it
+                isValid = true;
+            }
+
+            if (!isValid) {
+                std::string leftTypeStr = evaluator::utils::ValueConverter::valueTypeToString(leftType);
+                std::string rightTypeStr = evaluator::utils::ValueConverter::valueTypeToString(rightType);
+                std::string opStr;
+                switch (op) {
+                    case token::TokenType::PLUS: opStr = "+"; break;
+                    case token::TokenType::MINUS: opStr = "-"; break;
+                    case token::TokenType::MULTIPLY: opStr = "*"; break;
+                    case token::TokenType::DIVIDE: opStr = "/"; break;
+                    case token::TokenType::MODULO: opStr = "%"; break;
+                    case token::TokenType::AND: opStr = "&&"; break;
+                    case token::TokenType::OR: opStr = "||"; break;
+                    default: opStr = "operator"; break;
+                }
+                throw errors::TypeException(
+                    "Invalid operation: cannot apply '" + opStr + "' to " + leftTypeStr + " and " + rightTypeStr,
+                    node->getLocation()
+                );
+            }
+        }
+
         // Compile left operand
         node->getLeft()->accept(*this);
 
@@ -1620,6 +1964,23 @@ namespace vm::compiler
     {
         // Get function name
         std::string functionName = node->getFunctionName();
+        const auto& arguments = node->getArguments();
+
+        // Validate parameter count for non-method calls
+        if (functionName.find("::") == std::string::npos) {
+            // Check if function is registered
+            const auto* funcMetadata = program.getFunction(functionName);
+            if (funcMetadata) {
+                if (funcMetadata->parameterCount != arguments.size()) {
+                    throw errors::EnvironmentException(
+                        "Function '" + functionName + "' expects " +
+                        std::to_string(funcMetadata->parameterCount) +
+                        " parameter(s) but got " + std::to_string(arguments.size()),
+                        node->getLocation()
+                    );
+                }
+            }
+        }
 
         // Check if this is a static method call (ClassName::methodName)
         if (functionName.find("::") != std::string::npos) {
@@ -1630,7 +1991,6 @@ namespace vm::compiler
             }
 
             // Compile all arguments (left to right)
-            const auto& arguments = node->getArguments();
             for (const auto& arg : arguments) {
                 arg->accept(*this);
             }
@@ -1648,7 +2008,6 @@ namespace vm::compiler
             // Check if a method with this name exists in the current class
             bool isMethodCall = false;
             const auto& methods = currentClassNode->getMethods();
-            const auto& arguments = node->getArguments();
 
             for (const auto& method : methods) {
                 if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
@@ -1687,7 +2046,6 @@ namespace vm::compiler
             }
         } else {
             // Compile all arguments (left to right)
-            const auto& arguments = node->getArguments();
             for (const auto& arg : arguments) {
                 arg->accept(*this);
             }
@@ -1705,12 +2063,66 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitReturnNode(ast::ReturnNode* node)
     {
         auto* returnValue = node->getReturnValue();
-        if (returnValue) {
-            returnValue->accept(*this);
-            emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+
+        // Type validation: check return type matches function signature
+        if (!functionFrameStack.empty()) {
+            std::string expectedReturnType = functionFrameStack.back().returnType;
+
+            // Skip validation for "auto" return type (type inference)
+            if (expectedReturnType != "auto") {
+                if (returnValue) {
+                    // Function has a return value
+                    value::ValueType actualType = inferExpressionType(returnValue);
+
+                    // Convert expected return type string to ValueType
+                    value::ValueType expectedType = value::ValueType::VOID;
+                    if (expectedReturnType == "int") expectedType = value::ValueType::INT;
+                    else if (expectedReturnType == "float") expectedType = value::ValueType::FLOAT;
+                    else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
+                    else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
+                    else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
+                    else expectedType = value::ValueType::OBJECT; // Class/interface types
+
+                    // Check if types match (allow VOID for unknown types)
+                    if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID) {
+                        if (actualType != expectedType) {
+                            // Special case: null can be returned for object types
+                            if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
+                                std::string actualTypeStr = evaluator::utils::ValueConverter::valueTypeToString(actualType);
+                                throw errors::TypeException(
+                                    "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
+                                    node->getLocation()
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    // Function returns nothing
+                    if (expectedReturnType != "void") {
+                        throw errors::TypeException(
+                            "Return type mismatch: expected " + expectedReturnType + " but got void",
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+
+            if (returnValue) {
+                returnValue->accept(*this);
+                emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            } else {
+                emitWithLocation(bytecode::OpCode::RETURN, node);
+            }
         } else {
-            emitWithLocation(bytecode::OpCode::RETURN, node);
+            // Not in a function context - shouldn't happen but handle gracefully
+            if (returnValue) {
+                returnValue->accept(*this);
+                emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            } else {
+                emitWithLocation(bytecode::OpCode::RETURN, node);
+            }
         }
+
         return std::monostate{};
     }
 
@@ -2787,14 +3199,25 @@ namespace vm::compiler
         // For bytecode compilation, imports are handled at compile time
         // The imported AST has already been processed and symbols registered in the environment
         // We need to compile any imported declarations that aren't already compiled
-        
+
+        std::string importPath = node->getFilePath();
+
+        // Check if this import has already been compiled
+        if (compiledImports.find(importPath) != compiledImports.end()) {
+            // Already compiled, skip
+            return std::monostate{};
+        }
+
         // Get the imported AST
         auto* importedAST = node->getImportedAST();
 
         if (!importedAST) {
             // Import not resolved - this is an error
-            throw std::runtime_error("Import not resolved: " + node->getFilePath());
+            throw std::runtime_error("Import not resolved: " + importPath);
         }
+
+        // Mark this import as compiled before processing to handle circular imports
+        compiledImports.insert(importPath);
 
         // Compile the imported AST
         // This will add any functions, classes, etc. to our bytecode program
