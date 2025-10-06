@@ -10,6 +10,8 @@
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../value/LambdaValue.hpp"
+#include "../../evaluator/base/EvaluationContext.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -1400,6 +1402,50 @@ namespace vm::runtime
         // Check for null
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
             throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+        }
+
+        // Handle lambda method calls (apply, test, etc.)
+        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(objectValue)) {
+            auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(objectValue);
+            // Call the lambda directly with arguments (method name doesn't matter - lambdas only have one callable method)
+            // Create evaluation context for the lambda call
+            auto context = std::make_shared<evaluator::base::EvaluationContext>(environment);
+            value::Value result = lambda->invoke(args, context);
+            push(result);
+            return;
+        }
+
+        if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(objectValue)) {
+            auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(objectValue);
+
+            // Validate argument count
+            if (args.size() != lambda->parameterCount) {
+                throw errors::RuntimeException("Lambda expects " + std::to_string(lambda->parameterCount) +
+                                             " arguments but got " + std::to_string(args.size()));
+            }
+
+            // Create call frame for lambda
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = operandStack.size();
+            frame.localBase = operandStack.size();
+            frame.functionName = "<lambda>";
+            frame.thisInstance = nullptr;  // Lambdas don't have 'this'
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Push arguments onto stack as locals
+            for (const auto& arg : args) {
+                push(arg);
+            }
+
+            // Jump to lambda code
+            instructionPointer = lambda->instructionPointer - 1;  // -1 because loop will increment
+
+            // Lambda execution will continue in the main execution loop
+            // When RETURN is encountered, it will pop the call frame and return the value
+            return;
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {

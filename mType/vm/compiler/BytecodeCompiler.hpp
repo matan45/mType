@@ -150,8 +150,19 @@ namespace vm::compiler
 
         // Class registration for bytecode
         void registerClassesForBytecode(ast::ASTNode* node);
+        void registerInterfaceForBytecode(ast::nodes::classes::InterfaceNode* interfaceNode);
         void linkParentClasses(ast::ASTNode* node);
         bytecode::BytecodeProgram::ClassMetadata extractClassMetadata(ast::ClassNode* classNode);
+
+        // Interface validation
+        void validateInterfaceImplementations(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+            const ast::SourceLocation& location);
+        std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(
+            const std::string& interfaceName);
+        std::string resolveGenericType(
+            const std::string& typeName,
+            const std::unordered_map<std::string, std::string>& substitutions);
 
         // Type conversion helpers
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
