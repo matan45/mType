@@ -518,12 +518,13 @@ namespace vm::compiler
         }
     }
 
-    void BytecodeCompiler::enterFunctionFrame(const std::string& returnType)
+    void BytecodeCompiler::enterFunctionFrame(const std::string& returnType, bool isLambda)
     {
         FunctionFrame frame;
         frame.localStartSlot = nextLocalSlot;  // Remember where this function's locals start
         frame.scopeDepthStart = currentScopeDepth;
         frame.returnType = returnType;
+        frame.isLambda = isLambda;
         functionFrameStack.push_back(frame);
         // NOTE: nextLocalSlot continues from where it was - NOT reset to 0
         // The resolveLocal function will return relative slots by subtracting localStartSlot
@@ -685,13 +686,17 @@ namespace vm::compiler
                             return std::monostate{};
                         } else if (inInstanceMethod) {
                             // Instance field - use GET_FIELD with 'this'
-                            // Load 'this' from local slot 0 (first parameter in instance methods)
-                            emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0, node);
+                            // Find 'this' in local variables (may not be at slot 0 if in lambda)
+                            size_t thisSlot = resolveLocal("this");
+                            if (thisSlot != SIZE_MAX) {
+                                // Load 'this' from its local slot
+                                emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(thisSlot), node);
 
-                            // Get field from 'this'
-                            size_t fieldNameIndex = program.getConstantPool().addString(name);
-                            emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
-                            return std::monostate{};
+                                // Get field from 'this'
+                                size_t fieldNameIndex = program.getConstantPool().addString(name);
+                                emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                                return std::monostate{};
+                            }
                         }
                         // If we're in a static method trying to access instance field, fall through to error
                         break;
@@ -741,7 +746,7 @@ namespace vm::compiler
         }
 
         // Track local variable if we're in a function
-        if (!functionFrameStack.empty() && currentScopeDepth > 0) {
+        if (!functionFrameStack.empty()) {
             // This is a local variable - add to locals tracking
             LocalVariable local;
             local.name = name;
@@ -749,9 +754,17 @@ namespace vm::compiler
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
 
+            // Emit STORE_LOCAL with the variable name for shared frame late-binding
+            // This allows lambdas to access variables by name (for forward references)
+            size_t nameIndex = program.getConstantPool().addString(name);
+            program.emit(bytecode::OpCode::STORE_LOCAL,
+                        std::vector<uint32_t>{
+                            static_cast<uint32_t>(local.slot),
+                            static_cast<uint32_t>(nameIndex)
+                        });
+
             // The value is already on the stack from the initializer
-            // For stack-based locals, we don't emit DECLARE_VAR
-            // The value remains on the stack at the slot position
+            // STORE_LOCAL will consume it and store at the slot position
             return std::monostate{};
         }
 
@@ -800,7 +813,12 @@ namespace vm::compiler
 
                 // Store the value at the local's slot position and keep a copy on stack
                 emitWithLocation(bytecode::OpCode::DUP, node);
-                emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(local.slot), node);
+
+                // Emit STORE_LOCAL with variable name for shared frame late-binding
+                size_t nameIndex = program.getConstantPool().addString(name);
+                program.emit(bytecode::OpCode::STORE_LOCAL,
+                            static_cast<uint32_t>(local.slot),
+                            static_cast<uint32_t>(nameIndex));
                 return std::monostate{};
             }
 
@@ -866,7 +884,12 @@ namespace vm::compiler
                 // This is a local variable - use STORE_LOCAL with slot index
                 // Duplicate value for assignment expression result (assignment returns the assigned value)
                 emitWithLocation(bytecode::OpCode::DUP, node);
-                emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
+
+                // Emit STORE_LOCAL with variable name for shared frame late-binding
+                size_t nameIndex = program.getConstantPool().addString(name);
+                program.emit(bytecode::OpCode::STORE_LOCAL,
+                            static_cast<uint32_t>(localSlot),
+                            static_cast<uint32_t>(nameIndex));
                 return std::monostate{};
             }
 
@@ -936,7 +959,11 @@ namespace vm::compiler
 
                 // Store updated value back to variable (consumes one value from stack)
                 if (isLocal) {
-                    emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), node);
+                    // Emit STORE_LOCAL with variable name for shared frame late-binding
+                    size_t nameIndex = program.getConstantPool().addString(varName);
+                    program.emit(bytecode::OpCode::STORE_LOCAL,
+                                static_cast<uint32_t>(localSlot),
+                                static_cast<uint32_t>(nameIndex));
                 } else {
                     size_t nameIndex = program.getConstantPool().addString(varName);
                     program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
@@ -2488,31 +2515,53 @@ namespace vm::compiler
         const auto& params = node->getParameters();
 
         // Capture variables from outer scope for closure support
-        // Save current closure captures
+        // Save current closure captures and locals
         std::vector<ClosureVariable> previousCaptures = closureCaptures;
+        std::vector<LocalVariable> previousLocals = locals;
         closureCaptures.clear();
 
         // Scan lambda body for variable references and capture from outer scopes
-        // For now, we capture all locals from parent scopes
-        for (const auto& local : locals) {
-            ClosureVariable capture;
-            capture.name = local.name;
-            capture.slot = local.slot;
-            capture.isFromParent = true;
-            closureCaptures.push_back(capture);
+        // For now, we capture all locals from parent scopes (including 'this' if in method)
+        // But only capture from the current function frame, not from nested lambdas we just compiled
+        size_t currentFrameStart = functionFrameStack.empty() ? 0 : functionFrameStack.back().localStartSlot;
+
+        // Determine if we're compiling a lambda inside another lambda
+        bool isNestedLambda = !functionFrameStack.empty() && functionFrameStack.back().isLambda;
+
+        // Capture strategy:
+        // - If NOT nested in a lambda: capture all variables from the current function frame
+        // - If nested in a lambda: only capture from immediate parent scope (the outer lambda already has the rest)
+        size_t parentScopeStart = 0;
+        if (isNestedLambda) {
+            // Only capture from the immediate parent scope (currentScopeDepth - 1 and higher)
+            parentScopeStart = currentScopeDepth > 0 ? currentScopeDepth - 1 : 0;
         }
 
-        // Emit captured variables onto stack (they will be part of lambda closure)
-        for (const auto& capture : closureCaptures) {
-            size_t nameIndex = program.getConstantPool().addString(capture.name);
-            program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+        for (const auto& local : previousLocals) {
+            // Check if this variable is in the current function frame and meets scope requirements
+            bool shouldCapture = local.slot >= currentFrameStart;
+            if (isNestedLambda) {
+                shouldCapture = shouldCapture && local.scopeDepth >= parentScopeStart;
+            }
+
+            if (shouldCapture) {
+                ClosureVariable capture;
+                capture.name = local.name;
+                capture.slot = local.slot - currentFrameStart;  // Convert to relative slot for this frame
+                capture.isFromParent = true;
+                closureCaptures.push_back(capture);
+            }
         }
 
         // Enter function frame for lambda
-        enterFunctionFrame("auto");
+        // Save the current nextLocalSlot and reset it for the lambda's own scope
+        size_t savedNextLocalSlot = nextLocalSlot;
+        nextLocalSlot = 0;  // Lambda parameters and locals start from slot 0
+
+        enterFunctionFrame("auto", true);  // Mark this frame as a lambda
         beginScope();
 
-        // Track lambda parameters as locals
+        // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
         for (const auto& param : params) {
             LocalVariable local;
             local.name = param.name;
@@ -2521,11 +2570,12 @@ namespace vm::compiler
             locals.push_back(local);
         }
 
-        // Add captured variables as locals (so they can be referenced in lambda body)
+        // Add captured variables as locals (they occupy slots after parameters)
+        // Their slots must match where they'll be at runtime (after params are pushed)
         for (const auto& capture : closureCaptures) {
             LocalVariable local;
             local.name = capture.name;
-            local.slot = nextLocalSlot++;
+            local.slot = nextLocalSlot++;  // Assign slots sequentially after parameters
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
         }
@@ -2558,16 +2608,33 @@ namespace vm::compiler
         program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
 
         // Now emit instruction to create lambda value with captured environment
-        // Store lambda function start address, parameter count, and capture count
-        program.emit(bytecode::OpCode::LAMBDA,
-                    std::vector<uint32_t>{
-                        static_cast<uint32_t>(lambdaStart),
-                        static_cast<uint32_t>(params.size()),
-                        static_cast<uint32_t>(closureCaptures.size())
-                    });
+        // Build operands: [lambdaStart, paramCount, captureCount, parentLocalCount,
+        //                  captureSlot1, captureSlot2, ...,
+        //                  nameIdx1, slot1, nameIdx2, slot2, ...]
+        std::vector<uint32_t> operands;
+        operands.push_back(static_cast<uint32_t>(lambdaStart));
+        operands.push_back(static_cast<uint32_t>(params.size()));
+        operands.push_back(static_cast<uint32_t>(closureCaptures.size()));
+        operands.push_back(static_cast<uint32_t>(previousLocals.size()));  // Number of parent locals
 
-        // Restore previous closure captures
+        // Add captured variable slot numbers (so we can read them from parent's stack at runtime)
+        for (const auto& capture : closureCaptures) {
+            operands.push_back(static_cast<uint32_t>(capture.slot));
+        }
+
+        // Add parent local variable name->slot mapping for late-bound access
+        for (const auto& local : previousLocals) {
+            size_t nameIndex = program.getConstantPool().addString(local.name);
+            operands.push_back(static_cast<uint32_t>(nameIndex));
+            operands.push_back(static_cast<uint32_t>(local.slot));
+        }
+
+        program.emit(bytecode::OpCode::LAMBDA, operands);
+
+        // Restore previous closure captures, locals, and nextLocalSlot
         closureCaptures = previousCaptures;
+        locals = previousLocals;
+        nextLocalSlot = savedNextLocalSlot;
 
         return std::monostate{};
     }

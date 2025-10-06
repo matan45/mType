@@ -126,6 +126,7 @@ namespace vm::compiler
             size_t localStartSlot;
             int scopeDepthStart;
             std::string returnType;
+            bool isLambda = false;  // Track if this frame is for a lambda
         };
         std::vector<FunctionFrame> functionFrameStack;
 
@@ -174,7 +175,7 @@ namespace vm::compiler
         void endScope();
 
         // Function frame management
-        void enterFunctionFrame(const std::string& returnType);
+        void enterFunctionFrame(const std::string& returnType, bool isLambda = false);
         void exitFunctionFrame();
         size_t getLocalCount() const;
 

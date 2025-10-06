@@ -5,7 +5,7 @@ After modification: 205
 Final capture: 84
 === Instance Method Capturing Static ===
 Instance to static: 211
-After dual modification: 211
+After dual modification: 321
 === Nested Lambda Capture ===
 Nested capture result: 97
 Chained capture: 61

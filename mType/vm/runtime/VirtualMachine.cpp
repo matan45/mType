@@ -467,6 +467,18 @@ namespace vm::runtime
         const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
         auto varDef = environment->findVariable(varName);
         if (!varDef) {
+            // Variable not found in global environment
+            // Check if we're in a lambda with a parent frame (for late-bound variable access)
+            if (!callStack.empty() && callStack.back().originatingLambda) {
+                auto lambda = callStack.back().originatingLambda;
+                if (lambda->parentFrame) {
+                    value::Value val = lambda->parentFrame->getLocalByName(varName);
+                    if (!std::holds_alternative<std::monostate>(val)) {
+                        push(val);
+                        return;
+                    }
+                }
+            }
             throw errors::RuntimeException("Variable not found: " + varName);
         }
         push(varDef->getValue());
@@ -543,6 +555,11 @@ namespace vm::runtime
         }
 
         size_t slot = instr.operands[0];
+        std::string varName = "";
+        if (instr.operands.size() > 1) {
+            // Variable name provided (for shared frame late-binding)
+            varName = program->getConstantPool().getString(instr.operands[1]);
+        }
 
         // Get the current frame base (or 0 if no call frame)
         size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
@@ -564,6 +581,17 @@ namespace vm::runtime
         } else {
             // Otherwise, store at the specific position
             operandStack[stackPos] = val;
+        }
+
+        // Also update the shared frame if one exists (for lambda late-binding)
+        // This ensures lambdas see updated values of variables (including forward references)
+        if (!callStack.empty() && callStack.back().sharedFrame) {
+            if (!varName.empty()) {
+                // Register the variable name -> slot mapping
+                callStack.back().sharedFrame->setLocal(varName, slot, val);
+            } else {
+                callStack.back().sharedFrame->setLocal(slot, val);
+            }
         }
     }
 
@@ -1429,15 +1457,24 @@ namespace vm::runtime
             frame.returnAddress = instructionPointer;
             frame.frameBase = operandStack.size();
             frame.localBase = operandStack.size();
-            frame.functionName = "<lambda>";
-            frame.thisInstance = nullptr;  // Lambdas don't have 'this'
+            // Use class context for access checks: "ClassName::<lambda>" or just "<lambda>"
+            frame.functionName = lambda->creatingClassName.empty() ?
+                "<lambda>" : lambda->creatingClassName + "::<lambda>";
+            frame.thisInstance = lambda->capturedThis;  // Restore captured 'this' if present
+            frame.originatingLambda = lambda;  // Store reference for late-bound variable access
 
             callStack.push_back(frame);
             stats.functionCalls++;
 
             // Push arguments onto stack as locals
-            for (const auto& arg : args) {
-                push(arg);
+            for (size_t i = 0; i < args.size(); ++i) {
+                push(args[i]);
+            }
+
+            // Push captured variables onto stack (after arguments)
+            // Use snapshot values (immutable capture semantics)
+            for (const auto& capturedValue : lambda->capturedValues) {
+                push(capturedValue);
             }
 
             // Jump to lambda code
@@ -2162,14 +2199,88 @@ namespace vm::runtime
     // === Lambda Operations ===
 
     void VirtualMachine::handleLambda(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get lambda function start address and parameter count
+        // Get lambda function start address, parameter count, capture count, and parent local count
         size_t lambdaStart = instr.operands[0];
         size_t paramCount = instr.operands[1];
+        size_t captureCount = instr.operands[2];
+        size_t parentLocalCount = instr.operands.size() > 3 ? instr.operands[3] : 0;
 
         // Create bytecode lambda
         auto lambda = std::make_shared<BytecodeLambda>();
         lambda->instructionPointer = lambdaStart;
         lambda->parameterCount = paramCount;
+
+        // Share the parent frame for late-bound variable access
+        // This allows lambdas to access variables declared after lambda creation (forward references)
+        if (!callStack.empty()) {
+            // Get or create shared frame for current call frame
+            if (!callStack.back().sharedFrame) {
+                callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+                // Initialize with current local variables
+                size_t localBase = callStack.back().localBase;
+                for (size_t i = localBase; i < operandStack.size(); ++i) {
+                    callStack.back().sharedFrame->setLocal(i - localBase, operandStack[i]);
+                }
+            }
+            lambda->parentFrame = callStack.back().sharedFrame;
+
+            // Populate the name->slot mapping from the LAMBDA instruction operands
+            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount,
+            //                   captureSlot1, ..., nameIdx1, slot1, nameIdx2, slot2, ...]
+            // Note: We ADD to the existing mapping, not replace it, so later lambdas
+            // in the same scope can see earlier ones (for forward references)
+            size_t mappingStart = 4 + captureCount;  // Skip header and capture slots
+            for (size_t i = 0; i < parentLocalCount; ++i) {
+                size_t nameIdx = instr.operands[mappingStart + i * 2];
+                size_t slot = instr.operands[mappingStart + i * 2 + 1];
+                std::string varName = program->getConstantPool().getString(nameIdx);
+                // Only add if not already present (don't overwrite)
+                if (lambda->parentFrame->nameToSlot.find(varName) == lambda->parentFrame->nameToSlot.end()) {
+                    lambda->parentFrame->nameToSlot[varName] = slot;
+                }
+            }
+        } else {
+            // Global scope - create a new shared frame
+            lambda->parentFrame = std::make_shared<SharedStackFrame>();
+            for (size_t i = 0; i < operandStack.size(); ++i) {
+                lambda->parentFrame->setLocal(i, operandStack[i]);
+            }
+        }
+
+        // Capture class context for access modifier checks
+        if (!callStack.empty()) {
+            if (callStack.back().thisInstance) {
+                // Instance method context - get class from 'this'
+                lambda->creatingClassName = callStack.back().thisInstance->getClassDefinition()->getName();
+                lambda->capturedThis = callStack.back().thisInstance;
+            } else {
+                // Static method context - extract class name from function name (ClassName::methodName)
+                const std::string& funcName = callStack.back().functionName;
+                size_t colonPos = funcName.find("::");
+                if (colonPos != std::string::npos) {
+                    lambda->creatingClassName = funcName.substr(0, colonPos);
+                }
+            }
+        }
+
+        // Capture VALUES of variables from current stack frame (snapshot at creation time)
+        // This ensures immutable capture semantics
+        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, captureSlot1, captureSlot2, ...]
+        for (size_t i = 0; i < captureCount; ++i) {
+            size_t varSlot = instr.operands[4 + i];  // Capture slots start at index 4
+
+            // Read the current value from the parent frame's stack
+            value::Value capturedValue = std::monostate{};
+            if (!callStack.empty()) {
+                size_t parentLocalBase = callStack.back().localBase;
+                size_t stackPos = parentLocalBase + varSlot;
+                if (stackPos < operandStack.size()) {
+                    capturedValue = operandStack[stackPos];
+                }
+            }
+
+            lambda->capturedValues.push_back(capturedValue);
+        }
 
         // Push lambda value onto stack
         push(lambda);
@@ -2206,12 +2317,19 @@ namespace vm::runtime
         frame.frameBase = operandStack.size();
         frame.localBase = operandStack.size();
         frame.functionName = "<lambda>";
+        frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
 
         callStack.push_back(frame);
 
-        // Push arguments onto stack (they become local variables)
-        for (const auto& arg : args) {
-            push(arg);
+        // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
+        for (size_t i = 0; i < args.size(); ++i) {
+            push(args[i]);
+        }
+
+        // Push captured variables onto stack (they become local variables after the parameters)
+        // Use snapshot values (immutable capture semantics)
+        for (const auto& capturedValue : lambda->capturedValues) {
+            push(capturedValue);
         }
 
         // Jump to lambda start
@@ -2275,6 +2393,7 @@ namespace vm::runtime
     value::Value VirtualMachine::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {
         using OpCode = bytecode::OpCode;
 
+        // Debug output
         // Integer operations
         if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
             int l = std::get<int>(left);
