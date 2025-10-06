@@ -58,8 +58,8 @@ Default container value: ''
 Default container isEmpty: true
 After appending empty: ''
 Still isEmpty: true
-After appending content: ''
-Now isEmpty: true
+After appending content: 'content'
+Now isEmpty: false
 Container with empty string: isEmpty = true
 
 Testing method chaining with empty strings:

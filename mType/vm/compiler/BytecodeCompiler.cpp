@@ -1295,12 +1295,31 @@ namespace vm::compiler
             else if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
                      op == token::TokenType::LESS || op == token::TokenType::GREATER ||
                      op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
-                // Comparisons work on same types or numeric types
-                if (leftType == rightType) {
-                    isValid = true;
-                } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
-                          (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
-                    isValid = true;
+                // For == and !=, allow comparing any type with null
+                if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS) {
+                    // Check if one side is null
+                    bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
+                    bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
+
+                    if (leftIsNull || rightIsNull) {
+                        // Allow comparing any type with null
+                        isValid = true;
+                    } else if (leftType == rightType) {
+                        // Same types can be compared
+                        isValid = true;
+                    } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                              (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                        // Numeric types can be compared
+                        isValid = true;
+                    }
+                } else {
+                    // For <, >, <=, >=: only same types or numeric types
+                    if (leftType == rightType) {
+                        isValid = true;
+                    } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                              (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                        isValid = true;
+                    }
                 }
             }
             // Logical operations: &&, ||
