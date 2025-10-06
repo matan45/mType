@@ -317,33 +317,39 @@ namespace evaluator
             newValue = handleLambdaConversion(newValue, node);
 
             auto env = context->getEnvironment();
-
-            // Check if there's a local variable (parameter or local var) in current scope
             auto scopeManager = env->getScopeManager();
-            auto localVarDef = scopeManager->findVariableInCurrentScope(node->getVariableName());
 
-            // If there's a local variable, prioritize it over instance fields
-            if (localVarDef)
+            // Check if variable exists in any scope
+            auto varDef = env->findVariable(node->getVariableName());
+
+            // If found in a non-global scope (parameter or local variable), use it
+            if (varDef)
             {
-                // Variable exists in local scope
-                if (node->getVariableType() != ValueType::VOID)
+                auto globalScope = scopeManager->getGlobalScope();
+                auto globalVar = globalScope->findVariable(node->getVariableName());
+
+                // If variable is NOT in global scope, it's a parameter or local variable
+                // Parameters and local variables take absolute priority over fields
+                if (!globalVar || globalVar != varDef)
                 {
-                    return handleScopeShadowing(newValue, node, localVarDef);
+                    if (node->getVariableType() != ValueType::VOID)
+                    {
+                        return handleScopeShadowing(newValue, node, varDef);
+                    }
+                    return handleExistingVariableAssignment(newValue, node, varDef);
                 }
-                return handleExistingVariableAssignment(newValue, node, localVarDef);
+                // If it IS in global scope, continue to check instance fields first
             }
 
-            // Try implicit field assignment (for instance methods with no local variable)
+            // Try implicit field assignment (for instance methods)
             // This allows bare field names like "value = x" to assign to this.value
+            // and allows instance fields to shadow global variables
             if (tryImplicitFieldAssignment(newValue, node))
             {
                 return newValue;
             }
 
-            // Check outer scopes (global variables, parent function scopes, etc.)
-            auto varDef = env->findVariable(node->getVariableName());
-
-            // Variable not found
+            // Variable not found (neither local/parameter nor field)
             if (!varDef)
             {
                 // Is this a new variable declaration?
@@ -362,13 +368,13 @@ namespace evaluator
                 return handleUnqualifiedStaticAssignment(newValue, node);
             }
 
-            // Variable exists - check if we're trying to redeclare it
+            // Global variable exists - use it
             if (node->getVariableType() != ValueType::VOID)
             {
                 return handleScopeShadowing(newValue, node, varDef);
             }
 
-            // Simple assignment to existing variable
+            // Simple assignment to existing global variable
             return handleExistingVariableAssignment(newValue, node, varDef);
         }
 

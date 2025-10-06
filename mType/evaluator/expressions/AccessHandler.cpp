@@ -62,16 +62,35 @@ namespace evaluator
                 return handleQualifiedStaticAccess(varName, node);
             }
 
-            // Check variables first (parameters, local variables, global variables)
-            // Parameters and local variables should always take priority over fields
+            // Priority order:
+            // 1. Parameters and local variables (in any scope) - always take priority
+            // 2. Instance fields (implicit this.field) - for bare field names in instance methods
+            // 3. Global variables - last resort
+            // 4. Static fields
+
+            // Check if variable exists in any scope (parameters, local vars, globals)
+            auto scopeManager = env->getScopeManager();
             auto varDef = env->findVariable(varName);
+
+            // If found in a non-global scope (parameter or local variable), use it immediately
+            // Parameters and local variables should always shadow fields
             if (varDef)
             {
-                return varDef->getValue();
+                // Check if this variable is in the global scope
+                auto globalScope = scopeManager->getGlobalScope();
+                auto globalVar = globalScope->findVariable(varName);
+
+                // If variable is NOT in global scope, it's a parameter or local variable
+                // Parameters and local variables take absolute priority
+                if (!globalVar || globalVar != varDef)
+                {
+                    return varDef->getValue();
+                }
+                // If it IS in global scope, we continue to check instance fields first
             }
 
-            // Check instance fields if no variable found (implicit this.field references)
-            // This allows bare field names in instance methods to resolve to instance fields
+            // Check instance fields (implicit this.field) before using global variables
+            // This allows instance fields to shadow global variables
             auto currentInstance = context->getCurrentInstance();
             if (currentInstance)
             {
@@ -80,6 +99,12 @@ namespace evaluator
                 {
                     return result;
                 }
+            }
+
+            // Use global variable if we found one earlier
+            if (varDef)
+            {
+                return varDef->getValue();
             }
 
             // Check static fields
