@@ -124,11 +124,8 @@ function testExceptionSafeResource(): void {
     print("After explicit cleanup - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
-function testResourcePoolPattern(): void {
-    FileHandle::clearLog();
-    print("=== Resource Pool Pattern Test ===");
-    
-    class ResourcePool {
+	
+	class ResourcePool {
         FileHandle resource1;
         FileHandle resource2;
         FileHandle resource3;
@@ -173,6 +170,10 @@ function testResourcePoolPattern(): void {
         activeResources = 0;
         }
     }
+function testResourcePoolPattern(): void {
+    FileHandle::clearLog();
+    print("=== Resource Pool Pattern Test ===");
+    
     
     ResourcePool pool = new ResourcePool();
     print("Pool created - Open handles: " + FileHandle::getOpenHandleCount());

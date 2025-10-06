@@ -129,6 +129,7 @@ namespace vm::compiler
             int scopeDepthStart;
             std::string returnType;
             bool isLambda = false;  // Track if this frame is for a lambda
+            size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
         };
         std::vector<FunctionFrame> functionFrameStack;
 

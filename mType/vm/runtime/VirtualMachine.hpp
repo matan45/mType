@@ -210,6 +210,7 @@ namespace vm::runtime
         // Type operations
         void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleToString();
 
         // Lambda operations
         void handleLambda(const bytecode::BytecodeProgram::Instruction& instr);

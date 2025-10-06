@@ -553,7 +553,8 @@ namespace vm::compiler
         if (functionFrameStack.empty()) {
             return 0;
         }
-        return nextLocalSlot - functionFrameStack.back().localStartSlot;
+        // Use maxLocalSlot instead of nextLocalSlot to account for variables that were popped by endScope
+        return functionFrameStack.back().maxLocalSlot - functionFrameStack.back().localStartSlot;
     }
 
     void BytecodeCompiler::enterLoop(size_t loopStart, size_t continueTarget)
@@ -755,6 +756,11 @@ namespace vm::compiler
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
 
+            // Track maximum local slot for this function
+            if (nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+                functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+            }
+
             // Emit STORE_LOCAL with the variable name for shared frame late-binding
             // This allows lambdas to access variables by name (for forward references)
             size_t nameIndex = program.getConstantPool().addString(name);
@@ -838,6 +844,11 @@ namespace vm::compiler
                 local.type = varType;
                 local.className = node->getClassName();
                 locals.push_back(local);
+
+                // Track maximum local slot for this function
+                if (nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+                    functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+                }
 
                 // Store the value at the local's slot position and keep a copy on stack
                 emitWithLocation(bytecode::OpCode::DUP, node);
@@ -1326,7 +1337,11 @@ namespace vm::compiler
         arrayLocal.slot = nextLocalSlot++;
         arrayLocal.scopeDepth = currentScopeDepth;
         locals.push_back(arrayLocal);
-        // Collection is already on stack, it stays there as the local
+        if (!functionFrameStack.empty() && nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+            functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+        }
+        // Store the array in its local slot
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(arrayLocal.slot));
 
         // Get array length and store it in a local variable
         program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arrayLocal.slot));
@@ -1337,7 +1352,11 @@ namespace vm::compiler
         lengthLocal.slot = nextLocalSlot++;
         lengthLocal.scopeDepth = currentScopeDepth;
         locals.push_back(lengthLocal);
-        // Length is on stack, it stays there as the local
+        if (!functionFrameStack.empty() && nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+            functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+        }
+        // Store the length in its local slot
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(lengthLocal.slot));
 
         // Initialize counter to 0
         program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(program.getConstantPool().addInteger(0)));
@@ -1347,7 +1366,11 @@ namespace vm::compiler
         counterLocal.slot = nextLocalSlot++;
         counterLocal.scopeDepth = currentScopeDepth;
         locals.push_back(counterLocal);
-        // Counter is on stack, it stays there as the local
+        if (!functionFrameStack.empty() && nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+            functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+        }
+        // Store the counter in its local slot
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterLocal.slot));
 
         // Loop start - check condition: counter < length
         size_t loopStart = program.getCurrentOffset();
@@ -1369,7 +1392,11 @@ namespace vm::compiler
         loopVar.slot = nextLocalSlot++;
         loopVar.scopeDepth = currentScopeDepth;
         locals.push_back(loopVar);
-        // Element is on stack, it stays there as the local
+        if (!functionFrameStack.empty() && nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+            functionFrameStack.back().maxLocalSlot = nextLocalSlot;
+        }
+        // Store the loop variable in its local slot
+        program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVar.slot));
 
         // Compile loop body
         auto* body = node->getBody();
@@ -1386,10 +1413,7 @@ namespace vm::compiler
             loopStack.pop_back();
         }
 
-        // Pop loop variable from stack (end of iteration)
-        program.emit(bytecode::OpCode::POP);
-
-        // Remove loop variable from locals
+        // Remove loop variable from locals (no need to POP, it's stored at a slot)
         locals.pop_back();
         nextLocalSlot--;
 
@@ -1406,10 +1430,8 @@ namespace vm::compiler
         // Patch exit jump
         patchJump(exitJump);
 
-        // Clean up: pop counter, length, and array from stack
-        program.emit(bytecode::OpCode::POP); // counter
-        program.emit(bytecode::OpCode::POP); // length
-        program.emit(bytecode::OpCode::POP); // array
+        // Clean up: remove foreach internals from locals (no need to POP, they're stored at slots)
+        // The stack will be cleaned up when the function returns
 
         endScope();
 
@@ -1911,6 +1933,11 @@ namespace vm::compiler
             local.slot = nextLocalSlot++;
             local.scopeDepth = currentScopeDepth;
             locals.push_back(local);
+        }
+
+        // Track maximum after adding parameters
+        if (nextLocalSlot > functionFrameStack.back().maxLocalSlot) {
+            functionFrameStack.back().maxLocalSlot = nextLocalSlot;
         }
 
         // Compile method body

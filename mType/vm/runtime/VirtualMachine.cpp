@@ -175,6 +175,7 @@ namespace vm::runtime
             // Type operations
             case OpCode::INSTANCEOF: handleInstanceof(instr); break;
             case OpCode::CAST: handleCast(instr); break;
+            case OpCode::TO_STRING: handleToString(); break;
 
             // Lambda operations
             case OpCode::LAMBDA: handleLambda(instr); break;
@@ -813,6 +814,9 @@ namespace vm::runtime
             }
         }
 
+        // Calculate frameBase BEFORE popping arguments
+        size_t frameBase = operandStack.size() - argCount;
+
         // Pop arguments from stack (in reverse order)
         std::vector<value::Value> args;
         args.reserve(argCount);
@@ -827,8 +831,8 @@ namespace vm::runtime
             // Create call frame for static method
             CallFrame frame;
             frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size();
-            frame.localBase = operandStack.size();
+            frame.frameBase = frameBase;  // Use the frameBase calculated before popping args
+            frame.localBase = operandStack.size();  // Locals start after arguments (which are now popped)
             frame.functionName = qualifiedName;
             frame.thisInstance = nullptr;  // No 'this' for static methods
 
@@ -838,6 +842,15 @@ namespace vm::runtime
             // Push arguments onto stack as locals (slot 0, 1, 2, ...)
             for (size_t i = 0; i < argCount; ++i) {
                 push(args[i]);
+            }
+
+            // Reserve space for local variables (beyond parameters)
+            // localCount includes parameters, so we need (localCount - argCount) additional slots
+            if (funcMetadata->localCount > argCount) {
+                size_t additionalLocals = funcMetadata->localCount - argCount;
+                for (size_t i = 0; i < additionalLocals; ++i) {
+                    push(std::monostate{});  // Initialize with null/undefined
+                }
             }
 
             // Jump to static method start
@@ -2196,6 +2209,13 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::handleToString() {
+        // TO_STRING opcode is no longer used - this is a placeholder
+        // String concatenation with objects is now handled by performBinaryOp calling valueToString()
+        // which in turn calls the AST toString() method via obj->callMethod()
+        throw errors::RuntimeException("TO_STRING opcode should not be executed - bug in compiler");
+    }
+
     // === Lambda Operations ===
 
     void VirtualMachine::handleLambda(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -2385,6 +2405,27 @@ namespace vm::runtime
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
                 }
+
+                // Try to call toString() via AST evaluator (cross-mode call)
+                // This is a workaround because calling bytecode toString() from runtime causes issues
+                auto classDef = obj->getClassDefinition();
+                if (classDef && classDef->hasMethod("toString")) {
+                    auto toStringMethod = classDef->findMethod("toString", 0);
+                    if (toStringMethod && !toStringMethod->isStatic()) {
+                        try {
+                            // Call via AST method (the method definition is in the class)
+                            value::Value result = obj->callMethod("toString", {});
+                            if (std::holds_alternative<std::string>(result)) {
+                                return std::get<std::string>(result);
+                            }
+                            if (std::holds_alternative<value::InternedString>(result)) {
+                                return std::get<value::InternedString>(result).getString();
+                            }
+                        } catch (...) {
+                            // If toString() fails, fall back to default
+                        }
+                    }
+                }
             }
         }
         return "<object>";
@@ -2428,12 +2469,20 @@ namespace vm::runtime
             }
         }
 
-        // String concatenation
+        // String concatenation (includes objects, which should call toString())
         if (op == OpCode::ADD &&
             (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
-             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right))) {
+             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
+             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
+             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right))) {
+
+            // Convert both operands to string using valueToString
+            // This will call toString() for objects via AST (cross-mode call)
+            std::string leftStr = valueToString(left);
+            std::string rightStr = valueToString(right);
+
             // Concatenate and intern the result
-            std::string result = valueToString(left) + valueToString(right);
+            std::string result = leftStr + rightStr;
             auto& pool = value::StringPool::getInstance();
             return pool.intern(std::move(result));
         }

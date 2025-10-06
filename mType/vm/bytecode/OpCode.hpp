@@ -103,12 +103,13 @@ namespace vm::bytecode
         GET_SUPER,          // Get super class
         SUPER_CONSTRUCTOR,  // Call super constructor
 
-        // === Type Operations (80-84) ===
+        // === Type Operations (80-85) ===
         INSTANCEOF,         // Check if object is instance of class
         CAST,               // Cast object to type
         CHECK_TYPE,         // Runtime type check
         TYPE_CONVERT,       // Type conversion
         GET_TYPE,           // Get type of value
+        TO_STRING,          // Convert value to string (calls toString() for objects)
 
         // === Array Operations (85-94) ===
         NEW_ARRAY,          // Create new array (operand: size on stack)
@@ -256,6 +257,7 @@ namespace vm::bytecode
             case OpCode::CHECK_TYPE: return "CHECK_TYPE";
             case OpCode::TYPE_CONVERT: return "TYPE_CONVERT";
             case OpCode::GET_TYPE: return "GET_TYPE";
+            case OpCode::TO_STRING: return "TO_STRING";
 
             case OpCode::NEW_ARRAY: return "NEW_ARRAY";
             case OpCode::NEW_ARRAY_MULTI: return "NEW_ARRAY_MULTI";

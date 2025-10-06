@@ -106,7 +106,7 @@ function testArraysWithObjects():void {
 
     print("Person array:");
     for (int i = 0; i < people.length; i++) {
-        print("  [" + i + "] = " + people[i]);
+        print("  [" + i + "] = " + people[i].toString());
     }
 
     // Test null handling in object arrays
@@ -117,7 +117,7 @@ function testArraysWithObjects():void {
     print("Nullable array:");
     for (int i = 0; i < nullableArray.length; i++) {
         if (nullableArray[i] != null) {
-            print("  [" + i + "] = " + nullableArray[i]);
+            print("  [" + i + "] = " + nullableArray[i].toString());
         } else {
             print("  [" + i + "] = null");
         }
