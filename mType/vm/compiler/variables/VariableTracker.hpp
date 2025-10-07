@@ -1,0 +1,59 @@
+#pragma once
+#include "../../../value/ValueType.hpp"
+#include <string>
+#include <vector>
+#include <cstddef>
+
+namespace vm::compiler::variables
+{
+    /**
+     * Tracks local variables within function scopes
+     * Manages variable slots and scope depth for proper variable resolution
+     */
+    class VariableTracker
+    {
+    public:
+        struct LocalVariable {
+            std::string name;
+            size_t slot;
+            int scopeDepth;
+            value::ValueType type = value::ValueType::VOID;
+            std::string className;  // For OBJECT types (interfaces/classes)
+        };
+
+        VariableTracker();
+        ~VariableTracker() = default;
+
+        // Variable resolution
+        size_t resolveLocal(const std::string& name, size_t startSlot) const;
+
+        // Variable declaration
+        void declareLocal(const std::string& name, value::ValueType type, const std::string& className = "");
+
+        // Scope management
+        void beginScope();
+        void endScope();
+        int getCurrentScopeDepth() const;
+
+        // Slot management
+        size_t getNextLocalSlot() const;
+        void incrementLocalSlot();
+        void decrementLocalSlot();
+        void setNextLocalSlot(size_t slot);
+        void resetLocalSlot();  // Reset to 0 (for lambda compilation)
+        void setLocalSlot(size_t slot);  // Alias for setNextLocalSlot
+
+        // Local variable access
+        const std::vector<LocalVariable>& getLocals() const;
+        void clearLocals();
+        void removeLocalsFromSlot(size_t startSlot);
+
+        // Check if variable exists in current scope
+        bool existsInCurrentScope(const std::string& name) const;
+
+    private:
+        std::vector<LocalVariable> locals;
+        size_t nextLocalSlot;
+        int currentScopeDepth;
+    };
+}

@@ -4,6 +4,24 @@
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../token/TokenType.hpp"
+#include "emission/BytecodeEmitter.hpp"
+#include "variables/VariableTracker.hpp"
+#include "variables/GlobalVariableRegistry.hpp"
+#include "variables/FunctionFrameManager.hpp"
+#include "control/LoopContextManager.hpp"
+#include "control/SwitchContextManager.hpp"
+#include "types/TypeInferenceEngine.hpp"
+#include "types/TypeValidator.hpp"
+#include "types/GenericTypeResolver.hpp"
+#include "registration/ClassRegistrar.hpp"
+#include "registration/InterfaceRegistrar.hpp"
+#include "visitors/LiteralCompiler.hpp"
+#include "visitors/ArrayCompiler.hpp"
+#include "visitors/ExpressionCompiler.hpp"
+#include "visitors/StatementCompiler.hpp"
+#include "visitors/ControlFlowCompiler.hpp"
+#include "visitors/FunctionCompiler.hpp"
+#include "visitors/ClassCompiler.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -12,6 +30,7 @@ namespace vm::compiler
 {
     /**
      * Compiles AST nodes to bytecode instructions
+     * Coordinates specialized compiler components following SOLID principles
      * Implements the visitor pattern to traverse the AST
      */
     class BytecodeCompiler : public ast::ASTVisitor<value::Value>
@@ -94,110 +113,41 @@ namespace vm::compiler
         value::Value visitImportNode(ast::ImportNode* node) override;
 
     private:
+        // Core components
         bytecode::BytecodeProgram program;
         std::shared_ptr<environment::Environment> environment;
 
-        // Compilation state
-        struct LoopContext {
-            std::vector<size_t> breakJumps;    // Jump instructions that need to be patched to loop end
-            std::vector<size_t> continueJumps; // Jump instructions that need to be patched to continue target
-            size_t loopStart;                   // Offset of loop start (condition check)
-            size_t continueTarget;              // Offset where continue should jump (for loops: increment, others: loopStart)
-        };
-        std::vector<LoopContext> loopStack;
+        // Helper components (owned by BytecodeCompiler)
+        emission::BytecodeEmitter emitter;
+        variables::VariableTracker variableTracker;
+        variables::GlobalVariableRegistry globalRegistry;
+        variables::FunctionFrameManager functionFrameManager;
+        control::LoopContextManager loopManager;
+        control::SwitchContextManager switchManager;
+        types::GenericTypeResolver genericResolver;
+        types::TypeInferenceEngine typeInference;
+        types::TypeValidator typeValidator;
+        registration::ClassRegistrar classRegistrar;
+        registration::InterfaceRegistrar interfaceRegistrar;
 
-        struct SwitchContext {
-            std::vector<size_t> breakJumps;    // Jump instructions that need to be patched to switch end
-        };
-        std::vector<SwitchContext> switchStack;
+        // Shared context for visitor compilers
+        visitors::CompilerContext context;
 
-        // Local variable tracking (for optimization)
-        struct LocalVariable {
-            std::string name;
-            size_t slot;
-            int scopeDepth;
-            value::ValueType type = value::ValueType::VOID;
-            std::string className;  // For OBJECT types (interfaces/classes)
-        };
-        std::vector<LocalVariable> locals;
-        size_t nextLocalSlot = 0;
-        int currentScopeDepth = 0;
-
-        // Global variable tracking (for compile-time validation)
-        std::unordered_set<std::string> globalVariables;
-        std::unordered_map<std::string, value::ValueType> globalVariableTypes;
-        std::unordered_map<std::string, std::string> globalVariableClassNames;  // For OBJECT types
-        std::unordered_map<std::string, int> globalVariableScopes;  // Track scope depth where global var was declared
+        // Visitor compilers (owned by BytecodeCompiler)
+        visitors::LiteralCompiler literalCompiler;
+        visitors::ArrayCompiler arrayCompiler;
+        visitors::ExpressionCompiler expressionCompiler;
+        visitors::StatementCompiler statementCompiler;
+        visitors::ControlFlowCompiler controlFlowCompiler;
+        visitors::FunctionCompiler functionCompiler;
+        visitors::ClassCompiler classCompiler;
 
         // Import tracking (to avoid recompiling the same file)
         std::unordered_set<std::string> compiledImports;
 
-        // Function frame tracking
-        struct FunctionFrame {
-            size_t localStartSlot;
-            int scopeDepthStart;
-            std::string returnType;
-            bool isLambda = false;  // Track if this frame is for a lambda
-            size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
-        };
-        std::vector<FunctionFrame> functionFrameStack;
-
-        // Closure tracking
-        struct ClosureVariable {
-            std::string name;
-            size_t slot;
-            bool isFromParent;
-        };
-        std::vector<ClosureVariable> closureCaptures;
-
-        // Class/Method context tracking
-        ast::ClassNode* currentClassNode = nullptr;
-        bool inInstanceMethod = false;
-
-        // Helper methods
-        void emitWithLocation(bytecode::OpCode opcode, ast::ASTNode* node);
-        void emitWithLocation(bytecode::OpCode opcode, uint32_t operand, ast::ASTNode* node);
-        size_t emitJump(bytecode::OpCode jumpOp);
-        void patchJump(size_t offset);
-        void emitLoop(size_t loopStart);
-
-        // Class registration for bytecode
+        // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
-        void registerInterfaceForBytecode(ast::nodes::classes::InterfaceNode* interfaceNode);
         void linkParentClasses(ast::ASTNode* node);
-        bytecode::BytecodeProgram::ClassMetadata extractClassMetadata(ast::ClassNode* classNode);
-
-        // Interface validation
-        void validateInterfaceImplementations(
-            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-            const ast::SourceLocation& location);
-        std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(
-            const std::string& interfaceName);
-        std::string resolveGenericType(
-            const std::string& typeName,
-            const std::unordered_map<std::string, std::string>& substitutions);
-
-        // Type conversion helpers
-        bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
-        bytecode::OpCode getUnaryOpCode(token::TokenType op);
-        value::ValueType inferExpressionType(ast::ASTNode* node);
-        std::string inferExpressionClassName(ast::ASTNode* node);
-        bool isClassCompatible(const std::string& derivedClass, const std::string& baseClass);
-
-        // Variable management
-        size_t resolveLocal(const std::string& name);
-        void beginScope();
-        void endScope();
-
-        // Function frame management
-        void enterFunctionFrame(const std::string& returnType, bool isLambda = false);
-        void exitFunctionFrame();
-        size_t getLocalCount() const;
-
-        // Loop management
-        void enterLoop(size_t loopStart, size_t continueTarget = SIZE_MAX);
-        void exitLoop();
-        LoopContext& currentLoop();
     };
 }
 
