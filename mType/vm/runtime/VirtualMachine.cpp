@@ -1,17 +1,22 @@
 #include "VirtualMachine.hpp"
+#include "executors/StackOperationsExecutor.hpp"
+#include "executors/ComparisonExecutor.hpp"
+#include "executors/LogicalExecutor.hpp"
+#include "executors/ArithmeticExecutor.hpp"
+#include "executors/ControlFlowExecutor.hpp"
+#include "executors/VariableExecutor.hpp"
+#include "executors/FunctionExecutor.hpp"
+#include "executors/TypeExecutor.hpp"
+#include "executors/ArrayExecutor.hpp"
+#include "executors/ObjectExecutor.hpp"
+#include "executors/LambdaExecutor.hpp"
 #include "../../errors/RuntimeException.hpp"
-#include "../../errors/NullPointerException.hpp"
-#include "../../errors/FieldNotFoundException.hpp"
-#include "../../errors/AccessViolationException.hpp"
 #include "../../errors/SourceLocation.hpp"
-#include "../../ast/AccessModifier.hpp"
-#include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/LambdaValue.hpp"
-#include "../../evaluator/base/EvaluationContext.hpp"
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -23,41 +28,69 @@ namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
         : program(nullptr)
-        , instructionPointer(0)
-        , environment(std::move(env))
+          , stackManager(std::make_shared<StackManager>())
+          , instructionPointer(0)
+          , environment(std::move(env))
     {
-        operandStack.reserve(256);  // Reserve initial capacity
         callStack.reserve(64);
+
+        // Note: Executors will be initialized in execute() when program is available
+        // because ExecutionContext requires a valid program pointer
     }
 
-    value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram) {
+    VirtualMachine::~VirtualMachine() = default;
+
+    value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
+    {
         program = &bytecodeProgram;
         instructionPointer = program->getEntryPoint();
 
         executionStart = std::chrono::steady_clock::now();
         stats = ExecutionStats{};
 
-        try {
+        // Initialize executors with execution context
+        ExecutionContext context(program, instructionPointer, callStack, environment,
+                                 stackManager, stats, executionStart);
+        stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
+        comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
+        logicalExecutor = std::make_unique<LogicalExecutor>(context);
+        arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
+        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
+        variableExecutor = std::make_unique<VariableExecutor>(context);
+        functionExecutor = std::make_unique<FunctionExecutor>(context);
+        typeExecutor = std::make_unique<TypeExecutor>(context);
+        arrayExecutor = std::make_unique<ArrayExecutor>(context);
+        objectExecutor = std::make_unique<ObjectExecutor>(context);
+        lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+
+        try
+        {
             return interpretLoop();
-        } catch (...) {
+        }
+        catch (...)
+        {
             // Clean up and rethrow
             reset();
             throw;
         }
     }
 
-    value::Value VirtualMachine::executeFunction(const std::string& functionName, const std::vector<value::Value>& args) {
-        if (!program) {
+    value::Value VirtualMachine::executeFunction(const std::string& functionName, const std::vector<value::Value>& args)
+    {
+        if (!program)
+        {
             throw errors::RuntimeException("No program loaded");
         }
 
         auto* funcMetadata = program->getFunction(functionName);
-        if (!funcMetadata) {
+        if (!funcMetadata)
+        {
             throw errors::RuntimeException("Function not found: " + functionName);
         }
 
         // Push arguments onto stack
-        for (const auto& arg : args) {
+        for (const auto& arg : args)
+        {
             push(arg);
         }
 
@@ -67,8 +100,10 @@ namespace vm::runtime
         return interpretLoop();
     }
 
-    value::Value VirtualMachine::interpretLoop() {
-        while (instructionPointer < program->getInstructionCount()) {
+    value::Value VirtualMachine::interpretLoop()
+    {
+        while (instructionPointer < program->getInstructionCount())
+        {
             const auto& instr = program->getInstruction(instructionPointer);
 
             // Execute instruction
@@ -77,7 +112,8 @@ namespace vm::runtime
             stats.instructionsExecuted++;
 
             // Check for halt
-            if (instr.opcode == bytecode::OpCode::HALT) {
+            if (instr.opcode == bytecode::OpCode::HALT)
+            {
                 break;
             }
 
@@ -90,2398 +126,263 @@ namespace vm::runtime
             executionEnd - executionStart);
 
         // Return top of stack or void
-        if (!operandStack.empty()) {
-            return pop();
+        if (!stackManager->empty())
+        {
+            return stackManager->pop();
         }
         return std::monostate{};
     }
 
-    void VirtualMachine::executeInstruction(const bytecode::BytecodeProgram::Instruction& instr) {
+    void VirtualMachine::executeInstruction(const bytecode::BytecodeProgram::Instruction& instr)
+    {
         using OpCode = bytecode::OpCode;
 
-        switch (instr.opcode) {
-            // Stack operations
-            case OpCode::PUSH_INT: handlePushInt(instr); break;
-            case OpCode::PUSH_FLOAT: handlePushFloat(instr); break;
-            case OpCode::PUSH_STRING: handlePushString(instr); break;
-            case OpCode::PUSH_BOOL: handlePushBool(instr); break;
-            case OpCode::PUSH_NULL: handlePushNull(); break;
-            case OpCode::POP: handlePop(); break;
-            case OpCode::DUP: handleDup(); break;
-            case OpCode::SWAP: handleSwap(); break;
-
-            // Arithmetic
-            case OpCode::ADD: handleAdd(); break;
-            case OpCode::SUB: handleSub(); break;
-            case OpCode::MUL: handleMul(); break;
-            case OpCode::DIV: handleDiv(); break;
-            case OpCode::MOD: handleMod(); break;
-            case OpCode::NEG: handleNeg(); break;
-            case OpCode::INC: handleInc(); break;
-            case OpCode::DEC: handleDec(); break;
-            case OpCode::ADD_INT: handleAddInt(); break;
-            case OpCode::SUB_INT: handleSubInt(); break;
-            case OpCode::MUL_INT: handleMulInt(); break;
-            case OpCode::DIV_INT: handleDivInt(); break;
-
-            // Comparison
-            case OpCode::EQ: handleEq(); break;
-            case OpCode::NE: handleNe(); break;
-            case OpCode::LT: handleLt(); break;
-            case OpCode::GT: handleGt(); break;
-            case OpCode::LE: handleLe(); break;
-            case OpCode::GE: handleGe(); break;
-
-            // Logical
-            case OpCode::AND: handleAnd(); break;
-            case OpCode::OR: handleOr(); break;
-            case OpCode::NOT: handleNot(); break;
-
-            // Variables
-            case OpCode::LOAD_VAR: handleLoadVar(instr); break;
-            case OpCode::STORE_VAR: handleStoreVar(instr); break;
-            case OpCode::DECLARE_VAR: handleDeclareVar(instr); break;
-            case OpCode::LOAD_LOCAL: handleLoadLocal(instr); break;
-            case OpCode::STORE_LOCAL: handleStoreLocal(instr); break;
-
-            // Control flow
-            case OpCode::JUMP: handleJump(instr); break;
-            case OpCode::JUMP_IF_FALSE: handleJumpIfFalse(instr); break;
-            case OpCode::JUMP_IF_TRUE: handleJumpIfTrue(instr); break;
-            case OpCode::JUMP_BACK: handleJumpBack(instr); break;
-            case OpCode::RETURN: handleReturn(); break;
-            case OpCode::RETURN_VALUE: handleReturnValue(); break;
-
-            // Functions
-            case OpCode::CALL: handleCall(instr); break;
-            case OpCode::CALL_NATIVE: handleCallNative(instr); break;
-            case OpCode::CALL_STATIC: handleCallStatic(instr); break;
-
-            // Objects
-            case OpCode::NEW_OBJECT: handleNewObject(instr); break;
-            case OpCode::GET_FIELD: handleGetField(instr); break;
-            case OpCode::SET_FIELD: handleSetField(instr); break;
-            case OpCode::GET_STATIC: handleGetStatic(instr); break;
-            case OpCode::SET_STATIC: handleSetStatic(instr); break;
-            case OpCode::CALL_METHOD: handleCallMethod(instr); break;
-            case OpCode::SUPER_CONSTRUCTOR: handleSuperConstructor(instr); break;
-            case OpCode::SUPER_INVOKE: handleSuperInvoke(instr); break;
-
-            // Arrays
-            case OpCode::NEW_ARRAY: handleNewArray(instr); break;
-            case OpCode::NEW_ARRAY_MULTI: handleNewArrayMulti(instr); break;
-            case OpCode::ARRAY_GET: handleArrayGet(); break;
-            case OpCode::ARRAY_SET: handleArraySet(); break;
-            case OpCode::ARRAY_LENGTH: handleArrayLength(); break;
-
-            // Type operations
-            case OpCode::INSTANCEOF: handleInstanceof(instr); break;
-            case OpCode::CAST: handleCast(instr); break;
-
-            // Lambda operations
-            case OpCode::LAMBDA: handleLambda(instr); break;
-            case OpCode::LAMBDA_INVOKE: handleLambdaInvoke(instr); break;
-
-            // Special
-            case OpCode::HALT:
-                // Handled in interpretLoop
-                break;
-
-            case OpCode::NOP:
-                // Do nothing
-                break;
-
-            default:
-                throw errors::RuntimeException("Unimplemented opcode: " +
-                    std::string(bytecode::getOpCodeName(instr.opcode)));
-        }
-    }
-
-    // === Stack Operations ===
-
-    void VirtualMachine::push(const value::Value& value) {
-        operandStack.push_back(value);
-    }
-
-    value::Value VirtualMachine::pop() {
-        checkStackUnderflow(1);
-        value::Value val = operandStack.back();
-        operandStack.pop_back();
-        return val;
-    }
-
-    value::Value VirtualMachine::peek(size_t offset) const {
-        checkStackUnderflow(offset + 1);
-        return operandStack[operandStack.size() - 1 - offset];
-    }
-
-    void VirtualMachine::popN(size_t count) {
-        checkStackUnderflow(count);
-        for (size_t i = 0; i < count; ++i) {
-            operandStack.pop_back();
-        }
-    }
-
-    void VirtualMachine::handlePushInt(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("PUSH_INT requires operand");
-        }
-        int value = program->getConstantPool().getInteger(instr.operands[0]);
-        push(value);
-    }
-
-    void VirtualMachine::handlePushFloat(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("PUSH_FLOAT requires operand");
-        }
-        double value = program->getConstantPool().getFloat(instr.operands[0]);
-        push(static_cast<float>(value));
-    }
-
-    void VirtualMachine::handlePushString(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("PUSH_STRING requires operand");
-        }
-        const std::string& value = program->getConstantPool().getString(instr.operands[0]);
-        // Use StringPool to intern the string
-        auto& pool = value::StringPool::getInstance();
-        push(pool.intern(value));
-    }
-
-    void VirtualMachine::handlePushBool(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("PUSH_BOOL requires operand");
-        }
-        push(instr.operands[0] != 0);
-    }
-
-    void VirtualMachine::handlePushNull() {
-        push(nullptr);
-    }
-
-    void VirtualMachine::handlePop() {
-        pop();
-    }
-
-    void VirtualMachine::handleDup() {
-        push(peek());
-    }
-
-    void VirtualMachine::handleSwap() {
-        checkStackUnderflow(2);
-        value::Value top = pop();
-        value::Value second = pop();
-        push(top);
-        push(second);
-    }
-
-    // === Arithmetic Operations ===
-
-    void VirtualMachine::handleAdd() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(performBinaryOp(left, right, bytecode::OpCode::ADD));
-    }
-
-    void VirtualMachine::handleSub() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(performBinaryOp(left, right, bytecode::OpCode::SUB));
-    }
-
-    void VirtualMachine::handleMul() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(performBinaryOp(left, right, bytecode::OpCode::MUL));
-    }
-
-    void VirtualMachine::handleDiv() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(performBinaryOp(left, right, bytecode::OpCode::DIV));
-    }
-
-    void VirtualMachine::handleMod() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(performBinaryOp(left, right, bytecode::OpCode::MOD));
-    }
-
-    void VirtualMachine::handleNeg() {
-        value::Value val = pop();
-        if (std::holds_alternative<int>(val)) {
-            push(-std::get<int>(val));
-        } else if (std::holds_alternative<float>(val)) {
-            push(-std::get<float>(val));
-        } else {
-            throw errors::RuntimeException("NEG requires numeric value");
-        }
-    }
-
-    void VirtualMachine::handleInc() {
-        value::Value val = pop();
-        if (std::holds_alternative<int>(val)) {
-            push(std::get<int>(val) + 1);
-        } else if (std::holds_alternative<float>(val)) {
-            push(std::get<float>(val) + 1.0f);
-        } else {
-            throw errors::RuntimeException("INC requires numeric value");
-        }
-    }
-
-    void VirtualMachine::handleDec() {
-        value::Value val = pop();
-        if (std::holds_alternative<int>(val)) {
-            push(std::get<int>(val) - 1);
-        } else if (std::holds_alternative<float>(val)) {
-            push(std::get<float>(val) - 1.0f);
-        } else {
-            throw errors::RuntimeException("DEC requires numeric value");
-        }
-    }
-
-    void VirtualMachine::handleAddInt() {
-        checkStackUnderflow(2);
-        int right = std::get<int>(pop());
-        int left = std::get<int>(pop());
-        push(left + right);
-    }
-
-    void VirtualMachine::handleSubInt() {
-        checkStackUnderflow(2);
-        int right = std::get<int>(pop());
-        int left = std::get<int>(pop());
-        push(left - right);
-    }
-
-    void VirtualMachine::handleMulInt() {
-        checkStackUnderflow(2);
-        int right = std::get<int>(pop());
-        int left = std::get<int>(pop());
-        push(left * right);
-    }
-
-    void VirtualMachine::handleDivInt() {
-        checkStackUnderflow(2);
-        int right = std::get<int>(pop());
-        int left = std::get<int>(pop());
-        if (right == 0) {
-            throw errors::RuntimeException("Division by zero");
-        }
-        push(left / right);
-    }
-
-    // === Comparison Operations ===
-
-    void VirtualMachine::handleEq() {
-        value::Value right = pop();
-        value::Value left = pop();
-
-        // Handle bool-to-int conversion for comparisons
-        if (std::holds_alternative<bool>(left) && std::holds_alternative<int>(right)) {
-            push(static_cast<int>(std::get<bool>(left)) == std::get<int>(right));
-        } else if (std::holds_alternative<int>(left) && std::holds_alternative<bool>(right)) {
-            push(std::get<int>(left) == static_cast<int>(std::get<bool>(right)));
-        } else {
-            // Direct equality comparison
-            push(left == right);
-        }
-    }
-
-    void VirtualMachine::handleNe() {
-        value::Value right = pop();
-        value::Value left = pop();
-        push(left != right);
-    }
-
-    void VirtualMachine::handleLt() {
-        value::Value right = pop();
-        value::Value left = pop();
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
-            push(std::get<int>(left) < std::get<int>(right));
-        } else if (std::holds_alternative<float>(left) && std::holds_alternative<float>(right)) {
-            push(std::get<float>(left) < std::get<float>(right));
-        } else {
-            throw errors::RuntimeException("LT requires numeric operands");
-        }
-    }
-
-    void VirtualMachine::handleGt() {
-        value::Value right = pop();
-        value::Value left = pop();
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
-            push(std::get<int>(left) > std::get<int>(right));
-        } else if (std::holds_alternative<float>(left) && std::holds_alternative<float>(right)) {
-            push(std::get<float>(left) > std::get<float>(right));
-        } else {
-            throw errors::RuntimeException("GT requires numeric operands");
-        }
-    }
-
-    void VirtualMachine::handleLe() {
-        value::Value right = pop();
-        value::Value left = pop();
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
-            push(std::get<int>(left) <= std::get<int>(right));
-        } else if (std::holds_alternative<float>(left) && std::holds_alternative<float>(right)) {
-            push(std::get<float>(left) <= std::get<float>(right));
-        } else {
-            throw errors::RuntimeException("LE requires numeric operands");
-        }
-    }
-
-    void VirtualMachine::handleGe() {
-        value::Value right = pop();
-        value::Value left = pop();
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
-            push(std::get<int>(left) >= std::get<int>(right));
-        } else if (std::holds_alternative<float>(left) && std::holds_alternative<float>(right)) {
-            push(std::get<float>(left) >= std::get<float>(right));
-        } else {
-            throw errors::RuntimeException("GE requires numeric operands");
-        }
-    }
-
-    // === Logical Operations ===
-
-    void VirtualMachine::handleAnd() {
-        bool right = isTruthy(pop());
-        bool left = isTruthy(pop());
-        push(left && right);
-    }
-
-    void VirtualMachine::handleOr() {
-        bool right = isTruthy(pop());
-        bool left = isTruthy(pop());
-        push(left || right);
-    }
-
-    void VirtualMachine::handleNot() {
-        push(!isTruthy(pop()));
-    }
-
-    // === Variable Operations ===
-
-    void VirtualMachine::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("LOAD_VAR requires operand");
-        }
-        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
-        auto varDef = environment->findVariable(varName);
-        if (!varDef) {
-            // Variable not found in global environment
-            // Check if we're in a lambda with a parent frame (for late-bound variable access)
-            if (!callStack.empty() && callStack.back().originatingLambda) {
-                auto lambda = callStack.back().originatingLambda;
-                if (lambda->parentFrame) {
-                    value::Value val = lambda->parentFrame->getLocalByName(varName);
-                    if (!std::holds_alternative<std::monostate>(val)) {
-                        push(val);
-                        return;
-                    }
-                }
-            }
-            throw errors::RuntimeException("Variable not found: " + varName);
-        }
-        push(varDef->getValue());
-    }
-
-    void VirtualMachine::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("STORE_VAR requires operand");
-        }
-        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
-        value::Value val = pop();
-        auto varDef = environment->findVariable(varName);
-        if (!varDef) {
-            throw errors::RuntimeException("Variable not found: " + varName);
-        }
-        // Check if variable is final
-        if (varDef->isFinal()) {
-            throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
-        }
-        varDef->setValue(val);
-        // Push value back for assignment expressions (e.g., x = y = 5)
-        push(val);
-    }
-
-    void VirtualMachine::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("DECLARE_VAR requires operand");
-        }
-        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
-        value::Value val = pop();
-
-        // Determine type from value
-        value::ValueType type = value::getValueType(val);
-
-        // Check if variable is final (third operand)
-        bool isFinal = false;
-        if (instr.operands.size() >= 3) {
-            isFinal = (instr.operands[2] != 0);
-        }
-
-        // Create variable definition
-        auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-            varName, type, val, isFinal);
-
-        environment->declareVariable(varName, varDef);
-    }
-
-    void VirtualMachine::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("LOAD_LOCAL requires operand");
-        }
-
-        size_t slot = instr.operands[0];
-
-        // Get the current frame base (or 0 if no call frame)
-        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
-
-
-        // Calculate absolute stack position
-        size_t stackPos = frameBase + slot;
-
-        if (stackPos >= operandStack.size()) {
-            throw errors::RuntimeException("Local variable slot out of bounds: " + std::to_string(slot));
-        }
-
-        // Load value from stack
-        value::Value val = operandStack[stackPos];
-        push(val);
-    }
-
-    void VirtualMachine::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("STORE_LOCAL requires operand");
-        }
-
-        size_t slot = instr.operands[0];
-        std::string varName = "";
-        if (instr.operands.size() > 1) {
-            // Variable name provided (for shared frame late-binding)
-            varName = program->getConstantPool().getString(instr.operands[1]);
-        }
-
-        // Get the current frame base (or 0 if no call frame)
-        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
-
-        // Calculate absolute stack position
-        size_t stackPos = frameBase + slot;
-
-        // Pop value from top of stack
-        value::Value val = pop();
-
-        // Extend stack if needed to reach the slot position
-        while (operandStack.size() < stackPos) {
-            operandStack.push_back(std::monostate{});
-        }
-
-        // If the slot is beyond current stack size, push the value
-        if (stackPos >= operandStack.size()) {
-            operandStack.push_back(val);
-        } else {
-            // Otherwise, store at the specific position
-            operandStack[stackPos] = val;
-        }
-
-        // Also update the shared frame if one exists (for lambda late-binding)
-        // This ensures lambdas see updated values of variables (including forward references)
-        if (!callStack.empty() && callStack.back().sharedFrame) {
-            if (!varName.empty()) {
-                // Register the variable name -> slot mapping
-                callStack.back().sharedFrame->setLocal(varName, slot, val);
-            } else {
-                callStack.back().sharedFrame->setLocal(slot, val);
-            }
-        }
-    }
-
-    // === Control Flow Operations ===
-
-    void VirtualMachine::handleJump(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP requires operand");
-        }
-        instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
-    }
-
-    void VirtualMachine::handleJumpIfFalse(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_FALSE requires operand");
-        }
-        value::Value condition = pop();
-        if (!isTruthy(condition)) {
-            instructionPointer = instr.operands[0] - 1;
-        }
-    }
-
-    void VirtualMachine::handleJumpIfTrue(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_TRUE requires operand");
-        }
-        value::Value condition = pop();
-        if (isTruthy(condition)) {
-            instructionPointer = instr.operands[0] - 1;
-        }
-    }
-
-    void VirtualMachine::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_BACK requires operand");
-        }
-        // Jump back to loop start (operand is the target instruction)
-        instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
-    }
-
-    void VirtualMachine::handleReturn() {
-        if (callStack.empty()) {
-            // Top-level return - halt execution
-            instructionPointer = program->getInstructionCount();
-        } else {
-            CallFrame frame = callStack.back();
-            callStack.pop_back();
-            instructionPointer = frame.returnAddress;
-            // Exit function scope (to clean up parameters and local variables)
-            environment->exitScope();
-            // Restore stack
-            while (operandStack.size() > frame.frameBase) {
-                operandStack.pop_back();
-            }
-        }
-    }
-
-    void VirtualMachine::handleReturnValue() {
-        value::Value returnVal = pop();
-        handleReturn();
-        push(returnVal);
-    }
-
-    // === Function Operations ===
-
-    void VirtualMachine::handleCall(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get function name from constant pool
-        std::string functionName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
-
-        // Calculate frameBase BEFORE popping arguments
-        size_t frameBase = operandStack.size() - argCount;
-
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Try to find native function first
-        auto nativeRegistry = environment->getNativeRegistry();
-        if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName)) {
-            auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
-            if (nativeFunc) {
-                value::Value result = nativeFunc(args);
-                push(result);
-                return;
-            }
-        }
-
-        // Try to find user-defined function in bytecode
-        auto funcMetadata = program->getFunction(functionName);
-        if (funcMetadata) {
-            // Create call frame
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = frameBase;  // Use the frameBase calculated before popping args
-            frame.localBase = operandStack.size();  // Locals start after arguments (which are now popped)
-            frame.functionName = functionName;
-            frame.thisInstance = nullptr;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Push arguments onto operand stack as locals (they will be at frameBase + slot)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Jump to function start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-            return;
-        }
-
-        throw errors::RuntimeException("Function not found: " + functionName);
-    }
-
-    void VirtualMachine::handleCallNative(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement native function calls
-        throw errors::RuntimeException("CALL_NATIVE not yet implemented");
-    }
-
-    void VirtualMachine::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get static method name from constant pool (should be fully qualified: ClassName::methodName)
-        std::string qualifiedName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
-
-        // Parse qualified name: ClassName::methodName
-        size_t colonPos = qualifiedName.find("::");
-        if (colonPos == std::string::npos) {
-            throw errors::RuntimeException("Static method call requires qualified name (ClassName::methodName): " + qualifiedName);
-        }
-
-        std::string className = qualifiedName.substr(0, colonPos);
-        std::string methodName = qualifiedName.substr(colonPos + 2);
-
-        // Get class definition
-        auto classRegistry = environment->getClassRegistry();
-        auto classDef = classRegistry->findClass(className);
-        if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + className);
-        }
-
-        // Find static method in class
-        auto method = classDef->findMethod(methodName, argCount);
-        if (!method) {
-            throw errors::RuntimeException("Static method not found: " + qualifiedName +
-                                         " with " + std::to_string(argCount) + " arguments");
-        }
-
-        if (!method->isStatic()) {
-            throw errors::RuntimeException("Method '" + methodName + "' is not static");
-        }
-
-        // Check access modifiers
-        ast::AccessModifier accessMod = method->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            // Get current execution context (the class we're executing from)
-            std::string currentClassName;
-            if (!callStack.empty()) {
-                if (callStack.back().thisInstance) {
-                    // Instance method context
-                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-                } else {
-                    // Static method context - extract class name from function name (ClassName::methodName)
-                    const std::string& funcName = callStack.back().functionName;
-                    size_t colonPos = funcName.find("::");
-                    if (colonPos != std::string::npos) {
-                        currentClassName = funcName.substr(0, colonPos);
-                    }
-                }
-            }
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                // PRIVATE: Only accessible from same class
-                if (currentClassName != className) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        methodName,
-                        "method",
-                        ast::AccessModifier::PRIVATE,
-                        className,
-                        callingFrom,
-                        errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                // PROTECTED: Accessible from same class and subclasses
-                if (currentClassName != className) {
-                    // Check if current class is a subclass of target class
-                    bool isSubclass = false;
-                    if (!currentClassName.empty()) {
-                        auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == className) {
-                                isSubclass = true;
-                                break;
-                            }
-                            // Move to parent class
-                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            methodName,
-                            "method",
-                            ast::AccessModifier::PROTECTED,
-                            className,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
-
-        // Calculate frameBase BEFORE popping arguments
-        size_t frameBase = operandStack.size() - argCount;
-
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Look up static method bytecode
-        auto funcMetadata = program->getFunction(qualifiedName);
-        if (funcMetadata) {
-            // Create call frame for static method
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = frameBase;  // Use the frameBase calculated before popping args
-            frame.localBase = operandStack.size();  // Locals start after arguments (which are now popped)
-            frame.functionName = qualifiedName;
-            frame.thisInstance = nullptr;  // No 'this' for static methods
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Push arguments onto stack as locals (slot 0, 1, 2, ...)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Reserve space for local variables (beyond parameters)
-            // localCount includes parameters, so we need (localCount - argCount) additional slots
-            if (funcMetadata->localCount > argCount) {
-                size_t additionalLocals = funcMetadata->localCount - argCount;
-                for (size_t i = 0; i < additionalLocals; ++i) {
-                    push(std::monostate{});  // Initialize with null/undefined
-                }
-            }
-
-            // Jump to static method start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-        } else {
-            throw errors::RuntimeException("Static method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
-        }
-    }
-
-    // === Object Operations ===
-
-    void VirtualMachine::handleNewObject(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
-            throw errors::RuntimeException("NEW_OBJECT requires 2 operands: class name index and arg count");
-        }
-
-        // Get class name from constant pool (may include generics like "Box<Int>")
-        const std::string& fullClassName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
-        
-        // Parse generic type arguments from className
-        std::string baseClassName = fullClassName;
-        std::unordered_map<std::string, std::string> genericTypeBindings;
-
-        size_t genericStart = fullClassName.find('<');
-        if (genericStart != std::string::npos) {
-            baseClassName = fullClassName.substr(0, genericStart);
-
-            // Extract type arguments: "Box<Int>" -> ["Int"], "Map<String,Int>" -> ["String", "Int"]
-            size_t genericEnd = fullClassName.rfind('>');
-            if (genericEnd != std::string::npos && genericEnd > genericStart) {
-                std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
-
-                // For now, we store the full type string as a binding
-                // The runtime type resolution system will handle this
-                // Example: T -> Int, K -> String, V -> Int
-            }
-        }
-
-        // Pop constructor arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Get class definition from environment
-        auto classRegistry = environment->getClassRegistry();
-        if (!classRegistry) {
-            throw errors::RuntimeException("Class registry not available");
-        }
-
-        // Look up the base class (without generic parameters)
-        auto classDef = classRegistry->findClass(baseClassName);
-        if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + baseClassName);
-        }
-        
-        // Create new object instance with generic type bindings
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
-        
-        // Initialize instance fields with default values (including inherited fields)
-        // First, collect all classes in hierarchy (parent to child order)
-        std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
-        auto current = classDef;
-        while (current) {
-            hierarchy.insert(hierarchy.begin(), current);  // Insert at front for parent-first order
-            current = current->getParentClass();
-        }
-
-        // Initialize fields from all classes in hierarchy
-        for (const auto& classInHierarchy : hierarchy) {
-            for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
-                // Try to use the field's stored value from FieldDefinition
-                value::Value initialValue = fieldDef->getValue();
-
-                // If the value is null/monostate, use type-appropriate default
-                if (std::holds_alternative<std::monostate>(initialValue)) {
-                    // Use default value based on type
-                    switch (fieldDef->getType()) {
-                        case value::ValueType::INT:
-                            initialValue = 0;
-                            break;
-                        case value::ValueType::FLOAT:
-                            initialValue = 0.0f;
-                            break;
-                        case value::ValueType::BOOL:
-                            initialValue = false;
-                            break;
-                        case value::ValueType::STRING:
-                            initialValue = std::string("");
-                            break;
-                        default:
-                            initialValue = std::monostate{};  // null for objects
-                            break;
-                    }
-                }
-                instance->setField(fieldName, initialValue);
-            }
-        }
-
-        // Find and call constructor
-        auto constructor = classDef->findConstructor(argCount);
-        if (!constructor) {
-            // No matching constructor found
-            // Check if class has ANY constructors defined
-            bool hasAnyConstructor = !classDef->getConstructors().empty();
-
-            if (argCount == 0 && !hasAnyConstructor) {
-                // Class has no constructors at all - use implicit default constructor
-                push(instance);
-                return;
-            }
-
-            // Either argCount != 0 or class has constructors but none match
-            throw errors::RuntimeException("No constructor found for " + baseClassName +
-                                         " with " + std::to_string(argCount) + " arguments");
-        }
-
-        // Check constructor access modifiers
-        ast::AccessModifier accessMod = constructor->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            // Get current execution context (the class we're executing from)
-            std::string currentClassName;
-            if (!callStack.empty()) {
-                if (callStack.back().thisInstance) {
-                    // Instance method context
-                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-                } else {
-                    // Static method context - extract class name from function name (ClassName::methodName)
-                    const std::string& funcName = callStack.back().functionName;
-                    size_t colonPos = funcName.find("::");
-                    if (colonPos != std::string::npos) {
-                        currentClassName = funcName.substr(0, colonPos);
-                    }
-                }
-            }
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                // PRIVATE: Only accessible from same class
-                if (currentClassName != baseClassName) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        baseClassName + " constructor",
-                        "constructor",
-                        ast::AccessModifier::PRIVATE,
-                        baseClassName,
-                        callingFrom,
-                        errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                // PROTECTED: Accessible from same class and subclasses
-                if (currentClassName != baseClassName) {
-                    // Check if current class is a subclass of target class
-                    bool isSubclass = false;
-                    if (!currentClassName.empty()) {
-                        auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == baseClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            // Move to parent class
-                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            baseClassName + " constructor",
-                            "constructor",
-                            ast::AccessModifier::PROTECTED,
-                            baseClassName,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
-
-        // Call constructor - it will initialize the object and return it
-        // For bytecode: Look up constructor function by name "ClassName::<init>/<paramCount>"
-        std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
-        auto funcMetadata = program->getFunction(constructorName);
-        if (funcMetadata) {
-            // Save the current stack size - this is where locals will start
-            size_t localBase = operandStack.size();
-
-            // Push 'this' onto stack as first local (slot 0)
-            push(instance);
-
-            // Push constructor arguments onto stack as locals (slot 1, 2, ...)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Create call frame AFTER pushing locals
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
-            frame.functionName = "<init>";
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Jump to constructor start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-        } else {
-            // VM requires bytecode - no AST fallback
-            throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName + "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
-        }
-    }
-
-    void VirtualMachine::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_FIELD requires operand");
-        }
-
-        // Get field name from constant pool
-        const std::string& fieldName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop object from stack
-        value::Value objectValue = pop();
-
-        // Check for null
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("GET_FIELD requires an object instance");
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-
-        // Get field definition to check access modifiers
-        auto fieldDef = instance->getField(fieldName);
-        if (!fieldDef) {
-            // Field doesn't exist
-            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
-        }
-
-        // Check access modifiers
-        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            // Get current execution context (the class we're executing from)
-            std::string currentClassName;
-            if (!callStack.empty() && callStack.back().thisInstance) {
-                currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-            }
-
-            std::string targetClassName = instance->getClassDefinition()->getName();
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                // PRIVATE: Only accessible from same class
-                if (currentClassName != targetClassName) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        fieldName,
-                        "field",
-                        ast::AccessModifier::PRIVATE,
-                        targetClassName,
-                        callingFrom,
-                        errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                // PROTECTED: Accessible from same class and subclasses
-                if (currentClassName != targetClassName) {
-                    // Check if current class is a subclass of target class
-                    bool isSubclass = false;
-                    if (!callStack.empty() && callStack.back().thisInstance) {
-                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == targetClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            // Move to parent class
-                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            fieldName,
-                            "field",
-                            ast::AccessModifier::PROTECTED,
-                            targetClassName,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
-
-        // Get field value
-        value::Value fieldValue = instance->getFieldValue(fieldName);
-        push(fieldValue);
+        switch (instr.opcode)
+        {
+        // Stack operations - delegated to StackOperationsExecutor
+        case OpCode::PUSH_INT: stackOpsExecutor->handlePushInt(instr);
+            break;
+        case OpCode::PUSH_FLOAT: stackOpsExecutor->handlePushFloat(instr);
+            break;
+        case OpCode::PUSH_STRING: stackOpsExecutor->handlePushString(instr);
+            break;
+        case OpCode::PUSH_BOOL: stackOpsExecutor->handlePushBool(instr);
+            break;
+        case OpCode::PUSH_NULL: stackOpsExecutor->handlePushNull();
+            break;
+        case OpCode::POP: stackOpsExecutor->handlePop();
+            break;
+        case OpCode::DUP: stackOpsExecutor->handleDup();
+            break;
+        case OpCode::SWAP: stackOpsExecutor->handleSwap();
+            break;
+
+        // Arithmetic - delegated to ArithmeticExecutor
+        case OpCode::ADD: arithmeticExecutor->handleAdd();
+            break;
+        case OpCode::SUB: arithmeticExecutor->handleSub();
+            break;
+        case OpCode::MUL: arithmeticExecutor->handleMul();
+            break;
+        case OpCode::DIV: arithmeticExecutor->handleDiv();
+            break;
+        case OpCode::MOD: arithmeticExecutor->handleMod();
+            break;
+        case OpCode::NEG: arithmeticExecutor->handleNeg();
+            break;
+        case OpCode::INC: arithmeticExecutor->handleInc();
+            break;
+        case OpCode::DEC: arithmeticExecutor->handleDec();
+            break;
+        case OpCode::ADD_INT: arithmeticExecutor->handleAddInt();
+            break;
+        case OpCode::SUB_INT: arithmeticExecutor->handleSubInt();
+            break;
+        case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
+            break;
+        case OpCode::DIV_INT: arithmeticExecutor->handleDivInt();
+            break;
+
+        // Comparison - delegated to ComparisonExecutor
+        case OpCode::EQ: comparisonExecutor->handleEq();
+            break;
+        case OpCode::NE: comparisonExecutor->handleNe();
+            break;
+        case OpCode::LT: comparisonExecutor->handleLt();
+            break;
+        case OpCode::GT: comparisonExecutor->handleGt();
+            break;
+        case OpCode::LE: comparisonExecutor->handleLe();
+            break;
+        case OpCode::GE: comparisonExecutor->handleGe();
+            break;
+
+        // Logical - delegated to LogicalExecutor
+        case OpCode::AND: logicalExecutor->handleAnd();
+            break;
+        case OpCode::OR: logicalExecutor->handleOr();
+            break;
+        case OpCode::NOT: logicalExecutor->handleNot();
+            break;
+
+        // Variables - delegated to VariableExecutor
+        case OpCode::LOAD_VAR: variableExecutor->handleLoadVar(instr);
+            break;
+        case OpCode::STORE_VAR: variableExecutor->handleStoreVar(instr);
+            break;
+        case OpCode::DECLARE_VAR: variableExecutor->handleDeclareVar(instr);
+            break;
+        case OpCode::LOAD_LOCAL: variableExecutor->handleLoadLocal(instr);
+            break;
+        case OpCode::STORE_LOCAL: variableExecutor->handleStoreLocal(instr);
+            break;
+
+        // Control flow - delegated to ControlFlowExecutor
+        case OpCode::JUMP: controlFlowExecutor->handleJump(instr);
+            break;
+        case OpCode::JUMP_IF_FALSE: controlFlowExecutor->handleJumpIfFalse(instr);
+            break;
+        case OpCode::JUMP_IF_TRUE: controlFlowExecutor->handleJumpIfTrue(instr);
+            break;
+        case OpCode::JUMP_BACK: controlFlowExecutor->handleJumpBack(instr);
+            break;
+        case OpCode::RETURN: controlFlowExecutor->handleReturn();
+            break;
+        case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();
+            break;
+
+        // Functions - delegated to FunctionExecutor
+        case OpCode::CALL: functionExecutor->handleCall(instr);
+            break;
+        case OpCode::CALL_NATIVE: functionExecutor->handleCallNative(instr);
+            break;
+        case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
+            break;
+
+        // Objects - delegated to ObjectExecutor
+        case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
+            break;
+        case OpCode::GET_FIELD: objectExecutor->handleGetField(instr);
+            break;
+        case OpCode::SET_FIELD: objectExecutor->handleSetField(instr);
+            break;
+        case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
+            break;
+        case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
+            break;
+        case OpCode::CALL_METHOD: objectExecutor->handleCallMethod(instr);
+            break;
+        case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
+            break;
+        case OpCode::SUPER_INVOKE: objectExecutor->handleSuperInvoke(instr);
+            break;
+
+        // Arrays - delegated to ArrayExecutor
+        case OpCode::NEW_ARRAY: arrayExecutor->handleNewArray(instr);
+            break;
+        case OpCode::NEW_ARRAY_MULTI: arrayExecutor->handleNewArrayMulti(instr);
+            break;
+        case OpCode::ARRAY_GET: arrayExecutor->handleArrayGet();
+            break;
+        case OpCode::ARRAY_SET: arrayExecutor->handleArraySet();
+            break;
+        case OpCode::ARRAY_LENGTH: arrayExecutor->handleArrayLength();
+            break;
+
+        // Type operations - delegated to TypeExecutor
+        case OpCode::INSTANCEOF: typeExecutor->handleInstanceof(instr);
+            break;
+        case OpCode::CAST: typeExecutor->handleCast(instr);
+            break;
+
+        // Lambda operations - delegated to LambdaExecutor
+        case OpCode::LAMBDA: lambdaExecutor->handleLambda(instr);
+            break;
+        case OpCode::LAMBDA_INVOKE: lambdaExecutor->handleLambdaInvoke(instr);
+            break;
+
+        // Special
+        case OpCode::HALT:
+            // Handled in interpretLoop
+            break;
+
+        case OpCode::NOP:
+            // Do nothing
+            break;
+
+        default:
+            throw errors::RuntimeException("Unimplemented opcode: " +
+                std::string(bytecode::getOpCodeName(instr.opcode)));
+        }
+    }
+
+    void VirtualMachine::push(const value::Value& value)
+    {
+        stackManager->push(value);
+    }
+
+    value::Value VirtualMachine::pop()
+    {
+        return stackManager->pop();
+    }
+
+    value::Value VirtualMachine::peek(size_t offset) const
+    {
+        return stackManager->peek(offset);
+    }
+
+    void VirtualMachine::popN(size_t count)
+    {
+        stackManager->popN(count);
     }
 
-    void VirtualMachine::handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_FIELD requires operand");
-        }
-
-        // Get field name from constant pool
-        const std::string& fieldName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop value and object from stack
-        value::Value fieldValue = pop();
-        value::Value objectValue = pop();
-
-        // Check for null
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("SET_FIELD requires an object instance");
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-
-        // Get field definition to check access modifiers and existence
-        auto fieldDef = instance->getField(fieldName);
-        if (!fieldDef) {
-            // Field doesn't exist
-            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
-        }
-
-        // Check access modifiers (same logic as GET_FIELD)
-        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            // Get current execution context
-            std::string currentClassName;
-            if (!callStack.empty() && callStack.back().thisInstance) {
-                currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-            }
-
-            std::string targetClassName = instance->getClassDefinition()->getName();
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                // PRIVATE: Only accessible from same class
-                if (currentClassName != targetClassName) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        fieldName,
-                        "field",
-                        ast::AccessModifier::PRIVATE,
-                        targetClassName,
-                        callingFrom,
-                        errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                // PROTECTED: Accessible from same class and subclasses
-                if (currentClassName != targetClassName) {
-                    // Check if current class is a subclass
-                    bool isSubclass = false;
-                    if (!callStack.empty() && callStack.back().thisInstance) {
-                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == targetClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            fieldName,
-                            "field",
-                            ast::AccessModifier::PROTECTED,
-                            targetClassName,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
-
-        // Set field value
-        instance->setField(fieldName, fieldValue);
-
-        // Push value back for assignment expressions
-        push(fieldValue);
-    }
-
-    void VirtualMachine::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_STATIC requires operand");
-        }
-
-        // Get variable/field name from constant pool
-        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Check if this is a qualified static field access (ClassName::fieldName)
-        size_t colonPos = varName.find("::");
-        if (colonPos != std::string::npos) {
-            // Parse qualified name: ClassName::fieldName
-            std::string className = varName.substr(0, colonPos);
-            std::string fieldName = varName.substr(colonPos + 2);
-
-            // Get class definition
-            auto classRegistry = environment->getClassRegistry();
-            auto classDef = classRegistry->findClass(className);
-            if (!classDef) {
-                throw errors::RuntimeException("Class not found: " + className);
-            }
-
-            // Get static field definition
-            auto fieldDef = classDef->getField(fieldName);
-            if (!fieldDef) {
-                throw errors::RuntimeException("Static field not found: " + varName);
-            }
-
-            if (!fieldDef->isStatic()) {
-                throw errors::RuntimeException("Field '" + fieldName + "' is not static");
-            }
-
-            // Check access modifiers
-            ast::AccessModifier accessMod = fieldDef->getAccessModifier();
-            if (accessMod != ast::AccessModifier::PUBLIC) {
-                // Get current execution context (the class we're executing from)
-                std::string currentClassName;
-                if (!callStack.empty()) {
-                    if (callStack.back().thisInstance) {
-                        // Instance method context
-                        currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-                    } else {
-                        // Static method context - extract class name from function name (ClassName::methodName)
-                        const std::string& funcName = callStack.back().functionName;
-                        size_t colonPos = funcName.find("::");
-                        if (colonPos != std::string::npos) {
-                            currentClassName = funcName.substr(0, colonPos);
-                        }
-                    }
-                }
-
-                if (accessMod == ast::AccessModifier::PRIVATE) {
-                    // PRIVATE: Only accessible from same class
-                    if (currentClassName != className) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            fieldName,
-                            "field",
-                            ast::AccessModifier::PRIVATE,
-                            className,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                    // PROTECTED: Accessible from same class and subclasses
-                    if (currentClassName != className) {
-                        // Check if current class is a subclass of target class
-                        bool isSubclass = false;
-                        if (!currentClassName.empty()) {
-                            auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
-                            while (currentClass && currentClass->hasParentClass()) {
-                                if (currentClass->getParentClassName() == className) {
-                                    isSubclass = true;
-                                    break;
-                                }
-                                // Move to parent class
-                                auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                                currentClass = parentClass;
-                            }
-                        }
-
-                        if (!isSubclass) {
-                            std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                            throw errors::AccessViolationException(
-                                fieldName,
-                                "field",
-                                ast::AccessModifier::PROTECTED,
-                                className,
-                                callingFrom,
-                                errors::SourceLocation()
-                            );
-                        }
-                    }
-                }
-            }
-
-            // Get and push the value
-            value::Value fieldValue = fieldDef->getValue();
-            push(fieldValue);
-        } else {
-            // Global variable access (not a class static field)
-            auto varManager = environment->getVariableManager();
-            auto varDef = varManager->findVariable(varName);
-
-            if (!varDef) {
-                throw errors::RuntimeException("Static variable not found: " + varName);
-            }
-
-            // Get and push the value
-            value::Value varValue = varDef->getValue();
-            push(varValue);
-        }
-    }
-
-    void VirtualMachine::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_STATIC requires operand");
-        }
-
-        // Get variable/field name from constant pool
-        const std::string& varName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop value from stack
-        value::Value varValue = pop();
-
-        // Check if this is a qualified static field assignment (ClassName::fieldName)
-        size_t colonPos = varName.find("::");
-        if (colonPos != std::string::npos) {
-            // Parse qualified name: ClassName::fieldName
-            std::string className = varName.substr(0, colonPos);
-            std::string fieldName = varName.substr(colonPos + 2);
-
-            // Get class definition
-            auto classRegistry = environment->getClassRegistry();
-            auto classDef = classRegistry->findClass(className);
-            if (!classDef) {
-                throw errors::RuntimeException("Class not found: " + className);
-            }
-
-            // Get static field definition
-            auto fieldDef = classDef->getField(fieldName);
-            if (!fieldDef) {
-                throw errors::RuntimeException("Static field not found: " + varName);
-            }
-
-            if (!fieldDef->isStatic()) {
-                throw errors::RuntimeException("Field '" + fieldName + "' is not static");
-            }
-
-            // Set the field value directly in the FieldDefinition
-            fieldDef->setValue(varValue);
-
-            // Push value back for assignment expressions
-            push(varValue);
-        } else {
-            // Global variable assignment (not a class static field)
-            auto varManager = environment->getVariableManager();
-            auto varDef = varManager->findVariable(varName);
-
-            if (!varDef) {
-                // Determine type from the value
-                value::ValueType varType = value::ValueType::OBJECT; // Default to OBJECT
-
-                if (std::holds_alternative<int>(varValue)) {
-                    varType = value::ValueType::INT;
-                } else if (std::holds_alternative<float>(varValue)) {
-                    varType = value::ValueType::FLOAT;
-                } else if (std::holds_alternative<bool>(varValue)) {
-                    varType = value::ValueType::BOOL;
-                } else if (std::holds_alternative<std::string>(varValue) ||
-                           std::holds_alternative<value::InternedString>(varValue)) {
-                    varType = value::ValueType::STRING;
-                }
-
-                // Create new global variable with inferred type
-                varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    varName, varType, varValue, false);
-                varManager->declareGlobalVariable(varName, varDef);
-            } else {
-                // Variable already exists, update its value
-                varDef->setValue(varValue);
-            }
-
-            // Push value back for assignment expressions
-            push(varValue);
-        }
-    }
-
-    void VirtualMachine::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
-            throw errors::RuntimeException("CALL_METHOD requires 2 operands");
-        }
-
-        // Get method name and argument count
-        const std::string& methodName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
-
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Pop object from stack
-        value::Value objectValue = pop();
-
-        // Check for null
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
-        }
-
-        // Handle lambda method calls (apply, test, etc.)
-        if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(objectValue)) {
-            auto lambda = std::get<std::shared_ptr<value::LambdaValue>>(objectValue);
-            // Call the lambda directly with arguments (method name doesn't matter - lambdas only have one callable method)
-            // Create evaluation context for the lambda call
-            auto context = std::make_shared<evaluator::base::EvaluationContext>(environment);
-            value::Value result = lambda->invoke(args, context);
-            push(result);
-            return;
-        }
-
-        if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(objectValue)) {
-            auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(objectValue);
-
-            // Validate argument count
-            if (args.size() != lambda->parameterCount) {
-                throw errors::RuntimeException("Lambda expects " + std::to_string(lambda->parameterCount) +
-                                             " arguments but got " + std::to_string(args.size()));
-            }
-
-            // Create call frame for lambda
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = operandStack.size();
-            frame.localBase = operandStack.size();
-            // Use class context for access checks: "ClassName::<lambda>" or just "<lambda>"
-            frame.functionName = lambda->creatingClassName.empty() ?
-                "<lambda>" : lambda->creatingClassName + "::<lambda>";
-            frame.thisInstance = lambda->capturedThis;  // Restore captured 'this' if present
-            frame.originatingLambda = lambda;  // Store reference for late-bound variable access
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Push arguments onto stack as locals
-            for (size_t i = 0; i < args.size(); ++i) {
-                push(args[i]);
-            }
-
-            // Push captured variables onto stack (after arguments)
-            // Use snapshot values (immutable capture semantics)
-            for (const auto& capturedValue : lambda->capturedValues) {
-                push(capturedValue);
-            }
-
-            // Jump to lambda code
-            instructionPointer = lambda->instructionPointer - 1;  // -1 because loop will increment
-
-            // Lambda execution will continue in the main execution loop
-            // When RETURN is encountered, it will pop the call frame and return the value
-            return;
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("CALL_METHOD requires an object instance");
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
-
-        // Find method in class hierarchy and determine which class defines it
-        auto classDef = instance->getClassDefinition();
-        std::string definingClassName;
-        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method;
-
-        // Search in this class first
-        method = classDef->findMethod(methodName, argCount);
-        if (method) {
-            definingClassName = classDef->getName();
-        } else {
-            // Search in parent hierarchy
-            auto current = classDef->getParentClass();
-            while (current && !method) {
-                method = current->findMethod(methodName, argCount);
-                if (method) {
-                    definingClassName = current->getName();
-                    break;
-                }
-                current = current->getParentClass();
-            }
-        }
-
-        if (!method) {
-            throw errors::RuntimeException("Method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments");
-        }
-
-        // Check access modifiers
-        ast::AccessModifier accessMod = method->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            // Get current execution context (the class we're executing from)
-            std::string currentClassName;
-            if (!callStack.empty()) {
-                if (callStack.back().thisInstance) {
-                    // Instance method context
-                    currentClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-                } else {
-                    // Static method context - extract class name from function name (ClassName::methodName)
-                    const std::string& funcName = callStack.back().functionName;
-                    size_t colonPos = funcName.find("::");
-                    if (colonPos != std::string::npos) {
-                        currentClassName = funcName.substr(0, colonPos);
-                    }
-                }
-            }
-
-            // The actual instance's class (might be a subclass)
-            std::string targetClassName = instance->getClassDefinition()->getName();
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                // PRIVATE: Only accessible from the class that defines it
-                // Check if we're calling from within the same class (or same instance)
-                bool sameInstance = (!callStack.empty() &&
-                                   callStack.back().thisInstance &&
-                                   callStack.back().thisInstance.get() == instance.get());
-                bool sameClass = (currentClassName == definingClassName);
-
-                if (!sameClass && !sameInstance) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        methodName,
-                        "method",
-                        ast::AccessModifier::PRIVATE,
-                        definingClassName,
-                        callingFrom,
-                        errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                // PROTECTED: Accessible from same class and subclasses
-                if (currentClassName != definingClassName) {
-                    // Check if current class is a subclass of the defining class
-                    bool isSubclass = false;
-                    if (!callStack.empty() && callStack.back().thisInstance) {
-                        auto currentClass = callStack.back().thisInstance->getClassDefinition();
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == definingClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            // Move to parent class
-                            auto parentClass = environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            methodName,
-                            "method",
-                            ast::AccessModifier::PROTECTED,
-                            definingClassName,
-                            callingFrom,
-                            errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
-
-        // Look up method in bytecode functions using the class that defines it
-        std::string className = definingClassName;
-        std::string qualifiedMethodName = className + "::" + methodName;
-        auto funcMetadata = program->getFunction(qualifiedMethodName);
-        if (funcMetadata) {
-            // Save the current stack size - this is where locals will start
-            size_t localBase = operandStack.size();
-
-            // Push 'this' onto stack as first local (slot 0)
-            push(instance);
-
-            // Push method arguments onto stack as locals (slot 1, 2, ...)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Create call frame AFTER pushing locals
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
-            frame.functionName = qualifiedMethodName;
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Jump to method start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-        } else {
-            // Try to call as native/interpreted method
-            value::Value result = instance->callMethod(methodName, args);
-            push(result);
-        }
-    }
-
-    void VirtualMachine::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands: class name index and argument count");
-        }
-
-        // Get current class name and argument count
-        const std::string& currentClassName = program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
-
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Get current 'this' instance from local slot 0
-        // In bytecode mode, 'this' is the first parameter (slot 0) of the current constructor
-        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
-
-        if (frameBase >= operandStack.size()) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR: cannot access 'this' - invalid frame base");
-        }
-
-        value::Value thisValue = operandStack[frameBase];  // 'this' is always at slot 0
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue)) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR: 'this' not found or not an object");
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue);
-
-        // Get the current class (the one whose constructor is executing) and find its parent
-        auto classRegistry = environment->getClassRegistry();
-        auto currentClassDef = classRegistry->findClass(currentClassName);
-        if (!currentClassDef) {
-            throw errors::RuntimeException("Current class not found: " + currentClassName);
-        }
-
-        if (!currentClassDef->hasParentClass()) {
-            throw errors::RuntimeException("SUPER_CONSTRUCTOR: class " + currentClassName + " has no parent");
-        }
-
-        std::string parentClassName = currentClassDef->getParentClassName();
-
-        // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
-        size_t genericStart = parentClassName.find('<');
-        std::string baseParentClassName = (genericStart != std::string::npos)
-            ? parentClassName.substr(0, genericStart)
-            : parentClassName;
-
-        auto parentClassDef = classRegistry->findClass(baseParentClassName);
-
-        if (!parentClassDef) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
-        }
-
-        // Find parent constructor with matching argument count
-        auto parentConstructor = parentClassDef->findConstructor(argCount);
-        if (!parentConstructor) {
-            throw errors::RuntimeException("No constructor found in parent class " + parentClassName +
-                                         " with " + std::to_string(argCount) + " arguments");
-        }
-
-        // Look up parent constructor bytecode
-        std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
-        auto funcMetadata = program->getFunction(constructorName);
-        if (funcMetadata) {
-            // Save the current stack size - this is where locals will start
-            size_t localBase = operandStack.size();
-
-            // Push 'this' onto stack as first local (slot 0) - same instance as child
-            push(instance);
-
-            // Push constructor arguments onto stack as locals (slot 1, 2, ...)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Create call frame for parent constructor AFTER pushing locals
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
-            frame.functionName = "<init>";
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Jump to parent constructor start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-        } else {
-            throw errors::RuntimeException("Parent constructor '" + constructorName +
-                                         "' for class '" + parentClassName +
-                                         "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
-        }
-    }
-
-    void VirtualMachine::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 3) {
-            throw errors::RuntimeException("SUPER_INVOKE requires 3 operands: class name index, method name index, and argument count");
-        }
-
-        // Get current class name, method name, and argument count
-        const std::string& currentClassName = program->getConstantPool().getString(instr.operands[0]);
-        const std::string& methodName = program->getConstantPool().getString(instr.operands[1]);
-        size_t argCount = instr.operands[2];
-
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Get current 'this' instance from local slot 0
-        // In bytecode mode, 'this' is the first parameter (slot 0) of the current method
-        size_t frameBase = callStack.empty() ? 0 : callStack.back().localBase;
-
-        if (frameBase >= operandStack.size()) {
-            throw errors::RuntimeException("SUPER_INVOKE: cannot access 'this' - invalid frame base");
-        }
-
-        value::Value thisValue = operandStack[frameBase];  // 'this' is always at slot 0
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue)) {
-            throw errors::RuntimeException("SUPER_INVOKE: 'this' not found or not an object");
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(thisValue);
-
-        // Get the current class (the one whose method is executing) and find its parent
-        auto classRegistry = environment->getClassRegistry();
-        auto currentClassDef = classRegistry->findClass(currentClassName);
-        if (!currentClassDef) {
-            throw errors::RuntimeException("Current class not found: " + currentClassName);
-        }
-
-        if (!currentClassDef->hasParentClass()) {
-            throw errors::RuntimeException("SUPER_INVOKE: class " + currentClassName + " has no parent");
-        }
-
-        std::string parentClassName = currentClassDef->getParentClassName();
-
-        // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
-        size_t genericStart = parentClassName.find('<');
-        std::string baseParentClassName = (genericStart != std::string::npos)
-            ? parentClassName.substr(0, genericStart)
-            : parentClassName;
-
-        auto parentClassDef = classRegistry->findClass(baseParentClassName);
-
-        if (!parentClassDef) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
-        }
-
-        // Find parent method with matching argument count
-        auto parentMethod = parentClassDef->findMethod(methodName, argCount);
-        if (!parentMethod) {
-            throw errors::RuntimeException("Method not found in parent class " + parentClassName +
-                                         ": " + methodName + " with " + std::to_string(argCount) + " arguments");
-        }
-
-        // Build qualified method name (ParentClass::methodName)
-        std::string qualifiedMethodName = parentClassName + "::" + methodName;
-
-        // Look up parent method bytecode
-        auto funcMetadata = program->getFunction(qualifiedMethodName);
-        if (funcMetadata) {
-            // Save the current stack size - this is where locals will start
-            size_t localBase = operandStack.size();
-
-            // Push 'this' onto stack as first local (slot 0) - same instance
-            push(instance);
-
-            // Push method arguments onto stack as locals (slot 1, 2, ...)
-            for (size_t i = 0; i < argCount; ++i) {
-                push(args[i]);
-            }
-
-            // Create call frame for parent method AFTER pushing locals
-            CallFrame frame;
-            frame.returnAddress = instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
-            frame.functionName = qualifiedMethodName;
-            frame.thisInstance = instance;
-
-            callStack.push_back(frame);
-            stats.functionCalls++;
-
-            // Jump to parent method start
-            instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
-        } else {
-            throw errors::RuntimeException("Parent method '" + qualifiedMethodName +
-                                         "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
-        }
-    }
-
-    // === Array Operations ===
-
-    void VirtualMachine::handleNewArray(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get element type name from constant pool
-        const std::string& elementTypeName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop array size from stack
-        value::Value sizeVal = pop();
-        int size = std::get<int>(sizeVal);
-
-        if (size < 0) {
-            throw errors::RuntimeException("Array size cannot be negative: " + std::to_string(size));
-        }
-
-        // Create new NativeArray
-        auto array = std::make_shared<value::NativeArray>(size, value::ValueType::OBJECT, elementTypeName);
-
-        // Push array onto stack
-        push(array);
-    }
-
-    void VirtualMachine::handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get element type name from constant pool
-        const std::string& elementTypeName = program->getConstantPool().getString(instr.operands[0]);
-        size_t specifiedDimensions = instr.operands[1];  // Number of dimensions with sizes specified
-        size_t totalDimensions = instr.operands.size() > 2 ? instr.operands[2] : specifiedDimensions;
-
-        // Pop dimension sizes from stack (in reverse order - last dimension first)
-        // Only pop the number of specified dimensions
-        std::vector<int> dimensions;
-        dimensions.reserve(specifiedDimensions);
-        for (size_t i = 0; i < specifiedDimensions; ++i) {
-            value::Value sizeVal = pop();
-            int size = std::get<int>(sizeVal);
-            if (size < 0) {
-                throw errors::RuntimeException("Array dimension size cannot be negative: " + std::to_string(size));
-            }
-            dimensions.push_back(size);
-        }
-        std::reverse(dimensions.begin(), dimensions.end());
-
-        // For jagged arrays (totalDimensions > specifiedDimensions), we only create
-        // the specified outer dimensions. Inner dimensions remain as null references.
-        // For fully specified arrays, create nested arrays for all dimensions.
-
-        // Create the array structure based on specified dimensions
-        std::shared_ptr<value::NativeArray> result = createJaggedArray(dimensions, 0, elementTypeName, totalDimensions);
-
-        push(result);
-    }
-
-    void VirtualMachine::handleArrayGet() {
-        // Pop index from stack
-        value::Value indexVal = pop();
-        int index = std::get<int>(indexVal);
-
-        // Pop array from stack
-        value::Value arrayVal = pop();
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-
-        // Bounds check
-        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
-        }
-
-        // Get element and push onto stack
-        value::Value element = array->get(index);
-        push(element);
-    }
-
-    void VirtualMachine::handleArraySet() {
-        // Pop value from stack
-        value::Value valueToSet = pop();
-
-        // Pop index from stack
-        value::Value indexVal = pop();
-        int index = std::get<int>(indexVal);
-
-        // Pop array from stack
-        value::Value arrayVal = pop();
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-
-        // Bounds check
-        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
-        }
-
-        // Set element
-        array->set(index, valueToSet);
-    }
-
-    void VirtualMachine::handleArrayLength() {
-        // Pop array from stack
-        value::Value arrayVal = pop();
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-
-        // Get length and push as integer onto stack
-        int length = static_cast<int>(array->size());
-        push(length);
-    }
-
-    // === Type Operations ===
-
-    void VirtualMachine::handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get target type name from constant pool
-        const std::string& targetTypeName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop value to check
-        value::Value val = pop();
-
-        bool result = false;
-
-        // Check type based on target type
-        if (targetTypeName == "Int" || targetTypeName == "int") {
-            result = std::holds_alternative<int>(val);
-        }
-        else if (targetTypeName == "Float" || targetTypeName == "float") {
-            result = std::holds_alternative<float>(val);
-        }
-        else if (targetTypeName == "Bool" || targetTypeName == "bool") {
-            result = std::holds_alternative<bool>(val);
-        }
-        else if (targetTypeName == "String" || targetTypeName == "string") {
-            result = std::holds_alternative<std::string>(val) || std::holds_alternative<value::InternedString>(val);
-        }
-        else {
-            // Object type check
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-
-                if (obj) {
-                    auto classDef = obj->getClassDefinition();
-                    std::string className = classDef->getName();
-
-                    // Extract base class name from generic instantiation (e.g., "Box<Int>" -> "Box")
-                    std::string baseClassName = className;
-                    size_t genericStart = className.find('<');
-                    if (genericStart != std::string::npos) {
-                        baseClassName = className.substr(0, genericStart);
-                    }
-
-                    // Extract base target name from generic (e.g., "Box<Int>" -> "Box")
-                    std::string baseTargetName = targetTypeName;
-                    genericStart = targetTypeName.find('<');
-                    if (genericStart != std::string::npos) {
-                        baseTargetName = targetTypeName.substr(0, genericStart);
-                    }
-
-                    // Check if object's class matches target type (exact or base generic match)
-                    result = (className == targetTypeName) || (baseClassName == baseTargetName);
-
-                    // If not exact match, check inheritance hierarchy
-                    if (!result) {
-                        result = classDef->isSubclassOf(targetTypeName);
-
-                        // Also check with base names for generic types
-                        if (!result && baseTargetName != targetTypeName) {
-                            result = classDef->isSubclassOf(baseTargetName);
-                        }
-                    }
-
-                    // Also check if object implements an interface with that name
-                    if (!result) {
-                        const auto& interfaces = classDef->getImplementedInterfaces();
-                        for (const auto& iface : interfaces) {
-                            // Extract base interface name for comparison
-                            std::string baseIfaceName = iface;
-                            size_t ifaceGenericStart = iface.find('<');
-                            if (ifaceGenericStart != std::string::npos) {
-                                baseIfaceName = iface.substr(0, ifaceGenericStart);
-                            }
-
-                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                                result = true;
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    result = false; // null is not instance of any type
-                }
-            }
-            else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
-                result = false; // null is not instance of any type
-            }
-            else {
-                result = false; // primitive values are not instances of object types
-            }
-        }
-
-        // Push boolean result onto stack
-        push(result);
-    }
-
-    void VirtualMachine::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get target type name from constant pool
-        const std::string& targetTypeName = program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop value to cast
-        value::Value val = pop();
-
-        // Perform casting based on target type
-        if (targetTypeName == "Int" || targetTypeName == "int") {
-            // Cast to int
-            if (std::holds_alternative<int>(val)) {
-                push(val); // Already int
-            }
-            else if (std::holds_alternative<float>(val)) {
-                push(static_cast<int>(std::get<float>(val)));
-            }
-            else if (std::holds_alternative<bool>(val)) {
-                push(std::get<bool>(val) ? 1 : 0);
-            }
-            else if (std::holds_alternative<std::string>(val)) {
-                try {
-                    push(std::stoi(std::get<std::string>(val)));
-                } catch (...) {
-                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val));
-                }
-            }
-            else {
-                throw errors::RuntimeException("Cannot cast to int from this type");
-            }
-        }
-        else if (targetTypeName == "Float" || targetTypeName == "float") {
-            // Cast to float
-            if (std::holds_alternative<float>(val)) {
-                push(val); // Already float
-            }
-            else if (std::holds_alternative<int>(val)) {
-                push(static_cast<float>(std::get<int>(val)));
-            }
-            else if (std::holds_alternative<std::string>(val)) {
-                try {
-                    push(std::stof(std::get<std::string>(val)));
-                } catch (...) {
-                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val));
-                }
-            }
-            else {
-                throw errors::RuntimeException("Cannot cast to float from this type");
-            }
-        }
-        else if (targetTypeName == "String" || targetTypeName == "string") {
-            // Cast to string
-            push(valueToString(val));
-        }
-        else if (targetTypeName == "Bool" || targetTypeName == "bool") {
-            // Cast to bool
-            if (std::holds_alternative<bool>(val)) {
-                push(val); // Already bool
-            }
-            else if (std::holds_alternative<int>(val)) {
-                push(std::get<int>(val) != 0);
-            }
-            else if (std::holds_alternative<float>(val)) {
-                push(std::get<float>(val) != 0.0f);
-            }
-            else if (std::holds_alternative<std::string>(val)) {
-                const std::string& str = std::get<std::string>(val);
-                // Non-empty strings are true
-                push(!str.empty());
-            }
-            else if (std::holds_alternative<value::InternedString>(val)) {
-                const value::InternedString& str = std::get<value::InternedString>(val);
-                // Non-empty strings are true
-                push(str.length() > 0);
-            }
-            else {
-                throw errors::RuntimeException("Cannot cast to bool from this type");
-            }
-        }
-        else {
-            // Object cast - check if it's a valid object type
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-
-                if (obj) {
-                    auto classDef = obj->getClassDefinition();
-                    std::string className = classDef->getName();
-
-                    // Extract base class name and type parameters from object's class
-                    std::string baseClassName = className;
-                    std::string classTypeParams = "";
-                    size_t genericStart = className.find('<');
-                    if (genericStart != std::string::npos) {
-                        baseClassName = className.substr(0, genericStart);
-                        classTypeParams = className.substr(genericStart); // includes <>
-                    }
-
-                    // Extract base target name and type parameters
-                    std::string baseTargetName = targetTypeName;
-                    std::string targetTypeParams = "";
-                    genericStart = targetTypeName.find('<');
-                    if (genericStart != std::string::npos) {
-                        baseTargetName = targetTypeName.substr(0, genericStart);
-                        targetTypeParams = targetTypeName.substr(genericStart); // includes <>
-                    }
-
-                    // Check if the object's class can be cast to target type
-                    bool canCast = false;
-
-                    // 1. Exact match (including generic type parameters)
-                    if (className == targetTypeName) {
-                        canCast = true;
-                    }
-                    // 2. Base class match without type parameters (e.g., Box<Int> -> Box)
-                    else if (baseClassName == baseTargetName && targetTypeParams.empty()) {
-                        canCast = true;
-                    }
-                    // 3. Upcast - object is subclass of target type
-                    else if (classDef->isSubclassOf(targetTypeName)) {
-                        canCast = true;
-                    }
-                    // 4. Upcast with base names (for generic types)
-                    else if (classDef->isSubclassOf(baseTargetName)) {
-                        // Check if type parameters match (if target has type params)
-                        if (!targetTypeParams.empty() && !classTypeParams.empty()) {
-                            // Type parameters must match for generic upcast
-                            canCast = (classTypeParams == targetTypeParams);
-                        } else {
-                            // No type params on target, allow upcast to generic base
-                            canCast = true;
-                        }
-                    }
-                    // 5. Downcast - target type is subclass of object's type (runtime check needed)
-                    else {
-                        // Get target class from registry to check if it's a subclass
-                        auto targetClass = environment->findClass(baseTargetName);
-                        if (targetClass) {
-                            // Check if target class is a subclass of the object's actual class
-                            if (targetClass->isSubclassOf(baseClassName)) {
-                                // Check type parameter compatibility for generic downcast
-                                if (!targetTypeParams.empty() && !classTypeParams.empty()) {
-                                    // Type parameters must match for valid generic downcast
-                                    canCast = (classTypeParams == targetTypeParams);
-                                } else {
-                                    // No type param mismatch, allow downcast
-                                    canCast = true;
-                                }
-                            }
-                        }
-                    }
-                    // 6. Interface check (with recursive hierarchy checking)
-                    if (!canCast) {
-                        // Helper lambda to recursively check if an interface extends the target interface
-                        std::function<bool(const std::string&, const std::string&, std::unordered_set<std::string>&)> checkInterfaceHierarchy;
-                        checkInterfaceHierarchy = [&](const std::string& interfaceName, const std::string& targetInterface, std::unordered_set<std::string>& visited) -> bool {
-                            // Avoid infinite loops with circular dependencies
-                            if (visited.count(interfaceName)) {
-                                return false;
-                            }
-                            visited.insert(interfaceName);
-
-                            // Strip generic parameters for comparison
-                            auto stripGenerics = [](const std::string& name) -> std::string {
-                                size_t genericStart = name.find('<');
-                                return (genericStart != std::string::npos) ? name.substr(0, genericStart) : name;
-                            };
-
-                            std::string interfaceBaseName = stripGenerics(interfaceName);
-                            std::string targetBaseName = stripGenerics(targetInterface);
-
-                            // Extract type parameters
-                            std::string interfaceTypeParams = "";
-                            size_t ifaceGenericStart = interfaceName.find('<');
-                            if (ifaceGenericStart != std::string::npos) {
-                                interfaceTypeParams = interfaceName.substr(ifaceGenericStart);
-                            }
-
-                            // Direct match (exact or base without type params)
-                            if (interfaceName == targetInterface ||
-                                (interfaceBaseName == targetBaseName && targetTypeParams.empty())) {
-                                return true;
-                            }
-                            // Type param match
-                            if (interfaceBaseName == targetBaseName && !targetTypeParams.empty()) {
-                                return (interfaceTypeParams == targetTypeParams);
-                            }
-
-                            // Check extended interfaces recursively
-                            auto interfaceDef = environment->findInterface(interfaceName);
-                            if (interfaceDef) {
-                                const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
-                                for (const auto& extendedInterface : extendedInterfaces) {
-                                    if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
-                                        return true;
-                                    }
-                                }
-                            }
-
-                            return false;
-                        };
-
-                        const auto& interfaces = classDef->getImplementedInterfaces();
-                        for (const auto& iface : interfaces) {
-                            std::unordered_set<std::string> visited;
-                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                                canCast = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (canCast) {
-                        push(obj);
-                    } else {
-                        throw errors::RuntimeException(
-                            "Cannot cast " + className + " to " + targetTypeName +
-                            ": incompatible types in inheritance hierarchy"
-                        );
-                    }
-                } else {
-                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
-                }
-            }
-            else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
-                push(val); // null remains null for object casts
-            }
-            else {
-                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName);
-            }
-        }
-    }
-
-    // === Lambda Operations ===
-
-    void VirtualMachine::handleLambda(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get lambda function start address, parameter count, capture count, and parent local count
-        size_t lambdaStart = instr.operands[0];
-        size_t paramCount = instr.operands[1];
-        size_t captureCount = instr.operands[2];
-        size_t parentLocalCount = instr.operands.size() > 3 ? instr.operands[3] : 0;
-
-        // Create bytecode lambda
-        auto lambda = std::make_shared<BytecodeLambda>();
-        lambda->instructionPointer = lambdaStart;
-        lambda->parameterCount = paramCount;
-
-        // Share the parent frame for late-bound variable access
-        // This allows lambdas to access variables declared after lambda creation (forward references)
-        if (!callStack.empty()) {
-            // Get or create shared frame for current call frame
-            if (!callStack.back().sharedFrame) {
-                callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
-                // Initialize with current local variables
-                size_t localBase = callStack.back().localBase;
-                for (size_t i = localBase; i < operandStack.size(); ++i) {
-                    callStack.back().sharedFrame->setLocal(i - localBase, operandStack[i]);
-                }
-            }
-            lambda->parentFrame = callStack.back().sharedFrame;
-
-            // Populate the name->slot mapping from the LAMBDA instruction operands
-            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount,
-            //                   captureSlot1, ..., nameIdx1, slot1, nameIdx2, slot2, ...]
-            // Note: We ADD to the existing mapping, not replace it, so later lambdas
-            // in the same scope can see earlier ones (for forward references)
-            size_t mappingStart = 4 + captureCount;  // Skip header and capture slots
-            for (size_t i = 0; i < parentLocalCount; ++i) {
-                size_t nameIdx = instr.operands[mappingStart + i * 2];
-                size_t slot = instr.operands[mappingStart + i * 2 + 1];
-                std::string varName = program->getConstantPool().getString(nameIdx);
-                // Only add if not already present (don't overwrite)
-                if (lambda->parentFrame->nameToSlot.find(varName) == lambda->parentFrame->nameToSlot.end()) {
-                    lambda->parentFrame->nameToSlot[varName] = slot;
-                }
-            }
-        } else {
-            // Global scope - create a new shared frame
-            lambda->parentFrame = std::make_shared<SharedStackFrame>();
-            for (size_t i = 0; i < operandStack.size(); ++i) {
-                lambda->parentFrame->setLocal(i, operandStack[i]);
-            }
-        }
-
-        // Capture class context for access modifier checks
-        if (!callStack.empty()) {
-            if (callStack.back().thisInstance) {
-                // Instance method context - get class from 'this'
-                lambda->creatingClassName = callStack.back().thisInstance->getClassDefinition()->getName();
-                lambda->capturedThis = callStack.back().thisInstance;
-            } else {
-                // Static method context - extract class name from function name (ClassName::methodName)
-                const std::string& funcName = callStack.back().functionName;
-                size_t colonPos = funcName.find("::");
-                if (colonPos != std::string::npos) {
-                    lambda->creatingClassName = funcName.substr(0, colonPos);
-                }
-            }
-        }
-
-        // Capture VALUES of variables from current stack frame (snapshot at creation time)
-        // This ensures immutable capture semantics
-        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, captureSlot1, captureSlot2, ...]
-        for (size_t i = 0; i < captureCount; ++i) {
-            size_t varSlot = instr.operands[4 + i];  // Capture slots start at index 4
-
-            // Read the current value from the parent frame's stack
-            value::Value capturedValue = std::monostate{};
-            if (!callStack.empty()) {
-                size_t parentLocalBase = callStack.back().localBase;
-                size_t stackPos = parentLocalBase + varSlot;
-                if (stackPos < operandStack.size()) {
-                    capturedValue = operandStack[stackPos];
-                }
-            }
-
-            lambda->capturedValues.push_back(capturedValue);
-        }
-
-        // Push lambda value onto stack
-        push(lambda);
-    }
-
-    void VirtualMachine::handleLambdaInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Pop argument count
-        size_t argCount = instr.operands[0];
-
-        // Pop arguments from stack
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(pop());
-        }
-        std::reverse(args.begin(), args.end());
-
-        // Pop lambda value from stack
-        value::Value lambdaVal = pop();
-        auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(lambdaVal);
-
-        size_t lambdaStart = lambda->instructionPointer;
-        size_t paramCount = lambda->parameterCount;
-
-        // Validate argument count
-        if (args.size() != paramCount) {
-            throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                                         " arguments but got " + std::to_string(args.size()));
-        }
-
-        // Create call frame
-        CallFrame frame;
-        frame.returnAddress = instructionPointer;  // Return to next instruction
-        frame.frameBase = operandStack.size();
-        frame.localBase = operandStack.size();
-        frame.functionName = "<lambda>";
-        frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
-
-        callStack.push_back(frame);
-
-        // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
-        for (size_t i = 0; i < args.size(); ++i) {
-            push(args[i]);
-        }
-
-        // Push captured variables onto stack (they become local variables after the parameters)
-        // Use snapshot values (immutable capture semantics)
-        for (const auto& capturedValue : lambda->capturedValues) {
-            push(capturedValue);
-        }
-
-        // Jump to lambda start
-        instructionPointer = lambdaStart;
-    }
 
     // === Helper Methods ===
 
-    bool VirtualMachine::isTruthy(const value::Value& val) const {
-        if (std::holds_alternative<bool>(val)) {
+    bool VirtualMachine::isTruthy(const value::Value& val) const
+    {
+        if (std::holds_alternative<bool>(val))
+        {
             return std::get<bool>(val);
         }
-        if (std::holds_alternative<int>(val)) {
+        if (std::holds_alternative<int>(val))
+        {
             return std::get<int>(val) != 0;
         }
-        if (std::holds_alternative<nullptr_t>(val)) {
+        if (std::holds_alternative<nullptr_t>(val))
+        {
             return false;
         }
-        if (std::holds_alternative<std::monostate>(val)) {
+        if (std::holds_alternative<std::monostate>(val))
+        {
             return false;
         }
-        return true;  // Objects, strings, etc. are truthy
+        return true; // Objects, strings, etc. are truthy
     }
 
-    std::string VirtualMachine::valueToString(const value::Value& val) const {
-        if (std::holds_alternative<int>(val)) {
+    std::string VirtualMachine::valueToString(const value::Value& val) const
+    {
+        if (std::holds_alternative<int>(val))
+        {
             return std::to_string(std::get<int>(val));
         }
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<float>(val))
+        {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
             oss << std::get<float>(val);
             return oss.str();
         }
-        if (std::holds_alternative<bool>(val)) {
+        if (std::holds_alternative<bool>(val))
+        {
             return std::get<bool>(val) ? "true" : "false";
         }
-        if (std::holds_alternative<std::string>(val)) {
+        if (std::holds_alternative<std::string>(val))
+        {
             return std::get<std::string>(val);
         }
-        if (std::holds_alternative<value::InternedString>(val)) {
+        if (std::holds_alternative<value::InternedString>(val))
+        {
             return std::get<value::InternedString>(val).getString();
         }
-        if (std::holds_alternative<nullptr_t>(val)) {
+        if (std::holds_alternative<nullptr_t>(val))
+        {
             return "null";
         }
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+        {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-            if (obj) {
+            if (obj)
+            {
                 // First, try to call toString() if it exists (custom toString() takes priority)
                 auto classDef = obj->getClassDefinition();
-                if (classDef && classDef->hasMethod("toString")) {
+                if (classDef && classDef->hasMethod("toString"))
+                {
                     auto toStringMethod = classDef->findMethod("toString", 0);
-                    if (toStringMethod && !toStringMethod->isStatic()) {
-                        try {
+                    if (toStringMethod && !toStringMethod->isStatic())
+                    {
+                        try
+                        {
                             // WORKAROUND: obj->callMethod() is currently a stub that returns void
                             // Instead, manually construct toString() output from object fields
                             // This is a heuristic approach that handles common toString() patterns
@@ -2490,23 +391,28 @@ namespace vm::runtime
                             bool constructed = false;
 
                             // Pattern 1: name:value (e.g., TestObject with name and value fields)
-                            if (obj->getField("name") && obj->getField("value")) {
+                            if (obj->getField("name") && obj->getField("value"))
+                            {
                                 value::Value nameVal = obj->getFieldValue("name");
                                 value::Value valueVal = obj->getFieldValue("value");
                                 result = valueToString(nameVal) + ":" + valueToString(valueVal);
                                 constructed = true;
                             }
                             // Pattern 2: just a "value" field (for primitive wrappers)
-                            else if (obj->getField("value") && classDef->getInstanceFields().size() == 1) {
+                            else if (obj->getField("value") && classDef->getInstanceFields().size() == 1)
+                            {
                                 value::Value valueVal = obj->getFieldValue("value");
                                 result = valueToString(valueVal);
                                 constructed = true;
                             }
 
-                            if (constructed) {
+                            if (constructed)
+                            {
                                 return result;
                             }
-                        } catch (...) {
+                        }
+                        catch (...)
+                        {
                             // If toString() construction fails, fall through to default handling
                         }
                     }
@@ -2514,7 +420,8 @@ namespace vm::runtime
 
                 // Fallback: For primitive wrapper objects (String, Int, etc.), extract the "value" field
                 // Only if toString() doesn't exist or failed
-                if (obj->getField("value")) {
+                if (obj->getField("value"))
+                {
                     value::Value fieldValue = obj->getFieldValue("value");
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
@@ -2524,51 +431,62 @@ namespace vm::runtime
         return "<object>";
     }
 
-    value::Value VirtualMachine::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {
+    value::Value VirtualMachine::performBinaryOp(const value::Value& left, const value::Value& right,
+                                                 bytecode::OpCode op)
+    {
         using OpCode = bytecode::OpCode;
 
         // Debug output
         // Integer operations
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
+        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right))
+        {
             int l = std::get<int>(left);
             int r = std::get<int>(right);
-            switch (op) {
-                case OpCode::ADD: return l + r;
-                case OpCode::SUB: return l - r;
-                case OpCode::MUL: return l * r;
-                case OpCode::DIV:
-                    if (r == 0) throw errors::RuntimeException("Division by zero");
-                    return l / r;
-                case OpCode::MOD:
-                    if (r == 0) throw errors::RuntimeException("Modulo by zero");
-                    return l % r;
-                default: break;
+            switch (op)
+            {
+            case OpCode::ADD: return l + r;
+            case OpCode::SUB: return l - r;
+            case OpCode::MUL: return l * r;
+            case OpCode::DIV:
+                if (r == 0) throw errors::RuntimeException("Division by zero");
+                return l / r;
+            case OpCode::MOD:
+                if (r == 0) throw errors::RuntimeException("Modulo by zero");
+                return l % r;
+            default: break;
             }
         }
 
         // Float operations
         if ((std::holds_alternative<float>(left) || std::holds_alternative<int>(left)) &&
-            (std::holds_alternative<float>(right) || std::holds_alternative<int>(right))) {
-            float l = std::holds_alternative<float>(left) ? std::get<float>(left) : static_cast<float>(std::get<int>(left));
-            float r = std::holds_alternative<float>(right) ? std::get<float>(right) : static_cast<float>(std::get<int>(right));
-            switch (op) {
-                case OpCode::ADD: return l + r;
-                case OpCode::SUB: return l - r;
-                case OpCode::MUL: return l * r;
-                case OpCode::DIV:
-                    if (r == 0.0f) throw errors::RuntimeException("Division by zero");
-                    return l / r;
-                default: break;
+            (std::holds_alternative<float>(right) || std::holds_alternative<int>(right)))
+        {
+            float l = std::holds_alternative<float>(left)
+                          ? std::get<float>(left)
+                          : static_cast<float>(std::get<int>(left));
+            float r = std::holds_alternative<float>(right)
+                          ? std::get<float>(right)
+                          : static_cast<float>(std::get<int>(right));
+            switch (op)
+            {
+            case OpCode::ADD: return l + r;
+            case OpCode::SUB: return l - r;
+            case OpCode::MUL: return l * r;
+            case OpCode::DIV:
+                if (r == 0.0f) throw errors::RuntimeException("Division by zero");
+                return l / r;
+            default: break;
             }
         }
 
         // String concatenation (includes objects, which should call toString())
         if (op == OpCode::ADD &&
             (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
-             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
-             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
-             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right))) {
-
+                std::holds_alternative<value::InternedString>(left) || std::holds_alternative<
+                    value::InternedString>(right) ||
+                std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
+                std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)))
+        {
             // Convert both operands to string using valueToString
             // This will call toString() for objects via AST (cross-mode call)
             std::string leftStr = valueToString(left);
@@ -2583,21 +501,28 @@ namespace vm::runtime
         throw errors::RuntimeException("Invalid binary operation");
     }
 
-    void VirtualMachine::checkStackUnderflow(size_t required) const {
-        if (operandStack.size() < required) {
+    void VirtualMachine::checkStackUnderflow(size_t required) const
+    {
+        // Delegate to StackManager - this method is kept for compatibility
+        // Will be removed once all handlers are moved to executors
+        if (stackManager->size() < required)
+        {
             throw errors::RuntimeException("Stack underflow: required " +
                 std::to_string(required) + " but only " +
-                std::to_string(operandStack.size()) + " available");
+                std::to_string(stackManager->size()) + " available");
         }
     }
 
-    const VirtualMachine::ExecutionStats& VirtualMachine::getStats() const {
+    const ExecutionStats& VirtualMachine::getStats() const
+    {
         return stats;
     }
 
-    std::vector<std::string> VirtualMachine::getStackTrace() const {
+    std::vector<std::string> VirtualMachine::getStackTrace() const
+    {
         std::vector<std::string> trace;
-        for (const auto& frame : callStack) {
+        for (const auto& frame : callStack)
+        {
             std::ostringstream oss;
             oss << frame.functionName << " at offset " << frame.returnAddress;
             trace.push_back(oss.str());
@@ -2605,14 +530,16 @@ namespace vm::runtime
         return trace;
     }
 
-    void VirtualMachine::reset() {
-        operandStack.clear();
+    void VirtualMachine::reset()
+    {
+        stackManager->clear();
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
     }
 
-    value::ValueType VirtualMachine::stringToValueType(const std::string& typeName) {
+    value::ValueType VirtualMachine::stringToValueType(const std::string& typeName)
+    {
         if (typeName == "int") return value::ValueType::INT;
         if (typeName == "float") return value::ValueType::FLOAT;
         if (typeName == "bool") return value::ValueType::BOOL;
@@ -2625,34 +552,41 @@ namespace vm::runtime
     std::shared_ptr<value::NativeArray> VirtualMachine::createJaggedArray(
         const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName, size_t totalDimensions)
     {
-        if (dimIndex >= dimensions.size()) {
+        if (dimIndex >= dimensions.size())
+        {
             throw errors::RuntimeException("Invalid dimension index in jagged array creation");
         }
 
         int currentDimSize = dimensions[dimIndex];
 
-        if (dimIndex == dimensions.size() - 1) {
+        if (dimIndex == dimensions.size() - 1)
+        {
             // Last specified dimension
             // If this is also the last total dimension, create array of actual elements
             // Otherwise, create array of null references (for jagged arrays)
-            if (dimensions.size() == totalDimensions) {
+            if (dimensions.size() == totalDimensions)
+            {
                 // Fully specified - create array of elements
                 // Convert element type name to ValueType
                 value::ValueType elemType = stringToValueType(elementTypeName);
                 return std::make_shared<value::NativeArray>(currentDimSize, elemType, elementTypeName);
-            } else {
+            }
+            else
+            {
                 // Jagged - create array of null array references
                 auto array = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
                 // Elements are initialized to std::monostate{} (null) by default
                 return array;
             }
         }
-        else {
+        else
+        {
             // Not last dimension - create array of arrays
             auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
 
             // Fill with nested arrays
-            for (int i = 0; i < currentDimSize; ++i) {
+            for (int i = 0; i < currentDimSize; ++i)
+            {
                 auto innerArray = createJaggedArray(dimensions, dimIndex + 1, elementTypeName, totalDimensions);
                 outerArray->set(i, innerArray);
             }
@@ -2664,22 +598,26 @@ namespace vm::runtime
     std::shared_ptr<value::NativeArray> VirtualMachine::createNestedArray(
         const std::vector<int>& dimensions, size_t dimIndex, const std::string& elementTypeName)
     {
-        if (dimIndex >= dimensions.size()) {
+        if (dimIndex >= dimensions.size())
+        {
             throw errors::RuntimeException("Invalid dimension index in multi-dimensional array creation");
         }
 
         int currentDimSize = dimensions[dimIndex];
 
-        if (dimIndex == dimensions.size() - 1) {
+        if (dimIndex == dimensions.size() - 1)
+        {
             // Last dimension - create array of actual elements
             return std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, elementTypeName);
         }
-        else {
+        else
+        {
             // Not last dimension - create array of arrays
             auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
 
             // Fill with nested arrays
-            for (int i = 0; i < currentDimSize; ++i) {
+            for (int i = 0; i < currentDimSize; ++i)
+            {
                 auto innerArray = createNestedArray(dimensions, dimIndex + 1, elementTypeName);
                 outerArray->set(i, innerArray);
             }
