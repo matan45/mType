@@ -102,7 +102,7 @@ namespace ast::nodes::classes
         return body;
     }
 
-    ASTNode* MethodNode::getBodyPtr() const noexcept
+    ASTNode* MethodNode::getBodyPtr() const
     {
         return body.get();
     }

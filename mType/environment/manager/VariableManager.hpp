@@ -48,6 +48,7 @@ namespace environment::manager
 
         // Variable management
         void declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable);
+        void declareGlobalVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable);
         std::shared_ptr<VariableDefinition> findVariable(const std::string& varName) const;
         bool hasVariable(const std::string& varName) const;
 

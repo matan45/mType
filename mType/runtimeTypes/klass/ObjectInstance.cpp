@@ -1,7 +1,5 @@
 #include "ObjectInstance.hpp"
-#include "../../constants/LambdaConstants.hpp"
 #include <algorithm>
-#include <iostream>
 #include <vector>
 
 namespace runtimeTypes::klass

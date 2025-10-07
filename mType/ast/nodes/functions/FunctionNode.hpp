@@ -59,7 +59,7 @@ namespace ast::nodes::functions
         [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
 
         // For code that just needs to read
-        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
+        [[nodiscard]] ASTNode* getBodyPtr() const;
 
         // NEW: Generic-related methods
         const std::vector<GenericTypeParameter>& getGenericTypeParameters() const;

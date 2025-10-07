@@ -12,7 +12,6 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../constants/LambdaConstants.hpp"
-#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::global;
@@ -308,7 +307,7 @@ namespace evaluator
         {
             if (!exprEvaluator)
             {
-                std::cerr << "Warning: Expression evaluator not available for assignment evaluation" << std::endl;
+                //TODO use exception 
                 return std::monostate{};
             }
 
@@ -316,16 +315,40 @@ namespace evaluator
             Value newValue = exprEvaluator->evaluate(node->getValue());
             newValue = handleLambdaConversion(newValue, node);
 
-            // Try implicit field assignment first (priority for constructor/instance context)
+            auto env = context->getEnvironment();
+            auto scopeManager = env->getScopeManager();
+
+            // Check if variable exists in any scope
+            auto varDef = env->findVariable(node->getVariableName());
+
+            // If found in a non-global scope (parameter or local variable), use it
+            if (varDef)
+            {
+                auto globalScope = scopeManager->getGlobalScope();
+                auto globalVar = globalScope->findVariable(node->getVariableName());
+
+                // If variable is NOT in global scope, it's a parameter or local variable
+                // Parameters and local variables take absolute priority over fields
+                if (!globalVar || globalVar != varDef)
+                {
+                    if (node->getVariableType() != ValueType::VOID)
+                    {
+                        return handleScopeShadowing(newValue, node, varDef);
+                    }
+                    return handleExistingVariableAssignment(newValue, node, varDef);
+                }
+                // If it IS in global scope, continue to check instance fields first
+            }
+
+            // Try implicit field assignment (for instance methods)
+            // This allows bare field names like "value = x" to assign to this.value
+            // and allows instance fields to shadow global variables
             if (tryImplicitFieldAssignment(newValue, node))
             {
                 return newValue;
             }
 
-            auto env = context->getEnvironment();
-            auto varDef = env->findVariable(node->getVariableName());
-
-            // Variable not found
+            // Variable not found (neither local/parameter nor field)
             if (!varDef)
             {
                 // Is this a new variable declaration?
@@ -344,13 +367,13 @@ namespace evaluator
                 return handleUnqualifiedStaticAssignment(newValue, node);
             }
 
-            // Variable exists - check if we're trying to redeclare it
+            // Global variable exists - use it
             if (node->getVariableType() != ValueType::VOID)
             {
                 return handleScopeShadowing(newValue, node, varDef);
             }
 
-            // Simple assignment to existing variable
+            // Simple assignment to existing global variable
             return handleExistingVariableAssignment(newValue, node, varDef);
         }
 

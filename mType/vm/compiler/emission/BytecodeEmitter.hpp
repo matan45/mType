@@ -1,0 +1,37 @@
+#pragma once
+#include "../../bytecode/BytecodeProgram.hpp"
+#include "../../bytecode/OpCode.hpp"
+#include "../../../ast/ASTNode.hpp"
+#include "../../../token/TokenType.hpp"
+#include <cstddef>
+#include <cstdint>
+
+namespace vm::compiler::emission
+{
+    /**
+     * Handles bytecode emission and jump management
+     * Provides helper methods for emitting instructions with source location tracking
+     */
+    class BytecodeEmitter
+    {
+    public:
+        explicit BytecodeEmitter(bytecode::BytecodeProgram& program);
+        ~BytecodeEmitter() = default;
+
+        // Bytecode emission with source location tracking
+        void emitWithLocation(bytecode::OpCode opcode, ast::ASTNode* node);
+        void emitWithLocation(bytecode::OpCode opcode, uint32_t operand, ast::ASTNode* node);
+
+        // Jump management
+        size_t emitJump(bytecode::OpCode jumpOp);
+        void patchJump(size_t offset);
+        void emitLoop(size_t loopStart);
+
+        // OpCode conversion helpers
+        bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
+        bytecode::OpCode getUnaryOpCode(token::TokenType op);
+
+    private:
+        bytecode::BytecodeProgram& program;
+    };
+}

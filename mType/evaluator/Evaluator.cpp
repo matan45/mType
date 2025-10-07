@@ -219,6 +219,11 @@ namespace evaluator
         return coordinator->getContext()->getEnvironment();
     }
 
+    std::shared_ptr<base::EvaluationContext> Evaluator::getContext() const
+    {
+        return coordinator->getContext();
+    }
+
     bool Evaluator::shouldReturn() const
     {
         return coordinator->shouldReturn();

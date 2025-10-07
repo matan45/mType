@@ -2,6 +2,7 @@
 #include <string>
 #include <chrono>
 #include "TestTypeEnum.hpp"
+#include "../../constants/ExecutionMode.hpp"
 
 namespace tests::testFramework
 {
@@ -24,14 +25,16 @@ namespace tests::testFramework
         std::string errorMessage;
         std::chrono::milliseconds executionTime;
         std::string output;
-        
+        constants::ExecutionMode executionMode;
+
         // Helper methods
         bool verifyOutputAgainstExpected() const;
 
     public:
         TestCase(const std::string& testName, const std::string& testFilePath, TestType testType = TestType::NORMAL);
-        
+
         void execute();
+        void setExecutionMode(constants::ExecutionMode mode) { executionMode = mode; }
         
         // Getters
         const std::string& getName() const { return name; }

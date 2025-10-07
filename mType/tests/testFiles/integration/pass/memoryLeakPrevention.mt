@@ -121,12 +121,8 @@ class LeakDetector {
         
         print("After reassignment: " + LeakDetector::getAllocationStats());
     }
-    
-    function testComplexObjectGraph(): void {
-        LeakDetector::resetStats();
-        print("=== Complex Object Graph Test ===");
-        
-        class Container {
+	
+	class Container {
             LeakDetector item1;
             LeakDetector item2;
             string containerName;
@@ -147,6 +143,11 @@ class LeakDetector {
                 item2 = temp;
             }
         }
+    
+    function testComplexObjectGraph(): void {
+        LeakDetector::resetStats();
+        print("=== Complex Object Graph Test ===");
+        
         
         Container container1 = new Container("Container1");
         Container container2 = new Container("Container2");

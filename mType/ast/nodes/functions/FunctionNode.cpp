@@ -121,7 +121,7 @@ namespace ast::nodes::functions
         return body;
     }
 
-    ASTNode* FunctionNode::getBodyPtr() const noexcept
+    ASTNode* FunctionNode::getBodyPtr() const
     {
         return body.get();
     }

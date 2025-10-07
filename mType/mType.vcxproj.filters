@@ -241,6 +241,48 @@
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm">
+      <UniqueIdentifier>{E8795900-D405-880B-3DB4-880B295F880B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\bytecode">
+      <UniqueIdentifier>{4656EA68-B20B-635E-3B00-5D35A7B45962}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler">
+      <UniqueIdentifier>{72FADB43-DEAF-5439-67A4-4E10D3584B3D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\control">
+      <UniqueIdentifier>{42957084-AEF6-4D92-3764-9444A3C48451}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\emission">
+      <UniqueIdentifier>{C8FD5645-B48C-E00E-5DAB-F4094919F1B4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\registration">
+      <UniqueIdentifier>{5C6A4B02-488F-9A82-71DA-7F125D5E99A0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\types">
+      <UniqueIdentifier>{B65BF898-2272-F62E-6BE9-8150D73EC7B6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\variables">
+      <UniqueIdentifier>{9A2C9335-0699-4E30-CF8C-E68D3BB87098}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\visitors">
+      <UniqueIdentifier>{44756CD8-3004-F6A1-D922-0A9DC5900648}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime">
+      <UniqueIdentifier>{3B87016C-273F-43B9-9046-1C157C1DDEA9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime\context">
+      <UniqueIdentifier>{EFA41685-DB88-D7DA-44E9-D12D30ECC15C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime\executors">
+      <UniqueIdentifier>{8C754881-7804-D24A-2123-E6450D91E2F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime\stack">
+      <UniqueIdentifier>{C0847BD2-AC7D-9A24-D5AF-7FA9C1077A30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime\utils">
+      <UniqueIdentifier>{FBD89FD2-E7D1-BE24-1004-A4A9FC5B9E30}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast\ASTNode.hpp">
@@ -428,6 +470,9 @@
     </ClInclude>
     <ClInclude Include="circularDependency\TrueCyclicException.hpp">
       <Filter>circularDependency</Filter>
+    </ClInclude>
+    <ClInclude Include="constants\ExecutionMode.hpp">
+      <Filter>constants</Filter>
     </ClInclude>
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
@@ -887,6 +932,117 @@
     </ClInclude>
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\bytecode\OpCode.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
+      <Filter>vm\compiler</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\control\LoopContextManager.hpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\control\SwitchContextManager.hpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\emission\BytecodeEmitter.hpp">
+      <Filter>vm\compiler\emission</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\registration\ClassRegistrar.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\registration\InterfaceRegistrar.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\types\GenericTypeResolver.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\types\TypeInferenceEngine.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\types\TypeValidator.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\variables\FunctionFrameManager.hpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\variables\GlobalVariableRegistry.hpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\variables\VariableTracker.hpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\ArrayCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\ClassCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\CompilerContext.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\ControlFlowCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\ExpressionCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\FunctionCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\LiteralCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\StatementCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\VirtualMachine.hpp">
+      <Filter>vm\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\context\ExecutionContext.hpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ArithmeticExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ArrayExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ComparisonExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ControlFlowExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\FunctionExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\LambdaExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\LogicalExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ObjectExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\StackOperationsExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\TypeExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\VariableExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\stack\StackManager.hpp">
+      <Filter>vm\runtime\stack</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\utils\TypeConverter.hpp">
+      <Filter>vm\runtime\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1387,6 +1543,108 @@
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
       <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\control\LoopContextManager.cpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\control\SwitchContextManager.cpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\emission\BytecodeEmitter.cpp">
+      <Filter>vm\compiler\emission</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\InterfaceRegistrar.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\GenericTypeResolver.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\variables\FunctionFrameManager.cpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\variables\GlobalVariableRegistry.cpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\variables\VariableTracker.cpp">
+      <Filter>vm\compiler\variables</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ArrayCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ExpressionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\LiteralCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachine.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ArithmeticExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ArrayExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ComparisonExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ControlFlowExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\LambdaExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\LogicalExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\StackOperationsExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\VariableExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\stack\StackManager.cpp">
+      <Filter>vm\runtime\stack</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\utils\TypeConverter.cpp">
+      <Filter>vm\runtime\utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -3237,6 +3495,9 @@
     </None>
     <None Include="tests\testFiles\lambda\pass\test_lambda_interface_memory_mgmt.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\Object.mt">
+      <Filter>tests\testFiles\lib</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">
       <Filter>tests\testFiles\lib\collections</Filter>

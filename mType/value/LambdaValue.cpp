@@ -19,7 +19,6 @@
 #include "../errors/ReturnException.hpp"
 #include "../evaluator/utils/ValueConverter.hpp"
 #include <set>
-#include <iostream>
 
 namespace value
 {
@@ -82,6 +81,12 @@ namespace value
         lambdaContext->setInStaticMethod(capturedContext->isInStaticMethodContext());
         lambdaContext->setCurrentMethod(capturedContext->getCurrentMethod());
         lambdaContext->setGenericTypeBindings(capturedContext->getGenericTypeBindings());
+
+        // Preserve calling class context for access control validation
+        // This allows lambdas to access private members of the class they're defined in
+        if (capturedContext->hasCallingClass()) {
+            lambdaContext->pushCallingClass(capturedContext->getCurrentCallingClass());
+        }
 
         // Restore captured variables to lambda scope
         for (const auto& [name, captured] : capturedVariables)
@@ -289,22 +294,10 @@ namespace value
                     ValueType type = evaluator::utils::ValueConverter::getValueType(varDef->getValue());
                     addCapturedVariableOptimized(varName, varDef->getValue(), type);
                 }
-                else
-                {
-                    // Not found in environment, check if it's a class field
-                    auto currentInstance = capturedContext->getCurrentInstance();
-                    if (currentInstance)
-                    {
-                        auto field = currentInstance->getField(varName);
-                        if (field)
-                        {
-                            // Found as instance field - capture its current value with optimization
-                            Value fieldValue = currentInstance->getFieldValue(varName);
-                            ValueType type = evaluator::utils::ValueConverter::getValueType(fieldValue);
-                            addCapturedVariableOptimized(varName, fieldValue, type);
-                        }
-                    }
-                }
+                // Note: Instance fields and static fields are NOT captured explicitly.
+                // Instance fields are accessed through the captured 'this' reference.
+                // Static fields are accessed through the class registry.
+                // Both provide live access to current values, not snapshots.
             }
         }
     }

@@ -25,10 +25,6 @@ namespace ast
         // Accept method for visitor pattern
         virtual Value accept(ASTVisitor<Value>& visitor) = 0;
 
-        // Template version for other return types
-        template <typename T>
-        T accept(ASTVisitor<T>& visitor);
-
         const SourceLocation& getLocation() const { return location; }
     };
 }

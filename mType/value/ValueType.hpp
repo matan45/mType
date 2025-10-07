@@ -10,6 +10,11 @@ namespace runtimeTypes::klass
     class ObjectInstance;
 }
 
+namespace vm::runtime
+{
+    struct BytecodeLambda;
+}
+
 namespace value
 {
     class NativeArray;
@@ -42,6 +47,7 @@ namespace value
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,
                                std::shared_ptr<LambdaValue>,
+                               std::shared_ptr<vm::runtime::BytecodeLambda>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value

@@ -70,5 +70,8 @@ namespace services
 
         // Get list of imported files
         std::vector<std::string> getImportedFiles() const;
+
+        // Recursively resolve all imports in an AST
+        void resolveAllImports(ast::ASTNode* root);
     };
 }

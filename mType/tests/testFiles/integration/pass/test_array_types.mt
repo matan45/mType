@@ -80,10 +80,7 @@ function testArrayAssignments():void {
     print("  Assigned: [" + targetArray[0] + ", " + targetArray[1] + ", " + targetArray[2] + "]");
 }
 
-function testArraysWithObjects():void {
-    print("=== Testing Arrays with Objects ===");
-
-    class Person {
+class Person {
         string name;
         int age;
 
@@ -97,6 +94,11 @@ function testArraysWithObjects():void {
         }
     }
 
+function testArraysWithObjects():void {
+    print("=== Testing Arrays with Objects ===");
+
+    
+
     Person[] people = new Person[3];
     people[0] = new Person("Alice", 25);
     people[1] = new Person("Bob", 30);
@@ -104,7 +106,7 @@ function testArraysWithObjects():void {
 
     print("Person array:");
     for (int i = 0; i < people.length; i++) {
-        print("  [" + i + "] = " + people[i]);
+        print("  [" + i + "] = " + people[i].toString());
     }
 
     // Test null handling in object arrays
@@ -115,7 +117,7 @@ function testArraysWithObjects():void {
     print("Nullable array:");
     for (int i = 0; i < nullableArray.length; i++) {
         if (nullableArray[i] != null) {
-            print("  [" + i + "] = " + nullableArray[i]);
+            print("  [" + i + "] = " + nullableArray[i].toString());
         } else {
             print("  [" + i + "] = null");
         }

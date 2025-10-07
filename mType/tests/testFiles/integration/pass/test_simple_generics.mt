@@ -85,10 +85,7 @@ function testGenericPairs():void {
     print("Score: " + statusScore.getValue().toString());
 }
 
-function testGenericWithCustomObjects():void {
-    print("=== Testing Generics with Custom Objects ===");
-
-    class Student {
+class Student {
         string name;
         int grade;
 
@@ -101,6 +98,9 @@ function testGenericWithCustomObjects():void {
             return name + " (Grade: " + grade + ")";
         }
     }
+
+function testGenericWithCustomObjects():void {
+    print("=== Testing Generics with Custom Objects ===");
 
     // Test generic box with custom object
     Student alice = new Student("Alice", 90);

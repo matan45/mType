@@ -7,7 +7,6 @@
 #include "utils/NodeTypeRegistry.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
-#include <iostream>
 #include <typeinfo>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"

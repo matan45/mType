@@ -1,0 +1,303 @@
+﻿#pragma once
+
+namespace vm::bytecode
+{
+    /**
+     * Bytecode instruction set for mType VM
+     * Designed for stack-based execution with optimization support
+     */
+    enum class OpCode : uint8_t {
+        // === Stack Operations (0-9) ===
+        PUSH_INT,           // Push integer constant (from constant pool or immediate)
+        PUSH_FLOAT,         // Push float constant (from constant pool)
+        PUSH_STRING,        // Push string constant (from constant pool)
+        PUSH_BOOL,          // Push boolean constant (operand: 0/1)
+        PUSH_NULL,          // Push null value
+        POP,                // Pop top of stack
+        DUP,                // Duplicate top of stack
+        DUP2,               // Duplicate top 2 stack values
+        SWAP,               // Swap top 2 stack values
+
+        // === Arithmetic Operations (10-24) ===
+        ADD,                // Generic addition (int/float/string)
+        SUB,                // Subtraction
+        MUL,                // Multiplication
+        DIV,                // Division
+        MOD,                // Modulo
+        NEG,                // Negate (unary minus)
+        INC,                // Increment
+        DEC,                // Decrement
+
+        // Type-specialized arithmetic (optimization)
+        ADD_INT,            // Integer addition (faster)
+        SUB_INT,            // Integer subtraction
+        MUL_INT,            // Integer multiplication
+        DIV_INT,            // Integer division
+        ADD_FLOAT,          // Float addition
+        SUB_FLOAT,          // Float subtraction
+        MUL_FLOAT,          // Float multiplication
+        DIV_FLOAT,          // Float division
+
+        // === Comparison Operations (25-35) ===
+        EQ,                 // Equal (==)
+        NE,                 // Not equal (!=)
+        LT,                 // Less than (<)
+        GT,                 // Greater than (>)
+        LE,                 // Less than or equal (<=)
+        GE,                 // Greater than or equal (>=)
+
+        // Type-specialized comparisons
+        EQ_INT,             // Integer equality (faster)
+        NE_INT,             // Integer inequality
+        LT_INT,             // Integer less than
+        GT_INT,             // Integer greater than
+
+        // === Logical Operations (36-39) ===
+        AND,                // Logical AND
+        OR,                 // Logical OR
+        NOT,                // Logical NOT
+        XOR,                // Logical XOR
+
+        // === Variable Operations (40-49) ===
+        LOAD_VAR,           // Load variable (by name from environment)
+        STORE_VAR,          // Store to variable (by name)
+        DECLARE_VAR,        // Declare new variable
+        LOAD_LOCAL,         // Load local variable (by slot index - faster)
+        STORE_LOCAL,        // Store to local variable (by slot index)
+        LOAD_GLOBAL,        // Load global variable (by name index)
+        STORE_GLOBAL,       // Store to global variable (by name index)
+        LOAD_UPVALUE,       // Load closure upvalue (for lambdas)
+        STORE_UPVALUE,      // Store to closure upvalue
+        CLOSE_UPVALUE,      // Close upvalue (move to heap)
+
+        // === Control Flow (50-59) ===
+        JUMP,               // Unconditional jump (operand: offset)
+        JUMP_IF_FALSE,      // Jump if top of stack is false
+        JUMP_IF_TRUE,       // Jump if top of stack is true
+        JUMP_IF_NULL,       // Jump if top of stack is null
+        JUMP_BACK,          // Jump backward (for loops)
+        JUMP_IF_FALSE_OR_POP, // Short-circuit AND optimization
+        JUMP_IF_TRUE_OR_POP,  // Short-circuit OR optimization
+        RETURN,             // Return from function (no value)
+        RETURN_VALUE,       // Return value from function
+
+        // === Function Operations (60-64) ===
+        CALL,               // Call function (operand: arg count)
+        CALL_NATIVE,        // Call native C++ function (operand: function index)
+        CALL_FAST,          // Optimized call for known functions
+        TAIL_CALL,          // Tail call optimization
+        CLOSURE,            // Create closure (operand: function index)
+
+        // === Object/Class Operations (65-79) ===
+        NEW_OBJECT,         // Create new object (operand: class index)
+        GET_FIELD,          // Get object field (operand: field name index)
+        SET_FIELD,          // Set object field (operand: field name index)
+        GET_FIELD_FAST,     // Get field with cached offset
+        SET_FIELD_FAST,     // Set field with cached offset
+        GET_STATIC,         // Get static field (operand: class+field index)
+        SET_STATIC,         // Set static field (operand: class+field index)
+        CALL_METHOD,        // Call instance method (operand: method name + arg count)
+        CALL_STATIC,        // Call static method (operand: method name + arg count)
+        INVOKE,             // Optimized method call (name + arg count)
+        SUPER_INVOKE,       // Super method call
+        GET_SUPER,          // Get super class
+        SUPER_CONSTRUCTOR,  // Call super constructor
+
+        // === Type Operations (80-85) ===
+        INSTANCEOF,         // Check if object is instance of class
+        CAST,               // Cast object to type
+        CHECK_TYPE,         // Runtime type check
+        TYPE_CONVERT,       // Type conversion
+        GET_TYPE,           // Get type of value
+
+        // === Array Operations (85-94) ===
+        NEW_ARRAY,          // Create new array (operand: size on stack)
+        NEW_ARRAY_MULTI,    // Create multi-dimensional array
+        ARRAY_GET,          // Get array element at index
+        ARRAY_SET,          // Set array element at index
+        ARRAY_GET_INT,      // Type-specialized array get (int elements)
+        ARRAY_SET_INT,      // Type-specialized array set (int elements)
+        ARRAY_LENGTH,       // Get array length
+        ARRAY_LITERAL,      // Create array from literal values (operand: count)
+
+        // === Lambda Operations (95-99) ===
+        LAMBDA,             // Create lambda value
+        LAMBDA_INVOKE,      // Invoke lambda
+        CAPTURE_VARIABLE,   // Capture variable for closure
+
+        // === Generic Type Operations (100-104) ===
+        BIND_GENERIC,       // Bind generic type parameter
+        RESOLVE_GENERIC,    // Resolve generic type
+        INSTANTIATE_GENERIC,// Instantiate generic class/function
+
+        // === Interface Operations (105-109) ===
+        IMPLEMENT_INTERFACE,// Mark class as implementing interface
+        CHECK_INTERFACE,    // Check if object implements interface
+        LAMBDA_TO_INTERFACE,// Convert lambda to interface (SAM type)
+
+        // === Exception Handling (110-114) ===
+        TRY_BEGIN,          // Begin try block
+        TRY_END,            // End try block
+        CATCH,              // Catch exception
+        THROW,              // Throw exception
+        FINALLY,            // Finally block
+
+        // === Debugging & Profiling (115-119) ===
+        LINE,               // Line number info (operand: line number)
+        SOURCE_FILE,        // Source file info (operand: file name index)
+        BREAKPOINT,         // Debugger breakpoint
+        PROFILE_ENTER,      // Profile function entry
+        PROFILE_EXIT,       // Profile function exit
+
+        // === Loop Optimization (120-122) ===
+        LOOP_START,         // Mark loop start for optimization
+        LOOP_END,           // Mark loop end
+
+        // === Special Operations (123-127) ===
+        NOP,                // No operation (for optimization)
+        HALT,               // End program execution
+        IMPORT,             // Import module
+
+        // === Reserved for Future Use (128-255) ===
+        // 128 opcodes reserved for future extensions
+    };
+
+    /**
+     * Get human-readable name for opcode (for disassembly and debugging)
+     */
+    inline const char* getOpCodeName(OpCode opcode) {
+        switch (opcode) {
+            case OpCode::PUSH_INT: return "PUSH_INT";
+            case OpCode::PUSH_FLOAT: return "PUSH_FLOAT";
+            case OpCode::PUSH_STRING: return "PUSH_STRING";
+            case OpCode::PUSH_BOOL: return "PUSH_BOOL";
+            case OpCode::PUSH_NULL: return "PUSH_NULL";
+            case OpCode::POP: return "POP";
+            case OpCode::DUP: return "DUP";
+            case OpCode::DUP2: return "DUP2";
+            case OpCode::SWAP: return "SWAP";
+
+            case OpCode::ADD: return "ADD";
+            case OpCode::SUB: return "SUB";
+            case OpCode::MUL: return "MUL";
+            case OpCode::DIV: return "DIV";
+            case OpCode::MOD: return "MOD";
+            case OpCode::NEG: return "NEG";
+            case OpCode::INC: return "INC";
+            case OpCode::DEC: return "DEC";
+            case OpCode::ADD_INT: return "ADD_INT";
+            case OpCode::SUB_INT: return "SUB_INT";
+            case OpCode::MUL_INT: return "MUL_INT";
+            case OpCode::DIV_INT: return "DIV_INT";
+            case OpCode::ADD_FLOAT: return "ADD_FLOAT";
+            case OpCode::SUB_FLOAT: return "SUB_FLOAT";
+            case OpCode::MUL_FLOAT: return "MUL_FLOAT";
+            case OpCode::DIV_FLOAT: return "DIV_FLOAT";
+
+            case OpCode::EQ: return "EQ";
+            case OpCode::NE: return "NE";
+            case OpCode::LT: return "LT";
+            case OpCode::GT: return "GT";
+            case OpCode::LE: return "LE";
+            case OpCode::GE: return "GE";
+            case OpCode::EQ_INT: return "EQ_INT";
+            case OpCode::NE_INT: return "NE_INT";
+            case OpCode::LT_INT: return "LT_INT";
+            case OpCode::GT_INT: return "GT_INT";
+
+            case OpCode::AND: return "AND";
+            case OpCode::OR: return "OR";
+            case OpCode::NOT: return "NOT";
+            case OpCode::XOR: return "XOR";
+
+            case OpCode::LOAD_VAR: return "LOAD_VAR";
+            case OpCode::STORE_VAR: return "STORE_VAR";
+            case OpCode::DECLARE_VAR: return "DECLARE_VAR";
+            case OpCode::LOAD_LOCAL: return "LOAD_LOCAL";
+            case OpCode::STORE_LOCAL: return "STORE_LOCAL";
+            case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
+            case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
+            case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";
+            case OpCode::STORE_UPVALUE: return "STORE_UPVALUE";
+            case OpCode::CLOSE_UPVALUE: return "CLOSE_UPVALUE";
+
+            case OpCode::JUMP: return "JUMP";
+            case OpCode::JUMP_IF_FALSE: return "JUMP_IF_FALSE";
+            case OpCode::JUMP_IF_TRUE: return "JUMP_IF_TRUE";
+            case OpCode::JUMP_IF_NULL: return "JUMP_IF_NULL";
+            case OpCode::JUMP_BACK: return "JUMP_BACK";
+            case OpCode::JUMP_IF_FALSE_OR_POP: return "JUMP_IF_FALSE_OR_POP";
+            case OpCode::JUMP_IF_TRUE_OR_POP: return "JUMP_IF_TRUE_OR_POP";
+            case OpCode::RETURN: return "RETURN";
+            case OpCode::RETURN_VALUE: return "RETURN_VALUE";
+
+            case OpCode::CALL: return "CALL";
+            case OpCode::CALL_NATIVE: return "CALL_NATIVE";
+            case OpCode::CALL_FAST: return "CALL_FAST";
+            case OpCode::TAIL_CALL: return "TAIL_CALL";
+            case OpCode::CLOSURE: return "CLOSURE";
+
+            case OpCode::NEW_OBJECT: return "NEW_OBJECT";
+            case OpCode::GET_FIELD: return "GET_FIELD";
+            case OpCode::SET_FIELD: return "SET_FIELD";
+            case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
+            case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
+            case OpCode::GET_STATIC: return "GET_STATIC";
+            case OpCode::SET_STATIC: return "SET_STATIC";
+            case OpCode::CALL_METHOD: return "CALL_METHOD";
+            case OpCode::CALL_STATIC: return "CALL_STATIC";
+            case OpCode::INVOKE: return "INVOKE";
+            case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";
+            case OpCode::GET_SUPER: return "GET_SUPER";
+            case OpCode::SUPER_CONSTRUCTOR: return "SUPER_CONSTRUCTOR";
+
+            case OpCode::INSTANCEOF: return "INSTANCEOF";
+            case OpCode::CAST: return "CAST";
+            case OpCode::CHECK_TYPE: return "CHECK_TYPE";
+            case OpCode::TYPE_CONVERT: return "TYPE_CONVERT";
+            case OpCode::GET_TYPE: return "GET_TYPE";
+
+            case OpCode::NEW_ARRAY: return "NEW_ARRAY";
+            case OpCode::NEW_ARRAY_MULTI: return "NEW_ARRAY_MULTI";
+            case OpCode::ARRAY_GET: return "ARRAY_GET";
+            case OpCode::ARRAY_SET: return "ARRAY_SET";
+            case OpCode::ARRAY_GET_INT: return "ARRAY_GET_INT";
+            case OpCode::ARRAY_SET_INT: return "ARRAY_SET_INT";
+            case OpCode::ARRAY_LENGTH: return "ARRAY_LENGTH";
+            case OpCode::ARRAY_LITERAL: return "ARRAY_LITERAL";
+
+            case OpCode::LAMBDA: return "LAMBDA";
+            case OpCode::LAMBDA_INVOKE: return "LAMBDA_INVOKE";
+            case OpCode::CAPTURE_VARIABLE: return "CAPTURE_VARIABLE";
+
+            case OpCode::BIND_GENERIC: return "BIND_GENERIC";
+            case OpCode::RESOLVE_GENERIC: return "RESOLVE_GENERIC";
+            case OpCode::INSTANTIATE_GENERIC: return "INSTANTIATE_GENERIC";
+
+            case OpCode::IMPLEMENT_INTERFACE: return "IMPLEMENT_INTERFACE";
+            case OpCode::CHECK_INTERFACE: return "CHECK_INTERFACE";
+            case OpCode::LAMBDA_TO_INTERFACE: return "LAMBDA_TO_INTERFACE";
+
+            case OpCode::TRY_BEGIN: return "TRY_BEGIN";
+            case OpCode::TRY_END: return "TRY_END";
+            case OpCode::CATCH: return "CATCH";
+            case OpCode::THROW: return "THROW";
+            case OpCode::FINALLY: return "FINALLY";
+
+            case OpCode::LINE: return "LINE";
+            case OpCode::SOURCE_FILE: return "SOURCE_FILE";
+            case OpCode::BREAKPOINT: return "BREAKPOINT";
+            case OpCode::PROFILE_ENTER: return "PROFILE_ENTER";
+            case OpCode::PROFILE_EXIT: return "PROFILE_EXIT";
+
+            case OpCode::LOOP_START: return "LOOP_START";
+            case OpCode::LOOP_END: return "LOOP_END";
+
+            case OpCode::NOP: return "NOP";
+            case OpCode::HALT: return "HALT";
+            case OpCode::IMPORT: return "IMPORT";
+
+            default: return "UNKNOWN";
+        }
+    }
+}

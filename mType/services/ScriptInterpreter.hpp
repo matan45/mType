@@ -6,11 +6,23 @@
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 #include "../ast/ASTNode.hpp"
+#include "../constants/ExecutionMode.hpp"
+#include "../vm/bytecode/BytecodeProgram.hpp"
 
 // Forward declarations
 namespace evaluator
 {
     class Evaluator;
+}
+
+namespace vm::compiler
+{
+    class BytecodeCompiler;
+}
+
+namespace vm::runtime
+{
+    class VirtualMachine;
 }
 
 namespace services
@@ -22,6 +34,12 @@ namespace services
     private:
         std::shared_ptr<environment::Environment> environment;
         std::unique_ptr<evaluator::Evaluator> evaluator;
+        std::unique_ptr<vm::compiler::BytecodeCompiler> compiler;
+        std::unique_ptr<vm::runtime::VirtualMachine> vm;
+
+        // Execution mode
+        constants::ExecutionMode executionMode;
+        constants::OptimizationLevel optimizationLevel;
 
         // Helper methods for internal use
         value::Value invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef,
@@ -32,10 +50,32 @@ namespace services
         // Cached execution helpers
         void preRegisterClassDefinitions(ast::ASTNode* node);
 
+        // Execution mode helpers
+        value::Value executeAST(ast::ASTNode* ast);
+        value::Value executeBytecode(ast::ASTNode* ast);
+        value::Value executeDualValidation(ast::ASTNode* ast);
+
+        // Import resolution helper for bytecode compilation
+        void resolveImports(ast::ASTNode* ast);
+
+        // Bytecode class registration helper
+        void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes);
+
     public:
         ScriptInterpreter();
+        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::O1);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+
+        // Bytecode compilation and execution
+        void compileToFile(const std::string& sourceFile, const std::string& outputFile);
+        void runCompiledBytecode(const std::string& bytecodeFile);
+
+        // Execution mode control
+        void setExecutionMode(constants::ExecutionMode mode);
+        void setOptimizationLevel(constants::OptimizationLevel level);
+        constants::ExecutionMode getExecutionMode() const { return executionMode; }
+        constants::OptimizationLevel getOptimizationLevel() const { return optimizationLevel; }
 
         // Memory management methods
         void cleanupRegistries();

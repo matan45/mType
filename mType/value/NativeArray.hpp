@@ -17,11 +17,35 @@ namespace value
         ValueType elementType;
         std::string elementTypeName;  // For object types, stores class/interface name
 
+    private:
+        static Value getDefaultValueForType(ValueType type) {
+            switch (type) {
+                case ValueType::INT: return 0;
+                case ValueType::FLOAT: return 0.0f;
+                case ValueType::BOOL: return false;
+                case ValueType::STRING: return std::string("");
+                case ValueType::OBJECT: return std::monostate{}; // null for objects
+                case ValueType::VOID: return std::monostate{};
+                default: return std::monostate{};
+            }
+        }
+
     public:
-        explicit NativeArray(size_t size) : data(size), elementType(ValueType::VOID), elementTypeName("") {}
+        explicit NativeArray(size_t size) : data(size), elementType(ValueType::VOID), elementTypeName("") {
+            // Initialize all elements to null
+            for (auto& elem : data) {
+                elem = std::monostate{};
+            }
+        }
 
         explicit NativeArray(size_t size, ValueType elemType, const std::string& elemTypeName = "")
-            : data(size), elementType(elemType), elementTypeName(elemTypeName) {}
+            : data(size), elementType(elemType), elementTypeName(elemTypeName) {
+            // Initialize all elements based on type
+            Value defaultValue = getDefaultValueForType(elemType);
+            for (auto& elem : data) {
+                elem = defaultValue;
+            }
+        }
 
         // Index access
         Value& operator[](size_t index) { return data[index]; }
