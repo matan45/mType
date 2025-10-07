@@ -340,8 +340,48 @@ namespace vm::runtime
             throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
         }
 
+        // Check if this is a lambda (interface method invocation)
+        if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(objectValue)) {
+            auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(objectValue);
+
+            size_t lambdaStart = lambda->instructionPointer;
+            size_t paramCount = lambda->parameterCount;
+
+            // Validate argument count
+            if (args.size() != paramCount) {
+                throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
+                                             " arguments but got " + std::to_string(args.size()));
+            }
+
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = context.instructionPointer;  // Return to next instruction
+            frame.frameBase = context.stackManager->size();
+            frame.localBase = context.stackManager->size();
+            frame.functionName = "<lambda>";
+            frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
+            frame.originatingLambda = lambda;  // Store lambda reference for variable access
+
+            context.callStack.push_back(frame);
+
+            // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
+            for (size_t i = 0; i < args.size(); ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            // Push captured variables onto stack (they become local variables after the parameters)
+            // Use snapshot values (immutable capture semantics)
+            for (const auto& capturedValue : lambda->capturedValues) {
+                context.stackManager->push(capturedValue);
+            }
+
+            // Jump to lambda start (subtract 1 because the VM loop will increment after this)
+            context.instructionPointer = lambdaStart - 1;
+            return;
+        }
+
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("CALL_METHOD requires an object instance");
+            throw errors::RuntimeException("CALL_METHOD requires an object instance or lambda");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);

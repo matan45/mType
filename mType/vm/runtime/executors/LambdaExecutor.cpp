@@ -2,6 +2,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <algorithm>
+#include <iostream>
 
 namespace vm::runtime
 {
@@ -143,7 +144,7 @@ namespace vm::runtime
             context.stackManager->push(capturedValue);
         }
 
-        // Jump to lambda start
-        context.instructionPointer = lambdaStart;
+        // Jump to lambda start (subtract 1 because the VM loop will increment after this)
+        context.instructionPointer = lambdaStart - 1;
     }
 }

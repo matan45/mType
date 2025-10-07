@@ -152,8 +152,8 @@ namespace vm::compiler::visitors
         // Check if this is a local variable
         size_t localSlot = SIZE_MAX;
         if (ctx.functionFrameManager.isInFunction()) {
-            localSlot = ctx.variableTracker.resolveLocal(name,
-                ctx.functionFrameManager.currentFrame().localStartSlot);
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            localSlot = ctx.variableTracker.resolveLocal(name, startSlot);
         }
 
         if (localSlot != SIZE_MAX) {

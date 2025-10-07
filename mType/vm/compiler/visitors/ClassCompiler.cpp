@@ -5,7 +5,7 @@
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 #include <unordered_set>
-#include <iostream>
+
 
 namespace vm::compiler::visitors
 {

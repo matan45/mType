@@ -2,6 +2,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <iostream>
+#include <sstream>
 
 namespace vm::runtime
 {
