@@ -1,4 +1,6 @@
 #include "VariableExecutor.hpp"
+#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 
 namespace vm::runtime
 {
@@ -25,6 +27,42 @@ namespace vm::runtime
                     }
                 }
             }
+
+            // Check if we're in a method/constructor and should access a field from 'this'
+            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
+                auto thisInstance = context.callStack.back().thisInstance;
+                auto fieldDef = thisInstance->getField(varName);
+                if (fieldDef) {
+                    // Field found - load its value
+                    value::Value fieldValue = thisInstance->getFieldValue(varName);
+                    context.stackManager->push(fieldValue);
+                    return;
+                }
+            }
+
+            // Check if we're in a static method and should access a static field
+            if (!context.callStack.empty()) {
+                const std::string& functionName = context.callStack.back().functionName;
+                // Static method names have format: ClassName::methodName
+                size_t colonPos = functionName.find("::");
+                if (colonPos != std::string::npos) {
+                    std::string className = functionName.substr(0, colonPos);
+                    auto classRegistry = context.environment->getClassRegistry();
+                    if (classRegistry) {
+                        auto classDef = classRegistry->findClass(className);
+                        if (classDef) {
+                            const auto& staticFields = classDef->getStaticFields();
+                            auto it = staticFields.find(varName);
+                            if (it != staticFields.end()) {
+                                value::Value fieldValue = it->second->getValue();
+                                context.stackManager->push(fieldValue);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             throw errors::RuntimeException("Variable not found: " + varName);
         }
         context.stackManager->push(varDef->getValue());
@@ -38,6 +76,51 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
         auto varDef = context.environment->findVariable(varName);
         if (!varDef) {
+            // Check if we're in a method/constructor and should set a field on 'this'
+            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
+                auto thisInstance = context.callStack.back().thisInstance;
+                auto fieldDef = thisInstance->getField(varName);
+                if (fieldDef) {
+                    // Field found - check if it's final
+                    if (fieldDef->isFinal()) {
+                        throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
+                    }
+                    // Set the field value
+                    thisInstance->setField(varName, val);
+                    // Push value back for assignment expressions (e.g., x = y = 5)
+                    context.stackManager->push(val);
+                    return;
+                }
+            }
+
+            // Check if we're in a static method and should set a static field
+            if (!context.callStack.empty()) {
+                const std::string& functionName = context.callStack.back().functionName;
+                // Static method names have format: ClassName::methodName
+                size_t colonPos = functionName.find("::");
+                if (colonPos != std::string::npos) {
+                    std::string className = functionName.substr(0, colonPos);
+                    auto classRegistry = context.environment->getClassRegistry();
+                    if (classRegistry) {
+                        auto classDef = classRegistry->findClass(className);
+                        if (classDef) {
+                            const auto& staticFields = classDef->getStaticFields();
+                            auto it = staticFields.find(varName);
+                            if (it != staticFields.end()) {
+                                // Check if it's final
+                                if (it->second->isFinal()) {
+                                    throw errors::RuntimeException("Cannot assign to final static field '" + varName + "'");
+                                }
+                                it->second->setValue(val);
+                                // Push value back for assignment expressions (e.g., x = y = 5)
+                                context.stackManager->push(val);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             throw errors::RuntimeException("Variable not found: " + varName);
         }
         // Check if variable is final

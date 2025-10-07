@@ -4,6 +4,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
+#include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
 
 namespace vm::compiler::visitors
@@ -76,6 +77,34 @@ namespace vm::compiler::visitors
 
                 return std::monostate{};
             }
+            // Handle increment/decrement on member access (e.g., this.field++, obj.field--)
+            else if (auto* memberNode = dynamic_cast<ast::MemberAccessNode*>(node->getOperand())) {
+                std::string fieldName = memberNode->getMemberName();
+
+                // Compile the object expression (e.g., 'this' or 'obj')
+                memberNode->getObject()->accept(ctx.visitor);
+
+                // Duplicate object reference for later SET_FIELD
+                // Stack: [object, object]
+                ctx.program.emit(bytecode::OpCode::DUP);
+
+                // Get current field value
+                // Stack: [object, fieldValue]
+                size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+
+                // Apply increment/decrement
+                // Stack: [object, incrementedValue]
+                bytecode::OpCode opcode = ctx.emitter.getUnaryOpCode(op);
+                ctx.program.emit(opcode);
+
+                // SET_FIELD pops value first (top), then object (below)
+                // Current stack: [object, incrementedValue] - value already on top, object below
+                // This is the correct order! No swap needed.
+                ctx.program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+
+                return std::monostate{};
+            }
         }
 
         // For other unary operators
@@ -132,6 +161,7 @@ namespace vm::compiler::visitors
 
         // Check if we're in a class context
         if (ctx.currentClassNode) {
+            // First check current class fields
             for (const auto& field : ctx.currentClassNode->getFields()) {
                 if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
                     if (fieldNode->getName() == name) {
@@ -151,6 +181,22 @@ namespace vm::compiler::visitors
                             }
                         }
                         break;
+                    }
+                }
+            }
+
+            // Check parent class for inherited static fields
+            if (ctx.currentClassNode->hasParentClass()) {
+                std::string parentClassName = ctx.currentClassNode->getParentClassName();
+                auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
+                if (parentClassDef) {
+                    auto parentField = parentClassDef->getField(name);
+                    if (parentField && parentField->isStatic()) {
+                        // Access inherited static field using parent class name
+                        std::string qualifiedName = parentClassName + "::" + name;
+                        size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                        return std::monostate{};
                     }
                 }
             }

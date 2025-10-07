@@ -59,7 +59,8 @@ namespace vm::runtime
         void validateFieldAccess(
             const std::string& className,
             const std::string& fieldName,
-            ast::AccessModifier accessMod
+            ast::AccessModifier accessMod,
+            bool isSetter = false
         );
 
         std::string getCurrentClassName();

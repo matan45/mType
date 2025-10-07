@@ -224,6 +224,17 @@ namespace evaluator
                         auto field = classDef->getField(varName);
                         if (field && field->isStatic())
                         {
+                            // ACCESS CONTROL: Validate field access permissions
+                            auto callingClassName = context->getCurrentCallingClass();
+                            auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
+                            auto accessContext = base::AccessContext::forStaticAccess(
+                                callingClassName,
+                                classDef,
+                                node->getLocation(),
+                                callingClassDef
+                            );
+                            validation::AccessValidator::validateFieldAccess(accessContext, *field);
+
                             return field->getValue();
                         }
                     }
@@ -253,6 +264,17 @@ namespace evaluator
                     auto field = classDef->getField(varName);
                     if (field && field->isStatic())
                     {
+                        // ACCESS CONTROL: Validate field access permissions
+                        auto callingClassName = context->getCurrentCallingClass();
+                        auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
+                        auto accessContext = base::AccessContext::forStaticAccess(
+                            callingClassName,
+                            classDef,
+                            node->getLocation(),
+                            callingClassDef
+                        );
+                        validation::AccessValidator::validateFieldAccess(accessContext, *field);
+
                         return field->getValue();
                     }
                 }

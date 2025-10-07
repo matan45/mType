@@ -1,6 +1,7 @@
 #include "ObjectExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
+#include <iostream>
 
 namespace vm::runtime
 {
@@ -77,6 +78,12 @@ namespace vm::runtime
 
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
+            // For constructors, frameBase = localBase (typically 0)
+            // When the constructor returns via RETURN_VALUE:
+            // 1. It pops the return value (the instance)
+            // 2. handleReturn() clears the stack to frameBase
+            // 3. It pushes the return value (instance) back
+            // This leaves only the instance on the stack
             frame.frameBase = localBase;
             frame.localBase = localBase;
             frame.functionName = "<init>";
@@ -265,7 +272,7 @@ namespace vm::runtime
             throw errors::RuntimeException("Field '" + fieldName + "' is not static");
         }
 
-        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier());
+        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier(), false);
 
         value::Value fieldValue = fieldDef->getValue();
         context.stackManager->push(fieldValue);
@@ -306,7 +313,7 @@ namespace vm::runtime
             throw errors::RuntimeException("Cannot assign to final static field '" + qualifiedName + "'");
         }
 
-        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier());
+        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier(), true);
 
         fieldDef->setValue(newValue);
     }
@@ -375,7 +382,11 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
-        size_t argCount = instr.operands[0];
+        // Operand[0] is classNameIndex, Operand[1] is argCount
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
+        }
+        size_t argCount = instr.operands[1];
 
         std::vector<value::Value> args;
         args.reserve(argCount);
@@ -410,6 +421,7 @@ namespace vm::runtime
         std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
+            // localBase is where locals start (after instance + args are pushed)
             size_t localBase = context.stackManager->size();
 
             context.stackManager->push(instance);
@@ -420,6 +432,8 @@ namespace vm::runtime
 
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
+            // For super constructor calls, use localBase for frameBase
+            // When parent constructor returns, stack restores to this position
             frame.frameBase = localBase;
             frame.localBase = localBase;
             frame.functionName = "<init>";
@@ -435,8 +449,10 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
-        const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        // Compiler emits: (classNameIndex, methodNameIndex, argCount)
+        // We need operand[1] for method name and operand[2] for argCount
+        const std::string& methodName = context.program->getConstantPool().getString(instr.operands[1]);
+        size_t argCount = instr.operands[2];
 
         std::vector<value::Value> args;
         args.reserve(argCount);
@@ -613,10 +629,21 @@ namespace vm::runtime
         }
     }
 
-    void ObjectExecutor::validateFieldAccess(const std::string& className, const std::string& fieldName, ast::AccessModifier accessMod) {
+    void ObjectExecutor::validateFieldAccess(const std::string& className, const std::string& fieldName, ast::AccessModifier accessMod, bool isSetter) {
         if (accessMod == ast::AccessModifier::PUBLIC) return;
 
         std::string currentClassName = getCurrentClassName();
+
+        // Special case: Static field initialization (SET operations) happens in global scope (empty call stack)
+        // Allow SET during static initialization - the compiler ensures we only set fields
+        // of the class being initialized
+        // But REJECT GET operations from global scope (external access attempts)
+        if (currentClassName.empty() && context.callStack.empty()) {
+            if (isSetter) {
+                return;  // Allow SET during initialization
+            }
+            // For GET, fall through to normal validation which will reject it
+        }
 
         if (accessMod == ast::AccessModifier::PRIVATE) {
             if (currentClassName != className) {

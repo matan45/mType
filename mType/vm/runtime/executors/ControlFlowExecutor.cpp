@@ -1,5 +1,5 @@
 #include "ControlFlowExecutor.hpp"
-
+#include <iostream>
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
