@@ -44,6 +44,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Static Generic Collection Returns",
                         passPath + "staticGenericCollectionReturns.mt");
 
+        // Global generic function tests
+        addOutputVerificationTest("Global Generic Functions",
+                        passPath + "globalGenericFunctions.mt");
+        addOutputVerificationTest("Global Generic Multiple Parameters",
+                        passPath + "globalGenericMultipleParams.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",
@@ -87,6 +93,17 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Multiple Primitive Types Rejected",
                     errorPath + "multiplePrimitiveTypes.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Global generic function error tests
+        addTestFromFile("Global Non-Generic with Type Args",
+                    errorPath + "globalNonGenericWithTypeArgs.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Global Generic Wrong Type Arg Count",
+                    errorPath + "globalGenericWrongTypeArgCount.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Global Generic Primitive Type",
+                    errorPath + "globalGenericPrimitiveType.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

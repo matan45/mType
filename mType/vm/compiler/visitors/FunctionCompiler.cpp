@@ -61,6 +61,22 @@ namespace vm::compiler::visitors
             false);
         ctx.variableTracker.beginScope();  // Function body scope
 
+        // For generic functions, push empty bindings (will be filled during call)
+        // This ensures the function body can be compiled even with generic types
+        bool pushedGenericBindings = false;
+        if (node->isGeneric())
+        {
+            std::unordered_map<std::string, std::string> emptyBindings;
+            const auto& genericParams = node->getGenericTypeParameters();
+            // Map each generic type to itself for now (will be resolved at call time)
+            for (const auto& param : genericParams)
+            {
+                emptyBindings[param.name] = param.name;
+            }
+            ctx.pushGenericTypeBindings(emptyBindings);
+            pushedGenericBindings = true;
+        }
+
         // Track parameters as locals
         for (const auto& param : paramTypesVec) {
             ctx.variableTracker.declareLocal(param.first, param.second.basicType,
@@ -74,6 +90,12 @@ namespace vm::compiler::visitors
         auto* body = node->getBodyPtr();
         if (body) {
             body->accept(ctx.visitor);  // Will need delegation
+        }
+
+        // Pop generic bindings if we pushed them
+        if (pushedGenericBindings)
+        {
+            ctx.popGenericTypeBindings();
         }
 
         // Emit implicit return for void functions (if no explicit return)
@@ -105,6 +127,16 @@ namespace vm::compiler::visitors
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
 
+        // Store generic type parameters if the function is generic
+        if (node->isGeneric())
+        {
+            const auto& genericParams = node->getGenericTypeParameters();
+            for (const auto& param : genericParams)
+            {
+                metadata.genericTypeParameters.push_back(param.name);
+            }
+        }
+
         ctx.program.registerFunction(funcName, metadata);
 
         return std::monostate{};
@@ -115,6 +147,47 @@ namespace vm::compiler::visitors
         // Get function name
         std::string functionName = node->getFunctionName();
         const auto& arguments = node->getArguments();
+
+        // Handle generic function calls - set up type bindings
+        bool hasGenericBindings = false;
+        if (node->hasGenericTypeArguments())
+        {
+            const auto* funcMetadata = ctx.program.getFunction(functionName);
+            if (funcMetadata)
+            {
+                // Validate that the function is actually generic
+                if (funcMetadata->genericTypeParameters.empty())
+                {
+                    throw errors::TypeException(
+                        "Function '" + functionName + "' is not generic but generic type arguments were provided",
+                        node->getLocation());
+                }
+
+                const auto& genericTypeArgs = node->getGenericTypeArguments();
+                const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+
+                // Validate that the number of type arguments matches the number of type parameters
+                if (genericTypeArgs.size() != genericTypeParams.size())
+                {
+                    throw errors::TypeException(
+                        "Function '" + functionName + "' expects " +
+                        std::to_string(genericTypeParams.size()) + " type argument(s) but got " +
+                        std::to_string(genericTypeArgs.size()),
+                        node->getLocation());
+                }
+
+                // Build type bindings map
+                std::unordered_map<std::string, std::string> typeBindings;
+                for (size_t i = 0; i < genericTypeParams.size(); ++i)
+                {
+                    typeBindings[genericTypeParams[i]] = genericTypeArgs[i];
+                }
+
+                // Push bindings onto stack
+                ctx.pushGenericTypeBindings(typeBindings);
+                hasGenericBindings = true;
+            }
+        }
 
         // Validate parameter count and types for non-method calls
         if (functionName.find("::") == std::string::npos) {
@@ -136,6 +209,10 @@ namespace vm::compiler::visitors
                     if (!funcMetadata->parameterTypes.empty()) {
                         for (size_t i = 0; i < arguments.size(); ++i) {
                             std::string expectedType = funcMetadata->parameterTypes[i];
+
+                            // Resolve generic type parameters if present
+                            expectedType = ctx.resolveGenericType(expectedType);
+
                             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
                             // Convert argType to string for comparison
@@ -261,6 +338,12 @@ namespace vm::compiler::visitors
             ctx.program.emit(bytecode::OpCode::CALL,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+        }
+
+        // Pop generic type bindings if we pushed them
+        if (hasGenericBindings)
+        {
+            ctx.popGenericTypeBindings();
         }
 
         return std::monostate{};

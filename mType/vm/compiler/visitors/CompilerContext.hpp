@@ -49,6 +49,9 @@ namespace vm::compiler::visitors
         ast::ClassNode* currentClassNode = nullptr;
         bool inInstanceMethod = false;
 
+        // Generic type binding stack for functions and methods
+        std::vector<std::unordered_map<std::string, std::string>> genericTypeBindingStack;
+
         CompilerContext(
             ast::ASTVisitor<value::Value>& vis,
             bytecode::BytecodeProgram& prog,
@@ -76,6 +79,44 @@ namespace vm::compiler::visitors
             , typeValidator(typeVal)
             , genericResolver(genericRes)
         {
+        }
+
+        // Generic type binding management
+        void pushGenericTypeBindings(const std::unordered_map<std::string, std::string>& bindings)
+        {
+            genericTypeBindingStack.push_back(bindings);
+        }
+
+        void popGenericTypeBindings()
+        {
+            if (!genericTypeBindingStack.empty())
+            {
+                genericTypeBindingStack.pop_back();
+            }
+        }
+
+        std::unordered_map<std::string, std::string> getCurrentGenericTypeBindings() const
+        {
+            if (genericTypeBindingStack.empty())
+            {
+                return {};
+            }
+            return genericTypeBindingStack.back();
+        }
+
+        std::string resolveGenericType(const std::string& typeName) const
+        {
+            // Check from most recent to oldest binding context
+            for (auto it = genericTypeBindingStack.rbegin(); it != genericTypeBindingStack.rend(); ++it)
+            {
+                auto found = it->find(typeName);
+                if (found != it->end())
+                {
+                    return found->second;
+                }
+            }
+            // Not a generic type parameter, return as-is
+            return typeName;
         }
     };
 }

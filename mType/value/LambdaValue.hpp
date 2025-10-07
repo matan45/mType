@@ -120,6 +120,9 @@ namespace value
         // Captured 'this' instance for class member access
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> capturedThisInstance;
 
+        // Captured calling class for access control (especially for lambdas in static methods)
+        std::string capturedCallingClass;
+
         // Interface implementation info
         std::string implementedInterface;
         std::string implementedMethod;

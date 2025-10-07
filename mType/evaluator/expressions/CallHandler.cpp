@@ -208,11 +208,21 @@ namespace evaluator
                 if (!funcDef->hasGenericInformation())
                 {
                     throw TypeException(
-                        "Function '" + node->getFunctionName() + "' is not generic but generic type arguments were provided");
+                        "Function '" + node->getFunctionName() + "' is not generic but generic type arguments were provided",
+                        node->getLocation());
                 }
 
-                // For now, we'll use the same function definition but set up type bindings
-                // In the future, we could instantiate like methods do
+                // Validate that the number of type arguments matches the number of type parameters
+                const auto& genericTypeParams = funcDef->getGenericTypeParameters();
+                const auto& genericTypeArgs = node->getGenericTypeArguments();
+                if (genericTypeArgs.size() != genericTypeParams.size())
+                {
+                    throw TypeException(
+                        "Function '" + node->getFunctionName() + "' expects " +
+                        std::to_string(genericTypeParams.size()) + " type argument(s) but got " +
+                        std::to_string(genericTypeArgs.size()),
+                        node->getLocation());
+                }
             }
 
             // Evaluate arguments

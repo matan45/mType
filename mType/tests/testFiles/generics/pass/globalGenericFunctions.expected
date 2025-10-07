@@ -1,0 +1,10 @@
+String identity: hello
+Int identity: 42
+Processing: document
+Processing: 999
+age = 25
+name = Alice
+100 = score
+Regular function
+Processing: final
+All global generic function tests passed
