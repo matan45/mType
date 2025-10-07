@@ -133,6 +133,21 @@ namespace services
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
 
+            // Execute based on execution mode
+            value::Value result;
+            switch (executionMode)
+            {
+            case constants::ExecutionMode::AST_INTERPRETER:
+                result = executeAST(ast.get());
+                break;
+            case constants::ExecutionMode::BYTECODE_VM:
+                result = executeBytecode(ast.get());
+                break;
+            case constants::ExecutionMode::DUAL_VALIDATION:
+                result = executeDualValidation(ast.get());
+                break;
+            }
+
             // Automatic cleanup after script execution to prevent memory growth
             // Only clean up interfaces that are no longer referenced
             size_t cleanedUp = cleanupUnusedInterfaces();
