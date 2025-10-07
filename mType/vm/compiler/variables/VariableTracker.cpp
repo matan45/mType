@@ -111,4 +111,16 @@ namespace vm::compiler::variables
         }
         return false;
     }
+
+    bool VariableTracker::existsInFunction(const std::string& name) const
+    {
+        // Check if variable exists anywhere in the current function
+        // This is used for parameter shadowing detection
+        for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+            if (it->name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

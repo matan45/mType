@@ -5,6 +5,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -62,11 +63,10 @@ namespace vm::compiler::visitors
             return std::monostate{};
         }
 
-        // Global variable
-        if (ctx.globalRegistry.exists(name) &&
-            ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+        // Global variable - check for redefinition in current scope
+        if (ctx.globalRegistry.existsInCurrentScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
             throw errors::EnvironmentException(
-                "Variable '" + name + "' is already defined",
+                "Variable '" + name + "' is already defined in this scope",
                 node->getLocation()
             );
         }
@@ -157,7 +157,9 @@ namespace vm::compiler::visitors
         if (varType != value::ValueType::VOID) {
             // Declaration with initializer
             if (ctx.functionFrameManager.isInFunction() && ctx.variableTracker.getCurrentScopeDepth() > 0) {
-                if (ctx.variableTracker.existsInCurrentScope(name)) {
+                // Check if variable exists anywhere in the function (including parameters)
+                // This prevents parameter shadowing and variable redefinition
+                if (ctx.variableTracker.existsInFunction(name)) {
                     throw errors::EnvironmentException(
                         "Variable '" + name + "' is already defined in this scope",
                         node->getLocation()
@@ -176,7 +178,14 @@ namespace vm::compiler::visitors
                 return std::monostate{};
             }
 
-            // Global variable declaration
+            // Global variable declaration - check for redefinition
+            if (ctx.globalRegistry.existsInCurrentScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+                throw errors::EnvironmentException(
+                    "Variable '" + name + "' is already defined in this scope",
+                    node->getLocation()
+                );
+            }
+
             ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(),
                                              ctx.variableTracker.getCurrentScopeDepth());
 

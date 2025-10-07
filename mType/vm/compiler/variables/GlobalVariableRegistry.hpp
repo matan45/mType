@@ -30,6 +30,9 @@ namespace vm::compiler::variables
         // Check if variable is in scope
         bool isInScope(const std::string& name, int currentScopeDepth) const;
 
+        // Check if variable exists in the exact current scope (for redefinition detection)
+        bool existsInCurrentScope(const std::string& name, int currentScopeDepth) const;
+
         // Scope management
         void removeVariablesOutOfScope(int currentScopeDepth);
 

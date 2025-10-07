@@ -52,6 +52,15 @@ namespace vm::compiler::variables
         return false;
     }
 
+    bool GlobalVariableRegistry::existsInCurrentScope(const std::string& name, int currentScopeDepth) const
+    {
+        auto scopeIt = globalVariableScopes.find(name);
+        if (scopeIt != globalVariableScopes.end()) {
+            return scopeIt->second == currentScopeDepth;  // Exact scope match for redefinition check
+        }
+        return false;
+    }
+
     void GlobalVariableRegistry::removeVariablesOutOfScope(int currentScopeDepth)
     {
         std::vector<std::string> toRemove;

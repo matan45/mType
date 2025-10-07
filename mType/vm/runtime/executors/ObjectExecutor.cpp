@@ -69,34 +69,32 @@ namespace vm::runtime
         std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
-            size_t localBase = context.stackManager->size();
-
-            context.stackManager->push(instance);
-
-            for (size_t i = 0; i < argCount; ++i) {
-                context.stackManager->push(args[i]);
-            }
-
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
-            // For constructors, frameBase = localBase (typically 0)
-            // When the constructor returns via RETURN_VALUE:
-            // 1. It pops the return value (the instance)
-            // 2. handleReturn() clears the stack to frameBase
-            // 3. It pushes the return value (instance) back
-            // This leaves only the instance on the stack
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
+            frame.frameBase = context.stackManager->size();
+            frame.localBase = context.stackManager->size();  // Set before pushing
             frame.functionName = "<init>";
             frame.thisInstance = instance;
 
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
 
+            // Push this and arguments AFTER setting up the frame
+            // They will be at positions localBase+0, localBase+1, etc.
+            context.stackManager->push(instance);
+
+            for (size_t i = 0; i < argCount; ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            // Note: Local variables are allocated on-demand by STORE_LOCAL
+            // which extends the stack as needed (see VariableExecutor::handleStoreLocal)
+
             context.instructionPointer = funcMetadata->startOffset - 1;
-        } else {
-            throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName + "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
+            return;
         }
+
+        throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName + "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
     }
 
     void ObjectExecutor::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -374,7 +372,7 @@ namespace vm::runtime
         std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
-            size_t localBase = context.stackManager->size();
+            size_t frameBase = context.stackManager->size();
 
             context.stackManager->push(instance);
 
@@ -384,8 +382,8 @@ namespace vm::runtime
 
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
             frame.functionName = qualifiedName;
             frame.thisInstance = instance;
 
@@ -447,8 +445,7 @@ namespace vm::runtime
         std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
-            // localBase is where locals start (after instance + args are pushed)
-            size_t localBase = context.stackManager->size();
+            size_t frameBase = context.stackManager->size();
 
             context.stackManager->push(instance);
 
@@ -458,10 +455,8 @@ namespace vm::runtime
 
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
-            // For super constructor calls, use localBase for frameBase
-            // When parent constructor returns, stack restores to this position
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
             frame.functionName = "<init>";
             frame.thisInstance = instance;
 
@@ -513,7 +508,7 @@ namespace vm::runtime
         std::string qualifiedName = parentClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
-            size_t localBase = context.stackManager->size();
+            size_t frameBase = context.stackManager->size();
 
             context.stackManager->push(instance);
 
@@ -523,8 +518,8 @@ namespace vm::runtime
 
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
-            frame.frameBase = localBase;
-            frame.localBase = localBase;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
             frame.functionName = qualifiedName;
             frame.thisInstance = instance;
 

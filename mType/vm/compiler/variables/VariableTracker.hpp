@@ -51,6 +51,9 @@ namespace vm::compiler::variables
         // Check if variable exists in current scope
         bool existsInCurrentScope(const std::string& name) const;
 
+        // Check if variable exists in any scope within current function (for parameter shadowing detection)
+        bool existsInFunction(const std::string& name) const;
+
     private:
         std::vector<LocalVariable> locals;
         size_t nextLocalSlot;

@@ -337,12 +337,14 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileBreak(ast::BreakNode* node)
     {
-        if (ctx.loopManager.isInLoop()) {
-            size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-            ctx.loopManager.registerBreak(breakJump);
-        } else if (ctx.switchManager.isInSwitch()) {
+        // IMPORTANT: Check switch context first!
+        // When a switch is nested in a loop, break should exit the switch, not the loop
+        if (ctx.switchManager.isInSwitch()) {
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
+        } else if (ctx.loopManager.isInLoop()) {
+            size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.loopManager.registerBreak(breakJump);
         } else {
             throw errors::ParseException("Break outside of loop or switch");
         }

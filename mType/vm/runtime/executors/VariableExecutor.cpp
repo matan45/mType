@@ -1,27 +1,35 @@
 #include "VariableExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include <iostream>
 
 namespace vm::runtime
 {
     VariableExecutor::VariableExecutor(ExecutionContext& ctx)
         : context(ctx)
-    {}
+    {
+    }
 
-    void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+    void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
             throw errors::RuntimeException("LOAD_VAR requires operand");
         }
         const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
         auto varDef = context.environment->findVariable(varName);
-        if (!varDef) {
+        if (!varDef)
+        {
             // Variable not found in global environment
             // Check if we're in a lambda with a parent frame (for late-bound variable access)
-            if (!context.callStack.empty() && context.callStack.back().originatingLambda) {
+            if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+            {
                 auto lambda = context.callStack.back().originatingLambda;
-                if (lambda->parentFrame) {
+                if (lambda->parentFrame)
+                {
                     value::Value val = lambda->parentFrame->getLocalByName(varName);
-                    if (!std::holds_alternative<std::monostate>(val)) {
+                    if (!std::holds_alternative<std::monostate>(val))
+                    {
                         context.stackManager->push(val);
                         return;
                     }
@@ -29,10 +37,12 @@ namespace vm::runtime
             }
 
             // Check if we're in a method/constructor and should access a field from 'this'
-            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
+            if (!context.callStack.empty() && context.callStack.back().thisInstance)
+            {
                 auto thisInstance = context.callStack.back().thisInstance;
                 auto fieldDef = thisInstance->getField(varName);
-                if (fieldDef) {
+                if (fieldDef)
+                {
                     // Field found - load its value
                     value::Value fieldValue = thisInstance->getFieldValue(varName);
                     context.stackManager->push(fieldValue);
@@ -41,19 +51,24 @@ namespace vm::runtime
             }
 
             // Check if we're in a static method and should access a static field
-            if (!context.callStack.empty()) {
+            if (!context.callStack.empty())
+            {
                 const std::string& functionName = context.callStack.back().functionName;
                 // Static method names have format: ClassName::methodName
                 size_t colonPos = functionName.find("::");
-                if (colonPos != std::string::npos) {
+                if (colonPos != std::string::npos)
+                {
                     std::string className = functionName.substr(0, colonPos);
                     auto classRegistry = context.environment->getClassRegistry();
-                    if (classRegistry) {
+                    if (classRegistry)
+                    {
                         auto classDef = classRegistry->findClass(className);
-                        if (classDef) {
+                        if (classDef)
+                        {
                             const auto& staticFields = classDef->getStaticFields();
                             auto it = staticFields.find(varName);
-                            if (it != staticFields.end()) {
+                            if (it != staticFields.end())
+                            {
                                 value::Value fieldValue = it->second->getValue();
                                 context.stackManager->push(fieldValue);
                                 return;
@@ -68,21 +83,27 @@ namespace vm::runtime
         context.stackManager->push(varDef->getValue());
     }
 
-    void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+    void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
             throw errors::RuntimeException("STORE_VAR requires operand");
         }
         const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value val = context.stackManager->pop();
         auto varDef = context.environment->findVariable(varName);
-        if (!varDef) {
+        if (!varDef)
+        {
             // Check if we're in a method/constructor and should set a field on 'this'
-            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
+            if (!context.callStack.empty() && context.callStack.back().thisInstance)
+            {
                 auto thisInstance = context.callStack.back().thisInstance;
                 auto fieldDef = thisInstance->getField(varName);
-                if (fieldDef) {
+                if (fieldDef)
+                {
                     // Field found - check if it's final
-                    if (fieldDef->isFinal()) {
+                    if (fieldDef->isFinal())
+                    {
                         throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
                     }
                     // Set the field value
@@ -94,24 +115,32 @@ namespace vm::runtime
             }
 
             // Check if we're in a static method and should set a static field
-            if (!context.callStack.empty()) {
+            if (!context.callStack.empty())
+            {
                 const std::string& functionName = context.callStack.back().functionName;
                 // Static method names have format: ClassName::methodName
                 size_t colonPos = functionName.find("::");
-                if (colonPos != std::string::npos) {
+                if (colonPos != std::string::npos)
+                {
                     std::string className = functionName.substr(0, colonPos);
                     auto classRegistry = context.environment->getClassRegistry();
-                    if (classRegistry) {
+                    if (classRegistry)
+                    {
                         auto classDef = classRegistry->findClass(className);
-                        if (classDef) {
+                        if (classDef)
+                        {
                             const auto& staticFields = classDef->getStaticFields();
                             auto it = staticFields.find(varName);
-                            if (it != staticFields.end()) {
+                            if (it != staticFields.end())
+                            {
                                 // Check if it's final
-                                if (it->second->isFinal()) {
+                                if (it->second->isFinal())
+                                {
                                     // Allow initialization of final fields (when not yet initialized)
-                                    if (it->second->isInitialized()) {
-                                        throw errors::RuntimeException("Cannot assign to final static field '" + varName + "'");
+                                    if (it->second->isInitialized())
+                                    {
+                                        throw errors::RuntimeException(
+                                            "Cannot assign to final static field '" + varName + "'");
                                     }
                                 }
                                 it->second->setValue(val);
@@ -127,7 +156,8 @@ namespace vm::runtime
             throw errors::RuntimeException("Variable not found: " + varName);
         }
         // Check if variable is final
-        if (varDef->isFinal()) {
+        if (varDef->isFinal())
+        {
             throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
         }
         varDef->setValue(val);
@@ -135,8 +165,10 @@ namespace vm::runtime
         context.stackManager->push(val);
     }
 
-    void VariableExecutor::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+    void VariableExecutor::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
             throw errors::RuntimeException("DECLARE_VAR requires operand");
         }
         const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -147,7 +179,8 @@ namespace vm::runtime
 
         // Check if variable is final (third operand)
         bool isFinal = false;
-        if (instr.operands.size() >= 3) {
+        if (instr.operands.size() >= 3)
+        {
             isFinal = (instr.operands[2] != 0);
         }
 
@@ -158,8 +191,10 @@ namespace vm::runtime
         context.environment->declareVariable(varName, varDef);
     }
 
-    void VariableExecutor::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+    void VariableExecutor::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
 
@@ -171,7 +206,8 @@ namespace vm::runtime
         // Calculate absolute stack position
         size_t stackPos = frameBase + slot;
 
-        if (stackPos >= context.stackManager->size()) {
+        if (stackPos >= context.stackManager->size())
+        {
             throw errors::RuntimeException("Local variable slot out of bounds: " + std::to_string(slot));
         }
 
@@ -180,14 +216,17 @@ namespace vm::runtime
         context.stackManager->push(val);
     }
 
-    void VariableExecutor::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+    void VariableExecutor::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
 
         size_t slot = instr.operands[0];
         std::string varName = "";
-        if (instr.operands.size() > 1) {
+        if (instr.operands.size() > 1)
+        {
             // Variable name provided (for shared frame late-binding)
             varName = context.program->getConstantPool().getString(instr.operands[1]);
         }
@@ -202,25 +241,36 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
 
         // Extend stack if needed to reach the slot position
-        while (context.stackManager->size() < stackPos) {
+        while (context.stackManager->size() < stackPos)
+        {
             context.stackManager->getStack().push_back(std::monostate{});
         }
 
         // If the slot is beyond current stack size, push the value
-        if (stackPos >= context.stackManager->size()) {
+        if (stackPos >= context.stackManager->size())
+        {
             context.stackManager->getStack().push_back(val);
-        } else {
+        }
+        else
+        {
             // Otherwise, store at the specific position
             (*context.stackManager)[stackPos] = val;
         }
 
+        // Push value back for assignment expressions (e.g., int i = 0 in for loop)
+        context.stackManager->push(val);
+
         // Also update the shared frame if one exists (for lambda late-binding)
         // This ensures lambdas see updated values of variables (including forward references)
-        if (!context.callStack.empty() && context.callStack.back().sharedFrame) {
-            if (!varName.empty()) {
+        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
+        {
+            if (!varName.empty())
+            {
                 // Register the variable name -> slot mapping
                 context.callStack.back().sharedFrame->setLocal(varName, slot, val);
-            } else {
+            }
+            else
+            {
                 context.callStack.back().sharedFrame->setLocal(slot, val);
             }
         }
