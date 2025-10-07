@@ -148,7 +148,7 @@ namespace vm::compiler::registration
                 auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                     fieldNode->getName(),
                     fieldNode->getType(),
-                    value::Value{},  // Empty value - bytecode will initialize
+                    std::monostate{},  // Empty value - bytecode will initialize
                     fieldNode->getIsStatic(),
                     fieldNode->getIsFinal(),
                     fieldNode->getAccessModifier()

@@ -242,6 +242,10 @@ namespace vm::runtime
         }
 
         instance->setField(fieldName, newValue);
+
+        // Push the value back onto the stack for chained assignments
+        // This allows expressions like: obj1.field = obj2.field = value
+        context.stackManager->push(newValue);
     }
 
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {

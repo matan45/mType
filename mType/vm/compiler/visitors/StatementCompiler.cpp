@@ -119,6 +119,22 @@ namespace vm::compiler::visitors
         value::ValueType varType = node->getVariableType();
         auto* value = node->getValue();
 
+        // Check if this is a reassignment (variable already exists) or a declaration
+        bool isReassignment = false;
+        std::string existingClassName;
+
+        if (ctx.functionFrameManager.isInFunction()) {
+            existingClassName = ctx.variableTracker.getLocalClassNameByName(name);
+            if (!existingClassName.empty() || ctx.variableTracker.existsInCurrentScope(name)) {
+                isReassignment = true;
+            }
+        }
+
+        if (!isReassignment && ctx.globalRegistry.exists(name)) {
+            isReassignment = true;
+            existingClassName = ctx.globalRegistry.getClassName(name);
+        }
+
         // Type checking for class/interface existence
         if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
             std::string className = node->getClassName();
@@ -149,8 +165,8 @@ namespace vm::compiler::visitors
 
         // Lambda validation
         if (value && dynamic_cast<ast::LambdaNode*>(value)) {
-            // Check if assigning lambda to functional interface
-            if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
+            // Check if assigning lambda to functional interface (for declarations)
+            if (!isReassignment && varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
                 // Validate that the interface is functional (has exactly one method)
                 auto interfaceDef = ctx.environment->findInterface(node->getClassName());
                 if (interfaceDef && !interfaceDef->isFunctionalInterface()) {
@@ -166,23 +182,9 @@ namespace vm::compiler::visitors
             }
 
             // Lambda reassignment validation
-            if (varType == value::ValueType::VOID) {
-                // This is a pure assignment (reassignment), not a declaration
-                // Check if the variable exists and is an interface type
-                std::string varClassName;
-
-                // Check if it's a local variable
-                if (ctx.functionFrameManager.isInFunction()) {
-                    varClassName = ctx.variableTracker.getLocalClassNameByName(name);
-                }
-
-                // Check if it's a global variable
-                if (varClassName.empty() && ctx.globalRegistry.exists(name)) {
-                    varClassName = ctx.globalRegistry.getClassName(name);
-                }
-
+            if (isReassignment) {
                 // If the variable is an interface type, reject reassignment
-                if (!varClassName.empty() && ctx.environment->findInterface(varClassName)) {
+                if (!existingClassName.empty() && ctx.environment->findInterface(existingClassName)) {
                     throw errors::TypeException(
                         "Type mismatch for variable '" + name + "': expected object but got void",
                         node->getLocation()
@@ -191,9 +193,23 @@ namespace vm::compiler::visitors
             }
         }
 
+        // Type compatibility validation for reassignments
+        if (isReassignment && !existingClassName.empty() && value) {
+            std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
+            value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+            bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+
+            // Only validate if we have actual type information
+            if (!valueClassName.empty() || valueType != value::ValueType::OBJECT) {
+                // Validate that the assigned value is compatible with the variable's type
+                ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, existingClassName,
+                                                    valueType, valueClassName, isNullValue, node->getLocation());
+            }
+        }
+
         // Compile the value
         if (value) {
-            // Type validation
+            // Type validation for declarations
             if (varType != value::ValueType::VOID) {
                 value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
                 std::string varClassName = node->getClassName();
@@ -276,6 +292,25 @@ namespace vm::compiler::visitors
                                static_cast<uint32_t>(localSlot),
                                static_cast<uint32_t>(nameIndex));
                 return std::monostate{};
+            }
+
+            // Check if it's an instance field (when inside a method)
+            if (ctx.currentClassNode) {
+                auto classRegistry = ctx.environment->getClassRegistry();
+                if (classRegistry) {
+                    auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
+                    if (classDef) {
+                        const auto& instanceFields = classDef->getInstanceFields();
+                        if (instanceFields.find(name) != instanceFields.end()) {
+                            // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
+                            size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                            return std::monostate{};
+                        }
+                    }
+                }
             }
 
             // Global variable assignment
