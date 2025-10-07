@@ -38,6 +38,12 @@ namespace value
         // Capture 'this' instance if available (for class context lambdas)
         capturedThisInstance = context->getCurrentInstance();
 
+        // Capture calling class for access control (important for lambdas in static methods)
+        if (context->hasCallingClass())
+        {
+            capturedCallingClass = context->getCurrentCallingClass();
+        }
+
         // Capture the current environment for closure support
         captureCurrentEnvironment();
     }
@@ -84,8 +90,9 @@ namespace value
 
         // Preserve calling class context for access control validation
         // This allows lambdas to access private members of the class they're defined in
-        if (capturedContext->hasCallingClass()) {
-            lambdaContext->pushCallingClass(capturedContext->getCurrentCallingClass());
+        // Use the captured calling class (not the current context's calling class)
+        if (!capturedCallingClass.empty()) {
+            lambdaContext->pushCallingClass(capturedCallingClass);
         }
 
         // Restore captured variables to lambda scope

@@ -59,6 +59,7 @@ namespace vm::bytecode
             std::string returnType;
             bool isStatic = false;
             bool isNative = false;
+            std::vector<std::string> genericTypeParameters;  // Generic type parameter names (e.g., ["T", "K", "V"])
         };
 
         /**

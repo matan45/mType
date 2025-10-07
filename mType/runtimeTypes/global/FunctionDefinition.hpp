@@ -4,13 +4,14 @@
 #include "../../value/ValueType.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
+#include "../../ast/GenericTypeParameter.hpp"
 #include "../Definition.hpp"
 
 namespace runtimeTypes::global
 {
     using namespace value;
     using namespace ast;
-    
+
     class FunctionDefinition : public Definition
     {
     private:
@@ -18,6 +19,7 @@ namespace runtimeTypes::global
         std::string returnClassName;  // For object return types, stores the class/interface name
         std::vector<std::pair<std::string, ParameterType>> parameters;
         std::shared_ptr<ASTNode> body;
+        std::vector<ast::GenericTypeParameter> genericTypeParameters;  // Generic type parameters like <T, U>
         
     public:
         explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), returnClassName(""), body(nullptr) {}
@@ -51,8 +53,14 @@ namespace runtimeTypes::global
         }
         
         size_t getParameterCount() const { return parameters.size(); }
-        
+
         std::shared_ptr<ASTNode> getBody() const { return body; }
         void setBody(std::shared_ptr<ASTNode> bodyNode) { body = bodyNode; }
+
+        // Generic type support
+        const std::vector<ast::GenericTypeParameter>& getGenericTypeParameters() const { return genericTypeParameters; }
+        void setGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& genTypeParams) { genericTypeParameters = genTypeParams; }
+        bool hasGenericInformation() const { return !genericTypeParameters.empty(); }
+        bool isGeneric() const { return !genericTypeParameters.empty(); }
     };
 }

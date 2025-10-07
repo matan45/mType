@@ -201,9 +201,13 @@ namespace vm::compiler::visitors
 
             // Only validate if we have actual type information
             if (!valueClassName.empty() || valueType != value::ValueType::OBJECT) {
+                // Resolve generic type parameters if present
+                std::string resolvedExistingClassName = ctx.resolveGenericType(existingClassName);
+                std::string resolvedValueClassName = ctx.resolveGenericType(valueClassName);
+
                 // Validate that the assigned value is compatible with the variable's type
-                ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, existingClassName,
-                                                    valueType, valueClassName, isNullValue, node->getLocation());
+                ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
+                                                    valueType, resolvedValueClassName, isNullValue, node->getLocation());
             }
         }
 
@@ -215,6 +219,10 @@ namespace vm::compiler::visitors
                 std::string varClassName = node->getClassName();
                 std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
                 bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+
+                // Resolve generic type parameters if present
+                varClassName = ctx.resolveGenericType(varClassName);
+                valueClassName = ctx.resolveGenericType(valueClassName);
 
                 ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
                                                     valueClassName, isNullValue, node->getLocation());

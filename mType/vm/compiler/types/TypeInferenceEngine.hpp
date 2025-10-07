@@ -7,6 +7,8 @@
 #include "../variables/GlobalVariableRegistry.hpp"
 #include <string>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 namespace vm::compiler::types
 {
@@ -30,10 +32,17 @@ namespace vm::compiler::types
         value::ValueType inferExpressionType(ast::ASTNode* node) const;
         std::string inferExpressionClassName(ast::ASTNode* node) const;
 
+        // Set generic type bindings stack (reference to context's stack)
+        void setGenericTypeBindingsStack(const std::vector<std::unordered_map<std::string, std::string>>* stack);
+
     private:
         const bytecode::BytecodeProgram& program;
         std::shared_ptr<environment::Environment> environment;
         const variables::VariableTracker& variableTracker;
         const variables::GlobalVariableRegistry& globalRegistry;
+        const std::vector<std::unordered_map<std::string, std::string>>* genericTypeBindingsStack = nullptr;
+
+        // Helper to resolve generic types
+        std::string resolveGenericType(const std::string& typeName) const;
     };
 }

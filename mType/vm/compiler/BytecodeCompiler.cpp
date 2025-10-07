@@ -24,6 +24,8 @@ namespace vm::compiler
         , functionCompiler(context)
         , classCompiler(context)
     {
+        // Set up type inference engine to use context's generic type bindings stack
+        typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
     }
 
     bytecode::BytecodeProgram BytecodeCompiler::compile(ast::ASTNode* root)

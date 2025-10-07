@@ -2752,6 +2752,15 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\globalGenericPrimitiveType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\globalGenericWrongTypeArgCount.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\globalNonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -2855,6 +2864,18 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\genericWithPrimitiveTypes.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\globalGenericFunctions.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\globalGenericFunctions.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\globalGenericMultipleParams.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\globalGenericMultipleParams.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.expected">

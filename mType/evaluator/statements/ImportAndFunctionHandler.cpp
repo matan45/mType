@@ -161,6 +161,12 @@ namespace statements {
         // Set the function body
         funcDef->setBody(node->getBody());
 
+        // Set generic type parameters if the function is generic
+        if (node->isGeneric())
+        {
+            funcDef->setGenericTypeParameters(node->getGenericTypeParameters());
+        }
+
         // Register function in environment
         env->registerFunction(node->getName(), funcDef);
 

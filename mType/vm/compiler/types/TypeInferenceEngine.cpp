@@ -193,12 +193,32 @@ namespace vm::compiler::types
         if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
             std::string functionName = funcCall->getFunctionName();
             const auto* funcMetadata = program.getFunction(functionName);
+
+            // If this is a generic function call, resolve the return type using the provided type arguments
+            if (funcCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
+            {
+                const auto& genericTypeArgs = funcCall->getGenericTypeArguments();
+                const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+                std::string returnType = funcMetadata->returnType;
+
+                // Build temporary bindings for this function call
+                for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+                {
+                    if (returnType == genericTypeParams[i])
+                    {
+                        // The return type is a generic parameter, substitute it
+                        return genericTypeArgs[i];
+                    }
+                }
+            }
+
             if (funcMetadata && !funcMetadata->returnType.empty()) {
                 // If return type is not a primitive, it's a class name
                 if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
-                    return funcMetadata->returnType;
+                    // Resolve generic type if applicable (from context stack)
+                    return resolveGenericType(funcMetadata->returnType);
                 }
             }
 
@@ -207,12 +227,40 @@ namespace vm::compiler::types
             if (funcDef) {
                 std::string returnClassName = funcDef->getReturnClassName();
                 if (!returnClassName.empty()) {
-                    return returnClassName;
+                    // Resolve generic type if applicable
+                    return resolveGenericType(returnClassName);
                 }
             }
             return "";
         }
 
         return "";
+    }
+
+    void TypeInferenceEngine::setGenericTypeBindingsStack(
+        const std::vector<std::unordered_map<std::string, std::string>>* stack)
+    {
+        genericTypeBindingsStack = stack;
+    }
+
+    std::string TypeInferenceEngine::resolveGenericType(const std::string& typeName) const
+    {
+        if (!genericTypeBindingsStack || genericTypeBindingsStack->empty())
+        {
+            return typeName;
+        }
+
+        // Check from most recent to oldest binding context
+        for (auto it = genericTypeBindingsStack->rbegin(); it != genericTypeBindingsStack->rend(); ++it)
+        {
+            auto found = it->find(typeName);
+            if (found != it->end())
+            {
+                return found->second;
+            }
+        }
+
+        // Not a generic type parameter, return as-is
+        return typeName;
     }
 }

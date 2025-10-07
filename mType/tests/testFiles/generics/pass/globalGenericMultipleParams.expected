@@ -1,0 +1,9 @@
+First: 10
+Second: value
+Swapped result: value
+First: key
+Second: 100
+Swapped result: 100
+A: one, B: 2, C: three
+A: 1, B: two, C: 3
+Multiple parameter tests passed
