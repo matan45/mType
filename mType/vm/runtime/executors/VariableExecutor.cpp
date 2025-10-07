@@ -109,7 +109,10 @@ namespace vm::runtime
                             if (it != staticFields.end()) {
                                 // Check if it's final
                                 if (it->second->isFinal()) {
-                                    throw errors::RuntimeException("Cannot assign to final static field '" + varName + "'");
+                                    // Allow initialization of final fields (when not yet initialized)
+                                    if (it->second->isInitialized()) {
+                                        throw errors::RuntimeException("Cannot assign to final static field '" + varName + "'");
+                                    }
                                 }
                                 it->second->setValue(val);
                                 // Push value back for assignment expressions (e.g., x = y = 5)

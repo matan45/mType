@@ -311,7 +311,10 @@ namespace vm::runtime
         }
 
         if (fieldDef->isFinal()) {
-            throw errors::RuntimeException("Cannot assign to final static field '" + qualifiedName + "'");
+            // Allow initialization of final fields (when not yet initialized)
+            if (fieldDef->isInitialized()) {
+                throw errors::RuntimeException("Cannot assign to final static field '" + qualifiedName + "'");
+            }
         }
 
         validateFieldAccess(className, fieldName, fieldDef->getAccessModifier(), true);
