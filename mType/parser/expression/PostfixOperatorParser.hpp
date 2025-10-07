@@ -42,5 +42,6 @@ namespace parser::expression
                                                         const std::vector<std::string>& typeArgs);
 
         bool isPostfixOperator(TokenType type) const noexcept;
+        bool isGenericFunctionCall();
     };
 }

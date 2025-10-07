@@ -3,8 +3,16 @@
 namespace ast::nodes::functions
 {
     FunctionCallNode::FunctionCallNode(const std::string& funcName, std::vector<std::unique_ptr<ASTNode>> args,
+                                       const std::vector<std::string>& genericArgs,
                                        const SourceLocation& loc)
-        : ASTNode(loc), functionName(funcName), arguments(std::move(args))
+        : ASTNode(loc), functionName(funcName), arguments(std::move(args)), genericTypeArguments(genericArgs)
+    {
+    }
+
+    // Backward compatibility constructor
+    FunctionCallNode::FunctionCallNode(const std::string& funcName, std::vector<std::unique_ptr<ASTNode>> args,
+                                       const SourceLocation& loc)
+        : ASTNode(loc), functionName(funcName), arguments(std::move(args)), genericTypeArguments()
     {
     }
 
@@ -18,6 +26,16 @@ namespace ast::nodes::functions
         return arguments;
     }
 
+    const std::vector<std::string>& FunctionCallNode::getGenericTypeArguments() const
+    {
+        return genericTypeArguments;
+    }
+
+    bool FunctionCallNode::hasGenericTypeArguments() const
+    {
+        return !genericTypeArguments.empty();
+    }
+
     void FunctionCallNode::setFunctionName(const std::string& funcName)
     {
         functionName = funcName;
@@ -26,6 +44,11 @@ namespace ast::nodes::functions
     void FunctionCallNode::setArguments(std::vector<std::unique_ptr<ASTNode>> args)
     {
         arguments = std::move(args);
+    }
+
+    void FunctionCallNode::setGenericTypeArguments(const std::vector<std::string>& genericArgs)
+    {
+        genericTypeArguments = genericArgs;
     }
 
     void FunctionCallNode::addArgument(std::unique_ptr<ASTNode> arg)

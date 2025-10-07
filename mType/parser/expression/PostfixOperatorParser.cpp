@@ -8,6 +8,7 @@
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include <iostream>
 
 namespace parser::expression
 {
@@ -60,6 +61,11 @@ namespace parser::expression
                 tokenStream.advance();
                 expr = std::make_unique<UnaryExpNode>(op, std::move(expr), UnaryPosition::POSTFIX, opLocation);
             }
+            else if (tokenStream.check(TokenType::LESS) && dynamic_cast<VariableNode*>(expr.get()) && isGenericFunctionCall())
+            {
+                // Generic function call: identifier<Type>(args)
+                expr = parseFunctionCall(std::move(expr));
+            }
             else if (tokenStream.check(TokenType::LPAREN))
             {
                 // Function call
@@ -102,6 +108,20 @@ namespace parser::expression
 
         if (canCallFunction)
         {
+            // Parse generic type arguments if present (e.g., identity<Int>)
+            std::vector<std::string> genericTypeArguments;
+            if (tokenStream.check(TokenType::LESS))
+            {
+                tokenStream.advance(); // consume '<'
+                if (!expressionParser)
+                {
+                    throw ParseException("ExpressionParser not initialized in PostfixOperatorParser",
+                                         tokenStream.current().location);
+                }
+                genericTypeArguments = expressionParser->parseGenericTypeArguments();
+                expectToken(TokenType::GREATER);
+            }
+
             expectToken(TokenType::LPAREN);
             std::vector<std::unique_ptr<ASTNode>> arguments;
 
@@ -118,7 +138,7 @@ namespace parser::expression
             }
 
             expectToken(TokenType::RPAREN);
-            return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), tokenStream.current().location);
+            return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), genericTypeArguments, tokenStream.current().location);
         }
 
         throw ParseException("Invalid function call target", tokenStream.current().location);
@@ -286,6 +306,71 @@ namespace parser::expression
         case TokenType::SCOPE:
             return true;
         default:
+            return false;
+        }
+    }
+
+    bool PostfixOperatorParser::isGenericFunctionCall()
+    {
+        // Lookahead to determine if identifier< is a generic function call or comparison
+        // Generic function call pattern: identifier<Type1, Type2>(args)
+        // We need to check if after the generic type args there's a '('
+
+        // Should be at '<'
+        if (!tokenStream.check(TokenType::LESS))
+        {
+            return false;
+        }
+
+        try
+        {
+            // Use peek to lookahead without modifying state
+            size_t offset = 1; // Start after '<'
+            int depth = 1;
+
+            while (depth > 0)
+            {
+                Token nextToken = tokenStream.peekAhead(offset);
+
+                if (nextToken.type == TokenType::END)
+                {
+                    return false;
+                }
+
+                if (nextToken.type == TokenType::LESS)
+                {
+                    depth++;
+                }
+                else if (nextToken.type == TokenType::GREATER)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        // Found matching '>', now check for '('
+                        Token afterGreater = tokenStream.peekAhead(offset + 1);
+                        return afterGreater.type == TokenType::LPAREN;
+                    }
+                }
+                else if (nextToken.type != TokenType::IDENTIFIER &&
+                         nextToken.type != TokenType::COMMA)
+                {
+                    // Invalid token for generic type argument
+                    return false;
+                }
+
+                offset++;
+
+                // Safety check to avoid infinite loop
+                if (offset > 100)
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+        catch (...)
+        {
             return false;
         }
     }

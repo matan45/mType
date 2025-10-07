@@ -200,6 +200,21 @@ namespace evaluator
                 throw UndefinedException("Undefined function: " + node->getFunctionName(), node->getLocation());
             }
 
+            // Handle generic function calls
+            auto functionToCall = funcDef;
+            if (node->hasGenericTypeArguments())
+            {
+                // Validate that the function is actually generic
+                if (!funcDef->hasGenericInformation())
+                {
+                    throw TypeException(
+                        "Function '" + node->getFunctionName() + "' is not generic but generic type arguments were provided");
+                }
+
+                // For now, we'll use the same function definition but set up type bindings
+                // In the future, we could instantiate like methods do
+            }
+
             // Evaluate arguments
             std::vector<Value> args;
             for (auto& argNode : node->getArguments())
@@ -210,6 +225,22 @@ namespace evaluator
             // Use ScopeGuard for automatic scope management
             {
                 ScopeGuard scope(env, node->getFunctionName(), ScopeType::FUNCTION);
+
+                // Set up generic type bindings if this is a generic function call
+                auto previousGenericBindings = context->getGenericTypeBindings();
+                if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                {
+                    const auto& genericTypeParams = functionToCall->getGenericTypeParameters();
+                    const auto& genericTypeArgs = node->getGenericTypeArguments();
+                    std::unordered_map<std::string, std::string> typeBindings;
+
+                    for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+                    {
+                        typeBindings[genericTypeParams[i].name] = genericTypeArgs[i];
+                    }
+
+                    context->setGenericTypeBindings(typeBindings);
+                }
 
                 // Validate and bind parameters (includes comprehensive type checking)
                 ParameterBinder::bindAndValidateParameters(
@@ -300,11 +331,28 @@ namespace evaluator
                         funcDef->getReturnType(), returnValue, node->getFunctionName(),
                         node->getLocation());
 
+                    // Restore previous generic type bindings before returning
+                    if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                    {
+                        context->setGenericTypeBindings(previousGenericBindings);
+                    }
+
                     return returnValue;
                 }
                 catch (...)
                 {
+                    // Restore previous generic type bindings on exception
+                    if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                    {
+                        context->setGenericTypeBindings(previousGenericBindings);
+                    }
                     throw;
+                }
+
+                // Restore previous generic type bindings
+                if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                {
+                    context->setGenericTypeBindings(previousGenericBindings);
                 }
 
                 return result;

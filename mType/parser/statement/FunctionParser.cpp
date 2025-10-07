@@ -1,6 +1,7 @@
 #include "FunctionParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../errors/ParseException.hpp"
@@ -50,6 +51,16 @@ namespace parser::statement
 
         expectToken(TokenType::FUNCTION);
 
+        // Parse generic type parameters (like methods do)
+        std::vector<GenericTypeParameter> functionGenericParameters;
+        if (tokenStream.check(TokenType::LESS))
+        {
+            tokenStream.advance(); // consume '<'
+            GenericParameterParser genericParser(tokenStream, context);
+            functionGenericParameters = genericParser.parseGenericTypeParameters();
+            tokenStream.expect(TokenType::GREATER); // consume '>'
+        }
+
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
             throw ParseException("Expected function name", tokenStream.current().location);
@@ -79,9 +90,10 @@ namespace parser::statement
             body = context.parseStatement(); // Should be a block
         }
 
-        // Use new generic-aware constructor
+        // Use new generic-aware constructor with function generic parameters
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
-                                                       genericParameters, std::move(body));
+                                                       genericParameters, std::move(body),
+                                                       functionGenericParameters);
         return funcNode;
     }
 
