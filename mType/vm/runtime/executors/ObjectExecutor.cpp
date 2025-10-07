@@ -192,7 +192,10 @@ namespace vm::runtime
         }
 
         if (fieldDef->isFinal()) {
-            throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+            // Allow initialization of final fields (when not yet initialized)
+            if (fieldDef->isInitialized()) {
+                throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+            }
         }
 
         ast::AccessModifier accessMod = fieldDef->getAccessModifier();

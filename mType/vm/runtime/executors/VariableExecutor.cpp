@@ -104,7 +104,11 @@ namespace vm::runtime
                     // Field found - check if it's final
                     if (fieldDef->isFinal())
                     {
-                        throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
+                        // Allow initialization of final fields (when not yet initialized)
+                        if (fieldDef->isInitialized())
+                        {
+                            throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
+                        }
                     }
                     // Set the field value
                     thisInstance->setField(varName, val);
@@ -136,7 +140,7 @@ namespace vm::runtime
                                 // Check if it's final
                                 if (it->second->isFinal())
                                 {
-                                    // Allow initialization of final fields (when not yet initialized)
+                                    // Allow initialization of final static fields (when not yet initialized)
                                     if (it->second->isInitialized())
                                     {
                                         throw errors::RuntimeException(
