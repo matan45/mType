@@ -127,8 +127,8 @@ namespace vm::compiler
         types::GenericTypeResolver genericResolver;
         types::TypeInferenceEngine typeInference;
         types::TypeValidator typeValidator;
-        registration::ClassRegistrar classRegistrar;
         registration::InterfaceRegistrar interfaceRegistrar;
+        registration::ClassRegistrar classRegistrar;
 
         // Shared context for visitor compilers
         visitors::CompilerContext context;

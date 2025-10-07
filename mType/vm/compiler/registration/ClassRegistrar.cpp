@@ -18,10 +18,12 @@ namespace vm::compiler::registration
 {
     ClassRegistrar::ClassRegistrar(
         std::shared_ptr<environment::Environment> environment,
-        bytecode::BytecodeProgram& program
+        bytecode::BytecodeProgram& program,
+        InterfaceRegistrar* interfaceRegistrar
     )
         : environment(environment)
         , program(program)
+        , interfaceRegistrar(interfaceRegistrar)
     {
     }
 
@@ -162,6 +164,11 @@ namespace vm::compiler::registration
 
         // Register the class
         classRegistry->registerClass(className, classDef);
+
+        // Validate interface implementations
+        if (interfaceRegistrar && !classDef->getImplementedInterfaces().empty()) {
+            interfaceRegistrar->validateInterfaceImplementations(classDef, classNode->getLocation());
+        }
 
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);

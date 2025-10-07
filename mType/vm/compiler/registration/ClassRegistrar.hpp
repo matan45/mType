@@ -3,6 +3,7 @@
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
+#include "InterfaceRegistrar.hpp"
 #include <memory>
 #include <unordered_set>
 
@@ -17,7 +18,8 @@ namespace vm::compiler::registration
     public:
         ClassRegistrar(
             std::shared_ptr<environment::Environment> environment,
-            bytecode::BytecodeProgram& program
+            bytecode::BytecodeProgram& program,
+            InterfaceRegistrar* interfaceRegistrar = nullptr
         );
 
         ~ClassRegistrar() = default;
@@ -36,6 +38,7 @@ namespace vm::compiler::registration
     private:
         std::shared_ptr<environment::Environment> environment;
         bytecode::BytecodeProgram& program;
+        InterfaceRegistrar* interfaceRegistrar;
 
         // Helper methods
         void registerSingleClass(ast::ClassNode* classNode);

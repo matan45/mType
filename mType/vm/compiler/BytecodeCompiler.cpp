@@ -11,8 +11,8 @@ namespace vm::compiler
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
         , typeValidator(env)
-        , classRegistrar(env, program)
         , interfaceRegistrar(env, genericResolver)
+        , classRegistrar(env, program, &interfaceRegistrar)
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager,
                   typeInference, typeValidator, genericResolver)
@@ -61,9 +61,9 @@ namespace vm::compiler
 
     void BytecodeCompiler::registerClassesForBytecode(ast::ASTNode* node)
     {
-        // Delegate to ClassRegistrar and InterfaceRegistrar
-        classRegistrar.registerClasses(node);
+        // Register interfaces FIRST, then classes can validate against them
         interfaceRegistrar.registerInterfaces(node);
+        classRegistrar.registerClasses(node);
     }
 
     void BytecodeCompiler::linkParentClasses(ast::ASTNode* node)
