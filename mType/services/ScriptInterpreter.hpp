@@ -7,6 +7,7 @@
 #include "../environment/Environment.hpp"
 #include "../ast/ASTNode.hpp"
 #include "../constants/ExecutionMode.hpp"
+#include "../vm/bytecode/BytecodeProgram.hpp"
 
 // Forward declarations
 namespace evaluator
@@ -57,11 +58,18 @@ namespace services
         // Import resolution helper for bytecode compilation
         void resolveImports(ast::ASTNode* ast);
 
+        // Bytecode class registration helper
+        void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes);
+
     public:
         ScriptInterpreter();
         explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::O1);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+
+        // Bytecode compilation and execution
+        void compileToFile(const std::string& sourceFile, const std::string& outputFile);
+        void runCompiledBytecode(const std::string& bytecodeFile);
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);

@@ -65,7 +65,6 @@ namespace vm::runtime
     }
 
     void FunctionExecutor::handleCallNative(const bytecode::BytecodeProgram::Instruction& instr) {
-        // TODO: Implement native function calls
         throw errors::RuntimeException("CALL_NATIVE not yet implemented");
     }
 

@@ -122,7 +122,8 @@ void printAvailableTestSuites()
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
-void runSpecificTestSuite(const std::string& suiteName, constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+void runSpecificTestSuite(const std::string& suiteName,
+                          constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
     // Handle native test separately since it doesn't inherit from TestSuite
     if (suiteName == "native")
@@ -152,228 +153,8 @@ void runSpecificTestSuite(const std::string& suiteName, constants::ExecutionMode
 }
 
 // Helper function to convert string type name to ValueType
-value::ValueType stringToValueType(const std::string& typeName)
-{
-    if (typeName == "int") return value::ValueType::INT;
-    if (typeName == "float") return value::ValueType::FLOAT;
-    if (typeName == "bool") return value::ValueType::BOOL;
-    if (typeName == "string") return value::ValueType::STRING;
-    if (typeName == "void") return value::ValueType::VOID;
-    if (typeName == "null") return value::ValueType::NULL_TYPE;
-    // Default to OBJECT for class types
-    return value::ValueType::OBJECT;
-}
-
-// Helper function to register classes from ClassMetadata
-void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes,
-                                  std::shared_ptr<environment::Environment> env)
-{
-    using namespace runtimeTypes::klass;
-    using namespace vm::bytecode;
-
-    auto classRegistry = env->getClassRegistry();
-
-    // First pass: Create all ClassDefinitions
-    std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classMap;
-
-    for (const auto& classMeta : classes)
-    {
-        // Create generic parameters
-        std::vector<ast::GenericTypeParameter> genericParams;
-        for (const auto& paramName : classMeta.genericParameters)
-        {
-            genericParams.push_back(ast::GenericTypeParameter(paramName));
-        }
-
-        // Create ClassDefinition
-        auto classDef = std::make_shared<ClassDefinition>(classMeta.name, genericParams);
-
-        // Set parent class name and interfaces
-        if (!classMeta.parentClassName.empty())
-        {
-            classDef->setParentClassName(classMeta.parentClassName);
-        }
-        classDef->setImplementedInterfaces(classMeta.implementedInterfaces);
-
-        classMap[classMeta.name] = classDef;
-    }
-
-    // Second pass: Link parent classes and populate members
-    for (const auto& classMeta : classes)
-    {
-        auto classDef = classMap[classMeta.name];
-
-        // Link parent class
-        if (!classMeta.parentClassName.empty() && classMap.count(classMeta.parentClassName))
-        {
-            classDef->setParentClass(classMap[classMeta.parentClassName]);
-        }
-
-        // Add instance fields
-        for (const auto& fieldMeta : classMeta.instanceFields)
-        {
-            auto fieldType = stringToValueType(fieldMeta.type);
-            auto accessMod = fieldMeta.isPrivate ? ast::AccessModifier::PRIVATE :
-                           (fieldMeta.isProtected ? ast::AccessModifier::PROTECTED : ast::AccessModifier::PUBLIC);
-
-            auto fieldDef = std::make_shared<FieldDefinition>(
-                fieldMeta.name,
-                fieldType,
-                value::Value{},  // Default value
-                false,  // not static
-                fieldMeta.isFinal,
-                accessMod
-            );
-            classDef->addInstanceField(fieldMeta.name, fieldDef);
-        }
-
-        // Add static fields
-        for (const auto& fieldMeta : classMeta.staticFields)
-        {
-            auto fieldType = stringToValueType(fieldMeta.type);
-            auto accessMod = fieldMeta.isPrivate ? ast::AccessModifier::PRIVATE :
-                           (fieldMeta.isProtected ? ast::AccessModifier::PROTECTED : ast::AccessModifier::PUBLIC);
-
-            auto fieldDef = std::make_shared<FieldDefinition>(
-                fieldMeta.name,
-                fieldType,
-                value::Value{},  // Default value
-                true,  // static
-                fieldMeta.isFinal,
-                accessMod
-            );
-            classDef->addStaticField(fieldMeta.name, fieldDef);
-        }
-
-        // Add instance methods
-        for (const auto& methodMeta : classMeta.instanceMethods)
-        {
-            auto returnType = stringToValueType(methodMeta.returnType);
-            std::vector<std::pair<std::string, value::ParameterType>> params;
-
-            for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i)
-            {
-                auto paramType = stringToValueType(methodMeta.parameterTypes[i]);
-                params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
-            }
-
-            auto accessMod = methodMeta.isPrivate ? ast::AccessModifier::PRIVATE :
-                           (methodMeta.isProtected ? ast::AccessModifier::PROTECTED : ast::AccessModifier::PUBLIC);
-
-            auto methodDef = std::make_shared<MethodDefinition>(
-                methodMeta.name,
-                returnType,
-                params,
-                std::vector<std::pair<std::string, value::Value>>{},  // Empty arguments
-                nullptr,  // No body for bytecode methods
-                false,  // not static
-                accessMod
-            );
-            classDef->addInstanceMethod(methodMeta.name, methodDef);
-        }
-
-        // Add static methods
-        for (const auto& methodMeta : classMeta.staticMethods)
-        {
-            auto returnType = stringToValueType(methodMeta.returnType);
-            std::vector<std::pair<std::string, value::ParameterType>> params;
-
-            for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i)
-            {
-                auto paramType = stringToValueType(methodMeta.parameterTypes[i]);
-                params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
-            }
-
-            auto accessMod = methodMeta.isPrivate ? ast::AccessModifier::PRIVATE :
-                           (methodMeta.isProtected ? ast::AccessModifier::PROTECTED : ast::AccessModifier::PUBLIC);
-
-            auto methodDef = std::make_shared<MethodDefinition>(
-                methodMeta.name,
-                returnType,
-                params,
-                std::vector<std::pair<std::string, value::Value>>{},  // Empty arguments
-                nullptr,  // No body for bytecode methods
-                true,  // static
-                accessMod
-            );
-            classDef->addStaticMethod(methodMeta.name, methodDef);
-        }
-
-        // Add constructors
-        for (const auto& ctorMeta : classMeta.constructors)
-        {
-            std::vector<std::pair<std::string, value::ParameterType>> params;
-
-            for (size_t i = 0; i < ctorMeta.parameterNames.size(); ++i)
-            {
-                auto paramType = stringToValueType(ctorMeta.parameterTypes[i]);
-                params.push_back({ctorMeta.parameterNames[i], value::ParameterType(paramType)});
-            }
-
-            auto ctorDef = std::make_shared<ConstructorDefinition>(
-                params,
-                nullptr,  // No body for bytecode constructors
-                ast::AccessModifier::PUBLIC
-            );
-            classDef->addConstructor(ctorDef);
-        }
-
-        // Register the class
-        classRegistry->registerClass(classMeta.name, classDef);
-    }
-}
-
-// Helper function to recursively resolve imports before bytecode compilation
-void resolveImports(ast::ASTNode* node, services::ImportManager* importManager, std::shared_ptr<environment::Environment> env)
-{
-    using namespace ast;
-
-    if (!node || !importManager) return;
-
-    if (auto importNode = dynamic_cast<ImportNode*>(node)) {
-        std::string filePath = importNode->getFilePath();
-
-        // If already resolved, just recurse into imported AST
-        if (importNode->isResolved() && importNode->getImportedAST()) {
-            resolveImports(importNode->getImportedAST(), importManager, env);
-            return;
-        }
-
-        // Resolve the import path
-        std::string resolvedPath = importManager->resolvePath(filePath);
-        importManager->markAsBeingEvaluated(resolvedPath);
-
-        try {
-            // Parse and cache the imported file
-            ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
-            importNode->setImportedAST(importedAST);
-
-            // Recursively resolve imports in the imported file
-            resolveImports(importedAST, importManager, env);
-
-            importManager->markAsEvaluated(resolvedPath);
-        }
-        catch (...) {
-            importManager->unmarkAsBeingEvaluated(resolvedPath);
-            throw;
-        }
-
-        importManager->unmarkAsBeingEvaluated(resolvedPath);
-        return;
-    }
-
-    // Recursively process children
-    if (auto programNode = dynamic_cast<ProgramNode*>(node)) {
-        for (const auto& statement : programNode->getStatements()) {
-            resolveImports(statement.get(), importManager, env);
-        }
-    }
-    else if (auto blockNode = dynamic_cast<BlockNode*>(node)) {
-        for (const auto& statement : blockNode->getStatements()) {
-            resolveImports(statement.get(), importManager, env);
-        }
-    }
-}
+// Note: stringToValueType and registerClassesFromMetadata have been refactored into ScriptInterpreter
+// Note: resolveImports functionality has been refactored into ImportManager::resolveAllImports()
 
 void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
@@ -381,15 +162,15 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     std::cout << "Execution Mode: ";
     switch (execMode)
     {
-        case constants::ExecutionMode::AST_INTERPRETER:
-            std::cout << "AST Interpreter\n";
-            break;
-        case constants::ExecutionMode::BYTECODE_VM:
-            std::cout << "Bytecode VM\n";
-            break;
-        case constants::ExecutionMode::DUAL_VALIDATION:
-            std::cout << "Dual Validation\n";
-            break;
+    case constants::ExecutionMode::AST_INTERPRETER:
+        std::cout << "AST Interpreter\n";
+        break;
+    case constants::ExecutionMode::BYTECODE_VM:
+        std::cout << "Bytecode VM\n";
+        break;
+    case constants::ExecutionMode::DUAL_VALIDATION:
+        std::cout << "Dual Validation\n";
+        break;
     }
     std::cout << "\n";
 
@@ -435,22 +216,28 @@ int main(int argc, char* argv[])
     // Parse execution mode first
     constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
 
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--bytecode") {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string(argv[i]) == "--bytecode")
+        {
             execMode = constants::ExecutionMode::BYTECODE_VM;
-        } else if (std::string(argv[i]) == "--dual") {
+        }
+        else if (std::string(argv[i]) == "--dual")
+        {
             execMode = constants::ExecutionMode::DUAL_VALIDATION;
         }
     }
 
     // Check for test suite execution
-    if (argc >= 2 && std::string(argv[argc-2]) == "--test" && argc >= 3) {
-        std::string suiteName = argv[argc-1];
+    if (argc >= 2 && std::string(argv[argc - 2]) == "--test" && argc >= 3)
+    {
+        std::string suiteName = argv[argc - 1];
         runSpecificTestSuite(suiteName, execMode);
         return 0;
     }
 
-    if (argc >= 2 && std::string(argv[argc-1]) == "--tests") {
+    if (argc >= 2 && std::string(argv[argc - 1]) == "--tests")
+    {
         runAllTests(execMode);
         return 0;
     }
@@ -499,49 +286,18 @@ int main(int argc, char* argv[])
     if (argc == 3 && std::string(argv[1]) == "--compile")
     {
         std::string sourceFile = argv[2];
-        std::string outputFile = sourceFile + "c";  // .mt -> .mtc
+        std::string outputFile = sourceFile + "c"; // .mt -> .mtc
 
-        try {
+        try
+        {
             std::cout << "Compiling " << sourceFile << " to " << outputFile << "...\n";
 
-            // Parse the source file
-            Lexer lexer(sourceFile);
-            auto importManager = std::make_unique<services::ImportManager>();
-            std::filesystem::path scriptPath(sourceFile);
-            importManager->setBaseDirectory(scriptPath.parent_path().string());
-
-            // Keep a raw pointer before moving
-            services::ImportManager* importMgrPtr = importManager.get();
-
-            Parser parser(lexer, std::move(importManager));
-            auto ast = parser.parseProgram();
-
-            // Resolve all imports
-            auto env = EnvironmentBuilder::createDefault();
-            resolveImports(ast.get(), importMgrPtr, env);
-
-            // Compile to bytecode
-            vm::compiler::BytecodeCompiler compiler(env);
-            auto program = compiler.compile(ast.get());
-
-            // Store source file path for class registration when loading
-            program.setSourceFilePath(sourceFile);
-
-            // Serialize to file
-            std::ofstream outFile(outputFile, std::ios::binary);
-            if (!outFile) {
-                std::cerr << "Error: Could not open output file " << outputFile << std::endl;
-                return 1;
-            }
-            program.serialize(outFile);
-            outFile.close();
-
-            std::cout << "Successfully compiled to " << outputFile << "\n";
-            std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
-            std::cout << "  Classes: " << program.getClasses().size() << "\n";
+            ScriptInterpreter interpreter;
+            interpreter.compileToFile(sourceFile, outputFile);
             return 0;
         }
-        catch (const std::exception& e) {
+        catch (const std::exception& e)
+        {
             std::cerr << "Compilation error: " << e.what() << std::endl;
             return 1;
         }
@@ -552,35 +308,16 @@ int main(int argc, char* argv[])
     {
         std::string cachedFile = argv[2];
 
-        try {
+        try
+        {
             std::cout << "Loading cached bytecode from " << cachedFile << "...\n";
 
-            // Deserialize bytecode program
-            std::ifstream inFile(cachedFile, std::ios::binary);
-            if (!inFile) {
-                std::cerr << "Error: Could not open cached file " << cachedFile << std::endl;
-                return 1;
-            }
-            auto program = vm::bytecode::BytecodeProgram::deserialize(inFile);
-            inFile.close();
-
-            std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
-            std::cout << "  Classes: " << program.getClasses().size() << "\n";
-            std::cout << "\nExecuting bytecode...\n\n";
-
-            // Create environment and register classes from metadata
-            auto env = EnvironmentBuilder::createDefault();
-
-            // Register classes from ClassMetadata
-            registerClassesFromMetadata(program.getClasses(), env);
-
-            // Execute the bytecode
-            vm::runtime::VirtualMachine virtualMachine(env);
-            virtualMachine.execute(program);
-
+            ScriptInterpreter interpreter;
+            interpreter.runCompiledBytecode(cachedFile);
             return 0;
         }
-        catch (const std::exception& e) {
+        catch (const std::exception& e)
+        {
             std::cerr << "Execution error: " << e.what() << std::endl;
             return 1;
         }
@@ -635,15 +372,15 @@ int main(int argc, char* argv[])
         std::cout << "Execution Mode: ";
         switch (execMode)
         {
-            case constants::ExecutionMode::AST_INTERPRETER:
-                std::cout << "AST Interpreter";
-                break;
-            case constants::ExecutionMode::BYTECODE_VM:
-                std::cout << "Bytecode VM";
-                break;
-            case constants::ExecutionMode::DUAL_VALIDATION:
-                std::cout << "Dual Validation";
-                break;
+        case constants::ExecutionMode::AST_INTERPRETER:
+            std::cout << "AST Interpreter";
+            break;
+        case constants::ExecutionMode::BYTECODE_VM:
+            std::cout << "Bytecode VM";
+            break;
+        case constants::ExecutionMode::DUAL_VALIDATION:
+            std::cout << "Dual Validation";
+            break;
         }
         std::cout << " (Optimization Level: O" << static_cast<int>(optLevel) << ")\n\n";
 

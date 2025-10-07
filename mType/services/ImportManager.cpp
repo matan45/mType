@@ -3,6 +3,9 @@
 #include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
+#include "../ast/nodes/statements/ImportNode.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
 
 
 namespace services
@@ -184,5 +187,55 @@ namespace services
     std::vector<std::string> ImportManager::getImportedFiles() const
     {
         return std::vector<std::string>(importedFiles.begin(), importedFiles.end());
+    }
+
+    void ImportManager::resolveAllImports(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Handle ImportNode
+        if (auto importNode = dynamic_cast<ast::ImportNode*>(node)) {
+            std::string filePath = importNode->getFilePath();
+
+            // If already resolved, just recurse into imported AST
+            if (importNode->isResolved() && importNode->getImportedAST()) {
+                resolveAllImports(importNode->getImportedAST());
+                return;
+            }
+
+            // Resolve the import path
+            std::string resolvedPath = resolvePath(filePath);
+            markAsBeingEvaluated(resolvedPath);
+
+            try {
+                // Parse and cache the imported file
+                ASTNode* importedAST = parseAndCacheAST(filePath);
+                importNode->setImportedAST(importedAST);
+
+                // Recursively resolve imports in the imported file
+                resolveAllImports(importedAST);
+
+                markAsEvaluated(resolvedPath);
+            }
+            catch (...) {
+                unmarkAsBeingEvaluated(resolvedPath);
+                throw;
+            }
+
+            unmarkAsBeingEvaluated(resolvedPath);
+            return;
+        }
+
+        // Recursively process children based on node type
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node)) {
+            for (const auto& statement : programNode->getStatements()) {
+                resolveAllImports(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node)) {
+            for (const auto& statement : blockNode->getStatements()) {
+                resolveAllImports(statement.get());
+            }
+        }
     }
 }

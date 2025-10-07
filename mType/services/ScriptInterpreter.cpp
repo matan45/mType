@@ -1,5 +1,4 @@
 ﻿#include "ScriptInterpreter.hpp"
-#include "../errors/RuntimeException.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/MethodNotFoundException.hpp"
 #include "../errors/ObjectException.hpp"
@@ -24,21 +23,18 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
-#include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "../ast/nodes/classes/ConstructorNode.hpp"
-#include "../ast/nodes/classes/FieldNode.hpp"
-#include "../ast/nodes/classes/MethodNode.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
+#include "../vm/bytecode/BytecodeProgram.hpp"
+#include <fstream>
 
 namespace services
 {
@@ -136,21 +132,6 @@ namespace services
 
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
-
-            // Execute based on execution mode
-            value::Value result;
-            switch (executionMode)
-            {
-            case constants::ExecutionMode::AST_INTERPRETER:
-                result = executeAST(ast.get());
-                break;
-            case constants::ExecutionMode::BYTECODE_VM:
-                result = executeBytecode(ast.get());
-                break;
-            case constants::ExecutionMode::DUAL_VALIDATION:
-                result = executeDualValidation(ast.get());
-                break;
-            }
 
             // Automatic cleanup after script execution to prevent memory growth
             // Only clean up interfaces that are no longer referenced
@@ -773,7 +754,6 @@ namespace services
         // Compare results
         if (astSuccess && vmSuccess)
         {
-            // TODO: Deep comparison of results
             std::cout << "[VALIDATION] Both executions succeeded" << std::endl;
             std::cout << "=== END DUAL VALIDATION ===" << std::endl;
             return astResult; // Prefer AST result as ground truth
@@ -896,5 +876,241 @@ namespace services
 
         // For other node types, we don't need to traverse further
         // Imports are typically at the top level
+    }
+
+    void ScriptInterpreter::compileToFile(const std::string& sourceFile, const std::string& outputFile)
+    {
+        using namespace lexer;
+        using namespace parser;
+        using namespace vm::compiler;
+
+        // Parse the source file
+        Lexer lexer(sourceFile);
+        auto importManager = std::make_unique<ImportManager>();
+        std::filesystem::path scriptPath(sourceFile);
+        importManager->setBaseDirectory(scriptPath.parent_path().string());
+
+        // Keep a raw pointer before moving
+        ImportManager* importMgrPtr = importManager.get();
+
+        Parser parser(lexer, std::move(importManager));
+        auto ast = parser.parseProgram();
+
+        // Resolve all imports using ImportManager
+        importMgrPtr->resolveAllImports(ast.get());
+
+        // Compile to bytecode
+        BytecodeCompiler bytecodeCompiler(environment);
+        auto program = bytecodeCompiler.compile(ast.get());
+
+        // Store source file path for class registration when loading
+        program.setSourceFilePath(sourceFile);
+
+        // Serialize to file
+        std::ofstream outFile(outputFile, std::ios::binary);
+        if (!outFile) {
+            throw std::runtime_error("Could not open output file: " + outputFile);
+        }
+        program.serialize(outFile);
+        outFile.close();
+
+        std::cout << "Successfully compiled to " << outputFile << "\n";
+        std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
+        std::cout << "  Classes: " << program.getClasses().size() << "\n";
+    }
+
+    namespace {
+        // Helper function to convert type names to ValueType
+        value::ValueType stringToValueType(const std::string& typeName) {
+            if (typeName == "int") return value::ValueType::INT;
+            if (typeName == "float") return value::ValueType::FLOAT;
+            if (typeName == "bool") return value::ValueType::BOOL;
+            if (typeName == "string") return value::ValueType::STRING;
+            if (typeName == "void") return value::ValueType::VOID;
+            if (typeName == "null") return value::ValueType::NULL_TYPE;
+            // Default to OBJECT for class types
+            return value::ValueType::OBJECT;
+        }
+    }
+
+    void ScriptInterpreter::registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes)
+    {
+        using namespace runtimeTypes::klass;
+
+        auto classRegistry = environment->getClassRegistry();
+
+        // First pass: Create all ClassDefinitions
+        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classMap;
+        for (const auto& classMeta : classes) {
+            // Create generic parameters
+            std::vector<ast::GenericTypeParameter> genericParams;
+            for (const auto& paramName : classMeta.genericParameters) {
+                genericParams.push_back(ast::GenericTypeParameter(paramName));
+            }
+
+            // Create ClassDefinition
+            auto classDef = std::make_shared<ClassDefinition>(classMeta.name, genericParams);
+
+            // Set parent class name and interfaces
+            if (!classMeta.parentClassName.empty()) {
+                classDef->setParentClassName(classMeta.parentClassName);
+            }
+            classDef->setImplementedInterfaces(classMeta.implementedInterfaces);
+
+            classMap[classMeta.name] = classDef;
+        }
+
+        // Second pass: Link parent classes and populate members
+        for (const auto& classMeta : classes) {
+            auto classDef = classMap[classMeta.name];
+
+            // Link parent class
+            if (!classMeta.parentClassName.empty() && classMap.count(classMeta.parentClassName)) {
+                classDef->setParentClass(classMap[classMeta.parentClassName]);
+            }
+
+            // Add instance fields
+            for (const auto& fieldMeta : classMeta.instanceFields) {
+                auto fieldType = stringToValueType(fieldMeta.type);
+                auto accessMod = fieldMeta.isPrivate
+                                     ? ast::AccessModifier::PRIVATE
+                                     : (fieldMeta.isProtected
+                                            ? ast::AccessModifier::PROTECTED
+                                            : ast::AccessModifier::PUBLIC);
+
+                auto fieldDef = std::make_shared<FieldDefinition>(
+                    fieldMeta.name,
+                    fieldType,
+                    std::monostate{}, // Empty value - bytecode will initialize
+                    false, // not static
+                    fieldMeta.isFinal,
+                    accessMod
+                );
+                classDef->addInstanceField(fieldMeta.name, fieldDef);
+            }
+
+            // Add static fields
+            for (const auto& fieldMeta : classMeta.staticFields) {
+                auto fieldType = stringToValueType(fieldMeta.type);
+                auto accessMod = fieldMeta.isPrivate
+                                     ? ast::AccessModifier::PRIVATE
+                                     : (fieldMeta.isProtected
+                                            ? ast::AccessModifier::PROTECTED
+                                            : ast::AccessModifier::PUBLIC);
+
+                auto fieldDef = std::make_shared<FieldDefinition>(
+                    fieldMeta.name,
+                    fieldType,
+                    std::monostate{}, // Empty value - bytecode will initialize
+                    true, // static
+                    fieldMeta.isFinal,
+                    accessMod
+                );
+                classDef->addStaticField(fieldMeta.name, fieldDef);
+            }
+
+            // Add instance methods
+            for (const auto& methodMeta : classMeta.instanceMethods) {
+                auto returnType = stringToValueType(methodMeta.returnType);
+                std::vector<std::pair<std::string, value::ParameterType>> params;
+
+                for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i) {
+                    auto paramType = stringToValueType(methodMeta.parameterTypes[i]);
+                    params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
+                }
+
+                auto accessMod = methodMeta.isPrivate
+                                     ? ast::AccessModifier::PRIVATE
+                                     : (methodMeta.isProtected
+                                            ? ast::AccessModifier::PROTECTED
+                                            : ast::AccessModifier::PUBLIC);
+
+                auto methodDef = std::make_shared<MethodDefinition>(
+                    methodMeta.name,
+                    returnType,
+                    params,
+                    std::vector<std::pair<std::string, value::Value>>{}, // Empty arguments
+                    nullptr, // No body for bytecode methods
+                    false, // not static
+                    accessMod
+                );
+                classDef->addInstanceMethod(methodMeta.name, methodDef);
+            }
+
+            // Add static methods
+            for (const auto& methodMeta : classMeta.staticMethods) {
+                auto returnType = stringToValueType(methodMeta.returnType);
+                std::vector<std::pair<std::string, value::ParameterType>> params;
+
+                for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i) {
+                    auto paramType = stringToValueType(methodMeta.parameterTypes[i]);
+                    params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
+                }
+
+                auto accessMod = methodMeta.isPrivate
+                                     ? ast::AccessModifier::PRIVATE
+                                     : (methodMeta.isProtected
+                                            ? ast::AccessModifier::PROTECTED
+                                            : ast::AccessModifier::PUBLIC);
+
+                auto methodDef = std::make_shared<MethodDefinition>(
+                    methodMeta.name,
+                    returnType,
+                    params,
+                    std::vector<std::pair<std::string, value::Value>>{}, // Empty arguments
+                    nullptr, // No body for bytecode methods
+                    true, // static
+                    accessMod
+                );
+                classDef->addStaticMethod(methodMeta.name, methodDef);
+            }
+
+            // Add constructors
+            for (const auto& ctorMeta : classMeta.constructors) {
+                std::vector<std::pair<std::string, value::ParameterType>> params;
+
+                for (size_t i = 0; i < ctorMeta.parameterNames.size(); ++i) {
+                    auto paramType = stringToValueType(ctorMeta.parameterTypes[i]);
+                    params.push_back({ctorMeta.parameterNames[i], value::ParameterType(paramType)});
+                }
+
+                auto ctorDef = std::make_shared<ConstructorDefinition>(
+                    params,
+                    nullptr, // No body for bytecode constructors
+                    ast::AccessModifier::PUBLIC
+                );
+                classDef->addConstructor(ctorDef);
+            }
+
+            // Register the class
+            classRegistry->registerClass(classMeta.name, classDef);
+        }
+    }
+
+    void ScriptInterpreter::runCompiledBytecode(const std::string& bytecodeFile)
+    {
+        using namespace vm::bytecode;
+        using namespace vm::runtime;
+
+        // Deserialize bytecode program
+        std::ifstream inFile(bytecodeFile, std::ios::binary);
+        if (!inFile) {
+            throw std::runtime_error("Could not open bytecode file: " + bytecodeFile);
+        }
+        auto program = BytecodeProgram::deserialize(inFile);
+        inFile.close();
+
+        std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
+        std::cout << "  Classes: " << program.getClasses().size() << "\n";
+        std::cout << "\nExecuting bytecode...\n\n";
+
+        // Register classes from metadata
+        registerClassesFromMetadata(program.getClasses());
+
+        // Execute the bytecode
+        if (!vm) {
+            vm = std::make_unique<VirtualMachine>(environment);
+        }
+        vm->execute(program);
     }
 }
