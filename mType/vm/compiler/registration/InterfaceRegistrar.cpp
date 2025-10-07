@@ -5,6 +5,7 @@
 #include "../../../ast/nodes/statements/ImportNode.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
+#include "../../../errors/InheritanceException.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../ast/GenericType.hpp"
@@ -50,9 +51,27 @@ namespace vm::compiler::registration
         // Get extended interfaces
         const auto& extendedInterfaces = interfaceNode->getExtendedInterfaces();
 
-        // Validate that parent interfaces exist
+        // Validate that parent interfaces exist and are not classes
         for (const auto& parentInterface : extendedInterfaces) {
-            if (!interfaceRegistry->hasInterface(parentInterface)) {
+            // Extract base parent name from generic type
+            std::string baseParentName = parentInterface;
+            size_t genericStart = parentInterface.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentName = parentInterface.substr(0, genericStart);
+            }
+
+            // Check if the parent is actually a class
+            if (environment->findClass(baseParentName)) {
+                throw errors::InheritanceException(
+                    "Interface '" + interfaceName + "' cannot extend class '" + parentInterface + "'. "
+                    "Interfaces can only extend other interfaces.",
+                    interfaceName,
+                    parentInterface,
+                    interfaceNode->getLocation());
+            }
+
+            // Validate that parent interface exists
+            if (!interfaceRegistry->hasInterface(baseParentName)) {
                 throw errors::TypeException(
                     "Interface '" + interfaceName + "' extends undefined interface '" + parentInterface + "'",
                     interfaceNode->getLocation()

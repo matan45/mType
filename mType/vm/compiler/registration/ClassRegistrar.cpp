@@ -6,6 +6,7 @@
 #include "../../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../errors/RuntimeException.hpp"
+#include "../../../errors/InheritanceException.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
@@ -82,7 +83,28 @@ namespace vm::compiler::registration
 
         // Handle parent class
         if (classNode->hasParentClass()) {
-            classDef->setParentClassName(classNode->getParentClassName());
+            const std::string& parentClassName = classNode->getParentClassName();
+
+            // Validate that class is not trying to extend an interface
+            // Extract base parent name from generic type
+            std::string baseParentName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentName = parentClassName.substr(0, genericStart);
+            }
+
+            // Check if the parent is actually an interface
+            auto interfaceRegistry = environment->getInterfaceRegistry();
+            if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
+                throw errors::InheritanceException(
+                    "Class '" + className + "' cannot extend interface '" + parentClassName + "'. "
+                    "Classes can only extend other classes. Use 'implements' to implement interfaces.",
+                    className,
+                    parentClassName,
+                    classNode->getLocation());
+            }
+
+            classDef->setParentClassName(parentClassName);
         }
 
         // Handle implemented interfaces

@@ -296,5 +296,66 @@ namespace validation {
         return sig.str();
     }
 
+    void InheritanceValidator::validateClassCannotExtendInterface(
+        const std::string& className,
+        const std::string& parentName,
+        const SourceLocation& location,
+        std::shared_ptr<EvaluationContext> context)
+    {
+        if (!context) {
+            throw InheritanceException("No evaluation context available for validation", location);
+        }
+
+        auto env = context->getEnvironment();
+
+        // Extract base parent name from generic type (e.g., "Container<T>" -> "Container")
+        std::string baseParentName = parentName;
+        size_t genericStart = parentName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentName = parentName.substr(0, genericStart);
+        }
+
+        // Check if the parent is actually an interface
+        auto interfaceRegistry = env->getInterfaceRegistry();
+        if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
+            throw InheritanceException(
+                "Class '" + className + "' cannot extend interface '" + parentName + "'. "
+                "Classes can only extend other classes. Use 'implements' to implement interfaces.",
+                className,
+                parentName,
+                location);
+        }
+    }
+
+    void InheritanceValidator::validateInterfaceCannotExtendClass(
+        const std::string& interfaceName,
+        const std::string& parentName,
+        const SourceLocation& location,
+        std::shared_ptr<EvaluationContext> context)
+    {
+        if (!context) {
+            throw InheritanceException("No evaluation context available for validation", location);
+        }
+
+        auto env = context->getEnvironment();
+
+        // Extract base parent name from generic type (e.g., "Container<T>" -> "Container")
+        std::string baseParentName = parentName;
+        size_t genericStart = parentName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentName = parentName.substr(0, genericStart);
+        }
+
+        // Check if the parent is actually a class
+        if (env->findClass(baseParentName)) {
+            throw InheritanceException(
+                "Interface '" + interfaceName + "' cannot extend class '" + parentName + "'. "
+                "Interfaces can only extend other interfaces.",
+                interfaceName,
+                parentName,
+                location);
+        }
+    }
+
 } // namespace validation
 } // namespace evaluator

@@ -64,6 +64,13 @@ namespace evaluator
             if (node->hasParentClass()) {
                 const std::string& parentClassName = node->getParentClassName();
 
+                // Validate that class is not trying to extend an interface
+                validation::InheritanceValidator::validateClassCannotExtendInterface(
+                    node->getClassName(),
+                    parentClassName,
+                    node->getLocation(),
+                    context);
+
                 // Validate parent class exists
                 validation::InheritanceValidator::validateParentClassExists(
                     parentClassName,
@@ -315,6 +322,16 @@ namespace evaluator
                     std::to_string(MAX_GENERIC_PARAMETERS),
                     node->getLocation()
                 );
+            }
+
+            // Validate that interface is not trying to extend a class
+            for (const auto& parentInterfaceName : extendsInterfaces)
+            {
+                validation::InheritanceValidator::validateInterfaceCannotExtendClass(
+                    node->getName(),
+                    parentInterfaceName,
+                    node->getLocation(),
+                    context);
             }
 
             auto interfaceDef = std::make_shared<InterfaceDefinition>(

@@ -198,5 +198,8 @@ namespace tests::testSuite
         addTestFromFile("super syntax",
                         errorPath + "superSyntax.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Class Extends Interface Error",
+                        errorPath + "classExtendsInterface.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

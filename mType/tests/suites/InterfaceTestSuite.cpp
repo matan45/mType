@@ -121,5 +121,9 @@ namespace tests::testSuite
         addTestFromFile("Too Many Generic Parameters Error",
                         errorPath + "tooManyGenericParameters.mt",
                         TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Interface Extends Class Error",
+                        errorPath + "interfaceExtendsClass.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

@@ -107,6 +107,26 @@ namespace validation {
             const SourceLocation& location,
             std::shared_ptr<EvaluationContext> context);
 
+        /**
+         * Validate that a class does not extend an interface
+         * @throws InheritanceException if parent is an interface
+         */
+        static void validateClassCannotExtendInterface(
+            const std::string& className,
+            const std::string& parentName,
+            const SourceLocation& location,
+            std::shared_ptr<EvaluationContext> context);
+
+        /**
+         * Validate that an interface does not extend a class
+         * @throws InheritanceException if parent is a class
+         */
+        static void validateInterfaceCannotExtendClass(
+            const std::string& interfaceName,
+            const std::string& parentName,
+            const SourceLocation& location,
+            std::shared_ptr<EvaluationContext> context);
+
     private:
         static constexpr int MAX_INHERITANCE_DEPTH = 20;
 
