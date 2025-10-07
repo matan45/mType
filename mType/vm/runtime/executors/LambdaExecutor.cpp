@@ -128,7 +128,10 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        frame.functionName = "<lambda>";
+        // Preserve class context for access validation: ClassName::<lambda> or just <lambda>
+        frame.functionName = lambda->creatingClassName.empty() ?
+            "<lambda>" :
+            lambda->creatingClassName + "::<lambda>";
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
 
         context.callStack.push_back(frame);

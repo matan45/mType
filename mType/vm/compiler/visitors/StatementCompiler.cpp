@@ -19,18 +19,41 @@ namespace vm::compiler::visitors
         std::string name = node->getVariableName();
         auto* initializer = node->getInitializer();
 
-        // Compile the initializer (if any)
-        if (initializer) {
-            initializer->accept(ctx.visitor);  // Will need delegation
-        } else {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
-        }
-
         value::ValueType valueType = value::ValueType::VOID;
         try {
             valueType = node->getType();
         } catch (...) {
             valueType = value::ValueType::OBJECT;
+        }
+
+        // Lambda validation for declarations
+        if (initializer && dynamic_cast<ast::LambdaNode*>(initializer)) {
+            // Check if assigning lambda to functional interface
+            if (valueType == value::ValueType::OBJECT) {
+                // Infer the class name from the initializer
+                std::string className = ctx.typeInference.inferExpressionClassName(initializer);
+                if (!className.empty()) {
+                    // Validate that the interface is functional (has exactly one method)
+                    auto interfaceDef = ctx.environment->findInterface(className);
+                    if (interfaceDef && !interfaceDef->isFunctionalInterface()) {
+                        auto methodSignatures = interfaceDef->getMethodSignatures();
+                        throw errors::TypeException(
+                            "Cannot assign lambda to non-functional interface '" + className + "'. " +
+                            "Lambdas can only be assigned to interfaces with exactly one method. " +
+                            "Interface '" + className + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
+                            "Consider using a functional interface (single method) or implement the interface explicitly.",
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+        }
+
+        // Compile the initializer (if any)
+        if (initializer) {
+            initializer->accept(ctx.visitor);  // Will need delegation
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
         }
 
         // Track local variable if we're in a function
@@ -124,15 +147,47 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Lambda reassignment validation
+        // Lambda validation
         if (value && dynamic_cast<ast::LambdaNode*>(value)) {
-            // Check if assigning lambda to functional interface - validate no reassignment
-            bool isLambdaReassignment = false;
-            if (varType != value::ValueType::VOID) {
-                // This is a declaration, not reassignment
-            } else {
-                // Pure reassignment - check if variable is a functional interface
-                // For simplicity, we'll allow this check to be done at runtime
+            // Check if assigning lambda to functional interface
+            if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
+                // Validate that the interface is functional (has exactly one method)
+                auto interfaceDef = ctx.environment->findInterface(node->getClassName());
+                if (interfaceDef && !interfaceDef->isFunctionalInterface()) {
+                    auto methodSignatures = interfaceDef->getMethodSignatures();
+                    throw errors::TypeException(
+                        "Cannot assign lambda to non-functional interface '" + node->getClassName() + "'. " +
+                        "Lambdas can only be assigned to interfaces with exactly one method. " +
+                        "Interface '" + node->getClassName() + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
+                        "Consider using a functional interface (single method) or implement the interface explicitly.",
+                        node->getLocation()
+                    );
+                }
+            }
+
+            // Lambda reassignment validation
+            if (varType == value::ValueType::VOID) {
+                // This is a pure assignment (reassignment), not a declaration
+                // Check if the variable exists and is an interface type
+                std::string varClassName;
+
+                // Check if it's a local variable
+                if (ctx.functionFrameManager.isInFunction()) {
+                    varClassName = ctx.variableTracker.getLocalClassNameByName(name);
+                }
+
+                // Check if it's a global variable
+                if (varClassName.empty() && ctx.globalRegistry.exists(name)) {
+                    varClassName = ctx.globalRegistry.getClassName(name);
+                }
+
+                // If the variable is an interface type, reject reassignment
+                if (!varClassName.empty() && ctx.environment->findInterface(varClassName)) {
+                    throw errors::TypeException(
+                        "Type mismatch for variable '" + name + "': expected object but got void",
+                        node->getLocation()
+                    );
+                }
             }
         }
 

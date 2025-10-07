@@ -123,4 +123,15 @@ namespace vm::compiler::variables
         }
         return false;
     }
+
+    std::string VariableTracker::getLocalClassNameByName(const std::string& name) const
+    {
+        // Search for the most recent declaration of the variable
+        for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+            if (it->name == name) {
+                return it->className;
+            }
+        }
+        return "";  // Not found
+    }
 }

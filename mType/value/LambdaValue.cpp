@@ -83,6 +83,12 @@ namespace value
         lambdaContext->setCurrentMethod(capturedContext->getCurrentMethod());
         lambdaContext->setGenericTypeBindings(capturedContext->getGenericTypeBindings());
 
+        // Preserve calling class context for access control validation
+        // This allows lambdas to access private members of the class they're defined in
+        if (capturedContext->hasCallingClass()) {
+            lambdaContext->pushCallingClass(capturedContext->getCurrentCallingClass());
+        }
+
         // Restore captured variables to lambda scope
         for (const auto& [name, captured] : capturedVariables)
         {

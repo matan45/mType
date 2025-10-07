@@ -358,7 +358,10 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;  // Return to next instruction
             frame.frameBase = context.stackManager->size();
             frame.localBase = context.stackManager->size();
-            frame.functionName = "<lambda>";
+            // Preserve class context for access validation: ClassName::<lambda> or just <lambda>
+            frame.functionName = lambda->creatingClassName.empty() ?
+                "<lambda>" :
+                lambda->creatingClassName + "::<lambda>";
             frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
             frame.originatingLambda = lambda;  // Store lambda reference for variable access
 
@@ -625,7 +628,8 @@ namespace vm::runtime
                 const std::string& funcName = context.callStack.back().functionName;
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
-                    return funcName.substr(0, colonPos);
+                    std::string className = funcName.substr(0, colonPos);
+                    return className;
                 }
             }
         }

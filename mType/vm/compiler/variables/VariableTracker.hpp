@@ -54,6 +54,9 @@ namespace vm::compiler::variables
         // Check if variable exists in any scope within current function (for parameter shadowing detection)
         bool existsInFunction(const std::string& name) const;
 
+        // Get class name for a local variable by name
+        std::string getLocalClassNameByName(const std::string& name) const;
+
     private:
         std::vector<LocalVariable> locals;
         size_t nextLocalSlot;
