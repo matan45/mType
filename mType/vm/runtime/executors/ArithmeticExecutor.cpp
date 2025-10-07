@@ -2,7 +2,6 @@
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include <sstream>
-#include <iostream>
 
 namespace vm::runtime
 {

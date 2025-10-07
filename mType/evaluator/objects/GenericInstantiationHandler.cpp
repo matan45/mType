@@ -12,7 +12,6 @@
 #include "../../environment/manager/Scope.hpp"
 #include "../validation/AccessValidator.hpp"
 #include "../base/AccessContext.hpp"
-#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::klass;

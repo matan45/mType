@@ -19,7 +19,6 @@
 #include "../../value/LambdaValue.hpp"
 #include <chrono>
 #include <sstream>
-#include <iostream>
 #include <algorithm>
 #include <functional>
 #include <unordered_set>

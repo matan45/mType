@@ -5,7 +5,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
-#include <iostream>
+
 
 namespace vm::compiler::visitors
 {

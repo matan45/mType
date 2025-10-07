@@ -16,7 +16,6 @@
 #include "../base/AccessContext.hpp"
 #include <string>
 #include <vector>
-#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::klass;

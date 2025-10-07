@@ -1,7 +1,6 @@
 #include "ObjectExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
-#include <iostream>
 
 namespace vm::runtime
 {

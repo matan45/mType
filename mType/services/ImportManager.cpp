@@ -1,6 +1,5 @@
 #include "ImportManager.hpp"
 #include <filesystem>
-#include <iostream>
 #include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
@@ -137,9 +136,8 @@ namespace services
             std::string resolvedPath = resolvePathConsistently(rawPath);
             evaluatedFiles.insert(resolvedPath);
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Error marking as evaluated: " << e.what() << std::endl;
             // Ignore errors when marking as evaluated
         }
     }
@@ -164,9 +162,9 @@ namespace services
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.insert(resolvedPath);
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Error marking as being evaluated: " << e.what() << std::endl;
+            //TODO use exception 
         }
     }
 
@@ -177,9 +175,9 @@ namespace services
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.erase(resolvedPath);
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Error unmarking as being evaluated: " << e.what() << std::endl;
+            //TODO use exception 
         }
     }
 

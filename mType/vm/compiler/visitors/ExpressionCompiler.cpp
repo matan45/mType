@@ -6,7 +6,6 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
-#include <iostream>
 
 
 namespace vm::compiler::visitors

@@ -19,7 +19,6 @@
 #include "../errors/ReturnException.hpp"
 #include "../evaluator/utils/ValueConverter.hpp"
 #include <set>
-#include <iostream>
 
 namespace value
 {

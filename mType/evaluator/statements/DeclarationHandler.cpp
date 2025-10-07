@@ -12,7 +12,6 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../constants/LambdaConstants.hpp"
-#include <iostream>
 
 using namespace errors;
 using namespace runtimeTypes::global;
@@ -308,7 +307,7 @@ namespace evaluator
         {
             if (!exprEvaluator)
             {
-                std::cerr << "Warning: Expression evaluator not available for assignment evaluation" << std::endl;
+                //TODO use exception 
                 return std::monostate{};
             }
 

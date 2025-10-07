@@ -5,7 +5,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
-#include <iostream>
+
 namespace vm::compiler::visitors
 {
     FunctionCompiler::FunctionCompiler(CompilerContext& context)

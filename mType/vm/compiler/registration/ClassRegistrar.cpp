@@ -8,7 +8,6 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include <iostream>
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"

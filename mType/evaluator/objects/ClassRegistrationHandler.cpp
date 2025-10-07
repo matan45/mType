@@ -12,13 +12,11 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
-#include "../../errors/InheritanceException.hpp"
 #include "../validation/InheritanceValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
 #include <sstream>
-#include <iostream>
 
 using namespace errors;
 

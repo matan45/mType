@@ -32,7 +32,6 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../parser/TypeParser.hpp"
-#include <iostream>
 
 namespace evaluator
 {
