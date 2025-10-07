@@ -8,6 +8,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include <iostream>
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
@@ -244,8 +245,15 @@ namespace vm::compiler::registration
     {
         std::unordered_set<std::string> visited;
         auto currentCheck = parentDef;
+        int depth = 0;
         while (currentCheck) {
             std::string checkName = currentCheck->getName();
+            if (depth++ > 100) {
+                throw errors::RuntimeException(
+                    "Circular inheritance loop detected (depth > 100): class '" + className +
+                    "' cannot extend '" + parentClassName + "'"
+                );
+            }
             if (visited.count(checkName)) {
                 // Circular inheritance detected
                 throw errors::RuntimeException(

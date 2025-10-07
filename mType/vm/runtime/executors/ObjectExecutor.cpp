@@ -17,6 +17,7 @@ namespace vm::runtime
         const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
+
         std::string baseClassName = fullClassName;
         std::unordered_map<std::string, std::string> genericTypeBindings;
 
@@ -342,7 +343,8 @@ namespace vm::runtime
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
         auto classDef = instance->getClassDefinition();
 
-        auto method = classDef->findMethod(methodName, argCount);
+        // Use findMethodInHierarchy to search in parent classes too
+        auto method = classDef->findMethodInHierarchy(methodName, argCount);
         if (!method) {
             throw errors::RuntimeException("Method not found: " + methodName +
                                          " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
@@ -354,7 +356,19 @@ namespace vm::runtime
 
         validateMethodAccess(classDef->getName(), methodName, method->getAccessModifier());
 
-        std::string qualifiedName = classDef->getName() + "::" + methodName;
+        // Find which class actually defines this method by walking up the hierarchy
+        std::string definingClassName = classDef->getName();
+        auto currentClass = classDef;
+        while (currentClass) {
+            auto localMethod = currentClass->findMethod(methodName, argCount);
+            if (localMethod) {
+                definingClassName = currentClass->getName();
+                break;
+            }
+            currentClass = currentClass->getParentClass();
+        }
+
+        std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
             size_t localBase = context.stackManager->size();
@@ -386,6 +400,8 @@ namespace vm::runtime
         if (instr.operands.size() < 2) {
             throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
         }
+
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
         std::vector<value::Value> args;
@@ -400,7 +416,14 @@ namespace vm::runtime
         }
 
         auto instance = context.callStack.back().thisInstance;
-        auto classDef = instance->getClassDefinition();
+
+        // IMPORTANT: Use the current class name from the operand, NOT the instance's class!
+        // The instance might be a subclass (e.g., Dog), but we're in the Mammal constructor
+        // and need to call Mammal's parent (Animal), not Dog's parent (Mammal).
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
 
         if (!classDef->hasParentClass()) {
             throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
@@ -517,7 +540,11 @@ namespace vm::runtime
     {
         std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
         auto current = classDef;
+        int depth = 0;
         while (current) {
+            if (depth++ > 100) {
+                throw errors::RuntimeException("Circular inheritance detected in class hierarchy");
+            }
             hierarchy.insert(hierarchy.begin(), current);
             current = current->getParentClass();
         }

@@ -1,6 +1,7 @@
 #include "TypeExecutor.hpp"
 #include "../../../value/StringPool.hpp"
 #include <sstream>
+#include <iostream>
 
 namespace vm::runtime
 {

@@ -6,6 +6,7 @@
 #include "../../../ast/nodes/expressions/BoolNode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../errors/TypeException.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -91,14 +92,27 @@ namespace vm::compiler::visitors
                     expectedType = currentType;
                     isFirstElement = false;
                 } else {
+                    // Check for null in primitive arrays
+                    if (currentType == "null" && (expectedType == "int" || expectedType == "float" ||
+                                                   expectedType == "bool" || expectedType == "string")) {
+                        throw errors::TypeException(
+                            "Array literal cannot contain null in primitive array (expected '" + expectedType + "')",
+                            node->getLocation()
+                        );
+                    }
+
                     // Type compatibility checks
                     if (currentType != "null" && currentType != "unknown" && expectedType != "unknown") {
                         if (currentType != expectedType) {
                             // Allow int/float mixing
                             if (!((currentType == "int" && expectedType == "float") ||
                                   (currentType == "float" && expectedType == "int"))) {
-                                // Type mismatch - but we'll allow it for now
-                                // The VM will handle runtime type checking
+                                // Type mismatch error
+                                throw errors::TypeException(
+                                    "Array literal type mismatch: expected '" + expectedType +
+                                    "' but got '" + currentType + "' at index " + std::to_string(i),
+                                    node->getLocation()
+                                );
                             }
                         }
                     }

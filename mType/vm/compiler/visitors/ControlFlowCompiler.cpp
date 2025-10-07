@@ -229,9 +229,6 @@ namespace vm::compiler::visitors
 
         ctx.loopManager.exitLoop();
 
-        // Remove loop variable
-        ctx.variableTracker.decrementLocalSlot();
-
         // Increment counter
         ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot));
         ctx.program.emit(bytecode::OpCode::PUSH_INT,

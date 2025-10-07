@@ -29,8 +29,9 @@ namespace vm::runtime
     void ArrayExecutor::handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get element type name from constant pool
         const std::string& elementTypeName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t specifiedDimensions = instr.operands[1];  // Number of dimensions with sizes specified
-        size_t totalDimensions = instr.operands.size() > 2 ? instr.operands[2] : specifiedDimensions;
+        // Compiler emits: [typeIndex, dimensionCount (total), specifiedDimensions]
+        size_t totalDimensions = instr.operands[1];  // Total number of dimensions
+        size_t specifiedDimensions = instr.operands.size() > 2 ? instr.operands[2] : totalDimensions;
 
         // Pop dimension sizes from stack (in reverse order - last dimension first)
         // Only pop the number of specified dimensions
