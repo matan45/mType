@@ -1,6 +1,7 @@
 #include "ClassCompiler.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/TypeException.hpp"
+#include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
@@ -12,6 +13,126 @@ namespace vm::compiler::visitors
     ClassCompiler::ClassCompiler(CompilerContext& context)
         : ctx(context)
     {
+    }
+
+    void ClassCompiler::validateMethodParameters(
+        const std::string& methodName,
+        const std::string& qualifiedName,
+        const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
+        const ast::SourceLocation& location)
+    {
+        const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
+
+        // Skip validation if method not found or is native
+        if (!methodMetadata || methodMetadata->isNative) {
+            return;
+        }
+
+        // For instance methods, parameterCount includes 'this', so subtract 1
+        // For static methods, parameterCount is just the declared parameters
+        size_t expectedParamCount = methodMetadata->parameterCount;
+        if (!methodMetadata->isStatic && expectedParamCount > 0) {
+            expectedParamCount -= 1;  // Exclude 'this' from count
+        }
+
+        // Check parameter count
+        if (expectedParamCount != arguments.size()) {
+            throw errors::EnvironmentException(
+                "Method '" + methodName + "' expects " +
+                std::to_string(expectedParamCount) +
+                " parameter(s) but got " + std::to_string(arguments.size()),
+                location
+            );
+        }
+
+        // For instance methods, parameterTypes[0] is 'this', so we skip it
+        size_t parameterTypeOffset = (!methodMetadata->isStatic && !methodMetadata->parameterTypes.empty()) ? 1 : 0;
+
+        // Validate parameter types
+        if (methodMetadata->parameterTypes.size() <= parameterTypeOffset) {
+            return;  // No actual parameters to validate (only 'this' or empty)
+        }
+
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            // Make sure we don't go out of bounds
+            if (i + parameterTypeOffset >= methodMetadata->parameterTypes.size()) {
+                break;
+            }
+            std::string expectedType = methodMetadata->parameterTypes[i + parameterTypeOffset];
+
+            // Resolve generic type parameters if present
+            expectedType = ctx.resolveGenericType(expectedType);
+
+            // Skip validation for unresolved generic type parameters (like K, V, T, E)
+            // These are single uppercase letters or short names that couldn't be resolved
+            if (expectedType.length() <= 2 && std::isupper(expectedType[0])) {
+                continue;  // Skip validation for generic type parameters
+            }
+
+            value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+
+            // Check if expected type is a primitive
+            bool isPrimitive = (expectedType == "int" || expectedType == "float" ||
+                              expectedType == "string" || expectedType == "bool" ||
+                              expectedType == "void");
+
+            if (isPrimitive) {
+                // For primitive types, check exact match
+                if (argType != value::ValueType::OBJECT && argTypeStr != expectedType) {
+                    // Allow null for any type
+                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                        throw errors::TypeException(
+                            "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
+                            " expects " + expectedType + " but got " + argTypeStr,
+                            location
+                        );
+                    }
+                }
+            } else {
+                // Expected type is an object/class
+                if (argType != value::ValueType::OBJECT) {
+                    // null can be passed to object types
+                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                        throw errors::TypeException(
+                            "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
+                            " expects " + expectedType + " but got " + argTypeStr,
+                            location
+                        );
+                    }
+                } else if (expectedType != "object") {
+                    // For objects, check class name compatibility
+                    std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
+                    if (!argClassName.empty() && argClassName != expectedType) {
+                        // Strip generic parameters for comparison (List<int> -> List)
+                        std::string expectedBase = expectedType;
+                        std::string argBase = argClassName;
+                        size_t expectedAngle = expectedType.find('<');
+                        size_t argAngle = argClassName.find('<');
+                        if (expectedAngle != std::string::npos) {
+                            expectedBase = expectedType.substr(0, expectedAngle);
+                        }
+                        if (argAngle != std::string::npos) {
+                            argBase = argClassName.substr(0, argAngle);
+                        }
+
+                        // If base types match, it's compatible (generic type parameters will be validated at runtime)
+                        if (expectedBase == argBase) {
+                            continue;  // Compatible generic types
+                        }
+
+                        // Check if argClassName is assignable to expectedType (inheritance)
+                        if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType)) {
+                            throw errors::TypeException(
+                                "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
+                                " expects " + expectedType + " but got " + argClassName,
+                                location
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     value::Value ClassCompiler::compileClass(ast::ClassNode* node)
@@ -220,16 +341,23 @@ namespace vm::compiler::visitors
         // Method starts here
         size_t methodStart = ctx.program.getCurrentOffset();
 
-        // Get parameters
-        auto params = node->getParameters();
+        // Get parameters with type information
+        auto genericParams = node->getGenericParameters();
         std::vector<std::string> paramNames;
-        for (const auto& param : params) {
-            paramNames.push_back(param.first);
-        }
+        std::vector<std::string> paramTypes;
 
         // For instance methods, 'this' is implicitly the first parameter
         if (!isStatic) {
-            paramNames.insert(paramNames.begin(), "this");
+            paramNames.push_back("this");
+            paramTypes.push_back(ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "object");
+        }
+
+        // Add method parameters with full type names (including class names for objects)
+        for (const auto& param : genericParams) {
+            paramNames.push_back(param.first);
+            // Use toString() to get the full type name (e.g., "int", "string", "MyClass", "List<int>")
+            std::string paramTypeStr = param.second->toString();
+            paramTypes.push_back(paramTypeStr);
         }
 
         // Convert return type to string
@@ -251,8 +379,17 @@ namespace vm::compiler::visitors
         }
 
         // Add actual method parameters with their types
-        for (const auto& param : params) {
-            ctx.variableTracker.declareLocal(param.first, param.second, "");
+        for (const auto& param : genericParams) {
+            // Extract type from GenericType for variable tracking
+            if (param.second->isGenericParameter()) {
+                // Generic type parameter (like T, E) - treat as object for now
+                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT, param.second->toString());
+            } else {
+                // Concrete type
+                value::ValueType concreteType = param.second->getConcreteType();
+                std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
+                ctx.variableTracker.declareLocal(param.first, concreteType, className);
+            }
         }
 
         // Update max local slot after parameters
@@ -302,6 +439,7 @@ namespace vm::compiler::visitors
         metadata.localCount = localCount;
         metadata.parameterCount = paramNames.size();
         metadata.parameterNames = paramNames;
+        metadata.parameterTypes = paramTypes;  // Add parameter types for validation
         metadata.returnType = returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
@@ -666,10 +804,6 @@ namespace vm::compiler::visitors
 
         if (isStaticCall) {
             // Static method call: ClassName::methodName(args) or this::methodName(args)
-            // Push all arguments onto stack
-            for (const auto& arg : arguments) {
-                arg->accept(ctx.visitor);  // Will need delegation
-            }
 
             // Build fully qualified method name
             std::string className;
@@ -683,6 +817,14 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
+            // Validate parameter count and types
+            validateMethodParameters(qualifiedName, qualifiedName, arguments, node->getLocation());
+
+            // Push all arguments onto stack
+            for (const auto& arg : arguments) {
+                arg->accept(ctx.visitor);  // Will need delegation
+            }
+
             // Emit CALL_STATIC instruction with fully qualified name
             size_t methodNameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
@@ -690,6 +832,16 @@ namespace vm::compiler::visitors
                          static_cast<uint32_t>(arguments.size()));
         } else {
             // Instance method call: object.methodName(args)
+
+            // Infer the class of the object for type checking
+            std::string objectClassName = ctx.typeInference.inferExpressionClassName(node->getObject());
+
+            // Validate parameter count and types for instance methods
+            if (!objectClassName.empty()) {
+                std::string qualifiedName = objectClassName + "::" + methodName;
+                validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
+            }
+
             // First, compile the object expression
             node->getObject()->accept(ctx.visitor);  // Will need delegation
 

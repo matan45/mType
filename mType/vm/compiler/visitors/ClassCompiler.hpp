@@ -42,5 +42,11 @@ namespace vm::compiler::visitors
         // Helper methods
         void compileDefaultConstructor(ast::ClassNode* node);
         void initializeInstanceFields(ast::ClassNode* node);
+        void validateMethodParameters(
+            const std::string& methodName,
+            const std::string& qualifiedName,
+            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
+            const ast::SourceLocation& location
+        );
     };
 }
