@@ -17,6 +17,7 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> constructors;
         std::vector<std::unique_ptr<ASTNode>> methods;
         std::vector<std::string> implementedInterfaces; // NEW
+        bool finalClass; // NEW: Final modifier to prevent inheritance
     public:
         // Backward compatibility constructor (most common usage)
         explicit ClassNode(const std::string& name, const SourceLocation& loc = SourceLocation());
@@ -65,6 +66,10 @@ namespace ast::nodes::classes
         const std::string& getParentClassName() const;
         void setParentClassName(const std::string& parent);
         bool hasParentClass() const;
+
+        // NEW: Final modifier methods
+        bool isFinal() const;
+        void setFinal(bool isFinal);
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

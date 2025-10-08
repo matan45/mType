@@ -24,6 +24,14 @@ namespace parser
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
     {
+        // Check for optional 'final' keyword
+        bool isFinal = false;
+        if (tokenStream.check(TokenType::FINAL))
+        {
+            isFinal = true;
+            tokenStream.advance(); // consume 'final'
+        }
+
         // Consume 'interface' token
         if (tokenStream.current().type != TokenType::INTERFACE)
         {
@@ -117,6 +125,7 @@ namespace parser
         }
         tokenStream.advance();
 
+        interfaceNode->setFinal(isFinal);
         return interfaceNode;
     }
 

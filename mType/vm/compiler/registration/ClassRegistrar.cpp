@@ -81,6 +81,9 @@ namespace vm::compiler::registration
         // Create a new class definition
         auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
 
+        // Set final modifier
+        classDef->setFinal(classNode->isFinal());
+
         // Handle parent class
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
@@ -259,6 +262,15 @@ namespace vm::compiler::registration
         if (classDef && parentDef) {
             // Check for circular inheritance before establishing the link
             checkCircularInheritance(className, parentClassName, parentDef);
+
+            // Check if parent class is final
+            if (parentDef->isFinal()) {
+                throw errors::InheritanceException(
+                    "Cannot extend final class '" + parentClassName + "'",
+                    className,
+                    parentClassName,
+                    classNode->getLocation());
+            }
 
             // Establish the parent-child link
             classDef->setParentClass(parentDef);

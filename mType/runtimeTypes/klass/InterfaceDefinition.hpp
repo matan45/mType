@@ -31,13 +31,14 @@ namespace runtimeTypes::klass {
         std::vector<ast::GenericTypeParameter> genericParameters;
         std::vector<std::string> extendsInterfaces; // Interface inheritance
         bool isGenericInterface;
+        bool finalInterface; // NEW: Final modifier to prevent extension
 
     public:
         InterfaceDefinition(const std::string& name,
                            const std::vector<ast::GenericTypeParameter>& generics = {},
                            const std::vector<std::string>& extendedInterfaces = {})
             : Definition(name), genericParameters(generics), extendsInterfaces(extendedInterfaces),
-              isGenericInterface(!generics.empty()) {}
+              isGenericInterface(!generics.empty()), finalInterface(false) {}
 
         void addMethodSignature(const MethodSignature& signature) {
             methodSignatures.push_back(signature);
@@ -119,6 +120,10 @@ namespace runtimeTypes::klass {
         const std::vector<ast::GenericTypeParameter>& getGenericParameters() const {
             return genericParameters;
         }
+
+        // NEW: Final modifier methods
+        bool isFinal() const { return finalInterface; }
+        void setFinal(bool isFinal) { finalInterface = isFinal; }
 
     private:
         // Helper method to convert GenericType to ValueType

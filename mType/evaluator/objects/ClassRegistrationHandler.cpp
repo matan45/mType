@@ -57,6 +57,9 @@ namespace evaluator
 
             auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
+            // Set final modifier
+            classDef->setFinal(node->isFinal());
+
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
 
@@ -73,6 +76,13 @@ namespace evaluator
 
                 // Validate parent class exists
                 validation::InheritanceValidator::validateParentClassExists(
+                    parentClassName,
+                    node->getLocation(),
+                    context);
+
+                // Validate parent class is not final
+                validation::InheritanceValidator::validateParentClassNotFinal(
+                    node->getClassName(),
                     parentClassName,
                     node->getLocation(),
                     context);
@@ -332,10 +342,20 @@ namespace evaluator
                     parentInterfaceName,
                     node->getLocation(),
                     context);
+
+                // Validate that parent interface is not final
+                validation::InheritanceValidator::validateParentInterfaceNotFinal(
+                    node->getName(),
+                    parentInterfaceName,
+                    node->getLocation(),
+                    context);
             }
 
             auto interfaceDef = std::make_shared<InterfaceDefinition>(
                 node->getName(), genericParams, extendsInterfaces);
+
+            // Set final modifier
+            interfaceDef->setFinal(node->isFinal());
 
             // Process method signatures
             for (const auto& methodPtr : node->getMethods())

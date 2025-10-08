@@ -14,6 +14,7 @@ namespace ast::nodes::classes
         std::vector<GenericTypeParameter> genericParameters;
         std::vector<std::unique_ptr<ASTNode>> methods; // Method signatures only
         std::vector<std::string> extendsInterfaces; // Parent interfaces
+        bool finalInterface; // NEW: Final modifier to prevent extension
     public:
         explicit InterfaceNode(const std::string& interfaceName,
                                const std::vector<GenericTypeParameter>& generics = {},
@@ -34,6 +35,10 @@ namespace ast::nodes::classes
 
         // Method access
         const std::vector<std::unique_ptr<ASTNode>>& getMethods() const;
+
+        // NEW: Final modifier methods
+        bool isFinal() const;
+        void setFinal(bool isFinal);
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

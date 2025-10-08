@@ -4,7 +4,7 @@ namespace ast::nodes::classes
 {
     InterfaceNode::InterfaceNode(const std::string& interfaceName, const std::vector<GenericTypeParameter>& generics,
                                  const SourceLocation& loc) : ASTNode(loc), name(interfaceName),
-                                                              genericParameters(generics)
+                                                              genericParameters(generics), finalInterface(false)
     {
     }
 
@@ -70,6 +70,16 @@ namespace ast::nodes::classes
     const std::vector<std::unique_ptr<ASTNode>>& InterfaceNode::getMethods() const
     {
         return methods;
+    }
+
+    bool InterfaceNode::isFinal() const
+    {
+        return finalInterface;
+    }
+
+    void InterfaceNode::setFinal(bool isFinal)
+    {
+        finalInterface = isFinal;
     }
 
     Value InterfaceNode::accept(ASTVisitor<Value>& visitor)

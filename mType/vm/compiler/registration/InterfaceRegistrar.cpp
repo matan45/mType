@@ -77,6 +77,16 @@ namespace vm::compiler::registration
                     interfaceNode->getLocation()
                 );
             }
+
+            // Validate that parent interface is not final
+            auto parentInterfaceDef = interfaceRegistry->findInterface(baseParentName);
+            if (parentInterfaceDef && parentInterfaceDef->isFinal()) {
+                throw errors::InheritanceException(
+                    "Cannot extend final interface '" + parentInterface + "'",
+                    interfaceName,
+                    parentInterface,
+                    interfaceNode->getLocation());
+            }
         }
 
         // Create interface definition with generics and extended interfaces
@@ -85,6 +95,9 @@ namespace vm::compiler::registration
             genericParams,
             extendedInterfaces
         );
+
+        // Set final modifier
+        interfaceDef->setFinal(interfaceNode->isFinal());
 
         // Add method signatures
         for (const auto& method : interfaceNode->getMethods()) {
