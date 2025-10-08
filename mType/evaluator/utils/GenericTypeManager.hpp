@@ -13,6 +13,11 @@
 namespace runtimeTypes::klass {
     class MethodDefinition;
     class ConstructorDefinition;
+    class InterfaceRegistry;
+}
+
+namespace environment::registry {
+    class ClassRegistry;
 }
 
 namespace ast::nodes::classes {
@@ -160,6 +165,34 @@ namespace evaluator::utils
          * @return True if it contains unresolved generic parameters
          */
         static bool hasUnresolvedGenericParams(const std::string& className);
+
+        /**
+         * @brief Validate that type arguments satisfy generic parameter constraints
+         * @param genericParameters The generic parameters with constraints (e.g., <T extends Comparable<T>>)
+         * @param typeArguments The concrete type arguments to validate
+         * @param classRegistry Shared pointer to ClassRegistry for class lookup
+         * @param interfaceRegistry Shared pointer to InterfaceRegistry for interface lookup
+         * @return True if all type arguments satisfy their constraints, false otherwise
+         */
+        static bool validateGenericConstraints(
+            const std::vector<GenericTypeParameter>& genericParameters,
+            const std::vector<std::string>& typeArguments,
+            std::shared_ptr<environment::registry::ClassRegistry> classRegistry,
+            std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry);
+
+        /**
+         * @brief Check if a specific class implements a required interface constraint
+         * @param className The class name to check
+         * @param interfaceName The interface name that must be implemented
+         * @param classRegistry Shared pointer to ClassRegistry for class lookup
+         * @param interfaceRegistry Shared pointer to InterfaceRegistry for interface lookup
+         * @return True if the class implements the interface, false otherwise
+         */
+        static bool classImplementsInterface(
+            const std::string& className,
+            const std::string& interfaceName,
+            std::shared_ptr<environment::registry::ClassRegistry> classRegistry,
+            std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry);
 
     private:
         /**

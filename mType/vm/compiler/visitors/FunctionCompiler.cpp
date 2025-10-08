@@ -237,13 +237,31 @@ namespace vm::compiler::visitors
                                 else if (expectedType != "object") {
                                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
                                     if (!argClassName.empty() && argClassName != expectedType) {
-                                        // null can be passed to any object type
-                                        if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                            throw errors::TypeException(
-                                                "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                                                " expects " + expectedType + " but got " + argClassName,
-                                                node->getLocation()
-                                            );
+                                        // Check if both are generic types with the same base
+                                        bool isGenericMatch = false;
+                                        size_t expectedAngle = expectedType.find('<');
+                                        size_t argAngle = argClassName.find('<');
+
+                                        if (expectedAngle != std::string::npos && argAngle != std::string::npos) {
+                                            // Both are generic types - check if base types match
+                                            std::string expectedBase = expectedType.substr(0, expectedAngle);
+                                            std::string argBase = argClassName.substr(0, argAngle);
+                                            if (expectedBase == argBase) {
+                                                // Same generic base type (e.g., both are List)
+                                                // Type argument compatibility will be validated at runtime
+                                                isGenericMatch = true;
+                                            }
+                                        }
+
+                                        if (!isGenericMatch) {
+                                            // null can be passed to any object type
+                                            if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                                throw errors::TypeException(
+                                                    "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                                    " expects " + expectedType + " but got " + argClassName,
+                                                    node->getLocation()
+                                                );
+                                            }
                                         }
                                     }
                                 }

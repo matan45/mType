@@ -50,6 +50,20 @@ namespace tests::testSuite
         addOutputVerificationTest("Global Generic Multiple Parameters",
                         passPath + "globalGenericMultipleParams.mt");
 
+        // Generic interface constraint tests
+        addOutputVerificationTest("Constrained Class Generics",
+                        passPath + "constrainedClassGenerics.mt");
+        addOutputVerificationTest("Constrained Static Method Generics",
+                        passPath + "constrainedStaticMethodGenerics.mt");
+        addOutputVerificationTest("Constrained Global Functions",
+                        passPath + "constrainedGlobalFunctions.mt");
+        addOutputVerificationTest("Multiple Constrained Parameters",
+                        passPath + "multipleConstrainedParameters.mt");
+        addOutputVerificationTest("Constraint with Inheritance",
+                        passPath + "constraintWithInheritance.mt");
+        addOutputVerificationTest("Nested Constraints",
+                        passPath + "constraintNested.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",
@@ -104,6 +118,23 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Global Generic Primitive Type",
                     errorPath + "globalGenericPrimitiveType.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Generic constraint violation error tests
+        addTestFromFile("Constraint Violation - Wrong Class",
+                    errorPath + "constraintViolationWrongClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Constraint Multiple Interfaces",
+                    errorPath + "constraintMultipleInterfaces.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Constraint Static Method Violation",
+                    errorPath + "constraintStaticMethodViolation.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Constraint Global Function Violation",
+                    errorPath + "constraintGlobalFunctionViolation.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Constraint Wrong Interface",
+                    errorPath + "constraintWrongInterface.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

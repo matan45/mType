@@ -121,6 +121,17 @@ namespace parser
             }
 
             constraints.push_back(constraintName);
+
+            // VALIDATION: Each generic parameter can only extend ONE interface
+            // Check for additional extends/implements keywords
+            if (tokenStream.current().type == TokenType::EXTENDS ||
+                tokenStream.current().type == TokenType::IMPLEMENTS)
+            {
+                throw ParseException(
+                    "Generic type parameter '" + paramName + "' can only extend one interface. "
+                    "Multiple interface constraints are not supported.",
+                    tokenStream.current().location);
+            }
         }
 
         return GenericTypeParameter(paramName, constraints, location);

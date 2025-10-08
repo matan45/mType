@@ -3,6 +3,8 @@
 #include "../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../../environment/registry/ClassRegistry.hpp"
 #include "../../types/TypeRegistry.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include <sstream>
@@ -757,6 +759,91 @@ namespace evaluator::utils
         }
 
         return false;
+    }
+
+    bool GenericTypeManager::validateGenericConstraints(
+        const std::vector<GenericTypeParameter>& genericParameters,
+        const std::vector<std::string>& typeArguments,
+        std::shared_ptr<environment::registry::ClassRegistry> classRegistry,
+        std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry)
+    {
+        // Check if argument count matches parameter count
+        if (genericParameters.size() != typeArguments.size()) {
+            return false;
+        }
+
+        // If no registries provided, we can't validate interface constraints
+        if (!classRegistry || !interfaceRegistry) {
+            // Only check count, assume constraints are satisfied
+            return true;
+        }
+
+        // Validate each type argument against its corresponding parameter's constraint
+        for (size_t i = 0; i < genericParameters.size(); ++i) {
+            const auto& param = genericParameters[i];
+            const auto& typeArg = typeArguments[i];
+
+            // If this parameter has constraints, validate them
+            if (param.hasConstraints()) {
+                // Each parameter can only have ONE constraint (validated during parsing)
+                const std::string& requiredInterface = param.constraints[0];
+
+                // Check if the type argument implements the required interface
+                if (!classImplementsInterface(typeArg, requiredInterface, classRegistry, interfaceRegistry)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool GenericTypeManager::classImplementsInterface(
+        const std::string& className,
+        const std::string& interfaceName,
+        std::shared_ptr<environment::registry::ClassRegistry> classRegistry,
+        std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry)
+    {
+        // Validate inputs
+        if (className.empty() || interfaceName.empty()) {
+            return false;
+        }
+
+        // If no registries provided, we can't validate
+        if (!classRegistry || !interfaceRegistry) {
+            return false;
+        }
+
+        try {
+            // Extract base class name (handle generic instantiations like "MyClass<int>")
+            std::string baseClassName = className;
+            size_t anglePos = className.find('<');
+            if (anglePos != std::string::npos) {
+                baseClassName = className.substr(0, anglePos);
+            }
+
+            // Look up the class definition
+            auto classDef = classRegistry->findClass(baseClassName);
+            if (!classDef) {
+                // Class not found - cannot validate
+                return false;
+            }
+
+            // Extract base interface name (handle generic interfaces like "Comparable<T>")
+            std::string baseInterfaceName = interfaceName;
+            anglePos = interfaceName.find('<');
+            if (anglePos != std::string::npos) {
+                baseInterfaceName = interfaceName.substr(0, anglePos);
+            }
+
+            // Check if the class implements the interface
+            // Use the full interface checking with transitive inheritance support
+            return classDef->implementsInterface(baseInterfaceName, interfaceRegistry);
+
+        } catch (...) {
+            // Any exception - fail safely
+            return false;
+        }
     }
 
 }

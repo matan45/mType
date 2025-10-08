@@ -2152,6 +2152,9 @@
     <None Include="tests\testFiles\class\error\circularInheritance.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\classExtendsInterface.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\conditionalScopingFail.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -2752,6 +2755,21 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\constraintGlobalFunctionViolation.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\constraintMultipleInterfaces.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\constraintStaticMethodViolation.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\constraintViolationWrongClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\constraintWrongInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\globalGenericPrimitiveType.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -2821,6 +2839,36 @@
     <None Include="tests\testFiles\generics\pass\basicGenericClass.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\constrainedClassGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constrainedClassGenerics.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constrainedGlobalFunctions.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constrainedGlobalFunctions.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constrainedStaticMethodGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constrainedStaticMethodGenerics.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constraintNested.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constraintNested.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constraintWithInheritance.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\constraintWithInheritance.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\deeplyNestedGenericsStressTest.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
@@ -2888,6 +2936,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\mixedStaticGenericMethods.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\multipleConstrainedParameters.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\multipleConstrainedParameters.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\multipleTypeParameters.expected">
@@ -3221,6 +3275,9 @@
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\incompleteInterfaceImplementation.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\interfaceExtendsClass.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\interfaceInstantiation.mt">
