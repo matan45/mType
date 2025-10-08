@@ -1,5 +1,7 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/PromiseValue.hpp"
+#include "../ast/nodes/expressions/AwaitExpression.hpp"
 
 namespace evaluator
 {
@@ -343,8 +345,26 @@ namespace evaluator
 
     Value EvaluatorCoordinator::visitAwaitExpression(AwaitExpression* node)
     {
-        // TODO: Implement async/await support in Phase 2
-        // For now, throw an error since async/await is not yet implemented
-        throw std::runtime_error("Async/await is not yet implemented. This is a Phase 1 stub.");
+        // Evaluate the expression being awaited
+        Value awaitedValue = evaluate(node->getExpression());
+
+        // Check if the value is a Promise
+        if (!std::holds_alternative<std::shared_ptr<PromiseValue>>(awaitedValue))
+        {
+            throw std::runtime_error("await can only be used on Promise values");
+        }
+
+        // Get the promise
+        auto promise = std::get<std::shared_ptr<PromiseValue>>(awaitedValue);
+
+        // In Phase 2 (synchronous model), await immediately returns the promise's value
+        // The promise should already be fulfilled when returned from an async function
+        if (!promise->isFulfilled())
+        {
+            throw std::runtime_error("Promise is not fulfilled");
+        }
+
+        // Return the unwrapped value
+        return promise->getValue();
     }
 }

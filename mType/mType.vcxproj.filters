@@ -930,6 +930,9 @@
     <ClInclude Include="value\ParameterType.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\PromiseValue.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\SparseMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>

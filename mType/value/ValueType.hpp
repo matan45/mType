@@ -21,6 +21,7 @@ namespace value
     class FlatMultiArray;
     class SparseMultiArray;
     class LambdaValue;
+    class PromiseValue;
 }
 
 
@@ -48,6 +49,7 @@ namespace value
                                std::shared_ptr<SparseMultiArray>,
                                std::shared_ptr<LambdaValue>,
                                std::shared_ptr<vm::runtime::BytecodeLambda>,
+                               std::shared_ptr<PromiseValue>,
                                nullptr_t>;
     
     // Helper function to get ValueType from Value
@@ -61,6 +63,9 @@ namespace value
         }
         if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {
             return ValueType::LAMBDA;
+        }
+        if (std::holds_alternative<std::shared_ptr<PromiseValue>>(value)) {
+            return ValueType::OBJECT; // Promises are treated as objects
         }
 
         return std::visit([](const auto& v) -> ValueType {
