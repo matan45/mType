@@ -49,9 +49,6 @@ namespace services
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
         vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
 
-        // Connect VM to event loop for async/await support
-        vm->setEventLoop(::runtime::globalEventLoop);
-
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
         if (nativeRegistry)
@@ -75,9 +72,6 @@ namespace services
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
         vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
-
-        // Connect VM to event loop for async/await support
-        vm->setEventLoop(::runtime::globalEventLoop);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -707,21 +701,23 @@ namespace services
             // The BytecodeCompiler will register all classes during compilation
             auto program = compiler->compile(ast);
 
-            // Check if we have an event loop for async/await support
-            if (::runtime::globalEventLoop != nullptr)
+            // Get the VM's event loop for async/await support
+            auto* eventLoop = vm->getEventLoop();
+
+            if (eventLoop)
             {
                 // Schedule the main program as a task in the event loop
-                size_t mainTaskId = ::runtime::globalEventLoop->scheduleTask(
+                size_t mainTaskId = eventLoop->scheduleTask(
                     [this, program]() -> value::Value {
                         return vm->execute(program);
                     }
                 );
 
                 // Set the VM reference for this task so it can set task ID before execution
-                ::runtime::globalEventLoop->setTaskVM(mainTaskId, vm.get());
+                eventLoop->setTaskVM(mainTaskId, vm.get());
 
                 // Run the event loop until all tasks complete
-                ::runtime::globalEventLoop->run();
+                eventLoop->run();
 
                 // The task has completed - return the result
                 // For now, we return void since the event loop doesn't track results

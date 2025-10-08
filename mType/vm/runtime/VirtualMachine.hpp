@@ -57,8 +57,8 @@ namespace vm::runtime
         // Environment integration
         std::shared_ptr<environment::Environment> environment;
 
-        // Event loop integration (optional - for async/await support)
-        ::runtime::EventLoop* eventLoop;
+        // Event loop integration (for async/await support)
+        std::unique_ptr<::runtime::EventLoop> eventLoop;
         size_t currentTaskId;
         std::optional<VMState> savedState;  // For async resumption
         bool suspendedByAwait;  // Flag to indicate suspension by AWAIT instruction
@@ -89,7 +89,7 @@ namespace vm::runtime
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
 
         // Event loop integration
-        void setEventLoop(::runtime::EventLoop* loop) { eventLoop = loop; }
+        ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
         void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
 
         // State save/restore for async suspension

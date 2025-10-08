@@ -253,22 +253,4 @@ namespace runtime {
         std::deque<std::function<void()>> pendingCallbacks;
     };
 
-    /**
-     * @brief Global event loop instance
-     *
-     * For simplicity, we use a global event loop. In a more complex implementation,
-     * you might have multiple event loops or pass the event loop as a parameter.
-     */
-    extern EventLoop* globalEventLoop;
-
-    /**
-     * @brief Initialize global event loop
-     */
-    void initializeEventLoop();
-
-    /**
-     * @brief Cleanup global event loop
-     */
-    void shutdownEventLoop();
-
 } // namespace runtime

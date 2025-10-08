@@ -5,20 +5,6 @@
 
 namespace runtime {
 
-    // Global event loop instance
-    EventLoop* globalEventLoop = nullptr;
-
-    void initializeEventLoop() {
-        if (!globalEventLoop) {
-            globalEventLoop = new EventLoop();
-        }
-    }
-
-    void shutdownEventLoop() {
-        delete globalEventLoop;
-        globalEventLoop = nullptr;
-    }
-
     EventLoop::EventLoop()
         : nextTaskId(1)
         , currentTask(nullptr)

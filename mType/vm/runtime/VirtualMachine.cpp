@@ -33,7 +33,7 @@ namespace vm::runtime
           , stackManager(std::make_shared<StackManager>())
           , instructionPointer(0)
           , environment(std::move(env))
-          , eventLoop(nullptr)
+          , eventLoop(std::make_unique<::runtime::EventLoop>())
           , currentTaskId(0)
           , suspendedByAwait(false)
     {
@@ -348,7 +348,7 @@ namespace vm::runtime
                 }
 
                 // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
-                if (eventLoop != nullptr)
+                if (eventLoop)
                 {
                     // Try to cast to AsyncPromiseValue for callback support
                     auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
@@ -357,7 +357,7 @@ namespace vm::runtime
                     {
                         // Capture the stack manager to push resolved value when task resumes
                         auto stackMgr = this->stackManager;
-                        auto loop = this->eventLoop;
+                        auto loop = this->eventLoop.get();
                         auto taskId = this->currentTaskId;
 
                         // Register callback to resume this task when promise resolves
