@@ -2,7 +2,6 @@
 #include "../value/PromiseValue.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include <algorithm>
-#include <iostream>
 
 namespace runtime {
 
@@ -25,6 +24,7 @@ namespace runtime {
         , currentTask(nullptr)
         , running(false)
         , shouldStop(false)
+        , agingInterval(100)  // Default: 1 priority point per 100ms
     {
     }
 
@@ -33,15 +33,14 @@ namespace runtime {
     }
 
     size_t EventLoop::scheduleTask(
-        std::function<value::Value()> asyncFunction,
-        int priority)
+        std::function<value::Value()> asyncFunction)
     {
         std::lock_guard<std::mutex> lock(queueMutex);
 
         size_t taskId = nextTaskId++;
         auto task = std::make_shared<Task>(taskId);
         task->function = asyncFunction;
-        task->priority = priority;
+        task->priority = 0;  // Default priority managed by EventLoop
         task->state = TaskState::PENDING;
 
         // Create a promise for this task's result
@@ -55,13 +54,15 @@ namespace runtime {
 
     size_t EventLoop::scheduleDelayedTask(
         std::function<value::Value()> asyncFunction,
-        int delayMs)
+        int delayMs,
+        int priority)
     {
         std::lock_guard<std::mutex> lock(queueMutex);
 
         size_t taskId = nextTaskId++;
         auto task = std::make_shared<Task>(taskId);
         task->function = asyncFunction;
+        task->priority = priority;
         task->state = TaskState::PENDING;
         task->resultPromise = std::make_shared<value::PromiseValue>();
 
@@ -326,10 +327,37 @@ namespace runtime {
             return nullptr;
         }
 
-        // Simple FIFO for now
-        // TODO: Implement priority-based scheduling
-        auto task = readyQueue.front();
-        readyQueue.pop_front();
+        // Priority-based scheduling with aging to prevent starvation
+        // Effective Priority = Base Priority + Age Bonus
+        // Age Bonus = milliseconds waiting / agingInterval
+        // This ensures older tasks gradually gain priority
+
+        auto now = std::chrono::steady_clock::now();
+        auto highestPriorityIt = readyQueue.begin();
+
+        // Calculate effective priority for first task
+        auto waitTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - (*highestPriorityIt)->scheduledAt
+        ).count();
+        int ageBonus = static_cast<int>(waitTime / agingInterval);
+        int highestEffectivePriority = (*highestPriorityIt)->priority + ageBonus;
+
+        // Find task with highest effective priority
+        for (auto it = readyQueue.begin(); it != readyQueue.end(); ++it) {
+            waitTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - (*it)->scheduledAt
+            ).count();
+            ageBonus = static_cast<int>(waitTime / agingInterval);
+            int effectivePriority = (*it)->priority + ageBonus;
+
+            if (effectivePriority > highestEffectivePriority) {
+                highestEffectivePriority = effectivePriority;
+                highestPriorityIt = it;
+            }
+        }
+
+        auto task = *highestPriorityIt;
+        readyQueue.erase(highestPriorityIt);
 
         return task;
     }

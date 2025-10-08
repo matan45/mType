@@ -315,8 +315,9 @@ namespace vm::runtime
         case OpCode::CREATE_PROMISE:
             {
                 // Pop value from stack and wrap it in a Promise
+                // Use AsyncPromiseValue for async functions so they integrate with event loop
                 value::Value val = stackManager->pop();
-                auto promise = std::make_shared<value::PromiseValue>(val);
+                auto promise = std::make_shared<value::AsyncPromiseValue>(val);
                 stackManager->push(promise);
                 break;
             }

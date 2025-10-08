@@ -2,7 +2,6 @@
 #include "PromiseValue.hpp"
 #include <vector>
 #include <functional>
-#include <iostream>
 #include <mutex>
 
 namespace value
@@ -158,15 +157,9 @@ namespace value
                     {
                         callback(val);
                     }
-                    catch (const std::exception& e)
+                    catch (const std::exception&)
                     {
-#ifdef DEBUG
-                        // Log callback errors but don't stop execution
-                        std::cerr << "[AsyncPromise] Error in .then() callback: "
-                                  << e.what() << std::endl;
-#endif
-                        // Silently continue in release mode
-                        (void)e;
+
                     }
                 }
 
@@ -177,13 +170,8 @@ namespace value
                     {
                         callback();
                     }
-                    catch (const std::exception& e)
+                    catch (const std::exception&)
                     {
-#ifdef DEBUG
-                        std::cerr << "[AsyncPromise] Error in .finally() callback: "
-                                  << e.what() << std::endl;
-#endif
-                        (void)e;
                     }
                 }
 
@@ -217,13 +205,9 @@ namespace value
                     {
                         callback(error);
                     }
-                    catch (const std::exception& e)
+                    catch (const std::exception&)
                     {
-#ifdef DEBUG
-                        std::cerr << "[AsyncPromise] Error in .catch() callback: "
-                                  << e.what() << std::endl;
-#endif
-                        (void)e;
+
                     }
                 }
 
@@ -234,13 +218,8 @@ namespace value
                     {
                         callback();
                     }
-                    catch (const std::exception& e)
+                    catch (const std::exception& )
                     {
-#ifdef DEBUG
-                        std::cerr << "[AsyncPromise] Error in .finally() callback: "
-                                  << e.what() << std::endl;
-#endif
-                        (void)e;
                     }
                 }
 

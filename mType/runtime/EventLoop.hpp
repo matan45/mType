@@ -132,6 +132,11 @@ namespace runtime {
         bool running;
         bool shouldStop;
 
+        // Priority aging configuration
+        // Age bonus = (wait_time_ms / agingInterval)
+        // Default: 1 priority point per 100ms of waiting
+        int agingInterval;
+
         // Thread safety for cross-thread promise resolution
         std::mutex queueMutex;
 
@@ -142,12 +147,10 @@ namespace runtime {
         /**
          * @brief Schedule a new async task for execution
          * @param asyncFunction The async function to execute
-         * @param priority Task priority (higher = more urgent)
          * @return Task ID for tracking
          */
         size_t scheduleTask(
-            std::function<value::Value()> asyncFunction,
-            int priority = 0
+            std::function<value::Value()> asyncFunction
         );
 
         /**
@@ -158,7 +161,8 @@ namespace runtime {
          */
         size_t scheduleDelayedTask(
             std::function<value::Value()> asyncFunction,
-            int delayMs
+            int delayMs,
+            int priority = 0
         );
 
         /**
@@ -223,6 +227,20 @@ namespace runtime {
          * Thread-safe - can be called from background threads
          */
         void post(std::function<void()> callback);
+
+        /**
+         * @brief Set the aging interval for priority aging
+         * @param intervalMs Milliseconds per priority point (default: 100)
+         *
+         * Lower values = faster aging (tasks gain priority quicker)
+         * Higher values = slower aging (tasks gain priority slower)
+         */
+        void setAgingInterval(int intervalMs) { agingInterval = intervalMs; }
+
+        /**
+         * @brief Get current aging interval
+         */
+        int getAgingInterval() const { return agingInterval; }
 
     private:
         void executeTask(std::shared_ptr<Task> task);

@@ -325,13 +325,14 @@ namespace environment::registry
             }, args[0]);
         });
 
-        // setTimeout(delayMs: int): Promise<void>
+        // setTimeout(delayMs: int, priority: int = 0): Promise<void>
         // Returns a promise that resolves after a delay (non-blocking with event loop)
+        // Higher priority tasks execute before lower priority tasks
         registerNativeFunction("setTimeout", [this](const std::vector<Value>& args) -> Value
         {
-            if (args.size() != 1)
+            if (args.size() < 1 || args.size() > 2)
             {
-                throw errors::ArgumentException("setTimeout expects exactly 1 argument (delayMs)");
+                throw errors::ArgumentException("setTimeout expects 1 or 2 arguments (delayMs, optional priority)");
             }
 
             // Get delay in milliseconds
@@ -344,6 +345,17 @@ namespace environment::registry
             if (delayMs < 0)
             {
                 throw errors::ArgumentException("setTimeout delay must be non-negative");
+            }
+
+            // Get priority (optional, defaults to 0)
+            int priority = 0;
+            if (args.size() == 2)
+            {
+                if (!std::holds_alternative<int>(args[1]))
+                {
+                    throw errors::ArgumentException("setTimeout priority must be an integer");
+                }
+                priority = std::get<int>(args[1]);
             }
 
             // Create an async promise that will be resolved after the delay
@@ -360,14 +372,15 @@ namespace environment::registry
                 );
             }
 
-            // Schedule delayed task on event loop
+            // Schedule delayed task on event loop with priority
             eventLoop->scheduleDelayedTask(
                 [promise]() -> value::Value {
                     // After delay, resolve the promise with void (monostate)
                     promise->resolve(std::monostate{});
                     return std::monostate{};
                 },
-                delayMs
+                delayMs,
+                priority
             );
 
             // AsyncPromiseValue inherits from PromiseValue, so we can return directly
