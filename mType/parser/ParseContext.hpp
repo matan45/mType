@@ -27,6 +27,7 @@ namespace parser
 
         // Context flags
         bool insideLambdaBody = false;
+        bool insideAsyncFunction = false;  // NEW: Track if we're inside an async function/method
 
     public:
         /// @brief Default constructor for delayed initialization
@@ -55,9 +56,34 @@ namespace parser
 
         // Setters for delayed initialization with memory-safe references
         void setStatementParser(StatementParser& parser);
-        void setExpressionParser(ExpressionParser& parser); 
+        void setExpressionParser(ExpressionParser& parser);
         void setClassParser(ClassParser& parser);
         void setInterfaceParser(InterfaceParser& parser);
         void setTokenStream(TokenStream& stream);
+
+        // NEW: Async context management
+        /// @brief Check if we're currently inside an async function/method
+        [[nodiscard]] bool isInsideAsyncFunction() const { return insideAsyncFunction; }
+
+        /// @brief Set async function context (for entering async function body)
+        void setAsyncContext(bool async) { insideAsyncFunction = async; }
+
+        /// @brief RAII helper for async context management
+        class AsyncContextGuard {
+        private:
+            ParseContext& context;
+            bool previousState;
+        public:
+            explicit AsyncContextGuard(ParseContext& ctx, bool async)
+                : context(ctx), previousState(ctx.insideAsyncFunction) {
+                context.insideAsyncFunction = async;
+            }
+            ~AsyncContextGuard() {
+                context.insideAsyncFunction = previousState;
+            }
+            // Prevent copying
+            AsyncContextGuard(const AsyncContextGuard&) = delete;
+            AsyncContextGuard& operator=(const AsyncContextGuard&) = delete;
+        };
     };
 }

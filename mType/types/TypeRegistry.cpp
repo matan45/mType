@@ -8,7 +8,6 @@ namespace types {
 
     TypeRegistry::TypeRegistry() {
         initializePrimitiveTypes();
-        initializeCollectionTypes();
     }
 
     void TypeRegistry::registerPrimitiveType(const std::string& name, value::ValueType valueType) {
@@ -188,21 +187,11 @@ namespace types {
     }
 
     bool TypeRegistry::isGenericParameter(const std::string& typeName) {
-        // Generic type parameters are typically single uppercase letters (T, K, V, E)
-        // or short uppercase names (Key, Value, Element)
+        // Generic type parameters are single uppercase letters (T, K, V, E, etc.)
         if (typeName.empty()) return false;
 
         // Single letter, uppercase
-        if (typeName.length() == 1 && std::isupper(typeName[0])) {
-            return true;
-        }
-
-        // Common generic parameter patterns
-        static const std::unordered_set<std::string> commonParams = {
-            "T", "E", "K", "V", "Key", "Value", "Element", "Type"
-        };
-
-        return commonParams.find(typeName) != commonParams.end();
+        return typeName.length() == 1 && std::isupper(typeName[0]);
     }
 
     std::vector<std::string> TypeRegistry::getAllTypeNames() const {
@@ -236,33 +225,6 @@ namespace types {
         registerPrimitiveType("lambda", value::ValueType::LAMBDA);
     }
 
-    void TypeRegistry::initializeCollectionTypes() {
-        // Collection framework types from mType language
-        registerCollectionType("Array", {"T"});
-        registerCollectionType("List", {"T"});
-        registerCollectionType("Set", {"T"});
-        registerCollectionType("Map", {"K", "V"});
-        registerCollectionType("HashMap", {"K", "V"});
-        registerCollectionType("HashSet", {"T"});
-        registerCollectionType("Stack", {"T"});
-        registerCollectionType("Queue", {"T"});
-        registerCollectionType("Vector", {"T"});
-        registerCollectionType("Dictionary", {"K", "V"});
-
-        // Utility types
-        registerGenericType("Optional", {"T"});
-        registerGenericType("Nullable", {"T"});
-        registerGenericType("Pair", {"T", "U"});
-        registerGenericType("Tuple", {"T", "U"});
-
-        // Pre-register common array types for performance
-        std::vector<std::string> commonElementTypes = {"int", "float", "bool", "string"};
-        for (const auto& elementType : commonElementTypes) {
-            for (int dimensions = 1; dimensions <= 3; ++dimensions) {
-                registerArrayType(elementType, dimensions);
-            }
-        }
-    }
 
     std::pair<std::string, std::vector<std::string>> TypeRegistry::parseGenericInstantiation(const std::string& typeName) const {
         size_t anglePos = typeName.find('<');

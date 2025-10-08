@@ -59,7 +59,7 @@ namespace parser
         return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true);
     }
 
-    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic)
+    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic, bool isAsync)
     {
         // Handle function keyword (required for methods)
         if (tokenStream.current().type != TokenType::FUNCTION)
@@ -67,6 +67,13 @@ namespace parser
             throw ParseException("Expected 'function' keyword", tokenStream.current().location);
         }
         tokenStream.advance();
+
+        // NEW: Check for async keyword AFTER function keyword
+        if (tokenStream.current().type == TokenType::ASYNC)
+        {
+            isAsync = true;
+            tokenStream.advance();
+        }
 
         // Parse generic type parameters for generic methods
         std::vector<GenericTypeParameter> methodGenericParameters = parseMethodGenericParameters();
@@ -92,11 +99,16 @@ namespace parser
             returnType = TypeParser::parseGenericType(tokenStream);
         }
 
-        auto body = context.parseStatement();
+        // NEW: Set async context when parsing method body
+        std::unique_ptr<ASTNode> body;
+        {
+            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
+            body = context.parseStatement();
+        }
 
-        // Create MethodNode with generic support and access modifier
+        // Create MethodNode with generic support, access modifier, and async flag
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), isStatic, methodGenericParameters, accessModifier);
+                                            std::move(body), isStatic, methodGenericParameters, accessModifier, isAsync);
     }
 
     std::vector<GenericTypeParameter> MethodParser::parseMethodGenericParameters()

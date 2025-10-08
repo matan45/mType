@@ -27,12 +27,14 @@ namespace ast::nodes::expressions {
         BodyType bodyType;
         std::string targetInterface;    // Interface this lambda implements
         std::string targetMethod;        // Method name being implemented
-        
+        bool isAsync;  // NEW: Flag to indicate async lambda
+
     public:
        explicit LambdaNode(const std::vector<Parameter>& params,
                    std::unique_ptr<ASTNode> lambdaBody,
                    const SourceLocation& loc = SourceLocation(),
-                   BodyType type = BodyType::EXPRESSION);
+                   BodyType type = BodyType::EXPRESSION,
+                   bool async = false);
         
         const std::vector<Parameter>& getParameters() const;
         ASTNode* getBody() const;
@@ -43,7 +45,11 @@ namespace ast::nodes::expressions {
         
         bool isExpressionLambda() const;
         bool isBlockLambda() const;
-        
+
+        // NEW: Async-related methods
+        bool getIsAsync() const { return isAsync; }
+        void setIsAsync(bool async) { isAsync = async; }
+
         Value accept(ASTVisitor<Value>& visitor) override;
     };
 }

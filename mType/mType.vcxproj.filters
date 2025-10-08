@@ -795,6 +795,9 @@
     <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="parser\utilities\AsyncValidator.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
     <ClInclude Include="parser\utilities\ParsePatterns.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
@@ -1092,6 +1095,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
@@ -1431,6 +1437,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\AsyncValidator.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\ParsePatterns.cpp">

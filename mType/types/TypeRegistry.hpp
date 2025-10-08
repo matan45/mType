@@ -191,11 +191,6 @@ namespace types {
         void initializePrimitiveTypes();
 
         /**
-         * Initialize built-in collection types
-         */
-        void initializeCollectionTypes();
-
-        /**
          * Parse generic type instantiation (e.g., "List<String>" -> {"List", ["String"]})
          */
         std::pair<std::string, std::vector<std::string>> parseGenericInstantiation(const std::string& typeName) const;
