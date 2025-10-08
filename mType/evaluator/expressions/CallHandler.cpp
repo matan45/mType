@@ -16,7 +16,6 @@
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
-
 using namespace errors;
 using namespace evaluator::utils;
 using namespace environment::manager;
@@ -348,7 +347,7 @@ namespace evaluator
                         context->setGenericTypeBindings(previousGenericBindings);
                     }
 
-                    // NEW: Wrap in Promise if async function
+                    // Wrap in Promise if async function
                     if (funcDef->getIsAsync())
                     {
                         auto promise = std::make_shared<PromiseValue>(returnValue);
@@ -373,7 +372,7 @@ namespace evaluator
                     context->setGenericTypeBindings(previousGenericBindings);
                 }
 
-                // NEW: Wrap in Promise if async function
+                // Wrap in Promise if async function
                 if (funcDef->getIsAsync())
                 {
                     auto promise = std::make_shared<PromiseValue>(result);

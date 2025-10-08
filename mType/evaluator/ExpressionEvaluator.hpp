@@ -6,6 +6,7 @@
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
 #include "../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
+#include "../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../errors/SourceLocation.hpp"
 #include "../parser/TypeParser.hpp"
 #include <memory>
@@ -110,6 +111,9 @@ namespace evaluator
         // NEW: Cast and type checking expressions
         Value evaluateCastExpression(CastExpression* node);
         Value evaluateInstanceOfExpression(InstanceOfExpression* node);
+
+        // Async/await expressions
+        Value evaluateAwaitExpression(AwaitExpression* node);
 
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);

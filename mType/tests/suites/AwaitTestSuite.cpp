@@ -8,8 +8,8 @@ namespace tests::testSuite
 
     void AwaitTestSuite::setupTests()
     {
-        // Async/await requires bytecode VM mode
-        // (Evaluator mode doesn't have Promise wrapping support)
+        // Async/await works in both BYTECODE_VM and AST_INTERPRETER modes
+        // Default to BYTECODE_VM, but can be overridden with --bytecode flag
         setExecutionModeForAll(ExecutionMode::BYTECODE_VM);
         // Basic async/await functionality tests
         addOutputVerificationTest("Basic Async Function",

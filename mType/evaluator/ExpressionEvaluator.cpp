@@ -10,6 +10,7 @@
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
+#include "../value/PromiseValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "../ast/nodes/expressions/CastExpression.hpp"
 #include "../ast/nodes/expressions/InstanceOfExpression.hpp"
@@ -43,6 +44,7 @@
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
 #include "../errors/ReturnException.hpp"
+
 
 namespace evaluator
 {
@@ -118,6 +120,9 @@ namespace evaluator
         // Cast and type checking expressions
         dispatcher.registerMethod<CastExpression>(&ExpressionEvaluator::evaluateCastExpression);
         dispatcher.registerMethod<InstanceOfExpression>(&ExpressionEvaluator::evaluateInstanceOfExpression);
+
+        // Async/await expressions
+        dispatcher.registerMethod<AwaitExpression>(&ExpressionEvaluator::evaluateAwaitExpression);
 
         // Special case: MemberAssignmentNode delegates to ObjectEvaluator
         dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
@@ -725,6 +730,31 @@ namespace evaluator
         bool isInstance = isInstanceOfClass(objInstance, targetTypeName);
 
         return isInstance;
+    }
+
+    Value ExpressionEvaluator::evaluateAwaitExpression(AwaitExpression* node)
+    {
+        // Evaluate the expression being awaited
+        Value awaitedValue = evaluate(node->getExpression());
+
+        // Check if the value is a Promise
+        if (!std::holds_alternative<std::shared_ptr<PromiseValue>>(awaitedValue))
+        {
+            throw std::runtime_error("await can only be used on Promise values");
+        }
+
+        // Get the promise
+        auto promise = std::get<std::shared_ptr<PromiseValue>>(awaitedValue);
+
+        // In Phase 2 (synchronous model), await immediately returns the promise's value
+        // The promise should already be fulfilled when returned from an async function
+        if (!promise->isFulfilled())
+        {
+            throw std::runtime_error("Promise is not fulfilled");
+        }
+
+        // Return the unwrapped value
+        return promise->getValue();
     }
 
     Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)
