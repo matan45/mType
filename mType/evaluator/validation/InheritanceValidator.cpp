@@ -357,5 +357,68 @@ namespace validation {
         }
     }
 
+    void InheritanceValidator::validateParentClassNotFinal(
+        const std::string& childClassName,
+        const std::string& parentClassName,
+        const SourceLocation& location,
+        std::shared_ptr<EvaluationContext> context)
+    {
+        if (!context) {
+            throw InheritanceException("No evaluation context available for validation", location);
+        }
+
+        auto env = context->getEnvironment();
+
+        // Extract base parent class name from generic type (e.g., "Container<T>" -> "Container")
+        std::string baseParentName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentName = parentClassName.substr(0, genericStart);
+        }
+
+        // Find parent class
+        auto parentClass = env->findClass(baseParentName);
+        if (parentClass && parentClass->isFinal()) {
+            throw InheritanceException(
+                "Cannot extend final class '" + parentClassName + "'",
+                childClassName,
+                parentClassName,
+                location);
+        }
+    }
+
+    void InheritanceValidator::validateParentInterfaceNotFinal(
+        const std::string& interfaceName,
+        const std::string& parentInterfaceName,
+        const SourceLocation& location,
+        std::shared_ptr<EvaluationContext> context)
+    {
+        if (!context) {
+            throw InheritanceException("No evaluation context available for validation", location);
+        }
+
+        auto env = context->getEnvironment();
+
+        // Extract base parent interface name from generic type (e.g., "Container<T>" -> "Container")
+        std::string baseParentName = parentInterfaceName;
+        size_t genericStart = parentInterfaceName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentName = parentInterfaceName.substr(0, genericStart);
+        }
+
+        // Find parent interface
+        auto interfaceRegistry = env->getInterfaceRegistry();
+        if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
+            auto parentInterface = interfaceRegistry->findInterface(baseParentName);
+            if (parentInterface && parentInterface->isFinal()) {
+                throw InheritanceException(
+                    "Cannot extend final interface '" + parentInterfaceName + "'",
+                    interfaceName,
+                    parentInterfaceName,
+                    location);
+            }
+        }
+    }
+
 } // namespace validation
 } // namespace evaluator

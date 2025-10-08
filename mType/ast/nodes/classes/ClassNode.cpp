@@ -4,7 +4,7 @@ namespace ast::nodes::classes
 {
     // Backward compatibility constructor
     ClassNode::ClassNode(const std::string& name, const SourceLocation& loc)
-        : ASTNode(loc), className(name)
+        : ASTNode(loc), className(name), finalClass(false)
     {
     }
 
@@ -12,7 +12,7 @@ namespace ast::nodes::classes
                          const std::vector<GenericTypeParameter>& generics,
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
-        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces)
+        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false)
     {
     }
 
@@ -22,7 +22,7 @@ namespace ast::nodes::classes
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics),
-          parentClassName(parentClass), implementedInterfaces(interfaces)
+          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false)
     {
     }
 
@@ -136,6 +136,16 @@ namespace ast::nodes::classes
     bool ClassNode::hasParentClass() const
     {
         return !parentClassName.empty();
+    }
+
+    bool ClassNode::isFinal() const
+    {
+        return finalClass;
+    }
+
+    void ClassNode::setFinal(bool isFinal)
+    {
+        finalClass = isFinal;
     }
 
     Value ClassNode::accept(ASTVisitor<Value>& visitor)

@@ -12,6 +12,21 @@ namespace parser::utilities
             return StatementType::CLASS;
         case TokenType::INTERFACE:
             return StatementType::INTERFACE;
+        case TokenType::FINAL:
+            // Check if 'final' is followed by 'class' or 'interface'
+            {
+                Token next = stream.peek();
+                if (next.type == TokenType::CLASS)
+                {
+                    return StatementType::CLASS;
+                }
+                else if (next.type == TokenType::INTERFACE)
+                {
+                    return StatementType::INTERFACE;
+                }
+                // Otherwise fall through to check if it's a modifier for a declaration
+            }
+            break;
         case TokenType::LBRACE:
             return StatementType::BLOCK;
         case TokenType::SEMICOLON:

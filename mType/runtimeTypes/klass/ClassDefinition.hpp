@@ -43,15 +43,18 @@ namespace runtimeTypes::klass
         std::string parentClassName;
         std::weak_ptr<ClassDefinition> parentClass;
 
+        // NEW: Final modifier to prevent inheritance
+        bool finalClass;
+
     public:
         explicit ClassDefinition(const std::string& n)
-            : Definition(n), isGenericClass(false)
+            : Definition(n), isGenericClass(false), finalClass(false)
         {
         }
 
         // NEW: Constructor with generic parameters
         explicit ClassDefinition(const std::string& n, const std::vector<ast::GenericTypeParameter>& generics)
-            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty())
+            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false)
         {
         }
 
@@ -143,6 +146,10 @@ namespace runtimeTypes::klass
 
         // Inheritance chain traversal
         std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain() const;
+
+        // NEW: Final modifier methods
+        bool isFinal() const { return finalClass; }
+        void setFinal(bool isFinal) { finalClass = isFinal; }
 
     private:
         // Depth protection for interface and class inheritance chains

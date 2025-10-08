@@ -41,6 +41,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Interface As Type",
                         passPath + "interfaceAsType.mt");
 
+        // === FINAL INTERFACE TESTS ===
+        // These tests verify final interface functionality
+
+        addOutputVerificationTest("Final Interface Definition",
+                        passPath + "finalInterfaceDefinition.mt");
+        addOutputVerificationTest("Implement Final Interface",
+                        passPath + "implementFinalInterface.mt");
+
         // Advanced interface tests - Edge cases
         addOutputVerificationTest("Deeply Nested Interface Inheritance",
                         passPath + "deeplyNestedInheritance.mt");
@@ -124,6 +132,10 @@ namespace tests::testSuite
 
         addTestFromFile("Interface Extends Class Error",
                         errorPath + "interfaceExtendsClass.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Extends Final Interface Error",
+                        errorPath + "extendsFinalInterface.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

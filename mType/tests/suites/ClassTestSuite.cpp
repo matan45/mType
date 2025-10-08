@@ -82,6 +82,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Inheritance",
                         passPath + "genericInheritance.mt");
 
+        // === FINAL CLASS TESTS ===
+        // These tests verify final class functionality
+
+        addOutputVerificationTest("Final Class Definition",
+                        passPath + "finalClassDefinition.mt");
+        addOutputVerificationTest("Final Class With Members",
+                        passPath + "finalClassWithMembers.mt");
+        addOutputVerificationTest("Final Generic Class",
+                        passPath + "finalGenericClass.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -200,6 +210,12 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Class Extends Interface Error",
                         errorPath + "classExtendsInterface.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Extends Final Class Error",
+                        errorPath + "extendsFinalClass.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Extends Final Generic Class Error",
+                        errorPath + "extendsFinalGenericClass.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

@@ -29,6 +29,14 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassDeclarationParser::parseClassDeclaration()
     {
+        // Check for optional 'final' keyword
+        bool isFinal = false;
+        if (tokenStream.check(TokenType::FINAL))
+        {
+            isFinal = true;
+            tokenStream.advance(); // consume 'final'
+        }
+
         tokenStream.expect(TokenType::CLASS);
 
         if (tokenStream.current().type != TokenType::IDENTIFIER)
@@ -57,7 +65,9 @@ namespace parser
 
         tokenStream.expect(TokenType::LBRACE);
 
-        return std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
+        classNode->setFinal(isFinal);
+        return classNode;
     }
 
     std::string ClassDeclarationParser::parseExtendsClause()

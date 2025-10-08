@@ -127,6 +127,26 @@ namespace validation {
             const SourceLocation& location,
             std::shared_ptr<EvaluationContext> context);
 
+        /**
+         * Validate that parent class is not marked as final
+         * @throws InheritanceException if parent class is final
+         */
+        static void validateParentClassNotFinal(
+            const std::string& childClassName,
+            const std::string& parentClassName,
+            const SourceLocation& location,
+            std::shared_ptr<EvaluationContext> context);
+
+        /**
+         * Validate that parent interface is not marked as final
+         * @throws InheritanceException if parent interface is final
+         */
+        static void validateParentInterfaceNotFinal(
+            const std::string& interfaceName,
+            const std::string& parentInterfaceName,
+            const SourceLocation& location,
+            std::shared_ptr<EvaluationContext> context);
+
     private:
         static constexpr int MAX_INHERITANCE_DEPTH = 20;
 
