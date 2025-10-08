@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 
+
 namespace types {
 
     TypeRegistry::TypeRegistry() {

@@ -29,6 +29,7 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../runtime/EventLoop.hpp"
 
 #include <vector>
 #include <memory>
@@ -220,6 +221,9 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
 
 int main(int argc, char* argv[])
 {
+    // Initialize event loop for async/await support
+    runtime::initializeEventLoop();
+
     // Parse execution mode first
     constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
 
@@ -396,8 +400,11 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        runtime::shutdownEventLoop();
         return 1;
     }
 
+    // Cleanup event loop
+    runtime::shutdownEventLoop();
     return 0;
 }

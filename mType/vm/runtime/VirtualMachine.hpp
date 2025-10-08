@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <optional>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -36,6 +37,14 @@ namespace vm::runtime
      */
     class VirtualMachine
     {
+    public:
+        // State save/restore for async suspension
+        struct VMState {
+            size_t instructionPointer;
+            std::vector<value::Value> stack;
+            std::vector<CallFrame> callStack;
+        };
+
     private:
         // Program data
         const bytecode::BytecodeProgram* program;
@@ -51,6 +60,8 @@ namespace vm::runtime
         // Event loop integration (optional - for async/await support)
         ::runtime::EventLoop* eventLoop;
         size_t currentTaskId;
+        std::optional<VMState> savedState;  // For async resumption
+        bool suspendedByAwait;  // Flag to indicate suspension by AWAIT instruction
 
         // Execution statistics
         ExecutionStats stats;
@@ -80,6 +91,12 @@ namespace vm::runtime
         // Event loop integration
         void setEventLoop(::runtime::EventLoop* loop) { eventLoop = loop; }
         void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
+
+        // State save/restore for async suspension
+        VMState saveState() const;
+        void restoreState(const VMState& state);
+        bool hasSavedState() const { return savedState.has_value(); }
+        void clearSavedState() { savedState.reset(); }
 
         // State inspection
         const ExecutionStats& getStats() const;

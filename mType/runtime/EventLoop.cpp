@@ -1,5 +1,6 @@
 #include "EventLoop.hpp"
 #include "../value/PromiseValue.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 #include <algorithm>
 #include <iostream>
 
@@ -89,9 +90,6 @@ namespace runtime {
 
         // Move to suspended tasks map
         suspendedTasks[currentTask->taskId] = currentTask;
-
-        std::cerr << "[EventLoop] Task " << currentTask->taskId
-                  << " suspended, waiting on promise" << std::endl;
     }
 
     void EventLoop::resumeTask(size_t taskId, value::Value resolvedValue) {
@@ -99,8 +97,6 @@ namespace runtime {
 
         auto it = suspendedTasks.find(taskId);
         if (it == suspendedTasks.end()) {
-            std::cerr << "[EventLoop] Cannot resume task " << taskId
-                      << " - not found in suspended tasks" << std::endl;
             return;
         }
 
@@ -111,9 +107,6 @@ namespace runtime {
         // Add back to ready queue
         readyQueue.push_back(task);
         suspendedTasks.erase(it);
-
-        std::cerr << "[EventLoop] Task " << taskId
-                  << " resumed with resolved value" << std::endl;
 
         // If task has a resume callback, invoke it
         if (task->resumeCallback) {
@@ -142,17 +135,37 @@ namespace runtime {
         }
     }
 
+    void EventLoop::setTaskVM(size_t taskId, vm::runtime::VirtualMachine* vmPtr) {
+        std::lock_guard<std::mutex> lock(queueMutex);
+
+        auto it = allTasks.find(taskId);
+        if (it != allTasks.end()) {
+            it->second->vm = vmPtr;
+        }
+    }
+
     void EventLoop::run() {
         running = true;
         shouldStop = false;
 
-        std::cerr << "[EventLoop] Starting event loop" << std::endl;
+        // Safety timeout to prevent infinite loops during debugging
+        auto startTime = std::chrono::steady_clock::now();
+        const int MAX_ITERATIONS = 10000;
+        int iterations = 0;
 
         while (!shouldStop && tick()) {
-            // Keep running
+            iterations++;
+
+            // Check for timeout (10 seconds) or max iterations
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - startTime
+            ).count();
+
+            if (elapsed > 10 || iterations > MAX_ITERATIONS) {
+                break;
+            }
         }
 
-        std::cerr << "[EventLoop] Event loop stopped" << std::endl;
         running = false;
     }
 
@@ -214,11 +227,21 @@ namespace runtime {
         currentTask = task;
         task->state = TaskState::RUNNING;
 
-        std::cerr << "[EventLoop] Executing task " << task->taskId << std::endl;
+        // Set task ID in VM if available
+        if (task->vm) {
+            task->vm->setCurrentTaskId(task->taskId);
+        }
 
         try {
             // Execute the task's function
             value::Value result = task->function();
+
+            // Check if task was suspended during execution
+            // If suspended, the task state was changed by suspendCurrentTask()
+            if (task->state == TaskState::SUSPENDED) {
+                // Don't mark as completed, task is in suspendedTasks map
+                return;
+            }
 
             // Task completed successfully
             task->state = TaskState::COMPLETED;
@@ -228,8 +251,6 @@ namespace runtime {
                 task->resultPromise->resolve(result);
             }
 
-            std::cerr << "[EventLoop] Task " << task->taskId << " completed" << std::endl;
-
             // Remove from all tasks
             std::lock_guard<std::mutex> lock(queueMutex);
             allTasks.erase(task->taskId);
@@ -237,9 +258,6 @@ namespace runtime {
         catch (const std::exception& e) {
             task->state = TaskState::FAILED;
             task->errorMessage = e.what();
-
-            std::cerr << "[EventLoop] Task " << task->taskId
-                      << " failed: " << e.what() << std::endl;
 
             // Reject the promise
             if (task->resultPromise) {
@@ -280,9 +298,6 @@ namespace runtime {
 
             readyQueue.push_back(task);
             suspendedTasks.erase(taskId);
-
-            std::cerr << "[EventLoop] Auto-resuming task " << taskId
-                      << " (promise fulfilled)" << std::endl;
         }
     }
 
@@ -297,10 +312,6 @@ namespace runtime {
             if (it->executeAt <= now) {
                 // Move to ready queue
                 readyQueue.push_back(it->task);
-
-                std::cerr << "[EventLoop] Delayed task " << it->task->taskId
-                          << " is now ready" << std::endl;
-
                 it = delayedTasks.erase(it);
             } else {
                 ++it;

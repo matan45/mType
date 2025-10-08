@@ -65,6 +65,9 @@ namespace runtime {
         // Callback to resume execution
         std::function<void(value::Value)> resumeCallback;
 
+        // VM reference (optional, for setting task ID before execution)
+        vm::runtime::VirtualMachine* vm;
+
         // Priority for scheduling (higher = more urgent)
         int priority;
 
@@ -77,6 +80,7 @@ namespace runtime {
         Task(size_t id)
             : taskId(id)
             , state(TaskState::PENDING)
+            , vm(nullptr)
             , priority(0)
             , scheduledAt(std::chrono::steady_clock::now())
         {}
@@ -175,6 +179,13 @@ namespace runtime {
          * @param taskId ID of task to cancel
          */
         void cancelTask(size_t taskId);
+
+        /**
+         * @brief Set VM reference for a task (for automatic task ID setting)
+         * @param taskId ID of the task
+         * @param vmPtr Pointer to the VirtualMachine
+         */
+        void setTaskVM(size_t taskId, vm::runtime::VirtualMachine* vmPtr);
 
         /**
          * @brief Run the event loop until all tasks complete

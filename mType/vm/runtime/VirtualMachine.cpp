@@ -35,6 +35,7 @@ namespace vm::runtime
           , environment(std::move(env))
           , eventLoop(nullptr)
           , currentTaskId(0)
+          , suspendedByAwait(false)
     {
         callStack.reserve(64);
 
@@ -47,10 +48,17 @@ namespace vm::runtime
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {
         program = &bytecodeProgram;
-        instructionPointer = program->getEntryPoint();
 
-        executionStart = std::chrono::steady_clock::now();
-        stats = ExecutionStats{};
+        // Check if we're resuming from a saved state
+        if (savedState.has_value()) {
+            restoreState(savedState.value());
+            savedState.reset();  // Clear saved state after restoring
+        } else {
+            // Fresh execution - start from entry point
+            instructionPointer = program->getEntryPoint();
+            executionStart = std::chrono::steady_clock::now();
+            stats = ExecutionStats{};
+        }
 
         // Initialize executors with execution context
         ExecutionContext context(program, instructionPointer, callStack, environment,
@@ -106,6 +114,8 @@ namespace vm::runtime
 
     value::Value VirtualMachine::interpretLoop()
     {
+        suspendedByAwait = false;  // Reset flag at start
+
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
@@ -114,6 +124,13 @@ namespace vm::runtime
             executeInstruction(instr);
 
             stats.instructionsExecuted++;
+
+            // Check if we suspended due to AWAIT - if so, break without incrementing IP
+            if (suspendedByAwait)
+            {
+                suspendedByAwait = false;  // Reset flag
+                break;  // Exit loop without incrementing IP (already done by AWAIT handler)
+            }
 
             // Check for halt
             if (instr.opcode == bytecode::OpCode::HALT)
@@ -296,100 +313,108 @@ namespace vm::runtime
 
         // Async/Await Operations
         case OpCode::CREATE_PROMISE:
-        {
-            // Pop value from stack and wrap it in a Promise
-            value::Value val = stackManager->pop();
-            auto promise = std::make_shared<value::PromiseValue>(val);
-            stackManager->push(promise);
-            break;
-        }
-
-        case OpCode::AWAIT:
-        {
-            // Pop Promise from stack and unwrap its value
-            value::Value promiseVal = stackManager->pop();
-            if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
             {
-                throw errors::RuntimeException("await can only be used on Promise values");
-            }
-
-            auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
-
-            // Defensive null check
-            if (!promise)
-            {
-                throw errors::RuntimeException("Null promise in await expression");
-            }
-
-            // FAST PATH: Promise already fulfilled, continue immediately
-            if (promise->isFulfilled())
-            {
-                // Push the unwrapped value back onto the stack
-                stackManager->push(promise->getValue());
+                // Pop value from stack and wrap it in a Promise
+                value::Value val = stackManager->pop();
+                auto promise = std::make_shared<value::PromiseValue>(val);
+                stackManager->push(promise);
                 break;
             }
 
-            // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
-            if (eventLoop != nullptr)
+        case OpCode::AWAIT:
             {
-                // Try to cast to AsyncPromiseValue for callback support
-                auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
-
-                if (asyncPromise)
+                // Pop Promise from stack and unwrap its value
+                value::Value promiseVal = stackManager->pop();
+                if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
                 {
-                    // Capture the stack manager to push resolved value when task resumes
-                    auto stackMgr = this->stackManager;
-                    auto loop = this->eventLoop;
-                    auto taskId = this->currentTaskId;
+                    throw errors::RuntimeException("await can only be used on Promise values");
+                }
 
-                    // Register callback to resume this task when promise resolves
-                    asyncPromise->then([stackMgr, loop, taskId](value::Value resolvedValue) {
-                        // Push resolved value onto stack for when task resumes
-                        // This will be executed by the event loop on the main thread
-                        loop->post([stackMgr, loop, taskId, resolvedValue]() {
+                auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+
+                // Defensive null check
+                if (!promise)
+                {
+                    throw errors::RuntimeException("Null promise in await expression");
+                }
+
+                // FAST PATH: Promise already fulfilled, continue immediately
+                if (promise->isFulfilled())
+                {
+                    // Push the unwrapped value back onto the stack
+                    stackManager->push(promise->getValue());
+                    break;
+                }
+
+                // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
+                if (eventLoop != nullptr)
+                {
+                    // Try to cast to AsyncPromiseValue for callback support
+                    auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+
+                    if (asyncPromise)
+                    {
+                        // Capture the stack manager to push resolved value when task resumes
+                        auto stackMgr = this->stackManager;
+                        auto loop = this->eventLoop;
+                        auto taskId = this->currentTaskId;
+
+                        // Register callback to resume this task when promise resolves
+                        // NOTE: This callback executes synchronously when promise.resolve() is called
+                        // We're already on the event loop thread, so no need for loop->post()
+                        asyncPromise->then([stackMgr, loop, taskId](value::Value resolvedValue)
+                        {
                             // Push the resolved value onto the stack
                             stackMgr->push(resolvedValue);
 
-                            // Resume the task
+                            // Resume the task (this will move it from suspended to ready queue)
                             loop->resumeTask(taskId, resolvedValue);
                         });
-                    });
 
-                    // Suspend current task and yield control to event loop
-                    eventLoop->suspendCurrentTask(promise);
+                        // Save VM state before suspending
+                        // IMPORTANT: Increment IP to point to the next instruction after AWAIT
+                        // The main loop checks suspendedByAwait flag and skips its own increment
+                        instructionPointer++;
+                        savedState = saveState();
 
-                    // IMPORTANT: Don't continue execution - the event loop will resume us later
-                    // When resumed, the resolved value will already be on the stack
-                    return; // Exit interpretLoop, giving control back to event loop
+                        // Suspend current task and yield control to event loop
+                        eventLoop->suspendCurrentTask(promise);
+
+                        // Set flag to tell main loop we've suspended and already incremented IP
+                        suspendedByAwait = true;
+
+                        // Return from executeInstruction
+                        // The main loop will see the flag and break without incrementing IP
+                        return;
+                    }
+                    else
+                    {
+                        // PromiseValue without callback support - must already be fulfilled
+                        throw errors::RuntimeException(
+                            "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
+                            "Use AsyncPromiseValue for true async/await functionality."
+                        );
+                    }
                 }
                 else
                 {
-                    // PromiseValue without callback support - must already be fulfilled
+                    // No event loop - synchronous mode (Phase 2)
+                    // Promise must already be fulfilled in synchronous mode
                     throw errors::RuntimeException(
-                        "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
-                        "Use AsyncPromiseValue for true async/await functionality."
+                        "Promise is not fulfilled and no event loop is available. "
+                        "Initialize an EventLoop for non-blocking async/await support."
                     );
                 }
-            }
-            else
-            {
-                // No event loop - synchronous mode (Phase 2)
-                // Promise must already be fulfilled in synchronous mode
-                throw errors::RuntimeException(
-                    "Promise is not fulfilled and no event loop is available. "
-                    "Initialize an EventLoop for non-blocking async/await support."
-                );
-            }
 
-            break;
-        }
+                break;
+            }
 
         case OpCode::PROMISE_RESOLVE:
-        {
-            // Reserved for future asynchronous execution model
-            throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
-            break;
-        }
+            {
+                // Reserved for future asynchronous execution model
+                throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
+                break;
+            }
 
         default:
             throw errors::RuntimeException("Unimplemented opcode: " +
@@ -637,6 +662,22 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+    }
+
+    VirtualMachine::VMState VirtualMachine::saveState() const
+    {
+        VMState state;
+        state.instructionPointer = instructionPointer;
+        state.stack = stackManager->getStack();  // Get copy of entire stack
+        state.callStack = callStack;
+        return state;
+    }
+
+    void VirtualMachine::restoreState(const VMState& state)
+    {
+        instructionPointer = state.instructionPointer;
+        stackManager->setStack(state.stack);  // Restore entire stack
+        callStack = state.callStack;
     }
 
     value::ValueType VirtualMachine::stringToValueType(const std::string& typeName)

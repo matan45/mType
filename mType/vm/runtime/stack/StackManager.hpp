@@ -31,6 +31,7 @@ namespace vm::runtime
         const value::Value& operator[](size_t index) const;
         std::vector<value::Value>& getStack();
         const std::vector<value::Value>& getStack() const;
+        void setStack(const std::vector<value::Value>& newStack);
 
         // Stack size manipulation (for call frames)
         void resize(size_t newSize);

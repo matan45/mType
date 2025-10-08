@@ -142,6 +142,26 @@ namespace environment::registry
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
                         std::cout << "null";
                     else if constexpr (std::is_same_v<
+                        std::decay_t<decltype(value)>, std::shared_ptr<value::PromiseValue>>)
+                    {
+                        if (!value)
+                        {
+                            std::cout << "null";
+                        }
+                        else if (value->isFulfilled())
+                        {
+                            std::cout << "[Promise:fulfilled]";
+                        }
+                        else if (value->isPending())
+                        {
+                            std::cout << "[Promise:pending]";
+                        }
+                        else
+                        {
+                            std::cout << "[Promise:rejected]";
+                        }
+                    }
+                    else if constexpr (std::is_same_v<
                         std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
                     {
                         if (!value)
@@ -307,7 +327,7 @@ namespace environment::registry
 
         // setTimeout(delayMs: int): Promise<void>
         // Returns a promise that resolves after a delay (non-blocking with event loop)
-        registerNativeFunction("setTimeout", [](const std::vector<Value>& args) -> Value
+        registerNativeFunction("setTimeout", [this](const std::vector<Value>& args) -> Value
         {
             if (args.size() != 1)
             {
@@ -350,6 +370,7 @@ namespace environment::registry
                 delayMs
             );
 
+            // AsyncPromiseValue inherits from PromiseValue, so we can return directly
             return promise;
         });
     }
