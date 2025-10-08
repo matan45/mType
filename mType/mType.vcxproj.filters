@@ -85,6 +85,9 @@
     <Filter Include="run">
       <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="runtime">
+      <UniqueIdentifier>{692D2264-D50C-A1FF-DE24-2CD64A830761}</UniqueIdentifier>
+    </Filter>
     <Filter Include="runtimeTypes">
       <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
     </Filter>
@@ -819,6 +822,9 @@
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="runtime\EventLoop.hpp">
+      <Filter>runtime</Filter>
+    </ClInclude>
     <ClInclude Include="runtimeTypes\Definition.hpp">
       <Filter>runtimeTypes</Filter>
     </ClInclude>
@@ -931,6 +937,9 @@
       <Filter>types</Filter>
     </ClInclude>
     <ClInclude Include="value\ArrayPool.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\AsyncPromiseValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
@@ -1471,6 +1480,9 @@
     </ClCompile>
     <ClCompile Include="run\Main.cpp">
       <Filter>run</Filter>
+    </ClCompile>
+    <ClCompile Include="runtime\EventLoop.cpp">
+      <Filter>runtime</Filter>
     </ClCompile>
     <ClCompile Include="runtimeTypes\Definition.cpp">
       <Filter>runtimeTypes</Filter>

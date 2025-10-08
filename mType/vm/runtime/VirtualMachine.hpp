@@ -22,6 +22,11 @@ namespace vm::runtime {
     class LambdaExecutor;
 }
 
+// Forward declaration for event loop
+namespace runtime {
+    class EventLoop;
+}
+
 namespace vm::runtime
 {
     /**
@@ -42,6 +47,10 @@ namespace vm::runtime
 
         // Environment integration
         std::shared_ptr<environment::Environment> environment;
+
+        // Event loop integration (optional - for async/await support)
+        ::runtime::EventLoop* eventLoop;
+        size_t currentTaskId;
 
         // Execution statistics
         ExecutionStats stats;
@@ -67,6 +76,10 @@ namespace vm::runtime
         // Execution
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
+
+        // Event loop integration
+        void setEventLoop(::runtime::EventLoop* loop) { eventLoop = loop; }
+        void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
 
         // State inspection
         const ExecutionStats& getStats() const;

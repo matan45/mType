@@ -2,10 +2,13 @@
 #include <algorithm>
 #include <iostream>
 #include <functional>
+#include <thread>
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../runtime/EventLoop.hpp"
 
 namespace environment::registry
 {
@@ -300,6 +303,54 @@ namespace environment::registry
                     return 0; // Default hash code for unknown types
                 }
             }, args[0]);
+        });
+
+        // setTimeout(delayMs: int): Promise<void>
+        // Returns a promise that resolves after a delay (non-blocking with event loop)
+        registerNativeFunction("setTimeout", [](const std::vector<Value>& args) -> Value
+        {
+            if (args.size() != 1)
+            {
+                throw errors::ArgumentException("setTimeout expects exactly 1 argument (delayMs)");
+            }
+
+            // Get delay in milliseconds
+            if (!std::holds_alternative<int>(args[0]))
+            {
+                throw errors::ArgumentException("setTimeout delay must be an integer (milliseconds)");
+            }
+            int delayMs = std::get<int>(args[0]);
+
+            if (delayMs < 0)
+            {
+                throw errors::ArgumentException("setTimeout delay must be non-negative");
+            }
+
+            // Create an async promise that will be resolved after the delay
+            auto promise = std::make_shared<value::AsyncPromiseValue>();
+
+            // Get global event loop
+            auto* eventLoop = ::runtime::globalEventLoop;
+
+            if (!eventLoop)
+            {
+                throw errors::RuntimeException(
+                    "setTimeout requires an active EventLoop. "
+                    "Initialize the event loop before calling setTimeout."
+                );
+            }
+
+            // Schedule delayed task on event loop
+            eventLoop->scheduleDelayedTask(
+                [promise]() -> value::Value {
+                    // After delay, resolve the promise with void (monostate)
+                    promise->resolve(std::monostate{});
+                    return std::monostate{};
+                },
+                delayMs
+            );
+
+            return promise;
         });
     }
 }

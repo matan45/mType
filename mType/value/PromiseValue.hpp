@@ -53,6 +53,11 @@ namespace value
         }
 
         /**
+         * @brief Virtual destructor for polymorphism
+         */
+        virtual ~PromiseValue() = default;
+
+        /**
          * @brief Get the current state of the promise
          */
         PromiseState getState() const { return state; }

@@ -18,6 +18,8 @@
 #include "../../value/StringPool.hpp"
 #include "../../value/LambdaValue.hpp"
 #include "../../value/PromiseValue.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../runtime/EventLoop.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -31,6 +33,8 @@ namespace vm::runtime
           , stackManager(std::make_shared<StackManager>())
           , instructionPointer(0)
           , environment(std::move(env))
+          , eventLoop(nullptr)
+          , currentTaskId(0)
     {
         callStack.reserve(64);
 
@@ -317,13 +321,66 @@ namespace vm::runtime
                 throw errors::RuntimeException("Null promise in await expression");
             }
 
-            if (!promise->isFulfilled())
+            // FAST PATH: Promise already fulfilled, continue immediately
+            if (promise->isFulfilled())
             {
-                throw errors::RuntimeException("Promise is not fulfilled");
+                // Push the unwrapped value back onto the stack
+                stackManager->push(promise->getValue());
+                break;
             }
 
-            // Push the unwrapped value back onto the stack
-            stackManager->push(promise->getValue());
+            // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
+            if (eventLoop != nullptr)
+            {
+                // Try to cast to AsyncPromiseValue for callback support
+                auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+
+                if (asyncPromise)
+                {
+                    // Capture the stack manager to push resolved value when task resumes
+                    auto stackMgr = this->stackManager;
+                    auto loop = this->eventLoop;
+                    auto taskId = this->currentTaskId;
+
+                    // Register callback to resume this task when promise resolves
+                    asyncPromise->then([stackMgr, loop, taskId](value::Value resolvedValue) {
+                        // Push resolved value onto stack for when task resumes
+                        // This will be executed by the event loop on the main thread
+                        loop->post([stackMgr, loop, taskId, resolvedValue]() {
+                            // Push the resolved value onto the stack
+                            stackMgr->push(resolvedValue);
+
+                            // Resume the task
+                            loop->resumeTask(taskId, resolvedValue);
+                        });
+                    });
+
+                    // Suspend current task and yield control to event loop
+                    eventLoop->suspendCurrentTask(promise);
+
+                    // IMPORTANT: Don't continue execution - the event loop will resume us later
+                    // When resumed, the resolved value will already be on the stack
+                    return; // Exit interpretLoop, giving control back to event loop
+                }
+                else
+                {
+                    // PromiseValue without callback support - must already be fulfilled
+                    throw errors::RuntimeException(
+                        "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
+                        "Use AsyncPromiseValue for true async/await functionality."
+                    );
+                }
+            }
+            else
+            {
+                // No event loop - synchronous mode (Phase 2)
+                // Promise must already be fulfilled in synchronous mode
+                throw errors::RuntimeException(
+                    "Promise is not fulfilled and no event loop is available. "
+                    "Initialize an EventLoop for non-blocking async/await support."
+                );
+            }
+
             break;
         }
 
