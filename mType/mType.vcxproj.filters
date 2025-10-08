@@ -2167,6 +2167,12 @@
     <None Include="tests\testFiles\class\error\constructorReturnTypesVoid.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\extendsFinalClass.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\extendsFinalGenericClass.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\finalConstructor.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -2327,6 +2333,24 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\defaultConstructor.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalClassDefinition.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalClassDefinition.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalClassWithMembers.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalClassWithMembers.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalGenericClass.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalGenericClass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\functionScopingPass.expected">
@@ -3274,6 +3298,9 @@
     <None Include="tests\testFiles\interface\error\circularInheritanceDeep.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
+    <None Include="tests\testFiles\interface\error\extendsFinalInterface.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
     <None Include="tests\testFiles\interface\error\incompleteInterfaceImplementation.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
@@ -3355,6 +3382,12 @@
     <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interface\pass\finalInterfaceDefinition.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\finalInterfaceDefinition.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interface\pass\genericClassImplementsGenericInterface.expected">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
@@ -3377,6 +3410,12 @@
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\genericInterfaceInheritance.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\implementFinalInterface.expected">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\implementFinalInterface.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\interfaceAsType.expected">

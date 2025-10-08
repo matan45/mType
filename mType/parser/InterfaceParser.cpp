@@ -26,7 +26,7 @@ namespace parser
     {
         // Check for optional 'final' keyword
         bool isFinal = false;
-        if (tokenStream.current().type == TokenType::FINAL)
+        if (tokenStream.check(TokenType::FINAL))
         {
             isFinal = true;
             tokenStream.advance(); // consume 'final'
