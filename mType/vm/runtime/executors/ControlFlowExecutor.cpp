@@ -1,4 +1,5 @@
 #include "ControlFlowExecutor.hpp"
+#include "../../../value/PromiseValue.hpp"
 
 namespace vm::runtime
 {
@@ -60,6 +61,20 @@ namespace vm::runtime
 
     void ControlFlowExecutor::handleReturnValue() {
         value::Value returnVal = context.stackManager->pop();
+
+        // Check if we're returning from an async function
+        // If so, wrap the return value in a PromiseValue
+        if (!context.callStack.empty()) {
+            const CallFrame& frame = context.callStack.back();
+            auto funcMetadata = context.program->getFunction(frame.functionName);
+
+            if (funcMetadata && funcMetadata->isAsync) {
+                // Wrap return value in PromiseValue for async functions
+                auto promise = std::make_shared<value::PromiseValue>(returnVal);
+                returnVal = promise;
+            }
+        }
+
         handleReturn();
         context.stackManager->push(returnVal);
     }

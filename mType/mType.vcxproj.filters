@@ -118,6 +118,15 @@
     <Filter Include="tests\testFiles\arrays\pass">
       <UniqueIdentifier>{C128FBA7-2D36-298E-B61C-25792229F544}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\await">
+      <UniqueIdentifier>{FF1A97E4-6B87-52DF-347B-EA3CA0A67447}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\await\error">
+      <UniqueIdentifier>{98B54B46-04C3-792C-8DA9-7517F9B545E3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\await\pass">
+      <UniqueIdentifier>{65687C57-5178-2828-BA31-8D46A66017C1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\cast">
       <UniqueIdentifier>{B4328973-A0C1-123D-49E0-2638354E23E3}</UniqueIdentifier>
     </Filter>
@@ -852,6 +861,9 @@
     <ClInclude Include="tests\suites\ArrayTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\AwaitTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\CastTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -1499,6 +1511,9 @@
     <ClCompile Include="tests\suites\ArrayTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\AwaitTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\CastTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -1782,6 +1797,63 @@
     </None>
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncMethodWithoutPromise.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncReturningVoid.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncWithPrimitiveReturn.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncWithoutPromiseReturn.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethods.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncVoidReturn.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncVoidReturn.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithArrays.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithArrays.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithGenerics.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithGenerics.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\basicAsyncFunction.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\basicAsyncFunction.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\multipleAwaits.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\multipleAwaits.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\nestedAsyncCalls.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\nestedAsyncCalls.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
       <Filter>tests\testFiles\cast\error</Filter>

@@ -270,6 +270,10 @@ namespace vm::compiler::visitors
         // Emit implicit return for void methods (if no explicit return)
         if (returnType == value::ValueType::VOID) {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            // Wrap in Promise if async method
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
@@ -301,6 +305,7 @@ namespace vm::compiler::visitors
         metadata.returnType = returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
+        metadata.isAsync = node->getIsAsync();  // Copy async flag from AST
 
         ctx.program.registerFunction(qualifiedMethodName, metadata);
 
