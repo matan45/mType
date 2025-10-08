@@ -84,6 +84,7 @@ namespace evaluator
         Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
         Value visitCastExpression(CastExpression* node) override;
         Value visitInstanceOfExpression(InstanceOfExpression* node) override;
+        Value visitAwaitExpression(AwaitExpression* node) override;
 
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }

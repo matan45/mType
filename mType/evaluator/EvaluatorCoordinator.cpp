@@ -340,4 +340,11 @@ namespace evaluator
     {
         return exprEvaluator->evaluateInstanceOfExpression(node);
     }
+
+    Value EvaluatorCoordinator::visitAwaitExpression(AwaitExpression* node)
+    {
+        // TODO: Implement async/await support in Phase 2
+        // For now, throw an error since async/await is not yet implemented
+        throw std::runtime_error("Async/await is not yet implemented. This is a Phase 1 stub.");
+    }
 }

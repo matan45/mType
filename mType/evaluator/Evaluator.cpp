@@ -213,6 +213,11 @@ namespace evaluator
         return coordinator->visitInstanceOfExpression(node);
     }
 
+    Value Evaluator::visitAwaitExpression(AwaitExpression* node)
+    {
+        return coordinator->visitAwaitExpression(node);
+    }
+
     // Helper method implementations - delegate to coordinator
     std::shared_ptr<Environment> Evaluator::getEnvironment() const
     {

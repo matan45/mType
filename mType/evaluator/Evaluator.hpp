@@ -74,6 +74,7 @@ namespace evaluator
         Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
         Value visitCastExpression(CastExpression* node) override;
         Value visitInstanceOfExpression(InstanceOfExpression* node) override;
+        Value visitAwaitExpression(AwaitExpression* node) override;
 
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;

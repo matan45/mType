@@ -303,6 +303,13 @@ namespace vm::compiler
         return expressionCompiler.compileInstanceOf(node);
     }
 
+    value::Value BytecodeCompiler::visitAwaitExpression(ast::AwaitExpression* node)
+    {
+        // TODO: Implement async/await bytecode compilation in Phase 3
+        // For now, throw a compile error
+        throw std::runtime_error("Async/await bytecode compilation is not yet implemented. This is a Phase 1 stub.");
+    }
+
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)
     {
         // Handle imports at compile time
