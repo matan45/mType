@@ -86,6 +86,9 @@ namespace evaluator
 
         // Object instance access
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
+
+        // Event loop access for async/await
+        ::runtime::EventLoop* getEventLoop() const;
         
         // Type conversion helpers
         bool isTruthy(const Value& value);

@@ -1,6 +1,6 @@
 #pragma once
 #include "../../value/ValueType.hpp"
-#include "../../value/PromiseValue.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
 #include <memory>
 
 namespace evaluator::utils
@@ -8,7 +8,7 @@ namespace evaluator::utils
     /**
      * @brief RAII guard for async function return value wrapping
      *
-     * Ensures that async function return values are always wrapped in PromiseValue,
+     * Ensures that async function return values are always wrapped in AsyncPromiseValue,
      * even in the presence of exceptions. Follows the RAII (Resource Acquisition Is
      * Initialization) pattern for exception safety.
      *
@@ -40,16 +40,16 @@ namespace evaluator::utils
         }
 
         /**
-         * @brief Wrap return value in Promise if function is async
+         * @brief Wrap return value in AsyncPromise if function is async
          * @param returnValue The value returned from the function
-         * @return PromiseValue if async, original value otherwise
+         * @return AsyncPromiseValue if async, original value otherwise
          */
         value::Value wrapIfNeeded(const value::Value& returnValue)
         {
             wrapped = true;
             if (isAsync)
             {
-                return std::make_shared<value::PromiseValue>(returnValue);
+                return std::make_shared<value::AsyncPromiseValue>(returnValue);
             }
             return returnValue;
         }

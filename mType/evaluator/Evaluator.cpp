@@ -1,10 +1,12 @@
 #include "Evaluator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../runtime/EventLoop.hpp"
+#include "../value/AsyncPromiseValue.hpp"
 
 namespace evaluator
 {
     using namespace runtimeTypes::klass;
-    
+
     Evaluator::Evaluator(std::shared_ptr<Environment> environment)
     {
         coordinator = std::make_unique<EvaluatorCoordinator>(environment);
@@ -252,6 +254,11 @@ namespace evaluator
     std::shared_ptr<ObjectInstance> Evaluator::getCurrentInstance() const
     {
         return coordinator->getCurrentInstance();
+    }
+
+    ::runtime::EventLoop* Evaluator::getEventLoop() const
+    {
+        return coordinator->getContext()->getEventLoop();
     }
 
     bool Evaluator::isTruthy(const Value& value)

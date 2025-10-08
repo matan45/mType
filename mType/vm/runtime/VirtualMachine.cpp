@@ -33,7 +33,7 @@ namespace vm::runtime
           , stackManager(std::make_shared<StackManager>())
           , instructionPointer(0)
           , environment(std::move(env))
-          , eventLoop(std::make_unique<::runtime::EventLoop>())
+          , eventLoop(nullptr)  // Lazy initialization - only created when needed
           , currentTaskId(0)
           , suspendedByAwait(false)
     {
@@ -44,6 +44,15 @@ namespace vm::runtime
     }
 
     VirtualMachine::~VirtualMachine() = default;
+
+    ::runtime::EventLoop* VirtualMachine::ensureEventLoop()
+    {
+        if (!eventLoop)
+        {
+            eventLoop = std::make_unique<::runtime::EventLoop>();
+        }
+        return eventLoop.get();
+    }
 
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {

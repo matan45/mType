@@ -88,8 +88,9 @@ namespace vm::runtime
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
 
-        // Event loop integration
+        // Event loop integration (lazy initialization)
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
+        ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist
         void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
 
         // State save/restore for async suspension

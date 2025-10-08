@@ -1,8 +1,9 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/PromiseValue.hpp"
+#include "../value/AsyncPromiseValue.hpp"
 #include "../ast/nodes/expressions/AwaitExpression.hpp"
-
+#include "../exception/SuspendException.hpp"
 namespace evaluator
 {
     using namespace runtimeTypes::klass;
@@ -40,12 +41,17 @@ namespace evaluator
         if (!node) {
             return std::monostate{};
         }
-        
+
         return routeEvaluation(node);
     }
     
     Value EvaluatorCoordinator::routeEvaluation(ASTNode* node)
     {
+        // Special case: AwaitExpression must be handled by coordinator for async/await support
+        if (dynamic_cast<AwaitExpression*>(node)) {
+            return node->accept(*this);
+        }
+
         // Route to appropriate specialized evaluator based on node type
         // Priority order: Statements first (to handle declarations properly),
         // then Objects (to handle class operations), then Expressions
@@ -363,14 +369,39 @@ namespace evaluator
             throw std::runtime_error("Null promise in await expression");
         }
 
-        // In Phase 2 (synchronous model), await immediately returns the promise's value
-        // The promise should already be fulfilled when returned from an async function
-        if (!promise->isFulfilled())
+        // FAST PATH: Promise already fulfilled, return immediately
+        if (promise->isFulfilled())
         {
-            throw std::runtime_error("Promise is not fulfilled");
+            return promise->getValue();
         }
 
-        // Return the unwrapped value
-        return promise->getValue();
+        // SLOW PATH: Promise not yet fulfilled - suspend current task
+        // Try to cast to AsyncPromiseValue to support continuations
+        auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+
+        if (!asyncPromise)
+        {
+            // Promise doesn't support async continuations, fall back to busy-wait
+            const int MAX_WAIT_MS = 10000;
+            const int POLL_INTERVAL_MS = 1;
+            int waitedMs = 0;
+
+            while (!promise->isFulfilled() && waitedMs < MAX_WAIT_MS)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
+                waitedMs += POLL_INTERVAL_MS;
+            }
+
+            if (!promise->isFulfilled())
+            {
+                throw std::runtime_error("Timeout waiting for promise to be fulfilled");
+            }
+
+            return promise->getValue();
+        }
+
+        // Throw SuspendException to unwind the call stack
+        // The EventLoop will catch this and register a continuation
+        throw exception::SuspendException(asyncPromise);
     }
 }

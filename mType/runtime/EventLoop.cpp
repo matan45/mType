@@ -348,4 +348,13 @@ namespace runtime {
         return task;
     }
 
+    std::shared_ptr<Task> EventLoop::getTask(size_t taskId) const {
+        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(queueMutex));
+        auto it = allTasks.find(taskId);
+        if (it != allTasks.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
 } // namespace runtime

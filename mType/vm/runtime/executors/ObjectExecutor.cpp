@@ -1,6 +1,7 @@
 #include "ObjectExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
+#include <iostream>
 
 namespace vm::runtime
 {
@@ -679,7 +680,9 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::validateMethodAccess(const std::string& className, const std::string& methodName, ast::AccessModifier accessMod) {
-        if (accessMod == ast::AccessModifier::PUBLIC) return;
+        if (accessMod == ast::AccessModifier::PUBLIC) {
+            return;
+        }
 
         std::string currentClassName = getCurrentClassName();
 

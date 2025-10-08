@@ -7,10 +7,13 @@
 #include "../errors/FieldNotFoundException.hpp"
 #include "../errors/FinalModificationException.hpp"
 #include "../errors/TypeConversionException.hpp"
+#include "../exception/SuspendException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <memory>
 #include <algorithm>
+#include <thread>
+#include <atomic>
 
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
@@ -686,7 +689,61 @@ namespace services
     // Execution mode helpers
     value::Value ScriptInterpreter::executeAST(ast::ASTNode* ast)
     {
-        return evaluator->evaluate(ast);
+        // For AST interpreter, we run the EventLoop in the background
+        // and execute the script directly. The await handler uses busy-wait
+        // to poll for promise fulfillment, allowing the EventLoop to process
+        // delayed tasks in the background.
+
+        auto* eventLoop = evaluator->getEventLoop();
+
+        if (eventLoop)
+        {
+            // Start the event loop in a background thread with keep-alive
+            std::atomic<bool> scriptRunning(true);
+            std::thread eventLoopThread([eventLoop, &scriptRunning]() {
+                // Keep the event loop running while the script executes
+                while (scriptRunning.load() || eventLoop->getPendingTaskCount() > 0)
+                {
+                    if (!eventLoop->tick())
+                    {
+                        // No tasks right now, sleep briefly
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    }
+                }
+            });
+
+            // Execute the AST in the main thread
+            // await will use busy-wait polling while EventLoop processes delayed tasks
+            value::Value result;
+            try
+            {
+                result = evaluator->evaluate(ast);
+            }
+            catch (...)
+            {
+                // Signal the event loop to stop
+                scriptRunning.store(false);
+                if (eventLoopThread.joinable())
+                {
+                    eventLoopThread.join();
+                }
+                throw;
+            }
+
+            // Signal the event loop to stop and wait for it to finish
+            scriptRunning.store(false);
+            if (eventLoopThread.joinable())
+            {
+                eventLoopThread.join();
+            }
+
+            return result;
+        }
+        else
+        {
+            // No event loop - execute directly
+            return evaluator->evaluate(ast);
+        }
     }
 
     value::Value ScriptInterpreter::executeBytecode(ast::ASTNode* ast)
@@ -701,31 +758,40 @@ namespace services
             // The BytecodeCompiler will register all classes during compilation
             auto program = compiler->compile(ast);
 
-            // Get the VM's event loop for async/await support
-            auto* eventLoop = vm->getEventLoop();
-
-            if (eventLoop)
+            // JavaScript model: Only use EventLoop if program actually contains await
+            // - No await → Direct execution (faster, better error handling)
+            // - Has await → EventLoop execution (enables cooperative multitasking)
+            if (program.hasAwaitInstructions())
             {
-                // Schedule the main program as a task in the event loop
+                // Program uses await - need EventLoop for task suspension/resumption
+                auto* eventLoop = vm->ensureEventLoop();
+
+                // Schedule main program as a task
                 size_t mainTaskId = eventLoop->scheduleTask(
                     [this, program]() -> value::Value {
                         return vm->execute(program);
                     }
                 );
 
-                // Set the VM reference for this task so it can set task ID before execution
+                // Set VM reference so it knows its task ID
                 eventLoop->setTaskVM(mainTaskId, vm.get());
 
-                // Run the event loop until all tasks complete
+                // Run event loop until all tasks complete
                 eventLoop->run();
 
-                // The task has completed - return the result
-                // For now, we return void since the event loop doesn't track results
+                // Check if main task failed and re-throw error
+                auto mainTask = eventLoop->getTask(mainTaskId);
+                if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
+                {
+                    throw std::runtime_error(mainTask->errorMessage);
+                }
+
                 return std::monostate{};
             }
             else
             {
-                // No event loop - execute directly (synchronous mode)
+                // No await in program - execute directly without EventLoop overhead
+                // This is the path for normal synchronous code (like access modifier tests)
                 return vm->execute(program);
             }
         }

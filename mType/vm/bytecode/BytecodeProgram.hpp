@@ -164,6 +164,10 @@ namespace vm::bytecode
         void registerClass(const ClassMetadata& classMeta);
         const std::vector<ClassMetadata>& getClasses() const;
 
+        // Async Detection
+        bool hasAsyncFunctions() const;
+        bool hasAwaitInstructions() const;
+
         // Disassembly and Serialization
         std::string disassemble() const;
         void serialize(std::ostream& out) const;

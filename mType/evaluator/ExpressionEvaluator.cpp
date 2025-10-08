@@ -752,11 +752,27 @@ namespace evaluator
             throw std::runtime_error("Null promise in await expression");
         }
 
-        // In Phase 2 (synchronous model), await immediately returns the promise's value
-        // The promise should already be fulfilled when returned from an async function
+        // FAST PATH: Promise already fulfilled, return immediately
+        if (promise->isFulfilled())
+        {
+            return promise->getValue();
+        }
+
+        // SLOW PATH: Promise not yet fulfilled - use busy-wait
+        // Poll every 1ms for up to 10 seconds
+        const int MAX_WAIT_MS = 10000;
+        const int POLL_INTERVAL_MS = 1;
+        int waitedMs = 0;
+
+        while (!promise->isFulfilled() && waitedMs < MAX_WAIT_MS)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
+            waitedMs += POLL_INTERVAL_MS;
+        }
+
         if (!promise->isFulfilled())
         {
-            throw std::runtime_error("Promise is not fulfilled");
+            throw std::runtime_error("Timeout waiting for promise to be fulfilled");
         }
 
         // Return the unwrapped value

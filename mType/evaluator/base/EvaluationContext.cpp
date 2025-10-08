@@ -1,11 +1,13 @@
 #include "EvaluationContext.hpp"
+#include "../../runtime/EventLoop.hpp"
 
 namespace evaluator::base
 {
     EvaluationContext::EvaluationContext(std::shared_ptr<Environment> env)
         : environment(env), currentInstance(nullptr), hasReturned(false),
           isInStaticMethod(false), inSuperInitializerContext(false), currentMethod(nullptr),
-          currentConstructorClass(nullptr), cachedEnv(nullptr), envCacheValid(false)
+          currentConstructorClass(nullptr), eventLoop(std::make_unique<::runtime::EventLoop>()),
+          currentTaskId(0), cachedEnv(nullptr), envCacheValid(false)
     {
     }
 

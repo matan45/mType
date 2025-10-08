@@ -242,6 +242,13 @@ namespace runtime {
          */
         int getAgingInterval() const { return agingInterval; }
 
+        /**
+         * @brief Get a task by ID
+         * @param taskId The ID of the task to retrieve
+         * @return Shared pointer to the task, or nullptr if not found
+         */
+        std::shared_ptr<Task> getTask(size_t taskId) const;
+
     private:
         void executeTask(std::shared_ptr<Task> task);
         void checkDelayedTasks();
