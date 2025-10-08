@@ -339,6 +339,9 @@
     <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\AwaitExpression.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>

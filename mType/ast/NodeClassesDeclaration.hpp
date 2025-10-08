@@ -24,6 +24,7 @@ namespace ast
             class LambdaNode;
             class CastExpression;
             class InstanceOfExpression;
+            class AwaitExpression;
         }
         
         namespace statements
@@ -119,4 +120,5 @@ namespace ast
     using SuperMethodCallNode = nodes::classes::SuperMethodCallNode;
     using CastExpression = nodes::expressions::CastExpression;
     using InstanceOfExpression = nodes::expressions::InstanceOfExpression;
+    using AwaitExpression = nodes::expressions::AwaitExpression;
 }

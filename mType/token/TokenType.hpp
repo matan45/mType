@@ -49,6 +49,8 @@ namespace token
         SUPER, // super keyword for parent class access
         ARROW,        // -> for lambda expressions
         ISCLASSOF, // isClassOf keyword for type checking
+        ASYNC, // async keyword for async functions
+        AWAIT, // await keyword for async expressions
         END // End of input
     };
 }

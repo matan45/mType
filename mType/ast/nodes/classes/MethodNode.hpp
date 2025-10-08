@@ -21,6 +21,7 @@ namespace ast::nodes::classes
         std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> parameters;  // CHANGED: GenericType instead of ValueType
         std::shared_ptr<ASTNode> body;
         bool isStatic;
+        bool isAsync;  // NEW: Flag to indicate async method
         AccessModifier accessModifier;
 
     public:
@@ -32,6 +33,7 @@ namespace ast::nodes::classes
                            bool isStaticMethod = false,
                            const std::vector<GenericTypeParameter>& generics = {},
                            AccessModifier modifier = AccessModifier::PRIVATE,
+                           bool async = false,
                            const SourceLocation& loc = SourceLocation());
 
         // Backward compatibility constructor with ValueType
@@ -39,6 +41,7 @@ namespace ast::nodes::classes
                    const std::vector<std::pair<std::string, ValueType>>& params,
                    std::shared_ptr<ASTNode> methodBody, bool isStaticMethod = false,
                    AccessModifier modifier = AccessModifier::PRIVATE,
+                   bool async = false,
                    const SourceLocation& loc = SourceLocation());
 
         // Constructor accepting unique_ptr for backward compatibility
@@ -46,6 +49,7 @@ namespace ast::nodes::classes
                    const std::vector<std::pair<std::string, ValueType>>& params,
                    std::unique_ptr<ASTNode> methodBody, bool isStaticMethod = false,
                    AccessModifier modifier = AccessModifier::PRIVATE,
+                   bool async = false,
                    const SourceLocation& loc = SourceLocation());
 
         const std::string& getName() const;
@@ -65,6 +69,10 @@ namespace ast::nodes::classes
         [[nodiscard]] ASTNode* getBodyPtr() const;
 
         bool getIsStatic() const;
+
+        // NEW: Async-related methods
+        bool getIsAsync() const { return isAsync; }
+        void setIsAsync(bool async) { isAsync = async; }
 
         // NEW: Generic-related methods
         const std::vector<GenericTypeParameter>& getGenericTypeParameters() const;

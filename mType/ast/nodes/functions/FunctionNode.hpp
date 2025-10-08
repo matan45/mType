@@ -20,6 +20,7 @@ namespace ast::nodes::functions
         std::shared_ptr<GenericType> returnType;              // CHANGED: From ValueType to GenericType
         std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> parameters;  // CHANGED: GenericType instead of ValueType
         std::shared_ptr<ASTNode> body;
+        bool isAsync;  // NEW: Flag to indicate async function
 
     public:
         // NEW: Primary constructor with generic support
@@ -28,18 +29,21 @@ namespace ast::nodes::functions
                              const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params,
                              std::shared_ptr<ASTNode> funcBody,
                              const std::vector<GenericTypeParameter>& generics = {},
+                             bool async = false,
                              const SourceLocation& loc = SourceLocation());
 
         // Backward compatibility constructor with ValueType (shared_ptr)
         explicit FunctionNode(const std::string& funcName, ValueType retType,
                      const std::vector<std::pair<std::string, ValueType>>& params,
                      std::shared_ptr<ASTNode> funcBody,
+                     bool async = false,
                      const SourceLocation& loc = SourceLocation());
 
         // Constructor accepting unique_ptr for backward compatibility
         explicit FunctionNode(const std::string& funcName, ValueType retType,
                      const std::vector<std::pair<std::string, ValueType>>& params,
                      std::unique_ptr<ASTNode> funcBody,
+                     bool async = false,
                      const SourceLocation& loc = SourceLocation());
 
         const std::string& getName() const;
@@ -67,6 +71,10 @@ namespace ast::nodes::functions
         void addGenericTypeParameter(const GenericTypeParameter& param);
         size_t getGenericTypeParameterCount() const;
         bool isGeneric() const { return !genericParameters.empty(); }
+
+        // NEW: Async-related methods
+        bool getIsAsync() const { return isAsync; }
+        void setIsAsync(bool async) { isAsync = async; }
 
         void setName(const std::string& funcName);
         void setGenericReturnType(std::shared_ptr<GenericType> retType);
