@@ -193,7 +193,23 @@ namespace parser
 
                     // Parse type arguments
                     do {
-                        typeArgs.push_back(parseGenericType(stream));
+                        auto typeArg = parseGenericType(stream);
+
+                        // Validate: Generic type arguments cannot be primitive types
+                        // Only object types (classes/interfaces) or generic parameters (T, K, V) are allowed
+                        if (!typeArg->isGenericParameter()) {
+                            // This is a concrete type, check if it's a primitive
+                            ValueType concreteType = typeArg->getConcreteType();
+                            if (concreteType != ValueType::OBJECT) {
+                                throw ParseException(
+                                    "Generic type arguments must be object types (classes/interfaces) or generic parameters. "
+                                    "Primitive types (int, float, string, bool, void) are not allowed as generic arguments.",
+                                    stream.location()
+                                );
+                            }
+                        }
+
+                        typeArgs.push_back(typeArg);
 
                         if (stream.check(TokenType::COMMA)) {
                             stream.advance(); // consume ','

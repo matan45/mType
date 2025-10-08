@@ -1,6 +1,7 @@
 #include "FunctionParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/AsyncValidator.hpp"
 #include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
@@ -84,6 +85,12 @@ namespace parser::statement
 
         // Parse return type using generic-aware parsing to preserve interface names
         auto genericReturnType = TypeParser::parseGenericType(tokenStream);
+
+        // Validate async function return type must be Promise<T>
+        if (isAsync)
+        {
+            utilities::AsyncValidator::validateAsyncReturnType(genericReturnType, tokenStream.location());
+        }
 
         std::unique_ptr<ASTNode> body = nullptr;
 

@@ -2,6 +2,7 @@
 #include "GenericParameterParser.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/AccessModifierParser.hpp"
+#include "../utilities/AsyncValidator.hpp"
 #include "../TypeParser.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -97,6 +98,12 @@ namespace parser
         {
             tokenStream.advance();
             returnType = TypeParser::parseGenericType(tokenStream);
+        }
+
+        // Validate async method return type must be Promise<T>
+        if (isAsync)
+        {
+            utilities::AsyncValidator::validateAsyncReturnType(returnType, tokenStream.location());
         }
 
         // NEW: Set async context when parsing method body
