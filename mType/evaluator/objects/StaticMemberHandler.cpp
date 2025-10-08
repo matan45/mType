@@ -3,6 +3,7 @@
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/GenericTypeManager.hpp"
+#include "../utils/AsyncReturnGuard.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
@@ -221,14 +222,9 @@ namespace evaluator
                         context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
 
-                        // NEW: Wrap in Promise if async method
-                        if (method->getIsAsync())
-                        {
-                            auto promise = std::make_shared<PromiseValue>(result);
-                            return promise;
-                        }
-
-                        return result;
+                        // Wrap in Promise if async method (exception-safe via RAII)
+                        utils::AsyncReturnGuard asyncGuard(method->getIsAsync());
+                        return asyncGuard.wrapIfNeeded(result);
                     }
                     catch (const ReturnException& e)
                     {
@@ -238,14 +234,9 @@ namespace evaluator
                         context->setCurrentMethod(previousMethod);
                         context->setReturned(false);
 
-                        // NEW: Wrap in Promise if async method
-                        if (method->getIsAsync())
-                        {
-                            auto promise = std::make_shared<PromiseValue>(e.returnValue);
-                            return promise;
-                        }
-
-                        return e.returnValue;
+                        // Wrap in Promise if async method (exception-safe via RAII)
+                        utils::AsyncReturnGuard asyncGuard(method->getIsAsync());
+                        return asyncGuard.wrapIfNeeded(e.returnValue);
                     }
                     catch (...)
                     {
@@ -437,14 +428,9 @@ namespace evaluator
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
 
-                        // NEW: Wrap in Promise if async method
-                        if (methodToCall->getIsAsync())
-                        {
-                            auto promise = std::make_shared<PromiseValue>(result);
-                            return promise;
-                        }
-
-                        return result;
+                        // Wrap in Promise if async method (exception-safe via RAII)
+                        utils::AsyncReturnGuard asyncGuard(methodToCall->getIsAsync());
+                        return asyncGuard.wrapIfNeeded(result);
                     }
                     catch (const ReturnException& e)
                     {
@@ -455,14 +441,9 @@ namespace evaluator
                         context->setGenericTypeBindings(previousGenericBindings);
                         context->setReturned(false);
 
-                        // NEW: Wrap in Promise if async method
-                        if (methodToCall->getIsAsync())
-                        {
-                            auto promise = std::make_shared<PromiseValue>(e.returnValue);
-                            return promise;
-                        }
-
-                        return e.returnValue;
+                        // Wrap in Promise if async method (exception-safe via RAII)
+                        utils::AsyncReturnGuard asyncGuard(methodToCall->getIsAsync());
+                        return asyncGuard.wrapIfNeeded(e.returnValue);
                     }
                     catch (...)
                     {

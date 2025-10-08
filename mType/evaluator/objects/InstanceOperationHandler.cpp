@@ -2,6 +2,7 @@
 #include "../StatementEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
+#include "../utils/AsyncReturnGuard.hpp"
 #include "../../constants/LambdaConstants.hpp"
 #include "../../value/LambdaValue.hpp"
 #include "../../value/PromiseValue.hpp"
@@ -361,14 +362,9 @@ namespace objects {
                 // Restore previous generic type bindings
                 context->setGenericTypeBindings(prevGenericBindings);
 
-                // NEW: Wrap in Promise if async method
-                if (method->getIsAsync())
-                {
-                    auto promise = std::make_shared<PromiseValue>(result);
-                    return promise;
-                }
-
-                return result;
+                // Wrap in Promise if async method (exception-safe via RAII)
+                utils::AsyncReturnGuard asyncGuard(method->getIsAsync());
+                return asyncGuard.wrapIfNeeded(result);
             }
             catch (const ReturnException& e)
             {
@@ -379,14 +375,9 @@ namespace objects {
                 context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 context->setReturned(false); // Reset return state after handling exception
 
-                // NEW: Wrap in Promise if async method
-                if (method->getIsAsync())
-                {
-                    auto promise = std::make_shared<PromiseValue>(e.returnValue);
-                    return promise;
-                }
-
-                return e.returnValue;
+                // Wrap in Promise if async method (exception-safe via RAII)
+                utils::AsyncReturnGuard asyncGuard(method->getIsAsync());
+                return asyncGuard.wrapIfNeeded(e.returnValue);
             }
             catch (...)
             {

@@ -307,7 +307,7 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitAwaitExpression(ast::AwaitExpression* node)
     {
         // Compile the expression being awaited (should evaluate to a Promise)
-        node->getExpression()->accept(*this);
+        node->getExpressionPtr()->accept(*this);
 
         // Emit AWAIT instruction to unwrap the Promise
         // In Phase 2 synchronous model, this immediately returns the Promise's value

@@ -669,6 +669,9 @@
     <ClInclude Include="evaluator\utils\ArgumentEvaluator.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\AsyncReturnGuard.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>

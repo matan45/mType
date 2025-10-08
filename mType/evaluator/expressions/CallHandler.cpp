@@ -4,6 +4,7 @@
 #include "../ObjectEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
+#include "../utils/AsyncReturnGuard.hpp"
 #include "../validation/TypeValidator.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/TypeException.hpp"
@@ -313,6 +314,9 @@ namespace evaluator
                     // Handle return statement
                     context->setReturned(false);
 
+                    // RAII guard ensures promise wrapping even if exception occurs
+                    utils::AsyncReturnGuard asyncGuard(funcDef->getIsAsync());
+
                     // Check for lambda-to-interface conversion
                     Value returnValue = e.returnValue;
                     if (std::holds_alternative<std::shared_ptr<LambdaValue>>(returnValue) &&
@@ -347,14 +351,8 @@ namespace evaluator
                         context->setGenericTypeBindings(previousGenericBindings);
                     }
 
-                    // Wrap in Promise if async function
-                    if (funcDef->getIsAsync())
-                    {
-                        auto promise = std::make_shared<PromiseValue>(returnValue);
-                        return promise;
-                    }
-
-                    return returnValue;
+                    // Wrap in Promise if async function (exception-safe via RAII)
+                    return asyncGuard.wrapIfNeeded(returnValue);
                 }
                 catch (...)
                 {
@@ -372,14 +370,9 @@ namespace evaluator
                     context->setGenericTypeBindings(previousGenericBindings);
                 }
 
-                // Wrap in Promise if async function
-                if (funcDef->getIsAsync())
-                {
-                    auto promise = std::make_shared<PromiseValue>(result);
-                    return promise;
-                }
-
-                return result;
+                // Wrap in Promise if async function (exception-safe via RAII)
+                utils::AsyncReturnGuard asyncGuard(funcDef->getIsAsync());
+                return asyncGuard.wrapIfNeeded(result);
             }
         }
 

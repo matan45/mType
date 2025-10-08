@@ -346,7 +346,7 @@ namespace evaluator
     Value EvaluatorCoordinator::visitAwaitExpression(AwaitExpression* node)
     {
         // Evaluate the expression being awaited
-        Value awaitedValue = evaluate(node->getExpression());
+        Value awaitedValue = evaluate(node->getExpressionPtr());
 
         // Check if the value is a Promise
         if (!std::holds_alternative<std::shared_ptr<PromiseValue>>(awaitedValue))
@@ -356,6 +356,12 @@ namespace evaluator
 
         // Get the promise
         auto promise = std::get<std::shared_ptr<PromiseValue>>(awaitedValue);
+
+        // Defensive null check
+        if (!promise)
+        {
+            throw std::runtime_error("Null promise in await expression");
+        }
 
         // In Phase 2 (synchronous model), await immediately returns the promise's value
         // The promise should already be fulfilled when returned from an async function

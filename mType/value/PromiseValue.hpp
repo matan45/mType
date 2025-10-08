@@ -74,26 +74,36 @@ namespace value
 
         /**
          * @brief Resolve the promise with a value
+         * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
          */
         void resolve(const Value& val)
         {
-            if (state == PromiseState::PENDING)
+            if (state != PromiseState::PENDING)
             {
-                state = PromiseState::FULFILLED;
-                value = val;
+                throw std::runtime_error(
+                    "Cannot resolve promise: Promise is already " +
+                    std::string(state == PromiseState::FULFILLED ? "fulfilled" : "rejected")
+                );
             }
+            state = PromiseState::FULFILLED;
+            value = val;
         }
 
         /**
          * @brief Reject the promise with an error (future use)
+         * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
          */
         void reject(const std::string& error)
         {
-            if (state == PromiseState::PENDING)
+            if (state != PromiseState::PENDING)
             {
-                state = PromiseState::REJECTED;
-                errorMessage = error;
+                throw std::runtime_error(
+                    "Cannot reject promise: Promise is already " +
+                    std::string(state == PromiseState::FULFILLED ? "fulfilled" : "rejected")
+                );
             }
+            state = PromiseState::REJECTED;
+            errorMessage = error;
         }
 
         /**

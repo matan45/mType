@@ -42,7 +42,7 @@ namespace ast::nodes::expressions
          * @brief Get the expression being awaited
          * @return Pointer to the awaited expression (non-owning)
          */
-        ASTNode* getExpression() const noexcept
+        ASTNode* getExpressionPtr() const noexcept
         {
             return expression.get();
         }

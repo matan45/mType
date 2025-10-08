@@ -310,6 +310,13 @@ namespace vm::runtime
             }
 
             auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+
+            // Defensive null check
+            if (!promise)
+            {
+                throw errors::RuntimeException("Null promise in await expression");
+            }
+
             if (!promise->isFulfilled())
             {
                 throw errors::RuntimeException("Promise is not fulfilled");
