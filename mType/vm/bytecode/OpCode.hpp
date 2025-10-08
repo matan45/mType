@@ -158,8 +158,13 @@ namespace vm::bytecode
         HALT,               // End program execution
         IMPORT,             // Import module
 
-        // === Reserved for Future Use (128-255) ===
-        // 128 opcodes reserved for future extensions
+        // === Async/Await Operations (128-130) ===
+        CREATE_PROMISE,     // Create Promise from value on stack
+        AWAIT,              // Await a Promise value
+        PROMISE_RESOLVE,    // Resolve a Promise with value
+
+        // === Reserved for Future Use (131-255) ===
+        // 125 opcodes reserved for future extensions
     };
 
     /**
@@ -296,6 +301,10 @@ namespace vm::bytecode
             case OpCode::NOP: return "NOP";
             case OpCode::HALT: return "HALT";
             case OpCode::IMPORT: return "IMPORT";
+
+            case OpCode::CREATE_PROMISE: return "CREATE_PROMISE";
+            case OpCode::AWAIT: return "AWAIT";
+            case OpCode::PROMISE_RESOLVE: return "PROMISE_RESOLVE";
 
             default: return "UNKNOWN";
         }

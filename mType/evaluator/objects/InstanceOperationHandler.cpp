@@ -4,6 +4,7 @@
 #include "../utils/ParameterBinder.hpp"
 #include "../../constants/LambdaConstants.hpp"
 #include "../../value/LambdaValue.hpp"
+#include "../../value/PromiseValue.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
@@ -360,6 +361,13 @@ namespace objects {
                 // Restore previous generic type bindings
                 context->setGenericTypeBindings(prevGenericBindings);
 
+                // NEW: Wrap in Promise if async method
+                if (method->getIsAsync())
+                {
+                    auto promise = std::make_shared<PromiseValue>(result);
+                    return promise;
+                }
+
                 return result;
             }
             catch (const ReturnException& e)
@@ -370,6 +378,14 @@ namespace objects {
                 context->setCurrentInstance(prevInstance);
                 context->setGenericTypeBindings(prevGenericBindings); // Restore generic bindings
                 context->setReturned(false); // Reset return state after handling exception
+
+                // NEW: Wrap in Promise if async method
+                if (method->getIsAsync())
+                {
+                    auto promise = std::make_shared<PromiseValue>(e.returnValue);
+                    return promise;
+                }
+
                 return e.returnValue;
             }
             catch (...)

@@ -9,6 +9,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ReturnException.hpp"
 #include "../../value/LambdaValue.hpp"
+#include "../../value/PromiseValue.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../../environment/manager/Scope.hpp"
@@ -347,6 +348,13 @@ namespace evaluator
                         context->setGenericTypeBindings(previousGenericBindings);
                     }
 
+                    // NEW: Wrap in Promise if async function
+                    if (funcDef->getIsAsync())
+                    {
+                        auto promise = std::make_shared<PromiseValue>(returnValue);
+                        return promise;
+                    }
+
                     return returnValue;
                 }
                 catch (...)
@@ -363,6 +371,13 @@ namespace evaluator
                 if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
                 {
                     context->setGenericTypeBindings(previousGenericBindings);
+                }
+
+                // NEW: Wrap in Promise if async function
+                if (funcDef->getIsAsync())
+                {
+                    auto promise = std::make_shared<PromiseValue>(result);
+                    return promise;
                 }
 
                 return result;

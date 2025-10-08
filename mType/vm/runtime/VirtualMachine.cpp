@@ -17,6 +17,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/LambdaValue.hpp"
+#include "../../value/PromiseValue.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -288,6 +289,43 @@ namespace vm::runtime
         case OpCode::NOP:
             // Do nothing
             break;
+
+        // Async/Await Operations
+        case OpCode::CREATE_PROMISE:
+        {
+            // Pop value from stack and wrap it in a Promise
+            value::Value val = stackManager->pop();
+            auto promise = std::make_shared<value::PromiseValue>(val);
+            stackManager->push(promise);
+            break;
+        }
+
+        case OpCode::AWAIT:
+        {
+            // Pop Promise from stack and unwrap its value
+            value::Value promiseVal = stackManager->pop();
+            if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
+            {
+                throw errors::RuntimeException("await can only be used on Promise values");
+            }
+
+            auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+            if (!promise->isFulfilled())
+            {
+                throw errors::RuntimeException("Promise is not fulfilled");
+            }
+
+            // Push the unwrapped value back onto the stack
+            stackManager->push(promise->getValue());
+            break;
+        }
+
+        case OpCode::PROMISE_RESOLVE:
+        {
+            // Reserved for future asynchronous execution model
+            throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
+            break;
+        }
 
         default:
             throw errors::RuntimeException("Unimplemented opcode: " +

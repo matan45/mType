@@ -167,6 +167,9 @@ namespace statements {
             funcDef->setGenericTypeParameters(node->getGenericTypeParameters());
         }
 
+        // NEW: Set async flag if the function is async
+        funcDef->setIsAsync(node->getIsAsync());
+
         // Register function in environment
         env->registerFunction(node->getName(), funcDef);
 

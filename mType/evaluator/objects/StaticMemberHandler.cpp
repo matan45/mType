@@ -3,6 +3,7 @@
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/GenericTypeManager.hpp"
+#include "../../value/PromiseValue.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../errors/TypeException.hpp"
@@ -219,6 +220,14 @@ namespace evaluator
                         context->setInStaticMethod(previousStaticState);
                         context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
+
+                        // NEW: Wrap in Promise if async method
+                        if (method->getIsAsync())
+                        {
+                            auto promise = std::make_shared<PromiseValue>(result);
+                            return promise;
+                        }
+
                         return result;
                     }
                     catch (const ReturnException& e)
@@ -228,6 +237,14 @@ namespace evaluator
                         context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setReturned(false);
+
+                        // NEW: Wrap in Promise if async method
+                        if (method->getIsAsync())
+                        {
+                            auto promise = std::make_shared<PromiseValue>(e.returnValue);
+                            return promise;
+                        }
+
                         return e.returnValue;
                     }
                     catch (...)
@@ -419,6 +436,14 @@ namespace evaluator
                         context->popCallingClass();
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
+
+                        // NEW: Wrap in Promise if async method
+                        if (methodToCall->getIsAsync())
+                        {
+                            auto promise = std::make_shared<PromiseValue>(result);
+                            return promise;
+                        }
+
                         return result;
                     }
                     catch (const ReturnException& e)
@@ -429,6 +454,14 @@ namespace evaluator
                         context->setCurrentMethod(previousMethod);
                         context->setGenericTypeBindings(previousGenericBindings);
                         context->setReturned(false);
+
+                        // NEW: Wrap in Promise if async method
+                        if (methodToCall->getIsAsync())
+                        {
+                            auto promise = std::make_shared<PromiseValue>(e.returnValue);
+                            return promise;
+                        }
+
                         return e.returnValue;
                     }
                     catch (...)

@@ -51,6 +51,8 @@ namespace runtimeTypes::klass
         // NEW: Store generic type parameter declarations (<T>, <K,V>)
         std::unordered_map<std::string, std::string> typeSubstitutionMap; // For instantiated generic methods
 
+        bool isAsync;  // NEW: Flag to indicate async method
+
     public:
         // Legacy constructor for backward compatibility with ValueType
         explicit MethodDefinition(const std::string& n, ValueType rt,
@@ -61,7 +63,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
-              typeSubstitutionMap()
+              typeSubstitutionMap(), isAsync(false)
         {
         }
 
@@ -73,7 +75,7 @@ namespace runtimeTypes::klass
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
-              genericParameters(), typeSubstitutionMap()
+              genericParameters(), typeSubstitutionMap(), isAsync(false)
         {
         }
 
@@ -91,7 +93,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
-              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false)
         {
         }
 
@@ -108,7 +110,8 @@ namespace runtimeTypes::klass
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
-              genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions)
+              genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
+              isAsync(false)
         {
         }
 
@@ -206,5 +209,9 @@ namespace runtimeTypes::klass
         ValueType resolveParameterType(const std::string& paramName) const;
         ValueType resolveReturnType() const;
         bool hasGenericInformation() const { return genericReturnType != nullptr || !genericParameters.empty(); }
+
+        // NEW: Async support
+        bool getIsAsync() const { return isAsync; }
+        void setIsAsync(bool async) { isAsync = async; }
     };
 }

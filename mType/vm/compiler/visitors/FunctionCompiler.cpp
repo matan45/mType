@@ -101,6 +101,10 @@ namespace vm::compiler::visitors
         // Emit implicit return for void functions (if no explicit return)
         if (node->getReturnType() == value::ValueType::VOID) {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            // NEW: Wrap in Promise if async function
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
@@ -126,6 +130,7 @@ namespace vm::compiler::visitors
         metadata.parameterTypes = paramTypes;
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
+        metadata.isAsync = node->getIsAsync();  // NEW: Copy async flag from AST
 
         // Store generic type parameters if the function is generic
         if (node->isGeneric())
@@ -416,6 +421,13 @@ namespace vm::compiler::visitors
 
             if (returnValue) {
                 returnValue->accept(ctx.visitor);  // Will need delegation
+
+                // NEW: Check if we're in an async function and wrap result in Promise
+                // Note: For bytecode, we need to check the function being compiled
+                // This requires tracking isAsync in the frame, but for Phase 3 we'll
+                // use a simpler approach: the VM will handle Promise wrapping based on
+                // the function's isAsync flag in metadata during CALL execution
+
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             } else {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
