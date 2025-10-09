@@ -17,6 +17,7 @@ namespace vm::compiler::variables
             int scopeDepthStart;
             std::string returnType;
             bool isLambda = false;  // Track if this frame is for a lambda
+            bool isAsync = false;   // Track if this frame is for an async function/lambda
             size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
         };
 
@@ -25,7 +26,7 @@ namespace vm::compiler::variables
 
         // Frame management
         void enterFunctionFrame(const std::string& returnType, size_t localStartSlot,
-                               int scopeDepthStart, bool isLambda = false);
+                               int scopeDepthStart, bool isLambda = false, bool isAsync = false);
         void exitFunctionFrame();
 
         // Frame information

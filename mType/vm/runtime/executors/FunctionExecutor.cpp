@@ -2,8 +2,10 @@
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../value/LambdaValue.hpp"
+#include "../../../constants/LambdaConstants.hpp"
 #include <algorithm>
-
 namespace vm::runtime
 {
     FunctionExecutor::FunctionExecutor(ExecutionContext& ctx)
@@ -40,6 +42,9 @@ namespace vm::runtime
         // Try to find user-defined function in bytecode
         auto funcMetadata = context.program->getFunction(functionName);
         if (funcMetadata) {
+            // Convert lambda arguments to interface implementations if needed
+            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+
             // Create call frame
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
@@ -117,6 +122,9 @@ namespace vm::runtime
         // Look up static method bytecode
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
+            // Convert lambda arguments to interface implementations if needed
+            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+
             // Create call frame for static method
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
@@ -146,6 +154,44 @@ namespace vm::runtime
             context.instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
         } else {
             throw errors::RuntimeException("Static method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
+        }
+    }
+
+    void FunctionExecutor::convertLambdaArgumentsToInterfaces(
+        std::vector<value::Value>& args,
+        const std::vector<std::string>& parameterTypes
+    ) {
+        // NOTE: This function is only for AST interpreter compatibility
+        // Bytecode VM uses BytecodeLambda which are handled directly by ObjectExecutor::handleCallMethod
+        // and don't need interface wrapping
+
+        for (size_t i = 0; i < args.size() && i < parameterTypes.size(); ++i) {
+            const std::string& paramType = parameterTypes[i];
+            value::Value& arg = args[i];
+
+            // BytecodeLambda (bytecode VM) - no conversion needed
+            // ObjectExecutor::handleCallMethod handles BytecodeLambda invocation directly
+            if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg)) {
+                // No conversion needed - bytecode lambdas are invoked directly
+                continue;
+            }
+
+            // LambdaValue (AST interpreter) - needs interface wrapping
+            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(arg)) {
+                auto interfaceDef = context.environment->findInterface(paramType);
+
+                if (interfaceDef && interfaceDef->isFunctionalInterface()) {
+                    auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(arg);
+                    auto* lambdaNode = lambdaPtr->getLambda();
+
+                    auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
+                    if (implClass) {
+                        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
+                        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, arg);
+                        arg = instance;
+                    }
+                }
+            }
         }
     }
 

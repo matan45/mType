@@ -1,7 +1,10 @@
 #include "ObjectExecutor.hpp"
+#include "FunctionExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
+#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../value/LambdaValue.hpp"
+#include "../../../constants/LambdaConstants.hpp"
 #include <algorithm>
-#include <iostream>
 
 namespace vm::runtime
 {
@@ -422,6 +425,11 @@ namespace vm::runtime
         std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
+            // Convert lambda arguments to interface implementations if needed
+            if (functionExecutor) {
+                functionExecutor->convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+            }
+
             size_t frameBase = context.stackManager->size();
 
             context.stackManager->push(instance);
@@ -521,7 +529,10 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
         // Compiler emits: (classNameIndex, methodNameIndex, argCount)
-        // We need operand[1] for method name and operand[2] for argCount
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = method name
+        // operand[2] = argument count
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         const std::string& methodName = context.program->getConstantPool().getString(instr.operands[1]);
         size_t argCount = instr.operands[2];
 
@@ -537,7 +548,14 @@ namespace vm::runtime
         }
 
         auto instance = context.callStack.back().thisInstance;
-        auto classDef = instance->getClassDefinition();
+
+        // IMPORTANT: Use currentClassName from operand, NOT instance->getClassDefinition()
+        // This prevents infinite recursion in multi-level inheritance
+        // (e.g., AdvancedService -> DerivedService -> BaseService)
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
 
         if (!classDef->hasParentClass()) {
             throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");

@@ -138,6 +138,14 @@ namespace parser
         }
         tokenStream.advance();
 
+        // Check for async keyword AFTER function keyword
+        bool isAsync = false;
+        if (tokenStream.current().type == TokenType::ASYNC)
+        {
+            isAsync = true;
+            tokenStream.advance();
+        }
+
         // Parse function name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -179,6 +187,9 @@ namespace parser
         auto methodNode = std::make_unique<FunctionNode>(
             methodName, returnType, parameters, dummyBody
         );
+
+        // Set async flag if this is an async method
+        methodNode->setIsAsync(isAsync);
 
         return std::move(methodNode);
     }

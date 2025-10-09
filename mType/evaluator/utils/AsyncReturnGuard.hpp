@@ -43,12 +43,20 @@ namespace evaluator::utils
          * @brief Wrap return value in AsyncPromise if function is async
          * @param returnValue The value returned from the function
          * @return AsyncPromiseValue if async, original value otherwise
+         *
+         * Like JavaScript/Python, auto-unwraps if returnValue is already a Promise
+         * to prevent double-wrapping (e.g., async function returning another async call)
          */
         value::Value wrapIfNeeded(const value::Value& returnValue)
         {
             wrapped = true;
             if (isAsync)
             {
+                // Auto-unwrap: if already a Promise, return as-is (like JS/Python behavior)
+                if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(returnValue)) {
+                    return returnValue;
+                }
+                // Otherwise wrap in Promise
                 return std::make_shared<value::AsyncPromiseValue>(returnValue);
             }
             return returnValue;

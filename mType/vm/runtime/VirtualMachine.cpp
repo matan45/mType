@@ -25,7 +25,6 @@
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
-
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -83,6 +82,9 @@ namespace vm::runtime
         arrayExecutor = std::make_unique<ArrayExecutor>(context);
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+
+        // Set function executor reference in object executor for lambda-to-interface conversion
+        objectExecutor->setFunctionExecutor(functionExecutor.get());
 
         try
         {

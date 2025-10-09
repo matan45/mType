@@ -45,7 +45,6 @@
 #include "StatementEvaluator.hpp"
 #include "../errors/ReturnException.hpp"
 
-
 namespace evaluator
 {
     using namespace errors;
@@ -541,7 +540,24 @@ namespace evaluator
                 node->getLocation());
         }
 
-        auto currentClass = currentInstance->getClassDefinition();
+        // IMPORTANT: Use calling class stack to determine which class's method we're executing
+        // This prevents infinite recursion in multi-level inheritance (e.g., AdvancedService -> DerivedService -> BaseService)
+        // Using currentInstance->getClassDefinition() would always give us the runtime class (AdvancedService),
+        // causing DerivedService.method() to incorrectly call itself instead of BaseService.method()
+        std::string currentClassName = context->getCurrentCallingClass();
+        if (currentClassName.empty()) {
+            // Fallback to instance class if no calling class context (shouldn't happen in normal method execution)
+            currentClassName = currentInstance->getClassDefinition()->getName();
+        }
+
+        auto env = context->getEnvironment();
+        auto currentClass = env->findClass(currentClassName);
+        if (!currentClass) {
+            throw UndefinedException(
+                "Current class '" + currentClassName + "' not found for super." + node->getMethodName() + "() call",
+                node->getLocation());
+        }
+
         if (!currentClass->hasParentClass()) {
             throw UndefinedException(
                 "Class '" + currentClass->getName() +
@@ -598,6 +614,9 @@ namespace evaluator
                 context->getEnvironment()->declareVariable(params[i].first, varDef);
             }
 
+            // Push parent class onto calling class stack for correct super resolution
+            context->pushCallingClass(parentClass->getName());
+
             // Execute parent method body
             Value result = std::monostate{};
             if (parentMethod->getBody()) {
@@ -612,10 +631,22 @@ namespace evaluator
                 } catch (const ReturnException& e) {
                     result = e.returnValue;
                     context->setReturned(false);  // Reset return flag
+                    context->popCallingClass();  // Pop on exception
+                    context->getEnvironment()->exitScope();  // Exit scope on exception
+                    throw;  // Re-throw after cleanup
                 }
             }
 
+            // Pop calling class stack
+            context->popCallingClass();
             context->getEnvironment()->exitScope();
+
+            // Wrap in Promise if parent method is async
+            if (parentMethod->getIsAsync()) {
+                auto promise = std::make_shared<value::PromiseValue>(result);
+                return promise;
+            }
+
             return result;
         }
 

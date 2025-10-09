@@ -58,7 +58,8 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
             ctx.variableTracker.getNextLocalSlot(),
             ctx.variableTracker.getCurrentScopeDepth(),
-            false);
+            false,  // Not a lambda
+            node->getIsAsync());  // Mark if async function
         ctx.variableTracker.beginScope();  // Function body scope
 
         // For generic functions, push empty bindings (will be filled during call)
@@ -422,11 +423,10 @@ namespace vm::compiler::visitors
             if (returnValue) {
                 returnValue->accept(ctx.visitor);  // Will need delegation
 
-                // NEW: Check if we're in an async function and wrap result in Promise
-                // Note: For bytecode, we need to check the function being compiled
-                // This requires tracking isAsync in the frame, but for Phase 3 we'll
-                // use a simpler approach: the VM will handle Promise wrapping based on
-                // the function's isAsync flag in metadata during CALL execution
+                // Wrap in Promise if in async function/lambda
+                if (ctx.functionFrameManager.currentFrame().isAsync) {
+                    ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                }
 
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             } else {
@@ -496,7 +496,8 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.enterFunctionFrame("auto",
             0,  // Lambda parameters start from slot 0
             ctx.variableTracker.getCurrentScopeDepth(),
-            true);  // Mark this frame as a lambda
+            true,  // Mark this frame as a lambda
+            node->getIsAsync());  // Mark if async lambda
         ctx.variableTracker.beginScope();
 
         // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
@@ -518,6 +519,12 @@ namespace vm::compiler::visitors
             // Expression lambda: () -> expr
             // Compile expression and return its value
             body->accept(ctx.visitor);  // Will need delegation
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
         else {
@@ -527,6 +534,12 @@ namespace vm::compiler::visitors
 
             // Implicit return null if no explicit return
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 

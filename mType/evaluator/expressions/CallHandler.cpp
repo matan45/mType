@@ -233,6 +233,35 @@ namespace evaluator
                 args.push_back(exprEvaluator->evaluate(argNode.get()));
             }
 
+            // Convert lambda arguments to interface implementations if needed
+            // This must happen BEFORE parameter binding to allow lambdas to be passed
+            // as interface-type parameters (similar to variable assignment)
+            const auto& params = funcDef->getParameters();
+            for (size_t i = 0; i < args.size() && i < params.size(); ++i)
+            {
+                const auto& param = params[i];
+                Value& arg = args[i];
+
+                // Check if argument is a lambda and parameter expects an interface
+                if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(arg) &&
+                    param.second.isInterface())
+                {
+                    std::string interfaceName = param.second.getInterfaceName();
+
+                    if (stmtEvaluator)
+                    {
+                        try
+                        {
+                            arg = stmtEvaluator->convertLambdaToInterface(arg, interfaceName, node->getLocation());
+                        }
+                        catch (...)
+                        {
+                            // Keep original lambda value and let parameter binding handle the error
+                        }
+                    }
+                }
+            }
+
             // Use ScopeGuard for automatic scope management
             {
                 ScopeGuard scope(env, node->getFunctionName(), ScopeType::FUNCTION);

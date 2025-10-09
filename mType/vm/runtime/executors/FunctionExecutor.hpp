@@ -22,6 +22,12 @@ namespace vm::runtime
         void handleCallNative(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Public helper for lambda-to-interface conversion (used by ObjectExecutor too)
+        void convertLambdaArgumentsToInterfaces(
+            std::vector<value::Value>& args,
+            const std::vector<std::string>& parameterTypes
+        );
+
     private:
         ExecutionContext& context;
 
