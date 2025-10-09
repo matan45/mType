@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <optional>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -22,6 +23,11 @@ namespace vm::runtime {
     class LambdaExecutor;
 }
 
+// Forward declaration for event loop
+namespace runtime {
+    class EventLoop;
+}
+
 namespace vm::runtime
 {
     /**
@@ -29,8 +35,16 @@ namespace vm::runtime
      * Provides high-performance execution of compiled mType programs
      * Coordinates specialized instruction executors following SOLID principles
      */
-    class VirtualMachine
+    class VirtualMachine : public std::enable_shared_from_this<VirtualMachine>
     {
+    public:
+        // State save/restore for async suspension
+        struct VMState {
+            size_t instructionPointer;
+            std::vector<value::Value> stack;
+            std::vector<CallFrame> callStack;
+        };
+
     private:
         // Program data
         const bytecode::BytecodeProgram* program;
@@ -42,6 +56,12 @@ namespace vm::runtime
 
         // Environment integration
         std::shared_ptr<environment::Environment> environment;
+
+        // Event loop integration (for async/await support)
+        std::unique_ptr<::runtime::EventLoop> eventLoop;
+        size_t currentTaskId;
+        std::optional<VMState> savedState;  // For async resumption
+        bool suspendedByAwait;  // Flag to indicate suspension by AWAIT instruction
 
         // Execution statistics
         ExecutionStats stats;
@@ -67,6 +87,17 @@ namespace vm::runtime
         // Execution
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
+
+        // Event loop integration (lazy initialization)
+        ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
+        ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist
+        void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
+
+        // State save/restore for async suspension
+        VMState saveState() const;
+        void restoreState(const VMState& state);
+        bool hasSavedState() const { return savedState.has_value(); }
+        void clearSavedState() { savedState.reset(); }
 
         // State inspection
         const ExecutionStats& getStats() const;

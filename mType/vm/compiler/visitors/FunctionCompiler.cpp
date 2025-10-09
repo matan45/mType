@@ -5,6 +5,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -58,7 +59,8 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
             ctx.variableTracker.getNextLocalSlot(),
             ctx.variableTracker.getCurrentScopeDepth(),
-            false);
+            false,  // Not a lambda
+            node->getIsAsync());  // Mark if async function
         ctx.variableTracker.beginScope();  // Function body scope
 
         // For generic functions, push empty bindings (will be filled during call)
@@ -101,6 +103,10 @@ namespace vm::compiler::visitors
         // Emit implicit return for void functions (if no explicit return)
         if (node->getReturnType() == value::ValueType::VOID) {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            // NEW: Wrap in Promise if async function
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
@@ -126,6 +132,7 @@ namespace vm::compiler::visitors
         metadata.parameterTypes = paramTypes;
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
+        metadata.isAsync = node->getIsAsync();  // NEW: Copy async flag from AST
 
         // Store generic type parameters if the function is generic
         if (node->isGeneric())
@@ -226,6 +233,7 @@ namespace vm::compiler::visitors
                                 if (argType != value::ValueType::OBJECT) {
                                     // null can be passed to object types
                                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                        std::cout << "[DEBUG FunctionCompiler] ERROR: Expected object but got " << argTypeStr << std::endl;
                                         throw errors::TypeException(
                                             "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
                                             " expects " + expectedType + " but got " + argTypeStr,
@@ -416,6 +424,12 @@ namespace vm::compiler::visitors
 
             if (returnValue) {
                 returnValue->accept(ctx.visitor);  // Will need delegation
+
+                // Wrap in Promise if in async function/lambda
+                if (ctx.functionFrameManager.currentFrame().isAsync) {
+                    ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                }
+
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             } else {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
@@ -484,7 +498,8 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.enterFunctionFrame("auto",
             0,  // Lambda parameters start from slot 0
             ctx.variableTracker.getCurrentScopeDepth(),
-            true);  // Mark this frame as a lambda
+            true,  // Mark this frame as a lambda
+            node->getIsAsync());  // Mark if async lambda
         ctx.variableTracker.beginScope();
 
         // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
@@ -506,6 +521,12 @@ namespace vm::compiler::visitors
             // Expression lambda: () -> expr
             // Compile expression and return its value
             body->accept(ctx.visitor);  // Will need delegation
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
         else {
@@ -515,6 +536,12 @@ namespace vm::compiler::visitors
 
             // Implicit return null if no explicit return
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 

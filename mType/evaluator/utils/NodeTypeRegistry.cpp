@@ -15,6 +15,7 @@
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../ast/nodes/expressions/InstanceOfExpression.hpp"
+#include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/DeclarationNode.hpp"
@@ -74,6 +75,7 @@ namespace evaluator::utils
             typeid(LambdaInterfaceInvocationNode),
             typeid(CastExpression),         // Type cast expression (Type)expr
             typeid(InstanceOfExpression),   // Type check expression expr isClassOf Type
+            typeid(AwaitExpression),        // Await expression for async/await
             typeid(AssignmentNode),         // Assignment can be expression or statement
             typeid(MemberAccessNode),       // Member access is an expression (obj.field, arr.length)
             typeid(MethodCallNode),         // Method calls are expressions (obj.method())

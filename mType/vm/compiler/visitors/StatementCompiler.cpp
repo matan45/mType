@@ -7,6 +7,7 @@
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 
 
+
 namespace vm::compiler::visitors
 {
     StatementCompiler::StatementCompiler(CompilerContext& context)
@@ -144,20 +145,23 @@ namespace vm::compiler::visitors
             if (!isArrayType && !isGenericParam) {
                 std::string baseClassName = ctx.genericResolver.extractBaseTypeName(className);
 
-                if (!ctx.environment->findClass(baseClassName)) {
-                    const auto& classes = ctx.program.getClasses();
-                    bool found = false;
-                    for (const auto& classMeta : classes) {
-                        if (classMeta.name == baseClassName) {
-                            found = true;
-                            break;
+                // Skip validation for Promise types (native async/await support)
+                if (baseClassName != "Promise") {
+                    if (!ctx.environment->findClass(baseClassName)) {
+                        const auto& classes = ctx.program.getClasses();
+                        bool found = false;
+                        for (const auto& classMeta : classes) {
+                            if (classMeta.name == baseClassName) {
+                                found = true;
+                                break;
+                            }
                         }
-                    }
-                    if (!found && !ctx.environment->findInterface(baseClassName)) {
-                        throw errors::UndefinedException(
-                            "Undefined class or interface: '" + baseClassName + "'",
-                            node->getLocation()
-                        );
+                        if (!found && !ctx.environment->findInterface(baseClassName)) {
+                            throw errors::UndefinedException(
+                                "Undefined class or interface: '" + baseClassName + "'",
+                                node->getLocation()
+                            );
+                        }
                     }
                 }
             }

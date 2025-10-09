@@ -74,6 +74,7 @@ namespace evaluator
         Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
         Value visitCastExpression(CastExpression* node) override;
         Value visitInstanceOfExpression(InstanceOfExpression* node) override;
+        Value visitAwaitExpression(AwaitExpression* node) override;
 
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;
@@ -85,6 +86,9 @@ namespace evaluator
 
         // Object instance access
         std::shared_ptr<ObjectInstance> getCurrentInstance() const;
+
+        // Event loop access for async/await
+        ::runtime::EventLoop* getEventLoop() const;
         
         // Type conversion helpers
         bool isTruthy(const Value& value);

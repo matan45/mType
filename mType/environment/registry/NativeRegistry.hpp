@@ -13,7 +13,7 @@ namespace runtimeTypes::klass
 namespace environment::registry
 {
     using namespace value;
-    
+
     using NativeFunction = std::function<Value(const std::vector<Value>&)>;
     using MethodCallHandler = std::function<Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>, const std::string&, const std::vector<Value>&)>;
 

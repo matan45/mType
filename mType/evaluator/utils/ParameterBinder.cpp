@@ -4,8 +4,10 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
+#include "../../value/PromiseValue.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
+#include <iostream>
 
 namespace evaluator::utils
 {
@@ -198,6 +200,22 @@ namespace evaluator::utils
             return actualType == ValueType::NULL_TYPE;
         }
 
+        // Special case: PromiseValue matches Promise<T> class names
+        if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(actualValue)) {
+            if (expectedType.isClass()) {
+                std::string expectedClassName = expectedType.getClassName();
+                // Extract base class name (e.g., "Promise<Int>" -> "Promise")
+                std::string baseExpectedClassName = expectedClassName;
+                size_t anglePos = expectedClassName.find('<');
+                if (anglePos != std::string::npos) {
+                    baseExpectedClassName = expectedClassName.substr(0, anglePos);
+                }
+                // PromiseValue matches any Promise<T> type
+                return baseExpectedClassName == "Promise";
+            }
+            return false;
+        }
+
         // Get the object instance
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(actualValue)) {
             return false; // Not an object instance
@@ -293,6 +311,7 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
+        ValueType actualType = ValueConverter::getValueType(actualValue);
         bool isValid = isValidParameterConversion(actualValue, expectedType, env);
 
         if (!isValid)
@@ -310,7 +329,6 @@ namespace evaluator::utils
                 oss << "expected " << expectedType.toString();
             }
 
-            ValueType actualType = ValueConverter::getValueType(actualValue);
             oss << " but got ";
 
             if (actualType == ValueType::OBJECT &&

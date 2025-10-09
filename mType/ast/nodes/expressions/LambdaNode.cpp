@@ -3,8 +3,8 @@
 namespace ast::nodes::expressions
 {
     LambdaNode::LambdaNode(const std::vector<Parameter>& params, std::unique_ptr<ASTNode> lambdaBody,
-                           const SourceLocation& loc, BodyType type)
-        : ASTNode(loc), parameters(params), body(std::move(lambdaBody)), bodyType(type)
+                           const SourceLocation& loc, BodyType type, bool async)
+        : ASTNode(loc), parameters(params), body(std::move(lambdaBody)), bodyType(type), isAsync(async)
     {
     }
 

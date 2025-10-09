@@ -500,6 +500,28 @@ namespace vm::bytecode
         return classes;
     }
 
+    bool BytecodeProgram::hasAsyncFunctions() const {
+        // Check all functions (global functions, instance methods, static methods, constructors)
+        // All are registered in the functions map with their fully qualified names
+        for (const auto& pair : functions) {
+            if (pair.second.isAsync) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool BytecodeProgram::hasAwaitInstructions() const {
+        // Check if any instruction in the program is AWAIT
+        // This tells us if the program actually uses await (not just declares async functions)
+        for (const auto& instr : instructions) {
+            if (instr.opcode == OpCode::AWAIT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Helper to write a string vector
     static void writeStringVector(std::ostream& out, const std::vector<std::string>& vec) {
         size_t count = vec.size();

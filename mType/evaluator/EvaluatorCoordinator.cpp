@@ -1,6 +1,9 @@
 #include "EvaluatorCoordinator.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
-
+#include "../value/PromiseValue.hpp"
+#include "../value/AsyncPromiseValue.hpp"
+#include "../ast/nodes/expressions/AwaitExpression.hpp"
+#include "../exception/SuspendException.hpp"
 namespace evaluator
 {
     using namespace runtimeTypes::klass;
@@ -38,12 +41,17 @@ namespace evaluator
         if (!node) {
             return std::monostate{};
         }
-        
+
         return routeEvaluation(node);
     }
     
     Value EvaluatorCoordinator::routeEvaluation(ASTNode* node)
     {
+        // Special case: AwaitExpression must be handled by coordinator for async/await support
+        if (dynamic_cast<AwaitExpression*>(node)) {
+            return node->accept(*this);
+        }
+
         // Route to appropriate specialized evaluator based on node type
         // Priority order: Statements first (to handle declarations properly),
         // then Objects (to handle class operations), then Expressions
@@ -339,5 +347,48 @@ namespace evaluator
     Value EvaluatorCoordinator::visitInstanceOfExpression(InstanceOfExpression* node)
     {
         return exprEvaluator->evaluateInstanceOfExpression(node);
+    }
+
+    Value EvaluatorCoordinator::visitAwaitExpression(AwaitExpression* node)
+    {
+        // Evaluate the expression being awaited
+        Value awaitedValue = evaluate(node->getExpressionPtr());
+
+        // Check if the value is a Promise
+        if (!std::holds_alternative<std::shared_ptr<PromiseValue>>(awaitedValue))
+        {
+            throw std::runtime_error("await can only be used on Promise values");
+        }
+
+        // Get the promise
+        auto promise = std::get<std::shared_ptr<PromiseValue>>(awaitedValue);
+
+        // Defensive null check
+        if (!promise)
+        {
+            throw std::runtime_error("Null promise in await expression");
+        }
+
+        // FAST PATH: Promise already fulfilled, return immediately
+        if (promise->isFulfilled())
+        {
+            return promise->getValue();
+        }
+
+        // SLOW PATH: Promise not yet fulfilled - suspend current task
+        // Try to cast to AsyncPromiseValue to support continuations
+        auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+
+        if (!asyncPromise)
+        {
+            // Promise doesn't support async continuations, use efficient blocking wait
+            // Uses condition variable for zero CPU usage instead of busy-wait polling
+            const int MAX_WAIT_MS = 10000;
+            return promise->waitForValue(MAX_WAIT_MS);
+        }
+
+        // Throw SuspendException to unwind the call stack
+        // The EventLoop will catch this and register a continuation
+        throw exception::SuspendException(asyncPromise);
     }
 }

@@ -7,10 +7,13 @@
 #include "../errors/FieldNotFoundException.hpp"
 #include "../errors/FinalModificationException.hpp"
 #include "../errors/TypeConversionException.hpp"
+#include "../exception/SuspendException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <memory>
 #include <algorithm>
+#include <thread>
+#include <atomic>
 
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
@@ -34,6 +37,7 @@
 #include "../vm/compiler/BytecodeCompiler.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../runtime/EventLoop.hpp"
 #include <fstream>
 
 namespace services
@@ -46,7 +50,7 @@ namespace services
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
-        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
+        vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -70,7 +74,7 @@ namespace services
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
-        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
+        vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -685,7 +689,61 @@ namespace services
     // Execution mode helpers
     value::Value ScriptInterpreter::executeAST(ast::ASTNode* ast)
     {
-        return evaluator->evaluate(ast);
+        // For AST interpreter, we run the EventLoop in the background
+        // and execute the script directly. The await handler uses busy-wait
+        // to poll for promise fulfillment, allowing the EventLoop to process
+        // delayed tasks in the background.
+
+        auto* eventLoop = evaluator->getEventLoop();
+
+        if (eventLoop)
+        {
+            // Start the event loop in a background thread with keep-alive
+            std::atomic<bool> scriptRunning(true);
+            std::thread eventLoopThread([eventLoop, &scriptRunning]() {
+                // Keep the event loop running while the script executes
+                while (scriptRunning.load() || eventLoop->getPendingTaskCount() > 0)
+                {
+                    if (!eventLoop->tick())
+                    {
+                        // No tasks right now, sleep briefly
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    }
+                }
+            });
+
+            // Execute the AST in the main thread
+            // await will use busy-wait polling while EventLoop processes delayed tasks
+            value::Value result;
+            try
+            {
+                result = evaluator->evaluate(ast);
+            }
+            catch (...)
+            {
+                // Signal the event loop to stop
+                scriptRunning.store(false);
+                if (eventLoopThread.joinable())
+                {
+                    eventLoopThread.join();
+                }
+                throw;
+            }
+
+            // Signal the event loop to stop and wait for it to finish
+            scriptRunning.store(false);
+            if (eventLoopThread.joinable())
+            {
+                eventLoopThread.join();
+            }
+
+            return result;
+        }
+        else
+        {
+            // No event loop - execute directly
+            return evaluator->evaluate(ast);
+        }
     }
 
     value::Value ScriptInterpreter::executeBytecode(ast::ASTNode* ast)
@@ -700,8 +758,43 @@ namespace services
             // The BytecodeCompiler will register all classes during compilation
             auto program = compiler->compile(ast);
 
-            // Execute bytecode in VM
-            return vm->execute(program);
+            // JavaScript model: Only use EventLoop if program actually contains await
+            // - No await → Direct execution (faster, better error handling)
+            // - Has await → EventLoop execution (enables cooperative multitasking)
+            if (program.hasAwaitInstructions())
+            {
+                // Program uses await - need EventLoop for task suspension/resumption
+                auto* eventLoop = vm->ensureEventLoop();
+
+                // Schedule main program as a task
+                size_t mainTaskId = eventLoop->scheduleTask(
+                    [this, program]() -> value::Value {
+                        return vm->execute(program);
+                    }
+                );
+
+                // Set VM reference so it knows its task ID
+                // VM is owned by shared_ptr which supports enable_shared_from_this
+                eventLoop->setTaskVM(mainTaskId, vm);
+
+                // Run event loop until all tasks complete
+                eventLoop->run();
+
+                // Check if main task failed and re-throw error
+                auto mainTask = eventLoop->getTask(mainTaskId);
+                if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
+                {
+                    throw std::runtime_error(mainTask->errorMessage);
+                }
+
+                return std::monostate{};
+            }
+            else
+            {
+                // No await in program - execute directly without EventLoop overhead
+                // This is the path for normal synchronous code (like access modifier tests)
+                return vm->execute(program);
+            }
         }
         catch (const std::exception&)
         {
@@ -751,7 +844,7 @@ namespace services
 
             // Create fresh VM and compiler with new environment
             auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
-            auto vmMachine = std::make_unique<vm::runtime::VirtualMachine>(vmEnvironment);
+            auto vmMachine = std::make_shared<vm::runtime::VirtualMachine>(vmEnvironment);
 
             // The imports are already resolved in the AST (from AST execution)
             // But we need to ensure the BytecodeCompiler can access them

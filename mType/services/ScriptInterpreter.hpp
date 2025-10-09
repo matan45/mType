@@ -35,7 +35,7 @@ namespace services
         std::shared_ptr<environment::Environment> environment;
         std::unique_ptr<evaluator::Evaluator> evaluator;
         std::unique_ptr<vm::compiler::BytecodeCompiler> compiler;
-        std::unique_ptr<vm::runtime::VirtualMachine> vm;
+        std::shared_ptr<vm::runtime::VirtualMachine> vm;  // Changed to shared_ptr for enable_shared_from_this support
 
         // Execution mode
         constants::ExecutionMode executionMode;

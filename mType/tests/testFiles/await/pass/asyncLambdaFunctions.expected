@@ -1,0 +1,10 @@
+=== Async Lambda Functions Test ===
+Simple async lambda result: 10
+Async lambda object result: 30
+Processing value: 7
+Async lambda as parameter result: 14
+Async lambda with multiple params result: 40
+Async lambda expression result: 36
+Processing values: 10 and 20
+Inline multi-param async lambda result: 200
+All async lambda tests completed

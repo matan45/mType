@@ -17,7 +17,8 @@ namespace vm::bytecode
         /**
          * Instruction structure: opcode + operands
          */
-        struct Instruction {
+        struct Instruction
+        {
             OpCode opcode;
             std::vector<uint32_t> operands;
 
@@ -31,7 +32,8 @@ namespace vm::bytecode
         /**
          * Constant pool for storing literal values
          */
-        struct ConstantPool {
+        struct ConstantPool
+        {
             std::vector<int> integers;
             std::vector<double> floats;
             std::vector<std::string> strings;
@@ -48,24 +50,27 @@ namespace vm::bytecode
         /**
          * Function metadata for compiled functions
          */
-        struct FunctionMetadata {
+        struct FunctionMetadata
+        {
             std::string name;
             size_t startOffset;
             size_t instructionCount;
             size_t localCount;
             size_t parameterCount;
             std::vector<std::string> parameterNames;
-            std::vector<std::string> parameterTypes;  // Added for type checking
+            std::vector<std::string> parameterTypes; // Added for type checking
             std::string returnType;
             bool isStatic = false;
             bool isNative = false;
-            std::vector<std::string> genericTypeParameters;  // Generic type parameter names (e.g., ["T", "K", "V"])
+            bool isAsync = false; // NEW: Flag for async functions
+            std::vector<std::string> genericTypeParameters; // Generic type parameter names (e.g., ["T", "K", "V"])
         };
 
         /**
          * Source location mapping for debugging
          */
-        struct SourceLocation {
+        struct SourceLocation
+        {
             uint32_t line;
             uint32_t column;
             std::string filename;
@@ -74,7 +79,8 @@ namespace vm::bytecode
         /**
          * Class metadata for registration when loading cached bytecode
          */
-        struct FieldMetadata {
+        struct FieldMetadata
+        {
             std::string name;
             std::string type;
             bool isStatic;
@@ -83,7 +89,8 @@ namespace vm::bytecode
             bool isProtected;
         };
 
-        struct MethodMetadata {
+        struct MethodMetadata
+        {
             std::string name;
             std::string returnType;
             std::vector<std::string> parameterTypes;
@@ -92,16 +99,18 @@ namespace vm::bytecode
             bool isFinal;
             bool isPrivate;
             bool isProtected;
-            size_t startOffset;  // Where the method bytecode starts
+            size_t startOffset; // Where the method bytecode starts
         };
 
-        struct ConstructorMetadata {
+        struct ConstructorMetadata
+        {
             std::vector<std::string> parameterTypes;
             std::vector<std::string> parameterNames;
-            size_t startOffset;  // Where the constructor bytecode starts
+            size_t startOffset; // Where the constructor bytecode starts
         };
 
-        struct ClassMetadata {
+        struct ClassMetadata
+        {
             std::string name;
             std::string parentClassName;
             std::vector<std::string> implementedInterfaces;
@@ -118,9 +127,9 @@ namespace vm::bytecode
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
-        std::vector<ClassMetadata> classes;  // Class metadata for cached bytecode
+        std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         size_t entryPoint;
-        std::string sourceFilePath;  // For class registration when loading cached bytecode
+        std::string sourceFilePath; // For class registration when loading cached bytecode
 
     public:
         BytecodeProgram();
@@ -163,6 +172,10 @@ namespace vm::bytecode
         void registerClass(const ClassMetadata& classMeta);
         const std::vector<ClassMetadata>& getClasses() const;
 
+        // Async Detection
+        bool hasAsyncFunctions() const;
+        bool hasAwaitInstructions() const;
+
         // Disassembly and Serialization
         std::string disassemble() const;
         void serialize(std::ostream& out) const;
@@ -182,4 +195,3 @@ namespace vm::bytecode
         void readClasses(std::istream& in);
     };
 }
-

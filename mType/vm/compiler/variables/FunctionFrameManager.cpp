@@ -4,13 +4,14 @@
 namespace vm::compiler::variables
 {
     void FunctionFrameManager::enterFunctionFrame(const std::string& returnType, size_t localStartSlot,
-                                                  int scopeDepthStart, bool isLambda)
+                                                  int scopeDepthStart, bool isLambda, bool isAsync)
     {
         FunctionFrame frame;
         frame.localStartSlot = localStartSlot;
         frame.scopeDepthStart = scopeDepthStart;
         frame.returnType = returnType;
         frame.isLambda = isLambda;
+        frame.isAsync = isAsync;
         frame.maxLocalSlot = localStartSlot;
         functionFrameStack.push_back(frame);
     }

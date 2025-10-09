@@ -8,7 +8,6 @@
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
-#include <iostream>
 
 namespace parser::expression
 {

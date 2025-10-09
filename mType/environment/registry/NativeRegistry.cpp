@@ -2,10 +2,13 @@
 #include <algorithm>
 #include <iostream>
 #include <functional>
+#include <thread>
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../runtime/EventLoop.hpp"
 
 namespace environment::registry
 {
@@ -138,6 +141,26 @@ namespace environment::registry
                         std::cout << "null";
                     else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, nullptr_t>)
                         std::cout << "null";
+                    else if constexpr (std::is_same_v<
+                        std::decay_t<decltype(value)>, std::shared_ptr<value::PromiseValue>>)
+                    {
+                        if (!value)
+                        {
+                            std::cout << "null";
+                        }
+                        else if (value->isFulfilled())
+                        {
+                            std::cout << "[Promise:fulfilled]";
+                        }
+                        else if (value->isPending())
+                        {
+                            std::cout << "[Promise:pending]";
+                        }
+                        else
+                        {
+                            std::cout << "[Promise:rejected]";
+                        }
+                    }
                     else if constexpr (std::is_same_v<
                         std::decay_t<decltype(value)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
                     {

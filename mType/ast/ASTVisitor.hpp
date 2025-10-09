@@ -57,5 +57,6 @@ namespace ast
         virtual T visitSuperMethodCallNode(SuperMethodCallNode* node) = 0;
         virtual T visitCastExpression(CastExpression* node) = 0;
         virtual T visitInstanceOfExpression(InstanceOfExpression* node) = 0;
+        virtual T visitAwaitExpression(AwaitExpression* node) = 0;
     };
 }

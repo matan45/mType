@@ -10,9 +10,10 @@ namespace ast::nodes::classes
                            bool isStaticMethod,
                            const std::vector<GenericTypeParameter>& generics,
                            AccessModifier modifier,
+                           bool async,
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), accessModifier(modifier)
+          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async), accessModifier(modifier)
     {
     }
 
@@ -22,8 +23,9 @@ namespace ast::nodes::classes
                            std::shared_ptr<ASTNode> methodBody,
                            bool isStaticMethod,
                            AccessModifier modifier,
+                           bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -41,8 +43,9 @@ namespace ast::nodes::classes
                            std::unique_ptr<ASTNode> methodBody,
                            bool isStaticMethod,
                            AccessModifier modifier,
+                           bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);

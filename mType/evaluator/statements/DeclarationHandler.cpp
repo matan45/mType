@@ -13,6 +13,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../constants/LambdaConstants.hpp"
 
+
 using namespace errors;
 using namespace runtimeTypes::global;
 
@@ -106,11 +107,16 @@ namespace evaluator
                 bool shouldValidate = className.find("[]") == std::string::npos &&
                     !utils::GenericTypeManager::hasUnresolvedGenericParams(className);
 
-                // Additional check for concrete generic instantiation with valid base class
+                // Skip validation for Promise types (native async/await support)
                 if (shouldValidate && utils::GenericTypeManager::isGenericInstantiation(className))
                 {
                     auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
-                    if (env->findClass(baseName))
+                    // Skip validation for Promise types (builtin async/await)
+                    if (baseName == "Promise")
+                    {
+                        shouldValidate = false;
+                    }
+                    else if (env->findClass(baseName))
                     {
                         shouldValidate = false; // Valid generic instantiation, skip validation
                     }
@@ -307,7 +313,7 @@ namespace evaluator
         {
             if (!exprEvaluator)
             {
-                //TODO use exception 
+                //TODO use exception
                 return std::monostate{};
             }
 

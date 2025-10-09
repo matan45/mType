@@ -145,11 +145,34 @@ namespace statements {
             }
         }
 
+        // Fix parameter types to correctly mark interfaces vs classes
+        auto rawParams = node->getParameterTypes();
+        std::vector<std::pair<std::string, value::ParameterType>> correctedParams;
+
+        for (const auto& [paramName, paramType] : rawParams)
+        {
+            value::ParameterType corrected = paramType;
+
+            // If it's marked as a class, check if it's actually an interface
+            if (paramType.isClass())
+            {
+                std::string typeName = paramType.getClassName();
+
+                // Check if it's actually a registered interface
+                if (env->findInterface(typeName) != nullptr)
+                {
+                    corrected = value::ParameterType::forInterface(typeName);
+                }
+            }
+
+            correctedParams.emplace_back(paramName, corrected);
+        }
+
         // Use ParameterType version to preserve class/interface information
         auto funcDef = std::make_shared<FunctionDefinition>(
             node->getName(),
             node->getReturnType(),
-            node->getParameterTypes()  // Use getParameterTypes() instead of getParameters()
+            correctedParams  // Use corrected parameter types
         );
 
         // Set the return class name if we found one
@@ -166,6 +189,9 @@ namespace statements {
         {
             funcDef->setGenericTypeParameters(node->getGenericTypeParameters());
         }
+
+        // NEW: Set async flag if the function is async
+        funcDef->setIsAsync(node->getIsAsync());
 
         // Register function in environment
         env->registerFunction(node->getName(), funcDef);

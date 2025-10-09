@@ -11,6 +11,9 @@
 
 namespace vm::runtime
 {
+    // Forward declaration
+    class FunctionExecutor;
+
     /**
      * Executes object-related opcodes
      * Handles NEW_OBJECT, GET/SET_FIELD, GET/SET_STATIC, CALL_METHOD, SUPER_CONSTRUCTOR, SUPER_INVOKE
@@ -21,6 +24,9 @@ namespace vm::runtime
     public:
         explicit ObjectExecutor(ExecutionContext& ctx);
         ~ObjectExecutor() = default;
+
+        // Set FunctionExecutor reference for lambda-to-interface conversion
+        void setFunctionExecutor(FunctionExecutor* funcExec) { functionExecutor = funcExec; }
 
         // Object creation
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
@@ -38,6 +44,7 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        FunctionExecutor* functionExecutor = nullptr;
 
         // Helper methods
         void initializeObjectFields(

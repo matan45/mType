@@ -2,6 +2,7 @@
 #include "../../environment/Environment.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueType.hpp"
+#include "../../runtime/EventLoop.hpp"
 #include <memory>
 #include <stack>
 #include <unordered_map>
@@ -38,6 +39,10 @@ namespace evaluator::base
 
         // Calling class stack for access control validation
         std::stack<std::string> callingClassStack;
+
+        // Event loop for async/await support
+        std::unique_ptr<::runtime::EventLoop> eventLoop;
+        size_t currentTaskId;  // Current task ID for async/await suspension
 
         // Performance optimization: cache frequently accessed values
         mutable std::shared_ptr<Environment> cachedEnv;
@@ -95,6 +100,11 @@ namespace evaluator::base
         void popCallingClass();
         std::string getCurrentCallingClass() const;
         bool hasCallingClass() const;
+
+        // Event loop access for async/await
+        ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
+        void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
+        size_t getCurrentTaskId() const { return currentTaskId; }
 
         // Copy prevention (context should be shared via shared_ptr)
         EvaluationContext(const EvaluationContext&) = delete;

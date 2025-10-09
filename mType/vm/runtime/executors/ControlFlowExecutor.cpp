@@ -1,5 +1,5 @@
 #include "ControlFlowExecutor.hpp"
-
+#include "../../../value/PromiseValue.hpp"
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
@@ -60,6 +60,24 @@ namespace vm::runtime
 
     void ControlFlowExecutor::handleReturnValue() {
         value::Value returnVal = context.stackManager->pop();
+
+        // Check if we're returning from an async function
+        // If so, wrap the return value in a PromiseValue (unless already wrapped by CREATE_PROMISE)
+        if (!context.callStack.empty()) {
+            const CallFrame& frame = context.callStack.back();
+            auto funcMetadata = context.program->getFunction(frame.functionName);
+
+            if (funcMetadata && funcMetadata->isAsync) {
+                // Check if already wrapped in Promise (by CREATE_PROMISE opcode)
+                // This prevents double-wrapping when bytecode compiler emits CREATE_PROMISE
+                if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(returnVal)) {
+                    // Wrap return value in PromiseValue for async functions
+                    auto promise = std::make_shared<value::PromiseValue>(returnVal);
+                    returnVal = promise;
+                }
+            }
+        }
+
         handleReturn();
         context.stackManager->push(returnVal);
     }

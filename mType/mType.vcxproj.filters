@@ -61,6 +61,9 @@
     <Filter Include="evaluator\validation">
       <UniqueIdentifier>{722E1A0D-5EBD-A3D6-07DC-B7D1F349B47C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="exception">
+      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
+    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -84,6 +87,9 @@
     </Filter>
     <Filter Include="run">
       <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtime">
+      <UniqueIdentifier>{692D2264-D50C-A1FF-DE24-2CD64A830761}</UniqueIdentifier>
     </Filter>
     <Filter Include="runtimeTypes">
       <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
@@ -117,6 +123,15 @@
     </Filter>
     <Filter Include="tests\testFiles\arrays\pass">
       <UniqueIdentifier>{C128FBA7-2D36-298E-B61C-25792229F544}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\await">
+      <UniqueIdentifier>{FF1A97E4-6B87-52DF-347B-EA3CA0A67447}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\await\error">
+      <UniqueIdentifier>{98B54B46-04C3-792C-8DA9-7517F9B545E3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\await\pass">
+      <UniqueIdentifier>{65687C57-5178-2828-BA31-8D46A66017C1}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\cast">
       <UniqueIdentifier>{B4328973-A0C1-123D-49E0-2638354E23E3}</UniqueIdentifier>
@@ -337,6 +352,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\AwaitExpression.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
@@ -657,6 +675,9 @@
     <ClInclude Include="evaluator\utils\ArgumentEvaluator.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\utils\AsyncReturnGuard.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
@@ -686,6 +707,9 @@
     </ClInclude>
     <ClInclude Include="evaluator\validation\TypeValidator.hpp">
       <Filter>evaluator\validation</Filter>
+    </ClInclude>
+    <ClInclude Include="exception\SuspendException.hpp">
+      <Filter>exception</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
@@ -792,6 +816,9 @@
     <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="parser\utilities\AsyncValidator.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
     <ClInclude Include="parser\utilities\ParsePatterns.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
@@ -800,6 +827,9 @@
     </ClInclude>
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
       <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="runtime\EventLoop.hpp">
+      <Filter>runtime</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\Definition.hpp">
       <Filter>runtimeTypes</Filter>
@@ -844,6 +874,9 @@
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ArrayTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\AwaitTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\CastTestSuite.hpp">
@@ -912,6 +945,9 @@
     <ClInclude Include="value\ArrayPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\AsyncPromiseValue.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -922,6 +958,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\ParameterType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\PromiseValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\SparseMultiArray.hpp">
@@ -1089,6 +1128,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
@@ -1430,6 +1472,9 @@
     <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
+    <ClCompile Include="parser\utilities\AsyncValidator.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
     <ClCompile Include="parser\utilities\ParsePatterns.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
@@ -1441,6 +1486,9 @@
     </ClCompile>
     <ClCompile Include="run\Main.cpp">
       <Filter>run</Filter>
+    </ClCompile>
+    <ClCompile Include="runtime\EventLoop.cpp">
+      <Filter>runtime</Filter>
     </ClCompile>
     <ClCompile Include="runtimeTypes\Definition.cpp">
       <Filter>runtimeTypes</Filter>
@@ -1482,6 +1530,9 @@
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ArrayTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\AwaitTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\CastTestSuite.cpp">
@@ -1767,6 +1818,78 @@
     </None>
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncConstructor.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncMethodWithoutPromise.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncReturningVoid.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncWithPrimitiveReturn.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\asyncWithoutPromiseReturn.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
+      <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncInterfaceMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethods.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncVoidReturn.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncVoidReturn.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithArrays.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithArrays.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithGenerics.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncWithGenerics.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\awaitingResolvedPromise.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\basicAsyncFunction.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\basicAsyncFunction.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\multipleAwaits.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\multipleAwaits.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\nestedAsyncCalls.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\nestedAsyncCalls.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
       <Filter>tests\testFiles\cast\error</Filter>

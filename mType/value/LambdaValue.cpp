@@ -18,6 +18,7 @@
 #include "../evaluator/ObjectEvaluator.hpp"
 #include "../errors/ReturnException.hpp"
 #include "../evaluator/utils/ValueConverter.hpp"
+#include "../value/AsyncPromiseValue.hpp"
 #include <set>
 
 namespace value
@@ -130,6 +131,11 @@ namespace value
             throw errors::RuntimeException("Lambda body is null - malformed lambda AST");
         }
 
+        // Check if this is an async lambda
+        // NOTE: We wrap return values in Promise, but async lambdas should NOT double-wrap
+        // if the body already returns a Promise
+        bool isAsync = lambdaNode->getIsAsync();
+
         if (lambdaNode->isExpressionLambda())
         {
             // Expression lambda - evaluate and return the expression
@@ -151,6 +157,16 @@ namespace value
 
             Value result = exprEvaluator.evaluate(lambdaBody);
 
+            // Wrap in Promise if async lambda
+            // Like JavaScript/Python: auto-unwrap if already a Promise to prevent double-wrapping
+            if (isAsync) {
+                // If result is already a Promise, return it as-is (auto-unwrap behavior)
+                if (std::holds_alternative<std::shared_ptr<PromiseValue>>(result)) {
+                    return result;
+                }
+                // Otherwise wrap the value in a Promise
+                return std::make_shared<AsyncPromiseValue>(result);
+            }
             return result;
         }
         else
@@ -178,16 +194,38 @@ namespace value
             catch (const errors::ReturnException& e)
             {
                 // Return statements in lambdas are normal - extract the return value
+                // Wrap in Promise if async lambda (auto-unwrap like JS/Python)
+                if (isAsync) {
+                    // If already a Promise, return as-is (auto-unwrap to prevent double-wrapping)
+                    if (std::holds_alternative<std::shared_ptr<PromiseValue>>(e.returnValue)) {
+                        return e.returnValue;
+                    }
+                    // Otherwise wrap in Promise
+                    return std::make_shared<AsyncPromiseValue>(e.returnValue);
+                }
                 return e.returnValue;
             }
 
             // Check if a return value was set
             if (lambdaContext->shouldReturn())
             {
-                return lambdaContext->getReturnValue();
+                Value retVal = lambdaContext->getReturnValue();
+                // Wrap in Promise if async lambda (auto-unwrap like JS/Python)
+                if (isAsync) {
+                    // If already a Promise, return as-is (auto-unwrap to prevent double-wrapping)
+                    if (std::holds_alternative<std::shared_ptr<PromiseValue>>(retVal)) {
+                        return retVal;
+                    }
+                    // Otherwise wrap in Promise
+                    return std::make_shared<AsyncPromiseValue>(retVal);
+                }
+                return retVal;
             }
 
-            // No explicit return, return void
+            // No explicit return, return void (wrapped in Promise if async)
+            if (isAsync) {
+                return std::make_shared<AsyncPromiseValue>(std::monostate{});
+            }
             return std::monostate{};
         }
     }

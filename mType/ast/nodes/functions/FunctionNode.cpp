@@ -8,9 +8,10 @@ namespace ast::nodes::functions
                                const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params,
                                std::shared_ptr<ASTNode> funcBody,
                                const std::vector<GenericTypeParameter>& generics,
+                               bool async,
                                const SourceLocation& loc)
         : ASTNode(loc), name(funcName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(funcBody))
+          parameters(params), body(std::move(funcBody)), isAsync(async)
     {
     }
 
@@ -18,8 +19,9 @@ namespace ast::nodes::functions
     FunctionNode::FunctionNode(const std::string& funcName, ValueType retType,
                                const std::vector<std::pair<std::string, ValueType>>& params,
                                std::shared_ptr<ASTNode> funcBody,
+                               bool async,
                                const SourceLocation& loc)
-        : ASTNode(loc), name(funcName), body(std::move(funcBody))
+        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -34,8 +36,9 @@ namespace ast::nodes::functions
     FunctionNode::FunctionNode(const std::string& funcName, ValueType retType,
                                const std::vector<std::pair<std::string, ValueType>>& params,
                                std::unique_ptr<ASTNode> funcBody,
+                               bool async,
                                const SourceLocation& loc)
-        : ASTNode(loc), name(funcName), body(std::move(funcBody))
+        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);

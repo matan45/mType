@@ -109,6 +109,9 @@ namespace vm::compiler
         value::Value visitCastExpression(ast::CastExpression* node) override;
         value::Value visitInstanceOfExpression(ast::InstanceOfExpression* node) override;
 
+        // Async operations (Phase 1 stub)
+        value::Value visitAwaitExpression(ast::AwaitExpression* node) override;
+
         // Import
         value::Value visitImportNode(ast::ImportNode* node) override;
 

@@ -1,5 +1,6 @@
 #include "BytecodeCompiler.hpp"
 #include "../../evaluator/utils/ValueConverter.hpp"
+#include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include <stdexcept>
@@ -301,6 +302,18 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitInstanceOfExpression(ast::InstanceOfExpression* node)
     {
         return expressionCompiler.compileInstanceOf(node);
+    }
+
+    value::Value BytecodeCompiler::visitAwaitExpression(ast::AwaitExpression* node)
+    {
+        // Compile the expression being awaited (should evaluate to a Promise)
+        node->getExpressionPtr()->accept(*this);
+
+        // Emit AWAIT instruction to unwrap the Promise
+        // In Phase 2 synchronous model, this immediately returns the Promise's value
+        program.emit(bytecode::OpCode::AWAIT);
+
+        return std::monostate{};
     }
 
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)

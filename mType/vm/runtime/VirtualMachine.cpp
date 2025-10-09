@@ -17,12 +17,14 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/LambdaValue.hpp"
+#include "../../value/PromiseValue.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../runtime/EventLoop.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
-
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -30,6 +32,9 @@ namespace vm::runtime
           , stackManager(std::make_shared<StackManager>())
           , instructionPointer(0)
           , environment(std::move(env))
+          , eventLoop(nullptr)  // Lazy initialization - only created when needed
+          , currentTaskId(0)
+          , suspendedByAwait(false)
     {
         callStack.reserve(64);
 
@@ -39,13 +44,29 @@ namespace vm::runtime
 
     VirtualMachine::~VirtualMachine() = default;
 
+    ::runtime::EventLoop* VirtualMachine::ensureEventLoop()
+    {
+        if (!eventLoop)
+        {
+            eventLoop = std::make_unique<::runtime::EventLoop>();
+        }
+        return eventLoop.get();
+    }
+
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {
         program = &bytecodeProgram;
-        instructionPointer = program->getEntryPoint();
 
-        executionStart = std::chrono::steady_clock::now();
-        stats = ExecutionStats{};
+        // Check if we're resuming from a saved state
+        if (savedState.has_value()) {
+            restoreState(savedState.value());
+            savedState.reset();  // Clear saved state after restoring
+        } else {
+            // Fresh execution - start from entry point
+            instructionPointer = program->getEntryPoint();
+            executionStart = std::chrono::steady_clock::now();
+            stats = ExecutionStats{};
+        }
 
         // Initialize executors with execution context
         ExecutionContext context(program, instructionPointer, callStack, environment,
@@ -61,6 +82,9 @@ namespace vm::runtime
         arrayExecutor = std::make_unique<ArrayExecutor>(context);
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+
+        // Set function executor reference in object executor for lambda-to-interface conversion
+        objectExecutor->setFunctionExecutor(functionExecutor.get());
 
         try
         {
@@ -101,6 +125,8 @@ namespace vm::runtime
 
     value::Value VirtualMachine::interpretLoop()
     {
+        suspendedByAwait = false;  // Reset flag at start
+
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
@@ -109,6 +135,13 @@ namespace vm::runtime
             executeInstruction(instr);
 
             stats.instructionsExecuted++;
+
+            // Check if we suspended due to AWAIT - if so, break without incrementing IP
+            if (suspendedByAwait)
+            {
+                suspendedByAwait = false;  // Reset flag
+                break;  // Exit loop without incrementing IP (already done by AWAIT handler)
+            }
 
             // Check for halt
             if (instr.opcode == bytecode::OpCode::HALT)
@@ -288,6 +321,122 @@ namespace vm::runtime
         case OpCode::NOP:
             // Do nothing
             break;
+
+        // Async/Await Operations
+        case OpCode::CREATE_PROMISE:
+            {
+                // Pop value from stack and wrap it in a Promise
+                // Use AsyncPromiseValue for async functions so they integrate with event loop
+                value::Value val = stackManager->pop();
+                auto promise = std::make_shared<value::AsyncPromiseValue>(val);
+                stackManager->push(promise);
+                break;
+            }
+
+        case OpCode::AWAIT:
+            {
+                // Pop Promise from stack and unwrap its value
+                value::Value promiseVal = stackManager->pop();
+                if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
+                {
+                    throw errors::RuntimeException("await can only be used on Promise values");
+                }
+
+                auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+
+                // Defensive null check
+                if (!promise)
+                {
+                    throw errors::RuntimeException("Null promise in await expression");
+                }
+
+                // FAST PATH: Promise already fulfilled, continue immediately
+                if (promise->isFulfilled())
+                {
+                    // Push the unwrapped value back onto the stack
+                    stackManager->push(promise->getValue());
+                    break;
+                }
+
+                // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
+                if (eventLoop)
+                {
+                    // Try to cast to AsyncPromiseValue for callback support
+                    auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+
+                    if (asyncPromise)
+                    {
+                        // Capture the stack manager to push resolved value when task resumes
+                        auto stackMgr = this->stackManager;
+
+                        // Capture weak_ptr to VM to safely access EventLoop even if VM is destroyed
+                        // This prevents dangling pointer crashes if promise resolves after VM destruction
+                        std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
+                        auto taskId = this->currentTaskId;
+
+                        // Register callback to resume this task when promise resolves
+                        // NOTE: Callback may execute later if promise is stored, so we must check VM validity
+                        asyncPromise->then([stackMgr, weakVM, taskId](value::Value resolvedValue)
+                        {
+                            // Check if VM still exists before accessing EventLoop
+                            if (auto vm = weakVM.lock())
+                            {
+                                // Push the resolved value onto the stack
+                                stackMgr->push(resolvedValue);
+
+                                // Resume the task (this will move it from suspended to ready queue)
+                                if (vm->eventLoop)
+                                {
+                                    vm->eventLoop->resumeTask(taskId, resolvedValue);
+                                }
+                            }
+                            // If VM destroyed, silently ignore - task can't be resumed anyway
+                        });
+
+                        // Save VM state before suspending
+                        // IMPORTANT: Increment IP to point to the next instruction after AWAIT
+                        // The main loop checks suspendedByAwait flag and skips its own increment
+                        instructionPointer++;
+                        savedState = saveState();
+
+                        // Suspend current task and yield control to event loop
+                        eventLoop->suspendCurrentTask(promise);
+
+                        // Set flag to tell main loop we've suspended and already incremented IP
+                        suspendedByAwait = true;
+
+                        // Return from executeInstruction
+                        // The main loop will see the flag and break without incrementing IP
+                        return;
+                    }
+                    else
+                    {
+                        // PromiseValue without callback support - must already be fulfilled
+                        throw errors::RuntimeException(
+                            "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
+                            "Use AsyncPromiseValue for true async/await functionality."
+                        );
+                    }
+                }
+                else
+                {
+                    // No event loop - synchronous mode (Phase 2)
+                    // Promise must already be fulfilled in synchronous mode
+                    throw errors::RuntimeException(
+                        "Promise is not fulfilled and no event loop is available. "
+                        "Initialize an EventLoop for non-blocking async/await support."
+                    );
+                }
+
+                break;
+            }
+
+        case OpCode::PROMISE_RESOLVE:
+            {
+                // Reserved for future asynchronous execution model
+                throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
+                break;
+            }
 
         default:
             throw errors::RuntimeException("Unimplemented opcode: " +
@@ -535,6 +684,22 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+    }
+
+    VirtualMachine::VMState VirtualMachine::saveState() const
+    {
+        VMState state;
+        state.instructionPointer = instructionPointer;
+        state.stack = stackManager->getStack();  // Get copy of entire stack
+        state.callStack = callStack;
+        return state;
+    }
+
+    void VirtualMachine::restoreState(const VMState& state)
+    {
+        instructionPointer = state.instructionPointer;
+        stackManager->setStack(state.stack);  // Restore entire stack
+        callStack = state.callStack;
     }
 
     value::ValueType VirtualMachine::stringToValueType(const std::string& typeName)

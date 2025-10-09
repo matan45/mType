@@ -10,6 +10,7 @@
 #include "utils/ParameterBinder.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/LambdaValue.hpp"
+#include "../value/PromiseValue.hpp"
 #include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "../ast/nodes/expressions/CastExpression.hpp"
 #include "../ast/nodes/expressions/InstanceOfExpression.hpp"
@@ -118,6 +119,9 @@ namespace evaluator
         // Cast and type checking expressions
         dispatcher.registerMethod<CastExpression>(&ExpressionEvaluator::evaluateCastExpression);
         dispatcher.registerMethod<InstanceOfExpression>(&ExpressionEvaluator::evaluateInstanceOfExpression);
+
+        // Async/await expressions
+        dispatcher.registerMethod<AwaitExpression>(&ExpressionEvaluator::evaluateAwaitExpression);
 
         // Special case: MemberAssignmentNode delegates to ObjectEvaluator
         dispatcher.registerHandler<MemberAssignmentNode>([this](ExpressionEvaluator* eval, ASTNode* node) {
@@ -536,7 +540,24 @@ namespace evaluator
                 node->getLocation());
         }
 
-        auto currentClass = currentInstance->getClassDefinition();
+        // IMPORTANT: Use calling class stack to determine which class's method we're executing
+        // This prevents infinite recursion in multi-level inheritance (e.g., AdvancedService -> DerivedService -> BaseService)
+        // Using currentInstance->getClassDefinition() would always give us the runtime class (AdvancedService),
+        // causing DerivedService.method() to incorrectly call itself instead of BaseService.method()
+        std::string currentClassName = context->getCurrentCallingClass();
+        if (currentClassName.empty()) {
+            // Fallback to instance class if no calling class context (shouldn't happen in normal method execution)
+            currentClassName = currentInstance->getClassDefinition()->getName();
+        }
+
+        auto env = context->getEnvironment();
+        auto currentClass = env->findClass(currentClassName);
+        if (!currentClass) {
+            throw UndefinedException(
+                "Current class '" + currentClassName + "' not found for super." + node->getMethodName() + "() call",
+                node->getLocation());
+        }
+
         if (!currentClass->hasParentClass()) {
             throw UndefinedException(
                 "Class '" + currentClass->getName() +
@@ -593,6 +614,9 @@ namespace evaluator
                 context->getEnvironment()->declareVariable(params[i].first, varDef);
             }
 
+            // Push parent class onto calling class stack for correct super resolution
+            context->pushCallingClass(parentClass->getName());
+
             // Execute parent method body
             Value result = std::monostate{};
             if (parentMethod->getBody()) {
@@ -605,12 +629,23 @@ namespace evaluator
                         context->setReturned(false);  // Reset return flag
                     }
                 } catch (const ReturnException& e) {
+                    // Parent method returned - extract the return value
+                    // DO NOT re-throw - super.method() calls should return normally
                     result = e.returnValue;
                     context->setReturned(false);  // Reset return flag
                 }
             }
 
+            // Pop calling class stack
+            context->popCallingClass();
             context->getEnvironment()->exitScope();
+
+            // Wrap in Promise if parent method is async
+            if (parentMethod->getIsAsync()) {
+                auto promise = std::make_shared<value::PromiseValue>(result);
+                return promise;
+            }
+
             return result;
         }
 
@@ -725,6 +760,38 @@ namespace evaluator
         bool isInstance = isInstanceOfClass(objInstance, targetTypeName);
 
         return isInstance;
+    }
+
+    Value ExpressionEvaluator::evaluateAwaitExpression(AwaitExpression* node)
+    {
+        // Evaluate the expression being awaited
+        Value awaitedValue = evaluate(node->getExpressionPtr());
+
+        // Check if the value is a Promise
+        if (!std::holds_alternative<std::shared_ptr<PromiseValue>>(awaitedValue))
+        {
+            throw std::runtime_error("await can only be used on Promise values");
+        }
+
+        // Get the promise
+        auto promise = std::get<std::shared_ptr<PromiseValue>>(awaitedValue);
+
+        // Defensive null check
+        if (!promise)
+        {
+            throw std::runtime_error("Null promise in await expression");
+        }
+
+        // FAST PATH: Promise already fulfilled, return immediately
+        if (promise->isFulfilled())
+        {
+            return promise->getValue();
+        }
+
+        // SLOW PATH: Promise not yet fulfilled - use efficient blocking wait
+        // Uses condition variable for zero CPU usage instead of busy-wait polling
+        const int MAX_WAIT_MS = 10000;
+        return promise->waitForValue(MAX_WAIT_MS);
     }
 
     Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)

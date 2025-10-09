@@ -82,7 +82,9 @@ namespace lexer
             {"extends", TokenType::EXTENDS},
             {"super", TokenType::SUPER},
             {"default", TokenType::DEFAULT},
-            {"isClassOf", TokenType::ISCLASSOF}
+            {"isClassOf", TokenType::ISCLASSOF},
+            {"async", TokenType::ASYNC},
+            {"await", TokenType::AWAIT}
         };
 
     public:

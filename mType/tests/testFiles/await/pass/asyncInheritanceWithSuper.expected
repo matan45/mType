@@ -1,0 +1,36 @@
+=== Async Inheritance with Super Calls Test ===
+
+--- Test 1: Basic Super Call ---
+DerivedService calling super.initialize()
+BaseService initializing: Service1
+Super returned: Base initialized
+Final result: Derived initialized = 10
+
+--- Test 2: Super Call with Parameters ---
+DerivedService calling super.process()
+BaseService processing: 5
+Super processed, result: 10
+Final result: Derived processed = 110
+Call count: 2
+
+--- Test 3: Multi-level Inheritance ---
+AdvancedService calling super.initialize()
+DerivedService calling super.initialize()
+BaseService initializing: AdvancedService
+Super returned: Base initialized
+Derived returned: Derived initialized
+Final result: Advanced initialized = 100
+
+--- Test 4: Chained Super Calls ---
+AdvancedService complex processing
+DerivedService calling super.process()
+BaseService processing: 3
+Super processed, result: 6
+First super result: 106
+DerivedService calling super.process()
+BaseService processing: 106
+Super processed, result: 212
+Second super result: 312
+Final result: Advanced processed = 418
+
+All async inheritance tests completed

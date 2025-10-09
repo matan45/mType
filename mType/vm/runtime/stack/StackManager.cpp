@@ -62,6 +62,10 @@ namespace vm::runtime
         return stack;
     }
 
+    void StackManager::setStack(const std::vector<value::Value>& newStack) {
+        stack = newStack;
+    }
+
     void StackManager::resize(size_t newSize) {
         stack.resize(newSize);
     }

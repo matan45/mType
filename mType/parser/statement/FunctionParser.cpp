@@ -1,6 +1,7 @@
 #include "FunctionParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/AsyncValidator.hpp"
 #include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
@@ -42,6 +43,7 @@ namespace parser::statement
     std::unique_ptr<ASTNode> FunctionParser::parseFunction()
     {
         bool isNative = false;
+        bool isAsync = false;
 
         // Check for native keyword
         if (tryConsumeToken(TokenType::NATIVE))
@@ -50,6 +52,12 @@ namespace parser::statement
         }
 
         expectToken(TokenType::FUNCTION);
+
+        // NEW: Check for async keyword AFTER function keyword
+        if (tryConsumeToken(TokenType::ASYNC))
+        {
+            isAsync = true;
+        }
 
         // Parse generic type parameters (like methods do)
         std::vector<GenericTypeParameter> functionGenericParameters;
@@ -78,6 +86,12 @@ namespace parser::statement
         // Parse return type using generic-aware parsing to preserve interface names
         auto genericReturnType = TypeParser::parseGenericType(tokenStream);
 
+        // Validate async function return type must be Promise<T>
+        if (isAsync)
+        {
+            utilities::AsyncValidator::validateAsyncReturnType(genericReturnType, tokenStream.location());
+        }
+
         std::unique_ptr<ASTNode> body = nullptr;
 
         if (isNative)
@@ -87,13 +101,15 @@ namespace parser::statement
         }
         else
         {
+            // NEW: Set async context when parsing function body
+            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
             body = context.parseStatement(); // Should be a block
         }
 
-        // Use new generic-aware constructor with function generic parameters
+        // Use new generic-aware constructor with function generic parameters and async flag
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
                                                        genericParameters, std::move(body),
-                                                       functionGenericParameters);
+                                                       functionGenericParameters, isAsync);
         return funcNode;
     }
 

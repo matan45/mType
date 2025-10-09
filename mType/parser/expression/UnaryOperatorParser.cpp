@@ -1,6 +1,7 @@
 #include "UnaryOperatorParser.hpp"
 #include "../ExpressionParser.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -36,6 +37,24 @@ namespace parser::expression
         if (expressionParser && expressionParser->getCastParser()->canParse(tokenStream))
         {
             return expressionParser->getCastParser()->parseCastExpression();
+        }
+
+        // NEW: Handle await expression
+        if (tokenStream.current().type == TokenType::AWAIT)
+        {
+            SourceLocation awaitLocation = tokenStream.current().location;
+            tokenStream.advance(); // consume 'await'
+
+            // Validate that we're inside an async function
+            if (!context.isInsideAsyncFunction())
+            {
+                throw ParseException("'await' can only be used inside async functions", awaitLocation);
+            }
+
+            // Parse the expression being awaited
+            auto expression = parseUnary(); // Support await await foo() if needed
+
+            return std::make_unique<AwaitExpression>(std::move(expression), awaitLocation);
         }
 
         // Handle prefix unary operators like !, -, +, ++, --

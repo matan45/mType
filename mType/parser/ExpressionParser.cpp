@@ -10,6 +10,7 @@
 #include "expression/ArgumentParser.hpp"
 #include "../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../ast/nodes/expressions/VariableNode.hpp"
+#include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
@@ -154,11 +155,35 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLambda()
     {
+        // Check for async keyword before lambda
+        bool isAsync = false;
+        if (tokenStream.current().type == TokenType::ASYNC)
+        {
+            // Peek ahead to see if this is followed by a lambda pattern
+            Token nextToken = tokenStream.peek();
+
+            // Check if next token starts a lambda (identifier or lparen)
+            if (nextToken.type == TokenType::IDENTIFIER || nextToken.type == TokenType::LPAREN)
+            {
+                // Consume 'async'
+                tokenStream.advance();
+                isAsync = true;
+            }
+        }
+
         // Check if this looks like a lambda expression
         if (isLambdaStart())
         {
             LambdaParser lambdaParser(tokenStream, context);
-            return lambdaParser.parseLambda();
+            auto lambdaNode = lambdaParser.parseLambda();
+
+            // Set async flag if present
+            if (isAsync)
+            {
+                static_cast<ast::nodes::expressions::LambdaNode*>(lambdaNode.get())->setIsAsync(true);
+            }
+
+            return lambdaNode;
         }
 
         // Not a lambda, delegate to next precedence level
