@@ -42,6 +42,9 @@ namespace value
         std::vector<std::function<void(std::string)>> catchCallbacks;
         std::vector<std::function<void()>> finallyCallbacks;
 
+        // Store errors that occur during callback execution
+        std::vector<std::string> callbackErrors;
+
         // Mutex for thread-safe callback management
         mutable std::mutex callbackMutex;
 
@@ -157,9 +160,10 @@ namespace value
                     {
                         callback(val);
                     }
-                    catch (const std::exception&)
+                    catch (const std::exception& e)
                     {
-
+                        std::string errorMsg = "Error in .then() callback: " + std::string(e.what());
+                        callbackErrors.push_back(errorMsg);
                     }
                 }
 
@@ -170,8 +174,10 @@ namespace value
                     {
                         callback();
                     }
-                    catch (const std::exception&)
+                    catch (const std::exception& e)
                     {
+                        std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
+                        callbackErrors.push_back(errorMsg);
                     }
                 }
 
@@ -205,9 +211,10 @@ namespace value
                     {
                         callback(error);
                     }
-                    catch (const std::exception&)
+                    catch (const std::exception& e)
                     {
-
+                        std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
+                        callbackErrors.push_back(errorMsg);
                     }
                 }
 
@@ -218,8 +225,10 @@ namespace value
                     {
                         callback();
                     }
-                    catch (const std::exception& )
+                    catch (const std::exception& e)
                     {
+                        std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
+                        callbackErrors.push_back(errorMsg);
                     }
                 }
 
@@ -269,6 +278,42 @@ namespace value
         {
             std::lock_guard<std::mutex> lock(callbackMutex);
             return thenCallbacks.size() + catchCallbacks.size() + finallyCallbacks.size();
+        }
+
+        /**
+         * @brief Get all errors that occurred during callback execution
+         *
+         * Returns a list of error messages from callbacks that threw exceptions.
+         * Useful for debugging and error reporting in async code.
+         *
+         * @return Vector of error messages
+         */
+        std::vector<std::string> getCallbackErrors() const
+        {
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            return callbackErrors;
+        }
+
+        /**
+         * @brief Check if any callbacks threw exceptions
+         *
+         * @return true if there were callback errors, false otherwise
+         */
+        bool hasCallbackErrors() const
+        {
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            return !callbackErrors.empty();
+        }
+
+        /**
+         * @brief Clear all stored callback errors
+         *
+         * Useful for resetting error state between operations.
+         */
+        void clearCallbackErrors()
+        {
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            callbackErrors.clear();
         }
     };
 

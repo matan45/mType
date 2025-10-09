@@ -381,23 +381,10 @@ namespace evaluator
 
         if (!asyncPromise)
         {
-            // Promise doesn't support async continuations, fall back to busy-wait
+            // Promise doesn't support async continuations, use efficient blocking wait
+            // Uses condition variable for zero CPU usage instead of busy-wait polling
             const int MAX_WAIT_MS = 10000;
-            const int POLL_INTERVAL_MS = 1;
-            int waitedMs = 0;
-
-            while (!promise->isFulfilled() && waitedMs < MAX_WAIT_MS)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
-                waitedMs += POLL_INTERVAL_MS;
-            }
-
-            if (!promise->isFulfilled())
-            {
-                throw std::runtime_error("Timeout waiting for promise to be fulfilled");
-            }
-
-            return promise->getValue();
+            return promise->waitForValue(MAX_WAIT_MS);
         }
 
         // Throw SuspendException to unwind the call stack

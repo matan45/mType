@@ -788,25 +788,10 @@ namespace evaluator
             return promise->getValue();
         }
 
-        // SLOW PATH: Promise not yet fulfilled - use busy-wait
-        // Poll every 1ms for up to 10 seconds
+        // SLOW PATH: Promise not yet fulfilled - use efficient blocking wait
+        // Uses condition variable for zero CPU usage instead of busy-wait polling
         const int MAX_WAIT_MS = 10000;
-        const int POLL_INTERVAL_MS = 1;
-        int waitedMs = 0;
-
-        while (!promise->isFulfilled() && waitedMs < MAX_WAIT_MS)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
-            waitedMs += POLL_INTERVAL_MS;
-        }
-
-        if (!promise->isFulfilled())
-        {
-            throw std::runtime_error("Timeout waiting for promise to be fulfilled");
-        }
-
-        // Return the unwrapped value
-        return promise->getValue();
+        return promise->waitForValue(MAX_WAIT_MS);
     }
 
     Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)
