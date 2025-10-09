@@ -1,5 +1,3 @@
-Execution Mode: AST Interpreter (Optimization Level: O0)
-
 === Async Lambda Functions Test ===
 Simple async lambda result: 10
 Async lambda object result: 30
