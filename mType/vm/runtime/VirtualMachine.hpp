@@ -35,7 +35,7 @@ namespace vm::runtime
      * Provides high-performance execution of compiled mType programs
      * Coordinates specialized instruction executors following SOLID principles
      */
-    class VirtualMachine
+    class VirtualMachine : public std::enable_shared_from_this<VirtualMachine>
     {
     public:
         // State save/restore for async suspension

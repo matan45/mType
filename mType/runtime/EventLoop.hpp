@@ -66,7 +66,8 @@ namespace runtime {
         std::function<void(value::Value)> resumeCallback;
 
         // VM reference (optional, for setting task ID before execution)
-        vm::runtime::VirtualMachine* vm;
+        // Uses weak_ptr to prevent dangling pointer crashes if VM is destroyed
+        std::weak_ptr<vm::runtime::VirtualMachine> vm;
 
         // Priority for scheduling (higher = more urgent)
         int priority;
@@ -80,7 +81,7 @@ namespace runtime {
         Task(size_t id)
             : taskId(id)
             , state(TaskState::PENDING)
-            , vm(nullptr)
+            , vm()  // Default-constructed weak_ptr (empty)
             , priority(0)
             , scheduledAt(std::chrono::steady_clock::now())
         {}
@@ -187,9 +188,9 @@ namespace runtime {
         /**
          * @brief Set VM reference for a task (for automatic task ID setting)
          * @param taskId ID of the task
-         * @param vmPtr Pointer to the VirtualMachine
+         * @param vmPtr Shared pointer to the VirtualMachine
          */
-        void setTaskVM(size_t taskId, vm::runtime::VirtualMachine* vmPtr);
+        void setTaskVM(size_t taskId, std::shared_ptr<vm::runtime::VirtualMachine> vmPtr);
 
         /**
          * @brief Run the event loop until all tasks complete

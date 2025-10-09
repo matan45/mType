@@ -368,19 +368,29 @@ namespace vm::runtime
                     {
                         // Capture the stack manager to push resolved value when task resumes
                         auto stackMgr = this->stackManager;
-                        auto loop = this->eventLoop.get();
+
+                        // Capture weak_ptr to VM to safely access EventLoop even if VM is destroyed
+                        // This prevents dangling pointer crashes if promise resolves after VM destruction
+                        std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
                         auto taskId = this->currentTaskId;
 
                         // Register callback to resume this task when promise resolves
-                        // NOTE: This callback executes synchronously when promise.resolve() is called
-                        // We're already on the event loop thread, so no need for loop->post()
-                        asyncPromise->then([stackMgr, loop, taskId](value::Value resolvedValue)
+                        // NOTE: Callback may execute later if promise is stored, so we must check VM validity
+                        asyncPromise->then([stackMgr, weakVM, taskId](value::Value resolvedValue)
                         {
-                            // Push the resolved value onto the stack
-                            stackMgr->push(resolvedValue);
+                            // Check if VM still exists before accessing EventLoop
+                            if (auto vm = weakVM.lock())
+                            {
+                                // Push the resolved value onto the stack
+                                stackMgr->push(resolvedValue);
 
-                            // Resume the task (this will move it from suspended to ready queue)
-                            loop->resumeTask(taskId, resolvedValue);
+                                // Resume the task (this will move it from suspended to ready queue)
+                                if (vm->eventLoop)
+                                {
+                                    vm->eventLoop->resumeTask(taskId, resolvedValue);
+                                }
+                            }
+                            // If VM destroyed, silently ignore - task can't be resumed anyway
                         });
 
                         // Save VM state before suspending

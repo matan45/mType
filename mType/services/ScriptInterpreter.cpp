@@ -50,7 +50,7 @@ namespace services
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
-        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
+        vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -74,7 +74,7 @@ namespace services
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
-        vm = std::make_unique<vm::runtime::VirtualMachine>(environment);
+        vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -774,7 +774,8 @@ namespace services
                 );
 
                 // Set VM reference so it knows its task ID
-                eventLoop->setTaskVM(mainTaskId, vm.get());
+                // VM is owned by shared_ptr which supports enable_shared_from_this
+                eventLoop->setTaskVM(mainTaskId, vm);
 
                 // Run event loop until all tasks complete
                 eventLoop->run();
@@ -843,7 +844,7 @@ namespace services
 
             // Create fresh VM and compiler with new environment
             auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
-            auto vmMachine = std::make_unique<vm::runtime::VirtualMachine>(vmEnvironment);
+            auto vmMachine = std::make_shared<vm::runtime::VirtualMachine>(vmEnvironment);
 
             // The imports are already resolved in the AST (from AST execution)
             // But we need to ensure the BytecodeCompiler can access them

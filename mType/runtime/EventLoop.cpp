@@ -122,12 +122,12 @@ namespace runtime {
         }
     }
 
-    void EventLoop::setTaskVM(size_t taskId, vm::runtime::VirtualMachine* vmPtr) {
+    void EventLoop::setTaskVM(size_t taskId, std::shared_ptr<vm::runtime::VirtualMachine> vmPtr) {
         std::lock_guard<std::mutex> lock(queueMutex);
 
         auto it = allTasks.find(taskId);
         if (it != allTasks.end()) {
-            it->second->vm = vmPtr;
+            it->second->vm = vmPtr;  // Assigns shared_ptr to weak_ptr
         }
     }
 
@@ -214,9 +214,9 @@ namespace runtime {
         currentTask = task;
         task->state = TaskState::RUNNING;
 
-        // Set task ID in VM if available
-        if (task->vm) {
-            task->vm->setCurrentTaskId(task->taskId);
+        // Set task ID in VM if available (safely check if VM still exists)
+        if (auto vmPtr = task->vm.lock()) {
+            vmPtr->setCurrentTaskId(task->taskId);
         }
 
         try {
