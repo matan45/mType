@@ -27,6 +27,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Async Void Return",
                         passPath + "asyncVoidReturn.mt");
 
+        // Advanced async/await features
+        addOutputVerificationTest("Async Inheritance With Super",
+                        passPath + "asyncInheritanceWithSuper.mt");
+        addOutputVerificationTest("Async Interface Methods",
+                        passPath + "asyncInterfaceMethods.mt");
+        addOutputVerificationTest("Async Lambda Functions",
+                        passPath + "asyncLambdaFunctions.mt");
+        addOutputVerificationTest("Awaiting Resolved Promise",
+                        passPath + "awaitingResolvedPromise.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Async Without Promise Return",
                         errorPath + "asyncWithoutPromiseReturn.mt",

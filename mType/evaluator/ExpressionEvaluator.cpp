@@ -629,11 +629,10 @@ namespace evaluator
                         context->setReturned(false);  // Reset return flag
                     }
                 } catch (const ReturnException& e) {
+                    // Parent method returned - extract the return value
+                    // DO NOT re-throw - super.method() calls should return normally
                     result = e.returnValue;
                     context->setReturned(false);  // Reset return flag
-                    context->popCallingClass();  // Pop on exception
-                    context->getEnvironment()->exitScope();  // Exit scope on exception
-                    throw;  // Re-throw after cleanup
                 }
             }
 

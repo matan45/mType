@@ -1,0 +1,7 @@
+Execution Mode: AST Interpreter (Optimization Level: O0)
+
+=== Async Interface Methods Test ===
+Fetched value: 50
+Saving data with value: 50
+Data saved: true
+Total calls: 2

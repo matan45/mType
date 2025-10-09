@@ -4,6 +4,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../../value/PromiseValue.hpp"
 #include "../../value/StringPool.hpp"
 #include <sstream>
 
@@ -212,6 +213,9 @@ namespace evaluator::utils
             }
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
                 return ValueType::OBJECT;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::PromiseValue>>) {
+                return ValueType::OBJECT;  // Promises are object types
             }
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
                 return ValueType::NULL_TYPE;

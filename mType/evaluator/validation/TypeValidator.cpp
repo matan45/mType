@@ -6,8 +6,10 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
+#include "../../value/PromiseValue.hpp"
 #include <variant>
 #include <unordered_map>
+
 
 namespace evaluator {
 namespace validation {
@@ -30,6 +32,14 @@ namespace validation {
 
         // Allow null assignment to object types
         if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
+        {
+            return;
+        }
+
+        // Allow Promise values for object types (async/await support)
+        // Promise types will be validated when awaited
+        if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(actualValue) &&
+            expectedType == ValueType::OBJECT)
         {
             return;
         }
@@ -226,6 +236,26 @@ namespace validation {
                 throw TypeException(
                     "Type mismatch for variable '" + variableName + "': expected " +
                     expectedClassName + " but got multi-dimensional array type",
+                    location);
+            }
+        }
+
+        // Handle PromiseValue (async/await promises)
+        if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(value))
+        {
+            // Extract base class name from generic type (e.g., "Promise<Int>" -> "Promise")
+            std::string baseExpectedName = extractBaseClassName(expectedClassName);
+
+            if (baseExpectedName == "Promise")
+            {
+                // Promise types are compatible - the generic parameter will be checked when awaited
+                return;
+            }
+            else
+            {
+                throw TypeException(
+                    "Type mismatch for variable '" + variableName + "': expected " +
+                    expectedClassName + " but got Promise type",
                     location);
             }
         }
