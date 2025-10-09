@@ -5,6 +5,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -232,6 +233,7 @@ namespace vm::compiler::visitors
                                 if (argType != value::ValueType::OBJECT) {
                                     // null can be passed to object types
                                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                        std::cout << "[DEBUG FunctionCompiler] ERROR: Expected object but got " << argTypeStr << std::endl;
                                         throw errors::TypeException(
                                             "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
                                             " expects " + expectedType + " but got " + argTypeStr,

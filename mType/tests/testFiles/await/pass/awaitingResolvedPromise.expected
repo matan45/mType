@@ -1,0 +1,11 @@
+=== Awaiting Already-Resolved Promise Test ===
+Immediate resolve value: 42
+Promise stored successfully
+Promise storage result: 42
+First await: 100
+Second await: 100
+Resolved chain result: 18
+Conditional true: 999
+Conditional false: 111
+All resolved promise tests completed
+Total: 1412

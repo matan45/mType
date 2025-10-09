@@ -10,6 +10,7 @@
 #include "../../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
 
@@ -103,6 +104,33 @@ namespace vm::compiler::types
                 if (targetTypeName == "string") return value::ValueType::STRING;
                 if (targetTypeName == "bool") return value::ValueType::BOOL;
                 return value::ValueType::OBJECT;
+            }
+        }
+
+        // Member access (e.g., obj.field or obj.method())
+        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node)) {
+            // Get the object's class name
+            std::string className = inferExpressionClassName(memberAccess->getObject());
+            if (!className.empty()) {
+                // Look up the class definition
+                auto classDef = environment->findClass(className);
+                if (classDef) {
+                    std::string memberName = memberAccess->getMemberName();
+
+                    // Check if it's a field
+                    auto field = classDef->getField(memberName);
+                    if (field) {
+                        // Return the field's ValueType directly
+                        return field->getType();
+                    }
+
+                    // Check if it's a method (returns OBJECT for method references)
+                    auto method = classDef->getMethod(memberName);
+                    if (method) {
+                        // Return the method's return type directly
+                        return method->getReturnType();
+                    }
+                }
             }
         }
 

@@ -1,0 +1,42 @@
+=== Comprehensive Promise Edge Cases Test ===
+
+--- Test 1: Promise Reassignment ---
+First promise stored
+Promise reassigned
+Result after reassignment: 20
+
+--- Test 2: Null Promise ---
+Assigned null to Promise variable: success
+
+--- Test 3: Promise as Class Field ---
+Stored promise in class field
+Retrieved value from field: 42
+Final result from field: 42
+
+--- Test 4: Promise in Collections ---
+Added 3 promises to list
+Sum of all promises: 6
+
+--- Test 5: Promise as Parameter ---
+Result from parameter test: 14
+
+--- Test 6: Promise Return Without Await ---
+Result from wrapper: 100
+
+--- Test 7: Multiple Awaits on Same Promise ---
+First await: 50
+Second await: 50
+Third await: 50
+
+--- Test 8: Promise in Conditional ---
+Conditional promise result: 111
+Conditional promise result (false): 222
+
+--- Test 9: Promise with Generic Classes ---
+Stored promise in generic container
+Result from generic container: 999
+
+--- Test 10: Promise Chaining ---
+Chained result: 20
+
+=== All Edge Case Tests Completed ===

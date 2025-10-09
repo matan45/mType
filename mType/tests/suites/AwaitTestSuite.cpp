@@ -36,6 +36,8 @@ namespace tests::testSuite
                         passPath + "asyncLambdaFunctions.mt");
         addOutputVerificationTest("Awaiting Resolved Promise",
                         passPath + "awaitingResolvedPromise.mt");
+        addOutputVerificationTest("Promise Storage Edge Cases",
+                        passPath + "promiseStorageEdgeCases.mt");
 
         // Error tests (expected to fail)
         addTestFromFile("Async Without Promise Return",
