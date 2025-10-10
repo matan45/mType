@@ -444,14 +444,45 @@ namespace vm::compiler::visitors
             if (returnValue) {
                 returnValue->accept(ctx.visitor);  // Will need delegation
 
-                // Wrap in Promise if in async function/lambda
-                if (ctx.functionFrameManager.currentFrame().isAsync) {
-                    ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-                }
+                // Check if we're in a try block with a finally
+                if (ctx.exceptionManager.hasPendingFinally()) {
+                    // Don't wrap in Promise yet - the RETURN_VALUE after finally will handle it
+                    // The finally block will manipulate the stack (e.g., print statements), so we need
+                    // to save the return value in a local variable before jumping to finally.
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+                    // Reserve a special local slot for the return value (at the end of locals)
+                    size_t returnValueSlot = ctx.variableTracker.getNextLocalSlot();
+                    ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+
+                    // Store return value in the special slot
+                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+
+                    // Remember this slot so ControlFlowCompiler can load it back after finally
+                    ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
+
+                    // Jump to finally
+                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                    ctx.exceptionManager.registerReturnJump(returnJump);
+
+                    // After finally, we'll need to load the return value back
+                    // (This will be handled in ControlFlowCompiler when emitting code after finally)
+                } else {
+                    // No finally - wrap in Promise if needed and return immediately
+                    if (ctx.functionFrameManager.currentFrame().isAsync) {
+                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                    }
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+                }
             } else {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                // Check if we're in a try block with a finally
+                if (ctx.exceptionManager.hasPendingFinally()) {
+                    // Push null for void return, then jump to finally
+                    ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                    ctx.exceptionManager.registerReturnJump(returnJump);
+                } else {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                }
             }
         } else {
             // Not in a function context - shouldn't happen but handle gracefully

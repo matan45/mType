@@ -376,8 +376,9 @@ namespace vm::compiler::visitors
         size_t tryBeginOffset = ctx.program.getCurrentOffset();
         ctx.program.emit(bytecode::OpCode::TRY_BEGIN);
 
-        // Enter exception context
-        ctx.exceptionManager.enterTry(tryBeginOffset);
+        // Enter exception context (tell it if there's a finally block)
+        bool hasFinally = (node->getFinallyBlock() != nullptr);
+        ctx.exceptionManager.enterTry(tryBeginOffset, hasFinally);
 
         // Compile try block
         node->getTryBlock()->accept(ctx.visitor);
@@ -440,9 +441,10 @@ namespace vm::compiler::visitors
             size_t finallyOffset = ctx.program.getCurrentOffset();
             ctx.exceptionManager.setFinallyOffset(finallyOffset);
 
-            // Patch all exit jumps to point to the finally block
-            for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
-                ctx.emitter.patchJump(exitJump);
+            // Patch RETURN jumps to point to the finally block
+            // These are from return statements and will fall through to RETURN_VALUE
+            for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
+                ctx.emitter.patchJump(returnJump);
             }
 
             // Emit FINALLY instruction
@@ -450,10 +452,29 @@ namespace vm::compiler::visitors
 
             // Compile finally body
             node->getFinallyBlock()->accept(ctx.visitor);
+
+            // After finally, load the return value back from the special slot if it was saved
+            size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+            if (returnValueSlot != SIZE_MAX) {
+                ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(returnValueSlot));
+            }
+
+            // After finally, return jumps will fall through to this RETURN_VALUE
+            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+
+            // Now patch normal EXIT jumps to jump PAST the RETURN_VALUE
+            // These are from normal try/catch completion (no return)
+            size_t afterReturn = ctx.program.getCurrentOffset();
+            for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+                ctx.program.patchJump(exitJump, static_cast<uint32_t>(afterReturn));
+            }
         } else {
-            // No finally block - patch exit jumps to point here (end of try-catch)
+            // No finally block - patch all jumps to point here (end of try-catch)
             for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
                 ctx.emitter.patchJump(exitJump);
+            }
+            for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
+                ctx.emitter.patchJump(returnJump);
             }
         }
 

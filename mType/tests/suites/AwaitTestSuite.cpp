@@ -39,6 +39,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Promise Storage Edge Cases",
                         passPath + "promiseStorageEdgeCases.mt");
 
+        // Async with exception handling (try-catch-finally)
+        addOutputVerificationTest("Async Try-Catch Basic",
+                        passPath + "asyncTryCatchBasic.mt");
+        addOutputVerificationTest("Async Finally Return Order",
+                        passPath + "asyncFinallyReturnOrder.mt");
+        addOutputVerificationTest("Async Nested Try-Catch",
+                        passPath + "asyncNestedTryCatch.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Async Without Promise Return",
                         errorPath + "asyncWithoutPromiseReturn.mt",
