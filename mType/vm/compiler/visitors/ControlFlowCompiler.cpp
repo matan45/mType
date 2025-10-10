@@ -432,16 +432,21 @@ namespace vm::compiler::visitors
             size_t finallyOffset = ctx.program.getCurrentOffset();
             ctx.exceptionManager.setFinallyOffset(finallyOffset);
 
+            // Patch all exit jumps to point to the finally block
+            for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+                ctx.emitter.patchJump(exitJump);
+            }
+
             // Emit FINALLY instruction
             ctx.program.emit(bytecode::OpCode::FINALLY);
 
             // Compile finally body
             node->getFinallyBlock()->accept(ctx.visitor);
-        }
-
-        // Patch all exit jumps to point here
-        for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
-            ctx.emitter.patchJump(exitJump);
+        } else {
+            // No finally block - patch exit jumps to point here (end of try-catch)
+            for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+                ctx.emitter.patchJump(exitJump);
+            }
         }
 
         // Exit exception context

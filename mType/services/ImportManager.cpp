@@ -33,14 +33,50 @@ namespace services
     {
         fs::path filePath(path);
 
-        // If path is relative, resolve it relative to current directory
+        // If path is relative, resolve it relative to current file's directory
+        // (or base directory if no current file)
         if (filePath.is_relative())
         {
-            filePath = fs::path(baseDirectory) / filePath;
+            if (!currentFilePath.empty())
+            {
+                // Resolve relative to the current file's directory
+                fs::path currentFileDir = fs::path(currentFilePath).parent_path();
+                filePath = currentFileDir / filePath;
+            }
+            else
+            {
+                // No current file - resolve relative to base directory
+                filePath = fs::path(baseDirectory) / filePath;
+            }
         }
 
         // Normalize the path (resolve . and .. components)
         filePath = fs::canonical(filePath);
+
+        return filePath.string();
+    }
+
+    std::string ImportManager::resolvePathRelativeToFile(const std::string& path, const std::string& relativeToFile)
+    {
+        fs::path filePath(path);
+
+        // If path is relative, resolve it relative to the specified file's directory
+        if (filePath.is_relative())
+        {
+            fs::path referenceFileDir = fs::path(relativeToFile).parent_path();
+            filePath = referenceFileDir / filePath;
+        }
+
+        // Normalize the path (resolve . and .. components)
+        try
+        {
+            filePath = fs::canonical(filePath);
+        }
+        catch (const std::filesystem::filesystem_error&)
+        {
+            // If canonical fails, at least get the absolute path
+            filePath = fs::absolute(filePath);
+        }
 
         return filePath.string();
     }
@@ -199,21 +235,41 @@ namespace services
 
             // If already resolved, just recurse into imported AST
             if (importNode->isResolved() && importNode->getImportedAST()) {
+                // Save current file path and restore after recursion
+                std::string savedCurrentFile = currentFilePath;
+                // Need to know the resolved path of the imported file to set as current
+                // Use the cached resolved path
+                for (const auto& [path, ast] : astCache) {
+                    if (ast.get() == importNode->getImportedAST()) {
+                        currentFilePath = path;
+                        break;
+                    }
+                }
                 resolveAllImports(importNode->getImportedAST());
+                currentFilePath = savedCurrentFile;
                 return;
             }
 
-            // Resolve the import path
+            // Resolve the import path (relative to current file)
             std::string resolvedPath = resolvePath(filePath);
             markAsBeingEvaluated(resolvedPath);
 
             try {
+                // Save current file path and set new current path
+                std::string savedCurrentFile = currentFilePath;
+
                 // Parse and cache the imported file
                 ASTNode* importedAST = parseAndCacheAST(filePath);
                 importNode->setImportedAST(importedAST);
 
+                // Set current file to the resolved path for nested imports
+                currentFilePath = resolvedPath;
+
                 // Recursively resolve imports in the imported file
                 resolveAllImports(importedAST);
+
+                // Restore previous current file
+                currentFilePath = savedCurrentFile;
 
                 markAsEvaluated(resolvedPath);
             }

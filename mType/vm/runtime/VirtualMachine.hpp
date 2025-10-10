@@ -21,6 +21,7 @@ namespace vm::runtime {
     class ArrayExecutor;
     class ObjectExecutor;
     class LambdaExecutor;
+    class ExceptionExecutor;
 }
 
 // Forward declaration for event loop
@@ -79,6 +80,7 @@ namespace vm::runtime
         std::unique_ptr<ArrayExecutor> arrayExecutor;
         std::unique_ptr<ObjectExecutor> objectExecutor;
         std::unique_ptr<LambdaExecutor> lambdaExecutor;
+        std::unique_ptr<ExceptionExecutor> exceptionExecutor;
 
     public:
         explicit VirtualMachine(std::shared_ptr<environment::Environment> env);

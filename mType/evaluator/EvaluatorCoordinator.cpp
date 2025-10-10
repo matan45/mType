@@ -4,6 +4,7 @@
 #include "../value/AsyncPromiseValue.hpp"
 #include "../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../exception/SuspendException.hpp"
+
 namespace evaluator
 {
     using namespace runtimeTypes::klass;

@@ -10,7 +10,9 @@
 #include "executors/ArrayExecutor.hpp"
 #include "executors/ObjectExecutor.hpp"
 #include "executors/LambdaExecutor.hpp"
+#include "executors/ExceptionExecutor.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/UserException.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -82,6 +84,7 @@ namespace vm::runtime
         arrayExecutor = std::make_unique<ArrayExecutor>(context);
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+        exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
@@ -131,8 +134,70 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
-            // Execute instruction
-            executeInstruction(instr);
+            try
+            {
+                // Execute instruction
+                executeInstruction(instr);
+            }
+            catch (errors::UserException& e)
+            {
+                // User exception thrown - need to find matching catch handler
+                // Search forward for CATCH instruction that matches the exception type
+                bool handled = false;
+                size_t searchIP = instructionPointer + 1;
+
+                while (searchIP < program->getInstructionCount())
+                {
+                    const auto& searchInstr = program->getInstruction(searchIP);
+
+                    if (searchInstr.opcode == bytecode::OpCode::CATCH)
+                    {
+                        // Found a catch block - check if it matches the exception type
+                        if (!searchInstr.operands.empty())
+                        {
+                            std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
+
+                            if (e.matchesCatchType(catchType))
+                            {
+                                // Push exception object onto stack for STORE_LOCAL
+                                stackManager->push(e.getExceptionValue());
+
+                                // Jump to the CATCH instruction - it will execute CATCH opcode (no-op)
+                                // then STORE_LOCAL, then the catch body, then JUMP to finally/end
+                                instructionPointer = searchIP;
+                                handled = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
+                    {
+                        // Hit finally block - execute it then re-throw
+                        instructionPointer = searchIP;
+                        handled = true; // Temporarily handled to execute finally
+                        // Continue execution at finally, then re-throw
+                        break;
+                    }
+                    else if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN)
+                    {
+                        // Hit another try block - this exception is not for our try block
+                        break;
+                    }
+
+                    searchIP++;
+                }
+
+                if (!handled)
+                {
+                    // No matching catch found - re-throw
+                    throw;
+                }
+
+                // Continue execution from the catch/finally block
+                // Don't increment IP here - the normal loop will handle it
+                stats.instructionsExecuted++;
+                continue;  // Skip the rest of the loop iteration
+            }
 
             stats.instructionsExecuted++;
 
@@ -311,6 +376,18 @@ namespace vm::runtime
         case OpCode::LAMBDA: lambdaExecutor->handleLambda(instr);
             break;
         case OpCode::LAMBDA_INVOKE: lambdaExecutor->handleLambdaInvoke(instr);
+            break;
+
+        // Exception handling - delegated to ExceptionExecutor
+        case OpCode::TRY_BEGIN: exceptionExecutor->handleTryBegin(instr);
+            break;
+        case OpCode::TRY_END: exceptionExecutor->handleTryEnd(instr);
+            break;
+        case OpCode::CATCH: exceptionExecutor->handleCatch(instr);
+            break;
+        case OpCode::THROW: exceptionExecutor->handleThrow(instr);
+            break;
+        case OpCode::FINALLY: exceptionExecutor->handleFinally(instr);
             break;
 
         // Special

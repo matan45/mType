@@ -169,6 +169,12 @@
     <Filter Include="tests\testFiles\error\pass">
       <UniqueIdentifier>{19B6CA9A-05C6-766B-6E7F-DB895AAE6504}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\exceptions">
+      <UniqueIdentifier>{2B31467C-1741-F24C-80FA-566B6C29E1E5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\exceptions\pass">
+      <UniqueIdentifier>{113AACCC-7D1D-BB0C-8620-E948F282815D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\generics">
       <UniqueIdentifier>{99C7027E-85EC-51FE-AE37-378E9ABB501C}</UniqueIdentifier>
     </Filter>
@@ -217,6 +223,9 @@
     <Filter Include="tests\testFiles\lib\collections">
       <UniqueIdentifier>{8E3AAC11-FA1D-BB51-0321-E98D6F8381A2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\exceptions">
+      <UniqueIdentifier>{9149D36D-7D6F-9DD4-66B5-22A0527AC2A0}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
@@ -234,6 +243,12 @@
     </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\try-catch">
+      <UniqueIdentifier>{587411F3-C436-457D-0DE7-D30979E81D5B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\try-catch\pass">
+      <UniqueIdentifier>{5E81F1EC-4AA7-BB53-33ED-401F1FB2E01F}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
@@ -1077,6 +1092,9 @@
     <ClInclude Include="vm\runtime\executors\ControlFlowExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ExceptionExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\executors\FunctionExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
@@ -1704,6 +1722,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ControlFlowExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ExceptionExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
@@ -2956,6 +2977,9 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\exceptions\pass\basicFinally.mt">
+      <Filter>tests\testFiles\exceptions\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\constraintGlobalFunctionViolation.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3811,6 +3835,21 @@
     <None Include="tests\testFiles\lib\collections\Stack.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
     </None>
+    <None Include="tests\testFiles\lib\exceptions\Exception.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\IllegalArgumentException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\IndexOutOfBoundsException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\NullPointerException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\RuntimeException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
     </None>
@@ -4029,6 +4068,9 @@
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\try-catch\pass\simple_exception_test.mt">
+      <Filter>tests\testFiles\try-catch\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
