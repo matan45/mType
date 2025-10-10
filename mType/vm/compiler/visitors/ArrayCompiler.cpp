@@ -29,8 +29,12 @@ namespace vm::compiler::visitors
             const auto& typeInfo = node->getElementTypeInfo();
             size_t typeNameIndex = ctx.program.getConstantPool().addString(typeInfo.toString());
 
-            // Emit NEW_ARRAY with element type
+            // Emit NEW_ARRAY with element type and source location
             ctx.program.emit(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex));
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
         else {
             // Multi-dimensional array: new Type[size1][size2]...
@@ -53,6 +57,10 @@ namespace vm::compiler::visitors
                                static_cast<uint32_t>(dimensionCount),
                                static_cast<uint32_t>(specifiedDimensions)
                            });
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
 
         return std::monostate{};
@@ -143,8 +151,12 @@ namespace vm::compiler::visitors
             // Compile and push element value
             elements[i]->accept(ctx.visitor);
 
-            // Set array element
+            // Set array element with source location
             ctx.program.emit(bytecode::OpCode::ARRAY_SET);
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
 
         // Array reference is still on stack
@@ -160,8 +172,12 @@ namespace vm::compiler::visitors
         // Compile index expression
         node->getIndex()->accept(ctx.visitor);  // Will need visitor delegation
 
-        // Emit ARRAY_GET to retrieve element
+        // Emit ARRAY_GET to retrieve element with source location
         ctx.program.emit(bytecode::OpCode::ARRAY_GET);
+        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                     node->getLocation().getLine(),
+                                     node->getLocation().getColumn(),
+                                     node->getLocation().getFilename());
 
         return std::monostate{};
     }
@@ -177,8 +193,12 @@ namespace vm::compiler::visitors
         // Compile value expression
         node->getValue()->accept(ctx.visitor);  // Will need visitor delegation
 
-        // Emit ARRAY_SET to store element
+        // Emit ARRAY_SET to store element with source location
         ctx.program.emit(bytecode::OpCode::ARRAY_SET);
+        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                     node->getLocation().getLine(),
+                                     node->getLocation().getColumn(),
+                                     node->getLocation().getFilename());
 
         return std::monostate{};
     }

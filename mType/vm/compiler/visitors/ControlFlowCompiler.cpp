@@ -181,9 +181,13 @@ namespace vm::compiler::visitors
         size_t arraySlot = ctx.variableTracker.getNextLocalSlot() - 1;
         ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(arraySlot));
 
-        // Get array length
+        // Get array length with source location
         ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot));
         ctx.program.emit(bytecode::OpCode::ARRAY_LENGTH);
+        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                     node->getLocation().getLine(),
+                                     node->getLocation().getColumn(),
+                                     node->getLocation().getFilename());
 
         // Store length in local
         ctx.variableTracker.declareLocal("__foreach_length__", value::ValueType::INT, "");
@@ -207,10 +211,14 @@ namespace vm::compiler::visitors
 
         size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
-        // Get current element
+        // Get current element with source location
         ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot));
         ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot));
         ctx.program.emit(bytecode::OpCode::ARRAY_GET);
+        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                     node->getLocation().getLine(),
+                                     node->getLocation().getColumn(),
+                                     node->getLocation().getFilename());
 
         // Store in loop variable
         ctx.variableTracker.declareLocal(varName, varType, "");
