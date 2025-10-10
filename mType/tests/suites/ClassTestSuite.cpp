@@ -223,5 +223,8 @@ namespace tests::testSuite
         addTestFromFile("Extends Final Generic Class Error",
                         errorPath + "extendsFinalGenericClass.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("duplicate catch test",
+                        errorPath + "duplicate_catch_test.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

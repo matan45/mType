@@ -171,7 +171,11 @@ namespace statements {
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
         {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
-            return objInstance->getTypeName();
+            if (objInstance)
+            {
+                return objInstance->getTypeName();
+            }
+            return "NullException";
         }
 
         // For primitive types (if someone throws a string/int/etc.)

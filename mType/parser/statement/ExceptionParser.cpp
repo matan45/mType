@@ -3,6 +3,7 @@
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include <unordered_set>
 
 namespace parser::statement
 {
@@ -45,9 +46,24 @@ namespace parser::statement
 
         // Parse catch blocks
         std::vector<std::unique_ptr<CatchNode>> catchBlocks;
+        std::unordered_set<std::string> seenCatchTypes;
+
         while (tokenStream.check(TokenType::CATCH))
         {
-            catchBlocks.push_back(parseCatchClause());
+            auto catchBlock = parseCatchClause();
+            const std::string& exceptionType = catchBlock->getExceptionType();
+
+            // Check for duplicate catch type
+            if (seenCatchTypes.find(exceptionType) != seenCatchTypes.end())
+            {
+                throw ParseException(
+                    "Duplicate catch block for exception type '" + exceptionType + "'",
+                    tokenStream.current().location
+                );
+            }
+
+            seenCatchTypes.insert(exceptionType);
+            catchBlocks.push_back(std::move(catchBlock));
         }
 
         // Parse optional finally block
