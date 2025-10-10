@@ -10,6 +10,9 @@
 #include "../../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../../ast/nodes/statements/BreakNode.hpp"
 #include "../../../ast/nodes/statements/ContinueNode.hpp"
+#include "../../../ast/nodes/statements/TryNode.hpp"
+#include "../../../ast/nodes/statements/CatchNode.hpp"
+#include "../../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../../value/ValueType.hpp"
 
 namespace vm::compiler::visitors
@@ -35,6 +38,10 @@ namespace vm::compiler::visitors
         value::Value compileDefaultCase(ast::DefaultCaseNode* node);
         value::Value compileBreak(ast::BreakNode* node);
         value::Value compileContinue(ast::ContinueNode* node);
+
+        // Exception handling compilation methods
+        value::Value compileTry(ast::TryNode* node);
+        value::Value compileThrow(ast::ThrowNode* node);
 
     private:
         CompilerContext& ctx;

@@ -7,6 +7,7 @@
 #include "../variables/FunctionFrameManager.hpp"
 #include "../control/LoopContextManager.hpp"
 #include "../control/SwitchContextManager.hpp"
+#include "../control/ExceptionContextManager.hpp"
 #include "../types/TypeInferenceEngine.hpp"
 #include "../types/TypeValidator.hpp"
 #include "../types/GenericTypeResolver.hpp"
@@ -41,6 +42,7 @@ namespace vm::compiler::visitors
         variables::FunctionFrameManager& functionFrameManager;
         control::LoopContextManager& loopManager;
         control::SwitchContextManager& switchManager;
+        control::ExceptionContextManager& exceptionManager;
         types::TypeInferenceEngine& typeInference;
         types::TypeValidator& typeValidator;
         types::GenericTypeResolver& genericResolver;
@@ -62,6 +64,7 @@ namespace vm::compiler::visitors
             variables::FunctionFrameManager& funcFrameMgr,
             control::LoopContextManager& loopMgr,
             control::SwitchContextManager& switchMgr,
+            control::ExceptionContextManager& excMgr,
             types::TypeInferenceEngine& typeInf,
             types::TypeValidator& typeVal,
             types::GenericTypeResolver& genericRes
@@ -75,6 +78,7 @@ namespace vm::compiler::visitors
             , functionFrameManager(funcFrameMgr)
             , loopManager(loopMgr)
             , switchManager(switchMgr)
+            , exceptionManager(excMgr)
             , typeInference(typeInf)
             , typeValidator(typeVal)
             , genericResolver(genericRes)

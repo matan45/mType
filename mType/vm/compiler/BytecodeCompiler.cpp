@@ -15,7 +15,7 @@ namespace vm::compiler
         , interfaceRegistrar(env, genericResolver)
         , classRegistrar(env, program, &interfaceRegistrar)
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
-                  functionFrameManager, loopManager, switchManager,
+                  functionFrameManager, loopManager, switchManager, exceptionManager,
                   typeInference, typeValidator, genericResolver)
         , literalCompiler(context)
         , arrayCompiler(context)
@@ -338,9 +338,7 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitTryNode(ast::TryNode* node)
     {
-        // TODO: Implement exception handling compilation
-        // For now, provide a stub implementation that compiles try/catch/finally
-        throw std::runtime_error("Exception handling not yet implemented in bytecode compiler");
+        return controlFlowCompiler.compileTry(node);
     }
 
     value::Value BytecodeCompiler::visitCatchNode(ast::CatchNode* node)
@@ -351,8 +349,7 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
     {
-        // TODO: Implement throw statement compilation
-        throw std::runtime_error("Exception handling not yet implemented in bytecode compiler");
+        return controlFlowCompiler.compileThrow(node);
     }
 
 } // namespace vm::compiler

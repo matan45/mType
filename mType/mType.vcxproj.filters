@@ -999,6 +999,9 @@
     <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
       <Filter>vm\compiler</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\control\ExceptionContextManager.hpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\control\LoopContextManager.hpp">
       <Filter>vm\compiler\control</Filter>
     </ClInclude>
@@ -1630,6 +1633,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
       <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\control\ExceptionContextManager.cpp">
+      <Filter>vm\compiler\control</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\control\LoopContextManager.cpp">
       <Filter>vm\compiler\control</Filter>

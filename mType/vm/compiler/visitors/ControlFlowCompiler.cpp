@@ -361,4 +361,103 @@ namespace vm::compiler::visitors
         ctx.loopManager.registerContinue(continueJump);
         return std::monostate{};
     }
+
+    value::Value ControlFlowCompiler::compileTry(ast::TryNode* node)
+    {
+        // Emit TRY_BEGIN instruction
+        size_t tryBeginOffset = ctx.program.getCurrentOffset();
+        ctx.program.emit(bytecode::OpCode::TRY_BEGIN);
+
+        // Enter exception context
+        ctx.exceptionManager.enterTry(tryBeginOffset);
+
+        // Compile try block
+        node->getTryBlock()->accept(ctx.visitor);
+
+        // Mark end of try block
+        size_t tryEndOffset = ctx.program.getCurrentOffset();
+        ctx.exceptionManager.setTryEndOffset(tryEndOffset);
+
+        // Jump over catch blocks if no exception thrown
+        size_t endJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        ctx.exceptionManager.registerExitJump(endJump);
+
+        // Emit TRY_END instruction
+        ctx.program.emit(bytecode::OpCode::TRY_END);
+
+        // Compile catch blocks
+        const auto& catchBlocks = node->getCatchBlocks();
+        for (const auto& catchBlock : catchBlocks) {
+            size_t catchHandlerOffset = ctx.program.getCurrentOffset();
+
+            // Register catch handler
+            ctx.exceptionManager.registerCatchHandler(
+                catchBlock->getExceptionType(),
+                catchBlock->getVariableName(),
+                catchHandlerOffset
+            );
+
+            // Emit CATCH instruction with exception type
+            std::string exceptionType = catchBlock->getExceptionType();
+            uint32_t typeIndex = static_cast<uint32_t>(ctx.program.getConstantPool().addString(exceptionType));
+            ctx.program.emit(bytecode::OpCode::CATCH, typeIndex);
+
+            // Enter scope for catch variable
+            ctx.variableTracker.beginScope();
+
+            // Declare catch variable (exception is on stack)
+            ctx.variableTracker.declareLocal(
+                catchBlock->getVariableName(),
+                value::ValueType::OBJECT,
+                catchBlock->getExceptionType()
+            );
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t catchVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(catchVarSlot));
+
+            // Compile catch body
+            catchBlock->getBody()->accept(ctx.visitor);
+
+            // Exit catch scope
+            ctx.variableTracker.endScope();
+            ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
+
+            // Jump to end after catch block
+            size_t catchEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.exceptionManager.registerExitJump(catchEndJump);
+        }
+
+        // Compile finally block if present
+        if (node->getFinallyBlock()) {
+            size_t finallyOffset = ctx.program.getCurrentOffset();
+            ctx.exceptionManager.setFinallyOffset(finallyOffset);
+
+            // Emit FINALLY instruction
+            ctx.program.emit(bytecode::OpCode::FINALLY);
+
+            // Compile finally body
+            node->getFinallyBlock()->accept(ctx.visitor);
+        }
+
+        // Patch all exit jumps to point here
+        for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+            ctx.emitter.patchJump(exitJump);
+        }
+
+        // Exit exception context
+        ctx.exceptionManager.exitTry();
+
+        return std::monostate{};
+    }
+
+    value::Value ControlFlowCompiler::compileThrow(ast::ThrowNode* node)
+    {
+        // Compile the exception expression (should evaluate to an object)
+        node->getException()->accept(ctx.visitor);
+
+        // Emit THROW instruction
+        ctx.program.emit(bytecode::OpCode::THROW);
+
+        return std::monostate{};
+    }
 }
