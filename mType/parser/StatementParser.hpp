@@ -10,6 +10,7 @@
 #include "statement/AssignmentStatementParser.hpp"
 #include "statement/FunctionParser.hpp"
 #include "statement/ImportParser.hpp"
+#include "statement/ExceptionParser.hpp"
 #include "utilities/StatementTypeDetector.hpp"
 
 namespace parser
@@ -34,6 +35,7 @@ namespace parser
         std::unique_ptr<AssignmentStatementParser> assignmentParser;
         std::unique_ptr<FunctionParser> functionParser;
         std::unique_ptr<ImportParser> importParser;
+        std::unique_ptr<ExceptionParser> exceptionParser;
 
     public:
         explicit StatementParser(TokenStream& stream, ParseContext& ctx);
@@ -68,6 +70,8 @@ namespace parser
         std::unique_ptr<ASTNode> parseFunction();
         std::unique_ptr<ASTNode> parseImport();
         std::unique_ptr<ASTNode> parseNativeFunction();
+        std::unique_ptr<ASTNode> parseTryStatement();
+        std::unique_ptr<ASTNode> parseThrowStatement();
 
     private:
         void initializeHelperParsers();

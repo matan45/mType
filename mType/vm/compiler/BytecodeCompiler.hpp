@@ -115,6 +115,11 @@ namespace vm::compiler
         // Import
         value::Value visitImportNode(ast::ImportNode* node) override;
 
+        // Exception handling
+        value::Value visitTryNode(ast::TryNode* node) override;
+        value::Value visitCatchNode(ast::CatchNode* node) override;
+        value::Value visitThrowNode(ast::ThrowNode* node) override;
+
     private:
         // Core components
         bytecode::BytecodeProgram program;

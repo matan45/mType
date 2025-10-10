@@ -336,4 +336,23 @@ namespace vm::compiler
         return std::monostate{};
     }
 
+    value::Value BytecodeCompiler::visitTryNode(ast::TryNode* node)
+    {
+        // TODO: Implement exception handling compilation
+        // For now, provide a stub implementation that compiles try/catch/finally
+        throw std::runtime_error("Exception handling not yet implemented in bytecode compiler");
+    }
+
+    value::Value BytecodeCompiler::visitCatchNode(ast::CatchNode* node)
+    {
+        // Catch nodes should not be visited directly
+        throw std::runtime_error("Catch nodes should only be processed within try statements");
+    }
+
+    value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
+    {
+        // TODO: Implement throw statement compilation
+        throw std::runtime_error("Exception handling not yet implemented in bytecode compiler");
+    }
+
 } // namespace vm::compiler

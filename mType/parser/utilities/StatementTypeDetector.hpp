@@ -16,6 +16,7 @@ namespace parser::utilities
         IMPORT,
         CLASS,
         INTERFACE,
+        EXCEPTION,
         BLOCK,
         EXPRESSION,
         EMPTY,
@@ -33,6 +34,7 @@ namespace parser::utilities
         static bool isTypeKeyword(TokenType type) noexcept;
         static bool isModifierKeyword(TokenType type) noexcept;
         static bool isFunctionKeyword(TokenType type) noexcept;
+        static bool isExceptionKeyword(TokenType type) noexcept;
 
         static StatementType analyzeIdentifierStatement(const TokenStream& stream);
         static bool looksLikeDeclaration(const TokenStream& stream);

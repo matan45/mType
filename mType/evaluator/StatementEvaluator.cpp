@@ -3,6 +3,7 @@
 #include "statements/DeclarationHandler.hpp"
 #include "statements/ControlFlowHandler.hpp"
 #include "statements/ImportAndFunctionHandler.hpp"
+#include "statements/ExceptionHandler.hpp"
 #include "validation/TypeValidator.hpp"
 #include "utils/NodeTypeRegistry.hpp"
 #include "../services/ImportManager.hpp"
@@ -33,6 +34,9 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../ast/nodes/statements/ContinueNode.hpp"
 #include "../ast/nodes/statements/ForEachNode.hpp"
+#include "../ast/nodes/statements/TryNode.hpp"
+#include "../ast/nodes/statements/CatchNode.hpp"
+#include "../ast/nodes/statements/ThrowNode.hpp"
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
@@ -51,12 +55,14 @@ namespace evaluator
           declarationHandler(std::make_unique<statements::DeclarationHandler>(ctx)),
           controlFlowHandler(std::make_unique<statements::ControlFlowHandler>(ctx, flowManager.get())),
           importAndFunctionHandler(std::make_unique<statements::ImportAndFunctionHandler>(ctx)),
+          exceptionHandler(std::make_unique<statements::ExceptionHandler>(ctx)),
           exprEvaluator(nullptr), objEvaluator(nullptr)
     {
         // Set back-references so handlers can call back to StatementEvaluator
         loopEvaluator->setStatementEvaluator(this);
         controlFlowHandler->setStatementEvaluator(this);
         importAndFunctionHandler->setStatementEvaluator(this);
+        exceptionHandler->setStatementEvaluator(this);
 
         // Initialize dispatcher with all node type handlers
         initializeDispatcher();
@@ -111,6 +117,9 @@ namespace evaluator
         dispatcher.registerMethod<FunctionNode>(&StatementEvaluator::evaluateFunctionNode);
         dispatcher.registerMethod<ReturnNode>(&StatementEvaluator::evaluateReturnNode);
         dispatcher.registerMethod<ast::nodes::statements::NativeFunctionNode>(&StatementEvaluator::evaluateNativeFunctionNode);
+        dispatcher.registerMethod<TryNode>(&StatementEvaluator::evaluateTryNode);
+        dispatcher.registerMethod<CatchNode>(&StatementEvaluator::evaluateCatchNode);
+        dispatcher.registerMethod<ThrowNode>(&StatementEvaluator::evaluateThrowNode);
     }
 
     bool StatementEvaluator::canHandle(ASTNode* node) const
@@ -175,6 +184,7 @@ namespace evaluator
         declarationHandler->setExpressionEvaluator(evaluator);
         controlFlowHandler->setExpressionEvaluator(evaluator);
         importAndFunctionHandler->setExpressionEvaluator(evaluator);
+        exceptionHandler->setExpressionEvaluator(evaluator);
     }
 
     void StatementEvaluator::setObjectEvaluator(ObjectEvaluator* evaluator)
@@ -469,5 +479,21 @@ namespace evaluator
                                                        const SourceLocation& location)
     {
         return importAndFunctionHandler->convertLambdaToInterface(lambdaValue, interfaceName, location);
+    }
+
+    Value StatementEvaluator::evaluateTryNode(TryNode* node)
+    {
+        return exceptionHandler->evaluateTry(node);
+    }
+
+    Value StatementEvaluator::evaluateCatchNode(CatchNode* node)
+    {
+        // Catch nodes should not be evaluated directly - they are handled within try statements
+        throw TypeException("Catch nodes should not be evaluated directly outside of try statement");
+    }
+
+    Value StatementEvaluator::evaluateThrowNode(ThrowNode* node)
+    {
+        return exceptionHandler->evaluateThrow(node);
     }
 }

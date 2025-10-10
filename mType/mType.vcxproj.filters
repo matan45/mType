@@ -423,6 +423,9 @@
     <ClInclude Include="ast\nodes\statements\CaseNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CatchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
@@ -460,6 +463,12 @@
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\SwitchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ThrowNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\TryNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
@@ -600,6 +609,9 @@
     <ClInclude Include="errors\UndefinedException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\UserException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\Evaluator.hpp">
       <Filter>evaluator</Filter>
     </ClInclude>
@@ -664,6 +676,9 @@
       <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\statements\DeclarationHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ExceptionHandler.hpp">
       <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\statements\ImportAndFunctionHandler.hpp">
@@ -802,6 +817,9 @@
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\statement\DeclarationParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ExceptionParser.hpp">
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\statement\FunctionParser.hpp">
@@ -1130,9 +1148,6 @@
     <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
-    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
@@ -1193,6 +1208,9 @@
     <ClCompile Include="ast\nodes\statements\CaseNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CatchNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
@@ -1230,6 +1248,12 @@
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\SwitchNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ThrowNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\TryNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
@@ -1332,6 +1356,9 @@
       <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\statements\DeclarationHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ExceptionHandler.cpp">
       <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\statements\ImportAndFunctionHandler.cpp">
@@ -1458,6 +1485,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\statement\DeclarationParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ExceptionParser.cpp">
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\statement\FunctionParser.cpp">
@@ -1837,10 +1867,19 @@
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncInterfaceMethods.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncInterfaceMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.expected">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.mt">
@@ -1870,6 +1909,9 @@
     <None Include="tests\testFiles\await\pass\asyncWithGenerics.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\awaitingResolvedPromise.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\awaitingResolvedPromise.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
@@ -1889,6 +1931,12 @@
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\nestedAsyncCalls.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">

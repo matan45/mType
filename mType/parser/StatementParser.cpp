@@ -18,6 +18,7 @@ namespace parser
         assignmentParser = std::make_unique<AssignmentStatementParser>(tokenStream, context);
         functionParser = std::make_unique<FunctionParser>(tokenStream, context);
         importParser = std::make_unique<ImportParser>(tokenStream, context);
+        exceptionParser = std::make_unique<ExceptionParser>(tokenStream, context);
     }
 
     StatementParser::StatementParser(TokenStream& stream, ParseContext& ctx)
@@ -91,6 +92,8 @@ namespace parser
                 return functionParser->parse();
             case StatementType::IMPORT:
                 return importParser->parse();
+            case StatementType::EXCEPTION:
+                return exceptionParser->parse();
             case StatementType::EXPRESSION:
                 return assignmentParser->parseExpressionStatement();
             default:
@@ -181,6 +184,16 @@ namespace parser
     std::unique_ptr<ASTNode> StatementParser::parseNativeFunction()
     {
         return functionParser->parseNativeFunction();
+    }
+
+    std::unique_ptr<ASTNode> StatementParser::parseTryStatement()
+    {
+        return exceptionParser->parseTryStatement();
+    }
+
+    std::unique_ptr<ASTNode> StatementParser::parseThrowStatement()
+    {
+        return exceptionParser->parseThrowStatement();
     }
 
     // Helper methods that delegate to ParserUtils

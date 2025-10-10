@@ -51,6 +51,10 @@ namespace token
         ISCLASSOF, // isClassOf keyword for type checking
         ASYNC, // async keyword for async functions
         AWAIT, // await keyword for async expressions
+        TRY, // try keyword for exception handling
+        CATCH, // catch keyword for exception handling
+        THROW, // throw keyword for exception handling
+        FINALLY, // finally keyword for exception handling
         END // End of input
     };
 }

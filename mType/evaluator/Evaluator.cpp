@@ -345,4 +345,19 @@ namespace evaluator
         return coordinator->visitSuperMethodCallNode(node);
     }
 
+    Value Evaluator::visitTryNode(TryNode* node)
+    {
+        return coordinator->visitTryNode(node);
+    }
+
+    Value Evaluator::visitCatchNode(CatchNode* node)
+    {
+        return coordinator->visitCatchNode(node);
+    }
+
+    Value Evaluator::visitThrowNode(ThrowNode* node)
+    {
+        return coordinator->visitThrowNode(node);
+    }
+
 }

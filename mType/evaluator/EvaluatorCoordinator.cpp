@@ -391,4 +391,19 @@ namespace evaluator
         // The EventLoop will catch this and register a continuation
         throw exception::SuspendException(asyncPromise);
     }
+
+    Value EvaluatorCoordinator::visitTryNode(TryNode* node)
+    {
+        return stmtEvaluator->evaluateTryNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitCatchNode(CatchNode* node)
+    {
+        return stmtEvaluator->evaluateCatchNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitThrowNode(ThrowNode* node)
+    {
+        return stmtEvaluator->evaluateThrowNode(node);
+    }
 }
