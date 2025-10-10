@@ -65,6 +65,8 @@ namespace tests::testSuite
         // Exception handling tests
         addOutputVerificationTest("Try-Catch-Finally with Return",
                         passPath + "tryCatchFinallyWithReturn.mt");
+        addOutputVerificationTest("Exception in Finally Block",
+                        passPath + "exceptionInFinally.mt");
 
         // Object reference edge case tests
         addOutputVerificationTest("Circular Object References",

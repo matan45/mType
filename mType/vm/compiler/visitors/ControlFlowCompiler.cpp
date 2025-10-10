@@ -415,11 +415,14 @@ namespace vm::compiler::visitors
             ctx.variableTracker.beginScope();
 
             // Declare catch variable (exception is on stack)
+            // Note: Only declare in variableTracker, NOT in globalRegistry
+            // This ensures it's treated as a local variable (LOAD_LOCAL) not global (LOAD_VAR)
             ctx.variableTracker.declareLocal(
                 catchBlock->getVariableName(),
                 value::ValueType::OBJECT,
                 catchBlock->getExceptionType()
             );
+
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t catchVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(catchVarSlot));

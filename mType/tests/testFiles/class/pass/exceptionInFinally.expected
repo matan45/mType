@@ -1,0 +1,21 @@
+=== Test 1: Exception in finally overrides return ===
+Try: returning success
+Finally: throwing exception
+Caught: Cleanup failed
+
+=== Test 2: Exception in finally overrides try exception ===
+Try: throwing ProcessingException
+Finally: throwing CleanupException
+Caught CleanupException: Cleanup failed
+
+=== Test 3: Exception in finally overrides catch exception ===
+Catch: re-throwing
+Finally: throwing new exception
+Caught CleanupException: Finally error
+
+=== Test 4: Normal finally doesn't override return ===
+Try: returning success
+Finally: normal cleanup (no exception)
+success
+
+All exception in finally tests completed

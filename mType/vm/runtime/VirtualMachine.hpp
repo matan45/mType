@@ -68,6 +68,9 @@ namespace vm::runtime
         ExecutionStats stats;
         std::chrono::steady_clock::time_point executionStart;
 
+        // Exception handling state
+        size_t currentFinallyOffset;  // Offset of the currently executing finally block (SIZE_MAX if not in finally)
+
         // Specialized executors
         std::unique_ptr<StackOperationsExecutor> stackOpsExecutor;
         std::unique_ptr<ComparisonExecutor> comparisonExecutor;

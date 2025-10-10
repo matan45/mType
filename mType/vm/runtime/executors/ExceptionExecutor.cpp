@@ -97,6 +97,11 @@ namespace vm::runtime
     {
         // FINALLY marks the start of a finally block
         // The finally block code follows this instruction
-        // This is a no-op - the finally block just executes normally
+        // Mark that we're entering this finally block so exception handling
+        // knows to skip it when searching for catch handlers
+        // (exceptions thrown FROM inside finally should not be caught by the same finally)
+
+        // Note: We need access to VM to set currentFinallyOffset
+        // For now, this is a no-op and the tracking is done in VirtualMachine::interpretLoop
     }
 }

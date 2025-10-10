@@ -1,0 +1,63 @@
+=== Test 1: Basic exception lifecycle ===
+TrackedException 1 created (count: 1)
+Caught exception 1
+After catch block
+
+=== Test 2: Multiple exception creation ===
+TrackedException 10 created (count: 2)
+TrackedException 11 created (count: 3)
+TrackedException 12 created (count: 4)
+Caught exception 11
+After catch: e1, e2, e3 should be cleaned up
+
+=== Test 3: Re-throw same object ===
+TrackedException 20 created (count: 5)
+Inner try: created 1 exception
+Inner catch: re-throwing (no new object created)
+Outer catch: caught exception 20
+Total new exceptions created: 1 (should be 1)
+
+=== Test 4: Exceptions in loop ===
+TrackedException 30 created (count: 6)
+Iteration 0: caught exception 30
+TrackedException 31 created (count: 7)
+Iteration 1: caught exception 31
+TrackedException 32 created (count: 8)
+Iteration 2: caught exception 32
+TrackedException 33 created (count: 9)
+Iteration 3: caught exception 33
+TrackedException 34 created (count: 10)
+Iteration 4: caught exception 34
+Total exceptions created in loop: 5 (should be 5)
+
+=== Test 5: Large exception data ===
+Iteration 0: caught large exception
+Iteration 1: caught large exception
+Iteration 2: caught large exception
+Iteration 3: caught large exception
+Iteration 4: caught large exception
+Iteration 5: caught large exception
+Iteration 6: caught large exception
+Iteration 7: caught large exception
+Iteration 8: caught large exception
+Iteration 9: caught large exception
+Completed large exception test (should not leak memory)
+
+=== Test 6: Nested try-catch with multiple exceptions ===
+TrackedException 40 created (count: 11)
+TrackedException 41 created (count: 12)
+TrackedException 42 created (count: 13)
+Inner catch: 42
+Middle catch: 41
+Outer catch: 40
+Total exceptions created: 3 (should be 3)
+
+=== Test 7: Exception as function parameter ===
+TrackedException 50 created (count: 14)
+Processed exception 50
+Caught exception 50
+Total exceptions created: 1 (should be 1)
+
+=== Summary ===
+Total TrackedException instances created: 14
+All exception lifecycle tests completed

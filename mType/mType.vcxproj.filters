@@ -238,6 +238,12 @@
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\test">
+      <UniqueIdentifier>{29969273-1525-1C3D-BE43-3038AAB12CE3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\test\pass">
+      <UniqueIdentifier>{CF6DD5C7-3B30-0952-84E0-97DEF0E1E12F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
     </Filter>
@@ -2542,6 +2548,12 @@
     <None Include="tests\testFiles\class\pass\defaultConstructor.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\exceptionInFinally.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\exceptionInFinally.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\finalClassDefinition.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -3325,6 +3337,24 @@
     <None Include="tests\testFiles\integration\pass\errorRecoveryWithPartialFailures.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInFinally.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInFinally.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInheritanceHierarchy.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInheritanceHierarchy.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionMemoryLifecycle.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionMemoryLifecycle.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -4086,6 +4116,15 @@
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\nested_in_function_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\simple_nested_nomatch_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\simple_nested_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
