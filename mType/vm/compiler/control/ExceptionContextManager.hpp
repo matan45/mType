@@ -26,6 +26,7 @@ namespace vm::compiler::control
             std::vector<size_t> exitJumps;          // Jumps to end of try/catch/finally (after normal execution)
             std::vector<size_t> returnJumps;        // Jumps from return statements (need to return after finally)
             bool hasFinally;                        // True if this try block has a finally block
+            bool inFinally;                         // True if currently compiling the finally block
             size_t returnValueSlot;                 // Local slot used to save return value before finally (SIZE_MAX if none)
         };
 
@@ -69,6 +70,21 @@ namespace vm::compiler::control
 
         // Check if currently in a try block with a finally
         bool hasPendingFinally() const;
+
+        // Mark that we're entering/exiting the finally block
+        void enterFinally();
+        void exitFinally();
+        bool isInFinally() const;
+
+        // Check if there's an outer (parent) try block with a finally
+        bool hasOuterFinally() const;
+
+        // Register a return jump with the outer (parent) context
+        void registerReturnJumpWithOuter(size_t jumpOffset);
+
+        // Set/get return value slot for the outer (parent) context
+        void setReturnValueSlotForOuter(size_t slot);
+        size_t getReturnValueSlotForOuter() const;
 
     private:
         std::vector<ExceptionContext> contextStack;

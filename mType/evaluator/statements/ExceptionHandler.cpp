@@ -7,6 +7,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/ReturnException.hpp"
 
 namespace evaluator {
 namespace statements {
@@ -58,9 +59,11 @@ namespace statements {
                 }
                 catch (...)
                 {
-                    // Exception in catch block
+                    // Exception in catch block (e.g., ReturnException)
                     context->getEnvironment()->exitScope();
-                    throw; // Re-throw to be handled by outer try or finally
+                    // Execute finally block before re-throwing
+                    executeFinallyBlock(node->getFinallyBlock());
+                    throw;
                 }
 
                 context->getEnvironment()->exitScope();
@@ -71,9 +74,15 @@ namespace statements {
                 caughtException = &e;
             }
         }
+        catch (errors::ReturnException&)
+        {
+            // Return exception from try block - execute finally and re-throw
+            executeFinallyBlock(node->getFinallyBlock());
+            throw;
+        }
         catch (...)
         {
-            // Other exceptions (BreakException, ContinueException, ReturnException, etc.)
+            // Other exceptions (BreakException, ContinueException, etc.)
             // Execute finally block and re-throw
             executeFinallyBlock(node->getFinallyBlock());
             throw;
@@ -122,9 +131,29 @@ namespace statements {
     {
         if (finallyBlock != nullptr)
         {
+            // CRITICAL: Clear the return flag before executing finally block
+            // Otherwise, the flag from try/catch block's return will cause
+            // executeStatementList to break early and skip the finally block's return!
+            bool wasReturned = context->shouldReturn();
+            if (wasReturned)
+            {
+                context->setReturned(false);
+            }
+
             try
             {
                 stmtEvaluator->evaluate(finallyBlock);
+
+                // If finally completed normally, restore the return flag
+                if (wasReturned && !context->shouldReturn())
+                {
+                    context->setReturned(true);
+                }
+            }
+            catch (errors::ReturnException&)
+            {
+                // Finally block has a return statement - it overrides any previous return
+                throw;
             }
             catch (...)
             {

@@ -10,6 +10,7 @@ namespace vm::compiler::control
         ctx.tryEndOffset = SIZE_MAX; // Will be set later
         ctx.finallyOffset = SIZE_MAX; // Will be set when finally is compiled
         ctx.hasFinally = hasFinally;
+        ctx.inFinally = false; // Not in finally yet
         ctx.returnValueSlot = SIZE_MAX; // Will be set if a return happens in try with finally
         contextStack.push_back(ctx);
     }
@@ -152,7 +153,70 @@ namespace vm::compiler::control
         if (contextStack.empty()) {
             return false;
         }
-        // Check if current try block has a finally block
-        return contextStack.back().hasFinally;
+        // Check if current try block has a finally block AND we're not already in it
+        return contextStack.back().hasFinally && !contextStack.back().inFinally;
+    }
+
+    void ExceptionContextManager::enterFinally()
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("enterFinally called outside of try context");
+        }
+        contextStack.back().inFinally = true;
+    }
+
+    void ExceptionContextManager::exitFinally()
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("exitFinally called outside of try context");
+        }
+        contextStack.back().inFinally = false;
+    }
+
+    bool ExceptionContextManager::isInFinally() const
+    {
+        if (contextStack.empty()) {
+            return false;
+        }
+        return contextStack.back().inFinally;
+    }
+
+    bool ExceptionContextManager::hasOuterFinally() const
+    {
+        // Check if there's a parent context (at least 2 contexts on stack)
+        // and the parent has a finally block
+        if (contextStack.size() < 2) {
+            return false;
+        }
+        // Check the second-to-last context (parent of current)
+        const ExceptionContext& outerContext = contextStack[contextStack.size() - 2];
+        return outerContext.hasFinally;
+    }
+
+    void ExceptionContextManager::registerReturnJumpWithOuter(size_t jumpOffset)
+    {
+        if (contextStack.size() < 2) {
+            throw errors::RuntimeException("No outer context to register return jump with");
+        }
+        // Register with the second-to-last context (parent of current)
+        contextStack[contextStack.size() - 2].returnJumps.push_back(jumpOffset);
+    }
+
+    void ExceptionContextManager::setReturnValueSlotForOuter(size_t slot)
+    {
+        if (contextStack.size() < 2) {
+            throw errors::RuntimeException("No outer context to set return value slot for");
+        }
+        // Set for the second-to-last context (parent of current)
+        contextStack[contextStack.size() - 2].returnValueSlot = slot;
+    }
+
+    size_t ExceptionContextManager::getReturnValueSlotForOuter() const
+    {
+        if (contextStack.size() < 2) {
+            throw errors::RuntimeException("No outer context to get return value slot from");
+        }
+        // Get from the second-to-last context (parent of current)
+        return contextStack[contextStack.size() - 2].returnValueSlot;
     }
 }

@@ -1,8 +1,10 @@
 import "../../lib/exceptions/Exception.mt";
 import "../../lib/exceptions/RuntimeException.mt";
+import "../../lib/primitives/String.mt";
+import "../../lib/primitives/Int.mt";
 
 // Test nested try-catch in async functions
-async function nestedTryCatch(): Promise<string> {
+function async nestedTryCatch(): Promise<String> {
     try {
         print("Outer try");
         try {
@@ -11,20 +13,20 @@ async function nestedTryCatch(): Promise<string> {
             throw e;
         } catch (Exception e) {
             print("Inner catch: " + e.getMessage());
-            return "inner caught";
+            return new String("inner caught");
         } finally {
             print("Inner finally");
         }
     } catch (Exception e) {
         print("Outer catch: " + e.getMessage());
-        return "outer caught";
+        return new String("outer caught");
     } finally {
         print("Outer finally");
     }
 }
 
 // Test re-throwing in catch block
-async function rethrowInCatch(): Promise<int> {
+function async rethrowInCatch(): Promise<Int> {
     try {
         try {
             print("Inner try - throwing");
@@ -36,16 +38,16 @@ async function rethrowInCatch(): Promise<int> {
         }
     } catch (RuntimeException e) {
         print("Outer catch: " + e.getMessage());
-        return 999;
+        return new Int(999);
     }
 }
 
 // Test exception in finally block
-async function exceptionInFinally(): Promise<string> {
+function async exceptionInFinally(): Promise<String> {
     try {
         try {
             print("Try block");
-            return "from try";
+            return new String("from try");
         } finally {
             print("Finally throws exception");
             Exception e = new Exception("Finally error");
@@ -53,61 +55,66 @@ async function exceptionInFinally(): Promise<string> {
         }
     } catch (Exception e) {
         print("Caught finally exception: " + e.getMessage());
-        return "caught finally exception";
+        return new String("caught finally exception");
     }
 }
 
 // Test multiple await with try-catch
-async function multipleAwaitWithTryCatch(): Promise<int> {
+function async multipleAwaitWithTryCatch(): Promise<Int> {
     int total = 0;
 
     try {
-        Promise<int> p1 = getValue(10);
-        int val1 = await p1;
-        print("Got value 1: " + toString(val1));
-        total = total + val1;
+        Promise<Int> p1 = getValue(10);
+        Int val1 = await p1;
+        print("Got value 1: " + val1.toString());
+        total = total + val1.value;
 
-        Promise<int> p2 = getValue(20);
-        int val2 = await p2;
-        print("Got value 2: " + toString(val2));
-        total = total + val2;
+        Promise<Int> p2 = getValue(20);
+        Int val2 = await p2;
+        print("Got value 2: " + val2.toString());
+        total = total + val2.value;
 
-        return total;
+        return new Int(total);
     } catch (Exception e) {
         print("Error in await: " + e.getMessage());
-        return -1;
+        return new Int(-1);
     } finally {
-        print("Finally: total = " + toString(total));
+        print("Finally: total = " + total);
     }
 }
 
-async function getValue(int value): Promise<int> {
-    return value;
+function async getValue(int value): Promise<Int> {
+    return new Int(value);
 }
 
+function async main(): Promise<void> {
 // Run tests
 print("=== Test 1: Nested try-catch ===");
-Promise<string> p1 = nestedTryCatch();
-string result1 = await p1;
-print("Result: " + result1);
+Promise<String> p1 = nestedTryCatch();
+String result1 = await p1;
+print("Result: " + result1.toString());
 print("");
 
 print("=== Test 2: Re-throw in catch ===");
-Promise<int> p2 = rethrowInCatch();
-int result2 = await p2;
-print("Result: " + toString(result2));
+Promise<Int> p2 = rethrowInCatch();
+Int result2 = await p2;
+print("Result: " + result2.toString());
 print("");
 
 print("=== Test 3: Exception in finally ===");
-Promise<string> p3 = exceptionInFinally();
-string result3 = await p3;
-print("Result: " + result3);
+Promise<String> p3 = exceptionInFinally();
+String result3 = await p3;
+print("Result: " + result3.toString());
 print("");
 
 print("=== Test 4: Multiple await with try-catch ===");
-Promise<int> p4 = multipleAwaitWithTryCatch();
-int result4 = await p4;
-print("Result: " + toString(result4));
+Promise<Int> p4 = multipleAwaitWithTryCatch();
+Int result4 = await p4;
+print("Result: " + result4.toString());
 print("");
 
 print("All nested try-catch tests completed");
+return null;
+}
+
+main();

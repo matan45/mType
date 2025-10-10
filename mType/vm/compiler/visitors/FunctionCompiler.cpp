@@ -6,7 +6,6 @@
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
 
-
 namespace vm::compiler::visitors
 {
     FunctionCompiler::FunctionCompiler(CompilerContext& context)
@@ -450,15 +449,21 @@ namespace vm::compiler::visitors
                     // The finally block will manipulate the stack (e.g., print statements), so we need
                     // to save the return value in a local variable before jumping to finally.
 
-                    // Reserve a special local slot for the return value (at the end of locals)
-                    size_t returnValueSlot = ctx.variableTracker.getNextLocalSlot();
-                    ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+                    // Check if we already have a return value slot for this try-finally block
+                    // IMPORTANT: Reuse the same slot for all returns in the same try-finally to ensure
+                    // the finally block loads the correct return value
+                    size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+                    if (returnValueSlot == SIZE_MAX) {
+                        // First return in this try block - allocate a new slot
+                        returnValueSlot = ctx.variableTracker.getNextLocalSlot();
+                        ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+
+                        // Remember this slot so ControlFlowCompiler can load it back after finally
+                        ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
+                    }
 
                     // Store return value in the special slot
                     ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
-
-                    // Remember this slot so ControlFlowCompiler can load it back after finally
-                    ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
 
                     // Jump to finally
                     size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
