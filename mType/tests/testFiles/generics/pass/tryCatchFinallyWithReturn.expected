@@ -1,0 +1,36 @@
+=== Test 1: Generic processor with Int ===
+Processing input
+Finally: cleanup
+Result 1 hasError: false
+Result 1 value: 50
+Processing input
+Error: Null input
+Finally: cleanup
+Result 2 hasError: true
+Result 2 value: 100
+
+=== Test 2: Nested processing with String ===
+Outer try
+Inner try
+Inner finally
+Outer finally
+Result 3 hasError: false
+Result 3 value: test
+Outer try
+Inner try
+Inner catch: Inner error
+Inner finally
+Outer finally
+Result 4 hasError: true
+Result 4 value: default
+
+=== Test 3: Static generic function ===
+safeCast finally
+Result 5 hasError: false
+Result 5 value: 42
+safeCast error: Cast failed
+safeCast finally
+Result 6 hasError: true
+Result 6 value: test
+
+All generic try-catch-finally tests completed

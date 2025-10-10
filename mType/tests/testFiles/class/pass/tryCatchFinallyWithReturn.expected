@@ -1,0 +1,31 @@
+=== Test 1: Return in try with finally ===
+Finally: cleanup after division
+Result 1: 20
+Error: Division by zero
+Finally: cleanup after division
+Result 2: -1
+
+=== Test 2: Nested try-catch-finally ===
+Outer try: x = 10
+Inner try: processing 10
+Inner finally
+Outer finally
+Result 3: 60
+Outer try: x = -5
+Inner catch: Negative value
+Inner finally
+Outer finally
+Result 4: -999
+
+=== Test 3: Multiple returns with finally ===
+Mode 1: returning value
+Finally: mode was 1
+Result 5: 10
+Mode 2: returning doubled value
+Finally: mode was 2
+Result 6: 20
+Default mode: returning tripled value
+Finally: mode was 3
+Result 7: 30
+
+All class try-catch-finally tests completed

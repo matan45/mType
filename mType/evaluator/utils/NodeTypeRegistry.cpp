@@ -35,6 +35,9 @@
 #include "../../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../../ast/nodes/statements/TryNode.hpp"
+#include "../../ast/nodes/statements/CatchNode.hpp"
+#include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
@@ -106,7 +109,10 @@ namespace evaluator::utils
             typeid(ImportNode),
             typeid(ReturnNode),
             typeid(FunctionNode),
-            typeid(NativeFunctionNode)
+            typeid(NativeFunctionNode),
+            typeid(TryNode),
+            typeid(CatchNode),
+            typeid(ThrowNode)
         };
     }
 

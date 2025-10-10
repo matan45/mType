@@ -83,6 +83,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Corrupted State Recovery",
                         passPath + "corruptedStateRecovery.mt");
 
+        // Exception Handling tests
+        addOutputVerificationTest("Exception Inheritance Hierarchy",
+                        passPath + "exceptionInheritanceHierarchy.mt");
+        addOutputVerificationTest("Exception in Finally Block",
+                        passPath + "exceptionInFinally.mt");
+        addOutputVerificationTest("Exception Memory Lifecycle",
+                        passPath + "exceptionMemoryLifecycle.mt");
+
         addOutputVerificationTest("complex generic substitution",
                         passPath + "test_type_substitution_edge_cases.mt");
         

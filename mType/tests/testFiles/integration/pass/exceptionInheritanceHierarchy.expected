@@ -1,0 +1,20 @@
+=== Test 1: Catch base class catches derived class ===
+Caught ApplicationException: Invalid email
+
+=== Test 2: Catch most specific type first ===
+Caught DatabaseException with code: 1234
+
+=== Test 3: Catch generic Exception catches all ===
+Caught Exception: Object is null
+
+=== Test 4: Wrong catch type doesn't match ===
+Outer catch got: Bad input
+
+=== Test 5: Multiple inheritance levels ===
+Caught Exception (2 levels up): Field required
+
+=== Test 6: Re-throw preserves type ===
+Inner catch: re-throwing
+Re-thrown exception still DatabaseException: 5678
+
+All exception inheritance tests completed

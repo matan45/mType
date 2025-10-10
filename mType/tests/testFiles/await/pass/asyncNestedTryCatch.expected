@@ -1,0 +1,27 @@
+=== Test 1: Nested try-catch ===
+Outer try
+Inner try
+Inner catch: Inner exception
+Inner finally
+Outer finally
+Result: inner caught
+
+=== Test 2: Re-throw in catch ===
+Inner try - throwing
+Inner catch - re-throwing
+Outer catch: Original error
+Result: 999
+
+=== Test 3: Exception in finally ===
+Try block
+Finally throws exception
+Caught finally exception: Finally error
+Result: caught finally exception
+
+=== Test 4: Multiple await with try-catch ===
+Got value 1: 10
+Got value 2: 20
+Finally: total = 30
+Result: 30
+
+All nested try-catch tests completed

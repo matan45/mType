@@ -1,7 +1,6 @@
 #include "VariableExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-
 namespace vm::runtime
 {
     VariableExecutor::VariableExecutor(ExecutionContext& ctx)

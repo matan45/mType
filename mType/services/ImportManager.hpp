@@ -16,18 +16,21 @@ namespace services
     private:
         // Track imported files to avoid duplicates
         std::unordered_set<std::string> importedFiles;
-        
+
         // Track evaluated files to avoid re-evaluation
         std::unordered_set<std::string> evaluatedFiles;
-        
+
         // Track files currently being evaluated for circular import detection
         std::unordered_set<std::string> beingEvaluated;
 
         // Cache parsed ASTs
         std::unordered_map<std::string, std::unique_ptr<ASTNode>> astCache;
-        
+
         // Original base directory (never changes after initialization)
         std::string baseDirectory;
+
+        // Current file being processed (for resolving relative imports)
+        std::string currentFilePath;
 
     public:
         explicit ImportManager();
@@ -37,9 +40,16 @@ namespace services
         // Set the base directory for relative imports
         void setBaseDirectory(const std::string& dir);
 
+        // Get/Set current file path (for nested import resolution)
+        std::string getCurrentFilePath() const { return currentFilePath; }
+        void setCurrentFilePath(const std::string& path) { currentFilePath = path; }
+
         // Resolve relative and absolute paths
         std::string resolvePath(const std::string& path);
-        
+
+        // Resolve path relative to a specific file (for nested imports)
+        std::string resolvePathRelativeToFile(const std::string& path, const std::string& relativeToFile);
+
         // Resolve path consistently relative to base directory (for evaluation tracking)
         std::string resolvePathConsistently(const std::string& path);
 

@@ -15,6 +15,7 @@ namespace statements {
     class DeclarationHandler;
     class ControlFlowHandler;
     class ImportAndFunctionHandler;
+    class ExceptionHandler;
 }
 }
 
@@ -46,6 +47,7 @@ namespace evaluator
         std::unique_ptr<statements::DeclarationHandler> declarationHandler;
         std::unique_ptr<statements::ControlFlowHandler> controlFlowHandler;
         std::unique_ptr<statements::ImportAndFunctionHandler> importAndFunctionHandler;
+        std::unique_ptr<statements::ExceptionHandler> exceptionHandler;
 
         // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
         utils::NodeDispatcher<StatementEvaluator> dispatcher;
@@ -98,6 +100,9 @@ namespace evaluator
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
         Value evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node);
+        Value evaluateTryNode(TryNode* node);
+        Value evaluateCatchNode(CatchNode* node);
+        Value evaluateThrowNode(ThrowNode* node);
 
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);

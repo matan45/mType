@@ -217,6 +217,9 @@
     <Filter Include="tests\testFiles\lib\collections">
       <UniqueIdentifier>{8E3AAC11-FA1D-BB51-0321-E98D6F8381A2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\exceptions">
+      <UniqueIdentifier>{9149D36D-7D6F-9DD4-66B5-22A0527AC2A0}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
@@ -234,6 +237,12 @@
     </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\test">
+      <UniqueIdentifier>{29969273-1525-1C3D-BE43-3038AAB12CE3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\test\pass">
+      <UniqueIdentifier>{CF6DD5C7-3B30-0952-84E0-97DEF0E1E12F}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
@@ -423,6 +432,9 @@
     <ClInclude Include="ast\nodes\statements\CaseNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CatchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
@@ -460,6 +472,12 @@
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\SwitchNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ThrowNode.hpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\TryNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
@@ -600,6 +618,9 @@
     <ClInclude Include="errors\UndefinedException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\UserException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\Evaluator.hpp">
       <Filter>evaluator</Filter>
     </ClInclude>
@@ -664,6 +685,9 @@
       <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\statements\DeclarationHandler.hpp">
+      <Filter>evaluator\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\statements\ExceptionHandler.hpp">
       <Filter>evaluator\statements</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\statements\ImportAndFunctionHandler.hpp">
@@ -802,6 +826,9 @@
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\statement\DeclarationParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ExceptionParser.hpp">
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\statement\FunctionParser.hpp">
@@ -981,6 +1008,9 @@
     <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
       <Filter>vm\compiler</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\control\ExceptionContextManager.hpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\control\LoopContextManager.hpp">
       <Filter>vm\compiler\control</Filter>
     </ClInclude>
@@ -1054,6 +1084,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\ControlFlowExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ExceptionExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\FunctionExecutor.hpp">
@@ -1130,9 +1163,6 @@
     <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
-    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
@@ -1193,6 +1223,9 @@
     <ClCompile Include="ast\nodes\statements\CaseNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CatchNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
@@ -1232,6 +1265,12 @@
     <ClCompile Include="ast\nodes\statements\SwitchNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ThrowNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\TryNode.cpp">
+      <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
@@ -1266,6 +1305,9 @@
       <Filter>environment\registry</Filter>
     </ClCompile>
     <ClCompile Include="errors\AccessViolationException.cpp">
+      <Filter>errors</Filter>
+    </ClCompile>
+    <ClCompile Include="errors\UserException.cpp">
       <Filter>errors</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\Evaluator.cpp">
@@ -1332,6 +1374,9 @@
       <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\statements\DeclarationHandler.cpp">
+      <Filter>evaluator\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\statements\ExceptionHandler.cpp">
       <Filter>evaluator\statements</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\statements\ImportAndFunctionHandler.cpp">
@@ -1458,6 +1503,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\statement\DeclarationParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ExceptionParser.cpp">
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\statement\FunctionParser.cpp">
@@ -1601,6 +1649,9 @@
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
       <Filter>vm\compiler</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\control\ExceptionContextManager.cpp">
+      <Filter>vm\compiler\control</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\control\LoopContextManager.cpp">
       <Filter>vm\compiler\control</Filter>
     </ClCompile>
@@ -1668,6 +1719,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ControlFlowExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ExceptionExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
@@ -1837,10 +1891,25 @@
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncInterfaceMethods.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncInterfaceMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.expected">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.mt">
@@ -1850,6 +1919,18 @@
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncNestedTryCatch.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncNestedTryCatch.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncTryCatchBasic.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncTryCatchBasic.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncVoidReturn.expected">
@@ -1868,6 +1949,9 @@
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncWithGenerics.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\awaitingResolvedPromise.expected">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\awaitingResolvedPromise.mt">
@@ -1889,6 +1973,12 @@
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\nestedAsyncCalls.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
@@ -2458,6 +2548,12 @@
     <None Include="tests\testFiles\class\pass\defaultConstructor.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\exceptionInFinally.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\exceptionInFinally.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\finalClassDefinition.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -2594,6 +2690,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\staticScopingPass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
@@ -3127,6 +3229,12 @@
     <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\error\circular_a.mt">
       <Filter>tests\testFiles\import\error</Filter>
     </None>
@@ -3227,6 +3335,24 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\errorRecoveryWithPartialFailures.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInFinally.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInFinally.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInheritanceHierarchy.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionInheritanceHierarchy.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionMemoryLifecycle.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\exceptionMemoryLifecycle.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\finalVariablesAcrossNamespacesAndClasses.expected">
@@ -3757,6 +3883,21 @@
     <None Include="tests\testFiles\lib\collections\Stack.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
     </None>
+    <None Include="tests\testFiles\lib\exceptions\Exception.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\IllegalArgumentException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\IndexOutOfBoundsException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\NullPointerException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\RuntimeException.mt">
+      <Filter>tests\testFiles\lib\exceptions</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
     </None>
@@ -3975,6 +4116,15 @@
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>tests\testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\nested_in_function_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\simple_nested_nomatch_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\test\pass\simple_nested_test.mt">
+      <Filter>tests\testFiles\test\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>

@@ -1,0 +1,40 @@
+=== Test 1: Exception in finally overrides return ===
+Try: returning success
+Finally: throwing exception
+Caught: Cleanup failed
+
+=== Test 2: Exception in finally overrides try exception ===
+Try: throwing ProcessingException
+Finally: throwing CleanupException
+Caught CleanupException: Cleanup failed
+
+=== Test 3: Exception in finally overrides catch exception ===
+Catch: re-throwing
+Finally: throwing new exception
+Caught CleanupException: Finally error
+
+=== Test 4: Normal finally doesn't override return ===
+Try: returning success
+Finally: normal cleanup (no exception)
+success
+
+=== Test 5: Nested finally blocks with exceptions ===
+Innermost try
+Inner finally: throwing exception
+Middle catch: caught CleanupException
+Middle finally: throwing another exception
+Outer catch: Middle cleanup failed
+
+=== Test 6: Conditional finally exception (no throw) ===
+Try: executing
+Finally: conditional logic
+Finally: normal completion
+success
+
+=== Test 7: Conditional finally exception (throw) ===
+Try: executing
+Finally: conditional logic
+Finally: throwing exception
+Caught: Conditional cleanup failed
+
+All exception in finally tests completed

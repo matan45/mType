@@ -1,0 +1,23 @@
+=== Test 1: Finally before return ===
+1. Try block
+2. Finally block - executes BEFORE return
+Returned: from try
+
+=== Test 2: Finally overrides return ===
+1. Try block returns 'first'
+2. Finally block returns 'second' - OVERRIDES try return!
+Returned: second (should be 'second')
+
+=== Test 3: Finally after catch ===
+1. Try block throws
+2. Catch block catches and returns 100
+3. Finally executes BEFORE catch return
+Returned: 100
+
+=== Test 4: Finally with await ===
+1. Try with await
+2. After await: result
+3. Finally block runs before return
+Returned: result
+
+All finally-return-order tests completed

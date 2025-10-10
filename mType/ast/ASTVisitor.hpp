@@ -58,5 +58,8 @@ namespace ast
         virtual T visitCastExpression(CastExpression* node) = 0;
         virtual T visitInstanceOfExpression(InstanceOfExpression* node) = 0;
         virtual T visitAwaitExpression(AwaitExpression* node) = 0;
+        virtual T visitTryNode(TryNode* node) = 0;
+        virtual T visitCatchNode(CatchNode* node) = 0;
+        virtual T visitThrowNode(ThrowNode* node) = 0;
     };
 }

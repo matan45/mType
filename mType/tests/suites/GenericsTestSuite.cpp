@@ -50,6 +50,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Global Generic Multiple Parameters",
                         passPath + "globalGenericMultipleParams.mt");
 
+        // Exception handling tests
+        addOutputVerificationTest("Try-Catch-Finally with Return",
+                        passPath + "tryCatchFinallyWithReturn.mt");
+
         // Generic interface constraint tests
         addOutputVerificationTest("Constrained Class Generics",
                         passPath + "constrainedClassGenerics.mt");

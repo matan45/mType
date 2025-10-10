@@ -10,6 +10,7 @@
 #include "variables/FunctionFrameManager.hpp"
 #include "control/LoopContextManager.hpp"
 #include "control/SwitchContextManager.hpp"
+#include "control/ExceptionContextManager.hpp"
 #include "types/TypeInferenceEngine.hpp"
 #include "types/TypeValidator.hpp"
 #include "types/GenericTypeResolver.hpp"
@@ -115,6 +116,11 @@ namespace vm::compiler
         // Import
         value::Value visitImportNode(ast::ImportNode* node) override;
 
+        // Exception handling
+        value::Value visitTryNode(ast::TryNode* node) override;
+        value::Value visitCatchNode(ast::CatchNode* node) override;
+        value::Value visitThrowNode(ast::ThrowNode* node) override;
+
     private:
         // Core components
         bytecode::BytecodeProgram program;
@@ -127,6 +133,7 @@ namespace vm::compiler
         variables::FunctionFrameManager functionFrameManager;
         control::LoopContextManager loopManager;
         control::SwitchContextManager switchManager;
+        control::ExceptionContextManager exceptionManager;
         types::GenericTypeResolver genericResolver;
         types::TypeInferenceEngine typeInference;
         types::TypeValidator typeValidator;

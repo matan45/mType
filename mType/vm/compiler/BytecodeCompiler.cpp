@@ -15,7 +15,7 @@ namespace vm::compiler
         , interfaceRegistrar(env, genericResolver)
         , classRegistrar(env, program, &interfaceRegistrar)
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
-                  functionFrameManager, loopManager, switchManager,
+                  functionFrameManager, loopManager, switchManager, exceptionManager,
                   typeInference, typeValidator, genericResolver)
         , literalCompiler(context)
         , arrayCompiler(context)
@@ -334,6 +334,22 @@ namespace vm::compiler
         importedAST->accept(*this);
 
         return std::monostate{};
+    }
+
+    value::Value BytecodeCompiler::visitTryNode(ast::TryNode* node)
+    {
+        return controlFlowCompiler.compileTry(node);
+    }
+
+    value::Value BytecodeCompiler::visitCatchNode(ast::CatchNode* node)
+    {
+        // Catch nodes should not be visited directly
+        throw std::runtime_error("Catch nodes should only be processed within try statements");
+    }
+
+    value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
+    {
+        return controlFlowCompiler.compileThrow(node);
     }
 
 } // namespace vm::compiler

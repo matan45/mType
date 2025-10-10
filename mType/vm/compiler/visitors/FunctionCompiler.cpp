@@ -5,7 +5,6 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
-#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -233,7 +232,6 @@ namespace vm::compiler::visitors
                                 if (argType != value::ValueType::OBJECT) {
                                     // null can be passed to object types
                                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                        std::cout << "[DEBUG FunctionCompiler] ERROR: Expected object but got " << argTypeStr << std::endl;
                                         throw errors::TypeException(
                                             "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
                                             " expects " + expectedType + " but got " + argTypeStr,
@@ -305,10 +303,15 @@ namespace vm::compiler::visitors
             }
 
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Static method call - use CALL_STATIC
+            // Static method call - use CALL_STATIC with source location
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+            // Add source location for the call instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         } else if (ctx.inInstanceMethod && ctx.currentClassNode) {
             // Unqualified call inside an instance method - could be either:
             // 1. Method call on 'this' (recursive or calling another method)
@@ -338,10 +341,15 @@ namespace vm::compiler::visitors
                 }
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                // Call method on 'this'
+                // Call method on 'this' with source location
                 ctx.program.emit(bytecode::OpCode::CALL_METHOD,
                              static_cast<uint32_t>(nameIndex),
                              static_cast<uint32_t>(arguments.size()));
+                // Add source location for the call instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
             } else {
                 // Regular function call
                 for (const auto& arg : arguments) {
@@ -352,6 +360,11 @@ namespace vm::compiler::visitors
                 ctx.program.emit(bytecode::OpCode::CALL,
                              static_cast<uint32_t>(nameIndex),
                              static_cast<uint32_t>(arguments.size()));
+                // Add source location for the call instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
             }
         } else {
             // Compile all arguments (left to right)
@@ -360,10 +373,15 @@ namespace vm::compiler::visitors
             }
 
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Regular function call - use CALL
+            // Regular function call - use CALL with source location
             ctx.program.emit(bytecode::OpCode::CALL,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+            // Add source location for the call instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
 
         // Pop generic type bindings if we pushed them
@@ -425,14 +443,51 @@ namespace vm::compiler::visitors
             if (returnValue) {
                 returnValue->accept(ctx.visitor);  // Will need delegation
 
-                // Wrap in Promise if in async function/lambda
-                if (ctx.functionFrameManager.currentFrame().isAsync) {
-                    ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-                }
+                // Check if we're in a try block with a finally
+                if (ctx.exceptionManager.hasPendingFinally()) {
+                    // Don't wrap in Promise yet - the RETURN_VALUE after finally will handle it
+                    // The finally block will manipulate the stack (e.g., print statements), so we need
+                    // to save the return value in a local variable before jumping to finally.
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+                    // Check if we already have a return value slot for this try-finally block
+                    // IMPORTANT: Reuse the same slot for all returns in the same try-finally to ensure
+                    // the finally block loads the correct return value
+                    size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+                    if (returnValueSlot == SIZE_MAX) {
+                        // First return in this try block - allocate a new slot
+                        returnValueSlot = ctx.variableTracker.getNextLocalSlot();
+                        ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+
+                        // Remember this slot so ControlFlowCompiler can load it back after finally
+                        ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
+                    }
+
+                    // Store return value in the special slot
+                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+
+                    // Jump to finally
+                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                    ctx.exceptionManager.registerReturnJump(returnJump);
+
+                    // After finally, we'll need to load the return value back
+                    // (This will be handled in ControlFlowCompiler when emitting code after finally)
+                } else {
+                    // No finally - wrap in Promise if needed and return immediately
+                    if (ctx.functionFrameManager.currentFrame().isAsync) {
+                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                    }
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+                }
             } else {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                // Check if we're in a try block with a finally
+                if (ctx.exceptionManager.hasPendingFinally()) {
+                    // Push null for void return, then jump to finally
+                    ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                    ctx.exceptionManager.registerReturnJump(returnJump);
+                } else {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                }
             }
         } else {
             // Not in a function context - shouldn't happen but handle gracefully

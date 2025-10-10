@@ -10,7 +10,9 @@
 #include "executors/ArrayExecutor.hpp"
 #include "executors/ObjectExecutor.hpp"
 #include "executors/LambdaExecutor.hpp"
+#include "executors/ExceptionExecutor.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/UserException.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -35,6 +37,7 @@ namespace vm::runtime
           , eventLoop(nullptr)  // Lazy initialization - only created when needed
           , currentTaskId(0)
           , suspendedByAwait(false)
+          , currentFinallyOffset(SIZE_MAX)  // Not in finally initially
     {
         callStack.reserve(64);
 
@@ -82,6 +85,7 @@ namespace vm::runtime
         arrayExecutor = std::make_unique<ArrayExecutor>(context);
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+        exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
@@ -131,8 +135,161 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
-            // Execute instruction
-            executeInstruction(instr);
+            try
+            {
+                // Execute instruction
+                executeInstruction(instr);
+            }
+            catch (errors::UserException& e)
+            {
+                // User exception thrown - need to find matching catch handler
+                // Search forward for CATCH instruction that matches the exception type
+
+                bool handled = false;
+                size_t searchIP = instructionPointer + 1;
+
+                // Determine search boundary - if we're in a function, search only within that function
+                size_t searchLimit = program->getInstructionCount();
+                if (!callStack.empty())
+                {
+                    // We're in a function - find its end boundary
+                    const std::string& functionName = callStack.back().functionName;
+                    auto* funcMetadata = program->getFunction(functionName);
+                    if (funcMetadata)
+                    {
+                        searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
+                    }
+                }
+
+                while (searchIP < searchLimit)
+                {
+                    const auto& searchInstr = program->getInstruction(searchIP);
+
+                    if (searchInstr.opcode == bytecode::OpCode::CATCH)
+                    {
+                        // Found a catch block - check if it matches the exception type
+                        if (!searchInstr.operands.empty())
+                        {
+                            std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
+
+                            if (e.matchesCatchType(catchType))
+                            {
+                                // Push exception object onto stack for STORE_LOCAL
+                                stackManager->push(e.getExceptionValue());
+
+                                // Jump to the CATCH instruction - it will execute CATCH opcode (no-op)
+                                // then STORE_LOCAL, then the catch body, then JUMP to finally/end
+                                instructionPointer = searchIP;
+                                handled = true;
+                                break;
+                            }
+                            // If CATCH doesn't match, continue searching (there might be outer catch blocks)
+                            // Don't break here - keep looking for matching handlers
+                        }
+                    }
+                    else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
+                    {
+                        // Check if this is the currently executing finally block
+                        // If so, skip it and continue searching (exception thrown FROM inside finally)
+                        if (searchIP == currentFinallyOffset)
+                        {
+                            // This is the finally we're already in - skip it
+                            searchIP++;
+                            continue;
+                        }
+
+                        // Hit a different finally block - execute it then re-throw
+                        instructionPointer = searchIP;
+                        handled = true; // Temporarily handled to execute finally
+                        // Continue execution at finally, then re-throw
+                        break;
+                    }
+                    // NOTE: We intentionally do NOT stop at RETURN/RETURN_VALUE here!
+                    // In nested try-catch blocks within a function, the outer catch might be
+                    // after the inner try-catch but before the function's RETURN.
+                    // We only stop searching when we reach the end of the instruction stream.
+
+                    searchIP++;
+                }
+
+                if (!handled)
+                {
+                    // No handler found in current scope
+                    // Check if we're in a function call - if so, unwind the call stack
+                    if (!callStack.empty())
+                    {
+                        // Pop the call frame
+                        CallFrame frame = callStack.back();
+                        callStack.pop_back();
+
+                        // Clean up the stack - pop all locals from the function
+                        // Restore stack to the frame base (same as RETURN does)
+                        while (stackManager->size() > frame.frameBase)
+                        {
+                            stackManager->getStack().pop_back();
+                        }
+
+                        // Restore instruction pointer to the caller (right after the CALL)
+                        instructionPointer = frame.returnAddress;
+
+                        // Now search for handlers from the caller's location
+                        // Set handled to false and searchIP to start from current location
+                        searchIP = instructionPointer;
+
+                        // Search again from caller's context
+                        while (searchIP < program->getInstructionCount())
+                        {
+                            const auto& searchInstr = program->getInstruction(searchIP);
+
+                            if (searchInstr.opcode == bytecode::OpCode::CATCH)
+                            {
+                                if (!searchInstr.operands.empty())
+                                {
+                                    std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
+
+                                    if (e.matchesCatchType(catchType))
+                                    {
+                                        stackManager->push(e.getExceptionValue());
+                                        instructionPointer = searchIP;
+                                        handled = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
+                            {
+                                if (searchIP == currentFinallyOffset)
+                                {
+                                    searchIP++;
+                                    continue;
+                                }
+
+                                instructionPointer = searchIP;
+                                handled = true;
+                                break;
+                            }
+                            else if (searchInstr.opcode == bytecode::OpCode::RETURN ||
+                                     searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
+                            {
+                                break;
+                            }
+
+                            searchIP++;
+                        }
+                    }
+
+                    if (!handled)
+                    {
+                        // No matching catch found anywhere - re-throw
+                        throw;
+                    }
+                }
+
+                // Continue execution from the catch/finally block
+                // Don't increment IP here - the normal loop will handle it
+                stats.instructionsExecuted++;
+                continue;  // Skip the rest of the loop iteration
+            }
 
             stats.instructionsExecuted++;
 
@@ -311,6 +468,24 @@ namespace vm::runtime
         case OpCode::LAMBDA: lambdaExecutor->handleLambda(instr);
             break;
         case OpCode::LAMBDA_INVOKE: lambdaExecutor->handleLambdaInvoke(instr);
+            break;
+
+        // Exception handling - delegated to ExceptionExecutor
+        case OpCode::TRY_BEGIN:
+            // Entering a new try block - we're no longer in a finally (if we were)
+            currentFinallyOffset = SIZE_MAX;
+            exceptionExecutor->handleTryBegin(instr);
+            break;
+        case OpCode::TRY_END: exceptionExecutor->handleTryEnd(instr);
+            break;
+        case OpCode::CATCH: exceptionExecutor->handleCatch(instr);
+            break;
+        case OpCode::THROW: exceptionExecutor->handleThrow(instr);
+            break;
+        case OpCode::FINALLY:
+            // Mark that we're entering this finally block
+            currentFinallyOffset = instructionPointer;
+            exceptionExecutor->handleFinally(instr);
             break;
 
         // Special

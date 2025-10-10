@@ -924,8 +924,16 @@ namespace services
             // Mark as being evaluated
             importManager->markAsBeingEvaluated(resolvedPath);
 
+            // Save the current file path and set it to the file being imported
+            // This ensures that nested imports in the imported file are resolved correctly
+            std::string savedCurrentFile = importManager->getCurrentFilePath();
+
             try
             {
+                // Set current file to the resolved path BEFORE parsing
+                // This is critical for nested imports to resolve correctly
+                importManager->setCurrentFilePath(resolvedPath);
+
                 // Parse and cache the imported AST
                 ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
 
@@ -944,11 +952,16 @@ namespace services
                 // This is needed for bytecode compilation to find classes
                 preRegisterClassDefinitions(importedAST);
 
+                // Restore the previous current file
+                importManager->setCurrentFilePath(savedCurrentFile);
+
                 // Mark as evaluated
                 importManager->markAsEvaluated(resolvedPath);
             }
             catch (...)
             {
+                // Restore the previous current file on error
+                importManager->setCurrentFilePath(savedCurrentFile);
                 // Unmark as being evaluated on error
                 importManager->unmarkAsBeingEvaluated(resolvedPath);
                 throw;

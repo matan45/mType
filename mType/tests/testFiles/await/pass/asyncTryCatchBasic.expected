@@ -1,0 +1,21 @@
+=== Test 1: Basic async try-catch ===
+In try block
+Result: 42
+
+=== Test 2: Async throw in try ===
+Before throw
+Caught: Test exception
+Result: caught
+
+=== Test 3: Async with finally ===
+In try
+Finally executed
+Result: 100
+
+=== Test 4: Complete try-catch-finally ===
+Try block start
+Caught: Runtime error
+Finally block executed
+Result: handled
+
+All async try-catch tests completed

@@ -84,7 +84,11 @@ namespace lexer
             {"default", TokenType::DEFAULT},
             {"isClassOf", TokenType::ISCLASSOF},
             {"async", TokenType::ASYNC},
-            {"await", TokenType::AWAIT}
+            {"await", TokenType::AWAIT},
+            {"try", TokenType::TRY},
+            {"catch", TokenType::CATCH},
+            {"throw", TokenType::THROW},
+            {"finally", TokenType::FINALLY}
         };
 
     public:

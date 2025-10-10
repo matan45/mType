@@ -81,8 +81,16 @@ namespace statements {
         // Mark as being evaluated to prevent circular imports
         importManager->markAsBeingEvaluated(resolvedPath);
 
+        // Save the current file path and set it to the file being imported
+        // This ensures that nested imports in the imported file are resolved correctly
+        std::string savedCurrentFile = importManager->getCurrentFilePath();
+
         try
         {
+            // Set current file to the resolved path BEFORE parsing
+            // This is critical for nested imports to resolve correctly
+            importManager->setCurrentFilePath(resolvedPath);
+
             // Normal mode: Parse .mt file
             ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
 
@@ -108,6 +116,9 @@ namespace statements {
 
             env->setImportEvaluation(false);
 
+            // Restore the previous current file
+            importManager->setCurrentFilePath(savedCurrentFile);
+
             // Mark as evaluated and no longer being evaluated
             importManager->markAsEvaluated(resolvedPath);
             importManager->unmarkAsBeingEvaluated(resolvedPath);
@@ -117,6 +128,8 @@ namespace statements {
         catch (...)
         {
             env->setImportEvaluation(false);
+            // Restore the previous current file on error
+            importManager->setCurrentFilePath(savedCurrentFile);
             importManager->unmarkAsBeingEvaluated(resolvedPath);
             throw;
         }

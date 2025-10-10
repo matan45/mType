@@ -747,6 +747,11 @@ namespace vm::compiler::visitors
         ctx.program.emit(bytecode::OpCode::NEW_OBJECT,
                      static_cast<uint32_t>(classNameIndex),
                      static_cast<uint32_t>(arguments.size()));
+        // Add source location for the new instruction
+        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                     node->getLocation().getLine(),
+                                     node->getLocation().getColumn(),
+                                     node->getLocation().getFilename());
 
         return std::monostate{};
     }
@@ -850,11 +855,16 @@ namespace vm::compiler::visitors
                 arg->accept(ctx.visitor);  // Will need delegation
             }
 
-            // Emit CALL_METHOD instruction
+            // Emit CALL_METHOD instruction with source location
             size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
             ctx.program.emit(bytecode::OpCode::CALL_METHOD,
                          static_cast<uint32_t>(methodNameIndex),
                          static_cast<uint32_t>(arguments.size()));
+            // Add source location for the call instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
 
         return std::monostate{};

@@ -47,6 +47,9 @@ namespace ast
             class SwitchNode;
             class CaseNode;
             class DefaultCaseNode;
+            class TryNode;
+            class CatchNode;
+            class ThrowNode;
         }
         
         namespace functions
@@ -121,4 +124,7 @@ namespace ast
     using CastExpression = nodes::expressions::CastExpression;
     using InstanceOfExpression = nodes::expressions::InstanceOfExpression;
     using AwaitExpression = nodes::expressions::AwaitExpression;
+    using TryNode = nodes::statements::TryNode;
+    using CatchNode = nodes::statements::CatchNode;
+    using ThrowNode = nodes::statements::ThrowNode;
 }

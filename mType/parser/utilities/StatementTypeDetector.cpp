@@ -54,6 +54,11 @@ namespace parser::utilities
             return StatementType::FUNCTION;
         }
 
+        if (isExceptionKeyword(current.type))
+        {
+            return StatementType::EXCEPTION;
+        }
+
         if (isTypeKeyword(current.type) || isModifierKeyword(current.type))
         {
             return StatementType::DECLARATION;
@@ -129,6 +134,18 @@ namespace parser::utilities
         {
         case TokenType::FUNCTION:
         case TokenType::NATIVE:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool StatementTypeDetector::isExceptionKeyword(TokenType type) noexcept
+    {
+        switch (type)
+        {
+        case TokenType::TRY:
+        case TokenType::THROW:
             return true;
         default:
             return false;

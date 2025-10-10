@@ -62,6 +62,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Complex Example",
                         passPath + "complexExample.mt");
 
+        // Exception handling tests
+        addOutputVerificationTest("Try-Catch-Finally with Return",
+                        passPath + "tryCatchFinallyWithReturn.mt");
+        addOutputVerificationTest("Exception in Finally Block",
+                        passPath + "exceptionInFinally.mt");
+
         // Object reference edge case tests
         addOutputVerificationTest("Circular Object References",
                         passPath + "circularObjectReferences.mt");
@@ -216,6 +222,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Extends Final Generic Class Error",
                         errorPath + "extendsFinalGenericClass.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("duplicate catch test",
+                        errorPath + "duplicate_catch_test.mt",
                         TestType::ERROR_EXPECTED);
     }
 }
