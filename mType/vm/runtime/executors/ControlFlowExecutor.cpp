@@ -1,6 +1,5 @@
 #include "ControlFlowExecutor.hpp"
 #include "../../../value/PromiseValue.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
