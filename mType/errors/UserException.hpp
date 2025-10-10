@@ -4,6 +4,12 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <variant>
+
+// Forward declaration to avoid circular dependency
+namespace runtimeTypes::klass {
+    class ObjectInstance;
+}
 
 namespace errors
 {
@@ -59,20 +65,8 @@ namespace errors
          * @brief Check if this exception can be caught by a catch block of the given type
          *
          * @param catchType The exception type specified in the catch clause
-         * @return true if this exception matches the catch type
+         * @return true if this exception matches the catch type (including inheritance)
          */
-        bool matchesCatchType(const std::string& catchType) const
-        {
-            // Exact match
-            if (exceptionTypeName == catchType)
-            {
-                return true;
-            }
-
-            // TODO: Add inheritance check when class hierarchy is available
-            // For now, we only support exact type matching
-
-            return false;
-        }
+        bool matchesCatchType(const std::string& catchType) const;
     };
 }

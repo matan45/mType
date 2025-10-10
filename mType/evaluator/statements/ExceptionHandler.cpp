@@ -8,6 +8,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ReturnException.hpp"
+#include <optional>
 
 namespace evaluator {
 namespace statements {
@@ -16,7 +17,7 @@ namespace statements {
     {
         Value result = std::monostate{};
         bool exceptionCaught = false;
-        errors::UserException* caughtException = nullptr;
+        std::optional<errors::UserException> caughtException;
 
         try
         {
@@ -71,7 +72,7 @@ namespace statements {
             else
             {
                 // No matching catch block - save exception to re-throw after finally
-                caughtException = &e;
+                caughtException = e; // Copy the exception instead of storing a pointer
             }
         }
         catch (errors::ReturnException&)
@@ -92,9 +93,9 @@ namespace statements {
         executeFinallyBlock(node->getFinallyBlock());
 
         // Re-throw uncaught exception
-        if (caughtException != nullptr)
+        if (caughtException.has_value())
         {
-            throw *caughtException;
+            throw caughtException.value();
         }
 
         return result;

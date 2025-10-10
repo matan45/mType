@@ -169,12 +169,6 @@
     <Filter Include="tests\testFiles\error\pass">
       <UniqueIdentifier>{19B6CA9A-05C6-766B-6E7F-DB895AAE6504}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\exceptions">
-      <UniqueIdentifier>{2B31467C-1741-F24C-80FA-566B6C29E1E5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\exceptions\pass">
-      <UniqueIdentifier>{113AACCC-7D1D-BB0C-8620-E948F282815D}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\generics">
       <UniqueIdentifier>{99C7027E-85EC-51FE-AE37-378E9ABB501C}</UniqueIdentifier>
     </Filter>
@@ -243,12 +237,6 @@
     </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\try-catch">
-      <UniqueIdentifier>{587411F3-C436-457D-0DE7-D30979E81D5B}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\try-catch\pass">
-      <UniqueIdentifier>{5E81F1EC-4AA7-BB53-33ED-401F1FB2E01F}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
@@ -1313,6 +1301,9 @@
     <ClCompile Include="errors\AccessViolationException.cpp">
       <Filter>errors</Filter>
     </ClCompile>
+    <ClCompile Include="errors\UserException.cpp">
+      <Filter>errors</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\Evaluator.cpp">
       <Filter>evaluator</Filter>
     </ClCompile>
@@ -1894,6 +1885,12 @@
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncInheritanceWithSuper.expected">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
@@ -1916,6 +1913,18 @@
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncMethods.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncNestedTryCatch.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncNestedTryCatch.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncTryCatchBasic.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncTryCatchBasic.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncVoidReturn.expected">
@@ -2671,6 +2680,12 @@
     <None Include="tests\testFiles\class\pass\staticScopingPass.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
@@ -2977,9 +2992,6 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
-    <None Include="tests\testFiles\exceptions\pass\basicFinally.mt">
-      <Filter>tests\testFiles\exceptions\pass</Filter>
-    </None>
     <None Include="tests\testFiles\generics\error\constraintGlobalFunctionViolation.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3203,6 +3215,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\error\circular_a.mt">
@@ -4068,9 +4086,6 @@
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>tests\testFiles\stringpool</Filter>
-    </None>
-    <None Include="tests\testFiles\try-catch\pass\simple_exception_test.mt">
-      <Filter>tests\testFiles\try-catch\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
