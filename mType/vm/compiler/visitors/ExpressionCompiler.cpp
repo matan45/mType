@@ -186,18 +186,30 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // Check parent class for inherited static fields
+            // Check parent class for inherited fields
             if (ctx.currentClassNode->hasParentClass()) {
                 std::string parentClassName = ctx.currentClassNode->getParentClassName();
                 auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
                 if (parentClassDef) {
                     auto parentField = parentClassDef->getField(name);
-                    if (parentField && parentField->isStatic()) {
-                        // Access inherited static field using parent class name
-                        std::string qualifiedName = parentClassName + "::" + name;
-                        size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
-                        return std::monostate{};
+                    if (parentField) {
+                        if (parentField->isStatic()) {
+                            // Access inherited static field using parent class name
+                            std::string qualifiedName = parentClassName + "::" + name;
+                            size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                            return std::monostate{};
+                        } else if (ctx.inInstanceMethod) {
+                            // Access inherited instance field through 'this'
+                            size_t thisSlot = ctx.variableTracker.resolveLocal("this",
+                                ctx.functionFrameManager.currentFrame().localStartSlot);
+                            if (thisSlot != SIZE_MAX) {
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(thisSlot), node);
+                                size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                                return std::monostate{};
+                            }
+                        }
                     }
                 }
             }

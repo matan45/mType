@@ -250,30 +250,34 @@ namespace services
                 return;
             }
 
+            // Save current file path
+            std::string savedCurrentFile = currentFilePath;
+
             // Resolve the import path (relative to current file)
             std::string resolvedPath = resolvePath(filePath);
             markAsBeingEvaluated(resolvedPath);
 
             try {
-                // Save current file path and set new current path
-                std::string savedCurrentFile = currentFilePath;
+                // Set current file to the resolved path BEFORE parsing
+                // This ensures that if the imported file has its own imports,
+                // they will be resolved relative to the imported file's directory
+                currentFilePath = resolvedPath;
 
                 // Parse and cache the imported file
                 ASTNode* importedAST = parseAndCacheAST(filePath);
                 importNode->setImportedAST(importedAST);
 
-                // Set current file to the resolved path for nested imports
-                currentFilePath = resolvedPath;
-
                 // Recursively resolve imports in the imported file
                 resolveAllImports(importedAST);
 
+                markAsEvaluated(resolvedPath);
+
                 // Restore previous current file
                 currentFilePath = savedCurrentFile;
-
-                markAsEvaluated(resolvedPath);
             }
             catch (...) {
+                // Restore current file on error
+                currentFilePath = savedCurrentFile;
                 unmarkAsBeingEvaluated(resolvedPath);
                 throw;
             }

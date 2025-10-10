@@ -40,6 +40,10 @@ namespace services
         // Set the base directory for relative imports
         void setBaseDirectory(const std::string& dir);
 
+        // Get/Set current file path (for nested import resolution)
+        std::string getCurrentFilePath() const { return currentFilePath; }
+        void setCurrentFilePath(const std::string& path) { currentFilePath = path; }
+
         // Resolve relative and absolute paths
         std::string resolvePath(const std::string& path);
 
