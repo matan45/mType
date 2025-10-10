@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <mutex>
+#include <iostream>
 
 namespace value
 {
@@ -147,6 +148,9 @@ namespace value
          */
         void resolve(const Value& val)
         {
+            // Local storage for errors to log outside the lock
+            std::vector<std::string> errorsToLog;
+
             {
                 std::lock_guard<std::mutex> lock(callbackMutex);
 
@@ -164,6 +168,7 @@ namespace value
                     {
                         std::string errorMsg = "Error in .then() callback: " + std::string(e.what());
                         callbackErrors.push_back(errorMsg);
+                        errorsToLog.push_back(errorMsg);
                     }
                 }
 
@@ -178,12 +183,19 @@ namespace value
                     {
                         std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
                         callbackErrors.push_back(errorMsg);
+                        errorsToLog.push_back(errorMsg);
                     }
                 }
 
                 // Clear callbacks after execution
                 thenCallbacks.clear();
                 finallyCallbacks.clear();
+            }
+
+            // Log errors outside the lock to avoid I/O under lock
+            for (const auto& error : errorsToLog)
+            {
+                std::cerr << "AsyncPromiseValue: " << error << std::endl;
             }
         }
 
@@ -198,6 +210,9 @@ namespace value
          */
         void reject(const std::string& error)
         {
+            // Local storage for errors to log outside the lock
+            std::vector<std::string> errorsToLog;
+
             {
                 std::lock_guard<std::mutex> lock(callbackMutex);
 
@@ -215,6 +230,7 @@ namespace value
                     {
                         std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
                         callbackErrors.push_back(errorMsg);
+                        errorsToLog.push_back(errorMsg);
                     }
                 }
 
@@ -229,12 +245,19 @@ namespace value
                     {
                         std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
                         callbackErrors.push_back(errorMsg);
+                        errorsToLog.push_back(errorMsg);
                     }
                 }
 
                 // Clear callbacks after execution
                 catchCallbacks.clear();
                 finallyCallbacks.clear();
+            }
+
+            // Log errors outside the lock to avoid I/O under lock
+            for (const auto& error : errorsToLog)
+            {
+                std::cerr << "AsyncPromiseValue: " << error << std::endl;
             }
         }
 

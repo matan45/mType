@@ -16,6 +16,14 @@ namespace runtime {
 
     EventLoop::~EventLoop() {
         stop();
+
+        // Clean up all remaining tasks to prevent memory leaks
+        std::lock_guard<std::mutex> lock(queueMutex);
+        allTasks.clear();
+        suspendedTasks.clear();
+        readyQueue.clear();
+        delayedTasks.clear();
+        pendingCallbacks.clear();
     }
 
     size_t EventLoop::scheduleTask(

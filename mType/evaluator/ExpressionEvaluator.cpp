@@ -546,8 +546,12 @@ namespace evaluator
         // causing DerivedService.method() to incorrectly call itself instead of BaseService.method()
         std::string currentClassName = context->getCurrentCallingClass();
         if (currentClassName.empty()) {
-            // Fallback to instance class if no calling class context (shouldn't happen in normal method execution)
-            currentClassName = currentInstance->getClassDefinition()->getName();
+            // ERROR: Calling class stack is empty! This should never happen in normal method execution
+            // The fallback is unsafe because it gives us the runtime type, which can cause infinite recursion
+            throw UndefinedException(
+                "super." + node->getMethodName() + "() called without proper method context. "
+                "Calling class stack is empty - this indicates a compiler bug or corrupted execution state.",
+                node->getLocation());
         }
 
         auto env = context->getEnvironment();
@@ -556,6 +560,26 @@ namespace evaluator
             throw UndefinedException(
                 "Current class '" + currentClassName + "' not found for super." + node->getMethodName() + "() call",
                 node->getLocation());
+        }
+
+        // Detect circular inheritance: walk up the parent chain and ensure we don't loop
+        {
+            std::unordered_set<std::string> visitedClasses;
+            auto checkClass = currentClass;
+            while (checkClass) {
+                if (visitedClasses.count(checkClass->getName())) {
+                    throw UndefinedException(
+                        "Circular inheritance detected for class '" + currentClassName + "' - "
+                        "cannot resolve super." + node->getMethodName() + "() call",
+                        node->getLocation());
+                }
+                visitedClasses.insert(checkClass->getName());
+
+                if (!checkClass->hasParentClass()) {
+                    break;
+                }
+                checkClass = checkClass->getParentClass();
+            }
         }
 
         if (!currentClass->hasParentClass()) {
