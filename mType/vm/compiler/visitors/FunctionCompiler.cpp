@@ -304,10 +304,15 @@ namespace vm::compiler::visitors
             }
 
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Static method call - use CALL_STATIC
+            // Static method call - use CALL_STATIC with source location
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+            // Add source location for the call instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         } else if (ctx.inInstanceMethod && ctx.currentClassNode) {
             // Unqualified call inside an instance method - could be either:
             // 1. Method call on 'this' (recursive or calling another method)
@@ -337,10 +342,15 @@ namespace vm::compiler::visitors
                 }
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                // Call method on 'this'
+                // Call method on 'this' with source location
                 ctx.program.emit(bytecode::OpCode::CALL_METHOD,
                              static_cast<uint32_t>(nameIndex),
                              static_cast<uint32_t>(arguments.size()));
+                // Add source location for the call instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
             } else {
                 // Regular function call
                 for (const auto& arg : arguments) {
@@ -351,6 +361,11 @@ namespace vm::compiler::visitors
                 ctx.program.emit(bytecode::OpCode::CALL,
                              static_cast<uint32_t>(nameIndex),
                              static_cast<uint32_t>(arguments.size()));
+                // Add source location for the call instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
             }
         } else {
             // Compile all arguments (left to right)
@@ -359,10 +374,15 @@ namespace vm::compiler::visitors
             }
 
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Regular function call - use CALL
+            // Regular function call - use CALL with source location
             ctx.program.emit(bytecode::OpCode::CALL,
                          static_cast<uint32_t>(nameIndex),
                          static_cast<uint32_t>(arguments.size()));
+            // Add source location for the call instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
         }
 
         // Pop generic type bindings if we pushed them

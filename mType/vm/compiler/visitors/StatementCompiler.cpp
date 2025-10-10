@@ -75,7 +75,7 @@ namespace vm::compiler::visitors
             // Update max local slot
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
-            // Emit STORE_LOCAL
+            // Emit STORE_LOCAL with source location
             size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
@@ -83,6 +83,11 @@ namespace vm::compiler::visitors
                                static_cast<uint32_t>(slot),
                                static_cast<uint32_t>(nameIndex)
                            });
+            // Add source location for the store instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
 
             return std::monostate{};
         }
@@ -258,6 +263,11 @@ namespace vm::compiler::visitors
                 ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
                                static_cast<uint32_t>(slot),
                                static_cast<uint32_t>(nameIndex));
+                // Add source location for the store instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
                 return std::monostate{};
             }
 
@@ -303,6 +313,11 @@ namespace vm::compiler::visitors
                 ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
                                static_cast<uint32_t>(localSlot),
                                static_cast<uint32_t>(nameIndex));
+                // Add source location for the store instruction
+                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                             node->getLocation().getLine(),
+                                             node->getLocation().getColumn(),
+                                             node->getLocation().getFilename());
                 return std::monostate{};
             }
 

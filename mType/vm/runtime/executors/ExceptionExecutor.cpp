@@ -1,6 +1,7 @@
 #include "ExceptionExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/global/VariableDefinition.hpp"
+#include <sstream>
 
 namespace vm::runtime
 {
@@ -39,7 +40,7 @@ namespace vm::runtime
         // Pop the exception object from the stack
         value::Value exceptionValue = context.stackManager->pop();
 
-        // Get exception type name
+        // Get exception type name and populate stack trace
         std::string typeName = "Exception";
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
         {
@@ -47,6 +48,44 @@ namespace vm::runtime
             if (objInstance)
             {
                 typeName = objInstance->getTypeName();
+
+                // Generate stack trace from call stack with source location information
+                std::ostringstream stackTrace;
+
+                // Add current location (where the throw happened)
+                auto* currentLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (currentLoc)
+                {
+                    stackTrace << "  at " << currentLoc->filename << ":"
+                              << currentLoc->line << ":" << currentLoc->column << "\n";
+                }
+                else
+                {
+                    stackTrace << "  at <unknown location>\n";
+                }
+
+                // Add call stack frames
+                for (const auto& frame : context.callStack)
+                {
+                    // The returnAddress points to the instruction AFTER the call
+                    // We need to look at the CALL instruction itself (one before)
+                    size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
+                    auto* loc = context.program->getSourceLocation(callSite);
+                    if (loc)
+                    {
+                        stackTrace << "  at " << frame.functionName << " ("
+                                  << loc->filename << ":" << loc->line << ":"
+                                  << loc->column << ")\n";
+                    }
+                    else
+                    {
+                        stackTrace << "  at " << frame.functionName
+                                  << " (bytecode offset " << frame.returnAddress << ")\n";
+                    }
+                }
+
+                // Set the stackTrace field on the exception object
+                objInstance->setField("stackTrace", stackTrace.str());
             }
         }
 

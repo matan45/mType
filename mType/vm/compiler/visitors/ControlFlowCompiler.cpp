@@ -460,8 +460,8 @@ namespace vm::compiler::visitors
         // Compile the exception expression (should evaluate to an object)
         node->getException()->accept(ctx.visitor);
 
-        // Emit THROW instruction
-        ctx.program.emit(bytecode::OpCode::THROW);
+        // Emit THROW instruction with source location
+        ctx.emitter.emitWithLocation(bytecode::OpCode::THROW, node);
 
         return std::monostate{};
     }
