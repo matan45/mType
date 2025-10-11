@@ -74,6 +74,7 @@ namespace lexer
             {"true", TokenType::TRUE},
             {"native", TokenType::NATIVE},
             {"import", TokenType::IMPORT},
+            {"from", TokenType::FROM},
             {"false", TokenType::FALSE},
             {"switch", TokenType::SWITCH},
             {"case", TokenType::CASE},

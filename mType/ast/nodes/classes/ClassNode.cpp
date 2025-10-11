@@ -4,7 +4,7 @@ namespace ast::nodes::classes
 {
     // Backward compatibility constructor
     ClassNode::ClassNode(const std::string& name, const SourceLocation& loc)
-        : ASTNode(loc), className(name), finalClass(false)
+        : ASTNode(loc), className(name), finalClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -12,7 +12,7 @@ namespace ast::nodes::classes
                          const std::vector<GenericTypeParameter>& generics,
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
-        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false)
+        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -22,7 +22,7 @@ namespace ast::nodes::classes
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics),
-          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false)
+          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -146,6 +146,26 @@ namespace ast::nodes::classes
     void ClassNode::setFinal(bool isFinal)
     {
         finalClass = isFinal;
+    }
+
+    VisibilityModifier ClassNode::getVisibility() const
+    {
+        return visibility;
+    }
+
+    void ClassNode::setVisibility(VisibilityModifier vis)
+    {
+        visibility = vis;
+    }
+
+    bool ClassNode::isPublic() const
+    {
+        return visibility == VisibilityModifier::PUBLIC;
+    }
+
+    bool ClassNode::isPrivate() const
+    {
+        return visibility == VisibilityModifier::PRIVATE;
     }
 
     Value ClassNode::accept(ASTVisitor<Value>& visitor)

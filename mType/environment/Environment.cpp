@@ -16,6 +16,7 @@ namespace environment
         scopeManager(scopeMgr),
         nativeRegistry(nativeReg),
         interfaceRegistry(std::make_shared<runtimeTypes::klass::InterfaceRegistry>()),
+        exportRegistry(std::make_shared<ExportRegistry>()),
         importEvaluationActive(false),
         importManager(nullptr)
     {
@@ -70,6 +71,11 @@ namespace environment
     std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> Environment::getInterfaceRegistry() const
     {
         return interfaceRegistry;
+    }
+
+    std::shared_ptr<ExportRegistry> Environment::getExportRegistry() const
+    {
+        return exportRegistry;
     }
 
     void Environment::registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition)

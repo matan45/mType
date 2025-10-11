@@ -2,6 +2,7 @@
 
 #include "../../ASTNode.hpp"
 #include "../../GenericTypeParameter.hpp"
+#include "../../VisibilityModifier.hpp"
 #include <vector>
 #include <memory>
 
@@ -15,6 +16,7 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> methods; // Method signatures only
         std::vector<std::string> extendsInterfaces; // Parent interfaces
         bool finalInterface; // NEW: Final modifier to prevent extension
+        VisibilityModifier visibility; // NEW: Top-level visibility for imports
     public:
         explicit InterfaceNode(const std::string& interfaceName,
                                const std::vector<GenericTypeParameter>& generics = {},
@@ -39,6 +41,12 @@ namespace ast::nodes::classes
         // NEW: Final modifier methods
         bool isFinal() const;
         void setFinal(bool isFinal);
+
+        // NEW: Visibility modifier methods (for import/export system)
+        VisibilityModifier getVisibility() const;
+        void setVisibility(VisibilityModifier vis);
+        bool isPublic() const;
+        bool isPrivate() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

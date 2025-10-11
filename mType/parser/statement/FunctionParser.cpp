@@ -2,6 +2,7 @@
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/AsyncValidator.hpp"
+#include "../utilities/VisibilityParser.hpp"
 #include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
@@ -12,6 +13,7 @@ namespace parser::statement
     using namespace ast::nodes::functions;
     using namespace token;
     using namespace errors;
+    using namespace parser::utilities;
 
     FunctionParser::FunctionParser(TokenStream& stream, ParseContext& ctx)
         : BaseParser(stream, ctx)
@@ -42,6 +44,10 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> FunctionParser::parseFunction()
     {
+        // Parse optional visibility modifier (public/private)
+        // Default is PUBLIC if not specified
+        VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
+
         bool isNative = false;
         bool isAsync = false;
 
@@ -110,6 +116,7 @@ namespace parser::statement
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
                                                        genericParameters, std::move(body),
                                                        functionGenericParameters, isAsync);
+        funcNode->setVisibility(visibility);
         return funcNode;
     }
 

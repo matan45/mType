@@ -5,6 +5,8 @@
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
+#include "../../ast/nodes/classes/ClassNode.hpp"
+#include "../../ast/nodes/classes/InterfaceNode.hpp"
 #include "../../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -12,64 +14,40 @@
 #include "../../constants/LambdaConstants.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../services/ImportManager.hpp"
+#include "../../environment/registry/ExportRegistry.hpp"
 
 using namespace errors;
 using namespace runtimeTypes::global;
+using namespace environment::registry;
 
 namespace evaluator {
 namespace statements {
 
     Value ImportAndFunctionHandler::evaluateImport(ImportNode* node)
     {
-        // Check if import is already resolved (e.g., from JSON deserialization)
-        if (node->isResolved() && node->getImportedAST())
-        {
-            // Directly evaluate the embedded AST instead of resolving from files
-            ASTNode* importedAST = node->getImportedAST();
-
-            // Evaluate the embedded AST directly using the current evaluation context
-            // This should register all classes, functions, etc. from the import
-            if (importedAST && stmtEvaluator)
-            {
-                // Recursively evaluate the imported AST using the statement evaluator
-                if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(importedAST))
-                {
-                    const auto& statements = programNode->getStatements();
-                    for (const auto& stmt : statements)
-                    {
-                        // Delegate to statement evaluator
-                        // NOTE: This calls evaluate which will dispatch to the correct handler
-                        stmtEvaluator->evaluate(stmt.get());
-                    }
-                }
-                else
-                {
-                    // Not a program node, evaluate directly
-                    stmtEvaluator->evaluate(importedAST);
-                }
-            }
-
-            return std::monostate{}; // Import completed successfully
-        }
-
-        // Fall back to normal ImportManager-based resolution for non-resolved imports
         auto env = context->getEnvironment();
         auto importManager = env->getImportManager();
+        auto exportRegistry = env->getExportRegistry();
 
         if (!importManager)
         {
             throw TypeException("Import manager not available for import evaluation");
         }
 
-        std::string filePath = node->getFilePath();
+        if (!exportRegistry)
+        {
+            throw TypeException("Export registry not available for import evaluation");
+        }
 
-        // Use appropriate path for resolution based on execution mode
+        std::string filePath = node->getFilePath();
         std::string resolvedPath = importManager->resolvePath(filePath);
 
         // Check if already evaluated to avoid re-evaluation
         if (importManager->isEvaluated(resolvedPath))
         {
-            return std::monostate{}; // Already imported
+            // File already evaluated, but we still need to validate imports
+            validateAndImportSymbols(node, resolvedPath, exportRegistry);
+            return std::monostate{};
         }
 
         // Check for circular imports
@@ -80,24 +58,25 @@ namespace statements {
 
         // Mark as being evaluated to prevent circular imports
         importManager->markAsBeingEvaluated(resolvedPath);
-
-        // Save the current file path and set it to the file being imported
-        // This ensures that nested imports in the imported file are resolved correctly
         std::string savedCurrentFile = importManager->getCurrentFilePath();
 
         try
         {
-            // Set current file to the resolved path BEFORE parsing
-            // This is critical for nested imports to resolve correctly
+            // Set current file to the resolved path
             importManager->setCurrentFilePath(resolvedPath);
 
-            // Normal mode: Parse .mt file
+            // Parse the imported file
             ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
 
-            // Set import evaluation context and evaluate the loaded AST
+            // STEP 1: First pass - collect all exported symbols from the file
+            collectExportedSymbols(importedAST, resolvedPath, exportRegistry);
+
+            // STEP 2: Validate that requested symbols exist and are public
+            validateAndImportSymbols(node, resolvedPath, exportRegistry);
+
+            // STEP 3: Evaluate the imported file (registers classes, functions, etc.)
             env->setImportEvaluation(true);
 
-            // Evaluate the imported AST
             if (stmtEvaluator && importedAST)
             {
                 if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(importedAST))
@@ -116,23 +95,146 @@ namespace statements {
 
             env->setImportEvaluation(false);
 
-            // Restore the previous current file
+            // Restore state
             importManager->setCurrentFilePath(savedCurrentFile);
-
-            // Mark as evaluated and no longer being evaluated
             importManager->markAsEvaluated(resolvedPath);
             importManager->unmarkAsBeingEvaluated(resolvedPath);
 
-            return std::monostate{}; // Imports return void
+            return std::monostate{};
         }
         catch (...)
         {
             env->setImportEvaluation(false);
-            // Restore the previous current file on error
             importManager->setCurrentFilePath(savedCurrentFile);
             importManager->unmarkAsBeingEvaluated(resolvedPath);
             throw;
         }
+    }
+
+    void ImportAndFunctionHandler::collectExportedSymbols(ASTNode* ast,
+                                                          const std::string& filePath,
+                                                          std::shared_ptr<ExportRegistry> exportRegistry)
+    {
+        if (!ast) return;
+
+        // Handle ProgramNode - traverse all statements
+        if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(ast))
+        {
+            const auto& statements = programNode->getStatements();
+            for (const auto& stmt : statements)
+            {
+                collectExportedSymbolsFromNode(stmt.get(), filePath, exportRegistry);
+            }
+        }
+        else
+        {
+            collectExportedSymbolsFromNode(ast, filePath, exportRegistry);
+        }
+    }
+
+    void ImportAndFunctionHandler::collectExportedSymbolsFromNode(ASTNode* node,
+                                                                  const std::string& filePath,
+                                                                  std::shared_ptr<ExportRegistry> exportRegistry)
+    {
+        using namespace ast::nodes::classes;
+        using namespace ast::nodes::functions;
+
+        if (!node) return;
+
+        // Register class
+        if (auto classNode = dynamic_cast<ClassNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                classNode->getClassName(),
+                ExportedSymbolType::CLASS,
+                classNode->getVisibility()
+            );
+        }
+        // Register interface
+        else if (auto interfaceNode = dynamic_cast<InterfaceNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                interfaceNode->getName(),
+                ExportedSymbolType::INTERFACE,
+                interfaceNode->getVisibility()
+            );
+        }
+        // Register function
+        else if (auto functionNode = dynamic_cast<FunctionNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                functionNode->getName(),
+                ExportedSymbolType::FUNCTION,
+                functionNode->getVisibility()
+            );
+        }
+        // Handle other node types if needed
+    }
+
+    void ImportAndFunctionHandler::validateAndImportSymbols(ImportNode* node,
+                                                            const std::string& resolvedPath,
+                                                            std::shared_ptr<ExportRegistry> exportRegistry)
+    {
+        if (node->isWildcard())
+        {
+            // Wildcard import - no validation needed, all public symbols are imported
+            // The actual symbols are already registered in the environment
+            return;
+        }
+
+        if (node->isSelective())
+        {
+            // Selective import - validate each symbol
+            const auto& requestedSymbols = node->getImportedSymbols();
+
+            for (const auto& symbolName : requestedSymbols)
+            {
+                // Check if symbol exists
+                if (!exportRegistry->symbolExists(resolvedPath, symbolName))
+                {
+                    throw TypeException(
+                        "Cannot import '" + symbolName + "' from '" + node->getFilePath() + "': " +
+                        "Symbol not found. Available symbols: " + getAvailableSymbolsString(resolvedPath, exportRegistry)
+                    );
+                }
+
+                // Check if symbol is public (exported)
+                if (!exportRegistry->isSymbolExported(resolvedPath, symbolName))
+                {
+                    throw TypeException(
+                        "Cannot import '" + symbolName + "' from '" + node->getFilePath() + "': " +
+                        "Symbol is private and not exported. Only public symbols can be imported."
+                    );
+                }
+            }
+        }
+    }
+
+    std::string ImportAndFunctionHandler::getAvailableSymbolsString(const std::string& filePath,
+                                                                    std::shared_ptr<ExportRegistry> exportRegistry)
+    {
+        auto publicSymbols = exportRegistry->getPublicSymbols(filePath);
+
+        if (publicSymbols.empty())
+        {
+            return "(none)";
+        }
+
+        std::string result;
+        for (size_t i = 0; i < publicSymbols.size(); ++i)
+        {
+            if (i > 0) result += ", ";
+            result += publicSymbols[i];
+            if (i >= 9 && publicSymbols.size() > 10)
+            {
+                result += ", ... (" + std::to_string(publicSymbols.size() - 10) + " more)";
+                break;
+            }
+        }
+        return result;
     }
 
     Value ImportAndFunctionHandler::evaluateFunction(FunctionNode* node)

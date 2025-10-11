@@ -1,0 +1,10 @@
+Rectangle - Width: 5, Height: 10
+Area: 50
+Perimeter: 30
+Diagonal^2: 125
+Circle - Radius: 7
+Area: 147
+Circumference: 42
+Larger area: 147
+Normalized -42: 42
+Multi-level import test completed!

@@ -25,6 +25,7 @@ namespace token
         DIVIDE_ASSIGN, // /=
         MODULO_ASSIGN, // %=
         IMPORT, // Add this for import statements
+        FROM, // from keyword for selective imports
         LESS, LESS_EQUALS, GREATER, GREATER_EQUALS, // <, <=, >, >=
         INCREMENT, DECREMENT, // ++, --
         FINAL, // Add this for final variables

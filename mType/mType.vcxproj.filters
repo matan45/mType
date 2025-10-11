@@ -184,8 +184,20 @@
     <Filter Include="tests\testFiles\import\error">
       <UniqueIdentifier>{9D5854C1-8913-446D-32CB-BCB71E658EFD}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\import\error\nested">
+      <UniqueIdentifier>{EF374E2A-5BF1-B8D4-E450-D3AE50096F44}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\import\pass">
       <UniqueIdentifier>{CA3ECAA8-364C-F88E-BF32-F4792B3FC445}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import\pass\models">
+      <UniqueIdentifier>{5D1D4F27-4959-5291-B26B-6A889EC6FAAB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import\pass\nested">
+      <UniqueIdentifier>{7CC9F728-6805-FB92-D117-138ABD72A3AD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\import\pass\utils">
+      <UniqueIdentifier>{CABF9D66-362E-F3E5-7F17-AEE5EBC4E881}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\integration">
       <UniqueIdentifier>{CD7154F4-397F-82DA-C265-7EC52E724E91}</UniqueIdentifier>
@@ -237,12 +249,6 @@
     </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\test">
-      <UniqueIdentifier>{29969273-1525-1C3D-BE43-3038AAB12CE3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\test\pass">
-      <UniqueIdentifier>{CF6DD5C7-3B30-0952-84E0-97DEF0E1E12F}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\typeChecking">
       <UniqueIdentifier>{47E64211-33A1-32BD-DC58-AB07C8F27C4D}</UniqueIdentifier>
@@ -325,6 +331,9 @@
       <Filter>ast</Filter>
     </ClInclude>
     <ClInclude Include="ast\NodeClassesDeclaration.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\VisibilityModifier.hpp">
       <Filter>ast</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
@@ -529,6 +538,9 @@
       <Filter>environment\manager</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\ClassRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ExportRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\FunctionRegistry.hpp">
@@ -853,6 +865,9 @@
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\VisibilityParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="runtime\EventLoop.hpp">
@@ -1298,6 +1313,9 @@
     <ClCompile Include="environment\registry\ClassRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\ExportRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\FunctionRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
@@ -1530,6 +1548,9 @@
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\VisibilityParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="run\Main.cpp">
@@ -2378,6 +2399,9 @@
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\constructorReturnTypesVoid.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\duplicate_catch_test.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\extendsFinalClass.mt">
@@ -3235,34 +3259,79 @@
     <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\error\circular_a.mt">
+    <None Include="tests\testFiles\import\error\circular_module_a.mt">
       <Filter>tests\testFiles\import\error</Filter>
     </None>
-    <None Include="tests\testFiles\import\error\circular_b.mt">
+    <None Include="tests\testFiles\import\error\circular_module_b.mt">
       <Filter>tests\testFiles\import\error</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\book_utils.mt">
+    <None Include="tests\testFiles\import\error\circular_three_way_a.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\circular_three_way_b.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\circular_three_way_c.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\nested\test_nested_private_access.mt">
+      <Filter>tests\testFiles\import\error\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\nested\test_transitive_private.mt">
+      <Filter>tests\testFiles\import\error\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\test_import_nonexistent_symbol.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\test_import_private_class.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\test_import_private_symbol.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\test_wildcard_no_access_private.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\models\DataProcessor.mt">
+      <Filter>tests\testFiles\import\pass\models</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\models\Shape.mt">
+      <Filter>tests\testFiles\import\pass\models</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\nested\test_nested_imports.expected">
+      <Filter>tests\testFiles\import\pass\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\nested\test_nested_imports.mt">
+      <Filter>tests\testFiles\import\pass\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\nested\test_wildcard_nested_imports.expected">
+      <Filter>tests\testFiles\import\pass\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\nested\test_wildcard_nested_imports.mt">
+      <Filter>tests\testFiles\import\pass\nested</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\selective_import_utils.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\main_script.expected">
+    <None Include="tests\testFiles\import\pass\test_selective_import.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\main_script.mt">
+    <None Include="tests\testFiles\import\pass\test_selective_import.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\math_utils.mt">
+    <None Include="tests\testFiles\import\pass\test_wildcard_import.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\string_utils.mt">
+    <None Include="tests\testFiles\import\pass\test_wildcard_import.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\test_import_main.expected">
-      <Filter>tests\testFiles\import\pass</Filter>
+    <None Include="tests\testFiles\import\pass\utils\MathCore.mt">
+      <Filter>tests\testFiles\import\pass\utils</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\test_import_main.mt">
-      <Filter>tests\testFiles\import\pass</Filter>
+    <None Include="tests\testFiles\import\pass\utils\StringUtils.mt">
+      <Filter>tests\testFiles\import\pass\utils</Filter>
     </None>
-    <None Include="tests\testFiles\import\pass\test_library.mt">
+    <None Include="tests\testFiles\import\pass\wildcard_import_utils.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
@@ -4116,15 +4185,6 @@
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>tests\testFiles\stringpool</Filter>
-    </None>
-    <None Include="tests\testFiles\test\pass\nested_in_function_test.mt">
-      <Filter>tests\testFiles\test\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\test\pass\simple_nested_nomatch_test.mt">
-      <Filter>tests\testFiles\test\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\test\pass\simple_nested_test.mt">
-      <Filter>tests\testFiles\test\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>

@@ -3,20 +3,52 @@
 
 namespace ast::nodes::statements
 {
-    // Implementation is in the header file (inline)
-    ImportNode::ImportNode(const std::string& path, const SourceLocation& loc)
-        : ASTNode(loc), filePath(path), importedAST(nullptr)
+    // New constructor for selective imports
+    ImportNode::ImportNode(const std::string& path,
+                          ImportType type,
+                          const std::vector<std::string>& symbols,
+                          const SourceLocation& loc)
+        : ASTNode(loc), filePath(path), importType(type), importedSymbols(symbols), importedAST(nullptr)
     {
     }
 
+    // New constructor for wildcard imports
+    ImportNode::ImportNode(const std::string& path,
+                          ImportType type,
+                          const SourceLocation& loc)
+        : ASTNode(loc), filePath(path), importType(type), importedAST(nullptr)
+    {
+    }
+
+    // Backward compatibility constructor (for AST caching)
     ImportNode::ImportNode(const std::string& path, ASTNode* ast, const SourceLocation& loc)
-        : ASTNode(loc), filePath(path), importedAST(ast)
+        : ASTNode(loc), filePath(path), importType(ImportType::WILDCARD), importedAST(ast)
     {
     }
 
     const std::string& ImportNode::getFilePath() const
     {
         return filePath;
+    }
+
+    ImportType ImportNode::getImportType() const
+    {
+        return importType;
+    }
+
+    const std::vector<std::string>& ImportNode::getImportedSymbols() const
+    {
+        return importedSymbols;
+    }
+
+    bool ImportNode::isWildcard() const
+    {
+        return importType == ImportType::WILDCARD;
+    }
+
+    bool ImportNode::isSelective() const
+    {
+        return importType == ImportType::SELECTIVE;
     }
 
     ASTNode* ImportNode::getImportedAST() const
@@ -32,6 +64,21 @@ namespace ast::nodes::statements
     void ImportNode::setFilePath(const std::string& path)
     {
         filePath = path;
+    }
+
+    void ImportNode::setImportType(ImportType type)
+    {
+        importType = type;
+    }
+
+    void ImportNode::setImportedSymbols(const std::vector<std::string>& symbols)
+    {
+        importedSymbols = symbols;
+    }
+
+    void ImportNode::addImportedSymbol(const std::string& symbol)
+    {
+        importedSymbols.push_back(symbol);
     }
 
     void ImportNode::setImportedAST(ASTNode* ast)
