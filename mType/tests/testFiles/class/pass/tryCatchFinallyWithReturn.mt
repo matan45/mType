@@ -1,5 +1,5 @@
 // Test try-catch-finally with return statements in class methods
-import "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/Exception.mt";
 class Calculator {
     int value;
 

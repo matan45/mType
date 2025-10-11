@@ -1,7 +1,7 @@
-import "../../lib/exceptions/Exception.mt";
-import "../../lib/exceptions/RuntimeException.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Test nested try-catch in async functions
 function async nestedTryCatch(): Promise<String> {

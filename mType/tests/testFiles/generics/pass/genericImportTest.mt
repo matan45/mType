@@ -1,9 +1,9 @@
 // Test generics with imports - instantiate classes from other files
-import "genericUtils.mt";
-import "../../lib/primitives/Bool.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/Float.mt";
+import * from "genericUtils.mt";
+import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Float.mt";
 
 function main(): void {
     // Test Wrapper<Bool> - using default constructor and methods

@@ -1,5 +1,5 @@
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Generic class with method overloading
 class Storage<T> {

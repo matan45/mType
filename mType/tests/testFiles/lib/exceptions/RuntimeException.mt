@@ -1,5 +1,5 @@
 // RuntimeException - base class for runtime errors
-import "Exception.mt";
+import * from "Exception.mt";
 
 class RuntimeException extends Exception {
     // Constructor with message

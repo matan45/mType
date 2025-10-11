@@ -158,6 +158,14 @@ namespace vm::compiler
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
+
+        // Import validation helpers
+        void collectExportedSymbols(ast::ASTNode* ast,
+                                     const std::string& filePath,
+                                     std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
+        void collectExportedSymbolsFromNode(ast::ASTNode* node,
+                                             const std::string& filePath,
+                                             std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
     };
 }
 

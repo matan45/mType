@@ -1,5 +1,5 @@
 // Test: Generic class casting
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
 class Container<T> {
     public T value;
     public constructor(T v) { this.value = v; }

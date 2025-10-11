@@ -150,6 +150,7 @@ namespace vm::compiler::types
                     if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
                     if (funcMetadata->returnType == "string") return value::ValueType::STRING;
                     if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+                    if (funcMetadata->returnType == "void") return value::ValueType::VOID;
                     return value::ValueType::OBJECT;
                 }
             }

@@ -1,4 +1,4 @@
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Basic generic class definition and instantiation
 class Box<T> {

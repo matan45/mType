@@ -2,8 +2,8 @@
 // Tests the enhanced lambda-to-interface implementation with various scenarios
 
 // Import required object wrapper types from standard library
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Test functional interface with generic type
 interface Processor<T> {

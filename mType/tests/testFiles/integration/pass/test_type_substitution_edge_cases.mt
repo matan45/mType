@@ -1,15 +1,15 @@
 // Comprehensive test suite for type substitution edge cases
 // Tests both correctness and performance optimizations
 
-import "../../lib/collections/List.mt";
-import "../../lib/collections/HashMap.mt";
-import "../../lib/collections/HashSet.mt";
-import "../../lib/collections/Stack.mt";
-import "../../lib/collections/Queue.mt";
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Float.mt";
-import "../../lib/primitives/Bool.mt";
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/HashMap.mt";
+import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/collections/Stack.mt";
+import * from "../../lib/collections/Queue.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Float.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Test 1: Basic generic instantiation (should work)
 class Container<T> {

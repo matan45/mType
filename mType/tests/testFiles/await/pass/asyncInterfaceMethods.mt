@@ -1,5 +1,5 @@
 // Test async methods in interfaces
-import "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Bool.mt";
 class Result {
     int value;
 

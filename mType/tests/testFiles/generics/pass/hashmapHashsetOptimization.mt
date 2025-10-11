@@ -1,8 +1,8 @@
 // Test HashMap and HashSet contains() methods for hash-based optimization
-import "../../lib/collections/HashMap.mt";
-import "../../lib/collections/HashSet.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/collections/HashMap.mt";
+import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 class Person {
     String name;

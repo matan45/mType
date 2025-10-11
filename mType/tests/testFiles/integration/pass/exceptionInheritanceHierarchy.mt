@@ -1,5 +1,5 @@
 // Test exception inheritance hierarchy and catch polymorphism
-import "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 // Create a hierarchy of custom exceptions
 class ApplicationException extends Exception {

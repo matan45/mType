@@ -1,9 +1,9 @@
 // Comprehensive test: Import interfaces with extends and multiple generic types
-import "BaseInterfaces.mt";
-import "ExtendedInterfaces.mt";
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Bool.mt";
+import * from "BaseInterfaces.mt";
+import * from "ExtendedInterfaces.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Test class implementing complex interface hierarchy
 class StringIntCache implements CacheStore<String, Int, String> {

@@ -1,6 +1,6 @@
 // Pass test: Final generic class can be defined and used
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 final class FinalBox<T> {
     T value;
