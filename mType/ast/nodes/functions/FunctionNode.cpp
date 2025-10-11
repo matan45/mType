@@ -11,7 +11,7 @@ namespace ast::nodes::functions
                                bool async,
                                const SourceLocation& loc)
         : ASTNode(loc), name(funcName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(funcBody)), isAsync(async)
+          parameters(params), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -21,7 +21,7 @@ namespace ast::nodes::functions
                                std::shared_ptr<ASTNode> funcBody,
                                bool async,
                                const SourceLocation& loc)
-        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async)
+        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -38,7 +38,7 @@ namespace ast::nodes::functions
                                std::unique_ptr<ASTNode> funcBody,
                                bool async,
                                const SourceLocation& loc)
-        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async)
+        : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
     {
         // Convert ValueType to GenericType
         returnType = std::make_shared<GenericType>(retType);
@@ -187,6 +187,26 @@ namespace ast::nodes::functions
     size_t FunctionNode::getParameterCount() const
     {
         return parameters.size();
+    }
+
+    VisibilityModifier FunctionNode::getVisibility() const
+    {
+        return visibility;
+    }
+
+    void FunctionNode::setVisibility(VisibilityModifier vis)
+    {
+        visibility = vis;
+    }
+
+    bool FunctionNode::isPublic() const
+    {
+        return visibility == VisibilityModifier::PUBLIC;
+    }
+
+    bool FunctionNode::isPrivate() const
+    {
+        return visibility == VisibilityModifier::PRIVATE;
     }
 
     Value FunctionNode::accept(ASTVisitor<Value>& visitor)

@@ -12,6 +12,31 @@ namespace parser::utilities
             return StatementType::CLASS;
         case TokenType::INTERFACE:
             return StatementType::INTERFACE;
+        case TokenType::PUBLIC:
+        case TokenType::PRIVATE:
+            // Check if 'public'/'private' is followed by 'class', 'interface', 'function', or type keyword
+            {
+                Token next = stream.peek();
+                if (next.type == TokenType::CLASS)
+                {
+                    return StatementType::CLASS;
+                }
+                else if (next.type == TokenType::INTERFACE)
+                {
+                    return StatementType::INTERFACE;
+                }
+                else if (next.type == TokenType::FUNCTION || next.type == TokenType::NATIVE)
+                {
+                    return StatementType::FUNCTION;
+                }
+                else if (isTypeKeyword(next.type) || isModifierKeyword(next.type) || next.type == TokenType::IDENTIFIER)
+                {
+                    // public/private followed by type keyword, modifier, or identifier (custom class) = variable declaration
+                    return StatementType::DECLARATION;
+                }
+                // Otherwise fall through
+            }
+            break;
         case TokenType::FINAL:
             // Check if 'final' is followed by 'class' or 'interface'
             {

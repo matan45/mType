@@ -2,6 +2,7 @@
 #include "../../ASTNode.hpp"
 #include "../../GenericTypeParameter.hpp"
 #include "../../GenericType.hpp"
+#include "../../VisibilityModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ParameterType.hpp"
 #include <string>
@@ -21,6 +22,7 @@ namespace ast::nodes::functions
         std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> parameters;  // CHANGED: GenericType instead of ValueType
         std::shared_ptr<ASTNode> body;
         bool isAsync;  // NEW: Flag to indicate async function
+        VisibilityModifier visibility;  // NEW: Top-level visibility for imports
 
     public:
         // NEW: Primary constructor with generic support
@@ -75,6 +77,12 @@ namespace ast::nodes::functions
         // NEW: Async-related methods
         bool getIsAsync() const { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
+
+        // NEW: Visibility modifier methods (for import/export system)
+        VisibilityModifier getVisibility() const;
+        void setVisibility(VisibilityModifier vis);
+        bool isPublic() const;
+        bool isPrivate() const;
 
         void setName(const std::string& funcName);
         void setGenericReturnType(std::shared_ptr<GenericType> retType);

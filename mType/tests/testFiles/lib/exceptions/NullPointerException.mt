@@ -1,5 +1,5 @@
 // NullPointerException - thrown when accessing null object
-import "RuntimeException.mt";
+import * from "RuntimeException.mt";
 
 class NullPointerException extends RuntimeException {
     // Constructor with message

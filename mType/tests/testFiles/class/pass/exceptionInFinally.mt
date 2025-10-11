@@ -1,5 +1,5 @@
 // Test exception thrown in finally block using classes
-import "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 class CleanupException extends Exception {
     constructor(string msg):super(msg) {

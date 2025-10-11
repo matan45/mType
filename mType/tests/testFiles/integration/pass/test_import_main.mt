@@ -1,4 +1,4 @@
-import "test_library.mt";
+import * from "test_library.mt";
 
 native function print(int n): void;
 native function print(string s): void;

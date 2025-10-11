@@ -1,7 +1,7 @@
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Bool.mt";
-import "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/collections/List.mt";
 
 // Helper async functions
 function async getValue(int n): Promise<Int> {

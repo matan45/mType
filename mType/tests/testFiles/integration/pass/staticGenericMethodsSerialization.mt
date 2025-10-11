@@ -1,8 +1,8 @@
-import "../../lib/collections/HashMap.mt";
-import "../../lib/collections/HashSet.mt";
-import "../../lib/collections/LinkedList.mt";
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
+import * from "../../lib/collections/HashMap.mt";
+import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/collections/LinkedList.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test serialization with static generic methods and collections
 class DataProcessor {

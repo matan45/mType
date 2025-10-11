@@ -1,8 +1,8 @@
-import "../../lib/collections/List.mt";
-import "../../lib/collections/HashMap.mt";
-import "../../lib/collections/HashSet.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/HashMap.mt";
+import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Stress test for deeply nested generic types
 function main(): void {

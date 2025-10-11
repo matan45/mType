@@ -4,7 +4,7 @@ namespace ast::nodes::classes
 {
     InterfaceNode::InterfaceNode(const std::string& interfaceName, const std::vector<GenericTypeParameter>& generics,
                                  const SourceLocation& loc) : ASTNode(loc), name(interfaceName),
-                                                              genericParameters(generics), finalInterface(false)
+                                                              genericParameters(generics), finalInterface(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -80,6 +80,26 @@ namespace ast::nodes::classes
     void InterfaceNode::setFinal(bool isFinal)
     {
         finalInterface = isFinal;
+    }
+
+    VisibilityModifier InterfaceNode::getVisibility() const
+    {
+        return visibility;
+    }
+
+    void InterfaceNode::setVisibility(VisibilityModifier vis)
+    {
+        visibility = vis;
+    }
+
+    bool InterfaceNode::isPublic() const
+    {
+        return visibility == VisibilityModifier::PUBLIC;
+    }
+
+    bool InterfaceNode::isPrivate() const
+    {
+        return visibility == VisibilityModifier::PRIVATE;
     }
 
     Value InterfaceNode::accept(ASTVisitor<Value>& visitor)

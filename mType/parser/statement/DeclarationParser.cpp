@@ -1,5 +1,6 @@
 #include "DeclarationParser.hpp"
 #include "../TypeParser.hpp"
+#include "../utilities/VisibilityParser.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -10,6 +11,7 @@ namespace parser::statement
     using namespace ast::nodes::functions;
     using namespace token;
     using namespace errors;
+    using namespace parser::utilities;
 
     DeclarationParser::DeclarationParser(TokenStream& stream, ParseContext& ctx)
         : BaseParser(stream, ctx)
@@ -28,6 +30,9 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> DeclarationParser::parseDeclaration()
     {
+        // Parse visibility modifier (public/private) - default is PUBLIC
+        VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
+
         // Parse modifiers (final, static)
         ModifierInfo modifiers = parseModifiers();
 
@@ -104,8 +109,10 @@ namespace parser::statement
 
         expectToken(TokenType::SEMICOLON);
 
-        return std::make_unique<AssignmentNode>(varName, std::move(value), type, className,
+        auto assignmentNode = std::make_unique<AssignmentNode>(varName, std::move(value), type, className,
                                                 modifiers.isFinal, modifiers.isStatic, varLocation);
+        assignmentNode->setVisibility(visibility);
+        return assignmentNode;
     }
 
     bool DeclarationParser::isDeclarationStart(TokenType type) const noexcept
@@ -119,6 +126,8 @@ namespace parser::statement
         {
         case TokenType::FINAL:
         case TokenType::STATIC:
+        case TokenType::PUBLIC:
+        case TokenType::PRIVATE:
             return true;
         default:
             return false;

@@ -1,6 +1,6 @@
 // Generic class implementing generic interface test
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Container<T> {
     function add(T item): bool;

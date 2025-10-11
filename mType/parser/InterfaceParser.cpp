@@ -3,6 +3,7 @@
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
 #include "utilities/AccessModifierParser.hpp"
+#include "utilities/VisibilityParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
@@ -16,6 +17,7 @@ namespace parser
     using namespace ast::nodes::statements;
     using namespace token;
     using namespace errors;
+    using namespace parser::utilities;
 
     InterfaceParser::InterfaceParser(TokenStream& stream, ParseContext& ctx)
         : tokenStream(stream), context(ctx)
@@ -24,6 +26,10 @@ namespace parser
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
     {
+        // Parse optional visibility modifier (public/private)
+        // Default is PUBLIC if not specified
+        VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
+
         // Check for optional 'final' keyword
         bool isFinal = false;
         if (tokenStream.check(TokenType::FINAL))
@@ -126,6 +132,7 @@ namespace parser
         tokenStream.advance();
 
         interfaceNode->setFinal(isFinal);
+        interfaceNode->setVisibility(visibility);
         return interfaceNode;
     }
 

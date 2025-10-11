@@ -8,6 +8,7 @@
 
 // Forward declarations
 namespace ast {
+    class ASTNode;
 namespace nodes {
 namespace statements {
     class ImportNode;
@@ -16,6 +17,12 @@ namespace statements {
 namespace functions {
     class FunctionNode;
 }
+}
+}
+
+namespace environment {
+namespace registry {
+    class ExportRegistry;
 }
 }
 
@@ -84,6 +91,41 @@ namespace statements {
          */
         Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
                                       const errors::SourceLocation& location = errors::SourceLocation{});
+
+    private:
+        /**
+         * Collect all exported symbols from an AST (imported file)
+         * Traverses the AST and registers all classes, interfaces, and functions
+         * in the ExportRegistry with their visibility modifiers.
+         */
+        void collectExportedSymbols(ast::ASTNode* ast,
+                                   const std::string& filePath,
+                                   std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
+
+        /**
+         * Collect exported symbols from a single AST node
+         * Helper method for collectExportedSymbols that processes individual nodes.
+         */
+        void collectExportedSymbolsFromNode(ast::ASTNode* node,
+                                           const std::string& filePath,
+                                           std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
+
+        /**
+         * Validate and import symbols from a selective or wildcard import
+         * For selective imports, validates that each requested symbol exists and is public.
+         * For wildcard imports, no validation is needed (all public symbols are imported).
+         */
+        void validateAndImportSymbols(ImportNode* node,
+                                     const std::string& resolvedPath,
+                                     std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
+
+        /**
+         * Get a formatted string of available public symbols from a file
+         * Used for error messages to show what symbols are available when an import fails.
+         * Returns "(none)" if no public symbols exist, or a comma-separated list of symbol names.
+         */
+        std::string getAvailableSymbolsString(const std::string& filePath,
+                                             std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
     };
 
 } // namespace statements

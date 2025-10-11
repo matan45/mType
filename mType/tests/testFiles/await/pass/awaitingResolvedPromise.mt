@@ -1,6 +1,6 @@
 // Test awaiting already-resolved promises
 // Edge case: Promise that is already resolved when awaited
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
 class Value {
     int data;
 

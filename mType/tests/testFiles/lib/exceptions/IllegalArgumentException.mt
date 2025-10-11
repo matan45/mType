@@ -1,5 +1,5 @@
 // IllegalArgumentException - thrown when invalid argument is passed
-import "RuntimeException.mt";
+import * from "RuntimeException.mt";
 
 class IllegalArgumentException extends RuntimeException {
     public string argumentName;

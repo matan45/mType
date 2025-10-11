@@ -1,7 +1,7 @@
-import "../../lib/collections/HashMap.mt";
-import "../../lib/collections/HashSet.mt";
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
+import * from "../../lib/collections/HashMap.mt";
+import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test serialization with collections as data members
 class DataContainer {

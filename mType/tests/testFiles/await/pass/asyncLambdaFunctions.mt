@@ -1,5 +1,5 @@
 // Test async lambda functions
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
 class Data {
     int value;
 

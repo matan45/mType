@@ -1,5 +1,5 @@
 // Import base interfaces
-import "BaseInterfaces.mt";
+import * from "BaseInterfaces.mt";
 
 // Single inheritance with multiple generic types
 interface SortableMap<K, V> extends Comparable<K> {

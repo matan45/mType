@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
 #include "../../GenericTypeParameter.hpp"
+#include "../../VisibilityModifier.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -18,6 +19,7 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> methods;
         std::vector<std::string> implementedInterfaces; // NEW
         bool finalClass; // NEW: Final modifier to prevent inheritance
+        VisibilityModifier visibility; // NEW: Top-level visibility for imports
     public:
         // Backward compatibility constructor (most common usage)
         explicit ClassNode(const std::string& name, const SourceLocation& loc = SourceLocation());
@@ -70,6 +72,12 @@ namespace ast::nodes::classes
         // NEW: Final modifier methods
         bool isFinal() const;
         void setFinal(bool isFinal);
+
+        // NEW: Visibility modifier methods (for import/export system)
+        VisibilityModifier getVisibility() const;
+        void setVisibility(VisibilityModifier vis);
+        bool isPublic() const;
+        bool isPrivate() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
     };

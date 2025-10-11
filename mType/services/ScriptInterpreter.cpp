@@ -111,6 +111,11 @@ namespace services
             std::filesystem::path scriptPath(filename);
             importManager->setBaseDirectory(scriptPath.parent_path().string());
 
+            // Set current file path to the main script file
+            // This ensures imports in the main file resolve correctly
+            std::string canonicalPath = std::filesystem::canonical(filename).string();
+            importManager->setCurrentFilePath(canonicalPath);
+
             // Keep a raw pointer for later use before moving to Parser
             ImportManager* importManagerPtr = importManager.get();
 
@@ -930,17 +935,18 @@ namespace services
 
             try
             {
-                // Set current file to the resolved path BEFORE parsing
-                // This is critical for nested imports to resolve correctly
-                importManager->setCurrentFilePath(resolvedPath);
-
-                // Parse and cache the imported AST
+                // Parse and cache the imported AST BEFORE setting current file
+                // This ensures parseAndCacheAST uses the correct context
                 ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
 
                 if (!importedAST)
                 {
                     throw std::runtime_error("Failed to parse import: " + filePath);
                 }
+
+                // Set current file to the resolved path AFTER parsing
+                // This is critical for nested imports to resolve correctly
+                importManager->setCurrentFilePath(resolvedPath);
 
                 // Set the imported AST on the ImportNode
                 importNode->setImportedAST(importedAST);

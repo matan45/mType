@@ -1,5 +1,5 @@
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Generic class with multiple type parameters
 class Pair<T, U> {

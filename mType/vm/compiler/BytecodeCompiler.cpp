@@ -3,6 +3,11 @@
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
+#include "../../ast/nodes/statements/AssignmentNode.hpp"
+#include "../../services/ImportManager.hpp"
+#include "../../environment/registry/ExportRegistry.hpp"
+#include "../../ast/nodes/statements/ProgramNode.hpp"
+#include "../../errors/TypeException.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -319,19 +324,87 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)
     {
         // Handle imports at compile time
-        std::string importPath = node->getFilePath();
+        std::string filePath = node->getFilePath();
 
-        if (compiledImports.find(importPath) != compiledImports.end()) {
+        // Get ImportManager from environment
+        auto importManager = environment->getImportManager();
+        if (!importManager) {
+            throw std::runtime_error("Import manager not available for compilation");
+        }
+
+        // Save current file path for proper restoration
+        std::string savedCurrentFile = importManager->getCurrentFilePath();
+
+        // Resolve the import path (relative to current file)
+        std::string resolvedPath = importManager->resolvePath(filePath);
+
+        // Check if already compiled to avoid re-compilation
+        if (compiledImports.find(resolvedPath) != compiledImports.end()) {
             return std::monostate{};
         }
 
-        auto* importedAST = node->getImportedAST();
-        if (!importedAST) {
-            throw std::runtime_error("Import not resolved: " + importPath);
-        }
+        // Mark as being compiled
+        compiledImports.insert(resolvedPath);
 
-        compiledImports.insert(importPath);
-        importedAST->accept(*this);
+        try {
+            // Parse and get the AST for the imported file BEFORE setting current file
+            // This ensures parseAndCacheAST uses the correct context
+            auto* importedAST = importManager->parseAndCacheAST(filePath);
+            if (!importedAST) {
+                throw std::runtime_error("Failed to parse import: " + filePath);
+            }
+
+            // Set current file to the resolved path AFTER parsing
+            // This ensures that if the imported file has its own imports,
+            // they will be resolved relative to the imported file's directory
+            importManager->setCurrentFilePath(resolvedPath);
+
+            // Validate selective imports - check that imported symbols are public
+            if (node->isSelective()) {
+                auto exportRegistry = environment->getExportRegistry();
+                if (exportRegistry) {
+                    // Collect exported symbols from the imported file
+                    collectExportedSymbols(importedAST, resolvedPath, exportRegistry);
+
+                    // Validate each requested symbol
+                    const auto& requestedSymbols = node->getImportedSymbols();
+                    for (const auto& symbolName : requestedSymbols) {
+                        // Check if symbol exists
+                        if (!exportRegistry->symbolExists(resolvedPath, symbolName)) {
+                            throw errors::TypeException(
+                                "Cannot import '" + symbolName + "' from '" + filePath + "': " +
+                                "Symbol not found"
+                            );
+                        }
+
+                        // Check if symbol is public (exported)
+                        if (!exportRegistry->isSymbolExported(resolvedPath, symbolName)) {
+                            throw errors::TypeException(
+                                "Cannot import '" + symbolName + "' from '" + filePath + "': " +
+                                "Symbol is private and not exported. Only public symbols can be imported."
+                            );
+                        }
+                    }
+                }
+            }
+
+            // IMPORTANT: Register classes and interfaces BEFORE compiling
+            // This ensures that class metadata is available for type checking
+            registerClassesForBytecode(importedAST);
+            linkParentClasses(importedAST);
+
+            // Compile the imported file to generate bytecode for functions and methods
+            // This will register all functions/methods in the BytecodeProgram
+            importedAST->accept(*this);
+
+            // Restore previous current file
+            importManager->setCurrentFilePath(savedCurrentFile);
+        }
+        catch (...) {
+            // Restore current file on error
+            importManager->setCurrentFilePath(savedCurrentFile);
+            throw;
+        }
 
         return std::monostate{};
     }
@@ -350,6 +423,78 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
     {
         return controlFlowCompiler.compileThrow(node);
+    }
+
+    void BytecodeCompiler::collectExportedSymbols(ast::ASTNode* ast,
+                                                   const std::string& filePath,
+                                                   std::shared_ptr<environment::registry::ExportRegistry> exportRegistry)
+    {
+        if (!ast) return;
+
+        // Handle ProgramNode - traverse all statements
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(ast))
+        {
+            const auto& statements = programNode->getStatements();
+            for (const auto& stmt : statements)
+            {
+                collectExportedSymbolsFromNode(stmt.get(), filePath, exportRegistry);
+            }
+        }
+        else
+        {
+            collectExportedSymbolsFromNode(ast, filePath, exportRegistry);
+        }
+    }
+
+    void BytecodeCompiler::collectExportedSymbolsFromNode(ast::ASTNode* node,
+                                                           const std::string& filePath,
+                                                           std::shared_ptr<environment::registry::ExportRegistry> exportRegistry)
+    {
+        using namespace ast;
+        using namespace environment::registry;
+
+        if (!node) return;
+
+        // Register class
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                classNode->getClassName(),
+                ExportedSymbolType::CLASS,
+                classNode->getVisibility()
+            );
+        }
+        // Register interface
+        else if (auto interfaceNode = dynamic_cast<ast::InterfaceNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                interfaceNode->getName(),
+                ExportedSymbolType::INTERFACE,
+                interfaceNode->getVisibility()
+            );
+        }
+        // Register function
+        else if (auto functionNode = dynamic_cast<ast::FunctionNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                functionNode->getName(),
+                ExportedSymbolType::FUNCTION,
+                functionNode->getVisibility()
+            );
+        }
+        // Register variable (top-level declarations)
+        else if (auto assignmentNode = dynamic_cast<ast::AssignmentNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                assignmentNode->getVariableName(),
+                ExportedSymbolType::VARIABLE,
+                assignmentNode->getVisibility()
+            );
+        }
     }
 
 } // namespace vm::compiler

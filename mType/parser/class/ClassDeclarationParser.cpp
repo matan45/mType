@@ -2,6 +2,7 @@
 #include "GenericParameterParser.hpp"
 #include "../ParserValidator.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/VisibilityParser.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -10,6 +11,7 @@ namespace parser
     using namespace ast::nodes::classes;
     using namespace token;
     using namespace errors;
+    using namespace parser::utilities;
 
     ClassDeclarationParser::ClassDeclarationParser(TokenStream& stream, ParseContext& ctx)
         : BaseParser(stream, ctx)
@@ -29,6 +31,10 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassDeclarationParser::parseClassDeclaration()
     {
+        // Parse optional visibility modifier (public/private)
+        // Default is PUBLIC if not specified
+        VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
+
         // Check for optional 'final' keyword
         bool isFinal = false;
         if (tokenStream.check(TokenType::FINAL))
@@ -67,6 +73,7 @@ namespace parser
 
         auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
         classNode->setFinal(isFinal);
+        classNode->setVisibility(visibility);
         return classNode;
     }
 

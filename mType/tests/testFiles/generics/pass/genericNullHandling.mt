@@ -1,5 +1,5 @@
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Generic class with null handling
 class Optional<T> {

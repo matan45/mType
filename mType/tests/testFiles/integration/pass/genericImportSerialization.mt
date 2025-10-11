@@ -1,4 +1,4 @@
-import "genericLibrary.mt";
+import * from "genericLibrary.mt";
 
 // Test serialization with generic imports
 function main(): void {

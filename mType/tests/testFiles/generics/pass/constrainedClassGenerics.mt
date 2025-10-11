@@ -1,6 +1,6 @@
 // Test: Generic class with interface constraints
 // Expected: Should compile and run successfully
-import "../../lib/collections/List.mt";
+import * from "../../lib/collections/List.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;

@@ -1,0 +1,5 @@
+=== Testing Public Array and Object Imports ===
+First public number: 1
+First public string: hello
+Processed number (5^2): 25
+Public array and object import test completed!

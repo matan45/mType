@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../../ASTNode.hpp"
+#include "../../VisibilityModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include <string>
 #include <memory>
@@ -7,6 +8,7 @@
 namespace ast::nodes::statements
 {
     using namespace value;
+    using namespace ast;
 
     class AssignmentNode : public ASTNode
     {
@@ -17,6 +19,7 @@ namespace ast::nodes::statements
         std::string className;  // Store class name for OBJECT types
         bool isFinal;
         bool isStatic;
+        VisibilityModifier visibility;
 
     public:
         explicit AssignmentNode(const std::string& varName, std::unique_ptr<ASTNode> val,
@@ -31,6 +34,7 @@ namespace ast::nodes::statements
         const std::string& getClassName() const;
         bool getIsFinal() const;
         bool getIsStatic() const;
+        VisibilityModifier getVisibility() const;
 
         void setVariableName(const std::string& varName);
         void setValue(std::unique_ptr<ASTNode> val);
@@ -38,6 +42,7 @@ namespace ast::nodes::statements
         void setClassName(const std::string& clsName);
         void setIsFinal(bool isFinalVar);
         void setIsStatic(bool isStaticVar);
+        void setVisibility(VisibilityModifier vis);
 
         Value accept(ASTVisitor<Value>& visitor) override;
         

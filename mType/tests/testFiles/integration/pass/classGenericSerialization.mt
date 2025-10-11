@@ -1,5 +1,5 @@
 // Test generic serialization with custom classes
-import "genericLibrary.mt";
+import * from "genericLibrary.mt";
 
 class Person {
     string name;

@@ -1,5 +1,5 @@
 // Test exception object lifecycle and memory management
-import "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 // Custom exception with destructor tracking
 class TrackedException extends Exception {

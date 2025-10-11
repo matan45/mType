@@ -1,8 +1,8 @@
 // Test that finally block executes BEFORE return value is sent
 // This is critical async/await behavior - matches JavaScript/Python
-import "../../lib/exceptions/Exception.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 function async finallyBeforeReturn(): Promise<String> {
     try {

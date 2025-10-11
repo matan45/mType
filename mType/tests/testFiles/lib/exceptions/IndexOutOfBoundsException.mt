@@ -1,5 +1,5 @@
 // IndexOutOfBoundsException - thrown when accessing invalid array index
-import "RuntimeException.mt";
+import * from "RuntimeException.mt";
 
 class IndexOutOfBoundsException extends RuntimeException {
     public int index;

@@ -1,10 +1,10 @@
 // Simple Generic Type Test
 // Tests basic generic type handling without complex collections
-import "../../lib/primitives/Int.mt";
-import "../../lib/primitives/Bool.mt";
-import "../../lib/primitives/Float.mt";
-import "../../lib/primitives/String.mt";
-import "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Float.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/collections/List.mt";
 
 class GenericBox<T> {
     T value;

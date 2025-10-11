@@ -1,5 +1,5 @@
-import "../../lib/primitives/String.mt";
-import "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Generic function with two type parameters
 function <K, V> swap(K first, V second): V {
