@@ -2,7 +2,7 @@
 // Located in: nested/test_wildcard_nested_imports.mt
 // Imports from: models/DataProcessor.mt (which wildcard imports from utils)
 
-import { DataProcessor, calculateAndFormat, Processor } from "../models/DataProcessor.mt"
+import { DataProcessor, calculateAndFormat, Processor } from "../models/DataProcessor.mt";
 
 function main() : void {
     // Test DataProcessor that uses both MathCore and StringUtils

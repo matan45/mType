@@ -4,6 +4,7 @@
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/NativeFunctionNode.hpp"
+#include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
@@ -138,6 +139,7 @@ namespace statements {
     {
         using namespace ast::nodes::classes;
         using namespace ast::nodes::functions;
+        using namespace ast::nodes::statements;
 
         if (!node) return;
 
@@ -169,6 +171,16 @@ namespace statements {
                 functionNode->getName(),
                 ExportedSymbolType::FUNCTION,
                 functionNode->getVisibility()
+            );
+        }
+        // Register variable (top-level declarations)
+        else if (auto assignmentNode = dynamic_cast<AssignmentNode*>(node))
+        {
+            exportRegistry->registerSymbol(
+                filePath,
+                assignmentNode->getVariableName(),
+                ExportedSymbolType::VARIABLE,
+                assignmentNode->getVisibility()
             );
         }
         // Handle other node types if needed

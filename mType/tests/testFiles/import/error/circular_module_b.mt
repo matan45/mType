@@ -3,7 +3,7 @@
 // which imports from this file
 // This creates a circular dependency
 
-import { ClassA, functionA } from "circular_module_a.mt"
+import { ClassA, functionA } from "circular_module_a.mt";
 
 public class ClassB {
     function getValue() : int {

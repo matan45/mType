@@ -2,7 +2,7 @@
 // Located in: nested/test_nested_imports.mt
 // Imports from: models/Shape.mt (which imports from utils/MathCore.mt)
 
-import { Rectangle, Circle, compareAreas, normalizeValue, Drawable } from "../models/Shape.mt"
+import { Rectangle, Circle, compareAreas, normalizeValue, Drawable } from "../models/Shape.mt";
 
 function main() : void {
     // Test Rectangle class (from Level 2)
@@ -14,9 +14,9 @@ function main() : void {
     int rectDiagonal = rect.diagonal();
 
     print("Rectangle - Width: 5, Height: 10");
-    print("Area: " + string(rectArea));
-    print("Perimeter: " + string(rectPerimeter));
-    print("Diagonal^2: " + string(rectDiagonal));
+    print("Area: " + rectArea);
+    print("Perimeter: " + rectPerimeter);
+    print("Diagonal^2: " + rectDiagonal);
 
     // Test Circle class (from Level 2)
     Circle circle = new Circle();
@@ -25,15 +25,15 @@ function main() : void {
     int circleCircumference = circle.circumference();
 
     print("Circle - Radius: 7");
-    print("Area: " + string(circleArea));
-    print("Circumference: " + string(circleCircumference));
+    print("Area: " + circleArea);
+    print("Circumference: " + circleCircumference);
 
     // Test imported functions (from Level 2, which use Level 1)
     int largerArea = compareAreas(rectArea, circleArea);
-    print("Larger area: " + string(largerArea));
+    print("Larger area: " + largerArea);
 
     int normalized = normalizeValue(-42);
-    print("Normalized -42: " + string(normalized));
+    print("Normalized -42: " + normalized);
 
     print("Multi-level import test completed!");
 }

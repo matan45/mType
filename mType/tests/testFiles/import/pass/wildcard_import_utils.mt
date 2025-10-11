@@ -2,24 +2,24 @@
 // All public symbols should be importable with import *
 
 public class Point {
-    int x;
-    int y;
+    public int x;
+    public int y;
 
-    function distance() : float {
-        return sqrt(float(this.x * this.x + this.y * this.y));
+    function distance() : int {
+        return this.x * this.x + this.y * this.y;
     }
 }
 
 public class Vector {
-    float x;
-    float y;
+    public float x;
+    public float y;
 
     function magnitude() : float {
-        return sqrt(this.x * this.x + this.y * this.y);
+        return this.x * this.x + this.y * this.y;
     }
 }
 
-public function createPoint(int x, int y) : object {
+public function createPoint(int x, int y) : Point {
     Point p = new Point();
     p.x = x;
     p.y = y;

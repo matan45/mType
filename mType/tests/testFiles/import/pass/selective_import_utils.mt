@@ -2,11 +2,11 @@
 // Defines public and private symbols
 
 public class Calculator {
-    function add(int a, int b) : int {
+    public function add(int a, int b) : int {
         return a + b;
     }
 
-    function multiply(int a, int b) : int {
+    public function multiply(int a, int b) : int {
         return a * b;
     }
 }

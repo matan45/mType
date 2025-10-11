@@ -5,7 +5,8 @@ namespace ast::nodes::statements
     AssignmentNode::AssignmentNode(const std::string& varName, std::unique_ptr<ASTNode> val, ValueType type,
         const std::string& clsName, bool isFinalVar, bool isStaticVar, const SourceLocation& loc)
     : ASTNode(loc), variableName(varName), value(std::move(val)), variableType(type),
-           className(clsName), isFinal(isFinalVar), isStatic(isStaticVar)
+           className(clsName), isFinal(isFinalVar), isStatic(isStaticVar),
+           visibility(VisibilityModifier::PUBLIC)  // Default to PUBLIC
     {
     }
 
@@ -27,6 +28,9 @@ namespace ast::nodes::statements
     bool AssignmentNode::getIsStatic() const
     { return isStatic; }
 
+    VisibilityModifier AssignmentNode::getVisibility() const
+    { return visibility; }
+
     void AssignmentNode::setVariableName(const std::string& varName)
     { variableName = varName; }
 
@@ -44,6 +48,9 @@ namespace ast::nodes::statements
 
     void AssignmentNode::setIsStatic(bool isStaticVar)
     { isStatic = isStaticVar; }
+
+    void AssignmentNode::setVisibility(VisibilityModifier vis)
+    { visibility = vis; }
 
     Value AssignmentNode::accept(ASTVisitor<Value>& visitor)
     {

@@ -2,7 +2,7 @@
 // A imports B, B imports C, C imports A
 // This should detect the circular dependency
 
-import { ClassC } from "circular_three_way_c.mt"
+import { ClassC } from "circular_three_way_c.mt";
 
 public class ClassB {
     function createC() : object {

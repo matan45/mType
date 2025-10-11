@@ -25,7 +25,13 @@ namespace parser::statement
     {
         const Token& current = currentToken();
 
-        if (current.type == TokenType::NATIVE)
+        // Handle visibility modifiers (public/private)
+        if (current.type == TokenType::PUBLIC || current.type == TokenType::PRIVATE)
+        {
+            // Visibility modifiers are handled in parseFunction()
+            return parseFunction();
+        }
+        else if (current.type == TokenType::NATIVE)
         {
             return parseNativeFunction();
         }

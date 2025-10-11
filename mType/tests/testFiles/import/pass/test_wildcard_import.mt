@@ -1,5 +1,5 @@
 // Test wildcard import syntax - imports all public symbols
-import * from "wildcard_import_utils.mt"
+import * from "wildcard_import_utils.mt";
 
 function main() : void {
     // Should be able to use Point and Vector classes
@@ -12,7 +12,7 @@ function main() : void {
     v.y = 2.0;
 
     // Should be able to use createPoint function
-    object pointObj = createPoint(5, 12);
+    Point pointObj = createPoint(5, 12);
 
     print("Point created successfully");
     print("Vector created successfully");

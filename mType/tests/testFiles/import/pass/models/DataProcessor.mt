@@ -2,8 +2,8 @@
 // Located in: models/DataProcessor.mt
 // Uses wildcard import to get all public symbols
 
-import * from "../utils/MathCore.mt"
-import * from "../utils/StringUtils.mt"
+import * from "../utils/MathCore.mt";
+import * from "../utils/StringUtils.mt";
 
 public class DataProcessor {
     function processNumber(int num) : int {

@@ -3,7 +3,7 @@
 // Even though DataProcessor imports from MathCore, private symbols aren't re-exported
 // Located in: error/nested/test_transitive_private.mt
 
-import * from "../../pass/models/DataProcessor.mt"
+import * from "../../pass/models/DataProcessor.mt";
 
 function main() : void {
     // Try to use a private function from the transitive import

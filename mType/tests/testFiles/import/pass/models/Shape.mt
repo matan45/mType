@@ -2,7 +2,7 @@
 // Located in: models/Shape.mt
 // Imports from: utils/MathCore.mt
 
-import { MathCore, abs, max } from "../utils/MathCore.mt"
+import { MathCore, abs, max } from "../utils/MathCore.mt";
 
 public class Rectangle {
     int width;
