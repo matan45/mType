@@ -3277,6 +3277,9 @@
     <None Include="tests\testFiles\import\error\nested\test_nested_private_access.mt">
       <Filter>tests\testFiles\import\error\nested</Filter>
     </None>
+    <None Include="tests\testFiles\import\error\nested\test_private_array_object_access.mt">
+      <Filter>tests\testFiles\import\error\nested</Filter>
+    </None>
     <None Include="tests\testFiles\import\error\nested\test_transitive_private.mt">
       <Filter>tests\testFiles\import\error\nested</Filter>
     </None>
@@ -3311,6 +3314,12 @@
       <Filter>tests\testFiles\import\pass\nested</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\selective_import_utils.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\test_public_array_object_import.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\test_public_array_object_import.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\test_selective_import.expected">

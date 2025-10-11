@@ -6,6 +6,10 @@ import * from "../utils/MathCore.mt";
 import * from "../utils/StringUtils.mt";
 
 public class DataProcessor {
+    public constructor() {
+        // Empty constructor
+    }
+
     public function processNumber(int num) : int {
         // Use MathCore from wildcard import
         MathCore math = new MathCore();
@@ -44,4 +48,22 @@ public interface Processor {
 
 private class InternalProcessor {
     int state;
+
+    public constructor() {
+        this.state = 0;
+    }
 }
+
+// Public array declarations
+public int[] publicNumbers = [1, 2, 3, 4, 5];
+public string[] publicStrings = ["hello", "world"];
+
+// Private array declarations
+private int[] privateNumbers = [10, 20, 30];
+private string[] privateData = ["secret1", "secret2"];
+
+// Public object declarations
+public DataProcessor publicProcessor = new DataProcessor();
+
+// Private object declarations
+private InternalProcessor privateProcessor = new InternalProcessor();

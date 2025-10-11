@@ -63,11 +63,13 @@ namespace statements {
 
         try
         {
-            // Set current file to the resolved path
-            importManager->setCurrentFilePath(resolvedPath);
-
-            // Parse the imported file
+            // Parse the imported file BEFORE setting current file
+            // This ensures parseAndCacheAST uses the correct context
             ASTNode* importedAST = importManager->parseAndCacheAST(filePath);
+
+            // Set current file to the resolved path AFTER parsing
+            // This sets up the context for evaluating the imported file
+            importManager->setCurrentFilePath(resolvedPath);
 
             // STEP 1: First pass - collect all exported symbols from the file
             collectExportedSymbols(importedAST, resolvedPath, exportRegistry);

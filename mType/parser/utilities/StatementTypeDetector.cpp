@@ -29,9 +29,9 @@ namespace parser::utilities
                 {
                     return StatementType::FUNCTION;
                 }
-                else if (isTypeKeyword(next.type) || isModifierKeyword(next.type))
+                else if (isTypeKeyword(next.type) || isModifierKeyword(next.type) || next.type == TokenType::IDENTIFIER)
                 {
-                    // public/private followed by type keyword or modifier = variable declaration
+                    // public/private followed by type keyword, modifier, or identifier (custom class) = variable declaration
                     return StatementType::DECLARATION;
                 }
                 // Otherwise fall through

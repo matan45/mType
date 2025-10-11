@@ -28,6 +28,12 @@ namespace tests::testSuite
                         "mType/tests/testFiles/import/pass/nested/test_wildcard_nested_imports.mt");
 
         // ====================================
+        // Array and Object Visibility Tests
+        // ====================================
+        addOutputVerificationTest("Import Public Arrays and Objects",
+                        "mType/tests/testFiles/import/pass/test_public_array_object_import.mt");
+
+        // ====================================
         // Visibility Error Tests
         // ====================================
         addTestFromFile("Import Private Symbol Error",
@@ -51,6 +57,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Transitive Private Access Error",
                         "mType/tests/testFiles/import/error/nested/test_transitive_private.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Private Arrays and Objects Error",
+                        "mType/tests/testFiles/import/error/nested/test_private_array_object_access.mt",
                         TestType::ERROR_EXPECTED);
 
         // ====================================

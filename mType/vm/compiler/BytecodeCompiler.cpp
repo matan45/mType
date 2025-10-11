@@ -347,16 +347,17 @@ namespace vm::compiler
         compiledImports.insert(resolvedPath);
 
         try {
-            // Set current file to the resolved path BEFORE parsing
-            // This ensures that if the imported file has its own imports,
-            // they will be resolved relative to the imported file's directory
-            importManager->setCurrentFilePath(resolvedPath);
-
-            // Parse and get the AST for the imported file
+            // Parse and get the AST for the imported file BEFORE setting current file
+            // This ensures parseAndCacheAST uses the correct context
             auto* importedAST = importManager->parseAndCacheAST(filePath);
             if (!importedAST) {
                 throw std::runtime_error("Failed to parse import: " + filePath);
             }
+
+            // Set current file to the resolved path AFTER parsing
+            // This ensures that if the imported file has its own imports,
+            // they will be resolved relative to the imported file's directory
+            importManager->setCurrentFilePath(resolvedPath);
 
             // Validate selective imports - check that imported symbols are public
             if (node->isSelective()) {

@@ -126,6 +126,8 @@ namespace parser::statement
         {
         case TokenType::FINAL:
         case TokenType::STATIC:
+        case TokenType::PUBLIC:
+        case TokenType::PRIVATE:
             return true;
         default:
             return false;
