@@ -3,6 +3,7 @@
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
+#include "../../services/ImportManager.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -319,18 +320,38 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)
     {
         // Handle imports at compile time
-        std::string importPath = node->getFilePath();
+        std::string filePath = node->getFilePath();
 
-        if (compiledImports.find(importPath) != compiledImports.end()) {
+        // Get ImportManager from environment
+        auto importManager = environment->getImportManager();
+        if (!importManager) {
+            throw std::runtime_error("Import manager not available for compilation");
+        }
+
+        // Resolve the import path
+        std::string resolvedPath = importManager->resolvePath(filePath);
+
+        // Check if already compiled to avoid re-compilation
+        if (compiledImports.find(resolvedPath) != compiledImports.end()) {
             return std::monostate{};
         }
 
-        auto* importedAST = node->getImportedAST();
+        // Mark as being compiled
+        compiledImports.insert(resolvedPath);
+
+        // Parse and get the AST for the imported file
+        auto* importedAST = importManager->parseAndCacheAST(filePath);
         if (!importedAST) {
-            throw std::runtime_error("Import not resolved: " + importPath);
+            throw std::runtime_error("Failed to parse import: " + filePath);
         }
 
-        compiledImports.insert(importPath);
+        // IMPORTANT: Register classes and interfaces BEFORE compiling
+        // This ensures that class metadata is available for type checking
+        registerClassesForBytecode(importedAST);
+        linkParentClasses(importedAST);
+
+        // Compile the imported file to generate bytecode for functions and methods
+        // This will register all functions/methods in the BytecodeProgram
         importedAST->accept(*this);
 
         return std::monostate{};

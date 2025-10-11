@@ -2,11 +2,11 @@
 // Located in: utils/StringUtils.mt
 
 public class StringBuilder {
-    function concat(string a, string b) : string {
+    public function concat(string a, string b) : string {
         return a + b;
     }
 
-    function repeat(string s, int times) : string {
+    public function repeat(string s, int times) : string {
         string result = "";
         int i = 0;
         while (i < times) {

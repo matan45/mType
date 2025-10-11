@@ -9,7 +9,7 @@ function main() : void {
     DataProcessor dp = new DataProcessor();
 
     int processedNum = dp.processNumber(5);
-    print("Processed number (5^2): " + string(processedNum));
+    print("Processed number (5^2): " + processedNum);
 
     string processedStr = dp.processString("Hello");
     print("Processed string: " + processedStr);

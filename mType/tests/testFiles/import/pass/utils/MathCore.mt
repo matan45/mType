@@ -2,11 +2,11 @@
 // Located in: utils/MathCore.mt
 
 public class MathCore {
-    function square(int x) : int {
+    public function square(int x) : int {
         return x * x;
     }
 
-    function cube(int x) : int {
+    public function cube(int x) : int {
         return x * x * x;
     }
 }

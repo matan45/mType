@@ -5,18 +5,18 @@
 import { MathCore, abs, max } from "../utils/MathCore.mt";
 
 public class Rectangle {
-    int width;
-    int height;
+    public int width;
+    public int height;
 
-    function area() : int {
+    public function area() : int {
         return this.width * this.height;
     }
 
-    function perimeter() : int {
+    public function perimeter() : int {
         return 2 * (this.width + this.height);
     }
 
-    function diagonal() : int {
+    public function diagonal() : int {
         // Use MathCore from imported file
         MathCore math = new MathCore();
         int widthSquared = math.square(this.width);
@@ -26,15 +26,15 @@ public class Rectangle {
 }
 
 public class Circle {
-    int radius;
+    public int radius;
 
-    function area() : int {
+    public function area() : int {
         // Use MathCore from imported file
         MathCore math = new MathCore();
         return math.square(this.radius) * 3; // Simplified PI approximation
     }
 
-    function circumference() : int {
+    public function circumference() : int {
         return 2 * 3 * this.radius; // Simplified PI approximation
     }
 }

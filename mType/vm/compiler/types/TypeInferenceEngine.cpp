@@ -11,6 +11,7 @@
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
 
@@ -130,6 +131,26 @@ namespace vm::compiler::types
                         // Return the method's return type directly
                         return method->getReturnType();
                     }
+                }
+            }
+        }
+
+        // Method calls (e.g., obj.method(args))
+        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node)) {
+            // Get the object's class name
+            std::string className = inferExpressionClassName(methodCall->getObject());
+            if (!className.empty()) {
+                // Construct the fully qualified method name (ClassName::methodName)
+                std::string methodName = className + "::" + methodCall->getMethodName();
+
+                // Look up the method in the bytecode program's function registry
+                const auto* funcMetadata = program.getFunction(methodName);
+                if (funcMetadata && !funcMetadata->returnType.empty()) {
+                    if (funcMetadata->returnType == "int") return value::ValueType::INT;
+                    if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
+                    if (funcMetadata->returnType == "string") return value::ValueType::STRING;
+                    if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+                    return value::ValueType::OBJECT;
                 }
             }
         }
