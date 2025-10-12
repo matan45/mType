@@ -5,6 +5,7 @@
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../value/PromiseValue.hpp"
+#include "../../value/NativeArray.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
 
@@ -192,7 +193,81 @@ namespace evaluator::utils
             return checkBasicTypeConversion(actualValue, expectedType);
         }
 
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType, not ValueConverter
+
+        // Special handling for array types
+        // Arrays are stored with className like "Array<int>" but actualType is ARRAY, not OBJECT
+        if (expectedType.isClass() && actualType == ValueType::ARRAY) {
+            std::string expectedClassName = expectedType.getClassName();
+
+            // Check if expected type is an array type (starts with "Array<")
+            if (expectedClassName.rfind("Array<", 0) == 0) {
+                // Extract expected element type from "Array<ElementType>"
+                // Need to handle nested generics like "Array<Array<int>>"
+                size_t startPos = 6; // Length of "Array<"
+                size_t endPos = startPos;
+                int bracketDepth = 1; // We already have one '<' from "Array<"
+
+                // Find matching '>' by counting bracket depth
+                while (endPos < expectedClassName.length() && bracketDepth > 0) {
+                    if (expectedClassName[endPos] == '<') {
+                        bracketDepth++;
+                    } else if (expectedClassName[endPos] == '>') {
+                        bracketDepth--;
+                    }
+                    endPos++;
+                }
+
+                if (bracketDepth != 0) {
+                    return false; // Malformed array type
+                }
+
+                // endPos is now one past the closing '>', so subtract 1
+                std::string expectedElementType = expectedClassName.substr(startPos, endPos - startPos - 1);
+
+                // Get actual array element type
+                if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(actualValue)) {
+                    auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(actualValue);
+                    if (!nativeArray) {
+                        return false;
+                    }
+
+                    ValueType actualElementType = nativeArray->getElementType();
+                    std::string actualElementTypeName = nativeArray->getElementTypeName();
+
+                    // Map ValueType to string for comparison
+                    std::string actualElementTypeStr;
+                    switch (actualElementType) {
+                        case ValueType::INT: actualElementTypeStr = "int"; break;
+                        case ValueType::FLOAT: actualElementTypeStr = "float"; break;
+                        case ValueType::BOOL: actualElementTypeStr = "bool"; break;
+                        case ValueType::STRING: actualElementTypeStr = "string"; break;
+                        case ValueType::OBJECT:
+                            actualElementTypeStr = actualElementTypeName.empty() ? "object" : actualElementTypeName;
+                            break;
+                        case ValueType::ARRAY:
+                            // For nested arrays, use the element type name if available
+                            actualElementTypeStr = actualElementTypeName.empty() ? "array" : actualElementTypeName;
+                            break;
+                        default: actualElementTypeStr = "unknown"; break;
+                    }
+
+                    // Compare element types
+                    // For nested arrays, if actualElementTypeName is not set, we need to be more lenient
+                    if (actualElementType == ValueType::ARRAY && actualElementTypeName.empty()) {
+                        // Check if expected type is also an array type
+                        if (expectedElementType.rfind("Array<", 0) == 0 || expectedElementType == "array") {
+                            return true; // Accept nested arrays even without full type information
+                        }
+                    }
+                    return expectedElementType == actualElementTypeStr;
+                }
+
+                // If not a NativeArray, reject
+                return false;
+            }
+            return false;
+        }
 
         // For interface/class parameters, actual value must be an object
         if (actualType != ValueType::OBJECT) {
@@ -243,7 +318,7 @@ namespace evaluator::utils
         const Value& actualValue,
         const ParameterType& expectedType)
     {
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
         return isValidParameterConversion(actualType, expectedType.basicType);
     }
 
@@ -311,7 +386,7 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
         bool isValid = isValidParameterConversion(actualValue, expectedType, env);
 
         if (!isValid)

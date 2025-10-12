@@ -31,6 +31,7 @@ namespace parser
         bool insideFunctionBody = false;   // Track if we're inside a function body
         bool insideClassBody = false;      // Track if we're inside a class body
         bool insideInterfaceBody = false;  // Track if we're inside an interface body
+        bool insideConstructorBody = false; // Track if we're inside a constructor body
 
     public:
         /// @brief Default constructor for delayed initialization
@@ -162,6 +163,31 @@ namespace parser
             // Prevent copying
             InterfaceContextGuard(const InterfaceContextGuard&) = delete;
             InterfaceContextGuard& operator=(const InterfaceContextGuard&) = delete;
+        };
+
+        // Constructor context management
+        /// @brief Check if we're currently inside a constructor body
+        [[nodiscard]] bool isInsideConstructorBody() const { return insideConstructorBody; }
+
+        /// @brief Set constructor body context
+        void setConstructorContext(bool inConstructor) { insideConstructorBody = inConstructor; }
+
+        /// @brief RAII helper for constructor context management
+        class ConstructorContextGuard {
+        private:
+            ParseContext& context;
+            bool previousState;
+        public:
+            explicit ConstructorContextGuard(ParseContext& ctx)
+                : context(ctx), previousState(ctx.insideConstructorBody) {
+                context.insideConstructorBody = true;
+            }
+            ~ConstructorContextGuard() {
+                context.insideConstructorBody = previousState;
+            }
+            // Prevent copying
+            ConstructorContextGuard(const ConstructorContextGuard&) = delete;
+            ConstructorContextGuard& operator=(const ConstructorContextGuard&) = delete;
         };
     };
 }

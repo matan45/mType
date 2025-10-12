@@ -68,6 +68,36 @@ namespace tests::testSuite
         addOutputVerificationTest("Nested Constraints",
                         passPath + "constraintNested.mt");
 
+        // === PARAMETER TYPE VALIDATION TESTS ===
+        // These tests verify correct handling of all parameter types
+
+        addOutputVerificationTest("Parameter Types - Primitives",
+                        passPath + "parameterTypesPrimitive.mt");
+        addOutputVerificationTest("Parameter Types - Arrays",
+                        passPath + "parameterTypesArrays.mt");
+        addOutputVerificationTest("Parameter Types - Objects",
+                        passPath + "parameterTypesObjects.mt");
+        addOutputVerificationTest("Parameter Types - Generics with Extends",
+                        passPath + "parameterTypesGenericsExtends.mt");
+        addOutputVerificationTest("Parameter Types - Promise<T>",
+                        passPath + "parameterTypesPromise.mt");
+        addOutputVerificationTest("Parameter Types - Mixed Types",
+                        passPath + "parameterTypesMixed.mt");
+
+        // === RETURN TYPE VALIDATION TESTS ===
+        // These tests verify correct handling of all return types
+
+        addOutputVerificationTest("Return Types - Primitives",
+                        passPath + "returnTypesPrimitive.mt");
+        addOutputVerificationTest("Return Types - Arrays",
+                        passPath + "returnTypesArrays.mt");
+        addOutputVerificationTest("Return Types - Objects",
+                        passPath + "returnTypesObjects.mt");
+        addOutputVerificationTest("Return Types - Generics",
+                        passPath + "returnTypesGenerics.mt");
+        addOutputVerificationTest("Return Types - Promise<T>",
+                        passPath + "returnTypesPromise.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",

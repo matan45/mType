@@ -200,7 +200,7 @@ namespace expressions {
         for (const auto& element : elements)
         {
             Value elementValue = exprEvaluator->evaluate(element.get());
-            ValueType currentType = ValueConverter::getValueType(elementValue);
+            ValueType currentType = value::getValueType(elementValue); // Use global getValueType
 
             if (isFirstElement)
             {
@@ -249,8 +249,15 @@ namespace expressions {
             evaluatedElements.push_back(elementValue);
         }
 
-        // Create NativeArray with the correct size
-        auto array = std::make_shared<NativeArray>(evaluatedElements.size());
+        // Create NativeArray with the correct size and element type
+        std::string elementTypeName = "";
+        if (expectedType == ValueType::OBJECT && !evaluatedElements.empty())
+        {
+            // For object arrays, store the class name
+            elementTypeName = ObjectHelper::getClassName(evaluatedElements[0]);
+        }
+
+        auto array = std::make_shared<NativeArray>(evaluatedElements.size(), expectedType, elementTypeName);
 
         // Populate the array using set method
         for (size_t i = 0; i < evaluatedElements.size(); ++i)

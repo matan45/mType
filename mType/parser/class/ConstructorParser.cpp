@@ -87,6 +87,8 @@ namespace parser
                 std::move(arguments), superLocation);
         }
 
+        // Set constructor context when parsing constructor body
+        ParseContext::ConstructorContextGuard constructorGuard(context);
         auto body = context.parseStatement();
 
         // Create constructor node with parsed access modifier

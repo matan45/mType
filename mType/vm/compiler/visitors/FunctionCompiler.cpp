@@ -245,18 +245,41 @@ namespace vm::compiler::visitors
                                 // For objects, check class name compatibility
                                 else if (expectedType != "object") {
                                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-                                    if (!argClassName.empty() && argClassName != expectedType) {
+
+                                    // Normalize array types: convert "int[]" to "Array<int>", "int[][]" to "Array<Array<int>>", etc.
+                                    auto normalizeArrayType = [](const std::string& type) -> std::string {
+                                        std::string normalized = type;
+                                        size_t arrayDepth = 0;
+
+                                        // Count array brackets from the end
+                                        while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
+                                            arrayDepth++;
+                                            normalized = normalized.substr(0, normalized.length() - 2);
+                                        }
+
+                                        // Wrap in Array<> for each dimension
+                                        for (size_t i = 0; i < arrayDepth; ++i) {
+                                            normalized = "Array<" + normalized + ">";
+                                        }
+
+                                        return normalized;
+                                    };
+
+                                    std::string normalizedArgClassName = normalizeArrayType(argClassName);
+                                    std::string normalizedExpectedType = normalizeArrayType(expectedType);
+
+                                    if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType) {
                                         // Check if both are generic types with the same base
                                         bool isGenericMatch = false;
-                                        size_t expectedAngle = expectedType.find('<');
-                                        size_t argAngle = argClassName.find('<');
+                                        size_t expectedAngle = normalizedExpectedType.find('<');
+                                        size_t argAngle = normalizedArgClassName.find('<');
 
                                         if (expectedAngle != std::string::npos && argAngle != std::string::npos) {
                                             // Both are generic types - check if base types match
-                                            std::string expectedBase = expectedType.substr(0, expectedAngle);
-                                            std::string argBase = argClassName.substr(0, argAngle);
+                                            std::string expectedBase = normalizedExpectedType.substr(0, expectedAngle);
+                                            std::string argBase = normalizedArgClassName.substr(0, argAngle);
                                             if (expectedBase == argBase) {
-                                                // Same generic base type (e.g., both are List)
+                                                // Same generic base type (e.g., both are List, both are Array)
                                                 // Type argument compatibility will be validated at runtime
                                                 isGenericMatch = true;
                                             }

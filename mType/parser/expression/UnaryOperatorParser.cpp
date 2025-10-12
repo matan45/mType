@@ -45,10 +45,15 @@ namespace parser::expression
             SourceLocation awaitLocation = tokenStream.current().location;
             tokenStream.advance(); // consume 'await'
 
-            // Validate that we're inside an async function
-            if (!context.isInsideAsyncFunction())
+            // Allow await in:
+            // 1. Async functions (context.isInsideAsyncFunction())
+            // 2. Top-level/global scope (not inside any function)
+            // Disallow await in non-async functions
+            bool isInNonAsyncFunction = context.isInsideFunctionBody() && !context.isInsideAsyncFunction();
+
+            if (isInNonAsyncFunction)
             {
-                throw ParseException("'await' can only be used inside async functions", awaitLocation);
+                throw ParseException("'await' can only be used inside async functions or at the top level", awaitLocation);
             }
 
             // Parse the expression being awaited
