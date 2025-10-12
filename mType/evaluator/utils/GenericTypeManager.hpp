@@ -58,7 +58,11 @@ namespace evaluator::utils
         static std::shared_ptr<ClassDefinition> instantiateGenericClass(
             std::shared_ptr<ClassDefinition> genericClass,
             const std::vector<std::string>& typeArguments);
-        
+
+
+        static auto referencesSubstitutionParameters(
+            std::shared_ptr<ast::GenericType> genericType,
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap) -> bool;
 
         /**
          * @brief Validate that type arguments match the generic parameters
@@ -113,6 +117,13 @@ namespace evaluator::utils
         static std::unordered_map<std::string, std::shared_ptr<ast::GenericType>> createASTSubstitutionMap(
             const std::vector<GenericTypeParameter>& genericParameters,
             const std::vector<std::string>& typeArguments);
+
+        /**
+         * @brief Parse a type argument string to a GenericType object (handles nested generics)
+         * @param typeArgument The type argument string (e.g., "String", "List<String>", "Map<String, Int>")
+         * @return GenericType object representing the parsed type
+         */
+        static std::shared_ptr<ast::GenericType> parseTypeArgumentToGenericType(const std::string& typeArgument);
 
         /**
          * @brief Create a specialized method definition from a generic static method
@@ -203,44 +214,34 @@ namespace evaluator::utils
         static std::vector<std::string> parseTypeArguments(const std::string& typeArgsString);
 
         /**
-         * @brief Substitute generic type parameters in field types
-         * @param originalType Original field type
-         * @param substitutionMap Map of type parameter to concrete type
-         * @return Substituted field type
-         */
-        static value::ValueType substituteFieldType(
-            value::ValueType originalType,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
-
-        /**
-         * @brief Convert GenericType to ValueType with generic parameter substitution
+         * @brief Convert GenericType to ValueType with generic parameter substitution (AST-based)
          * @param genericType The generic type to convert
-         * @param substitutionMap Map of type parameter to concrete type
+         * @param substitutionMap AST-based map of type parameter to concrete GenericType
          * @return Converted ValueType with substitution applied
          */
         static value::ValueType convertGenericTypeToValueType(
             std::shared_ptr<ast::GenericType> genericType,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
         /**
-         * @brief Substitute generic type parameters in method types
+         * @brief Substitute generic type parameters in method types (AST-based)
          * @param originalMethod Original method definition
-         * @param substitutionMap Map of type parameter to concrete type
+         * @param substitutionMap AST-based map of type parameter to concrete GenericType
          * @return New method definition with substituted types
          */
         static std::shared_ptr<runtimeTypes::klass::MethodDefinition> substituteMethodTypes(
             std::shared_ptr<runtimeTypes::klass::MethodDefinition> originalMethod,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
         /**
-         * @brief Substitute generic type parameters in constructor types
+         * @brief Substitute generic type parameters in constructor types (AST-based)
          * @param originalConstructor Original constructor definition
-         * @param substitutionMap Map of type parameter to concrete type
+         * @param substitutionMap AST-based map of type parameter to concrete GenericType
          * @return New constructor definition with substituted types
          */
         static std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> substituteConstructorTypes(
             std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> originalConstructor,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
         // Helper methods for instantiateGenericClass
         static std::string createInstantiatedClassName(
@@ -250,17 +251,17 @@ namespace evaluator::utils
         static void copyAndSubstituteFields(
             std::shared_ptr<ClassDefinition> source,
             std::shared_ptr<ClassDefinition> target,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
         static void copyAndSubstituteMethods(
             std::shared_ptr<ClassDefinition> source,
             std::shared_ptr<ClassDefinition> target,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
         static void copyAndSubstituteConstructors(
             std::shared_ptr<ClassDefinition> source,
             std::shared_ptr<ClassDefinition> target,
-            const std::unordered_map<std::string, std::string>& substitutionMap);
+            const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap);
 
     private:
         /**
