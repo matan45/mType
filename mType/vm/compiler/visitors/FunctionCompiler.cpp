@@ -4,7 +4,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
@@ -44,7 +44,7 @@ namespace vm::compiler::visitors
             if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
                 paramTypes.push_back(paramType.className.value());
             } else {
-                paramTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(paramType.basicType));
+                paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
             }
         }
 
@@ -54,7 +54,7 @@ namespace vm::compiler::visitors
         if (genericReturnType) {
             returnTypeStr = genericReturnType->toString();
         } else {
-            returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(node->getReturnType());
+            returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(node->getReturnType());
         }
 
         // Enter function frame for local variable tracking
@@ -225,7 +225,7 @@ namespace vm::compiler::visitors
                             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
                             // Convert argType to string for comparison
-                            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+                            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
 
                             // For object types, need to check class names
                             if (expectedType != "int" && expectedType != "float" &&
@@ -447,7 +447,7 @@ namespace vm::compiler::visitors
                         if (actualType != expectedType) {
                             // Special case: null can be returned for object types
                             if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
-                                std::string actualTypeStr = evaluator::utils::ValueConverter::valueTypeToString(actualType);
+                                std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
                                 throw errors::TypeException(
                                     "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
                                     node->getLocation()

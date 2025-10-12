@@ -49,14 +49,14 @@ namespace evaluator::utils
          * @return ValueType enum representing the type
          */
         static ValueType getValueType(const Value& value);
-        
+
         /**
          * @brief Convert ValueType enum to string for error messages
          * @param type The ValueType to convert
          * @return String representation of the type
          */
         static std::string valueTypeToString(ValueType type);
-        
+
         /**
          * @brief Compare two values for equality
          * @param left First value

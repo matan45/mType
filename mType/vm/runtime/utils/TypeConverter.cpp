@@ -19,4 +19,17 @@ namespace vm::runtime::utils
         }
         return typeName;
     }
+
+    std::string TypeConverter::valueTypeToString(value::ValueType type) {
+        switch (type) {
+            case value::ValueType::INT: return "int";
+            case value::ValueType::FLOAT: return "float";
+            case value::ValueType::STRING: return "string";
+            case value::ValueType::BOOL: return "bool";
+            case value::ValueType::OBJECT: return "object";
+            case value::ValueType::NULL_TYPE: return "null";
+            case value::ValueType::VOID: return "void";
+            default: return "unknown";
+        }
+    }
 }

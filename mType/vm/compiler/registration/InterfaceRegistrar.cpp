@@ -6,7 +6,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../ast/GenericType.hpp"
 #include <stdexcept>
@@ -110,7 +110,7 @@ namespace vm::compiler::registration
                     signature.returnType = functionNode->getGenericReturnType();
                 } else {
                     signature.returnType = std::make_shared<ast::GenericType>(
-                        evaluator::utils::ValueConverter::valueTypeToString(functionNode->getReturnType())
+                        vm::runtime::utils::TypeConverter::valueTypeToString(functionNode->getReturnType())
                     );
                 }
 
@@ -123,7 +123,7 @@ namespace vm::compiler::registration
                         paramType = genericParamPairs[i].second;
                     } else {
                         paramType = std::make_shared<ast::GenericType>(
-                            evaluator::utils::ValueConverter::valueTypeToString(params[i].second)
+                            vm::runtime::utils::TypeConverter::valueTypeToString(params[i].second)
                         );
                     }
                     signature.parameters.push_back({params[i].first, paramType});
@@ -215,7 +215,7 @@ namespace vm::compiler::registration
                 if (method->getGenericReturnType()) {
                     methodReturnType = method->getGenericReturnType()->getBaseTypeName();
                 } else {
-                    methodReturnType = evaluator::utils::ValueConverter::valueTypeToString(method->getReturnType());
+                    methodReturnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
                 }
 
                 if (methodReturnType != resolvedReturnType) {
@@ -249,7 +249,7 @@ namespace vm::compiler::registration
                     if (i < methodGenericParams.size() && methodGenericParams[i].second) {
                         methodParamType = methodGenericParams[i].second->getBaseTypeName();
                     } else {
-                        methodParamType = evaluator::utils::ValueConverter::valueTypeToString(methodParams[i].second);
+                        methodParamType = vm::runtime::utils::TypeConverter::valueTypeToString(methodParams[i].second);
                     }
 
                     std::string resolvedParamType = resolveGenericType(

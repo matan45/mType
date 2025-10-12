@@ -4,7 +4,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include <unordered_set>
 
 
@@ -70,7 +70,7 @@ namespace vm::compiler::visitors
             }
 
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
-            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
 
             // Check if expected type is a primitive
             bool isPrimitive = (expectedType == "int" || expectedType == "float" ||
@@ -364,7 +364,7 @@ namespace vm::compiler::visitors
 
         // Convert return type to string
         value::ValueType returnType = node->getReturnType();
-        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(returnType);
+        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(returnType);
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
@@ -475,7 +475,7 @@ namespace vm::compiler::visitors
         }
 
         // Constructor returns an object instance
-        std::string returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(value::ValueType::OBJECT);
+        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(value::ValueType::OBJECT);
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
@@ -695,7 +695,7 @@ namespace vm::compiler::visitors
                             if (argType != value::ValueType::OBJECT) {
                                 // Allow null
                                 if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                    std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+                                    std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
                                     throw errors::TypeException(
                                         "Constructor parameter " + std::to_string(i + 1) +
                                         " expects " + expectedClass + " but got " + argTypeStr,
@@ -718,8 +718,8 @@ namespace vm::compiler::visitors
                         }
                         // For primitive types
                         else {
-                            std::string expectedTypeStr = evaluator::utils::ValueConverter::valueTypeToString(paramType.basicType);
-                            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+                            std::string expectedTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType);
+                            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
 
                             if (paramType.basicType != argType) {
                                 // Allow int to float conversion

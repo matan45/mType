@@ -7,7 +7,7 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
@@ -341,7 +341,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::FieldMetadata fieldMeta;
             fieldMeta.name = field->getName();
-            fieldMeta.type = evaluator::utils::ValueConverter::valueTypeToString(field->getType());
+            fieldMeta.type = vm::runtime::utils::TypeConverter::valueTypeToString(field->getType());
             fieldMeta.isStatic = field->getIsStatic();
             fieldMeta.isFinal = field->getIsFinal();
 
@@ -365,7 +365,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::MethodMetadata methodMeta;
             methodMeta.name = method->getName();
-            methodMeta.returnType = evaluator::utils::ValueConverter::valueTypeToString(method->getReturnType());
+            methodMeta.returnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
             methodMeta.isStatic = method->getIsStatic();
             methodMeta.isFinal = false;  // Methods don't currently support final modifier
 
@@ -378,7 +378,7 @@ namespace vm::compiler::registration
             // Extract parameter types and names
             const auto& params = method->getParameters();
             for (const auto& param : params) {
-                methodMeta.parameterTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(param.second));
+                methodMeta.parameterTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(param.second));
                 methodMeta.parameterNames.push_back(param.first);
             }
 
