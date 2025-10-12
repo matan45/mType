@@ -8,6 +8,7 @@
 #include "../../value/NativeArray.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
+#include <cctype>
 
 
 namespace evaluator::utils
@@ -94,6 +95,18 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
+        // Delegate to the overload with generic bindings, using method's type substitution map
+        bindAndValidateParameters(method, args, functionName, env, method->getTypeSubstitutionMap(), location);
+    }
+
+    void ParameterBinder::bindAndValidateParameters(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const std::unordered_map<std::string, std::string>& genericBindings,
+        const SourceLocation& location)
+    {
         auto params = method->getParameters();  // Now returns vector<pair<string, ParameterType>>
 
         // Validate parameter count
@@ -105,13 +118,83 @@ namespace evaluator::utils
             const auto& param = params[i];
             const Value& arg = args[i];
 
+            // Resolve generic parameter type if needed
+            ParameterType resolvedType = param.second;
+
+            // If parameter has no className, check if it's a generic parameter from method's genericParameters
+            if (!resolvedType.isClass() && !resolvedType.isInterface() && resolvedType.basicType == ValueType::OBJECT)
+            {
+                // Check genericParameters to get the actual type (e.g., "Array<T>" for T[] parameter)
+                const auto& genericParams = method->getGenericParameters();
+                if (i < genericParams.size())
+                {
+                    const auto& genericParam = genericParams[i];
+                    auto genericType = genericParam.second;
+
+                    if (genericType)
+                    {
+                        // Get the type string from the generic type (this includes array info)
+                        std::string typeStr = genericType->toString();
+                        // Create ParameterType from the generic type string
+                        resolvedType = ParameterType::forClass(typeStr);
+                    }
+                }
+            }
+
+            if (resolvedType.isClass())
+            {
+                std::string className = resolvedType.getClassName();
+
+                // Substitute all generic type parameters in className
+                // Handle cases like "T", "Array<T>", "Array<Array<T>>", etc.
+                std::string resolvedClassName = className;
+                bool hadSubstitution = false;
+
+                for (const auto& [typeParam, concreteType] : genericBindings)
+                {
+                    // Replace all occurrences of the type parameter
+                    size_t pos = 0;
+                    while ((pos = resolvedClassName.find(typeParam, pos)) != std::string::npos)
+                    {
+                        // Check if this is a standalone type parameter (not part of a larger identifier)
+                        bool isStandalone = (pos == 0 || !std::isalnum(resolvedClassName[pos - 1])) &&
+                                          (pos + typeParam.length() == resolvedClassName.length() ||
+                                           !std::isalnum(resolvedClassName[pos + typeParam.length()]));
+
+                        if (isStandalone)
+                        {
+                            resolvedClassName.replace(pos, typeParam.length(), concreteType);
+                            pos += concreteType.length();
+                            hadSubstitution = true;
+                        }
+                        else
+                        {
+                            pos += typeParam.length();
+                        }
+                    }
+                }
+
+                // Update resolved type with substituted class name
+                if (hadSubstitution)
+                {
+                    resolvedType = ParameterType::forClass(resolvedClassName);
+                }
+                else if (resolvedClassName == className)
+                {
+                    // No substitution occurred - this might be a method-level generic parameter (like T in <T> method(T value))
+                    // In this case, treat it as a plain OBJECT type for validation (no specific class requirement)
+                    // This allows method-level generics to accept any object type
+                    resolvedType = ParameterType(ValueType::OBJECT);
+                }
+            }
+
             // Enhanced validation with interface support
-            validateParameterType(arg, param.second, param.first, functionName, env, location);
+            validateParameterType(arg, resolvedType, param.first, functionName, env, location);
 
             // Create and bind parameter variable
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,
-                param.second.basicType,  // Use basic type for storage (object for interfaces/classes)
+                resolvedType.basicType,  // Use basic type for storage (object for interfaces/classes)
                 arg,
                 false  // parameters are not final
             );

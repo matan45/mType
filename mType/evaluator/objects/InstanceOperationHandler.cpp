@@ -309,12 +309,13 @@ namespace objects {
                 // Use enhanced ParameterBinder for generic-aware parameter binding
                 if (method->hasGenericInformation())
                 {
-                    // Use the new generic-aware parameter binding
+                    // Use the new generic-aware parameter binding with object's generic type bindings
                     utils::ParameterBinder::bindAndValidateParameters(
                         method,
                         convertedArgs,
                         "method '" + methodName + "'",
                         env,
+                        object->getGenericTypeBindings(),  // Pass object's generic bindings (e.g., {"T": "Int"})
                         location
                     );
                 }

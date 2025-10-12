@@ -78,6 +78,7 @@ namespace value {
                     case ValueType::LAMBDA: return "lambda";
                     case ValueType::NULL_TYPE: return "null";
                     case ValueType::OBJECT: return "object";
+                    case ValueType::ARRAY: return "array";
                     default: return "unknown";
                 }
             }

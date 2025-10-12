@@ -80,6 +80,24 @@ namespace evaluator::utils
         );
 
         /**
+         * NEW: Binds and validates parameters for generic method calls with explicit type bindings
+         * @param method Method definition with generic type information
+         * @param args Actual argument values
+         * @param functionName Name of function/method for error messages
+         * @param env Environment to bind variables in
+         * @param genericBindings Map of generic type parameters to actual types (e.g., "T" -> "Int")
+         * @param location Source location for error reporting
+         */
+        static void bindAndValidateParameters(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+            const std::vector<value::Value>& args,
+            const std::string& functionName,
+            std::shared_ptr<environment::Environment> env,
+            const std::unordered_map<std::string, std::string>& genericBindings,
+            const errors::SourceLocation& location = errors::SourceLocation{}
+        );
+
+        /**
          * Validates parameter count without binding
          */
         static void validateParameterCount(
