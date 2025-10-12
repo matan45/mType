@@ -32,7 +32,6 @@ namespace ast
             class ProgramNode;
             class BlockNode;
             class ImportNode;
-            class NativeFunctionNode;
             class AssignmentNode;
             class MemberAssignmentNode;
             class IndexAssignmentNode;
@@ -95,7 +94,6 @@ namespace ast
     using SwitchNode = nodes::statements::SwitchNode;
     using CaseNode = nodes::statements::CaseNode;
     using DefaultCaseNode = nodes::statements::DefaultCaseNode;
-    using NativeFunctionNode = nodes::statements::NativeFunctionNode;
     using ImportNode = nodes::statements::ImportNode;
     using ClassNode = nodes::classes::ClassNode;
     using FieldNode = nodes::classes::FieldNode;

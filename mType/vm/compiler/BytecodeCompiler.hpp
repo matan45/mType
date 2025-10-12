@@ -79,7 +79,6 @@ namespace vm::compiler
         value::Value visitFunctionNode(ast::FunctionNode* node) override;
         value::Value visitFunctionCallNode(ast::FunctionCallNode* node) override;
         value::Value visitReturnNode(ast::ReturnNode* node) override;
-        value::Value visitNativeFunctionNode(ast::NativeFunctionNode* node) override;
 
         // Classes and Objects
         value::Value visitClassNode(ast::ClassNode* node) override;

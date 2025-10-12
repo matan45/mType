@@ -207,11 +207,6 @@ namespace vm::compiler
         return functionCompiler.compileReturn(node);
     }
 
-    value::Value BytecodeCompiler::visitNativeFunctionNode(ast::NativeFunctionNode* node)
-    {
-        return functionCompiler.compileNativeFunction(node);
-    }
-
     value::Value BytecodeCompiler::visitLambdaNode(ast::LambdaNode* node)
     {
         return functionCompiler.compileLambda(node);

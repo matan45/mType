@@ -5,6 +5,9 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../ast/nodes/functions/ReturnNode.hpp"
+#include "../../../ast/nodes/expressions/LambdaNode.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -499,13 +502,6 @@ namespace vm::compiler::visitors
             }
         }
 
-        return std::monostate{};
-    }
-
-    value::Value FunctionCompiler::compileNativeFunction(ast::NativeFunctionNode* node)
-    {
-        // Native function declarations are already registered at the start of compilation
-        // from the environment's native registry, so we just skip them here
         return std::monostate{};
     }
 

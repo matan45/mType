@@ -20,7 +20,6 @@
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
-#include "../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../environment/manager/Scope.hpp"
@@ -114,7 +113,6 @@ namespace evaluator
         dispatcher.registerMethod<ImportNode>(&StatementEvaluator::evaluateImportNode);
         dispatcher.registerMethod<FunctionNode>(&StatementEvaluator::evaluateFunctionNode);
         dispatcher.registerMethod<ReturnNode>(&StatementEvaluator::evaluateReturnNode);
-        dispatcher.registerMethod<ast::nodes::statements::NativeFunctionNode>(&StatementEvaluator::evaluateNativeFunctionNode);
         dispatcher.registerMethod<TryNode>(&StatementEvaluator::evaluateTryNode);
         dispatcher.registerMethod<CatchNode>(&StatementEvaluator::evaluateCatchNode);
         dispatcher.registerMethod<ThrowNode>(&StatementEvaluator::evaluateThrowNode);
@@ -406,11 +404,6 @@ namespace evaluator
     Value StatementEvaluator::evaluateFunctionNode(FunctionNode* node)
     {
         return importAndFunctionHandler->evaluateFunction(node);
-    }
-
-    Value StatementEvaluator::evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node)
-    {
-        return importAndFunctionHandler->evaluateNativeFunction(node);
     }
 
     void StatementEvaluator::evaluateRecursively(ASTNode* node)

@@ -140,11 +140,6 @@ namespace evaluator
         return coordinator->visitDefaultCaseNode(node);
     }
 
-    Value Evaluator::visitNativeFunctionNode(NativeFunctionNode* node)
-    {
-        return coordinator->visitNativeFunctionNode(node);
-    }
-
     Value Evaluator::visitNullNode(NullNode* node)
     {
         return coordinator->visitNullNode(node);

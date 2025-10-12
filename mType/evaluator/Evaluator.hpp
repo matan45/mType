@@ -52,7 +52,6 @@ namespace evaluator
         Value visitCaseNode(CaseNode* node) override;
         Value visitImportNode(ImportNode* node) override;
         Value visitDefaultCaseNode(DefaultCaseNode* node) override;
-        Value visitNativeFunctionNode(NativeFunctionNode* node) override;
         Value visitNullNode(NullNode* node) override;
         Value visitMemberAssignmentNode(MemberAssignmentNode* node) override;
         Value visitIndexAssignmentNode(IndexAssignmentNode* node) override;

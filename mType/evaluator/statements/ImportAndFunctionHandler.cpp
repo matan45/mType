@@ -3,7 +3,6 @@
 #include "../StatementEvaluator.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
-#include "../../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
@@ -327,11 +326,6 @@ namespace statements {
 
 
         return std::monostate{}; // Function definitions don't return values
-    }
-
-    Value ImportAndFunctionHandler::evaluateNativeFunction(ast::nodes::statements::NativeFunctionNode* node)
-    {
-        throw TypeException("Native function evaluation not implemented in refactored version");
     }
 
     Value ImportAndFunctionHandler::convertLambdaToInterface(const Value& lambdaValue,

@@ -98,7 +98,6 @@ namespace evaluator
         Value evaluateImportNode(ImportNode* node);
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
-        Value evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node);
         Value evaluateTryNode(TryNode* node);
         Value evaluateCatchNode(CatchNode* node);
         Value evaluateThrowNode(ThrowNode* node);

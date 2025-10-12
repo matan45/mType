@@ -1,10 +1,7 @@
 #pragma once
 #include "CompilerContext.hpp"
 #include "../../../ast/nodes/functions/FunctionNode.hpp"
-#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
-#include "../../../ast/nodes/functions/ReturnNode.hpp"
-#include "../../../ast/nodes/statements/NativeFunctionNode.hpp"
-#include "../../../ast/nodes/expressions/LambdaNode.hpp"
+
 #include "../../../value/ValueType.hpp"
 
 namespace vm::compiler::visitors
@@ -23,7 +20,6 @@ namespace vm::compiler::visitors
         value::Value compileFunction(ast::FunctionNode* node);
         value::Value compileFunctionCall(ast::FunctionCallNode* node);
         value::Value compileReturn(ast::ReturnNode* node);
-        value::Value compileNativeFunction(ast::NativeFunctionNode* node);
         value::Value compileLambda(ast::LambdaNode* node);
 
     private:

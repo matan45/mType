@@ -35,7 +35,6 @@ namespace ast
         virtual T visitCaseNode(CaseNode* node) = 0;
         virtual T visitImportNode(ImportNode* node) = 0;
         virtual T visitDefaultCaseNode(DefaultCaseNode* node) = 0;
-        virtual T visitNativeFunctionNode(NativeFunctionNode* node) = 0;
         virtual T visitNullNode(NullNode* node) = 0;
         virtual T visitMemberAssignmentNode(MemberAssignmentNode* node) = 0;
         virtual T visitIndexAssignmentNode(IndexAssignmentNode* node) = 0;

@@ -12,7 +12,6 @@ namespace ast {
 namespace nodes {
 namespace statements {
     class ImportNode;
-    class NativeFunctionNode;
 }
 namespace functions {
     class FunctionNode;
@@ -80,11 +79,6 @@ namespace statements {
          * Evaluate a function definition
          */
         Value evaluateFunction(FunctionNode* node);
-
-        /**
-         * Evaluate a native function definition
-         */
-        Value evaluateNativeFunction(ast::nodes::statements::NativeFunctionNode* node);
 
         /**
          * Convert a lambda value to an interface implementation
