@@ -447,9 +447,6 @@
     <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
-    <ClInclude Include="ast\nodes\statements\DeclarationNode.hpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClInclude>
     <ClInclude Include="ast\nodes\statements\DefaultCaseNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
@@ -472,9 +469,6 @@
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\nodes\statements\NativeFunctionNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\ProgramNode.hpp">
@@ -1244,9 +1238,6 @@
     <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
-    <ClCompile Include="ast\nodes\statements\DeclarationNode.cpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClCompile>
     <ClCompile Include="ast\nodes\statements\DefaultCaseNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
@@ -1269,9 +1260,6 @@
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\nodes\statements\NativeFunctionNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\ProgramNode.cpp">

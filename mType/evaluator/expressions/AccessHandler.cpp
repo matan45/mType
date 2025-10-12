@@ -217,6 +217,7 @@ namespace evaluator
                 if (std::holds_alternative<std::string>(currentClassValue))
                 {
                     std::string className = std::get<std::string>(currentClassValue);
+
                     auto classDef = env->findClass(className);
                     if (classDef)
                     {
@@ -234,6 +235,11 @@ namespace evaluator
                             );
                             validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
+                            // Use ObjectEvaluator to properly access static member through InstanceManager
+                            if (objEvaluator)
+                            {
+                                return objEvaluator->accessStaticMember(className, varName);
+                            }
                             return field->getValue();
                         }
                     }
@@ -241,6 +247,7 @@ namespace evaluator
             }
 
             // Fallback: search all classes (for backward compatibility)
+
             auto allClassNames = classRegistry->getAllItemNames();
             std::string currentClassName;
             if (currentClassVar)
@@ -274,6 +281,11 @@ namespace evaluator
                         );
                         validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
+                        // Use ObjectEvaluator to properly access static member through InstanceManager
+                        if (objEvaluator)
+                        {
+                            return objEvaluator->accessStaticMember(className, varName);
+                        }
                         return field->getValue();
                     }
                 }

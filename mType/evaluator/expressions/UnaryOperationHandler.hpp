@@ -51,7 +51,7 @@ namespace expressions {
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
         void setObjectEvaluator(ObjectEvaluator* evaluator);
-        
+
         Value evaluateUnaryOperation(UnaryExpNode* node);
     };
 

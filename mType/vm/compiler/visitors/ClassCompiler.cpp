@@ -322,9 +322,11 @@ namespace vm::compiler::visitors
         std::string methodName = node->getName();
         bool isStatic = node->getIsStatic();
 
-        // Set instance method context
+        // Set instance/static method context
         bool wasInInstanceMethod = ctx.inInstanceMethod;
+        bool wasInStaticMethod = ctx.inStaticMethod;
         ctx.inInstanceMethod = !isStatic;
+        ctx.inStaticMethod = isStatic;
 
         // Handle generic methods - store generic type parameter names
         if (node->isGeneric()) {
@@ -401,8 +403,9 @@ namespace vm::compiler::visitors
             body->accept(ctx.visitor);  // Will need delegation
         }
 
-        // Restore instance method context
+        // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;
+        ctx.inStaticMethod = wasInStaticMethod;
 
         // Emit implicit return for void methods (if no explicit return)
         if (returnType == value::ValueType::VOID) {

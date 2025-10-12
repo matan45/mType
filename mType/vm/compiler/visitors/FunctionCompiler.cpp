@@ -315,13 +315,15 @@ namespace vm::compiler::visitors
                                          node->getLocation().getLine(),
                                          node->getLocation().getColumn(),
                                          node->getLocation().getFilename());
-        } else if (ctx.inInstanceMethod && ctx.currentClassNode) {
-            // Unqualified call inside an instance method - could be either:
-            // 1. Method call on 'this' (recursive or calling another method)
-            // 2. Regular function call (global function)
+        } else if ((ctx.inInstanceMethod || ctx.inStaticMethod) && ctx.currentClassNode) {
+            // Unqualified call inside a method (instance or static) - could be either:
+            // 1. Method call on 'this' (for instance methods)
+            // 2. Static method call (for static methods)
+            // 3. Regular function call (global function)
             //
             // Check if a method with this name exists in the current class
             bool isMethodCall = false;
+            bool isStaticMethodCall = false;
             const auto& methods = ctx.currentClassNode->getMethods();
 
             for (const auto& method : methods) {
@@ -329,30 +331,51 @@ namespace vm::compiler::visitors
                     if (methodNode->getName() == functionName &&
                         methodNode->getParameters().size() == arguments.size()) {
                         isMethodCall = true;
+                        isStaticMethodCall = methodNode->getIsStatic();
                         break;
                     }
                 }
             }
 
             if (isMethodCall) {
-                // Push 'this' onto stack BEFORE arguments
-                ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+                if (isStaticMethodCall) {
+                    // Static method call - use CALL_STATIC with fully qualified name
+                    std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
 
-                // Now compile arguments
-                for (const auto& arg : arguments) {
-                    arg->accept(ctx.visitor);  // Will need delegation
+                    // Compile all arguments
+                    for (const auto& arg : arguments) {
+                        arg->accept(ctx.visitor);  // Will need delegation
+                    }
+
+                    size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                    ctx.program.emit(bytecode::OpCode::CALL_STATIC,
+                                 static_cast<uint32_t>(nameIndex),
+                                 static_cast<uint32_t>(arguments.size()));
+                    // Add source location for the call instruction
+                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                                 node->getLocation().getLine(),
+                                                 node->getLocation().getColumn(),
+                                                 node->getLocation().getFilename());
+                } else {
+                    // Instance method call - push 'this' onto stack BEFORE arguments
+                    ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+
+                    // Now compile arguments
+                    for (const auto& arg : arguments) {
+                        arg->accept(ctx.visitor);  // Will need delegation
+                    }
+
+                    size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
+                    // Call method on 'this' with source location
+                    ctx.program.emit(bytecode::OpCode::CALL_METHOD,
+                                 static_cast<uint32_t>(nameIndex),
+                                 static_cast<uint32_t>(arguments.size()));
+                    // Add source location for the call instruction
+                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                                 node->getLocation().getLine(),
+                                                 node->getLocation().getColumn(),
+                                                 node->getLocation().getFilename());
                 }
-
-                size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                // Call method on 'this' with source location
-                ctx.program.emit(bytecode::OpCode::CALL_METHOD,
-                             static_cast<uint32_t>(nameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-                // Add source location for the call instruction
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
             } else {
                 // Regular function call
                 for (const auto& arg : arguments) {

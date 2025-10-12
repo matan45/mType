@@ -36,9 +36,11 @@ namespace evaluator
         bool DeclarationHandler::tryImplicitFieldAssignment(const Value& newValue, AssignmentNode* node)
         {
             auto currentInstance = context->getCurrentInstance();
+
             if (currentInstance && node->getVariableType() == ValueType::VOID)
             {
                 auto field = currentInstance->getField(node->getVariableName());
+
                 if (field)
                 {
                     currentInstance->setField(node->getVariableName(), newValue);
@@ -178,6 +180,7 @@ namespace evaluator
                 if (std::holds_alternative<std::string>(currentClassValue))
                 {
                     std::string className = std::get<std::string>(currentClassValue);
+
                     auto classDef = env->findClass(className);
                     if (classDef)
                     {

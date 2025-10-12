@@ -194,6 +194,43 @@ namespace evaluator
                 }
             }
 
+            // Check if we're in a static method context and this could be a static method call
+            auto currentClassVar = env->findVariable("__current_class_name__");
+            if (currentClassVar)
+            {
+                auto currentClassValue = currentClassVar->getValue();
+                if (std::holds_alternative<std::string>(currentClassValue))
+                {
+                    std::string className = std::get<std::string>(currentClassValue);
+
+                    auto classDef = env->findClass(className);
+                    if (classDef)
+                    {
+                        auto method = classDef->getMethod(node->getFunctionName());
+                        if (method && method->isStatic())
+                        {
+                            // This is a static method call on the current class
+                            std::vector<Value> args;
+                            for (auto& argNode : node->getArguments())
+                            {
+                                args.push_back(exprEvaluator->evaluate(argNode.get()));
+                            }
+
+                            if (objEvaluator)
+                            {
+                                return objEvaluator->callStaticMethod(className, node->getFunctionName(), args,
+                                                                      node->getLocation());
+                            }
+                            else
+                            {
+                                throw UndefinedException("Object evaluator not available for static method call",
+                                                         node->getLocation());
+                            }
+                        }
+                    }
+                }
+            }
+
             // Check for user-defined function
             auto funcDef = env->findFunction(node->getFunctionName());
 
