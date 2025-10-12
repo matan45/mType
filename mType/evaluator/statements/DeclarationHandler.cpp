@@ -3,7 +3,6 @@
 #include "../ObjectEvaluator.hpp"
 #include "../validation/TypeValidator.hpp"
 #include "../utils/GenericTypeManager.hpp"
-#include "../../ast/nodes/statements/DeclarationNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
@@ -21,34 +20,6 @@ namespace evaluator
 {
     namespace statements
     {
-        Value DeclarationHandler::evaluateDeclaration(DeclarationNode* node)
-        {
-            validateVariableDeclaration(node);
-
-            auto env = context->getEnvironment();
-
-            // Evaluate initial value if present, otherwise use default
-            Value initialValue = std::monostate{};
-            if (node->getInitializer() && exprEvaluator)
-            {
-                initialValue = exprEvaluator->evaluate(node->getInitializer());
-
-                // Validate type compatibility between declared type and initial value
-                validateTypeAssignment(node->getType(), initialValue, node->getVariableName(), node->getLocation());
-            }
-
-            // Create variable definition
-            auto varDef = std::make_shared<VariableDefinition>(
-                node->getVariableName(),
-                node->getType(),
-                initialValue,
-                node->isFinal()
-            );
-
-            env->declareVariable(node->getVariableName(), varDef);
-            return initialValue;
-        }
-
         // Helper method implementations
 
         Value DeclarationHandler::handleLambdaConversion(Value value, AssignmentNode* node)
@@ -384,18 +355,6 @@ namespace evaluator
         }
 
         // Helper methods
-
-        void DeclarationHandler::validateVariableDeclaration(DeclarationNode* node)
-        {
-            auto env = context->getEnvironment();
-
-            // Check if variable already exists in current scope
-            if (env->getScopeManager()->hasVariableInCurrentScope(node->getVariableName()))
-            {
-                throw EnvironmentException("Variable '" + node->getVariableName() +
-                                           "' is already defined in this scope", node->getLocation());
-            }
-        }
 
         void DeclarationHandler::validateAssignmentAsDeclaration(AssignmentNode* node)
         {

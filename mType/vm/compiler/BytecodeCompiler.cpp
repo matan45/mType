@@ -122,11 +122,6 @@ namespace vm::compiler
         return expressionCompiler.compileVariable(node);
     }
 
-    value::Value BytecodeCompiler::visitDeclarationNode(ast::DeclarationNode* node)
-    {
-        return statementCompiler.compileDeclaration(node);
-    }
-
     value::Value BytecodeCompiler::visitAssignmentNode(ast::AssignmentNode* node)
     {
         return statementCompiler.compileAssignment(node);

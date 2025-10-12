@@ -56,7 +56,6 @@ namespace vm::compiler
 
         // Variables
         value::Value visitVariableNode(ast::VariableNode* node) override;
-        value::Value visitDeclarationNode(ast::DeclarationNode* node) override;
         value::Value visitAssignmentNode(ast::AssignmentNode* node) override;
 
         // Operators

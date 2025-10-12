@@ -35,7 +35,6 @@ namespace evaluator
         Value visitStringNode(StringNode* node) override;
         Value visitBoolNode(BoolNode* node) override;
         Value visitVariableNode(VariableNode* node) override;
-        Value visitDeclarationNode(DeclarationNode* node) override;
         Value visitAssignmentNode(AssignmentNode* node) override;
         Value visitBinaryOpNode(BinaryOpNode* node) override;
         Value visitTernaryOpNode(TernaryOpNode* node) override;

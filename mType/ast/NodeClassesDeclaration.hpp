@@ -31,7 +31,6 @@ namespace ast
         {
             class ProgramNode;
             class BlockNode;
-            class DeclarationNode;
             class ImportNode;
             class NativeFunctionNode;
             class AssignmentNode;
@@ -80,7 +79,6 @@ namespace ast
     using StringNode = nodes::expressions::StringNode;
     using BoolNode = nodes::expressions::BoolNode;
     using VariableNode = nodes::expressions::VariableNode;
-    using DeclarationNode = nodes::statements::DeclarationNode;
     using AssignmentNode = nodes::statements::AssignmentNode;
     using BinaryOpNode = nodes::expressions::BinaryExpNode;
     using TernaryOpNode = nodes::expressions::TernaryExpNode;

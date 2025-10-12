@@ -9,7 +9,6 @@
 namespace ast {
 namespace nodes {
 namespace statements {
-    class DeclarationNode;
     class AssignmentNode;
 }
 }
@@ -61,18 +60,12 @@ namespace statements {
         }
 
         /**
-         * Evaluate variable declaration
-         */
-        Value evaluateDeclaration(DeclarationNode* node);
-
-        /**
          * Evaluate variable assignment (includes complex logic for declarations, static fields, etc.)
          */
         Value evaluateAssignment(AssignmentNode* node);
 
     private:
         // Validation helpers
-        void validateVariableDeclaration(DeclarationNode* node);
         void validateAssignmentAsDeclaration(AssignmentNode* node);
         void validateClassExists(const std::string& className, const SourceLocation& location);
         void validateTypeAssignment(ValueType expectedType, const Value& value,

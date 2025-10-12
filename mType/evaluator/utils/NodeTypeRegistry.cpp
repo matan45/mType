@@ -18,7 +18,6 @@
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
-#include "../../ast/nodes/statements/DeclarationNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
 #include "../../ast/nodes/statements/WhileNode.hpp"
@@ -94,7 +93,6 @@ namespace evaluator::utils
         return {
             typeid(ProgramNode),
             typeid(BlockNode),
-            typeid(DeclarationNode),
             typeid(AssignmentNode),
             typeid(IfNode),
             typeid(WhileNode),

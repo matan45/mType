@@ -18,7 +18,6 @@ namespace ast
         virtual T visitStringNode(StringNode* node) = 0;
         virtual T visitBoolNode(BoolNode* node) = 0;
         virtual T visitVariableNode(VariableNode* node) = 0;
-        virtual T visitDeclarationNode(DeclarationNode* node) = 0;
         virtual T visitAssignmentNode(AssignmentNode* node) = 0;
         virtual T visitBinaryOpNode(BinaryOpNode* node) = 0;
         virtual T visitTernaryOpNode(TernaryOpNode* node) = 0;

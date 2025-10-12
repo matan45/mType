@@ -5,7 +5,6 @@
 #include "../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
@@ -424,16 +423,6 @@ namespace value
         if (auto assignNode = dynamic_cast<const ast::nodes::statements::AssignmentNode*>(node))
         {
             traverseForVariables(assignNode->getValue(), variables);
-            return;
-        }
-
-        // Handle declarations (only traverse initializer)
-        if (auto declNode = dynamic_cast<const ast::nodes::statements::DeclarationNode*>(node))
-        {
-            if (declNode->getInitializer())
-            {
-                traverseForVariables(declNode->getInitializer(), variables);
-            }
             return;
         }
 

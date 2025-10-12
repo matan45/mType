@@ -55,11 +55,6 @@ namespace evaluator
         return coordinator->visitVariableNode(node);
     }
 
-    Value Evaluator::visitDeclarationNode(DeclarationNode* node)
-    {
-        return coordinator->visitDeclarationNode(node);
-    }
-
     Value Evaluator::visitAssignmentNode(AssignmentNode* node)
     {
         return coordinator->visitAssignmentNode(node);

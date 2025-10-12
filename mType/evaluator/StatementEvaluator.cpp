@@ -11,7 +11,6 @@
 #include <typeinfo>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
@@ -101,7 +100,6 @@ namespace evaluator
         // Register all statement node handlers with the dispatcher
         dispatcher.registerMethod<ProgramNode>(&StatementEvaluator::evaluateProgramNode);
         dispatcher.registerMethod<BlockNode>(&StatementEvaluator::evaluateBlockNode);
-        dispatcher.registerMethod<DeclarationNode>(&StatementEvaluator::evaluateDeclarationNode);
         dispatcher.registerMethod<AssignmentNode>(&StatementEvaluator::evaluateAssignmentNode);
         dispatcher.registerMethod<IfNode>(&StatementEvaluator::evaluateIfNode);
         dispatcher.registerMethod<WhileNode>(&StatementEvaluator::evaluateWhileNode);
@@ -256,23 +254,6 @@ namespace evaluator
 
         env->exitScope();
         return lastValue;
-    }
-
-    Value StatementEvaluator::evaluateDeclarationNode(DeclarationNode* node)
-    {
-        return declarationHandler->evaluateDeclaration(node);
-    }
-
-    void StatementEvaluator::validateVariableDeclaration(DeclarationNode* node)
-    {
-        auto env = context->getEnvironment();
-
-        // Check if variable already exists in current scope
-        if (env->getScopeManager()->hasVariableInCurrentScope(node->getVariableName()))
-        {
-            throw EnvironmentException("Variable '" + node->getVariableName() +
-                                       "' is already defined in this scope", node->getLocation());
-        }
     }
 
     void StatementEvaluator::validateTypeAssignment(ValueType expectedType, const Value& value,
