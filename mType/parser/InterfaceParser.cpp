@@ -138,6 +138,12 @@ namespace parser
 
     std::unique_ptr<ASTNode> InterfaceParser::parseMethodSignature()
     {
+        // Check for 'static' keyword - not allowed in interfaces
+        if (tokenStream.current().type == TokenType::STATIC)
+        {
+            throw ParseException("Static methods are not allowed in interfaces", tokenStream.current().location);
+        }
+
         // Consume 'function' keyword
         if (tokenStream.current().type != TokenType::FUNCTION)
         {

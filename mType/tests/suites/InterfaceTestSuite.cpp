@@ -137,5 +137,9 @@ namespace tests::testSuite
         addTestFromFile("Extends Final Interface Error",
                         errorPath + "extendsFinalInterface.mt",
                         TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Static Method Not Allowed Error",
+                        errorPath + "staticMethodNotAllowed.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }
