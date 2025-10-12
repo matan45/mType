@@ -172,5 +172,8 @@ namespace tests::testSuite
         addTestFromFile("Invalid Static Variable Name with Special Character Error",
                         errorPath + "invalidStaticVarNameSpecialChar.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Import Symbol Name with Special Character Error",
+                        errorPath + "invalidImportSymbolNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

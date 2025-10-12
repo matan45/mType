@@ -1,4 +1,5 @@
 #include "ImportParser.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -62,7 +63,13 @@ namespace parser::statement
                 throw ParseException("Expected identifier in import list", tokenStream.current().location);
             }
 
-            symbols.push_back(tokenStream.current().stringValue.getString());
+            std::string symbolName = tokenStream.current().stringValue.getString();
+            SourceLocation symbolLocation = tokenStream.current().location;
+
+            // Validate symbol name contains no special characters
+            ParserUtils::validateIdentifierName(symbolName, "Import symbol", symbolLocation);
+
+            symbols.push_back(symbolName);
             tokenStream.advance();
 
             if (tokenStream.check(TokenType::COMMA))
