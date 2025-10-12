@@ -113,6 +113,24 @@ export class MTypeKeywords {
             priority: 8
         },
         {
+            keyword: 'public',
+            detail: 'public modifier',
+            documentation: 'Makes a member public (accessible from anywhere)',
+            insertText: 'public ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
+            keyword: 'protected',
+            detail: 'protected modifier',
+            documentation: 'Makes a member protected (accessible within the class and subclasses)',
+            insertText: 'protected ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
             keyword: 'final',
             detail: 'final modifier',
             documentation: 'Makes a variable immutable',
@@ -156,6 +174,42 @@ export class MTypeKeywords {
             kind: vscode.CompletionItemKind.Keyword,
             contexts: ['class', 'function'],
             priority: 7
+        },
+        {
+            keyword: 'isClassOf',
+            detail: 'type check operator',
+            documentation: 'Checks if an object is an instance of a class',
+            insertText: 'isClassOf ${1:ClassName}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'await',
+            detail: 'await expression',
+            documentation: 'Waits for an async operation to complete',
+            insertText: 'await ${1:expression}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 8
+        },
+        {
+            keyword: 'async',
+            detail: 'async modifier',
+            documentation: 'Marks a function as asynchronous',
+            insertText: 'async ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'from',
+            detail: 'import from clause',
+            documentation: 'Specifies the source module for imports',
+            insertText: 'from "${1:module}"',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['global', 'after-import'],
+            priority: 8
         }
     ];
 

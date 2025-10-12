@@ -10,17 +10,20 @@
 #include <unordered_map>
 
 // Forward declarations
-namespace runtimeTypes::klass {
+namespace runtimeTypes::klass
+{
     class MethodDefinition;
     class ConstructorDefinition;
     class InterfaceRegistry;
 }
 
-namespace environment::registry {
+namespace environment::registry
+{
     class ClassRegistry;
 }
 
-namespace ast::nodes::classes {
+namespace ast::nodes::classes
+{
     class ClassNode;
 }
 
@@ -279,13 +282,14 @@ namespace evaluator::utils
          * @return Tuple of mutex reference and cache reference
          */
         static std::pair<std::mutex&, std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>&>
-            getGenericClassCache();
+        getGenericClassCache();
 
         /**
          * @brief Fast cache for common generic instantiation patterns
          * Uses numeric keys for O(1) lookup instead of string concatenation
          */
-        struct FastCacheKey {
+        struct FastCacheKey
+        {
             std::string className;
             std::vector<std::string> typeArgs;
 
@@ -294,15 +298,18 @@ namespace evaluator::utils
 
             FastCacheKey(const std::string& name, const std::vector<std::string>& args);
 
-            bool operator==(const FastCacheKey& other) const {
+            bool operator==(const FastCacheKey& other) const
+            {
                 return hashValue == other.hashValue &&
-                       className == other.className &&
-                       typeArgs == other.typeArgs;
+                    className == other.className &&
+                    typeArgs == other.typeArgs;
             }
         };
 
-        struct FastCacheKeyHasher {
-            size_t operator()(const FastCacheKey& key) const {
+        struct FastCacheKeyHasher
+        {
+            size_t operator()(const FastCacheKey& key) const
+            {
                 return key.hashValue;
             }
         };
@@ -310,8 +317,9 @@ namespace evaluator::utils
         /**
          * @brief Get reference to fast cache for common patterns
          */
-        static std::pair<std::mutex&, std::unordered_map<FastCacheKey, std::shared_ptr<ClassDefinition>, FastCacheKeyHasher>&>
-            getFastGenericCache();
+        static std::pair<std::mutex&, std::unordered_map<
+                             FastCacheKey, std::shared_ptr<ClassDefinition>, FastCacheKeyHasher>&>
+        getFastGenericCache();
 
         /**
          * @brief Check if a generic instantiation is a common pattern eligible for fast cache
