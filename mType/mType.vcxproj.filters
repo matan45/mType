@@ -3640,6 +3640,9 @@
     <None Include="tests\testFiles\interface\error\returnTypeMismatch.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
+    <None Include="tests\testFiles\interface\error\staticMethodNotAllowed.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
     <None Include="tests\testFiles\interface\error\staticMethodParameterMismatch.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
