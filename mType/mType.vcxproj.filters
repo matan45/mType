@@ -2926,10 +2926,49 @@
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\invalidClassNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidFieldNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidFunctionNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidInterfaceNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidMethodNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidParameterNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidStaticVarNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidVariableNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\lexerUnteminatedString.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\missingNew.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedClassInClass.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedClassInInterface.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedFunctionDeclaration.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedInterfaceInClass.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedInterfaceInInterface.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\parserMissingSemicolon.mt">
@@ -3002,6 +3041,12 @@
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\validFunctionDeclaration.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validInnerScope.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validInnerScope.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\validScopeUsage.expected">

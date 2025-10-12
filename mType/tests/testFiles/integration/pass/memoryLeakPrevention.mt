@@ -1,4 +1,26 @@
 // Test memory leak prevention in various scenarios
+class Container {
+            LeakDetector item1;
+            LeakDetector item2;
+            string containerName;
+
+            constructor(string name) {
+                containerName = name;
+                item1 = new LeakDetector(name + "_Item1");
+                item2 = new LeakDetector(name + "_Item2");
+            }
+
+            public function getContainerInfo(): string {
+                return containerName + ": [" + item1.getName() + ", " + item2.getName() + "]";
+            }
+
+            public function swapItems(): void {
+                LeakDetector temp = item1;
+                item1 = item2;
+                item2 = temp;
+            }
+        }
+
 class LeakDetector {
         string name;
         static int totalAllocations = 0;
@@ -75,12 +97,7 @@ class LeakDetector {
         
         print("After conditional creation: " + LeakDetector::getAllocationStats());
     }
-    
-    function testNestedFunctionCalls(): void {
-        LeakDetector::resetStats();
-        print("=== Nested Function Calls Test ===");
-        
-        function createAndProcess(string baseName): string {
+    function createAndProcess(string baseName): string {
             LeakDetector inner = new LeakDetector(baseName + "_Inner");
             return inner.getName() + "_Processed";
         }
@@ -93,20 +110,27 @@ class LeakDetector {
             }
             return result;
         }
+    function testNestedFunctionCalls(): void {
+        LeakDetector::resetStats();
+        print("=== Nested Function Calls Test ===");
+        
+        
         
         string batchResult = processMultiple(10);
         print("Batch processing result length: " + strLength(batchResult));
         print("After batch processing: " + LeakDetector::getAllocationStats());
     }
+	
+	function createObject(string name): LeakDetector {
+            LeakDetector newObj = new LeakDetector(name);
+            return newObj;
+        }
     
     function testObjectReturnFromFunction(): void {
         LeakDetector::resetStats();
         print("=== Object Return From Function Test ===");
         
-        function createObject(string name): LeakDetector {
-            LeakDetector newObj = new LeakDetector(name);
-            return newObj;
-        }
+        
         
         LeakDetector obj1 = createObject("Returned1");
         LeakDetector obj2 = createObject("Returned2");
@@ -122,27 +146,7 @@ class LeakDetector {
         print("After reassignment: " + LeakDetector::getAllocationStats());
     }
 	
-	class Container {
-            LeakDetector item1;
-            LeakDetector item2;
-            string containerName;
-
-            constructor(string name) {
-                containerName = name;
-                item1 = new LeakDetector(name + "_Item1");
-                item2 = new LeakDetector(name + "_Item2");
-            }
-
-            public function getContainerInfo(): string {
-                return containerName + ": [" + item1.getName() + ", " + item2.getName() + "]";
-            }
-
-            public function swapItems(): void {
-                LeakDetector temp = item1;
-                item1 = item2;
-                item2 = temp;
-            }
-        }
+	
     
     function testComplexObjectGraph(): void {
         LeakDetector::resetStats();

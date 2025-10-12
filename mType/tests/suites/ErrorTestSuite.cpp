@@ -17,6 +17,8 @@ namespace tests::testSuite
                         passPath + "validTypeOperations.mt");
         addOutputVerificationTest("Valid Scope Usage",
                         passPath + "validScopeUsage.mt");
+        addOutputVerificationTest("Valid Inner Scope Blocks",
+                        passPath + "validInnerScope.mt");
 
         // Lexer error tests (expected to fail) - FIXED: No longer causes infinite loop
         addTestFromFile("Lexer Unterminated String Error",
@@ -40,6 +42,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Syntax Missing Return Type Error",
                         errorPath + "syntaxMissingReturnType.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nested Function Declaration Error",
+                        errorPath + "nestedFunctionDeclaration.mt",
                         TestType::ERROR_EXPECTED);
 
         // Semantic error tests (expected to fail)
@@ -138,6 +143,34 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Static Method Access Instance Member Error",
                         errorPath + "staticMethodAccessInstanceMember.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === IDENTIFIER VALIDATION TESTS ===
+        // These tests verify that identifiers with special characters are rejected
+
+        addTestFromFile("Invalid Variable Name with Special Character Error",
+                        errorPath + "invalidVariableNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Class Name with Special Character Error",
+                        errorPath + "invalidClassNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Interface Name with Special Character Error",
+                        errorPath + "invalidInterfaceNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Function Name with Special Character Error",
+                        errorPath + "invalidFunctionNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Field Name with Special Character Error",
+                        errorPath + "invalidFieldNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Parameter Name with Special Character Error",
+                        errorPath + "invalidParameterNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Method Name with Special Character Error",
+                        errorPath + "invalidMethodNameSpecialChar.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Invalid Static Variable Name with Special Character Error",
+                        errorPath + "invalidStaticVarNameSpecialChar.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

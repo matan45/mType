@@ -26,6 +26,19 @@ namespace parser
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
     {
+        // Validate: interfaces cannot be declared inside classes or other interfaces
+        if (context.isInsideClassBody())
+        {
+            throw ParseException("Interface declarations inside class bodies are not allowed.",
+                               tokenStream.current().location);
+        }
+        if (context.isInsideInterfaceBody())
+        {
+            throw ParseException("Interface declarations inside interface bodies are not allowed. "
+                               "Nested interfaces are not supported.",
+                               tokenStream.current().location);
+        }
+
         // Parse optional visibility modifier (public/private)
         // Default is PUBLIC if not specified
         VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
@@ -93,6 +106,9 @@ namespace parser
                                  tokenStream.current().location);
         }
         tokenStream.advance();
+
+        // Set interface context when parsing interface body
+        ParseContext::InterfaceContextGuard interfaceGuard(context);
 
         // Parse method signatures
         while (tokenStream.current().type != TokenType::RBRACE && !tokenStream.isAtEnd())

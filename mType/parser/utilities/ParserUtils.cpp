@@ -106,6 +106,11 @@ namespace parser
             }
 
             std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+
+            // Validate parameter name contains no special characters
+            validateIdentifierName(paramName, "Parameter", paramLocation);
+
             stream.advance();
 
             // Add parameter to list
@@ -157,6 +162,11 @@ namespace parser
             }
 
             std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+
+            // Validate parameter name contains no special characters
+            validateIdentifierName(paramName, "Parameter", paramLocation);
+
             stream.advance();
 
             // Add parameter to list
@@ -216,6 +226,11 @@ namespace parser
             }
 
             std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+
+            // Validate parameter name contains no special characters
+            validateIdentifierName(paramName, "Parameter", paramLocation);
+
             stream.advance();
 
             // Add parameter to list
@@ -408,7 +423,29 @@ namespace parser
         if (!isValidIdentifier(name))
         {
             std::string message = std::string(context) + " name '" + std::string(name) +
-                                "' is not a valid identifier";
+                                "' is not a valid identifier. Names can only contain letters, digits, and underscores.";
+            throw ParseException(message, location);
+        }
+    }
+
+    void ParserUtils::validateIdentifierName(std::string_view name,
+                                            std::string_view context,
+                                            const errors::SourceLocation& location)
+    {
+        using namespace errors;
+
+        if (name.empty())
+        {
+            std::string message = std::string(context) + " name cannot be empty";
+            throw ParseException(message, location);
+        }
+
+        // Ensure it's a valid identifier (no special characters)
+        if (!isValidIdentifier(name))
+        {
+            std::string message = std::string(context) + " name '" + std::string(name) +
+                                "' is not a valid identifier. Names can only contain letters, digits, and underscores, "
+                                "and must start with a letter or underscore.";
             throw ParseException(message, location);
         }
     }

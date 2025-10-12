@@ -226,5 +226,21 @@ namespace tests::testSuite
         addTestFromFile("duplicate catch test",
                         errorPath + "duplicate_catch_test.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === NESTED TYPE VALIDATION TESTS ===
+        // These tests verify that nested classes and interfaces are properly rejected
+
+        addTestFromFile("Nested Class in Class Error",
+                        "mType/tests/testFiles/error/error/nestedClassInClass.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nested Interface in Class Error",
+                        "mType/tests/testFiles/error/error/nestedInterfaceInClass.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nested Class in Interface Error",
+                        "mType/tests/testFiles/error/error/nestedClassInInterface.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nested Interface in Interface Error",
+                        "mType/tests/testFiles/error/error/nestedInterfaceInInterface.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

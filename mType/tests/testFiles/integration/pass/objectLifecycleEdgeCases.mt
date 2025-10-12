@@ -90,14 +90,17 @@ function testObjectArrayLifecycle(): void {
     print("After new creation: " + LifecycleCounter::getCurrentCount());
 }
 
+function processObject(LifecycleCounter obj): string {
+        obj.setPhase("Processing");
+        return "Processed object " + obj.getId() + " in phase: " + obj.getPhase();
+    }
+
+
 function testFunctionParameterLifecycle(): void {
     LifecycleCounter::resetCounters();
     print("=== Function Parameter Lifecycle Test ===");
     
-    function processObject(LifecycleCounter obj): string {
-        obj.setPhase("Processing");
-        return "Processed object " + obj.getId() + " in phase: " + obj.getPhase();
-    }
+    
     
     LifecycleCounter mainObj = new LifecycleCounter();
     print("Before function call: " + LifecycleCounter::getCurrentCount());
@@ -114,11 +117,8 @@ function testFunctionParameterLifecycle(): void {
     print("After temporary object: " + LifecycleCounter::getCurrentCount());
 }
 
-function testRecursiveObjectCreation(): void {
-    LifecycleCounter::resetCounters();
-    print("=== Recursive Object Creation Test ===");
-    
-    function createObjectRecursively(int depth): int {
+
+function createObjectRecursively(int depth): int {
         if (depth <= 0) {
             return LifecycleCounter::getCurrentCount();
         }
@@ -131,6 +131,12 @@ function testRecursiveObjectCreation(): void {
         // obj should be destroyed when function returns
         return result;
     }
+
+function testRecursiveObjectCreation(): void {
+    LifecycleCounter::resetCounters();
+    print("=== Recursive Object Creation Test ===");
+    
+    
     
     print("Starting recursive creation...");
     int maxCount = createObjectRecursively(10);

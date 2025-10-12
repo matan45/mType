@@ -65,14 +65,16 @@ function testRAIIPattern(): void {
     print("After scope - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
 }
+
+function transferFile(FileHandle source): FileHandle {
+        print("Transferring: " + source.getFilename());
+        return source; // Transfer ownership
+    }
 function testResourceTransferPattern(): void {
     FileHandle::clearLog();
     print("=== Resource Transfer Pattern Test ===");
     
-    function transferFile(FileHandle source): FileHandle {
-        print("Transferring: " + source.getFilename());
-        return source; // Transfer ownership
-    }
+    
     
     FileHandle original = new FileHandle("transfer.txt");
     print("Before transfer - Open handles: " + FileHandle::getOpenHandleCount());
@@ -88,11 +90,8 @@ function testResourceTransferPattern(): void {
     print("After explicit close - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
-function testExceptionSafeResource(): void {
-    FileHandle::clearLog();
-    print("=== Exception Safe Resource Test ===");
-    
-    function riskyOperation(FileHandle file): void {
+	
+	function riskyOperation(FileHandle file): void {
         print("Starting risky operation on: " + file.getFilename());
         
         // Simulate potential error condition
@@ -104,6 +103,11 @@ function testExceptionSafeResource(): void {
         
         print("Risky operation completed successfully");
     }
+function testExceptionSafeResource(): void {
+    FileHandle::clearLog();
+    print("=== Exception Safe Resource Test ===");
+    
+    
     
     FileHandle safeFile = new FileHandle("safe.txt");
     FileHandle riskyFile = new FileHandle("risky.txt");
@@ -195,11 +199,8 @@ function testResourcePoolPattern(): void {
     print("After pool cleanup - Open handles: " + FileHandle::getOpenHandleCount());
     print("Operations: " + FileHandle::getOperationLog());
     }
-function testNestedResourceCleanup(): void {
-    FileHandle::clearLog();
-    print("=== Nested Resource Cleanup Test ===");
-    
-    function processWithNestedResources(): void {
+	
+	function processWithNestedResources(): void {
         FileHandle outer = new FileHandle("outer.txt");
         
         {
@@ -221,6 +222,11 @@ function testNestedResourceCleanup(): void {
         print("Outer level - Open handles: " + FileHandle::getOpenHandleCount());
         outer.close();
     }
+function testNestedResourceCleanup(): void {
+    FileHandle::clearLog();
+    print("=== Nested Resource Cleanup Test ===");
+    
+    
     
     processWithNestedResources();
     

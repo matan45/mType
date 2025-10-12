@@ -28,6 +28,9 @@ namespace parser
         // Context flags
         bool insideLambdaBody = false;
         bool insideAsyncFunction = false;  // NEW: Track if we're inside an async function/method
+        bool insideFunctionBody = false;   // Track if we're inside a function body
+        bool insideClassBody = false;      // Track if we're inside a class body
+        bool insideInterfaceBody = false;  // Track if we're inside an interface body
 
     public:
         /// @brief Default constructor for delayed initialization
@@ -84,6 +87,81 @@ namespace parser
             // Prevent copying
             AsyncContextGuard(const AsyncContextGuard&) = delete;
             AsyncContextGuard& operator=(const AsyncContextGuard&) = delete;
+        };
+
+        // Function context management
+        /// @brief Check if we're currently inside a function body
+        [[nodiscard]] bool isInsideFunctionBody() const { return insideFunctionBody; }
+
+        /// @brief Set function body context
+        void setFunctionContext(bool inFunction) { insideFunctionBody = inFunction; }
+
+        /// @brief RAII helper for function context management
+        class FunctionContextGuard {
+        private:
+            ParseContext& context;
+            bool previousState;
+        public:
+            explicit FunctionContextGuard(ParseContext& ctx)
+                : context(ctx), previousState(ctx.insideFunctionBody) {
+                context.insideFunctionBody = true;
+            }
+            ~FunctionContextGuard() {
+                context.insideFunctionBody = previousState;
+            }
+            // Prevent copying
+            FunctionContextGuard(const FunctionContextGuard&) = delete;
+            FunctionContextGuard& operator=(const FunctionContextGuard&) = delete;
+        };
+
+        // Class context management
+        /// @brief Check if we're currently inside a class body
+        [[nodiscard]] bool isInsideClassBody() const { return insideClassBody; }
+
+        /// @brief Set class body context
+        void setClassContext(bool inClass) { insideClassBody = inClass; }
+
+        /// @brief RAII helper for class context management
+        class ClassContextGuard {
+        private:
+            ParseContext& context;
+            bool previousState;
+        public:
+            explicit ClassContextGuard(ParseContext& ctx)
+                : context(ctx), previousState(ctx.insideClassBody) {
+                context.insideClassBody = true;
+            }
+            ~ClassContextGuard() {
+                context.insideClassBody = previousState;
+            }
+            // Prevent copying
+            ClassContextGuard(const ClassContextGuard&) = delete;
+            ClassContextGuard& operator=(const ClassContextGuard&) = delete;
+        };
+
+        // Interface context management
+        /// @brief Check if we're currently inside an interface body
+        [[nodiscard]] bool isInsideInterfaceBody() const { return insideInterfaceBody; }
+
+        /// @brief Set interface body context
+        void setInterfaceContext(bool inInterface) { insideInterfaceBody = inInterface; }
+
+        /// @brief RAII helper for interface context management
+        class InterfaceContextGuard {
+        private:
+            ParseContext& context;
+            bool previousState;
+        public:
+            explicit InterfaceContextGuard(ParseContext& ctx)
+                : context(ctx), previousState(ctx.insideInterfaceBody) {
+                context.insideInterfaceBody = true;
+            }
+            ~InterfaceContextGuard() {
+                context.insideInterfaceBody = previousState;
+            }
+            // Prevent copying
+            InterfaceContextGuard(const InterfaceContextGuard&) = delete;
+            InterfaceContextGuard& operator=(const InterfaceContextGuard&) = delete;
         };
     };
 }

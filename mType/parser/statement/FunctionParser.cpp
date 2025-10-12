@@ -50,6 +50,14 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> FunctionParser::parseFunction()
     {
+        // Validate: functions cannot be declared inside other functions
+        if (context.isInsideFunctionBody())
+        {
+            throw ParseException("Function declarations inside function bodies are not allowed. "
+                               "Functions must be declared at the top level or inside classes.",
+                               tokenStream.current().location);
+        }
+
         // Parse optional visibility modifier (public/private)
         // Default is PUBLIC if not specified
         VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
@@ -113,7 +121,8 @@ namespace parser::statement
         }
         else
         {
-            // NEW: Set async context when parsing function body
+            // Set function and async context when parsing function body
+            ParseContext::FunctionContextGuard functionGuard(context);
             ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
             body = context.parseStatement(); // Should be a block
         }

@@ -39,6 +39,19 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
+        // Validate: classes cannot be declared inside other classes or interfaces
+        if (context.isInsideClassBody())
+        {
+            throw ParseException("Class declarations inside class bodies are not allowed. "
+                               "Nested classes are not supported.",
+                               tokenStream.current().location);
+        }
+        if (context.isInsideInterfaceBody())
+        {
+            throw ParseException("Class declarations inside interface bodies are not allowed.",
+                               tokenStream.current().location);
+        }
+
         // Delegate to ClassDeclarationParser for class header parsing
         auto classNode = classDeclarationParser->parseClassDeclaration();
         auto* classNodePtr = dynamic_cast<ClassNode*>(classNode.get());
@@ -47,6 +60,9 @@ namespace parser
         {
             throw ParseException("Failed to create class node", tokenStream.current().location);
         }
+
+        // Set class context when parsing class body
+        ParseContext::ClassContextGuard classGuard(context);
 
         // Parse class body members
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
