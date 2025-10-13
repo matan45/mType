@@ -79,14 +79,15 @@ namespace vm::runtime
         value::Value arrayVal = context.stackManager->pop();
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
-        // Bounds check
+        // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
             throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
                                          " for array of size " + std::to_string(array->size()));
         }
 
-        // Get element and push onto stack
-        value::Value element = array->get(index);
+        // Get element using unchecked access (bounds already verified)
+        // PERFORMANCE: Eliminates redundant bounds check in array->get()
+        value::Value element = array->getUnchecked(static_cast<size_t>(index));
         context.stackManager->push(element);
     }
 
@@ -102,14 +103,15 @@ namespace vm::runtime
         value::Value arrayVal = context.stackManager->pop();
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
-        // Bounds check
+        // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
             throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
                                          " for array of size " + std::to_string(array->size()));
         }
 
-        // Set element
-        array->set(index, valueToSet);
+        // Set element using unchecked access (bounds already verified)
+        // PERFORMANCE: Eliminates redundant bounds check in array->set()
+        array->setUnchecked(static_cast<size_t>(index), valueToSet);
     }
 
     void ArrayExecutor::handleArrayLength() {

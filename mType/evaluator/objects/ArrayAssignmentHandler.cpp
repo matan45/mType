@@ -208,7 +208,9 @@ namespace evaluator
                         node->getLocation());
                 }
 
-                nativeArray->set(arrayIndex, newValue);
+                // Use unchecked access (bounds already verified)
+                // PERFORMANCE: Eliminates redundant bounds check in nativeArray->set()
+                nativeArray->setUnchecked(arrayIndex, newValue);
                 return newValue;
             }
 
@@ -389,7 +391,8 @@ namespace evaluator
                                                 location);
                         }
 
-                        currentArray = nativeArray->get(index);
+                        // Use unchecked access (bounds already verified)
+                        currentArray = nativeArray->getUnchecked(index);
 
                         if (std::holds_alternative<std::monostate>(currentArray))
                         {
@@ -413,7 +416,8 @@ namespace evaluator
                                             "(size: " + std::to_string(finalArray->size()) + ")", location);
                     }
 
-                    finalArray->set(finalIndex, newValue);
+                    // Use unchecked access (bounds already verified)
+                    finalArray->setUnchecked(finalIndex, newValue);
                     return newValue;
                 }
                 catch (const TypeException&)

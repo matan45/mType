@@ -376,7 +376,9 @@ namespace evaluator
                                         std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
                 }
 
-                return nativeArray->get(static_cast<size_t>(index));
+                // Use unchecked access (bounds already verified)
+                // PERFORMANCE: Eliminates redundant bounds check in nativeArray->get()
+                return nativeArray->getUnchecked(static_cast<size_t>(index));
             }
 
             // Check if array is a FlatMultiArray (for multi-dimensional arrays)

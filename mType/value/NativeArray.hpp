@@ -223,40 +223,11 @@ namespace value
 
         // Index access - transparently handles both storage modes
         Value operator[](size_t index) const {
-            switch (storageMode) {
-                case StorageMode::SIMD_INT:
-                    if (index < simdIntData->size()) {
-                        return simdIntData->get(index);
-                    }
-                    break;
-                case StorageMode::SIMD_FLOAT:
-                    if (index < simdFloatData->size()) {
-                        return simdFloatData->get(index);
-                    }
-                    break;
-                case StorageMode::SIMD_BOOL:
-                    if (index < simdBoolData->size()) {
-                        return simdBoolData->get(index);
-                    }
-                    break;
-                case StorageMode::SIMD_STRING:
-                    if (index < stringArrayData->size()) {
-                        return stringArrayData->get(index);
-                    }
-                    break;
-                case StorageMode::SOA_OBJECT:
-                    if (index < objectArrayData->size()) {
-                        return objectArrayData->get(index);
-                    }
-                    break;
-                case StorageMode::HETEROGENEOUS:
-                default:
-                    if (index < data.size()) {
-                        return data[index];
-                    }
-                    break;
+            // PERFORMANCE: Inline bounds check and use unchecked access
+            if (index >= size()) {
+                return std::monostate{}; // Out of bounds
             }
-            return std::monostate{}; // Out of bounds
+            return getUnchecked(index);
         }
 
         // Non-const access for heterogeneous mode
@@ -272,77 +243,100 @@ namespace value
 
         // Safe access with bounds checking
         Value get(size_t index) const {
-            return (*this)[index];
+            // PERFORMANCE: Do bounds check once here, then use unchecked methods
+            if (index >= size()) {
+                return std::monostate{}; // Out of bounds
+            }
+            return getUnchecked(index);
         }
 
-        void set(size_t index, const Value& value) {
+        // PERFORMANCE OPTIMIZATION: Unchecked access for VM and performance-critical code
+        // WARNING: Caller MUST ensure index < size() before calling
+        // No bounds checking performed - undefined behavior if index out of bounds
+        Value getUnchecked(size_t index) const {
             switch (storageMode) {
                 case StorageMode::SIMD_INT:
-                    if (index < simdIntData->size() && std::holds_alternative<int>(value)) {
-                        simdIntData->set(index, value);
+                    return simdIntData->getUnchecked(index);
+                case StorageMode::SIMD_FLOAT:
+                    return simdFloatData->getUnchecked(index);
+                case StorageMode::SIMD_BOOL:
+                    return simdBoolData->getUnchecked(index);
+                case StorageMode::SIMD_STRING:
+                    return stringArrayData->getUnchecked(index);
+                case StorageMode::SOA_OBJECT:
+                    return objectArrayData->getUnchecked(index);
+                case StorageMode::HETEROGENEOUS:
+                default:
+                    return data[index];
+            }
+        }
+
+        // PERFORMANCE OPTIMIZATION: Unchecked set for VM and performance-critical code
+        // WARNING: Caller MUST ensure index < size() before calling
+        // No bounds checking performed - undefined behavior if index out of bounds
+        void setUnchecked(size_t index, const Value& value) {
+            switch (storageMode) {
+                case StorageMode::SIMD_INT:
+                    if (std::holds_alternative<int>(value)) {
+                        simdIntData->setUnchecked(index, value);
                     } else {
-                        // Type mismatch or mixed types - convert to heterogeneous
                         convertToHeterogeneous();
-                        if (index < data.size()) {
-                            data[index] = value;
-                        }
+                        data[index] = value;
                     }
                     break;
 
                 case StorageMode::SIMD_FLOAT:
-                    if (index < simdFloatData->size() && std::holds_alternative<float>(value)) {
-                        simdFloatData->set(index, value);
+                    if (std::holds_alternative<float>(value)) {
+                        simdFloatData->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
-                        if (index < data.size()) {
-                            data[index] = value;
-                        }
+                        data[index] = value;
                     }
                     break;
 
                 case StorageMode::SIMD_BOOL:
-                    if (index < simdBoolData->size() && std::holds_alternative<bool>(value)) {
-                        simdBoolData->set(index, value);
+                    if (std::holds_alternative<bool>(value)) {
+                        simdBoolData->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
-                        if (index < data.size()) {
-                            data[index] = value;
-                        }
+                        data[index] = value;
                     }
                     break;
 
                 case StorageMode::SIMD_STRING:
-                    if (index < stringArrayData->size() &&
-                        (std::holds_alternative<std::string>(value) ||
-                         std::holds_alternative<InternedString>(value))) {
-                        stringArrayData->set(index, value);
+                    if (std::holds_alternative<std::string>(value) ||
+                        std::holds_alternative<InternedString>(value)) {
+                        stringArrayData->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
-                        if (index < data.size()) {
-                            data[index] = value;
-                        }
+                        data[index] = value;
                     }
                     break;
 
                 case StorageMode::SOA_OBJECT:
-                    if (index < objectArrayData->size() &&
-                        std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
-                        objectArrayData->set(index, value);
+                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
+                        objectArrayData->set(index, value); // ObjectArray doesn't have setUnchecked yet
                     } else {
                         convertToHeterogeneous();
-                        if (index < data.size()) {
-                            data[index] = value;
-                        }
+                        data[index] = value;
                     }
                     break;
 
                 case StorageMode::HETEROGENEOUS:
                 default:
-                    if (index < data.size()) {
-                        data[index] = value;
-                    }
+                    data[index] = value;
                     break;
             }
+        }
+
+    public:
+
+        void set(size_t index, const Value& value) {
+            // PERFORMANCE: Do bounds check once here, then use unchecked methods
+            if (index >= size()) {
+                return; // Out of bounds, silently ignore
+            }
+            setUnchecked(index, value);
         }
 
         size_t size() const {
