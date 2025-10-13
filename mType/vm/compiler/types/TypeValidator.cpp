@@ -119,6 +119,47 @@ namespace vm::compiler::types
         // For OBJECT types, check class compatibility
         if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
             if (!varClassName.empty() && !valueClassName.empty()) {
+                // Skip validation for generic array types (like Array<T>, T[], etc.)
+                // When the expected type is a generic array, accept any concrete array type
+                if ((varClassName == "Array" || varClassName.find("Array<") == 0) &&
+                    valueClassName.find("[]") != std::string::npos) {
+                    return; // Any concrete array type is acceptable for generic array variable
+                }
+
+                // Special case: Promise<T> can accept T (async functions auto-wrap)
+                // This allows: return msg; in async function returning Promise<Message>
+                // Also handles arrays: Promise<int[]> can accept int[]
+                if (varClassName.find("Promise<") == 0) {
+                    // Extract the inner type from Promise<T>
+                    size_t start = varClassName.find('<') + 1;
+                    size_t end = varClassName.rfind('>');
+                    if (start != std::string::npos && end != std::string::npos && end > start) {
+                        std::string innerType = varClassName.substr(start, end - start);
+                        // Trim whitespace from inner type
+                        innerType.erase(0, innerType.find_first_not_of(" \t"));
+                        innerType.erase(innerType.find_last_not_of(" \t") + 1);
+
+                        // Direct match: int[] == int[]
+                        if (valueClassName == innerType) {
+                            return; // T is acceptable for Promise<T> (will be wrapped automatically)
+                        }
+
+                        // Match with generic parameters stripped: List<Int> matches List<T>
+                        if (stripGenericParameters(valueClassName) == stripGenericParameters(innerType)) {
+                            return; // T is acceptable for Promise<T> (will be wrapped automatically)
+                        }
+
+                        // Normalize array types for comparison: int[] -> Array<int>
+                        std::string normalizedInnerType = normalizeArrayType(innerType);
+                        std::string normalizedValueClass = normalizeArrayType(valueClassName);
+
+                        if (normalizedValueClass == normalizedInnerType ||
+                            stripGenericParameters(normalizedValueClass) == stripGenericParameters(normalizedInnerType)) {
+                            return; // Array type is acceptable for Promise<array> (will be wrapped automatically)
+                        }
+                    }
+                }
+
                 // Normalize both types for array comparison
                 std::string normalizedVarClass = normalizeArrayType(varClassName);
                 std::string normalizedValueClass = normalizeArrayType(valueClassName);

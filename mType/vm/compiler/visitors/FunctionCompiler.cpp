@@ -505,11 +505,34 @@ namespace vm::compiler::visitors
                         if (actualType != expectedType) {
                             // Special case: null can be returned for object types
                             if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
-                                std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
-                                throw errors::TypeException(
-                                    "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
-                                    node->getLocation()
-                                );
+                                // Special case: int can be returned for float
+                                if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT)) {
+                                    std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
+                                    throw errors::TypeException(
+                                        "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
+                                        node->getLocation()
+                                    );
+                                }
+                            }
+                        }
+                        // For OBJECT types, validate class compatibility
+                        else if (expectedType == value::ValueType::OBJECT && actualType == value::ValueType::OBJECT) {
+                            std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+
+                            // Skip validation for generic array types (like Array<T>, T[], etc.)
+                            bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") == 0);
+                            bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
+
+                            if (!(isGenericArrayReturn && isConcreteArrayReturn)) {
+                                // Use TypeValidator for detailed class compatibility checking
+                                if (!actualClassName.empty() && expectedReturnType != "object") {
+                                    bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
+                                    ctx.typeValidator.validateAssignment(
+                                        expectedType, expectedReturnType,
+                                        actualType, actualClassName,
+                                        isNullValue, node->getLocation()
+                                    );
+                                }
                             }
                         }
                     }

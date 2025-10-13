@@ -26,8 +26,7 @@ project "mType"
    -- Platform-specific SIMD configurations
    filter "system:windows"
       systemversion "latest"
-      -- Enable SSE2 by default (x64 baseline)
-      buildoptions { "/arch:SSE2" }
+      -- SSE2 is already the baseline for x64, no flag needed
 
       -- AVX2 support for release builds
       filter "configurations:Release"
