@@ -59,13 +59,6 @@ namespace evaluator
                     node->getLocation(),
                     context);
 
-                // Validate parent class is not final
-                validation::InheritanceValidator::validateParentClassNotFinal(
-                    node->getClassName(),
-                    parentClassName,
-                    node->getLocation(),
-                    context);
-
                 // Validate no circular inheritance
                 static circularDependency::CircularDependencyDetector inheritanceDetector;
                 validation::InheritanceValidator::validateCircularInheritance(
@@ -305,16 +298,7 @@ namespace evaluator
             const auto& genericParams = node->getGenericParameters();
             const auto& extendsInterfaces = node->getExtendedInterfaces();
 
-            // Validate that interface is not trying to extend a class
-            for (const auto& parentInterfaceName : extendsInterfaces)
-            {
-                // Validate that parent interface is not final
-                validation::InheritanceValidator::validateParentInterfaceNotFinal(
-                    node->getName(),
-                    parentInterfaceName,
-                    node->getLocation(),
-                    context);
-            }
+            // No runtime validation needed - all checks done at parse time
 
             auto interfaceDef = std::make_shared<InterfaceDefinition>(
                 node->getName(), genericParams, extendsInterfaces);

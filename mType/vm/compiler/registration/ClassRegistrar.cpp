@@ -88,24 +88,8 @@ namespace vm::compiler::registration
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
 
-            // Validate that class is not trying to extend an interface
-            // Extract base parent name from generic type
-            std::string baseParentName = parentClassName;
-            size_t genericStart = parentClassName.find('<');
-            if (genericStart != std::string::npos) {
-                baseParentName = parentClassName.substr(0, genericStart);
-            }
-
-            // Check if the parent is actually an interface
-            auto interfaceRegistry = environment->getInterfaceRegistry();
-            if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
-                throw errors::InheritanceException(
-                    "Class '" + className + "' cannot extend interface '" + parentClassName + "'. "
-                    "Classes can only extend other classes. Use 'implements' to implement interfaces.",
-                    className,
-                    parentClassName,
-                    classNode->getLocation());
-            }
+            // Note: Parser already validates that classes cannot extend interfaces
+            // at parse time (ClassDeclarationParser.cpp:92-98)
 
             classDef->setParentClassName(parentClassName);
         }
@@ -261,16 +245,12 @@ namespace vm::compiler::registration
 
         if (classDef && parentDef) {
             // Check for circular inheritance before establishing the link
+            // Note: Parser validates circular inheritance within single files (ClassDeclarationParser.cpp:109-124)
+            // This check remains as a safety net for cross-file import scenarios
             checkCircularInheritance(className, parentClassName, parentDef);
 
-            // Check if parent class is final
-            if (parentDef->isFinal()) {
-                throw errors::InheritanceException(
-                    "Cannot extend final class '" + parentClassName + "'",
-                    className,
-                    parentClassName,
-                    classNode->getLocation());
-            }
+            // Note: Parser already validates that classes cannot extend final classes
+            // at parse time (ClassDeclarationParser.cpp:101-106)
 
             // Establish the parent-child link
             classDef->setParentClass(parentDef);

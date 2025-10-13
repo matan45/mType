@@ -72,8 +72,8 @@ namespace parser
             );
         }
 
-        // Register the class name
-        context.registerClass(className);
+        // Register the class name with final modifier
+        context.registerClass(className, classNodePtr->isFinal());
 
         // Track method signatures for this class (local to this function)
         std::unordered_set<std::string> declaredStaticMethodSignatures;

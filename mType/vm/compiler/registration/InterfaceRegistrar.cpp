@@ -51,7 +51,13 @@ namespace vm::compiler::registration
         // Get extended interfaces
         const auto& extendedInterfaces = interfaceNode->getExtendedInterfaces();
 
-        // Validate that parent interfaces exist and are not classes
+        // Note: Parser already validates interface inheritance constraints at parse time:
+        // - Interface cannot extend class (InterfaceParser.cpp:130-136)
+        // - Cannot extend final interface (InterfaceParser.cpp:139-144)
+        // - Circular interface inheritance (InterfaceParser.cpp:147-160)
+        // This leaves only parent existence validation for cross-file imports
+
+        // Validate that parent interfaces exist (needed for cross-file imports)
         for (const auto& parentInterface : extendedInterfaces) {
             // Extract base parent name from generic type
             std::string baseParentName = parentInterface;
@@ -60,32 +66,12 @@ namespace vm::compiler::registration
                 baseParentName = parentInterface.substr(0, genericStart);
             }
 
-            // Check if the parent is actually a class
-            if (environment->findClass(baseParentName)) {
-                throw errors::InheritanceException(
-                    "Interface '" + interfaceName + "' cannot extend class '" + parentInterface + "'. "
-                    "Interfaces can only extend other interfaces.",
-                    interfaceName,
-                    parentInterface,
-                    interfaceNode->getLocation());
-            }
-
             // Validate that parent interface exists
             if (!interfaceRegistry->hasInterface(baseParentName)) {
                 throw errors::TypeException(
                     "Interface '" + interfaceName + "' extends undefined interface '" + parentInterface + "'",
                     interfaceNode->getLocation()
                 );
-            }
-
-            // Validate that parent interface is not final
-            auto parentInterfaceDef = interfaceRegistry->findInterface(baseParentName);
-            if (parentInterfaceDef && parentInterfaceDef->isFinal()) {
-                throw errors::InheritanceException(
-                    "Cannot extend final interface '" + parentInterface + "'",
-                    interfaceName,
-                    parentInterface,
-                    interfaceNode->getLocation());
             }
         }
 

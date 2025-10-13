@@ -106,8 +106,8 @@ namespace parser
             );
         }
 
-        // Register the interface name
-        context.registerInterface(interfaceName);
+        // Register the interface name with final modifier
+        context.registerInterface(interfaceName, isFinal);
 
         // Parse optional extends clause
         if (tokenStream.current().type == TokenType::EXTENDS)
@@ -116,6 +116,8 @@ namespace parser
 
             // Use ParserUtils to parse the interface list
             auto extendedInterfaces = ParserUtils::parseInterfaceList(tokenStream, "extends");
+
+            // Validate each parent interface
             for (const auto& parentInterfaceName : extendedInterfaces)
             {
                 // Extract base name without generic parameters for validation
@@ -135,7 +137,31 @@ namespace parser
                         tokenStream.current().location);
                 }
 
+                // Check if parent interface is marked as final
+                if (context.isInterfaceFinal(baseParentName))
+                {
+                    throw ParseException(
+                        "Interface '" + interfaceName + "' cannot extend final interface '" + baseParentName + "'.",
+                        tokenStream.current().location);
+                }
+
                 interfaceNode->addExtendedInterface(parentInterfaceName);
+            }
+
+            // Check for circular inheritance after validating all parents
+            if (!context.registerInterfaceInheritance(interfaceName, extendedInterfaces))
+            {
+                // Build a simple error message
+                std::string parentsStr;
+                for (size_t i = 0; i < extendedInterfaces.size(); ++i) {
+                    if (i > 0) parentsStr += ", ";
+                    parentsStr += extendedInterfaces[i];
+                }
+
+                throw ParseException(
+                    "Circular inheritance detected: Interface '" + interfaceName +
+                    "' creates a cycle when extending [" + parentsStr + "]",
+                    tokenStream.current().location);
             }
         }
 

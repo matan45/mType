@@ -96,6 +96,32 @@ namespace parser
                     "Classes can only extend other classes. Use 'implements' for interfaces.",
                     tokenStream.current().location);
             }
+
+            // Check if parent class is marked as final
+            if (context.isClassFinal(baseParentName))
+            {
+                throw ParseException(
+                    "Class '" + className + "' cannot extend final class '" + baseParentName + "'.",
+                    tokenStream.current().location);
+            }
+
+            // Check for circular inheritance
+            if (!context.registerClassInheritance(className, baseParentName))
+            {
+                // Build inheritance chain for error message
+                auto chain = context.getClassInheritanceChain(className);
+                std::string chainStr = className;
+                for (const auto& ancestor : chain) {
+                    if (ancestor != className) {
+                        chainStr += " -> " + ancestor;
+                    }
+                }
+                chainStr += " -> " + baseParentName + " (creates cycle)";
+
+                throw ParseException(
+                    "Circular inheritance detected: " + chainStr,
+                    tokenStream.current().location);
+            }
         }
 
         // Parse implements clause if present

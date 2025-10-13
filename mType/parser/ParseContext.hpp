@@ -42,6 +42,14 @@ namespace parser
         std::unordered_set<std::string> declaredClasses;
         std::unordered_set<std::string> declaredInterfaces;
 
+        // NEW: Track final classes and interfaces
+        std::unordered_set<std::string> finalClasses;
+        std::unordered_set<std::string> finalInterfaces;
+
+        // NEW: Track inheritance relationships for circular detection
+        std::unordered_map<std::string, std::string> classParents;  // childClass -> parentClass
+        std::unordered_map<std::string, std::vector<std::string>> interfaceParents;  // childInterface -> [parentInterfaces]
+
         // NEW: Track declared global function names to prevent duplicates
         std::unordered_set<std::string> declaredFunctionNames;
 
@@ -218,6 +226,10 @@ namespace parser
             declaredTypeNames.clear();
             declaredClasses.clear();
             declaredInterfaces.clear();
+            finalClasses.clear();
+            finalInterfaces.clear();
+            classParents.clear();
+            interfaceParents.clear();
         }
 
         // NEW: Separate class/interface tracking for validation
@@ -232,15 +244,155 @@ namespace parser
         }
 
         /// @brief Register a class name
-        void registerClass(const std::string& className) {
+        void registerClass(const std::string& className, bool isFinal = false) {
             declaredClasses.insert(className);
             declaredTypeNames.insert(className);
+            if (isFinal) {
+                finalClasses.insert(className);
+            }
         }
 
         /// @brief Register an interface name
-        void registerInterface(const std::string& interfaceName) {
+        void registerInterface(const std::string& interfaceName, bool isFinal = false) {
             declaredInterfaces.insert(interfaceName);
             declaredTypeNames.insert(interfaceName);
+            if (isFinal) {
+                finalInterfaces.insert(interfaceName);
+            }
+        }
+
+        // NEW: Final modifier tracking
+        /// @brief Check if a class is marked as final
+        [[nodiscard]] bool isClassFinal(const std::string& className) const {
+            return finalClasses.count(className) > 0;
+        }
+
+        /// @brief Check if an interface is marked as final
+        [[nodiscard]] bool isInterfaceFinal(const std::string& interfaceName) const {
+            return finalInterfaces.count(interfaceName) > 0;
+        }
+
+        // NEW: Circular inheritance detection
+        /// @brief Register class inheritance relationship and check for cycles
+        /// @return true if no cycle detected, false if circular inheritance found
+        bool registerClassInheritance(const std::string& childClass, const std::string& parentClass) {
+            // Extract base names without generic parameters
+            std::string baseParent = parentClass;
+            size_t genericStart = parentClass.find('<');
+            if (genericStart != std::string::npos) {
+                baseParent = parentClass.substr(0, genericStart);
+            }
+
+            // Check for immediate self-inheritance
+            if (childClass == baseParent) {
+                return false;
+            }
+
+            // Check for circular inheritance by traversing parent chain
+            std::string current = baseParent;
+            std::unordered_set<std::string> visited;
+            visited.insert(childClass);
+
+            while (classParents.count(current) > 0) {
+                if (visited.count(current) > 0) {
+                    // Cycle detected
+                    return false;
+                }
+                visited.insert(current);
+                current = classParents[current];
+
+                // Extract base name from parent
+                genericStart = current.find('<');
+                if (genericStart != std::string::npos) {
+                    current = current.substr(0, genericStart);
+                }
+            }
+
+            // No cycle found, register the relationship
+            classParents[childClass] = baseParent;
+            return true;
+        }
+
+        /// @brief Register interface inheritance relationship and check for cycles
+        /// @return true if no cycle detected, false if circular inheritance found
+        bool registerInterfaceInheritance(const std::string& childInterface,
+                                         const std::vector<std::string>& parentInterfaces) {
+            // Extract base names without generic parameters
+            std::vector<std::string> baseParents;
+            for (const auto& parent : parentInterfaces) {
+                std::string baseParent = parent;
+                size_t genericStart = parent.find('<');
+                if (genericStart != std::string::npos) {
+                    baseParent = parent.substr(0, genericStart);
+                }
+
+                // Check for immediate self-inheritance
+                if (childInterface == baseParent) {
+                    return false;
+                }
+
+                baseParents.push_back(baseParent);
+            }
+
+            // Check for circular inheritance using DFS
+            std::unordered_set<std::string> visited;
+            std::unordered_set<std::string> recursionStack;
+
+            auto hasCycle = [this, &visited, &recursionStack](const std::string& interface, auto& hasCycleRef) -> bool {
+                if (recursionStack.count(interface) > 0) {
+                    // Found cycle
+                    return true;
+                }
+
+                if (visited.count(interface) > 0) {
+                    // Already visited this path, no cycle
+                    return false;
+                }
+
+                visited.insert(interface);
+                recursionStack.insert(interface);
+
+                // Check all parents of this interface
+                if (interfaceParents.count(interface) > 0) {
+                    for (const auto& parent : interfaceParents.at(interface)) {
+                        if (hasCycleRef(parent, hasCycleRef)) {
+                            return true;
+                        }
+                    }
+                }
+
+                recursionStack.erase(interface);
+                return false;
+            };
+
+            // Check if adding these parents would create a cycle
+            for (const auto& baseParent : baseParents) {
+                visited.clear();
+                recursionStack.clear();
+                recursionStack.insert(childInterface);
+
+                if (hasCycle(baseParent, hasCycle)) {
+                    return false;
+                }
+            }
+
+            // No cycle found, register the relationships
+            interfaceParents[childInterface] = baseParents;
+            return true;
+        }
+
+        /// @brief Get the inheritance chain for a class (for error messages)
+        [[nodiscard]] std::vector<std::string> getClassInheritanceChain(const std::string& className) const {
+            std::vector<std::string> chain;
+            std::string current = className;
+
+            while (classParents.count(current) > 0) {
+                chain.push_back(current);
+                current = classParents.at(current);
+            }
+            chain.push_back(current);  // Add final parent
+
+            return chain;
         }
 
         // NEW: Global function name tracking for duplicate detection

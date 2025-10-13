@@ -198,5 +198,39 @@ namespace tests::testSuite
         addTestFromFile("Interface Cannot Extend Generic Class",
                     errorPath + "interfaceExtendsGenericClass.mt",
                     TestType::ERROR_EXPECTED);
+
+        // Final modifier validation error tests (compile-time errors)
+        addTestFromFile("Cannot Extend Final Class",
+                    errorPath + "extendFinalClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Generic Class",
+                    errorPath + "extendFinalGenericClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Interface",
+                    errorPath + "extendFinalInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Generic Interface",
+                    errorPath + "extendFinalGenericInterface.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Circular inheritance validation error tests (compile-time errors)
+        addTestFromFile("Circular Class Inheritance - Simple",
+                    errorPath + "circularClassInheritanceSimple.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Class Inheritance - Complex",
+                    errorPath + "circularClassInheritanceComplex.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Class Inheritance - Self",
+                    errorPath + "circularClassInheritanceSelf.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Simple",
+                    errorPath + "circularInterfaceInheritanceSimple.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Complex",
+                    errorPath + "circularInterfaceInheritanceComplex.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Multiple Parents",
+                    errorPath + "circularInterfaceInheritanceMultiple.mt",
+                    TestType::ERROR_EXPECTED);
     }
 }
