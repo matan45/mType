@@ -170,5 +170,19 @@ namespace tests::testSuite
         addTestFromFile("Constraint Wrong Interface",
                     errorPath + "constraintWrongInterface.mt",
                     TestType::ERROR_EXPECTED);
+
+        // Parser validation error tests (compile-time errors)
+        addTestFromFile("Too Many Generic Parameters - Class",
+                    errorPath + "tooManyGenericParams.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Too Many Generic Parameters - Interface",
+                    errorPath + "tooManyGenericParamsInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Empty Generic Type Arguments",
+                    errorPath + "emptyGenericType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Unmatched Generic Brackets",
+                    errorPath + "unmatchedGenericBrackets.mt",
+                    TestType::ERROR_EXPECTED);
     }
 }

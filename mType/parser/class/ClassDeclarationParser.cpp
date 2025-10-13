@@ -61,6 +61,17 @@ namespace parser
             tokenStream.advance(); // consume '<'
             genericParameters = genericParameterParser->parseGenericTypeParameters();
             tokenStream.expect(TokenType::GREATER); // consume '>'
+
+            // Validate generic parameter count limit
+            constexpr size_t MAX_GENERIC_PARAMETERS = 20;
+            if (genericParameters.size() > MAX_GENERIC_PARAMETERS)
+            {
+                throw ParseException(
+                    "Class '" + className + "' has too many generic parameters (" +
+                    std::to_string(genericParameters.size()) + "). Maximum allowed: " +
+                    std::to_string(MAX_GENERIC_PARAMETERS),
+                    tokenStream.current().location);
+            }
         }
 
         // Parse extends clause if present (must come before implements)

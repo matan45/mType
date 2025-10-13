@@ -3112,6 +3112,9 @@
     <None Include="tests\testFiles\generics\error\constraintWrongInterface.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\emptyGenericType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\globalGenericPrimitiveType.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3163,6 +3166,12 @@
     <None Include="tests\testFiles\generics\error\staticNonGenericWithTypeArgs.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\tooManyGenericParams.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\tooManyGenericParamsInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\typeMismatchInMethod.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3173,6 +3182,9 @@
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\undefinedGenericClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\unmatchedGenericBrackets.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\basicGenericClass.expected">

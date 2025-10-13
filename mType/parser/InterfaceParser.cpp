@@ -79,6 +79,17 @@ namespace parser
             tokenStream.advance(); // consume '<'
             genericParams = parseGenericTypeParameters();
             tokenStream.expect(TokenType::GREATER); // consume '>'
+
+            // Validate generic parameter count limit
+            constexpr size_t MAX_GENERIC_PARAMETERS = 20;
+            if (genericParams.size() > MAX_GENERIC_PARAMETERS)
+            {
+                throw ParseException(
+                    "Interface '" + interfaceName + "' has too many generic parameters (" +
+                    std::to_string(genericParams.size()) + "). Maximum allowed: " +
+                    std::to_string(MAX_GENERIC_PARAMETERS),
+                    location);
+            }
         }
 
         // Create interface node
