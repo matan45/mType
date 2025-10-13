@@ -19,16 +19,6 @@
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
-#include "../vm/compiler/BytecodeCompiler.hpp"
-#include "../vm/runtime/VirtualMachine.hpp"
-#include "../services/ImportManager.hpp"
-#include "../ast/nodes/statements/ImportNode.hpp"
-#include "../ast/nodes/statements/ProgramNode.hpp"
-#include "../ast/nodes/statements/BlockNode.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../runtime/EventLoop.hpp"
 
 #include <vector>
@@ -36,7 +26,6 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
-#include <fstream>
 
 
 using namespace tests::testSuite;

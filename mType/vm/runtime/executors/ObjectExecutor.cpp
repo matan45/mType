@@ -67,7 +67,8 @@ namespace vm::runtime
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        validateConstructorAccess(baseClassName, constructor->getAccessModifier());
+        auto accessContext = createAccessContext(baseClassName, false);
+        validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
 
         std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
@@ -123,48 +124,10 @@ namespace vm::runtime
             throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
         }
 
-        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            std::string currentClassName;
-            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
-                currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
-            }
-
-            std::string targetClassName = instance->getClassDefinition()->getName();
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                if (currentClassName != targetClassName) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        fieldName, "field", ast::AccessModifier::PRIVATE,
-                        targetClassName, callingFrom, errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                if (currentClassName != targetClassName) {
-                    bool isSubclass = false;
-                    if (!currentClassName.empty()) {
-                        auto currentClass = context.environment->getClassRegistry()->findClass(currentClassName);
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == targetClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            fieldName, "field", ast::AccessModifier::PROTECTED,
-                            targetClassName, callingFrom, errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
+        // Validate access control
+        std::string targetClassName = instance->getClassDefinition()->getName();
+        auto accessContext = createAccessContext(targetClassName, false);
+        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         value::Value fieldValue = instance->getFieldValue(fieldName);
         context.stackManager->push(fieldValue);
@@ -201,48 +164,10 @@ namespace vm::runtime
             }
         }
 
-        ast::AccessModifier accessMod = fieldDef->getAccessModifier();
-        if (accessMod != ast::AccessModifier::PUBLIC) {
-            std::string currentClassName;
-            if (!context.callStack.empty() && context.callStack.back().thisInstance) {
-                currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
-            }
-
-            std::string targetClassName = instance->getClassDefinition()->getName();
-
-            if (accessMod == ast::AccessModifier::PRIVATE) {
-                if (currentClassName != targetClassName) {
-                    std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                    throw errors::AccessViolationException(
-                        fieldName, "field", ast::AccessModifier::PRIVATE,
-                        targetClassName, callingFrom, errors::SourceLocation()
-                    );
-                }
-            } else if (accessMod == ast::AccessModifier::PROTECTED) {
-                if (currentClassName != targetClassName) {
-                    bool isSubclass = false;
-                    if (!currentClassName.empty()) {
-                        auto currentClass = context.environment->getClassRegistry()->findClass(currentClassName);
-                        while (currentClass && currentClass->hasParentClass()) {
-                            if (currentClass->getParentClassName() == targetClassName) {
-                                isSubclass = true;
-                                break;
-                            }
-                            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
-                            currentClass = parentClass;
-                        }
-                    }
-
-                    if (!isSubclass) {
-                        std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                        throw errors::AccessViolationException(
-                            fieldName, "field", ast::AccessModifier::PROTECTED,
-                            targetClassName, callingFrom, errors::SourceLocation()
-                        );
-                    }
-                }
-            }
-        }
+        // Validate access control
+        std::string targetClassName = instance->getClassDefinition()->getName();
+        auto accessContext = createAccessContext(targetClassName, true);
+        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         instance->setField(fieldName, newValue);
 
@@ -281,7 +206,8 @@ namespace vm::runtime
             throw errors::RuntimeException("Field '" + fieldName + "' is not static");
         }
 
-        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier(), false);
+        auto accessContext = createAccessContext(className, false);
+        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         value::Value fieldValue = fieldDef->getValue();
         context.stackManager->push(fieldValue);
@@ -325,7 +251,8 @@ namespace vm::runtime
             }
         }
 
-        validateFieldAccess(className, fieldName, fieldDef->getAccessModifier(), true);
+        auto accessContext = createAccessContext(className, true);
+        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         fieldDef->setValue(newValue);
     }
@@ -404,7 +331,8 @@ namespace vm::runtime
                                          " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
-        validateMethodAccess(classDef->getName(), methodName, method->getAccessModifier());
+        auto accessContext = createAccessContext(classDef->getName(), false);
+        validation::AccessValidator::validateMethodAccess(methodName, method->getAccessModifier(), accessContext);
 
         // Find which class actually defines this method by walking up the hierarchy
         std::string definingClassName = classDef->getName();
@@ -667,94 +595,29 @@ namespace vm::runtime
         return false;
     }
 
-    void ObjectExecutor::validateConstructorAccess(const std::string& className, ast::AccessModifier accessMod) {
-        if (accessMod == ast::AccessModifier::PUBLIC) return;
-
+    validation::AccessContext ObjectExecutor::createAccessContext(
+        const std::string& targetClassName,
+        bool isSetter
+    )
+    {
         std::string currentClassName = getCurrentClassName();
+        bool isSameClass = (currentClassName == targetClassName);
+        bool isSubclassCheck = isSubclass(currentClassName, targetClassName);
 
-        if (accessMod == ast::AccessModifier::PRIVATE) {
-            if (currentClassName != className) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    className + " constructor", "constructor",
-                    ast::AccessModifier::PRIVATE, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        } else if (accessMod == ast::AccessModifier::PROTECTED) {
-            if (currentClassName != className && !isSubclass(currentClassName, className)) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    className + " constructor", "constructor",
-                    ast::AccessModifier::PROTECTED, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        }
-    }
-
-    void ObjectExecutor::validateMethodAccess(const std::string& className, const std::string& methodName, ast::AccessModifier accessMod) {
-        if (accessMod == ast::AccessModifier::PUBLIC) {
-            return;
+        // Special case: Static field initialization (SET operations) happens in global scope
+        // Allow SET during static initialization
+        if (currentClassName.empty() && context.callStack.empty() && isSetter) {
+            // Allow initialization by treating it as same class access
+            isSameClass = true;
         }
 
-        std::string currentClassName = getCurrentClassName();
-
-        if (accessMod == ast::AccessModifier::PRIVATE) {
-            if (currentClassName != className) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    methodName, "method",
-                    ast::AccessModifier::PRIVATE, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        } else if (accessMod == ast::AccessModifier::PROTECTED) {
-            if (currentClassName != className && !isSubclass(currentClassName, className)) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    methodName, "method",
-                    ast::AccessModifier::PROTECTED, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        }
-    }
-
-    void ObjectExecutor::validateFieldAccess(const std::string& className, const std::string& fieldName, ast::AccessModifier accessMod, bool isSetter) {
-        if (accessMod == ast::AccessModifier::PUBLIC) return;
-
-        std::string currentClassName = getCurrentClassName();
-
-        // Special case: Static field initialization (SET operations) happens in global scope (empty call stack)
-        // Allow SET during static initialization - the compiler ensures we only set fields
-        // of the class being initialized
-        // But REJECT GET operations from global scope (external access attempts)
-        if (currentClassName.empty() && context.callStack.empty()) {
-            if (isSetter) {
-                return;  // Allow SET during initialization
-            }
-            // For GET, fall through to normal validation which will reject it
-        }
-
-        if (accessMod == ast::AccessModifier::PRIVATE) {
-            if (currentClassName != className) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    fieldName, "field",
-                    ast::AccessModifier::PRIVATE, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        } else if (accessMod == ast::AccessModifier::PROTECTED) {
-            if (currentClassName != className && !isSubclass(currentClassName, className)) {
-                std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
-                throw errors::AccessViolationException(
-                    fieldName, "field",
-                    ast::AccessModifier::PROTECTED, className, callingFrom,
-                    errors::SourceLocation()
-                );
-            }
-        }
+        return validation::AccessContext(
+            currentClassName,
+            targetClassName,
+            isSameClass,
+            isSubclassCheck,
+            isSetter,
+            errors::SourceLocation()
+        );
     }
 }

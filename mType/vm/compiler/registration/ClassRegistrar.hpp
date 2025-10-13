@@ -48,5 +48,23 @@ namespace vm::compiler::registration
             const std::string& parentClassName,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentDef
         ) const;
+
+        // Validation methods
+        void validateParentClassExists(
+            const std::string& parentClassName,
+            const ast::SourceLocation& location
+        ) const;
+        void validateInheritanceDepth(
+            const std::string& className,
+            const ast::SourceLocation& location
+        ) const;
+        void validateMethodOverrides(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const ast::SourceLocation& location
+        ) const;
+
+        // Constants
+        static constexpr size_t MAX_INHERITANCE_DEPTH = 100;
     };
 }

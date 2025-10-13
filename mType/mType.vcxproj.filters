@@ -313,6 +313,9 @@
     <Filter Include="vm\runtime\utils">
       <UniqueIdentifier>{FBD89FD2-E7D1-BE24-1004-A4A9FC5B9E30}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\runtime\validation">
+      <UniqueIdentifier>{15F58992-8161-458D-4A55-DDEAB68067F5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast\ASTNode.hpp">
@@ -1125,6 +1128,9 @@
     <ClInclude Include="vm\runtime\utils\TypeConverter.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
+      <Filter>vm\runtime\validation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ast\AccessModifier.cpp">
@@ -1759,6 +1765,9 @@
     </ClCompile>
     <ClCompile Include="vm\runtime\utils\TypeConverter.cpp">
       <Filter>vm\runtime\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\validation\AccessValidator.cpp">
+      <Filter>vm\runtime\validation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
