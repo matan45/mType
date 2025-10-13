@@ -24,6 +24,11 @@ namespace value
     class PromiseValue;
 }
 
+namespace mType::value::arrays
+{
+    class FlatMultiObjectArray;
+}
+
 
 namespace value
 {
@@ -47,6 +52,7 @@ namespace value
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,
+                               std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>,
                                std::shared_ptr<LambdaValue>,
                                std::shared_ptr<vm::runtime::BytecodeLambda>,
                                std::shared_ptr<PromiseValue>,
@@ -59,6 +65,9 @@ namespace value
             return ValueType::ARRAY;
         }
         if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(value)) {
+            return ValueType::ARRAY;
+        }
+        if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(value)) {
             return ValueType::ARRAY;
         }
         if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {

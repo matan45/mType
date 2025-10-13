@@ -6,6 +6,7 @@
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
 #include "../../value/ArrayPool.hpp"
+#include "../../value/arrays/ArrayFactory.hpp"
 #include "../../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
@@ -88,9 +89,19 @@ namespace expressions {
         // Handle different array creation scenarios
         if (dimensions.size() == 1)
         {
-            // Use NativeArray for 1D (this works)
+            // Use ArrayFactory for optimized 1D array creation
             auto elementTypeInfo = node->getElementTypeInfo();
-            auto nativeArray = std::make_shared<NativeArray>(dimensions[0], elementTypeInfo.baseType, elementTypeInfo.className);
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+
+            auto nativeArray = mType::value::arrays::ArrayFactory::create1DArray(
+                dimensions[0],
+                elementTypeInfo.baseType,
+                elementTypeInfo.className,
+                nullptr,  // ClassDefinition will be resolved by ArrayFactory
+                classRegistry
+            );
+
+            // Initialize with default values
             for (size_t i = 0; i < dimensions[0]; ++i)
             {
                 nativeArray->set(i, defaultValue);
@@ -119,9 +130,17 @@ namespace expressions {
                 throw TypeException("Jagged arrays must have at least one specified dimension", node->getLocation());
             }
 
-            // Create an array with the first specified dimension
+            // Create an array with the first specified dimension using ArrayFactory
             auto elementTypeInfo = node->getElementTypeInfo();
-            auto jaggedArray = std::make_shared<NativeArray>(firstDimension, elementTypeInfo.baseType, elementTypeInfo.className);
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+
+            auto jaggedArray = mType::value::arrays::ArrayFactory::create1DArray(
+                firstDimension,
+                elementTypeInfo.baseType,
+                elementTypeInfo.className,
+                nullptr,
+                classRegistry
+            );
 
             // Initialize each element to null (will be assigned later)
             for (size_t i = 0; i < firstDimension; ++i)
@@ -133,9 +152,26 @@ namespace expressions {
         }
         else
         {
-            // Use adaptive ArrayPool for efficient multi-dimensional array allocation
-            auto& pool = ArrayPool::getInstance();
-            Value adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
+            // Multi-dimensional array creation
+            auto elementTypeInfo = node->getElementTypeInfo();
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+
+            // Try ArrayFactory for multi-dimensional arrays (supports FlatMultiObjectArray for objects)
+            Value adaptiveArray = mType::value::arrays::ArrayFactory::createMultiDimensionalArray(
+                dimensions,
+                elementTypeInfo.baseType,
+                elementTypeInfo.className,
+                nullptr,  // ClassDefinition resolved by ArrayFactory
+                classRegistry
+            );
+
+            // If it's not a FlatMultiObjectArray, use the existing ArrayPool adaptive logic
+            if (!std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(adaptiveArray))
+            {
+                // Fallback to ArrayPool for non-object multi-dimensional arrays
+                auto& pool = ArrayPool::getInstance();
+                adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
+            }
 
             // Verify the array is valid (works for both FlatMultiArray and SparseMultiArray)
             if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
@@ -249,7 +285,7 @@ namespace expressions {
             evaluatedElements.push_back(elementValue);
         }
 
-        // Create NativeArray with the correct size and element type
+        // Create NativeArray with the correct size and element type using ArrayFactory
         std::string elementTypeName = "";
         if (expectedType == ValueType::OBJECT && !evaluatedElements.empty())
         {
@@ -257,13 +293,14 @@ namespace expressions {
             elementTypeName = ObjectHelper::getClassName(evaluatedElements[0]);
         }
 
-        auto array = std::make_shared<NativeArray>(evaluatedElements.size(), expectedType, elementTypeName);
+        auto classRegistry = context->getEnvironment()->getClassRegistry().get();
 
-        // Populate the array using set method
-        for (size_t i = 0; i < evaluatedElements.size(); ++i)
-        {
-            array->set(i, evaluatedElements[i]);
-        }
+        auto array = mType::value::arrays::ArrayFactory::createFromLiteral(
+            evaluatedElements,
+            expectedType,
+            elementTypeName,
+            classRegistry
+        );
 
         return array;
     }

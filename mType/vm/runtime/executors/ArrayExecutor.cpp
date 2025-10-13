@@ -1,4 +1,5 @@
 #include "ArrayExecutor.hpp"
+#include "../../../value/arrays/ArrayFactory.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -19,8 +20,16 @@ namespace vm::runtime
             throw errors::RuntimeException("Array size cannot be negative: " + std::to_string(size));
         }
 
-        // Create new NativeArray
-        auto array = std::make_shared<value::NativeArray>(size, value::ValueType::OBJECT, elementTypeName);
+        // Use ArrayFactory for optimized array creation
+        // ClassRegistry will be looked up by ArrayFactory if available
+        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+        auto array = mType::value::arrays::ArrayFactory::create1DArray(
+            static_cast<size_t>(size),
+            value::ValueType::OBJECT,
+            elementTypeName,
+            nullptr,  // ClassDefinition will be resolved by ArrayFactory
+            classRegistry  // Pass ClassRegistry for lookup
+        );
 
         // Push array onto stack
         context.stackManager->push(array);
@@ -125,21 +134,41 @@ namespace vm::runtime
             // Last specified dimension
             // If this is also the last total dimension, create array of actual elements
             // Otherwise, create array of null references (for jagged arrays)
+            auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+
             if (dimensions.size() == totalDimensions) {
-                // Fully specified - create array of elements
-                // Convert element type name to ValueType
+                // Fully specified - create array of elements using ArrayFactory
                 value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
-                return std::make_shared<value::NativeArray>(currentDimSize, elemType, elementTypeName);
+                return mType::value::arrays::ArrayFactory::create1DArray(
+                    currentDimSize,
+                    elemType,
+                    elementTypeName,
+                    nullptr,
+                    classRegistry
+                );
             } else {
                 // Jagged - create array of null array references
-                auto array = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+                auto array = mType::value::arrays::ArrayFactory::create1DArray(
+                    currentDimSize,
+                    value::ValueType::OBJECT,
+                    "Array",
+                    nullptr,
+                    classRegistry
+                );
                 // Elements are initialized to std::monostate{} (null) by default
                 return array;
             }
         }
         else {
-            // Not last dimension - create array of arrays
-            auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+            // Not last dimension - create array of arrays using ArrayFactory
+            auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+            auto outerArray = mType::value::arrays::ArrayFactory::create1DArray(
+                currentDimSize,
+                value::ValueType::OBJECT,
+                "Array",
+                nullptr,
+                classRegistry
+            );
 
             // Fill with nested arrays
             for (int i = 0; i < currentDimSize; ++i) {
@@ -161,14 +190,27 @@ namespace vm::runtime
         }
 
         int currentDimSize = dimensions[dimIndex];
+        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
 
         if (dimIndex == dimensions.size() - 1) {
-            // Last dimension - create array of actual elements
-            return std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, elementTypeName);
+            // Last dimension - create array of actual elements using ArrayFactory
+            return mType::value::arrays::ArrayFactory::create1DArray(
+                currentDimSize,
+                value::ValueType::OBJECT,
+                elementTypeName,
+                nullptr,
+                classRegistry
+            );
         }
         else {
-            // Not last dimension - create array of arrays
-            auto outerArray = std::make_shared<value::NativeArray>(currentDimSize, value::ValueType::OBJECT, "Array");
+            // Not last dimension - create array of arrays using ArrayFactory
+            auto outerArray = mType::value::arrays::ArrayFactory::create1DArray(
+                currentDimSize,
+                value::ValueType::OBJECT,
+                "Array",
+                nullptr,
+                classRegistry
+            );
 
             // Fill with nested arrays
             for (int i = 0; i < currentDimSize; ++i) {

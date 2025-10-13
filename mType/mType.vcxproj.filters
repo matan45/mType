@@ -271,6 +271,42 @@
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="value\arrays">
+      <UniqueIdentifier>{C3FEC2A4-AF61-5249-58E7-8AFF44291ECC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\base">
+      <UniqueIdentifier>{4D99B936-B9AF-B7CC-0227-43EE6E7C8854}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\object">
+      <UniqueIdentifier>{0967E5E9-75C8-C2F7-FE35-09AA6A96F9B6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\operations">
+      <UniqueIdentifier>{5608AF42-C23F-F7D9-CB49-5BFD37001ED3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\primitive">
+      <UniqueIdentifier>{0B1FFC12-F718-2565-E085-BB75CC1E8BD1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\string">
+      <UniqueIdentifier>{093884F4-7599-6102-FE06-A8B46A6798C1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd">
+      <UniqueIdentifier>{DE8C03FF-CA44-454C-334C-1EA81F23E03C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\detection">
+      <UniqueIdentifier>{CCF20A81-B881-944A-61A0-A8454D0EA5F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\dispatch">
+      <UniqueIdentifier>{FDDC802E-693E-5E3C-F2AB-A4EE5E0C95FB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\primitives">
+      <UniqueIdentifier>{19A8360C-8514-F206-4E08-8A64BA33146F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\primitives\scalar">
+      <UniqueIdentifier>{BE5C00EF-AA17-F09A-53CF-68E53F693A2B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\primitives\sse2">
+      <UniqueIdentifier>{6525843E-5135-300F-BAEE-942DA61D1FA8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm">
       <UniqueIdentifier>{E8795900-D405-880B-3DB4-880B295F880B}</UniqueIdentifier>
     </Filter>
@@ -1011,6 +1047,42 @@
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\arrays\ArrayFactory.hpp">
+      <Filter>value\arrays</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\base\IArray.hpp">
+      <Filter>value\arrays\base</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\FlatMultiObjectArray.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\ObjectArray.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\operations\ArrayOperations.hpp">
+      <Filter>value\arrays\operations</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\primitive\PrimitiveArray.hpp">
+      <Filter>value\arrays\primitive</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\string\StringArray.hpp">
+      <Filter>value\arrays\string</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\SIMDConfig.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
+      <Filter>value\simd\detection</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\dispatch\SIMDDispatcher.hpp">
+      <Filter>value\simd\dispatch</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\primitives\scalar\ScalarOps.hpp">
+      <Filter>value\simd\primitives\scalar</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\primitives\sse2\SSE2Ops.hpp">
+      <Filter>value\simd\primitives\sse2</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -1658,6 +1730,30 @@
     <ClCompile Include="value\StringPool.cpp">
       <Filter>value</Filter>
     </ClCompile>
+    <ClCompile Include="value\arrays\ArrayFactory.cpp">
+      <Filter>value\arrays</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\FlatMultiObjectArray.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\ObjectArray.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\operations\ArrayOperations.cpp">
+      <Filter>value\arrays\operations</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
+      <Filter>value\simd\detection</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\dispatch\SIMDDispatcher.cpp">
+      <Filter>value\simd\dispatch</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\primitives\scalar\ScalarOps.cpp">
+      <Filter>value\simd\primitives\scalar</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\primitives\sse2\SSE2Ops.cpp">
+      <Filter>value\simd\primitives\sse2</Filter>
+    </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
@@ -1861,6 +1957,12 @@
     <None Include="tests\testFiles\arrays\pass\genericArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\genericArraysOptimized.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\genericArraysOptimized.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\linkedListComprehensive.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
@@ -1885,10 +1987,34 @@
     <None Include="tests\testFiles\arrays\pass\nDimensionalArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\optimizationVerification.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\optimizationVerification.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\performanceCharacteristics.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\simdPrimitiveArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\simdPrimitiveArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\simdStringArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\simdStringArrays.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\soaObjectArrays.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\soaObjectArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\error\asyncConstructor.mt">

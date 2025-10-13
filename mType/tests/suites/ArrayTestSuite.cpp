@@ -54,6 +54,22 @@ namespace tests::testSuite
         addOutputVerificationTest("N-Dimensional Arrays",
                                   passPath + "nDimensionalArrays.mt");
 
+        // Phase 6: SIMD and SoA Optimization Tests
+        addOutputVerificationTest("SIMD Primitive Arrays (int/float/bool) - 1D, 2D, 3D",
+                                  passPath + "simdPrimitiveArrays.mt");
+
+        addOutputVerificationTest("SIMD String Arrays (StringPool) - 1D, 2D, 3D",
+                                  passPath + "simdStringArrays.mt");
+
+        addOutputVerificationTest("SoA Object Arrays (Structure-of-Arrays) - 1D, 2D, 3D",
+                                  passPath + "soaObjectArrays.mt");
+
+        addOutputVerificationTest("Generic Arrays with SIMD/SoA Optimization",
+                                  passPath + "genericArraysOptimized.mt");
+
+        addOutputVerificationTest("Comprehensive Optimization Verification",
+                                  passPath + "optimizationVerification.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",
