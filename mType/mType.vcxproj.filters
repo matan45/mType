@@ -3097,6 +3097,12 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\classExtendsGenericInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\classExtendsInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\constraintGlobalFunctionViolation.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3122,6 +3128,12 @@
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\globalNonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\interfaceExtendsClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\interfaceExtendsGenericClass.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.expected">

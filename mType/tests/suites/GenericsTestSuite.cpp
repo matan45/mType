@@ -184,5 +184,19 @@ namespace tests::testSuite
         addTestFromFile("Unmatched Generic Brackets",
                     errorPath + "unmatchedGenericBrackets.mt",
                     TestType::ERROR_EXPECTED);
+
+        // Inheritance validation error tests (compile-time errors)
+        addTestFromFile("Class Cannot Extend Interface",
+                    errorPath + "classExtendsInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Class Cannot Extend Generic Interface",
+                    errorPath + "classExtendsGenericInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Interface Cannot Extend Class",
+                    errorPath + "interfaceExtendsClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Interface Cannot Extend Generic Class",
+                    errorPath + "interfaceExtendsGenericClass.mt",
+                    TestType::ERROR_EXPECTED);
     }
 }

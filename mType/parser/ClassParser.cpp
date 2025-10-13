@@ -73,7 +73,7 @@ namespace parser
         }
 
         // Register the class name
-        context.registerTypeName(className);
+        context.registerClass(className);
 
         // Track method signatures for this class (local to this function)
         std::unordered_set<std::string> declaredStaticMethodSignatures;

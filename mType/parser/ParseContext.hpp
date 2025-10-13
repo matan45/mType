@@ -38,6 +38,10 @@ namespace parser
         // NEW: Track declared class/interface names to prevent duplicates
         std::unordered_set<std::string> declaredTypeNames;
 
+        // NEW: Track classes and interfaces separately for validation
+        std::unordered_set<std::string> declaredClasses;
+        std::unordered_set<std::string> declaredInterfaces;
+
         // NEW: Track declared global function names to prevent duplicates
         std::unordered_set<std::string> declaredFunctionNames;
 
@@ -212,6 +216,31 @@ namespace parser
         /// @brief Clear all declared type names (useful for new file/module parsing)
         void clearDeclaredTypes() {
             declaredTypeNames.clear();
+            declaredClasses.clear();
+            declaredInterfaces.clear();
+        }
+
+        // NEW: Separate class/interface tracking for validation
+        /// @brief Check if a name has been declared as a class
+        [[nodiscard]] bool isClassDeclared(const std::string& className) const {
+            return declaredClasses.count(className) > 0;
+        }
+
+        /// @brief Check if a name has been declared as an interface
+        [[nodiscard]] bool isInterfaceDeclared(const std::string& interfaceName) const {
+            return declaredInterfaces.count(interfaceName) > 0;
+        }
+
+        /// @brief Register a class name
+        void registerClass(const std::string& className) {
+            declaredClasses.insert(className);
+            declaredTypeNames.insert(className);
+        }
+
+        /// @brief Register an interface name
+        void registerInterface(const std::string& interfaceName) {
+            declaredInterfaces.insert(interfaceName);
+            declaredTypeNames.insert(interfaceName);
         }
 
         // NEW: Global function name tracking for duplicate detection

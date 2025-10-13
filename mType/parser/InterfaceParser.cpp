@@ -107,7 +107,7 @@ namespace parser
         }
 
         // Register the interface name
-        context.registerTypeName(interfaceName);
+        context.registerInterface(interfaceName);
 
         // Parse optional extends clause
         if (tokenStream.current().type == TokenType::EXTENDS)
@@ -116,9 +116,26 @@ namespace parser
 
             // Use ParserUtils to parse the interface list
             auto extendedInterfaces = ParserUtils::parseInterfaceList(tokenStream, "extends");
-            for (const auto& interfaceName : extendedInterfaces)
+            for (const auto& parentInterfaceName : extendedInterfaces)
             {
-                interfaceNode->addExtendedInterface(interfaceName);
+                // Extract base name without generic parameters for validation
+                std::string baseParentName = parentInterfaceName;
+                size_t genericStart = parentInterfaceName.find('<');
+                if (genericStart != std::string::npos)
+                {
+                    baseParentName = parentInterfaceName.substr(0, genericStart);
+                }
+
+                // Check if parent is a declared class
+                if (context.isClassDeclared(baseParentName))
+                {
+                    throw ParseException(
+                        "Interface '" + interfaceName + "' cannot extend class '" + baseParentName + "'. "
+                        "Interfaces can only extend other interfaces.",
+                        tokenStream.current().location);
+                }
+
+                interfaceNode->addExtendedInterface(parentInterfaceName);
             }
         }
 
