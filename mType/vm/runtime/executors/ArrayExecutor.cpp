@@ -20,12 +20,13 @@ namespace vm::runtime
             throw errors::RuntimeException("Array size cannot be negative: " + std::to_string(size));
         }
 
+        value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
         // Use ArrayFactory for optimized array creation
         // ClassRegistry will be looked up by ArrayFactory if available
         auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
         auto array = mType::value::arrays::ArrayFactory::create1DArray(
             static_cast<size_t>(size),
-            value::ValueType::OBJECT,
+             elemType,
             elementTypeName,
             nullptr,  // ClassDefinition will be resolved by ArrayFactory
             classRegistry  // Pass ClassRegistry for lookup
@@ -56,9 +57,12 @@ namespace vm::runtime
         }
         std::reverse(dimensions.begin(), dimensions.end());
 
-        // For jagged arrays (totalDimensions > specifiedDimensions), we only create
-        // the specified outer dimensions. Inner dimensions remain as null references.
-        // For fully specified arrays, create nested arrays for all dimensions.
+        // Note: Multi-dimensional arrays currently use nested NativeArray approach
+        // FlatMultiObjectArray with full SoA optimization is not yet integrated with bytecode VM
+        // because ARRAY_GET/ARRAY_SET bytecode operations expect NativeArray types
+        //
+        // To get SoA benefits in multi-dimensional arrays, the innermost dimension should be >= 16
+        // Example: Person[4][20] will get SoA for the inner arrays
 
         // Create the array structure based on specified dimensions
         std::shared_ptr<value::NativeArray> result = createJaggedArray(dimensions, 0, elementTypeName, totalDimensions);
@@ -194,9 +198,10 @@ namespace vm::runtime
 
         if (dimIndex == dimensions.size() - 1) {
             // Last dimension - create array of actual elements using ArrayFactory
+            value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
             return mType::value::arrays::ArrayFactory::create1DArray(
                 currentDimSize,
-                value::ValueType::OBJECT,
+                elemType,
                 elementTypeName,
                 nullptr,
                 classRegistry
