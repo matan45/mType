@@ -6,259 +6,417 @@
 #include <stdexcept>
 #include <unordered_set>
 
-namespace mType {
-namespace value {
-namespace arrays {
 
-/**
- * @brief Optimized array for string storage using StringPool.
- *
- * Memory Optimization:
- * - Stores pool IDs (size_t) instead of full strings
- * - Automatic deduplication via StringPool
- * - 50-80% memory reduction for duplicate strings
- *
- * Performance Benefits:
- * - O(1) string comparison (compare pool IDs)
- * - Better cache locality (8 bytes vs variable length)
- * - Batch string operations
- *
- * Design Principles:
- * - Strategy Pattern: Delegate string interning to StringPool
- * - Lazy Evaluation: Intern strings only when accessed via InternedString
- * - RAII: Automatic reference counting via InternedString lifecycle
- */
-class StringArray : public IArray {
-public:
-    // Construction
-    explicit StringArray(size_t initialSize = 0)
-        : poolIds_(initialSize, 0) {
-        // Initialize with empty strings (poolId = 0)
-    }
+namespace mType
+{
+    namespace value
+    {
+        namespace arrays
+        {
+            /**
+             * @brief Optimized array for string storage using StringPool with proper RAII reference counting.
+             *
+             * CRITICAL FIX: This class now properly manages StringPool reference counts.
+             * The bug was that poolIds were being stored without keeping references alive,
+             * causing the StringPool to prematurely release strings when the temporary
+             * InternedString objects were destroyed.
+             *
+             * Memory Optimization:
+             * - Stores pool IDs (size_t) instead of full strings
+             * - Automatic deduplication via StringPool
+             * - 50-80% memory reduction for duplicate strings
+             *
+             * Performance Benefits:
+             * - O(1) string comparison (compare pool IDs)
+             * - Better cache locality (8 bytes vs variable length)
+             * - Batch string operations
+             *
+             * Design Principles:
+             * - Strategy Pattern: Delegate string interning to StringPool
+             * - RAII: Manual reference counting for poolIds
+             * - Resource Management: Proper increment/decrement on all operations
+             */
+            class StringArray : public IArray
+            {
+            public:
+                // Construction
+                explicit StringArray(size_t initialSize = 0)
+                    : poolIds_(initialSize, 0)
+                {
+                    // Initialize with empty strings (poolId = 0)
+                }
 
-    explicit StringArray(const std::vector<std::string>& strings)
-        : poolIds_() {
-        poolIds_.reserve(strings.size());
-        for (const auto& str : strings) {
-            poolIds_.push_back(internString(str));
-        }
-    }
+                explicit StringArray(const std::vector<std::string>& strings)
+                    : poolIds_()
+                {
+                    poolIds_.reserve(strings.size());
+                    for (const auto& str : strings)
+                    {
+                        poolIds_.push_back(internStringAndAddRef(str));
+                    }
+                }
 
-    explicit StringArray(std::vector<std::string>&& strings)
-        : poolIds_() {
-        poolIds_.reserve(strings.size());
-        for (auto& str : strings) {
-            poolIds_.push_back(internString(std::move(str)));
-        }
-    }
+                explicit StringArray(std::vector<std::string>&& strings)
+                    : poolIds_()
+                {
+                    poolIds_.reserve(strings.size());
+                    for (auto& str : strings)
+                    {
+                        poolIds_.push_back(internStringAndAddRef(std::move(str)));
+                    }
+                }
 
-    // IArray implementation
-    size_t size() const override { return poolIds_.size(); }
-    size_t capacity() const override { return poolIds_.capacity(); }
-    bool empty() const override { return poolIds_.empty(); }
+                // Destructor: Release all string references
+                ~StringArray()
+                {
+                    releaseAllRefs();
+                }
 
-    std::string elementTypeName() const override {
-        return "string";
-    }
+                // Copy constructor
+                StringArray(const StringArray& other) : poolIds_(other.poolIds_)
+                {
+                    // Increment ref count for all poolIds
+                    for (size_t poolId : poolIds_)
+                    {
+                        if (poolId != 0)
+                        {
+                            ::value::StringPool::getInstance().incrementRef(poolId);
+                        }
+                    }
+                }
 
-    ::value::ValueType elementType() const override {
-        return ::value::ValueType::STRING;
-    }
+                // Copy assignment
+                StringArray& operator=(const StringArray& other)
+                {
+                    if (this != &other)
+                    {
+                        releaseAllRefs();
+                        poolIds_ = other.poolIds_;
+                        // Increment ref count for all new poolIds
+                        for (size_t poolId : poolIds_)
+                        {
+                            if (poolId != 0)
+                            {
+                                ::value::StringPool::getInstance().incrementRef(poolId);
+                            }
+                        }
+                    }
+                    return *this;
+                }
 
-    ::value::Value get(size_t index) const override {
-        if (index >= poolIds_.size()) {
-            throw std::out_of_range("Array index out of bounds");
-        }
+                // Move constructor
+                StringArray(StringArray&& other) noexcept : poolIds_(std::move(other.poolIds_))
+                {
+                    // Ownership transferred, no ref count changes needed
+                }
 
-        size_t poolId = poolIds_[index];
-        if (poolId == 0) {
-            return ::value::Value(std::string(""));
-        }
+                // Move assignment
+                StringArray& operator=(StringArray&& other) noexcept
+                {
+                    if (this != &other)
+                    {
+                        releaseAllRefs();
+                        poolIds_ = std::move(other.poolIds_);
+                    }
+                    return *this;
+                }
 
-        // Return InternedString for O(1) comparison
-        return ::value::Value(getInternedString(poolId));
-    }
+                // IArray implementation
+                size_t size() const override { return poolIds_.size(); }
+                size_t capacity() const override { return poolIds_.capacity(); }
+                bool empty() const override { return poolIds_.empty(); }
 
-    void set(size_t index, const ::value::Value& value) override {
-        if (index >= poolIds_.size()) {
-            throw std::out_of_range("Array index out of bounds");
-        }
+                std::string elementTypeName() const override
+                {
+                    return "string";
+                }
 
-        // Handle string types
-        if (std::holds_alternative<std::string>(value)) {
-            poolIds_[index] = internString(std::get<std::string>(value));
-        } else if (std::holds_alternative<::value::InternedString>(value)) {
-            poolIds_[index] = std::get<::value::InternedString>(value).getPoolId();
-        } else {
-            throw std::runtime_error("Type mismatch: expected string");
-        }
-    }
+                ::value::ValueType elementType() const override
+                {
+                    return ::value::ValueType::STRING;
+                }
 
-    void reserve(size_t newCapacity) override {
-        poolIds_.reserve(newCapacity);
-    }
+                ::value::Value get(size_t index) const override
+                {
+                    if (index >= poolIds_.size())
+                    {
+                        throw std::out_of_range("Array index out of bounds");
+                    }
 
-    void resize(size_t newSize) override {
-        poolIds_.resize(newSize, 0);  // Fill with empty strings
-    }
+                    size_t poolId = poolIds_[index];
+                    if (poolId == 0)
+                    {
+                        return ::value::Value(std::string(""));
+                    }
 
-    void clear() override {
-        poolIds_.clear();
-    }
+                    // Return InternedString for O(1) comparison
+                    return ::value::Value(getInternedString(poolId));
+                }
 
-    bool supportsSIMD() const override {
-        // String arrays don't use traditional SIMD, but benefit from pool ID comparisons
-        return false;
-    }
+                void set(size_t index, const ::value::Value& value) override
+                {
+                    if (index >= poolIds_.size())
+                    {
+                        throw std::out_of_range("Array index out of bounds");
+                    }
 
-    size_t simdWidth() const override {
-        return 1;
-    }
+                    // Decrement ref count for old value
+                    size_t oldPoolId = poolIds_[index];
+                    if (oldPoolId != 0)
+                    {
+                        ::value::StringPool::getInstance().decrementRef(oldPoolId);
+                    }
 
-    std::unique_ptr<IArray> clone() const override {
-        auto cloned = std::make_unique<StringArray>();
-        cloned->poolIds_ = poolIds_;
-        return cloned;
-    }
+                    // Handle string types and increment ref count for new value
+                    if (std::holds_alternative<std::string>(value))
+                    {
+                        poolIds_[index] = internStringAndAddRef(std::get<std::string>(value));
+                    }
+                    else if (std::holds_alternative<::value::InternedString>(value))
+                    {
+                        const auto& internedStr = std::get<::value::InternedString>(value);
+                        poolIds_[index] = internStringAndAddRef(internedStr.getString());
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Type mismatch: expected string");
+                    }
+                }
 
-    // StringArray-specific operations
+                void reserve(size_t newCapacity) override
+                {
+                    poolIds_.reserve(newCapacity);
+                }
 
-    /**
-     * @brief Get pool ID at index (for O(1) comparison)
-     */
-    size_t getPoolId(size_t index) const {
-        if (index >= poolIds_.size()) {
-            throw std::out_of_range("Array index out of bounds");
-        }
-        return poolIds_[index];
-    }
+                void resize(size_t newSize) override
+                {
+                    if (newSize < poolIds_.size())
+                    {
+                        // Decrement refs for strings that will be removed
+                        for (size_t i = newSize; i < poolIds_.size(); ++i)
+                        {
+                            if (poolIds_[i] != 0)
+                            {
+                                ::value::StringPool::getInstance().decrementRef(poolIds_[i]);
+                            }
+                        }
+                    }
+                    poolIds_.resize(newSize, 0); // Fill with empty strings
+                }
 
-    /**
-     * @brief Direct string access (returns string reference from pool)
-     */
-    const std::string& getStringDirect(size_t index) const {
-        if (index >= poolIds_.size()) {
-            throw std::out_of_range("Array index out of bounds");
-        }
+                void clear() override
+                {
+                    releaseAllRefs();
+                    poolIds_.clear();
+                }
 
-        size_t poolId = poolIds_[index];
-        if (poolId == 0) {
-            static const std::string emptyString;
-            return emptyString;
-        }
+                bool supportsSIMD() const override
+                {
+                    // String arrays don't use traditional SIMD, but benefit from pool ID comparisons
+                    return false;
+                }
 
-        return ::value::StringPool::getInstance().getById(poolId).getString();
-    }
+                size_t simdWidth() const override
+                {
+                    return 1;
+                }
 
-    /**
-     * @brief Fast equality check using pool IDs (O(1) per element)
-     */
-    bool equals(const StringArray& other) const {
-        if (size() != other.size()) {
-            return false;
-        }
+                std::unique_ptr<IArray> clone() const override
+                {
+                    auto cloned = std::make_unique<StringArray>();
+                    *cloned = *this; // Use copy assignment which handles ref counting
+                    return cloned;
+                }
 
-        for (size_t i = 0; i < poolIds_.size(); ++i) {
-            if (poolIds_[i] != other.poolIds_[i]) {
-                return false;
-            }
-        }
+                // StringArray-specific operations
 
-        return true;
-    }
+                /**
+                 * @brief Get pool ID at index (for O(1) comparison)
+                 */
+                size_t getPoolId(size_t index) const
+                {
+                    if (index >= poolIds_.size())
+                    {
+                        throw std::out_of_range("Array index out of bounds");
+                    }
+                    return poolIds_[index];
+                }
 
-    /**
-     * @brief Count unique strings in array
-     */
-    size_t countUnique() const {
-        std::unordered_set<size_t> uniqueIds(poolIds_.begin(), poolIds_.end());
-        return uniqueIds.size();
-    }
+                /**
+                 * @brief Direct string access (returns string reference from pool)
+                 */
+                const std::string& getStringDirect(size_t index) const
+                {
+                    if (index >= poolIds_.size())
+                    {
+                        throw std::out_of_range("Array index out of bounds");
+                    }
 
-    /**
-     * @brief Calculate memory usage
-     */
-    size_t getMemoryUsage() const {
-        // Pool IDs storage
-        size_t poolIdMemory = poolIds_.capacity() * sizeof(size_t);
+                    size_t poolId = poolIds_[index];
+                    if (poolId == 0)
+                    {
+                        static const std::string emptyString;
+                        return emptyString;
+                    }
 
-        // Strings are shared in the pool, so don't count them here
-        // Use StringPool::getTotalMemoryUsage() for total pool memory
+                    return ::value::StringPool::getInstance().getById(poolId).getString();
+                }
 
-        return poolIdMemory + sizeof(StringArray);
-    }
+                /**
+                 * @brief Fast equality check using pool IDs (O(1) per element)
+                 */
+                bool equals(const StringArray& other) const
+                {
+                    if (size() != other.size())
+                    {
+                        return false;
+                    }
 
-    /**
-     * @brief Get statistics about string duplication
-     */
-    struct DeduplicationStats {
-        size_t totalStrings;
-        size_t uniqueStrings;
-        double deduplicationRatio;  // unique / total
-        size_t memorySaved;         // Estimated memory saved vs storing all strings
-    };
+                    for (size_t i = 0; i < poolIds_.size(); ++i)
+                    {
+                        if (poolIds_[i] != other.poolIds_[i])
+                        {
+                            return false;
+                        }
+                    }
 
-    DeduplicationStats getDeduplicationStats() const {
-        DeduplicationStats stats;
-        stats.totalStrings = poolIds_.size();
-        stats.uniqueStrings = countUnique();
-        stats.deduplicationRatio = stats.totalStrings > 0
-            ? static_cast<double>(stats.uniqueStrings) / stats.totalStrings
-            : 0.0;
+                    return true;
+                }
 
-        // Estimate memory saved
-        size_t totalStringMemory = 0;
-        for (size_t poolId : poolIds_) {
-            if (poolId != 0) {
-                totalStringMemory += getInternedString(poolId).getString().capacity();
-            }
-        }
+                /**
+                 * @brief Count unique strings in array
+                 */
+                size_t countUnique() const
+                {
+                    std::unordered_set<size_t> uniqueIds(poolIds_.begin(), poolIds_.end());
+                    return uniqueIds.size();
+                }
 
-        // Memory used with poolIds
-        size_t poolIdMemory = poolIds_.capacity() * sizeof(size_t);
+                /**
+                 * @brief Calculate memory usage
+                 */
+                size_t getMemoryUsage() const
+                {
+                    // Pool IDs storage
+                    size_t poolIdMemory = poolIds_.capacity() * sizeof(size_t);
 
-        // Estimated memory if all strings were stored individually
-        stats.memorySaved = totalStringMemory > poolIdMemory
-            ? totalStringMemory - poolIdMemory
-            : 0;
+                    // Strings are shared in the pool, so don't count them here
+                    // Use StringPool::getTotalMemoryUsage() for total pool memory
 
-        return stats;
-    }
+                    return poolIdMemory + sizeof(StringArray);
+                }
 
-    // Direct access to pool IDs (for advanced operations)
-    const std::vector<size_t>& getPoolIds() const { return poolIds_; }
+                /**
+                 * @brief Get statistics about string duplication
+                 */
+                struct DeduplicationStats
+                {
+                    size_t totalStrings;
+                    size_t uniqueStrings;
+                    double deduplicationRatio; // unique / total
+                    size_t memorySaved; // Estimated memory saved vs storing all strings
+                };
 
-private:
-    std::vector<size_t> poolIds_;  // Store pool IDs instead of strings
+                DeduplicationStats getDeduplicationStats() const
+                {
+                    DeduplicationStats stats;
+                    stats.totalStrings = poolIds_.size();
+                    stats.uniqueStrings = countUnique();
+                    stats.deduplicationRatio = stats.totalStrings > 0
+                                                   ? static_cast<double>(stats.uniqueStrings) / stats.totalStrings
+                                                   : 0.0;
 
-    /**
-     * @brief Intern a string and return its pool ID
-     */
-    size_t internString(const std::string& str) {
-        if (str.empty()) {
-            return 0;  // Use 0 for empty strings
-        }
-        return ::value::StringPool::getInstance().intern(str).getPoolId();
-    }
+                    // Estimate memory saved
+                    size_t totalStringMemory = 0;
+                    for (size_t poolId : poolIds_)
+                    {
+                        if (poolId != 0)
+                        {
+                            totalStringMemory += getInternedString(poolId).getString().capacity();
+                        }
+                    }
 
-    /**
-     * @brief Intern a string (move version) and return its pool ID
-     */
-    size_t internString(std::string&& str) {
-        if (str.empty()) {
-            return 0;
-        }
-        return ::value::StringPool::getInstance().intern(std::move(str)).getPoolId();
-    }
+                    // Memory used with poolIds
+                    size_t poolIdMemory = poolIds_.capacity() * sizeof(size_t);
 
-    /**
-     * @brief Get InternedString from pool ID
-     */
-    ::value::InternedString getInternedString(size_t poolId) const {
-        return ::value::StringPool::getInstance().getById(poolId);
-    }
-};
+                    // Estimated memory if all strings were stored individually
+                    stats.memorySaved = totalStringMemory > poolIdMemory
+                                            ? totalStringMemory - poolIdMemory
+                                            : 0;
 
-} // namespace arrays
-} // namespace value
+                    return stats;
+                }
+
+                // Direct access to pool IDs (for advanced operations)
+                const std::vector<size_t>& getPoolIds() const { return poolIds_; }
+
+            private:
+                std::vector<size_t> poolIds_; // Store pool IDs instead of strings
+
+                /**
+                 * @brief Intern a string and ADD a reference (caller's responsibility)
+                 * This is the CRITICAL FIX - we keep a reference alive by incrementing the pool's ref count
+                 */
+                size_t internStringAndAddRef(const std::string& str)
+                {
+                    if (str.empty())
+                    {
+                        return 0; // Use 0 for empty strings
+                    }
+                    // Intern returns an InternedString with refCount+1
+                    // We extract the poolId, then the InternedString destructor decrements
+                    // So we need to increment again to keep our reference
+                    auto internedStr = ::value::StringPool::getInstance().intern(str);
+                    size_t poolId = internedStr.getPoolId();
+                    // The internedStr will be destroyed here, decrementing refCount
+                    // So we increment it to maintain our reference
+                    if (poolId != 0)
+                    {
+                        ::value::StringPool::getInstance().incrementRef(poolId);
+                    }
+                    return poolId;
+                }
+
+                /**
+                 * @brief Intern a string (move version) and ADD a reference
+                 */
+                size_t internStringAndAddRef(std::string&& str)
+                {
+                    if (str.empty())
+                    {
+                        return 0;
+                    }
+                    auto internedStr = ::value::StringPool::getInstance().intern(std::move(str));
+                    size_t poolId = internedStr.getPoolId();
+                    if (poolId != 0)
+                    {
+                        ::value::StringPool::getInstance().incrementRef(poolId);
+                    }
+                    return poolId;
+                }
+
+                /**
+                 * @brief Get InternedString from pool ID
+                 */
+                ::value::InternedString getInternedString(size_t poolId) const
+                {
+                    return ::value::StringPool::getInstance().getById(poolId);
+                }
+
+                /**
+                 * @brief Release all references to strings in the pool
+                 */
+                void releaseAllRefs()
+                {
+                    for (size_t poolId : poolIds_)
+                    {
+                        if (poolId != 0)
+                        {
+                            ::value::StringPool::getInstance().decrementRef(poolId);
+                        }
+                    }
+                }
+            };
+        } // namespace arrays
+    } // namespace value
 } // namespace mType

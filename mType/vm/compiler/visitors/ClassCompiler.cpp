@@ -21,12 +21,39 @@ namespace vm::compiler::visitors
         const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
         const ast::SourceLocation& location)
     {
+        // Try to find method metadata - first try with full qualified name
         const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
 
-        // Skip validation if method not found or is native
-        if (!methodMetadata || methodMetadata->isNative)
+        // If not found and qualified name contains generics, try stripping them
+        // For example: "Container<Bool>::add" -> "Container::add"
+        if (!methodMetadata && qualifiedName.find('<') != std::string::npos)
         {
+            // Extract base class name without generic parameters
+            size_t genericStart = qualifiedName.find('<');
+            size_t methodSeparator = qualifiedName.find("::");
+
+            if (genericStart < methodSeparator)
+            {
+                // Strip generics: "Container<Bool>::add" -> "Container::add"
+                std::string baseClassName = qualifiedName.substr(0, genericStart);
+                std::string methodPart = qualifiedName.substr(methodSeparator);
+                std::string baseQualifiedName = baseClassName + methodPart;
+
+                methodMetadata = ctx.program.getFunction(baseQualifiedName);
+            }
+        }
+
+        // Skip validation only for native methods
+        if (!methodMetadata)
+        {
+            // Method not found - could be a native method or external library
+            // For now, skip validation but this could be made stricter
             return;
+        }
+
+        if (methodMetadata->isNative)
+        {
+            return; // Skip validation for native methods
         }
 
         // For instance methods, parameterCount includes 'this', so subtract 1
@@ -76,8 +103,21 @@ namespace vm::compiler::visitors
                 continue; // Skip validation for generic type parameters
             }
 
+            // Infer argument type early for validation checks
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
             std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+
+            // Skip validation for generic array types (like T[], E[], Array<T>, etc.)
+            // These appear as "Array" or "Array<T>" when the generic parameter couldn't be resolved
+            if (expectedType == "Array" || expectedType.find("Array<") == 0)
+            {
+                // Check if argument is any array type (Int[], String[], etc.)
+                std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
+                if (argType == value::ValueType::OBJECT && argClassName.find("[]") != std::string::npos)
+                {
+                    continue; // Any array type is acceptable for generic array parameter
+                }
+            }
 
             // Check if expected type is a primitive
             bool isPrimitive = (expectedType == "int" || expectedType == "float" ||
