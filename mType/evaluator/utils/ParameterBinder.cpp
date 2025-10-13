@@ -5,8 +5,10 @@
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../value/PromiseValue.hpp"
+#include "../../value/NativeArray.hpp"
 #include "ValueConverter.hpp"
 #include <sstream>
+#include <cctype>
 
 
 namespace evaluator::utils
@@ -93,6 +95,18 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
+        // Delegate to the overload with generic bindings, using method's type substitution map
+        bindAndValidateParameters(method, args, functionName, env, method->getTypeSubstitutionMap(), location);
+    }
+
+    void ParameterBinder::bindAndValidateParameters(
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+        const std::vector<Value>& args,
+        const std::string& functionName,
+        std::shared_ptr<Environment> env,
+        const std::unordered_map<std::string, std::string>& genericBindings,
+        const SourceLocation& location)
+    {
         auto params = method->getParameters();  // Now returns vector<pair<string, ParameterType>>
 
         // Validate parameter count
@@ -104,13 +118,83 @@ namespace evaluator::utils
             const auto& param = params[i];
             const Value& arg = args[i];
 
+            // Resolve generic parameter type if needed
+            ParameterType resolvedType = param.second;
+
+            // If parameter has no className, check if it's a generic parameter from method's genericParameters
+            if (!resolvedType.isClass() && !resolvedType.isInterface() && resolvedType.basicType == ValueType::OBJECT)
+            {
+                // Check genericParameters to get the actual type (e.g., "Array<T>" for T[] parameter)
+                const auto& genericParams = method->getGenericParameters();
+                if (i < genericParams.size())
+                {
+                    const auto& genericParam = genericParams[i];
+                    auto genericType = genericParam.second;
+
+                    if (genericType)
+                    {
+                        // Get the type string from the generic type (this includes array info)
+                        std::string typeStr = genericType->toString();
+                        // Create ParameterType from the generic type string
+                        resolvedType = ParameterType::forClass(typeStr);
+                    }
+                }
+            }
+
+            if (resolvedType.isClass())
+            {
+                std::string className = resolvedType.getClassName();
+
+                // Substitute all generic type parameters in className
+                // Handle cases like "T", "Array<T>", "Array<Array<T>>", etc.
+                std::string resolvedClassName = className;
+                bool hadSubstitution = false;
+
+                for (const auto& [typeParam, concreteType] : genericBindings)
+                {
+                    // Replace all occurrences of the type parameter
+                    size_t pos = 0;
+                    while ((pos = resolvedClassName.find(typeParam, pos)) != std::string::npos)
+                    {
+                        // Check if this is a standalone type parameter (not part of a larger identifier)
+                        bool isStandalone = (pos == 0 || !std::isalnum(resolvedClassName[pos - 1])) &&
+                                          (pos + typeParam.length() == resolvedClassName.length() ||
+                                           !std::isalnum(resolvedClassName[pos + typeParam.length()]));
+
+                        if (isStandalone)
+                        {
+                            resolvedClassName.replace(pos, typeParam.length(), concreteType);
+                            pos += concreteType.length();
+                            hadSubstitution = true;
+                        }
+                        else
+                        {
+                            pos += typeParam.length();
+                        }
+                    }
+                }
+
+                // Update resolved type with substituted class name
+                if (hadSubstitution)
+                {
+                    resolvedType = ParameterType::forClass(resolvedClassName);
+                }
+                else if (resolvedClassName == className)
+                {
+                    // No substitution occurred - this might be a method-level generic parameter (like T in <T> method(T value))
+                    // In this case, treat it as a plain OBJECT type for validation (no specific class requirement)
+                    // This allows method-level generics to accept any object type
+                    resolvedType = ParameterType(ValueType::OBJECT);
+                }
+            }
+
             // Enhanced validation with interface support
-            validateParameterType(arg, param.second, param.first, functionName, env, location);
+            validateParameterType(arg, resolvedType, param.first, functionName, env, location);
 
             // Create and bind parameter variable
             auto varDef = std::make_shared<VariableDefinition>(
                 param.first,
-                param.second.basicType,  // Use basic type for storage (object for interfaces/classes)
+                resolvedType.basicType,  // Use basic type for storage (object for interfaces/classes)
                 arg,
                 false  // parameters are not final
             );
@@ -192,7 +276,81 @@ namespace evaluator::utils
             return checkBasicTypeConversion(actualValue, expectedType);
         }
 
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType, not ValueConverter
+
+        // Special handling for array types
+        // Arrays are stored with className like "Array<int>" but actualType is ARRAY, not OBJECT
+        if (expectedType.isClass() && actualType == ValueType::ARRAY) {
+            std::string expectedClassName = expectedType.getClassName();
+
+            // Check if expected type is an array type (starts with "Array<")
+            if (expectedClassName.rfind("Array<", 0) == 0) {
+                // Extract expected element type from "Array<ElementType>"
+                // Need to handle nested generics like "Array<Array<int>>"
+                size_t startPos = 6; // Length of "Array<"
+                size_t endPos = startPos;
+                int bracketDepth = 1; // We already have one '<' from "Array<"
+
+                // Find matching '>' by counting bracket depth
+                while (endPos < expectedClassName.length() && bracketDepth > 0) {
+                    if (expectedClassName[endPos] == '<') {
+                        bracketDepth++;
+                    } else if (expectedClassName[endPos] == '>') {
+                        bracketDepth--;
+                    }
+                    endPos++;
+                }
+
+                if (bracketDepth != 0) {
+                    return false; // Malformed array type
+                }
+
+                // endPos is now one past the closing '>', so subtract 1
+                std::string expectedElementType = expectedClassName.substr(startPos, endPos - startPos - 1);
+
+                // Get actual array element type
+                if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(actualValue)) {
+                    auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(actualValue);
+                    if (!nativeArray) {
+                        return false;
+                    }
+
+                    ValueType actualElementType = nativeArray->getElementType();
+                    std::string actualElementTypeName = nativeArray->getElementTypeName();
+
+                    // Map ValueType to string for comparison
+                    std::string actualElementTypeStr;
+                    switch (actualElementType) {
+                        case ValueType::INT: actualElementTypeStr = "int"; break;
+                        case ValueType::FLOAT: actualElementTypeStr = "float"; break;
+                        case ValueType::BOOL: actualElementTypeStr = "bool"; break;
+                        case ValueType::STRING: actualElementTypeStr = "string"; break;
+                        case ValueType::OBJECT:
+                            actualElementTypeStr = actualElementTypeName.empty() ? "object" : actualElementTypeName;
+                            break;
+                        case ValueType::ARRAY:
+                            // For nested arrays, use the element type name if available
+                            actualElementTypeStr = actualElementTypeName.empty() ? "array" : actualElementTypeName;
+                            break;
+                        default: actualElementTypeStr = "unknown"; break;
+                    }
+
+                    // Compare element types
+                    // For nested arrays, if actualElementTypeName is not set, we need to be more lenient
+                    if (actualElementType == ValueType::ARRAY && actualElementTypeName.empty()) {
+                        // Check if expected type is also an array type
+                        if (expectedElementType.rfind("Array<", 0) == 0 || expectedElementType == "array") {
+                            return true; // Accept nested arrays even without full type information
+                        }
+                    }
+                    return expectedElementType == actualElementTypeStr;
+                }
+
+                // If not a NativeArray, reject
+                return false;
+            }
+            return false;
+        }
 
         // For interface/class parameters, actual value must be an object
         if (actualType != ValueType::OBJECT) {
@@ -243,7 +401,7 @@ namespace evaluator::utils
         const Value& actualValue,
         const ParameterType& expectedType)
     {
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
         return isValidParameterConversion(actualType, expectedType.basicType);
     }
 
@@ -311,7 +469,7 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
-        ValueType actualType = ValueConverter::getValueType(actualValue);
+        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
         bool isValid = isValidParameterConversion(actualValue, expectedType, env);
 
         if (!isValid)

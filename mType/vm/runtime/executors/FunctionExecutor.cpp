@@ -6,6 +6,7 @@
 #include "../../../value/LambdaValue.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include <algorithm>
+
 namespace vm::runtime
 {
     FunctionExecutor::FunctionExecutor(ExecutionContext& ctx)
@@ -94,15 +95,11 @@ namespace vm::runtime
             throw errors::RuntimeException("Class not found: " + className);
         }
 
-        // Find static method in class
-        auto method = classDef->findMethod(methodName, argCount);
+        // Find static method in class (use findStaticMethod to only search static methods)
+        auto method = classDef->findStaticMethod(methodName, argCount);
         if (!method) {
             throw errors::RuntimeException("Static method not found: " + qualifiedName +
                                          " with " + std::to_string(argCount) + " arguments");
-        }
-
-        if (!method->isStatic()) {
-            throw errors::RuntimeException("Method '" + methodName + "' is not static");
         }
 
         // Check access modifiers
@@ -120,7 +117,10 @@ namespace vm::runtime
         std::reverse(args.begin(), args.end());
 
         // Look up static method bytecode
-        auto funcMetadata = context.program->getFunction(qualifiedName);
+        // Important: Static methods are registered with "$static" suffix to distinguish from instance methods
+        std::string staticQualifiedName = qualifiedName + "$static";
+
+        auto funcMetadata = context.program->getFunction(staticQualifiedName);
         if (funcMetadata) {
             // Convert lambda arguments to interface implementations if needed
             convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
@@ -130,7 +130,7 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;  // Use the frameBase calculated before popping args
             frame.localBase = context.stackManager->size();  // Locals start after arguments (which are now popped)
-            frame.functionName = qualifiedName;
+            frame.functionName = staticQualifiedName;  // Use $static suffix for proper async method detection
             frame.thisInstance = nullptr;  // No 'this' for static methods
 
             context.callStack.push_back(frame);

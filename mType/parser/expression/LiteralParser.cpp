@@ -157,6 +157,17 @@ namespace parser::expression
         if (tokenStream.check(TokenType::LPAREN))
         {
             // super(...) - constructor call
+
+            // Validate: super() constructor calls are not allowed inside constructor bodies
+            // They must use the initializer list syntax: constructor(...) : super(...) { }
+            if (context.isInsideConstructorBody())
+            {
+                throw ParseException(
+                    "super() constructor calls are not allowed inside constructor bodies. "
+                    "Use the constructor initializer list syntax instead: constructor(...) : super(...) { }",
+                    superLocation);
+            }
+
             tokenStream.advance(); // consume '('
 
             std::vector<std::unique_ptr<ASTNode>> arguments;

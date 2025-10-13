@@ -45,7 +45,6 @@ namespace evaluator
         Value visitStringNode(StringNode* node) override;
         Value visitBoolNode(BoolNode* node) override;
         Value visitVariableNode(VariableNode* node) override;
-        Value visitDeclarationNode(DeclarationNode* node) override;
         Value visitAssignmentNode(AssignmentNode* node) override;
         Value visitBinaryOpNode(BinaryOpNode* node) override;
         Value visitTernaryOpNode(TernaryOpNode* node) override;
@@ -63,7 +62,6 @@ namespace evaluator
         Value visitCaseNode(CaseNode* node) override;
         Value visitImportNode(ImportNode* node) override;
         Value visitDefaultCaseNode(DefaultCaseNode* node) override;
-        Value visitNativeFunctionNode(NativeFunctionNode* node) override;
         Value visitNullNode(NullNode* node) override;
         Value visitMemberAssignmentNode(MemberAssignmentNode* node) override;
         Value visitIndexAssignmentNode(IndexAssignmentNode* node) override;

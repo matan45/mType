@@ -1,6 +1,7 @@
 #include "DeclarationParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/VisibilityParser.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -96,6 +97,10 @@ namespace parser::statement
         }
 
         SourceLocation varLocation = tokenStream.current().location;
+
+        // Validate variable name contains no special characters
+        ParserUtils::validateIdentifierName(varName, "Variable", varLocation);
+
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> value = nullptr;

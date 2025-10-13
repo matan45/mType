@@ -50,6 +50,7 @@ namespace vm::compiler::visitors
         // Class context (for member access)
         ast::ClassNode* currentClassNode = nullptr;
         bool inInstanceMethod = false;
+        bool inStaticMethod = false;
 
         // Generic type binding stack for functions and methods
         std::vector<std::unordered_map<std::string, std::string>> genericTypeBindingStack;

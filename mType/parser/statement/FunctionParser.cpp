@@ -50,6 +50,14 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> FunctionParser::parseFunction()
     {
+        // Validate: functions cannot be declared inside other functions
+        if (context.isInsideFunctionBody())
+        {
+            throw ParseException("Function declarations inside function bodies are not allowed. "
+                               "Functions must be declared at the top level or inside classes.",
+                               tokenStream.current().location);
+        }
+
         // Parse optional visibility modifier (public/private)
         // Default is PUBLIC if not specified
         VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
@@ -87,8 +95,24 @@ namespace parser::statement
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
+        auto funcLocation = tokenStream.current().location;
         validateFunctionName(funcName);
         tokenStream.advance();
+
+        // NEW: Check for duplicate global function name (only for global functions, not class methods)
+        if (!context.isInsideClassBody())
+        {
+            if (context.isFunctionDeclared(funcName))
+            {
+                throw ParseException(
+                    "Duplicate function declaration: '" + funcName + "' has already been declared",
+                    funcLocation
+                );
+            }
+
+            // Register the function name
+            context.registerFunctionName(funcName);
+        }
 
         // Use generic-aware parameter parsing to preserve class/interface names
         auto genericParameters = ParserUtils::parseGenericParameterList(tokenStream, true);
@@ -113,7 +137,8 @@ namespace parser::statement
         }
         else
         {
-            // NEW: Set async context when parsing function body
+            // Set function and async context when parsing function body
+            ParseContext::FunctionContextGuard functionGuard(context);
             ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
             body = context.parseStatement(); // Should be a block
         }
@@ -137,8 +162,21 @@ namespace parser::statement
         }
 
         std::string funcName = tokenStream.current().stringValue.getString();
+        auto funcLocation = tokenStream.current().location;
         validateFunctionName(funcName);
         tokenStream.advance();
+
+        // NEW: Check for duplicate global function name
+        if (context.isFunctionDeclared(funcName))
+        {
+            throw ParseException(
+                "Duplicate function declaration: '" + funcName + "' has already been declared",
+                funcLocation
+            );
+        }
+
+        // Register the function name
+        context.registerFunctionName(funcName);
 
         auto parameters = parseParameterList();
 

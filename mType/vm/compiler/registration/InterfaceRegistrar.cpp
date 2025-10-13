@@ -6,7 +6,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../ast/GenericType.hpp"
 #include <stdexcept>
@@ -51,7 +51,13 @@ namespace vm::compiler::registration
         // Get extended interfaces
         const auto& extendedInterfaces = interfaceNode->getExtendedInterfaces();
 
-        // Validate that parent interfaces exist and are not classes
+        // Note: Parser already validates interface inheritance constraints at parse time:
+        // - Interface cannot extend class (InterfaceParser.cpp:130-136)
+        // - Cannot extend final interface (InterfaceParser.cpp:139-144)
+        // - Circular interface inheritance (InterfaceParser.cpp:147-160)
+        // This leaves only parent existence validation for cross-file imports
+
+        // Validate that parent interfaces exist (needed for cross-file imports)
         for (const auto& parentInterface : extendedInterfaces) {
             // Extract base parent name from generic type
             std::string baseParentName = parentInterface;
@@ -60,32 +66,12 @@ namespace vm::compiler::registration
                 baseParentName = parentInterface.substr(0, genericStart);
             }
 
-            // Check if the parent is actually a class
-            if (environment->findClass(baseParentName)) {
-                throw errors::InheritanceException(
-                    "Interface '" + interfaceName + "' cannot extend class '" + parentInterface + "'. "
-                    "Interfaces can only extend other interfaces.",
-                    interfaceName,
-                    parentInterface,
-                    interfaceNode->getLocation());
-            }
-
             // Validate that parent interface exists
             if (!interfaceRegistry->hasInterface(baseParentName)) {
                 throw errors::TypeException(
                     "Interface '" + interfaceName + "' extends undefined interface '" + parentInterface + "'",
                     interfaceNode->getLocation()
                 );
-            }
-
-            // Validate that parent interface is not final
-            auto parentInterfaceDef = interfaceRegistry->findInterface(baseParentName);
-            if (parentInterfaceDef && parentInterfaceDef->isFinal()) {
-                throw errors::InheritanceException(
-                    "Cannot extend final interface '" + parentInterface + "'",
-                    interfaceName,
-                    parentInterface,
-                    interfaceNode->getLocation());
             }
         }
 
@@ -110,7 +96,7 @@ namespace vm::compiler::registration
                     signature.returnType = functionNode->getGenericReturnType();
                 } else {
                     signature.returnType = std::make_shared<ast::GenericType>(
-                        evaluator::utils::ValueConverter::valueTypeToString(functionNode->getReturnType())
+                        vm::runtime::utils::TypeConverter::valueTypeToString(functionNode->getReturnType())
                     );
                 }
 
@@ -123,7 +109,7 @@ namespace vm::compiler::registration
                         paramType = genericParamPairs[i].second;
                     } else {
                         paramType = std::make_shared<ast::GenericType>(
-                            evaluator::utils::ValueConverter::valueTypeToString(params[i].second)
+                            vm::runtime::utils::TypeConverter::valueTypeToString(params[i].second)
                         );
                     }
                     signature.parameters.push_back({params[i].first, paramType});
@@ -215,7 +201,7 @@ namespace vm::compiler::registration
                 if (method->getGenericReturnType()) {
                     methodReturnType = method->getGenericReturnType()->getBaseTypeName();
                 } else {
-                    methodReturnType = evaluator::utils::ValueConverter::valueTypeToString(method->getReturnType());
+                    methodReturnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
                 }
 
                 if (methodReturnType != resolvedReturnType) {
@@ -249,7 +235,7 @@ namespace vm::compiler::registration
                     if (i < methodGenericParams.size() && methodGenericParams[i].second) {
                         methodParamType = methodGenericParams[i].second->getBaseTypeName();
                     } else {
-                        methodParamType = evaluator::utils::ValueConverter::valueTypeToString(methodParams[i].second);
+                        methodParamType = vm::runtime::utils::TypeConverter::valueTypeToString(methodParams[i].second);
                     }
 
                     std::string resolvedParamType = resolveGenericType(

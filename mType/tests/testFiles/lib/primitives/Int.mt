@@ -22,11 +22,6 @@ class Int {
         this.value = val;
     }
 
-    // Arithmetic operations
-    public function add(Int other): Int {
-        return new Int(this.value + other.value);
-    }
-
     public function add(int other): Int {
         return new Int(this.value + other);
     }

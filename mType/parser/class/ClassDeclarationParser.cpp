@@ -61,10 +61,68 @@ namespace parser
             tokenStream.advance(); // consume '<'
             genericParameters = genericParameterParser->parseGenericTypeParameters();
             tokenStream.expect(TokenType::GREATER); // consume '>'
+
+            // Validate generic parameter count limit
+            constexpr size_t MAX_GENERIC_PARAMETERS = 20;
+            if (genericParameters.size() > MAX_GENERIC_PARAMETERS)
+            {
+                throw ParseException(
+                    "Class '" + className + "' has too many generic parameters (" +
+                    std::to_string(genericParameters.size()) + "). Maximum allowed: " +
+                    std::to_string(MAX_GENERIC_PARAMETERS),
+                    tokenStream.current().location);
+            }
         }
 
         // Parse extends clause if present (must come before implements)
         std::string parentClassName = parseExtendsClause();
+
+        // Validate that parent is not an interface (if extends clause present)
+        if (!parentClassName.empty())
+        {
+            // Extract base name without generic parameters for validation
+            std::string baseParentName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos)
+            {
+                baseParentName = parentClassName.substr(0, genericStart);
+            }
+
+            // Check if parent is a declared interface
+            if (context.isInterfaceDeclared(baseParentName))
+            {
+                throw ParseException(
+                    "Class '" + className + "' cannot extend interface '" + baseParentName + "'. "
+                    "Classes can only extend other classes. Use 'implements' for interfaces.",
+                    tokenStream.current().location);
+            }
+
+            // Check if parent class is marked as final
+            if (context.isClassFinal(baseParentName))
+            {
+                throw ParseException(
+                    "Class '" + className + "' cannot extend final class '" + baseParentName + "'.",
+                    tokenStream.current().location);
+            }
+
+            // Check for circular inheritance
+            if (!context.registerClassInheritance(className, baseParentName))
+            {
+                // Build inheritance chain for error message
+                auto chain = context.getClassInheritanceChain(className);
+                std::string chainStr = className;
+                for (const auto& ancestor : chain) {
+                    if (ancestor != className) {
+                        chainStr += " -> " + ancestor;
+                    }
+                }
+                chainStr += " -> " + baseParentName + " (creates cycle)";
+
+                throw ParseException(
+                    "Circular inheritance detected: " + chainStr,
+                    tokenStream.current().location);
+            }
+        }
 
         // Parse implements clause if present
         std::vector<std::string> implementedInterfaces = parseImplementedInterfaces();

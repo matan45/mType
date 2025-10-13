@@ -1,7 +1,6 @@
 import * from "test_library.mt";
 
-native function print(int n): void;
-native function print(string s): void;
+
 
 // Test static method calls before creating any objects
 print("=== Static Methods Before Object Creation ===");

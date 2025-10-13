@@ -1,5 +1,6 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include "../validation/AccessValidator.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../errors/FieldNotFoundException.hpp"
@@ -52,21 +53,9 @@ namespace vm::runtime
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
         );
 
-        void validateConstructorAccess(
-            const std::string& className,
-            ast::AccessModifier accessMod
-        );
-
-        void validateMethodAccess(
-            const std::string& className,
-            const std::string& methodName,
-            ast::AccessModifier accessMod
-        );
-
-        void validateFieldAccess(
-            const std::string& className,
-            const std::string& fieldName,
-            ast::AccessModifier accessMod,
+        // Helper methods for access context creation
+        validation::AccessContext createAccessContext(
+            const std::string& targetClassName,
             bool isSetter = false
         );
 

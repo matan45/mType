@@ -10,7 +10,7 @@ class IDGenerator {
 
     public static function generateID(): int {
         // Accessing private static field and method
-        return this::getNextID();
+        return getNextID();
     }
 }
 

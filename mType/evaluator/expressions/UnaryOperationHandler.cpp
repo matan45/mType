@@ -51,13 +51,10 @@ namespace evaluator
                 if (varNode)
                 {
                     isVariable = true;
-                    auto env = context->getEnvironment();
-                    auto varDef = env->findVariable(varNode->getName());
-                    if (!varDef)
-                    {
-                        throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
-                    }
-                    currentValue = varDef->getValue();
+
+                    // Use ExpressionEvaluator to properly resolve the variable
+                    // This ensures static fields in current class context are found
+                    currentValue = exprEvaluator->evaluate(varNode);
                 }
                 else
                 {
@@ -110,9 +107,62 @@ namespace evaluator
                 // Update the variable or member
                 if (isVariable)
                 {
+                    // Check if this is a local/parameter variable or static field
                     auto env = context->getEnvironment();
                     auto varDef = env->findVariable(varNode->getName());
-                    varDef->setValue(newValue);
+
+                    if (varDef)
+                    {
+                        // Local variable or parameter - update directly
+                        varDef->setValue(newValue);
+                    }
+                    else
+                    {
+                        // Could be a static field - check current class context
+                        auto currentClassVar = env->findVariable("__current_class_name__");
+                        if (currentClassVar)
+                        {
+                            auto currentClassValue = currentClassVar->getValue();
+                            if (std::holds_alternative<std::string>(currentClassValue))
+                            {
+                                std::string className = std::get<std::string>(currentClassValue);
+                                auto classDef = env->findClass(className);
+                                if (classDef)
+                                {
+                                    auto field = classDef->getField(varNode->getName());
+                                    if (field && field->isStatic())
+                                    {
+                                        // Use ObjectEvaluator to assign to static field
+                                        if (objEvaluator)
+                                        {
+                                            objEvaluator->assignStaticMember(className, varNode->getName(), newValue);
+                                        }
+                                        else
+                                        {
+                                            // Fallback to direct assignment
+                                            field->setValue(newValue);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
+                                    }
+                                }
+                                else
+                                {
+                                    throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
+                                }
+                            }
+                            else
+                            {
+                                throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
+                            }
+                        }
+                        else
+                        {
+                            throw UndefinedException("Undefined variable: " + varNode->getName(), node->getLocation());
+                        }
+                    }
                 }
                 else if (isMemberAccess)
                 {

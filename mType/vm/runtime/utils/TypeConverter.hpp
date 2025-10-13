@@ -24,5 +24,12 @@ namespace vm::runtime::utils
          * @return Base class name without generic parameters
          */
         static std::string extractBaseTypeName(const std::string& typeName);
+
+        /**
+         * Convert ValueType enum to string for error messages
+         * @param type The ValueType to convert
+         * @return String representation of the type
+         */
+        static std::string valueTypeToString(value::ValueType type);
     };
 }

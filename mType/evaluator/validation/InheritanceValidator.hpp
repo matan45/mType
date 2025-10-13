@@ -72,19 +72,12 @@ namespace validation {
             std::shared_ptr<ClassDefinition> parentClass,
             const SourceLocation& location);
 
-        /**
-         * Validate super() constructor call
-         * - Must be first statement in constructor
-         * - Argument count must match parent constructor
-         * @throws InheritanceException if super() call is invalid
-         */
-        static void validateSuperConstructorCall(
-            const std::string& childClassName,
-            const std::string& parentClassName,
-            size_t argCount,
-            bool isFirstStatement,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
+        // Note: super() constructor call validation is NOT needed here.
+        // The parser enforces that super() must use initializer list syntax:
+        //   constructor(params) : super(args) { body }
+        // This guarantees super() executes before the constructor body,
+        // preventing use-before-initialization bugs at parse time.
+        // See ConstructorParser.cpp:46-88 for implementation.
 
         /**
          * Validate super.method() call
@@ -107,45 +100,11 @@ namespace validation {
             const SourceLocation& location,
             std::shared_ptr<EvaluationContext> context);
 
-        /**
-         * Validate that a class does not extend an interface
-         * @throws InheritanceException if parent is an interface
-         */
-        static void validateClassCannotExtendInterface(
-            const std::string& className,
-            const std::string& parentName,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
-
-        /**
-         * Validate that an interface does not extend a class
-         * @throws InheritanceException if parent is a class
-         */
-        static void validateInterfaceCannotExtendClass(
-            const std::string& interfaceName,
-            const std::string& parentName,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
-
-        /**
-         * Validate that parent class is not marked as final
-         * @throws InheritanceException if parent class is final
-         */
-        static void validateParentClassNotFinal(
-            const std::string& childClassName,
-            const std::string& parentClassName,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
-
-        /**
-         * Validate that parent interface is not marked as final
-         * @throws InheritanceException if parent interface is final
-         */
-        static void validateParentInterfaceNotFinal(
-            const std::string& interfaceName,
-            const std::string& parentInterfaceName,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
+        // Note: The following validations are now handled by the parser at compile-time:
+        // - validateClassCannotExtendInterface (ClassDeclarationParser.cpp:92-98)
+        // - validateInterfaceCannotExtendClass (InterfaceParser.cpp:130-136)
+        // - validateParentClassNotFinal (ClassDeclarationParser.cpp:101-106)
+        // - validateParentInterfaceNotFinal (InterfaceParser.cpp:139-144)
 
     private:
         static constexpr int MAX_INHERITANCE_DEPTH = 20;

@@ -11,7 +11,6 @@
 #include <typeinfo>
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
-#include "../ast/nodes/statements/DeclarationNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/statements/IfNode.hpp"
 #include "../ast/nodes/statements/WhileNode.hpp"
@@ -21,7 +20,6 @@
 #include "../ast/nodes/statements/CaseNode.hpp"
 #include "../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
-#include "../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../ast/nodes/functions/FunctionNode.hpp"
 #include "../ast/nodes/functions/ReturnNode.hpp"
 #include "../environment/manager/Scope.hpp"
@@ -101,7 +99,6 @@ namespace evaluator
         // Register all statement node handlers with the dispatcher
         dispatcher.registerMethod<ProgramNode>(&StatementEvaluator::evaluateProgramNode);
         dispatcher.registerMethod<BlockNode>(&StatementEvaluator::evaluateBlockNode);
-        dispatcher.registerMethod<DeclarationNode>(&StatementEvaluator::evaluateDeclarationNode);
         dispatcher.registerMethod<AssignmentNode>(&StatementEvaluator::evaluateAssignmentNode);
         dispatcher.registerMethod<IfNode>(&StatementEvaluator::evaluateIfNode);
         dispatcher.registerMethod<WhileNode>(&StatementEvaluator::evaluateWhileNode);
@@ -116,7 +113,6 @@ namespace evaluator
         dispatcher.registerMethod<ImportNode>(&StatementEvaluator::evaluateImportNode);
         dispatcher.registerMethod<FunctionNode>(&StatementEvaluator::evaluateFunctionNode);
         dispatcher.registerMethod<ReturnNode>(&StatementEvaluator::evaluateReturnNode);
-        dispatcher.registerMethod<ast::nodes::statements::NativeFunctionNode>(&StatementEvaluator::evaluateNativeFunctionNode);
         dispatcher.registerMethod<TryNode>(&StatementEvaluator::evaluateTryNode);
         dispatcher.registerMethod<CatchNode>(&StatementEvaluator::evaluateCatchNode);
         dispatcher.registerMethod<ThrowNode>(&StatementEvaluator::evaluateThrowNode);
@@ -256,23 +252,6 @@ namespace evaluator
 
         env->exitScope();
         return lastValue;
-    }
-
-    Value StatementEvaluator::evaluateDeclarationNode(DeclarationNode* node)
-    {
-        return declarationHandler->evaluateDeclaration(node);
-    }
-
-    void StatementEvaluator::validateVariableDeclaration(DeclarationNode* node)
-    {
-        auto env = context->getEnvironment();
-
-        // Check if variable already exists in current scope
-        if (env->getScopeManager()->hasVariableInCurrentScope(node->getVariableName()))
-        {
-            throw EnvironmentException("Variable '" + node->getVariableName() +
-                                       "' is already defined in this scope", node->getLocation());
-        }
     }
 
     void StatementEvaluator::validateTypeAssignment(ValueType expectedType, const Value& value,
@@ -425,11 +404,6 @@ namespace evaluator
     Value StatementEvaluator::evaluateFunctionNode(FunctionNode* node)
     {
         return importAndFunctionHandler->evaluateFunction(node);
-    }
-
-    Value StatementEvaluator::evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node)
-    {
-        return importAndFunctionHandler->evaluateNativeFunction(node);
     }
 
     void StatementEvaluator::evaluateRecursively(ASTNode* node)

@@ -118,6 +118,15 @@ namespace parser
                                            std::string_view context,
                                            const errors::SourceLocation& location);
 
+        /// @brief Validate that a name is a valid identifier (for variables/fields/parameters)
+        /// @param name Name to validate
+        /// @param context Description for error message (e.g., "Variable", "Field", "Parameter")
+        /// @param location Source location for error reporting
+        /// @throws ParseException if name is not a valid identifier
+        static void validateIdentifierName(std::string_view name,
+                                          std::string_view context,
+                                          const errors::SourceLocation& location);
+
     private:
         // Utility class - no instances allowed
         ParserUtils() = delete;

@@ -135,46 +135,10 @@ namespace validation {
         }
     }
 
-    void InheritanceValidator::validateSuperConstructorCall(
-        const std::string& childClassName,
-        const std::string& parentClassName,
-        size_t argCount,
-        bool isFirstStatement,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        // Validate super() is first statement
-        if (!isFirstStatement) {
-            throw InheritanceException(
-                "super() constructor call must be the first statement in the constructor",
-                childClassName,
-                parentClassName,
-                location);
-        }
-
-        // Validate parent class exists and has matching constructor
-        auto env = context->getEnvironment();
-        auto parentClass = env->findClass(parentClassName);
-
-        if (!parentClass) {
-            throw InheritanceException(
-                "Parent class '" + parentClassName + "' not found for super() call",
-                childClassName,
-                parentClassName,
-                location);
-        }
-
-        // Find matching constructor in parent
-        auto parentConstructor = parentClass->findConstructor(argCount);
-        if (!parentConstructor) {
-            throw InheritanceException(
-                "No matching constructor in parent class '" + parentClassName +
-                "' with " + std::to_string(argCount) + " parameter(s)",
-                childClassName,
-                parentClassName,
-                location);
-        }
-    }
+    // Note: validateSuperConstructorCall was removed as it's obsolete.
+    // The parser enforces super() position using initializer list syntax:
+    //   constructor(params) : super(args) { body }
+    // See ConstructorParser.cpp:46-88 for the structural enforcement.
 
     void InheritanceValidator::validateSuperMethodCall(
         const std::string& methodName,
@@ -296,129 +260,12 @@ namespace validation {
         return sig.str();
     }
 
-    void InheritanceValidator::validateClassCannotExtendInterface(
-        const std::string& className,
-        const std::string& parentName,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        if (!context) {
-            throw InheritanceException("No evaluation context available for validation", location);
-        }
-
-        auto env = context->getEnvironment();
-
-        // Extract base parent name from generic type (e.g., "Container<T>" -> "Container")
-        std::string baseParentName = parentName;
-        size_t genericStart = parentName.find('<');
-        if (genericStart != std::string::npos) {
-            baseParentName = parentName.substr(0, genericStart);
-        }
-
-        // Check if the parent is actually an interface
-        auto interfaceRegistry = env->getInterfaceRegistry();
-        if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
-            throw InheritanceException(
-                "Class '" + className + "' cannot extend interface '" + parentName + "'. "
-                "Classes can only extend other classes. Use 'implements' to implement interfaces.",
-                className,
-                parentName,
-                location);
-        }
-    }
-
-    void InheritanceValidator::validateInterfaceCannotExtendClass(
-        const std::string& interfaceName,
-        const std::string& parentName,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        if (!context) {
-            throw InheritanceException("No evaluation context available for validation", location);
-        }
-
-        auto env = context->getEnvironment();
-
-        // Extract base parent name from generic type (e.g., "Container<T>" -> "Container")
-        std::string baseParentName = parentName;
-        size_t genericStart = parentName.find('<');
-        if (genericStart != std::string::npos) {
-            baseParentName = parentName.substr(0, genericStart);
-        }
-
-        // Check if the parent is actually a class
-        if (env->findClass(baseParentName)) {
-            throw InheritanceException(
-                "Interface '" + interfaceName + "' cannot extend class '" + parentName + "'. "
-                "Interfaces can only extend other interfaces.",
-                interfaceName,
-                parentName,
-                location);
-        }
-    }
-
-    void InheritanceValidator::validateParentClassNotFinal(
-        const std::string& childClassName,
-        const std::string& parentClassName,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        if (!context) {
-            throw InheritanceException("No evaluation context available for validation", location);
-        }
-
-        auto env = context->getEnvironment();
-
-        // Extract base parent class name from generic type (e.g., "Container<T>" -> "Container")
-        std::string baseParentName = parentClassName;
-        size_t genericStart = parentClassName.find('<');
-        if (genericStart != std::string::npos) {
-            baseParentName = parentClassName.substr(0, genericStart);
-        }
-
-        // Find parent class
-        auto parentClass = env->findClass(baseParentName);
-        if (parentClass && parentClass->isFinal()) {
-            throw InheritanceException(
-                "Cannot extend final class '" + parentClassName + "'",
-                childClassName,
-                parentClassName,
-                location);
-        }
-    }
-
-    void InheritanceValidator::validateParentInterfaceNotFinal(
-        const std::string& interfaceName,
-        const std::string& parentInterfaceName,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        if (!context) {
-            throw InheritanceException("No evaluation context available for validation", location);
-        }
-
-        auto env = context->getEnvironment();
-
-        // Extract base parent interface name from generic type (e.g., "Container<T>" -> "Container")
-        std::string baseParentName = parentInterfaceName;
-        size_t genericStart = parentInterfaceName.find('<');
-        if (genericStart != std::string::npos) {
-            baseParentName = parentInterfaceName.substr(0, genericStart);
-        }
-
-        // Find parent interface
-        auto interfaceRegistry = env->getInterfaceRegistry();
-        if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
-            auto parentInterface = interfaceRegistry->findInterface(baseParentName);
-            if (parentInterface && parentInterface->isFinal()) {
-                throw InheritanceException(
-                    "Cannot extend final interface '" + parentInterfaceName + "'",
-                    interfaceName,
-                    parentInterfaceName,
-                    location);
-            }
-        }
-    }
+    // Note: The following 4 validation methods have been removed as they are now
+    // handled by the parser at compile-time:
+    // - validateClassCannotExtendInterface (ClassDeclarationParser.cpp:92-98)
+    // - validateInterfaceCannotExtendClass (InterfaceParser.cpp:130-136)
+    // - validateParentClassNotFinal (ClassDeclarationParser.cpp:101-106)
+    // - validateParentInterfaceNotFinal (InterfaceParser.cpp:139-144)
 
 } // namespace validation
 } // namespace evaluator

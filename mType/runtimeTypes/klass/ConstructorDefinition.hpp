@@ -7,6 +7,7 @@
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/AccessModifier.hpp"
+#include "../../ast/GenericType.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../Definition.hpp"
 
@@ -28,13 +29,24 @@ namespace runtimeTypes::klass
         mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
         mutable bool parametersCacheValid = false;
 
+        // NEW: Generic parameter type information for precise type handling
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+
       public:
-       // Constructor with ParameterType (preserves class/interface information)
+       // Legacy constructor with ParameterType (preserves class/interface information)
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
                              std::shared_ptr<ASTNode> b,
                              ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
             : Definition("constructor"), parametersWithTypes(params), body(b),
-              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier) {}
+              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), genericParameters() {}
+
+       // NEW: Constructor with generic parameter type information
+       explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
+                             std::shared_ptr<ASTNode> b,
+                             const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams,
+                             ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
+            : Definition("constructor"), parametersWithTypes(params), body(b),
+              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), genericParameters(genParams) {}
 
         bool matchesArgCount(size_t argCount) const;
 
@@ -67,5 +79,14 @@ namespace runtimeTypes::klass
 
         ast::AccessModifier getAccessModifier() const { return accessModifier; }
         void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
+
+        // NEW: Generic parameter type information getters and setters
+        const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& getGenericParameters() const {
+            return genericParameters;
+        }
+        void setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams) {
+            genericParameters = genParams;
+        }
+        bool hasGenericParameters() const { return !genericParameters.empty(); }
     };
 }

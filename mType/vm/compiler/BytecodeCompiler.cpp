@@ -1,5 +1,5 @@
 #include "BytecodeCompiler.hpp"
-#include "../../evaluator/utils/ValueConverter.hpp"
+#include "../runtime/utils/TypeConverter.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
@@ -122,11 +122,6 @@ namespace vm::compiler
         return expressionCompiler.compileVariable(node);
     }
 
-    value::Value BytecodeCompiler::visitDeclarationNode(ast::DeclarationNode* node)
-    {
-        return statementCompiler.compileDeclaration(node);
-    }
-
     value::Value BytecodeCompiler::visitAssignmentNode(ast::AssignmentNode* node)
     {
         return statementCompiler.compileAssignment(node);
@@ -210,11 +205,6 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitReturnNode(ast::ReturnNode* node)
     {
         return functionCompiler.compileReturn(node);
-    }
-
-    value::Value BytecodeCompiler::visitNativeFunctionNode(ast::NativeFunctionNode* node)
-    {
-        return functionCompiler.compileNativeFunction(node);
     }
 
     value::Value BytecodeCompiler::visitLambdaNode(ast::LambdaNode* node)

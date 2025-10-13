@@ -84,7 +84,6 @@ namespace evaluator
         // Statement evaluation methods
         Value evaluateProgramNode(ProgramNode* node);
         Value evaluateBlockNode(BlockNode* node);
-        Value evaluateDeclarationNode(DeclarationNode* node);
         Value evaluateAssignmentNode(AssignmentNode* node);
         Value evaluateIfNode(IfNode* node);
         Value evaluateWhileNode(WhileNode* node);
@@ -99,7 +98,6 @@ namespace evaluator
         Value evaluateImportNode(ImportNode* node);
         Value evaluateFunctionNode(FunctionNode* node);
         Value evaluateReturnNode(ReturnNode* node);
-        Value evaluateNativeFunctionNode(ast::nodes::statements::NativeFunctionNode* node);
         Value evaluateTryNode(TryNode* node);
         Value evaluateCatchNode(CatchNode* node);
         Value evaluateThrowNode(ThrowNode* node);
@@ -115,7 +113,6 @@ namespace evaluator
         // Helper methods
         bool isStatementNode(ASTNode* node) const;
         Value executeStatementList(const std::vector<std::unique_ptr<ASTNode>>& statements);
-        void validateVariableDeclaration(DeclarationNode* node);
         void validateAssignmentAsDeclaration(AssignmentNode* node);
         void validateTypeAssignment(ValueType expectedType, const Value& value,
                                     const std::string& variableName,

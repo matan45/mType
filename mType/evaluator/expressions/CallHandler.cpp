@@ -133,9 +133,9 @@ namespace evaluator
                             args.push_back(exprEvaluator->evaluate(argNode.get()));
                         }
 
-                        // Look for static method
-                        auto method = classDef->getMethod(methodName);
-                        if (method && method->isStatic())
+                        // Look for static method (use getStaticMethod to only search static methods)
+                        auto method = classDef->getStaticMethod(methodName);
+                        if (method)
                         {
                             if (objEvaluator)
                             {
@@ -172,8 +172,8 @@ namespace evaluator
             auto currentInstance = context->getCurrentInstance();
             if (currentInstance)
             {
-                auto method = currentInstance->getClassDefinition()->getMethod(node->getFunctionName());
-                if (method && !method->isStatic())
+                auto method = currentInstance->getClassDefinition()->getInstanceMethod(node->getFunctionName());
+                if (method)
                 {
                     // This is a method call on the current instance
                     std::vector<Value> args;
@@ -190,6 +190,43 @@ namespace evaluator
                     else
                     {
                         throw UndefinedException("Object evaluator not available for method call", node->getLocation());
+                    }
+                }
+            }
+
+            // Check if we're in a static method context and this could be a static method call
+            auto currentClassVar = env->findVariable("__current_class_name__");
+            if (currentClassVar)
+            {
+                auto currentClassValue = currentClassVar->getValue();
+                if (std::holds_alternative<std::string>(currentClassValue))
+                {
+                    std::string className = std::get<std::string>(currentClassValue);
+
+                    auto classDef = env->findClass(className);
+                    if (classDef)
+                    {
+                        auto method = classDef->getStaticMethod(node->getFunctionName());
+                        if (method)
+                        {
+                            // This is a static method call on the current class
+                            std::vector<Value> args;
+                            for (auto& argNode : node->getArguments())
+                            {
+                                args.push_back(exprEvaluator->evaluate(argNode.get()));
+                            }
+
+                            if (objEvaluator)
+                            {
+                                return objEvaluator->callStaticMethod(className, node->getFunctionName(), args,
+                                                                      node->getLocation());
+                            }
+                            else
+                            {
+                                throw UndefinedException("Object evaluator not available for static method call",
+                                                         node->getLocation());
+                            }
+                        }
                     }
                 }
             }

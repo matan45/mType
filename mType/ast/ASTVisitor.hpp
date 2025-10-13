@@ -18,7 +18,6 @@ namespace ast
         virtual T visitStringNode(StringNode* node) = 0;
         virtual T visitBoolNode(BoolNode* node) = 0;
         virtual T visitVariableNode(VariableNode* node) = 0;
-        virtual T visitDeclarationNode(DeclarationNode* node) = 0;
         virtual T visitAssignmentNode(AssignmentNode* node) = 0;
         virtual T visitBinaryOpNode(BinaryOpNode* node) = 0;
         virtual T visitTernaryOpNode(TernaryOpNode* node) = 0;
@@ -36,7 +35,6 @@ namespace ast
         virtual T visitCaseNode(CaseNode* node) = 0;
         virtual T visitImportNode(ImportNode* node) = 0;
         virtual T visitDefaultCaseNode(DefaultCaseNode* node) = 0;
-        virtual T visitNativeFunctionNode(NativeFunctionNode* node) = 0;
         virtual T visitNullNode(NullNode* node) = 0;
         virtual T visitMemberAssignmentNode(MemberAssignmentNode* node) = 0;
         virtual T visitIndexAssignmentNode(IndexAssignmentNode* node) = 0;

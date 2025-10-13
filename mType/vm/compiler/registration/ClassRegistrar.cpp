@@ -7,12 +7,13 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include <stdexcept>
+#include <sstream>
 
 namespace vm::compiler::registration
 {
@@ -88,24 +89,8 @@ namespace vm::compiler::registration
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
 
-            // Validate that class is not trying to extend an interface
-            // Extract base parent name from generic type
-            std::string baseParentName = parentClassName;
-            size_t genericStart = parentClassName.find('<');
-            if (genericStart != std::string::npos) {
-                baseParentName = parentClassName.substr(0, genericStart);
-            }
-
-            // Check if the parent is actually an interface
-            auto interfaceRegistry = environment->getInterfaceRegistry();
-            if (interfaceRegistry && interfaceRegistry->hasInterface(baseParentName)) {
-                throw errors::InheritanceException(
-                    "Class '" + className + "' cannot extend interface '" + parentClassName + "'. "
-                    "Classes can only extend other classes. Use 'implements' to implement interfaces.",
-                    className,
-                    parentClassName,
-                    classNode->getLocation());
-            }
+            // Note: Parser already validates that classes cannot extend interfaces
+            // at parse time (ClassDeclarationParser.cpp:92-98)
 
             classDef->setParentClassName(parentClassName);
         }
@@ -255,25 +240,30 @@ namespace vm::compiler::registration
             ? parentClassName.substr(0, genericStart)
             : parentClassName;
 
+        // Validate parent class exists
+        validateParentClassExists(baseParentClassName, classNode->getLocation());
+
         // Get both class definitions
         auto classDef = classRegistry->findClass(className);
         auto parentDef = classRegistry->findClass(baseParentClassName);
 
         if (classDef && parentDef) {
             // Check for circular inheritance before establishing the link
+            // Note: Parser validates circular inheritance within single files (ClassDeclarationParser.cpp:109-124)
+            // This check remains as a safety net for cross-file import scenarios
             checkCircularInheritance(className, parentClassName, parentDef);
 
-            // Check if parent class is final
-            if (parentDef->isFinal()) {
-                throw errors::InheritanceException(
-                    "Cannot extend final class '" + parentClassName + "'",
-                    className,
-                    parentClassName,
-                    classNode->getLocation());
-            }
+            // Note: Parser already validates that classes cannot extend final classes
+            // at parse time (ClassDeclarationParser.cpp:101-106)
 
             // Establish the parent-child link
             classDef->setParentClass(parentDef);
+
+            // Validate inheritance depth after establishing the link
+            validateInheritanceDepth(className, classNode->getLocation());
+
+            // Validate method overrides
+            validateMethodOverrides(classDef, parentDef, classNode->getLocation());
         }
     }
 
@@ -341,7 +331,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::FieldMetadata fieldMeta;
             fieldMeta.name = field->getName();
-            fieldMeta.type = evaluator::utils::ValueConverter::valueTypeToString(field->getType());
+            fieldMeta.type = vm::runtime::utils::TypeConverter::valueTypeToString(field->getType());
             fieldMeta.isStatic = field->getIsStatic();
             fieldMeta.isFinal = field->getIsFinal();
 
@@ -365,7 +355,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::MethodMetadata methodMeta;
             methodMeta.name = method->getName();
-            methodMeta.returnType = evaluator::utils::ValueConverter::valueTypeToString(method->getReturnType());
+            methodMeta.returnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
             methodMeta.isStatic = method->getIsStatic();
             methodMeta.isFinal = false;  // Methods don't currently support final modifier
 
@@ -378,7 +368,7 @@ namespace vm::compiler::registration
             // Extract parameter types and names
             const auto& params = method->getParameters();
             for (const auto& param : params) {
-                methodMeta.parameterTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(param.second));
+                methodMeta.parameterTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(param.second));
                 methodMeta.parameterNames.push_back(param.first);
             }
 
@@ -409,5 +399,142 @@ namespace vm::compiler::registration
         }
 
         return metadata;
+    }
+
+    void ClassRegistrar::validateParentClassExists(
+        const std::string& parentClassName,
+        const ast::SourceLocation& location
+    ) const
+    {
+        auto classRegistry = environment->getClassRegistry();
+        if (!classRegistry) {
+            throw std::runtime_error("Class registry not available");
+        }
+
+        // Check if parent class exists
+        auto parentClass = classRegistry->findClass(parentClassName);
+        if (!parentClass) {
+            throw errors::InheritanceException(
+                "Parent class '" + parentClassName + "' does not exist",
+                location
+            );
+        }
+    }
+
+    void ClassRegistrar::validateInheritanceDepth(
+        const std::string& className,
+        const ast::SourceLocation& location
+    ) const
+    {
+        auto classRegistry = environment->getClassRegistry();
+        if (!classRegistry) {
+            throw std::runtime_error("Class registry not available");
+        }
+
+        auto classDef = classRegistry->findClass(className);
+        if (!classDef) {
+            return;
+        }
+
+        // Count inheritance depth
+        size_t depth = 0;
+        auto currentClass = classDef->getParentClass();
+
+        while (currentClass) {
+            depth++;
+            if (depth >= MAX_INHERITANCE_DEPTH) {
+                // Build inheritance chain for error message
+                std::stringstream chainMsg;
+                chainMsg << "Inheritance chain exceeds maximum depth of "
+                         << MAX_INHERITANCE_DEPTH << ": " << className;
+
+                // Traverse again to build the chain string
+                auto tempClass = classDef->getParentClass();
+                while (tempClass && depth-- > 0) {
+                    chainMsg << " -> " << tempClass->getName();
+                    tempClass = tempClass->getParentClass();
+                }
+
+                throw errors::InheritanceException(
+                    chainMsg.str(),
+                    location
+                );
+            }
+            currentClass = currentClass->getParentClass();
+        }
+    }
+
+    void ClassRegistrar::validateMethodOverrides(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+        const ast::SourceLocation& location
+    ) const
+    {
+        if (!childClass || !parentClass) {
+            return;
+        }
+
+        // Check each method in child class
+        const auto& childMethods = childClass->getInstanceMethods();
+        const auto& parentMethods = parentClass->getInstanceMethods();
+
+        for (const auto& [methodName, childMethod] : childMethods) {
+            auto parentIt = parentMethods.find(methodName);
+            if (parentIt != parentMethods.end()) {
+                // Method exists in parent - validate override
+                auto parentMethod = parentIt->second;
+
+                // Validate parameter count matches
+                const auto& childParams = childMethod->getParameters();
+                const auto& parentParams = parentMethod->getParameters();
+
+                if (childParams.size() != parentParams.size()) {
+                    throw errors::InheritanceException(
+                        "Method override signature mismatch in class '" + childClass->getName() +
+                        "': method '" + methodName + "' has " + std::to_string(childParams.size()) +
+                        " parameters but parent method has " + std::to_string(parentParams.size()) + " parameters",
+                        childClass->getName(),
+                        parentClass->getName(),
+                        methodName,
+                        location
+                    );
+                }
+
+                // Validate parameter types match
+                for (size_t i = 0; i < childParams.size(); ++i) {
+                    const auto& childParam = childParams[i].second;
+                    const auto& parentParam = parentParams[i].second;
+
+                    // Compare using ParameterType equality operator
+                    if (!(childParam == parentParam)) {
+                        throw errors::InheritanceException(
+                            "Method override parameter type mismatch in class '" + childClass->getName() +
+                            "': method '" + methodName + "' parameter " + std::to_string(i + 1) +
+                            " has type '" + childParam.toString() +
+                            "' but parent method expects '" + parentParam.toString() + "'",
+                            childClass->getName(),
+                            parentClass->getName(),
+                            methodName,
+                            location
+                        );
+                    }
+                }
+
+                // Validate return type compatibility
+                if (childMethod->getReturnType() != parentMethod->getReturnType()) {
+                    throw errors::InheritanceException(
+                        "Method override return type mismatch in class '" + childClass->getName() +
+                        "': method '" + methodName + "' has return type '" +
+                        vm::runtime::utils::TypeConverter::valueTypeToString(childMethod->getReturnType()) +
+                        "' but parent method has return type '" +
+                        vm::runtime::utils::TypeConverter::valueTypeToString(parentMethod->getReturnType()) + "'",
+                        childClass->getName(),
+                        parentClass->getName(),
+                        methodName,
+                        location
+                    );
+                }
+            }
+        }
     }
 }

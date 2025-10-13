@@ -4,7 +4,10 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../ast/nodes/functions/ReturnNode.hpp"
+#include "../../../ast/nodes/expressions/LambdaNode.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -41,7 +44,7 @@ namespace vm::compiler::visitors
             if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
                 paramTypes.push_back(paramType.className.value());
             } else {
-                paramTypes.push_back(evaluator::utils::ValueConverter::valueTypeToString(paramType.basicType));
+                paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
             }
         }
 
@@ -51,7 +54,7 @@ namespace vm::compiler::visitors
         if (genericReturnType) {
             returnTypeStr = genericReturnType->toString();
         } else {
-            returnTypeStr = evaluator::utils::ValueConverter::valueTypeToString(node->getReturnType());
+            returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(node->getReturnType());
         }
 
         // Enter function frame for local variable tracking
@@ -222,7 +225,7 @@ namespace vm::compiler::visitors
                             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
                             // Convert argType to string for comparison
-                            std::string argTypeStr = evaluator::utils::ValueConverter::valueTypeToString(argType);
+                            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
 
                             // For object types, need to check class names
                             if (expectedType != "int" && expectedType != "float" &&
@@ -242,18 +245,41 @@ namespace vm::compiler::visitors
                                 // For objects, check class name compatibility
                                 else if (expectedType != "object") {
                                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-                                    if (!argClassName.empty() && argClassName != expectedType) {
+
+                                    // Normalize array types: convert "int[]" to "Array<int>", "int[][]" to "Array<Array<int>>", etc.
+                                    auto normalizeArrayType = [](const std::string& type) -> std::string {
+                                        std::string normalized = type;
+                                        size_t arrayDepth = 0;
+
+                                        // Count array brackets from the end
+                                        while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
+                                            arrayDepth++;
+                                            normalized = normalized.substr(0, normalized.length() - 2);
+                                        }
+
+                                        // Wrap in Array<> for each dimension
+                                        for (size_t i = 0; i < arrayDepth; ++i) {
+                                            normalized = "Array<" + normalized + ">";
+                                        }
+
+                                        return normalized;
+                                    };
+
+                                    std::string normalizedArgClassName = normalizeArrayType(argClassName);
+                                    std::string normalizedExpectedType = normalizeArrayType(expectedType);
+
+                                    if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType) {
                                         // Check if both are generic types with the same base
                                         bool isGenericMatch = false;
-                                        size_t expectedAngle = expectedType.find('<');
-                                        size_t argAngle = argClassName.find('<');
+                                        size_t expectedAngle = normalizedExpectedType.find('<');
+                                        size_t argAngle = normalizedArgClassName.find('<');
 
                                         if (expectedAngle != std::string::npos && argAngle != std::string::npos) {
                                             // Both are generic types - check if base types match
-                                            std::string expectedBase = expectedType.substr(0, expectedAngle);
-                                            std::string argBase = argClassName.substr(0, argAngle);
+                                            std::string expectedBase = normalizedExpectedType.substr(0, expectedAngle);
+                                            std::string argBase = normalizedArgClassName.substr(0, argAngle);
                                             if (expectedBase == argBase) {
-                                                // Same generic base type (e.g., both are List)
+                                                // Same generic base type (e.g., both are List, both are Array)
                                                 // Type argument compatibility will be validated at runtime
                                                 isGenericMatch = true;
                                             }
@@ -302,6 +328,8 @@ namespace vm::compiler::visitors
                 arg->accept(ctx.visitor);  // Will need delegation
             }
 
+            // Note: We don't append "$static" here because the CALL_STATIC opcode handler
+            // will append it when looking up the bytecode
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
             // Static method call - use CALL_STATIC with source location
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
@@ -312,44 +340,100 @@ namespace vm::compiler::visitors
                                          node->getLocation().getLine(),
                                          node->getLocation().getColumn(),
                                          node->getLocation().getFilename());
-        } else if (ctx.inInstanceMethod && ctx.currentClassNode) {
-            // Unqualified call inside an instance method - could be either:
-            // 1. Method call on 'this' (recursive or calling another method)
-            // 2. Regular function call (global function)
+        } else if ((ctx.inInstanceMethod || ctx.inStaticMethod) && ctx.currentClassNode) {
+            // Unqualified call inside a method (instance or static) - could be either:
+            // 1. Method call on 'this' (for instance methods)
+            // 2. Static method call (for static methods)
+            // 3. Regular function call (global function)
             //
             // Check if a method with this name exists in the current class
+            // Important: static and instance methods can have the same name, so we need to:
+            // - In static context: only look for static methods
+            // - In instance context: look for instance methods first, then static methods
             bool isMethodCall = false;
+            bool isStaticMethodCall = false;
             const auto& methods = ctx.currentClassNode->getMethods();
 
             for (const auto& method : methods) {
                 if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
                     if (methodNode->getName() == functionName &&
                         methodNode->getParameters().size() == arguments.size()) {
-                        isMethodCall = true;
-                        break;
+                        // If we're in a static method, only match static methods
+                        // If we're in an instance method, prefer instance methods
+                        if (ctx.inStaticMethod) {
+                            if (methodNode->getIsStatic()) {
+                                isMethodCall = true;
+                                isStaticMethodCall = true;
+                                break;
+                            }
+                        } else if (ctx.inInstanceMethod) {
+                            if (!methodNode->getIsStatic()) {
+                                isMethodCall = true;
+                                isStaticMethodCall = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If we didn't find a matching method in the preferred namespace,
+            // check the other namespace (only in instance context, static can also call instance)
+            if (!isMethodCall && ctx.inInstanceMethod) {
+                for (const auto& method : methods) {
+                    if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                        if (methodNode->getName() == functionName &&
+                            methodNode->getParameters().size() == arguments.size() &&
+                            methodNode->getIsStatic()) {
+                            isMethodCall = true;
+                            isStaticMethodCall = true;
+                            break;
+                        }
                     }
                 }
             }
 
             if (isMethodCall) {
-                // Push 'this' onto stack BEFORE arguments
-                ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+                if (isStaticMethodCall) {
+                    // Static method call - use CALL_STATIC with fully qualified name
+                    std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
 
-                // Now compile arguments
-                for (const auto& arg : arguments) {
-                    arg->accept(ctx.visitor);  // Will need delegation
+                    // Compile all arguments
+                    for (const auto& arg : arguments) {
+                        arg->accept(ctx.visitor);  // Will need delegation
+                    }
+
+                    // Note: We don't append "$static" here because the CALL_STATIC opcode handler
+                    // will append it when looking up the bytecode
+                    size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                    ctx.program.emit(bytecode::OpCode::CALL_STATIC,
+                                 static_cast<uint32_t>(nameIndex),
+                                 static_cast<uint32_t>(arguments.size()));
+                    // Add source location for the call instruction
+                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                                 node->getLocation().getLine(),
+                                                 node->getLocation().getColumn(),
+                                                 node->getLocation().getFilename());
+                } else {
+                    // Instance method call - push 'this' onto stack BEFORE arguments
+                    ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+
+                    // Now compile arguments
+                    for (const auto& arg : arguments) {
+                        arg->accept(ctx.visitor);  // Will need delegation
+                    }
+
+                    size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
+                    // Call method on 'this' with source location
+                    ctx.program.emit(bytecode::OpCode::CALL_METHOD,
+                                 static_cast<uint32_t>(nameIndex),
+                                 static_cast<uint32_t>(arguments.size()));
+                    // Add source location for the call instruction
+                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                                 node->getLocation().getLine(),
+                                                 node->getLocation().getColumn(),
+                                                 node->getLocation().getFilename());
                 }
-
-                size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                // Call method on 'this' with source location
-                ctx.program.emit(bytecode::OpCode::CALL_METHOD,
-                             static_cast<uint32_t>(nameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-                // Add source location for the call instruction
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
             } else {
                 // Regular function call
                 for (const auto& arg : arguments) {
@@ -421,7 +505,7 @@ namespace vm::compiler::visitors
                         if (actualType != expectedType) {
                             // Special case: null can be returned for object types
                             if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
-                                std::string actualTypeStr = evaluator::utils::ValueConverter::valueTypeToString(actualType);
+                                std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
                                 throw errors::TypeException(
                                     "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
                                     node->getLocation()
@@ -499,13 +583,6 @@ namespace vm::compiler::visitors
             }
         }
 
-        return std::monostate{};
-    }
-
-    value::Value FunctionCompiler::compileNativeFunction(ast::NativeFunctionNode* node)
-    {
-        // Native function declarations are already registered at the start of compilation
-        // from the environment's native registry, so we just skip them here
         return std::monostate{};
     }
 

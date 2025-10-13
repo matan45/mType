@@ -196,8 +196,8 @@ namespace vm::runtime
                 // First, try to call toString() if it exists (custom toString() takes priority)
                 auto classDef = obj->getClassDefinition();
                 if (classDef && classDef->hasMethod("toString")) {
-                    auto toStringMethod = classDef->findMethod("toString", 0);
-                    if (toStringMethod && !toStringMethod->isStatic()) {
+                    auto toStringMethod = classDef->findInstanceMethod("toString", 0);
+                    if (toStringMethod) {
                         try {
                             // WORKAROUND: obj->callMethod() is currently a stub that returns void
                             // Instead, manually construct toString() output from object fields

@@ -95,6 +95,12 @@ namespace runtimeTypes::klass
         std::shared_ptr<ConstructorDefinition> getConstructor() const;
         std::shared_ptr<MethodDefinition> findMethod(const std::string& methodName, size_t argCount) const;
 
+        // NEW: Separate static and instance method lookup
+        std::shared_ptr<MethodDefinition> getStaticMethod(const std::string& methodName) const;
+        std::shared_ptr<MethodDefinition> getInstanceMethod(const std::string& methodName) const;
+        std::shared_ptr<MethodDefinition> findStaticMethod(const std::string& methodName, size_t argCount) const;
+        std::shared_ptr<MethodDefinition> findInstanceMethod(const std::string& methodName, size_t argCount) const;
+
         // NEW: Generic-related methods
         bool isGeneric() const { return isGenericClass; }
         const std::vector<ast::GenericTypeParameter>& getGenericParameters() const { return genericParameters; }
@@ -140,6 +146,8 @@ namespace runtimeTypes::klass
 
         // Polymorphic method lookup
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;
+        std::shared_ptr<MethodDefinition> findInstanceMethodInHierarchy(const std::string& methodName, size_t argCount) const;
+        std::shared_ptr<MethodDefinition> findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const;
 
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;

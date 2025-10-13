@@ -55,11 +55,6 @@ namespace evaluator
         return coordinator->visitVariableNode(node);
     }
 
-    Value Evaluator::visitDeclarationNode(DeclarationNode* node)
-    {
-        return coordinator->visitDeclarationNode(node);
-    }
-
     Value Evaluator::visitAssignmentNode(AssignmentNode* node)
     {
         return coordinator->visitAssignmentNode(node);
@@ -143,11 +138,6 @@ namespace evaluator
     Value Evaluator::visitDefaultCaseNode(DefaultCaseNode* node)
     {
         return coordinator->visitDefaultCaseNode(node);
-    }
-
-    Value Evaluator::visitNativeFunctionNode(NativeFunctionNode* node)
-    {
-        return coordinator->visitNativeFunctionNode(node);
     }
 
     Value Evaluator::visitNullNode(NullNode* node)

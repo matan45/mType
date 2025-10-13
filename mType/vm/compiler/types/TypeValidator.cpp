@@ -1,6 +1,6 @@
 #include "TypeValidator.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../evaluator/utils/ValueConverter.hpp"
+#include "../../runtime/utils/TypeConverter.hpp"
 #include <functional>
 
 namespace vm::compiler::types
@@ -97,12 +97,35 @@ namespace vm::compiler::types
             return;
         }
 
+        // Normalize array types: convert "int[]" to "Array<int>", "int[][]" to "Array<Array<int>>", etc.
+        auto normalizeArrayType = [](const std::string& type) -> std::string {
+            std::string normalized = type;
+            size_t arrayDepth = 0;
+
+            // Count array brackets from the end
+            while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
+                arrayDepth++;
+                normalized = normalized.substr(0, normalized.length() - 2);
+            }
+
+            // Wrap in Array<> for each dimension
+            for (size_t i = 0; i < arrayDepth; ++i) {
+                normalized = "Array<" + normalized + ">";
+            }
+
+            return normalized;
+        };
+
         // For OBJECT types, check class compatibility
         if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
             if (!varClassName.empty() && !valueClassName.empty()) {
+                // Normalize both types for array comparison
+                std::string normalizedVarClass = normalizeArrayType(varClassName);
+                std::string normalizedValueClass = normalizeArrayType(valueClassName);
+
                 // Extract base class names (remove generic parameters)
-                std::string baseVarClass = stripGenericParameters(varClassName);
-                std::string baseValueClass = stripGenericParameters(valueClassName);
+                std::string baseVarClass = stripGenericParameters(normalizedVarClass);
+                std::string baseValueClass = stripGenericParameters(normalizedValueClass);
 
                 // Check class compatibility (including inheritance)
                 if (!isClassCompatible(baseValueClass, baseVarClass)) {
@@ -127,8 +150,8 @@ namespace vm::compiler::types
                 return;
             }
 
-            std::string varTypeStr = evaluator::utils::ValueConverter::valueTypeToString(varType);
-            std::string valueTypeStr = evaluator::utils::ValueConverter::valueTypeToString(valueType);
+            std::string varTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(varType);
+            std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
             throw errors::TypeException(
                 "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
                 location
@@ -204,8 +227,8 @@ namespace vm::compiler::types
         }
 
         if (!isValid) {
-            std::string leftTypeStr = evaluator::utils::ValueConverter::valueTypeToString(leftType);
-            std::string rightTypeStr = evaluator::utils::ValueConverter::valueTypeToString(rightType);
+            std::string leftTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(leftType);
+            std::string rightTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(rightType);
             std::string opStr;
             switch (op) {
                 case token::TokenType::PLUS: opStr = "+"; break;

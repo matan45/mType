@@ -8,20 +8,20 @@ interface Container<T> {
     function size(): Int;
 }
 
-class GenericList<T> implements Container<Int> {
+class GenericList<T> implements Container<T> {
     Int listSize;
 
     constructor() {
         this.listSize = new Int(0);
     }
 
-    public function add(Int item): bool {
+    public function add(T item): bool {
         this.listSize = new Int(this.listSize.getValue() + 1);
         print("Added item to generic list");
         return true;
     }
 
-    public function get(int index): Int {
+    public function get(int index): T {
         return null; // Simplified implementation
     }
 
@@ -30,9 +30,9 @@ class GenericList<T> implements Container<Int> {
     }
 }
 
-GenericList<String> intList = new GenericList<String>();
-intList.add(new String("42"));
-intList.add(new String("17"));
-print("List size: " + intList.size().getValue());
+GenericList<String> stringList = new GenericList<String>();
+stringList.add(new String("42"));
+stringList.add(new String("17"));
+print("List size: " + stringList.size().getValue());
 
 print("Generic class implements generic interface successful");

@@ -139,6 +139,11 @@ namespace parser
         }
 
         std::string fieldName = tokenStream.current().stringValue.getString();
+        SourceLocation fieldLocation = tokenStream.current().location;
+
+        // Validate field name contains no special characters
+        ParserUtils::validateIdentifierName(fieldName, "Field", fieldLocation);
+
         tokenStream.advance();
 
         std::unique_ptr<ASTNode> initialValue = parseInitialValue();

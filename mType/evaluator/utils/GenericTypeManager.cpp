@@ -14,6 +14,7 @@
 
 namespace evaluator::utils
 {
+
     std::pair<std::string, std::vector<std::string>> GenericTypeManager::parseGenericInstantiation(
         const std::string& instantiationName)
     {
@@ -90,8 +91,8 @@ namespace evaluator::utils
         std::string instantiatedName = createInstantiatedClassName(genericClass, typeArguments);
         auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
 
-        // Create substitution map
-        auto substitutionMap = createTypeSubstitutionMap(
+        // Create AST-based substitution map
+        auto substitutionMap = createASTSubstitutionMap(
             genericClass->getGenericParameters(), typeArguments);
 
         // Copy parent class link if exists
@@ -144,14 +145,24 @@ namespace evaluator::utils
     void GenericTypeManager::copyAndSubstituteFields(
         std::shared_ptr<ClassDefinition> source,
         std::shared_ptr<ClassDefinition> target,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        // Copy instance fields
+        // Copy instance fields with AST-based type substitution
         for (const auto& [fieldName, field] : source->getInstanceFields())
         {
+            value::ValueType newFieldType = field->getType();
+            std::shared_ptr<ast::GenericType> newGenericType = field->getGenericType();
+
+            // Only substitute if field has generic type that references substitution parameters
+            if (newGenericType && referencesSubstitutionParameters(newGenericType, substitutionMap)) {
+                newGenericType = newGenericType->substitute(substitutionMap);
+                newFieldType = convertGenericTypeToValueType(newGenericType, substitutionMap);
+            }
+
             auto newField = std::make_shared<FieldDefinition>(
                 field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
+                newFieldType,
+                newGenericType,
                 field->getValue(),
                 field->isStatic(),
                 field->isFinal(),
@@ -160,12 +171,22 @@ namespace evaluator::utils
             target->addInstanceField(fieldName, newField);
         }
 
-        // Copy static fields
+        // Copy static fields with AST-based type substitution
         for (const auto& [fieldName, field] : source->getStaticFields())
         {
+            value::ValueType newFieldType = field->getType();
+            std::shared_ptr<ast::GenericType> newGenericType = field->getGenericType();
+
+            // Only substitute if field has generic type that references substitution parameters
+            if (newGenericType && referencesSubstitutionParameters(newGenericType, substitutionMap)) {
+                newGenericType = newGenericType->substitute(substitutionMap);
+                newFieldType = convertGenericTypeToValueType(newGenericType, substitutionMap);
+            }
+
             auto newField = std::make_shared<FieldDefinition>(
                 field->getName(),
-                substituteFieldType(field->getType(), substitutionMap),
+                newFieldType,
+                newGenericType,
                 field->getValue(),
                 field->isStatic(),
                 field->isFinal(),
@@ -178,16 +199,16 @@ namespace evaluator::utils
     void GenericTypeManager::copyAndSubstituteMethods(
         std::shared_ptr<ClassDefinition> source,
         std::shared_ptr<ClassDefinition> target,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        // Copy instance methods
+        // Copy instance methods with AST-based type substitution
         for (const auto& [methodName, method] : source->getInstanceMethods())
         {
             auto newMethod = substituteMethodTypes(method, substitutionMap);
             target->addInstanceMethod(methodName, newMethod);
         }
 
-        // Copy static methods
+        // Copy static methods with AST-based type substitution
         for (const auto& [methodName, method] : source->getStaticMethods())
         {
             auto newMethod = substituteMethodTypes(method, substitutionMap);
@@ -198,8 +219,9 @@ namespace evaluator::utils
     void GenericTypeManager::copyAndSubstituteConstructors(
         std::shared_ptr<ClassDefinition> source,
         std::shared_ptr<ClassDefinition> target,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
+        // Copy constructors with AST-based type substitution
         for (const auto& constructor : source->getConstructors())
         {
             auto newConstructor = substituteConstructorTypes(constructor, substitutionMap);
@@ -311,54 +333,62 @@ namespace evaluator::utils
         return typeArgs;
     }
 
-    value::ValueType GenericTypeManager::substituteFieldType(
-        value::ValueType originalType,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+    /**
+     * @brief Check if a GenericType references any parameters from the substitution map
+     * @param genericType The type to check
+     * @param substitutionMap The substitution map to check against
+     * @return true if the type references any parameter in the map, false otherwise
+     */
+    bool GenericTypeManager::referencesSubstitutionParameters(
+        std::shared_ptr<ast::GenericType> genericType,
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        // If the original type is OBJECT, it likely represents a generic type parameter
-        // that needs to be substituted based on the substitution map
-        if (originalType == value::ValueType::OBJECT) {
-            // For single type parameter generics, check if we have a substitution
-            if (substitutionMap.size() == 1) {
-                auto it = substitutionMap.begin();
-                const std::string& substitutedTypeName = it->second;
-
-                // Use TypeRegistry to convert the substituted type name to ValueType
-                auto& registry = types::getGlobalTypeRegistry();
-                if (registry.hasType(substitutedTypeName)) {
-                    if (registry.isArrayType(substitutedTypeName)) {
-                        return value::ValueType::ARRAY;
-                    }
-                    return registry.getValueType(substitutedTypeName);
-                }
-            }
-
-            // If we can't determine the substitution, preserve OBJECT type
-            return originalType;
+        if (!genericType) {
+            return false;
         }
 
-        // For non-OBJECT types, return as-is (they don't need substitution)
-        return originalType;
+        // If this is a generic parameter, check if it's in the substitution map
+        if (genericType->isGenericParameter()) {
+            std::string paramName = genericType->getGenericName();
+            return substitutionMap.find(paramName) != substitutionMap.end();
+        }
+
+        // For concrete types, check if any type arguments reference substitution parameters
+        if (genericType->isParameterized()) {
+            for (const auto& typeArg : genericType->getTypeArguments()) {
+                if (referencesSubstitutionParameters(typeArg, substitutionMap)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     value::ValueType GenericTypeManager::convertGenericTypeToValueType(
         std::shared_ptr<ast::GenericType> genericType,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        try {
-            // Use the enhanced type conversion utility with proper error handling
-            types::TypeConversionContext context("GenericTypeManager::convertGenericTypeToValueType",
-                                                "generic type conversion");
+        if (!genericType) {
+            return value::ValueType::OBJECT;
+        }
 
-            return types::TypeConversionUtils::convertWithContext(
-                genericType, substitutionMap, context);
+        try {
+            // Apply substitution using AST-based method
+            auto substitutedType = genericType->substitute(substitutionMap);
+
+            // Convert the substituted GenericType to ValueType
+            if (substitutedType->isGenericParameter()) {
+                // Still a generic parameter after substitution - return OBJECT
+                return value::ValueType::OBJECT;
+            }
+
+            // Get the concrete type
+            return substitutedType->getConcreteType();
 
         } catch (const types::TypeConversionException&) {
-            // Log detailed error information if needed
-            // For now, maintain backward compatibility by returning OBJECT
-            // In the future, this could be configured to throw or log errors
+            // Fallback to OBJECT for conversion errors
             return value::ValueType::OBJECT;
-
         } catch (...) {
             // Handle unexpected errors gracefully
             return value::ValueType::OBJECT;
@@ -367,23 +397,70 @@ namespace evaluator::utils
 
     std::shared_ptr<runtimeTypes::klass::MethodDefinition> GenericTypeManager::substituteMethodTypes(
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> originalMethod,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        // Substitute return type
-        value::ValueType newReturnType = substituteFieldType(originalMethod->getReturnType(), substitutionMap);
+        // Substitute return type using AST-based substitution
+        value::ValueType newReturnType = originalMethod->getReturnType();
+        std::shared_ptr<ast::GenericType> newGenericReturnType = originalMethod->getGenericReturnType();
 
-        // Substitute parameter types
-        auto originalParams = originalMethod->getParameters();
-        std::vector<std::pair<std::string, value::ValueType>> newParams;
-        newParams.reserve(originalParams.size());
-
-        for (const auto& [paramName, paramType] : originalParams)
-        {
-            value::ValueType newParamType = substituteFieldType(paramType, substitutionMap);
-            newParams.emplace_back(paramName, newParamType);
+        // Only substitute return type if it actually references parameters from the substitution map
+        if (newGenericReturnType && referencesSubstitutionParameters(newGenericReturnType, substitutionMap)) {
+            newGenericReturnType = newGenericReturnType->substitute(substitutionMap);
+            newReturnType = convertGenericTypeToValueType(newGenericReturnType, substitutionMap);
         }
 
-        // Create new method definition with enhanced generic information
+        // Substitute parameter types using AST-based substitution
+        auto originalParams = originalMethod->getParameters();
+        std::vector<std::pair<std::string, value::ParameterType>> newParams;
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> newGenericParams;
+        newParams.reserve(originalParams.size());
+        newGenericParams.reserve(originalParams.size());
+
+        const auto& originalGenericParams = originalMethod->getGenericParameters();
+
+        for (size_t i = 0; i < originalParams.size(); ++i) {
+            const auto& [paramName, paramType] = originalParams[i];
+
+            // Get corresponding generic type if available
+            std::shared_ptr<ast::GenericType> genericParamType;
+            if (i < originalGenericParams.size()) {
+                genericParamType = originalGenericParams[i].second;
+            }
+
+            // Only substitute if the generic type references parameters from the substitution map
+            if (genericParamType && referencesSubstitutionParameters(genericParamType, substitutionMap)) {
+                auto substitutedGenericType = genericParamType->substitute(substitutionMap);
+                value::ValueType newBasicType = convertGenericTypeToValueType(substitutedGenericType, substitutionMap);
+
+                // Create new ParameterType with substituted basic type
+                value::ParameterType newParamType(newBasicType);
+                if (paramType.isInterface()) {
+                    newParamType = value::ParameterType::forInterface(paramType.getInterfaceName());
+                } else if (paramType.isClass()) {
+                    newParamType = value::ParameterType::forClass(paramType.getClassName());
+                }
+
+                newParams.emplace_back(paramName, newParamType);
+                newGenericParams.emplace_back(paramName, substitutedGenericType);
+            } else {
+                // No generic type info or doesn't reference substitution parameters - preserve original
+                newParams.emplace_back(paramName, paramType);
+                // Preserve original generic type if it exists
+                if (genericParamType) {
+                    newGenericParams.emplace_back(paramName, genericParamType);
+                }
+            }
+        }
+
+        // Convert string-based substitution map to AST map for storage (empty for now)
+        std::unordered_map<std::string, std::string> legacySubstitutionMap;
+        for (const auto& [key, genType] : substitutionMap) {
+            if (genType && !genType->isGenericParameter()) {
+                legacySubstitutionMap[key] = genType->toString();
+            }
+        }
+
+        // Create new method definition with substituted types
         return std::make_shared<runtimeTypes::klass::MethodDefinition>(
             originalMethod->getName(),
             newReturnType,
@@ -391,42 +468,66 @@ namespace evaluator::utils
             std::vector<std::pair<std::string, value::Value>>{}, // empty arguments
             originalMethod->getBodyPtr(),
             originalMethod->isStatic(),
-            originalMethod->getGenericReturnType(), // Preserve generic return type
-            originalMethod->getGenericParameters(), // Preserve generic parameters
+            newGenericReturnType, // Substituted generic return type
+            newGenericParams, // Substituted generic parameters
             originalMethod->getGenericTypeParameters(), // Preserve generic type parameter declarations
-            substitutionMap, // Store substitution map for runtime resolution
+            legacySubstitutionMap, // Store legacy substitution map for backward compatibility
             originalMethod->getAccessModifier() // Preserve access modifier
         );
     }
 
     std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> GenericTypeManager::substituteConstructorTypes(
         std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> originalConstructor,
-        const std::unordered_map<std::string, std::string>& substitutionMap)
+        const std::unordered_map<std::string, std::shared_ptr<ast::GenericType>>& substitutionMap)
     {
-        // Get the original parameters and substitute their types
+        // Get the original parameters and substitute their types using AST-based substitution
         auto originalParams = originalConstructor->getParametersWithTypes();
         std::vector<std::pair<std::string, value::ParameterType>> newParams;
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> newGenericParams;
         newParams.reserve(originalParams.size());
+        newGenericParams.reserve(originalParams.size());
 
-        for (const auto& [paramName, paramType] : originalParams)
-        {
-            value::ValueType newBasicType = substituteFieldType(paramType.basicType, substitutionMap);
+        const auto& originalGenericParams = originalConstructor->getGenericParameters();
 
-            // Create new ParameterType preserving class/interface information
-            value::ParameterType newParamType(newBasicType);
-            if (paramType.isInterface()) {
-                newParamType = value::ParameterType::forInterface(paramType.getInterfaceName());
-            } else if (paramType.isClass()) {
-                newParamType = value::ParameterType::forClass(paramType.getClassName());
+        for (size_t i = 0; i < originalParams.size(); ++i) {
+            const auto& [paramName, paramType] = originalParams[i];
+
+            // Get corresponding generic type if available
+            std::shared_ptr<ast::GenericType> genericParamType;
+            if (i < originalGenericParams.size()) {
+                genericParamType = originalGenericParams[i].second;
             }
 
-            newParams.emplace_back(paramName, newParamType);
+            // Only substitute if the generic type references parameters from the substitution map
+            if (genericParamType && referencesSubstitutionParameters(genericParamType, substitutionMap)) {
+                auto substitutedGenericType = genericParamType->substitute(substitutionMap);
+                value::ValueType newBasicType = convertGenericTypeToValueType(substitutedGenericType, substitutionMap);
+
+                // Create new ParameterType preserving class/interface information
+                value::ParameterType newParamType(newBasicType);
+                if (paramType.isInterface()) {
+                    newParamType = value::ParameterType::forInterface(paramType.getInterfaceName());
+                } else if (paramType.isClass()) {
+                    newParamType = value::ParameterType::forClass(paramType.getClassName());
+                }
+
+                newParams.emplace_back(paramName, newParamType);
+                newGenericParams.emplace_back(paramName, substitutedGenericType);
+            } else {
+                // No generic type info or doesn't reference substitution parameters - preserve original
+                newParams.emplace_back(paramName, paramType);
+                // Preserve original generic type if it exists
+                if (genericParamType) {
+                    newGenericParams.emplace_back(paramName, genericParamType);
+                }
+            }
         }
 
         // Create new constructor definition with substituted parameter types
         return std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
             newParams,
             originalConstructor->getBodyPtr(),
+            newGenericParams,
             originalConstructor->getAccessModifier() // Preserve access modifier
         );
     }
@@ -444,13 +545,13 @@ namespace evaluator::utils
         // Get the actual generic type parameters (like <T>, <K,V>)
         const auto& genericParams = genericMethod->getGenericTypeParameters();
 
-        // Create type substitution map
-        auto substitutionMap = createTypeSubstitutionMap(
+        // Create AST-based substitution map
+        auto substitutionMap = createASTSubstitutionMap(
             genericParams,
             typeArguments
         );
 
-        // Create specialized method with type substitution
+        // Create specialized method with AST-based type substitution
         return substituteMethodTypes(genericMethod, substitutionMap);
     }
 
@@ -669,14 +770,51 @@ namespace evaluator::utils
             const std::string& parameterName = genericParameters[i].name;
             const std::string& typeArgument = typeArguments[i];
 
-            // Create GenericType from string representation
-            // For now, create a simple non-generic type (concrete type)
-            auto concreteType = std::make_shared<ast::GenericType>(typeArgument);
+            // Parse type argument string to proper GenericType (handles nested generics)
+            auto concreteType = parseTypeArgumentToGenericType(typeArgument);
 
             substitutionMap[parameterName] = concreteType;
         }
 
         return substitutionMap;
+    }
+
+    std::shared_ptr<ast::GenericType> GenericTypeManager::parseTypeArgumentToGenericType(const std::string& typeArgument)
+    {
+        auto& typeRegistry = types::getGlobalTypeRegistry();
+
+        // Check if it's a simple registered type (class name like "String", "Int")
+        if (typeRegistry.hasType(typeArgument)) {
+            // Get the ValueType for this registered type
+            value::ValueType valueType = typeRegistry.getValueType(typeArgument);
+            return std::make_shared<ast::GenericType>(valueType);
+        }
+
+        // Check if it's a nested generic instantiation like "List<String>" or "Map<String, Int>"
+        if (isGenericInstantiation(typeArgument)) {
+            auto [baseName, nestedTypeArgs] = parseGenericInstantiation(typeArgument);
+
+            // Get the base type's ValueType
+            value::ValueType baseValueType = value::ValueType::OBJECT;
+            if (typeRegistry.hasType(baseName)) {
+                baseValueType = typeRegistry.getValueType(baseName);
+            }
+
+            // Recursively parse nested type arguments
+            std::vector<std::shared_ptr<ast::GenericType>> nestedGenericTypes;
+            nestedGenericTypes.reserve(nestedTypeArgs.size());
+
+            for (const auto& nestedArg : nestedTypeArgs) {
+                nestedGenericTypes.push_back(parseTypeArgumentToGenericType(nestedArg));
+            }
+
+            // Create parameterized GenericType with nested types
+            return std::make_shared<ast::GenericType>(baseValueType, nestedGenericTypes);
+        }
+
+        // Otherwise treat as a generic parameter name (e.g., "T", "E", "K", "V")
+        // This handles cases where a generic parameter is substituted with another generic parameter
+        return std::make_shared<ast::GenericType>(typeArgument);
     }
 
     bool GenericTypeManager::isGenericTypeParameter(const std::string& name)

@@ -61,9 +61,6 @@ namespace runtimeTypes::klass
             // Custom deleter that does nothing - lambda lifetime is managed by AST
             // This prevents double deletion while allowing shared_ptr semantics
             // However, we log when this happens for debugging purposes
-            #ifdef _DEBUG
-            // In debug builds, we can add logging here if needed
-            #endif
             (void)ptr; // Silence unused parameter warning
         });
 

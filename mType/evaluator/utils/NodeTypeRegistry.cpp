@@ -18,7 +18,6 @@
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
-#include "../../ast/nodes/statements/DeclarationNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
 #include "../../ast/nodes/statements/WhileNode.hpp"
@@ -32,7 +31,6 @@
 #include "../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
-#include "../../ast/nodes/statements/NativeFunctionNode.hpp"
 #include "../../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
@@ -94,7 +92,6 @@ namespace evaluator::utils
         return {
             typeid(ProgramNode),
             typeid(BlockNode),
-            typeid(DeclarationNode),
             typeid(AssignmentNode),
             typeid(IfNode),
             typeid(WhileNode),
@@ -109,7 +106,6 @@ namespace evaluator::utils
             typeid(ImportNode),
             typeid(ReturnNode),
             typeid(FunctionNode),
-            typeid(NativeFunctionNode),
             typeid(TryNode),
             typeid(CatchNode),
             typeid(ThrowNode)

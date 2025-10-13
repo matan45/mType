@@ -275,7 +275,8 @@ namespace value
         {
             auto chainedPromise = std::make_shared<AsyncPromiseValue>();
 
-            then([chainedPromise, transform](Value result) {
+            then([chainedPromise, transform](Value result)
+            {
                 try
                 {
                     Value transformed = transform(result);
@@ -287,7 +288,8 @@ namespace value
                 }
             });
 
-            catch_([chainedPromise](std::string error) {
+            catch_([chainedPromise](std::string error)
+            {
                 chainedPromise->reject(error);
             });
 
@@ -357,5 +359,4 @@ namespace value
         promise->reject(error);
         return promise;
     }
-
 } // namespace value

@@ -68,6 +68,36 @@ namespace tests::testSuite
         addOutputVerificationTest("Nested Constraints",
                         passPath + "constraintNested.mt");
 
+        // === PARAMETER TYPE VALIDATION TESTS ===
+        // These tests verify correct handling of all parameter types
+
+        addOutputVerificationTest("Parameter Types - Primitives",
+                        passPath + "parameterTypesPrimitive.mt");
+        addOutputVerificationTest("Parameter Types - Arrays",
+                        passPath + "parameterTypesArrays.mt");
+        addOutputVerificationTest("Parameter Types - Objects",
+                        passPath + "parameterTypesObjects.mt");
+        addOutputVerificationTest("Parameter Types - Generics with Extends",
+                        passPath + "parameterTypesGenericsExtends.mt");
+        addOutputVerificationTest("Parameter Types - Promise<T>",
+                        passPath + "parameterTypesPromise.mt");
+        addOutputVerificationTest("Parameter Types - Mixed Types",
+                        passPath + "parameterTypesMixed.mt");
+
+        // === RETURN TYPE VALIDATION TESTS ===
+        // These tests verify correct handling of all return types
+
+        addOutputVerificationTest("Return Types - Primitives",
+                        passPath + "returnTypesPrimitive.mt");
+        addOutputVerificationTest("Return Types - Arrays",
+                        passPath + "returnTypesArrays.mt");
+        addOutputVerificationTest("Return Types - Objects",
+                        passPath + "returnTypesObjects.mt");
+        addOutputVerificationTest("Return Types - Generics",
+                        passPath + "returnTypesGenerics.mt");
+        addOutputVerificationTest("Return Types - Promise<T>",
+                        passPath + "returnTypesPromise.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",
@@ -139,6 +169,68 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Constraint Wrong Interface",
                     errorPath + "constraintWrongInterface.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Parser validation error tests (compile-time errors)
+        addTestFromFile("Too Many Generic Parameters - Class",
+                    errorPath + "tooManyGenericParams.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Too Many Generic Parameters - Interface",
+                    errorPath + "tooManyGenericParamsInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Empty Generic Type Arguments",
+                    errorPath + "emptyGenericType.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Unmatched Generic Brackets",
+                    errorPath + "unmatchedGenericBrackets.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Inheritance validation error tests (compile-time errors)
+        addTestFromFile("Class Cannot Extend Interface",
+                    errorPath + "classExtendsInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Class Cannot Extend Generic Interface",
+                    errorPath + "classExtendsGenericInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Interface Cannot Extend Class",
+                    errorPath + "interfaceExtendsClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Interface Cannot Extend Generic Class",
+                    errorPath + "interfaceExtendsGenericClass.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Final modifier validation error tests (compile-time errors)
+        addTestFromFile("Cannot Extend Final Class",
+                    errorPath + "extendFinalClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Generic Class",
+                    errorPath + "extendFinalGenericClass.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Interface",
+                    errorPath + "extendFinalInterface.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Cannot Extend Final Generic Interface",
+                    errorPath + "extendFinalGenericInterface.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Circular inheritance validation error tests (compile-time errors)
+        addTestFromFile("Circular Class Inheritance - Simple",
+                    errorPath + "circularClassInheritanceSimple.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Class Inheritance - Complex",
+                    errorPath + "circularClassInheritanceComplex.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Class Inheritance - Self",
+                    errorPath + "circularClassInheritanceSelf.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Simple",
+                    errorPath + "circularInterfaceInheritanceSimple.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Complex",
+                    errorPath + "circularInterfaceInheritanceComplex.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Interface Inheritance - Multiple Parents",
+                    errorPath + "circularInterfaceInheritanceMultiple.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

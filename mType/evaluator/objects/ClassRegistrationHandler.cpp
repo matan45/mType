@@ -20,9 +20,6 @@
 
 using namespace errors;
 
-// Define MAX_GENERIC_PARAMETERS constant locally
-constexpr size_t MAX_GENERIC_PARAMETERS = 20;
-
 namespace evaluator
 {
     namespace objects
@@ -44,17 +41,6 @@ namespace evaluator
             // Create class definition with generic parameters if present
             const auto& genericParams = node->getGenericParameters();
 
-            // Validate generic parameter count limit
-            if (genericParams.size() > MAX_GENERIC_PARAMETERS)
-            {
-                throw TypeException(
-                    "Class '" + node->getClassName() + "' has too many generic parameters (" +
-                    std::to_string(genericParams.size()) + "). Maximum allowed: " +
-                    std::to_string(MAX_GENERIC_PARAMETERS),
-                    node->getLocation()
-                );
-            }
-
             auto classDef = std::make_shared<ClassDefinition>(node->getClassName(), node->getGenericParameters());
 
             // Set final modifier
@@ -67,22 +53,8 @@ namespace evaluator
             if (node->hasParentClass()) {
                 const std::string& parentClassName = node->getParentClassName();
 
-                // Validate that class is not trying to extend an interface
-                validation::InheritanceValidator::validateClassCannotExtendInterface(
-                    node->getClassName(),
-                    parentClassName,
-                    node->getLocation(),
-                    context);
-
                 // Validate parent class exists
                 validation::InheritanceValidator::validateParentClassExists(
-                    parentClassName,
-                    node->getLocation(),
-                    context);
-
-                // Validate parent class is not final
-                validation::InheritanceValidator::validateParentClassNotFinal(
-                    node->getClassName(),
                     parentClassName,
                     node->getLocation(),
                     context);
@@ -326,33 +298,7 @@ namespace evaluator
             const auto& genericParams = node->getGenericParameters();
             const auto& extendsInterfaces = node->getExtendedInterfaces();
 
-            // Validate generic parameter count limit
-            if (genericParams.size() > MAX_GENERIC_PARAMETERS)
-            {
-                throw TypeException(
-                    "Interface '" + node->getName() + "' has too many generic parameters (" +
-                    std::to_string(genericParams.size()) + "). Maximum allowed: " +
-                    std::to_string(MAX_GENERIC_PARAMETERS),
-                    node->getLocation()
-                );
-            }
-
-            // Validate that interface is not trying to extend a class
-            for (const auto& parentInterfaceName : extendsInterfaces)
-            {
-                validation::InheritanceValidator::validateInterfaceCannotExtendClass(
-                    node->getName(),
-                    parentInterfaceName,
-                    node->getLocation(),
-                    context);
-
-                // Validate that parent interface is not final
-                validation::InheritanceValidator::validateParentInterfaceNotFinal(
-                    node->getName(),
-                    parentInterfaceName,
-                    node->getLocation(),
-                    context);
-            }
+            // No runtime validation needed - all checks done at parse time
 
             auto interfaceDef = std::make_shared<InterfaceDefinition>(
                 node->getName(), genericParams, extendsInterfaces);

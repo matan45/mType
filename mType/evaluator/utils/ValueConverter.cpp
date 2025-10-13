@@ -238,6 +238,7 @@ namespace evaluator::utils
             case ValueType::STRING: return "string";
             case ValueType::BOOL: return "bool";
             case ValueType::OBJECT: return "object";
+            case ValueType::ARRAY: return "array";
             case ValueType::NULL_TYPE: return "null";
             case ValueType::VOID: return "void";
             // Collection types removed - now implemented in mType

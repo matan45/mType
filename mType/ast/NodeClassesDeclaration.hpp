@@ -31,9 +31,7 @@ namespace ast
         {
             class ProgramNode;
             class BlockNode;
-            class DeclarationNode;
             class ImportNode;
-            class NativeFunctionNode;
             class AssignmentNode;
             class MemberAssignmentNode;
             class IndexAssignmentNode;
@@ -80,7 +78,6 @@ namespace ast
     using StringNode = nodes::expressions::StringNode;
     using BoolNode = nodes::expressions::BoolNode;
     using VariableNode = nodes::expressions::VariableNode;
-    using DeclarationNode = nodes::statements::DeclarationNode;
     using AssignmentNode = nodes::statements::AssignmentNode;
     using BinaryOpNode = nodes::expressions::BinaryExpNode;
     using TernaryOpNode = nodes::expressions::TernaryExpNode;
@@ -97,7 +94,6 @@ namespace ast
     using SwitchNode = nodes::statements::SwitchNode;
     using CaseNode = nodes::statements::CaseNode;
     using DefaultCaseNode = nodes::statements::DefaultCaseNode;
-    using NativeFunctionNode = nodes::statements::NativeFunctionNode;
     using ImportNode = nodes::statements::ImportNode;
     using ClassNode = nodes::classes::ClassNode;
     using FieldNode = nodes::classes::FieldNode;

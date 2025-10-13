@@ -50,6 +50,7 @@ namespace parser
             tokenStream.current().type == TokenType::STRING_TYPE)
         {
             std::string paramType = tokenStream.current().stringValue.getString();
+            auto typeLocation = tokenStream.current().location;
             tokenStream.advance();
 
             // Check for nested generics
@@ -57,7 +58,24 @@ namespace parser
             {
                 paramType += "<";
                 tokenStream.advance(); // consume '<'
+
+                // Validate we have content after '<'
+                if (tokenStream.check(TokenType::GREATER))
+                {
+                    throw ParseException(
+                        "Malformed generic type '" + paramType + "<>': generic type arguments cannot be empty",
+                        typeLocation);
+                }
+
                 paramType += parseGenericParameters(); // Recursive call
+
+                // Validate matching '>'
+                if (!tokenStream.check(TokenType::GREATER))
+                {
+                    throw ParseException(
+                        "Malformed generic type '" + paramType + "': expected '>' to close generic type arguments",
+                        typeLocation);
+                }
                 tokenStream.expect(TokenType::GREATER); // consume '>'
                 paramType += ">";
             }
@@ -165,6 +183,7 @@ namespace parser
     {
         std::string result = "<";
         int depth = 1;
+        auto startLocation = tokenStream.current().location;
         tokenStream.advance(); // consume '<'
 
         while (depth > 0 && !tokenStream.isAtEnd())
@@ -188,6 +207,14 @@ namespace parser
                 result += ",";
             }
             tokenStream.advance();
+        }
+
+        // Validate that brackets were properly closed
+        if (depth != 0)
+        {
+            throw ParseException(
+                "Malformed generic type constraint: unmatched '<' - expected matching '>'",
+                startLocation);
         }
 
         return result;

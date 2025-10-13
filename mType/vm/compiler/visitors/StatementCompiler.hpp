@@ -1,6 +1,5 @@
 #pragma once
 #include "CompilerContext.hpp"
-#include "../../../ast/nodes/statements/DeclarationNode.hpp"
 #include "../../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
@@ -19,7 +18,6 @@ namespace vm::compiler::visitors
         ~StatementCompiler() = default;
 
         // Statement compilation methods
-        value::Value compileDeclaration(ast::DeclarationNode* node);
         value::Value compileAssignment(ast::AssignmentNode* node);
         value::Value compileBlock(ast::BlockNode* node);
         value::Value compileProgram(ast::ProgramNode* node);

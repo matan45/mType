@@ -313,6 +313,9 @@
     <Filter Include="vm\runtime\utils">
       <UniqueIdentifier>{FBD89FD2-E7D1-BE24-1004-A4A9FC5B9E30}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\runtime\validation">
+      <UniqueIdentifier>{15F58992-8161-458D-4A55-DDEAB68067F5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast\ASTNode.hpp">
@@ -447,9 +450,6 @@
     <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
-    <ClInclude Include="ast\nodes\statements\DeclarationNode.hpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClInclude>
     <ClInclude Include="ast\nodes\statements\DefaultCaseNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
@@ -472,9 +472,6 @@
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\nodes\statements\NativeFunctionNode.hpp">
       <Filter>ast\nodes\statements</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\ProgramNode.hpp">
@@ -1131,6 +1128,9 @@
     <ClInclude Include="vm\runtime\utils\TypeConverter.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
+      <Filter>vm\runtime\validation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ast\AccessModifier.cpp">
@@ -1244,9 +1244,6 @@
     <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
-    <ClCompile Include="ast\nodes\statements\DeclarationNode.cpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClCompile>
     <ClCompile Include="ast\nodes\statements\DefaultCaseNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
@@ -1269,9 +1266,6 @@
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
-      <Filter>ast\nodes\statements</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\nodes\statements\NativeFunctionNode.cpp">
       <Filter>ast\nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\ProgramNode.cpp">
@@ -1771,6 +1765,9 @@
     </ClCompile>
     <ClCompile Include="vm\runtime\utils\TypeConverter.cpp">
       <Filter>vm\runtime\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\validation\AccessValidator.cpp">
+      <Filter>vm\runtime\validation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2914,6 +2911,33 @@
     <None Include="tests\testFiles\error\error\classUndefinedMember.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\duplicateClassInterfaceName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateClassName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateFunctionName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateFunctionNativeName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateInstanceMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateInterfaceName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateNativeFunctionName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateStaticInstanceMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateStaticMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\enhancedArgumentMismatchLocation.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
@@ -2938,10 +2962,52 @@
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\invalidClassNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidFieldNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidFunctionNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidImportSymbolNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidInterfaceNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidMethodNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidParameterNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidStaticVarNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\invalidVariableNameSpecialChar.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\lexerUnteminatedString.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\missingNew.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedClassInClass.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedClassInInterface.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedFunctionDeclaration.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedInterfaceInClass.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\nestedInterfaceInInterface.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\parserMissingSemicolon.mt">
@@ -2998,6 +3064,12 @@
     <None Include="tests\testFiles\error\error\typeReturnTypeMismatch.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\basicErrorReportingValid.expected">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
@@ -3016,6 +3088,12 @@
     <None Include="tests\testFiles\error\pass\validFunctionDeclaration.mt">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\validInnerScope.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\validInnerScope.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\validScopeUsage.expected">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>
@@ -3027,6 +3105,30 @@
     </None>
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularClassInheritanceComplex.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularClassInheritanceSelf.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularClassInheritanceSimple.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularInterfaceInheritanceComplex.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularInterfaceInheritanceMultiple.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\circularInterfaceInheritanceSimple.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\classExtendsGenericInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\classExtendsInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\constraintGlobalFunctionViolation.mt">
       <Filter>tests\testFiles\generics\error</Filter>
@@ -3043,6 +3145,21 @@
     <None Include="tests\testFiles\generics\error\constraintWrongInterface.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\emptyGenericType.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\extendFinalClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\extendFinalGenericClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\extendFinalGenericInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\extendFinalInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\globalGenericPrimitiveType.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3050,6 +3167,12 @@
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\globalNonGenericWithTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\interfaceExtendsClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\interfaceExtendsGenericClass.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.expected">
@@ -3094,6 +3217,12 @@
     <None Include="tests\testFiles\generics\error\staticNonGenericWithTypeArgs.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\tooManyGenericParams.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\tooManyGenericParamsInterface.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\typeMismatchInMethod.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -3104,6 +3233,9 @@
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\undefinedGenericClass.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\unmatchedGenericBrackets.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\basicGenericClass.expected">
@@ -3221,6 +3353,72 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\multipleTypeParameters.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesArrays.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesArrays.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesGenericsExtends.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesGenericsExtends.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesMixed.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesMixed.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesObjects.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesObjects.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesPrimitive.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesPrimitive.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesPromise.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\parameterTypesPromise.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesArrays.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesArrays.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesGenerics.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesObjects.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesObjects.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesPrimitive.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesPrimitive.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesPromise.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypesPromise.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericCollectionReturns.expected">
@@ -3650,6 +3848,9 @@
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\returnTypeMismatch.mt">
+      <Filter>tests\testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\staticMethodNotAllowed.mt">
       <Filter>tests\testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\staticMethodParameterMismatch.mt">
