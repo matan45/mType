@@ -135,46 +135,10 @@ namespace validation {
         }
     }
 
-    void InheritanceValidator::validateSuperConstructorCall(
-        const std::string& childClassName,
-        const std::string& parentClassName,
-        size_t argCount,
-        bool isFirstStatement,
-        const SourceLocation& location,
-        std::shared_ptr<EvaluationContext> context)
-    {
-        // Validate super() is first statement
-        if (!isFirstStatement) {
-            throw InheritanceException(
-                "super() constructor call must be the first statement in the constructor",
-                childClassName,
-                parentClassName,
-                location);
-        }
-
-        // Validate parent class exists and has matching constructor
-        auto env = context->getEnvironment();
-        auto parentClass = env->findClass(parentClassName);
-
-        if (!parentClass) {
-            throw InheritanceException(
-                "Parent class '" + parentClassName + "' not found for super() call",
-                childClassName,
-                parentClassName,
-                location);
-        }
-
-        // Find matching constructor in parent
-        auto parentConstructor = parentClass->findConstructor(argCount);
-        if (!parentConstructor) {
-            throw InheritanceException(
-                "No matching constructor in parent class '" + parentClassName +
-                "' with " + std::to_string(argCount) + " parameter(s)",
-                childClassName,
-                parentClassName,
-                location);
-        }
-    }
+    // Note: validateSuperConstructorCall was removed as it's obsolete.
+    // The parser enforces super() position using initializer list syntax:
+    //   constructor(params) : super(args) { body }
+    // See ConstructorParser.cpp:46-88 for the structural enforcement.
 
     void InheritanceValidator::validateSuperMethodCall(
         const std::string& methodName,

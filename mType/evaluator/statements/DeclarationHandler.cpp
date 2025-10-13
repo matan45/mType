@@ -126,7 +126,6 @@ namespace evaluator
 
         Value DeclarationHandler::handleQualifiedStaticAssignment(const Value& newValue, AssignmentNode* node)
         {
-            auto env = context->getEnvironment();
             std::string varName = node->getVariableName();
 
             // Parse the qualified name into parts
@@ -148,19 +147,17 @@ namespace evaluator
                 std::string className = parts[0];
                 std::string fieldName = parts[1];
 
-                auto classDef = env->findClass(className);
-                if (classDef)
+                // CENTRALIZED: Delegate to ObjectEvaluator for consistent validation
+                // This ensures access control, final field checks, and type validation
+                if (!objEvaluator)
                 {
-                    auto field = classDef->getField(fieldName);
-                    if (field && field->isStatic())
-                    {
-                        field->setValue(newValue);
-                        return newValue;
-                    }
+                    throw EnvironmentException(
+                        "Object evaluator not available for static field assignment",
+                        node->getLocation());
                 }
 
-                throw UndefinedException("Static field '" + varName + "' is not defined",
-                                         node->getLocation());
+                objEvaluator->assignStaticMember(className, fieldName, newValue);
+                return newValue;
             }
 
             throw UndefinedException(
@@ -181,16 +178,17 @@ namespace evaluator
                 {
                     std::string className = std::get<std::string>(currentClassValue);
 
-                    auto classDef = env->findClass(className);
-                    if (classDef)
+                    // CENTRALIZED: Delegate to ObjectEvaluator for consistent validation
+                    // This ensures access control, final field checks, and type validation
+                    if (!objEvaluator)
                     {
-                        auto field = classDef->getField(node->getVariableName());
-                        if (field && field->isStatic())
-                        {
-                            field->setValue(newValue);
-                            return newValue;
-                        }
+                        throw EnvironmentException(
+                            "Object evaluator not available for static field assignment",
+                            node->getLocation());
                     }
+
+                    objEvaluator->assignStaticMember(className, node->getVariableName(), newValue);
+                    return newValue;
                 }
             }
 
@@ -287,74 +285,135 @@ namespace evaluator
         {
             if (!exprEvaluator)
             {
-                //TODO use exception
-                return std::monostate{};
+                throw EnvironmentException(
+                    "Expression evaluator not available for assignment evaluation",
+                    node->getLocation());
             }
 
             // Evaluate and convert value if needed
             Value newValue = exprEvaluator->evaluate(node->getValue());
             newValue = handleLambdaConversion(newValue, node);
 
+            // Find variable in any scope
             auto env = context->getEnvironment();
-            auto scopeManager = env->getScopeManager();
-
-            // Check if variable exists in any scope
             auto varDef = env->findVariable(node->getVariableName());
 
-            // If found in a non-global scope (parameter or local variable), use it
-            if (varDef)
-            {
-                auto globalScope = scopeManager->getGlobalScope();
-                auto globalVar = globalScope->findVariable(node->getVariableName());
+            // Determine assignment type based on context
+            AssignmentType assignmentType = determineAssignmentType(node, varDef);
 
-                // If variable is NOT in global scope, it's a parameter or local variable
-                // Parameters and local variables take absolute priority over fields
-                if (!globalVar || globalVar != varDef)
+            // Dispatch to appropriate handler based on assignment type
+            switch (assignmentType)
+            {
+            case AssignmentType::LOCAL_VARIABLE_ASSIGNMENT:
+                return handleExistingVariableAssignment(newValue, node, varDef);
+
+            case AssignmentType::LOCAL_VARIABLE_SHADOWING:
+                return handleScopeShadowing(newValue, node, varDef);
+
+            case AssignmentType::INSTANCE_FIELD_ASSIGNMENT:
+                // tryImplicitFieldAssignment already handles the assignment
+                if (tryImplicitFieldAssignment(newValue, node))
                 {
-                    if (node->getVariableType() != ValueType::VOID)
-                    {
-                        return handleScopeShadowing(newValue, node, varDef);
-                    }
-                    return handleExistingVariableAssignment(newValue, node, varDef);
+                    return newValue;
                 }
-                // If it IS in global scope, continue to check instance fields first
-            }
+                // Fall through to undefined variable error
+                return handleUnqualifiedStaticAssignment(newValue, node);
 
-            // Try implicit field assignment (for instance methods)
-            // This allows bare field names like "value = x" to assign to this.value
-            // and allows instance fields to shadow global variables
-            if (tryImplicitFieldAssignment(newValue, node))
-            {
-                return newValue;
-            }
+            case AssignmentType::GLOBAL_VARIABLE_ASSIGNMENT:
+                return handleExistingVariableAssignment(newValue, node, varDef);
 
-            // Variable not found (neither local/parameter nor field)
+            case AssignmentType::GLOBAL_VARIABLE_SHADOWING:
+                return handleScopeShadowing(newValue, node, varDef);
+
+            case AssignmentType::NEW_VARIABLE_DECLARATION:
+                return handleNewVariableDeclaration(newValue, node);
+
+            case AssignmentType::QUALIFIED_STATIC_FIELD:
+                return handleQualifiedStaticAssignment(newValue, node);
+
+            case AssignmentType::UNQUALIFIED_STATIC_FIELD:
+                return handleUnqualifiedStaticAssignment(newValue, node);
+
+            default:
+                throw EnvironmentException(
+                    "Unexpected assignment type for variable '" + node->getVariableName() + "'",
+                    node->getLocation());
+            }
+        }
+
+        // Decision helper implementations
+
+        bool DeclarationHandler::isDeclaration(AssignmentNode* node) const
+        {
+            return node->getVariableType() != ValueType::VOID;
+        }
+
+        bool DeclarationHandler::isLocalOrParameter(
+            std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef) const
+        {
             if (!varDef)
             {
-                // Is this a new variable declaration?
-                if (node->getVariableType() != ValueType::VOID)
-                {
-                    return handleNewVariableDeclaration(newValue, node);
-                }
-
-                // Check for qualified static field (ClassName::field)
-                if (node->getVariableName().find("::") != std::string::npos)
-                {
-                    return handleQualifiedStaticAssignment(newValue, node);
-                }
-
-                // Check for unqualified static field (using current class context)
-                return handleUnqualifiedStaticAssignment(newValue, node);
+                return false;
             }
 
-            // Global variable exists - use it
-            if (node->getVariableType() != ValueType::VOID)
+            auto env = context->getEnvironment();
+            auto globalScope = env->getScopeManager()->getGlobalScope();
+            auto globalVar = globalScope->findVariable(varDef->getName());
+
+            // If variable is NOT in global scope, it's a local/parameter variable
+            return !globalVar || globalVar != varDef;
+        }
+
+        bool DeclarationHandler::isQualifiedStatic(const std::string& varName) const
+        {
+            return varName.find("::") != std::string::npos;
+        }
+
+        DeclarationHandler::AssignmentType DeclarationHandler::determineAssignmentType(
+            AssignmentNode* node,
+            std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef)
+        {
+            bool isDeclaring = isDeclaration(node);
+            bool varExists = (varDef != nullptr);
+
+            // Priority 1: Local/parameter variables (highest precedence)
+            if (varExists && isLocalOrParameter(varDef))
             {
-                return handleScopeShadowing(newValue, node, varDef);
+                return isDeclaring ? AssignmentType::LOCAL_VARIABLE_SHADOWING
+                                   : AssignmentType::LOCAL_VARIABLE_ASSIGNMENT;
             }
 
-            // Simple assignment to existing global variable
-            return handleExistingVariableAssignment(newValue, node, varDef);
+            // Priority 2: Instance fields (only for assignments, not declarations)
+            if (!isDeclaring)
+            {
+                auto currentInstance = context->getCurrentInstance();
+                if (currentInstance && currentInstance->getField(node->getVariableName()))
+                {
+                    return AssignmentType::INSTANCE_FIELD_ASSIGNMENT;
+                }
+            }
+
+            // Priority 3: Variable doesn't exist
+            if (!varExists)
+            {
+                // New declaration
+                if (isDeclaring)
+                {
+                    return AssignmentType::NEW_VARIABLE_DECLARATION;
+                }
+
+                // Assignment to undefined variable - check for static fields
+                if (isQualifiedStatic(node->getVariableName()))
+                {
+                    return AssignmentType::QUALIFIED_STATIC_FIELD;
+                }
+
+                return AssignmentType::UNQUALIFIED_STATIC_FIELD;
+            }
+
+            // Priority 4: Global variable exists
+            return isDeclaring ? AssignmentType::GLOBAL_VARIABLE_SHADOWING
+                               : AssignmentType::GLOBAL_VARIABLE_ASSIGNMENT;
         }
 
         // Helper methods

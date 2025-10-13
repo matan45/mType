@@ -72,19 +72,12 @@ namespace validation {
             std::shared_ptr<ClassDefinition> parentClass,
             const SourceLocation& location);
 
-        /**
-         * Validate super() constructor call
-         * - Must be first statement in constructor
-         * - Argument count must match parent constructor
-         * @throws InheritanceException if super() call is invalid
-         */
-        static void validateSuperConstructorCall(
-            const std::string& childClassName,
-            const std::string& parentClassName,
-            size_t argCount,
-            bool isFirstStatement,
-            const SourceLocation& location,
-            std::shared_ptr<EvaluationContext> context);
+        // Note: super() constructor call validation is NOT needed here.
+        // The parser enforces that super() must use initializer list syntax:
+        //   constructor(params) : super(args) { body }
+        // This guarantees super() executes before the constructor body,
+        // preventing use-before-initialization bugs at parse time.
+        // See ConstructorParser.cpp:46-88 for implementation.
 
         /**
          * Validate super.method() call

@@ -75,6 +75,26 @@ namespace evaluator
             Value evaluateAssignment(AssignmentNode* node);
 
         private:
+            // Assignment type classification
+            enum class AssignmentType
+            {
+                LOCAL_VARIABLE_ASSIGNMENT,    // x = 5 (x is local/param)
+                LOCAL_VARIABLE_SHADOWING,     // int x = 5 (shadows outer x)
+                INSTANCE_FIELD_ASSIGNMENT,    // field = 5 (in instance method)
+                GLOBAL_VARIABLE_ASSIGNMENT,   // x = 5 (x is global)
+                GLOBAL_VARIABLE_SHADOWING,    // int x = 5 (shadows global)
+                NEW_VARIABLE_DECLARATION,     // int x = 5 (first declaration)
+                QUALIFIED_STATIC_FIELD,       // Class::field = 5
+                UNQUALIFIED_STATIC_FIELD      // field = 5 (in static context)
+            };
+
+            // Decision helpers
+            bool isDeclaration(AssignmentNode* node) const;
+            bool isLocalOrParameter(std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef) const;
+            bool isQualifiedStatic(const std::string& varName) const;
+            AssignmentType determineAssignmentType(AssignmentNode* node,
+                                                  std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
+
             // Validation helpers
             void validateAssignmentAsDeclaration(AssignmentNode* node);
             void validateClassExists(const std::string& className, const SourceLocation& location);

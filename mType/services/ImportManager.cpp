@@ -201,9 +201,11 @@ namespace services
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.insert(resolvedPath);
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
-            //TODO use exception 
+            throw std::runtime_error(
+                "Failed to mark file as being evaluated: " + rawPath +
+                ". Error: " + e.what());
         }
     }
 
@@ -214,9 +216,11 @@ namespace services
             std::string resolvedPath = resolvePathConsistently(rawPath);
             beingEvaluated.erase(resolvedPath);
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
-            //TODO use exception 
+            throw std::runtime_error(
+                "Failed to unmark file as being evaluated: " + rawPath +
+                ". Error: " + e.what());
         }
     }
 
