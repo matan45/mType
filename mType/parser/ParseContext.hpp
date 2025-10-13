@@ -3,6 +3,8 @@
 #include <memory>
 #include <optional>
 #include <functional>
+#include <unordered_set>
+#include <string>
 
 namespace parser
 {
@@ -32,6 +34,12 @@ namespace parser
         bool insideClassBody = false;      // Track if we're inside a class body
         bool insideInterfaceBody = false;  // Track if we're inside an interface body
         bool insideConstructorBody = false; // Track if we're inside a constructor body
+
+        // NEW: Track declared class/interface names to prevent duplicates
+        std::unordered_set<std::string> declaredTypeNames;
+
+        // NEW: Track declared global function names to prevent duplicates
+        std::unordered_set<std::string> declaredFunctionNames;
 
     public:
         /// @brief Default constructor for delayed initialization
@@ -189,5 +197,37 @@ namespace parser
             ConstructorContextGuard(const ConstructorContextGuard&) = delete;
             ConstructorContextGuard& operator=(const ConstructorContextGuard&) = delete;
         };
+
+        // NEW: Type name tracking for duplicate detection
+        /// @brief Check if a type name (class or interface) has already been declared
+        [[nodiscard]] bool isTypeDeclared(const std::string& typeName) const {
+            return declaredTypeNames.count(typeName) > 0;
+        }
+
+        /// @brief Register a type name (class or interface) as declared
+        void registerTypeName(const std::string& typeName) {
+            declaredTypeNames.insert(typeName);
+        }
+
+        /// @brief Clear all declared type names (useful for new file/module parsing)
+        void clearDeclaredTypes() {
+            declaredTypeNames.clear();
+        }
+
+        // NEW: Global function name tracking for duplicate detection
+        /// @brief Check if a global function name has already been declared
+        [[nodiscard]] bool isFunctionDeclared(const std::string& functionName) const {
+            return declaredFunctionNames.count(functionName) > 0;
+        }
+
+        /// @brief Register a global function name as declared
+        void registerFunctionName(const std::string& functionName) {
+            declaredFunctionNames.insert(functionName);
+        }
+
+        /// @brief Clear all declared function names (useful for new file/module parsing)
+        void clearDeclaredFunctions() {
+            declaredFunctionNames.clear();
+        }
     };
 }

@@ -175,5 +175,42 @@ namespace tests::testSuite
         addTestFromFile("Invalid Import Symbol Name with Special Character Error",
                         errorPath + "invalidImportSymbolNameSpecialChar.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === DUPLICATE TYPE DECLARATION TESTS ===
+        // These tests verify that duplicate class/interface names are rejected
+        addTestFromFile("Duplicate Class Name Error",
+                        errorPath + "duplicateClassName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Duplicate Interface Name Error",
+                        errorPath + "duplicateInterfaceName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Duplicate Class and Interface Name Error",
+                        errorPath + "duplicateClassInterfaceName.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === DUPLICATE FUNCTION DECLARATION TESTS ===
+        // These tests verify that duplicate global function names are rejected
+        addTestFromFile("Duplicate Function Name Error",
+                        errorPath + "duplicateFunctionName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Duplicate Native Function Name Error",
+                        errorPath + "duplicateNativeFunctionName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Duplicate Function and Native Function Name Error",
+                        errorPath + "duplicateFunctionNativeName.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === DUPLICATE METHOD DECLARATION TESTS ===
+        // These tests verify that duplicate method names within a class are rejected
+        addTestFromFile("Duplicate Instance Method Name Error",
+                        errorPath + "duplicateInstanceMethodName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Duplicate Static Method Name Error",
+                        errorPath + "duplicateStaticMethodName.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // Test that static and instance methods with same name are allowed (different namespaces)
+        addOutputVerificationTest("Allow Static And Instance Method Same Name",
+                        passPath + "allowStaticAndInstanceSameName.mt");
     }
 }

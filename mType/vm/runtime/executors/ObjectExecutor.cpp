@@ -397,15 +397,11 @@ namespace vm::runtime
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
         auto classDef = instance->getClassDefinition();
 
-        // Use findMethodInHierarchy to search in parent classes too
-        auto method = classDef->findMethodInHierarchy(methodName, argCount);
+        // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
+        auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
         if (!method) {
-            throw errors::RuntimeException("Method not found: " + methodName +
+            throw errors::RuntimeException("Instance method not found: " + methodName +
                                          " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
-        }
-
-        if (method->isStatic()) {
-            throw errors::RuntimeException("Cannot call static method '" + methodName + "' on an instance. Use static method call instead.");
         }
 
         validateMethodAccess(classDef->getName(), methodName, method->getAccessModifier());
@@ -414,7 +410,7 @@ namespace vm::runtime
         std::string definingClassName = classDef->getName();
         auto currentClass = classDef;
         while (currentClass) {
-            auto localMethod = currentClass->findMethod(methodName, argCount);
+            auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
             if (localMethod) {
                 definingClassName = currentClass->getName();
                 break;

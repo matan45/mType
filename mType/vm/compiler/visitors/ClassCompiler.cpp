@@ -24,19 +24,22 @@ namespace vm::compiler::visitors
         const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
 
         // Skip validation if method not found or is native
-        if (!methodMetadata || methodMetadata->isNative) {
+        if (!methodMetadata || methodMetadata->isNative)
+        {
             return;
         }
 
         // For instance methods, parameterCount includes 'this', so subtract 1
         // For static methods, parameterCount is just the declared parameters
         size_t expectedParamCount = methodMetadata->parameterCount;
-        if (!methodMetadata->isStatic && expectedParamCount > 0) {
-            expectedParamCount -= 1;  // Exclude 'this' from count
+        if (!methodMetadata->isStatic && expectedParamCount > 0)
+        {
+            expectedParamCount -= 1; // Exclude 'this' from count
         }
 
         // Check parameter count
-        if (expectedParamCount != arguments.size()) {
+        if (expectedParamCount != arguments.size())
+        {
             throw errors::EnvironmentException(
                 "Method '" + methodName + "' expects " +
                 std::to_string(expectedParamCount) +
@@ -49,13 +52,16 @@ namespace vm::compiler::visitors
         size_t parameterTypeOffset = (!methodMetadata->isStatic && !methodMetadata->parameterTypes.empty()) ? 1 : 0;
 
         // Validate parameter types
-        if (methodMetadata->parameterTypes.size() <= parameterTypeOffset) {
-            return;  // No actual parameters to validate (only 'this' or empty)
+        if (methodMetadata->parameterTypes.size() <= parameterTypeOffset)
+        {
+            return; // No actual parameters to validate (only 'this' or empty)
         }
 
-        for (size_t i = 0; i < arguments.size(); ++i) {
+        for (size_t i = 0; i < arguments.size(); ++i)
+        {
             // Make sure we don't go out of bounds
-            if (i + parameterTypeOffset >= methodMetadata->parameterTypes.size()) {
+            if (i + parameterTypeOffset >= methodMetadata->parameterTypes.size())
+            {
                 break;
             }
             std::string expectedType = methodMetadata->parameterTypes[i + parameterTypeOffset];
@@ -65,8 +71,9 @@ namespace vm::compiler::visitors
 
             // Skip validation for unresolved generic type parameters (like K, V, T, E)
             // These are single uppercase letters or short names that couldn't be resolved
-            if (expectedType.length() <= 2 && std::isupper(expectedType[0])) {
-                continue;  // Skip validation for generic type parameters
+            if (expectedType.length() <= 2 && std::isupper(expectedType[0]))
+            {
+                continue; // Skip validation for generic type parameters
             }
 
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
@@ -74,14 +81,17 @@ namespace vm::compiler::visitors
 
             // Check if expected type is a primitive
             bool isPrimitive = (expectedType == "int" || expectedType == "float" ||
-                              expectedType == "string" || expectedType == "bool" ||
-                              expectedType == "void");
+                expectedType == "string" || expectedType == "bool" ||
+                expectedType == "void");
 
-            if (isPrimitive) {
+            if (isPrimitive)
+            {
                 // For primitive types, check exact match
-                if (argType != value::ValueType::OBJECT && argTypeStr != expectedType) {
+                if (argType != value::ValueType::OBJECT && argTypeStr != expectedType)
+                {
                     // Allow null for any type
-                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                    {
                         throw errors::TypeException(
                             "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
                             " expects " + expectedType + " but got " + argTypeStr,
@@ -89,40 +99,51 @@ namespace vm::compiler::visitors
                         );
                     }
                 }
-            } else {
+            }
+            else
+            {
                 // Expected type is an object/class
-                if (argType != value::ValueType::OBJECT) {
+                if (argType != value::ValueType::OBJECT)
+                {
                     // null can be passed to object types
-                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                    {
                         throw errors::TypeException(
                             "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
                             " expects " + expectedType + " but got " + argTypeStr,
                             location
                         );
                     }
-                } else if (expectedType != "object") {
+                }
+                else if (expectedType != "object")
+                {
                     // For objects, check class name compatibility
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-                    if (!argClassName.empty() && argClassName != expectedType) {
+                    if (!argClassName.empty() && argClassName != expectedType)
+                    {
                         // Strip generic parameters for comparison (List<int> -> List)
                         std::string expectedBase = expectedType;
                         std::string argBase = argClassName;
                         size_t expectedAngle = expectedType.find('<');
                         size_t argAngle = argClassName.find('<');
-                        if (expectedAngle != std::string::npos) {
+                        if (expectedAngle != std::string::npos)
+                        {
                             expectedBase = expectedType.substr(0, expectedAngle);
                         }
-                        if (argAngle != std::string::npos) {
+                        if (argAngle != std::string::npos)
+                        {
                             argBase = argClassName.substr(0, argAngle);
                         }
 
                         // If base types match, it's compatible (generic type parameters will be validated at runtime)
-                        if (expectedBase == argBase) {
-                            continue;  // Compatible generic types
+                        if (expectedBase == argBase)
+                        {
+                            continue; // Compatible generic types
                         }
 
                         // Check if argClassName is assignable to expectedType (inheritance)
-                        if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType)) {
+                        if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType))
+                        {
                             throw errors::TypeException(
                                 "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
                                 " expects " + expectedType + " but got " + argClassName,
@@ -138,8 +159,7 @@ namespace vm::compiler::visitors
     value::Value ClassCompiler::compileClass(ast::ClassNode* node)
     {
         // Use full class name with generic parameters for generic classes
-        std::string className = node->isGeneric() ?
-            node->getFullClassName() : node->getClassName();
+        std::string className = node->isGeneric() ? node->getFullClassName() : node->getClassName();
 
         // Set current class context for field access resolution
         auto* previousClass = ctx.currentClassNode;
@@ -149,16 +169,19 @@ namespace vm::compiler::visitors
         size_t classNameIndex = ctx.program.getConstantPool().addString(className);
 
         // Handle generics - store generic parameter names
-        if (node->isGeneric()) {
+        if (node->isGeneric())
+        {
             const auto& genericParams = node->getGenericParameters();
-            for (const auto& param : genericParams) {
+            for (const auto& param : genericParams)
+            {
                 size_t paramNameIndex = ctx.program.getConstantPool().addString(param.name);
                 // Generic parameters are stored in constant pool for type resolution
             }
         }
 
         // Handle inheritance - store parent class name if present
-        if (node->hasParentClass()) {
+        if (node->hasParentClass())
+        {
             std::string parentClassName = node->getParentClassName();
             size_t parentNameIndex = ctx.program.getConstantPool().addString(parentClassName);
             // The parent class relationship is handled at runtime by the environment
@@ -166,44 +189,58 @@ namespace vm::compiler::visitors
 
         // Handle interfaces - store interface names
         const auto& interfaces = node->getImplementedInterfaces();
-        for (const auto& interfaceName : interfaces) {
+        for (const auto& interfaceName : interfaces)
+        {
             size_t interfaceNameIndex = ctx.program.getConstantPool().addString(interfaceName);
             // Interfaces are also handled at runtime
         }
 
         // Compile static fields initialization
-        for (const auto& field : node->getFields()) {
-            if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
-                if (fieldNode->getIsStatic()) {
-                    field->accept(ctx.visitor);  // Will need delegation
+        for (const auto& field : node->getFields())
+        {
+            if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get()))
+            {
+                if (fieldNode->getIsStatic())
+                {
+                    field->accept(ctx.visitor); // Will need delegation
                 }
             }
         }
 
         // Compile static methods (they're like standalone functions)
-        for (const auto& method : node->getMethods()) {
-            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
-                if (methodNode->getIsStatic()) {
-                    method->accept(ctx.visitor);  // Will need delegation
+        for (const auto& method : node->getMethods())
+        {
+            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get()))
+            {
+                if (methodNode->getIsStatic())
+                {
+                    method->accept(ctx.visitor); // Will need delegation
                 }
             }
         }
 
         // Compile constructors
-        if (!node->getConstructors().empty()) {
-            for (const auto& constructor : node->getConstructors()) {
-                constructor->accept(ctx.visitor);  // Will need delegation
+        if (!node->getConstructors().empty())
+        {
+            for (const auto& constructor : node->getConstructors())
+            {
+                constructor->accept(ctx.visitor); // Will need delegation
             }
-        } else {
+        }
+        else
+        {
             // No explicit constructor - generate a default one
             compileDefaultConstructor(node);
         }
 
         // Compile instance methods
-        for (const auto& method : node->getMethods()) {
-            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
-                if (!methodNode->getIsStatic()) {
-                    method->accept(ctx.visitor);  // Will need delegation
+        for (const auto& method : node->getMethods())
+        {
+            if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get()))
+            {
+                if (!methodNode->getIsStatic())
+                {
+                    method->accept(ctx.visitor); // Will need delegation
                 }
             }
         }
@@ -225,32 +262,35 @@ namespace vm::compiler::visitors
 
         // Enter function frame
         ctx.functionFrameManager.enterFunctionFrame("object",
-            ctx.variableTracker.getNextLocalSlot(),
-            ctx.variableTracker.getCurrentScopeDepth(),
-            false);
+                                                    ctx.variableTracker.getNextLocalSlot(),
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    false);
         ctx.variableTracker.beginScope();
 
         // Track 'this' as local
         ctx.variableTracker.declareLocal("this", value::ValueType::OBJECT,
-            node->getClassName());
+                                         node->getClassName());
 
         // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
         // If parent class exists and has a default constructor, call it
-        if (node->hasParentClass()) {
+        if (node->hasParentClass())
+        {
             std::string parentClassName = node->getParentClassName();
             auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
-            if (parentClassDef) {
+            if (parentClassDef)
+            {
                 // Check if parent has a default constructor (0 args)
                 auto parentDefaultCtor = parentClassDef->findConstructor(0);
-                if (parentDefaultCtor) {
+                if (parentDefaultCtor)
+                {
                     // Call parent's default constructor: super()
                     std::string currentClassName = node->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0));  // 0 arguments
+                                     static_cast<uint32_t>(0)); // 0 arguments
                 }
             }
         }
@@ -271,14 +311,14 @@ namespace vm::compiler::visitors
 
         // Register default constructor
         std::string className = node->getClassName();
-        std::string constructorName = className + "::<init>/0";  // 0 args
+        std::string constructorName = className + "::<init>/0"; // 0 args
 
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = constructorName;
         metadata.startOffset = constructorStart;
         metadata.instructionCount = constructorEnd - constructorStart;
         metadata.localCount = localCount;
-        metadata.parameterCount = 1;  // Just 'this'
+        metadata.parameterCount = 1; // Just 'this'
         metadata.parameterNames = paramNames;
         metadata.returnType = "object";
         metadata.isStatic = false;
@@ -287,7 +327,8 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(metadata.name, metadata);
 
         // If this is a generic class, also register with full generic name
-        if (node->isGeneric()) {
+        if (node->isGeneric())
+        {
             std::string fullClassName = node->getFullClassName();
             std::string genericConstructorName = fullClassName + "::<init>/0";
             metadata.name = genericConstructorName;
@@ -298,15 +339,18 @@ namespace vm::compiler::visitors
     void ClassCompiler::initializeInstanceFields(ast::ClassNode* node)
     {
         auto& fields = node->getFields();
-        for (const auto& fieldPtr : fields) {
-            if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get())) {
+        for (const auto& fieldPtr : fields)
+        {
+            if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get()))
+            {
                 // Only initialize instance fields (not static)
-                if (!fieldNode->getIsStatic() && fieldNode->getInitialValue()) {
+                if (!fieldNode->getIsStatic() && fieldNode->getInitialValue())
+                {
                     // Load 'this' FIRST (which is in local slot 0)
                     ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
 
                     // Compile the initializer expression (pushes value)
-                    fieldNode->getInitialValue()->accept(ctx.visitor);  // Will need delegation
+                    fieldNode->getInitialValue()->accept(ctx.visitor); // Will need delegation
 
                     // Store in field
                     std::string fieldName = fieldNode->getName();
@@ -329,9 +373,11 @@ namespace vm::compiler::visitors
         ctx.inStaticMethod = isStatic;
 
         // Handle generic methods - store generic type parameter names
-        if (node->isGeneric()) {
+        if (node->isGeneric())
+        {
             const auto& genericParams = node->getGenericTypeParameters();
-            for (const auto& param : genericParams) {
+            for (const auto& param : genericParams)
+            {
                 size_t paramNameIndex = ctx.program.getConstantPool().addString(param.name);
                 // Generic type parameters are available at runtime for type resolution
             }
@@ -349,13 +395,15 @@ namespace vm::compiler::visitors
         std::vector<std::string> paramTypes;
 
         // For instance methods, 'this' is implicitly the first parameter
-        if (!isStatic) {
+        if (!isStatic)
+        {
             paramNames.push_back("this");
             paramTypes.push_back(ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "object");
         }
 
         // Add method parameters with full type names (including class names for objects)
-        for (const auto& param : genericParams) {
+        for (const auto& param : genericParams)
+        {
             paramNames.push_back(param.first);
             // Use toString() to get the full type name (e.g., "int", "string", "MyClass", "List<int>")
             std::string paramTypeStr = param.second->toString();
@@ -368,25 +416,30 @@ namespace vm::compiler::visitors
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
-            ctx.variableTracker.getNextLocalSlot(),
-            ctx.variableTracker.getCurrentScopeDepth(),
-            false);
-        ctx.variableTracker.beginScope();  // Method body scope
+                                                    ctx.variableTracker.getNextLocalSlot(),
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    false);
+        ctx.variableTracker.beginScope(); // Method body scope
 
         // Track parameters as locals (including 'this' for instance methods)
-        if (!isStatic) {
+        if (!isStatic)
+        {
             // Add 'this' parameter
             ctx.variableTracker.declareLocal("this", value::ValueType::OBJECT,
-                ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "");
+                                             ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "");
         }
 
         // Add actual method parameters with their types
-        for (const auto& param : genericParams) {
+        for (const auto& param : genericParams)
+        {
             // Extract type from GenericType for variable tracking
-            if (param.second->isGenericParameter()) {
+            if (param.second->isGenericParameter())
+            {
                 // Generic type parameter (like T, E) - treat as object for now
                 ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT, param.second->toString());
-            } else {
+            }
+            else
+            {
                 // Concrete type
                 value::ValueType concreteType = param.second->getConcreteType();
                 std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
@@ -399,8 +452,9 @@ namespace vm::compiler::visitors
 
         // Compile method body
         auto* body = node->getBodyPtr();
-        if (body) {
-            body->accept(ctx.visitor);  // Will need delegation
+        if (body)
+        {
+            body->accept(ctx.visitor); // Will need delegation
         }
 
         // Restore instance/static method context
@@ -408,10 +462,12 @@ namespace vm::compiler::visitors
         ctx.inStaticMethod = wasInStaticMethod;
 
         // Emit implicit return for void methods (if no explicit return)
-        if (returnType == value::ValueType::VOID) {
+        if (returnType == value::ValueType::VOID)
+        {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
             // Wrap in Promise if async method
-            if (node->getIsAsync()) {
+            if (node->getIsAsync())
+            {
                 ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
             }
             ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
@@ -420,7 +476,7 @@ namespace vm::compiler::visitors
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
-        ctx.variableTracker.endScope();      // End method body scope
+        ctx.variableTracker.endScope(); // End method body scope
         ctx.functionFrameManager.exitFunctionFrame();
 
         size_t methodEnd = ctx.program.getCurrentOffset();
@@ -429,9 +485,18 @@ namespace vm::compiler::visitors
         ctx.emitter.patchJump(skipJump);
 
         // Build qualified method name for registry
+        // Important: Static and instance methods can have the same name, so we need to distinguish them
+        // Instance methods: ClassName::methodName
+        // Static methods: ClassName::methodName (same as instance, runtime distinguishes via metadata.isStatic)
         std::string qualifiedMethodName = methodName;
-        if (ctx.currentClassNode) {
+        if (ctx.currentClassNode)
+        {
             qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + methodName;
+            // Add suffix to distinguish static from instance methods in the function registry
+            if (isStatic)
+            {
+                qualifiedMethodName += "$static";
+            }
         }
 
         // Register method metadata
@@ -442,11 +507,11 @@ namespace vm::compiler::visitors
         metadata.localCount = localCount;
         metadata.parameterCount = paramNames.size();
         metadata.parameterNames = paramNames;
-        metadata.parameterTypes = paramTypes;  // Add parameter types for validation
+        metadata.parameterTypes = paramTypes; // Add parameter types for validation
         metadata.returnType = returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
-        metadata.isAsync = node->getIsAsync();  // Copy async flag from AST
+        metadata.isAsync = node->getIsAsync(); // Copy async flag from AST
 
         ctx.program.registerFunction(qualifiedMethodName, metadata);
 
@@ -469,8 +534,9 @@ namespace vm::compiler::visitors
 
         // Get parameters
         std::vector<std::string> paramNames;
-        paramNames.push_back("this");  // 'this' is always the first parameter for constructors
-        for (const auto& param : params) {
+        paramNames.push_back("this"); // 'this' is always the first parameter for constructors
+        for (const auto& param : params)
+        {
             paramNames.push_back(param.first);
         }
 
@@ -479,13 +545,14 @@ namespace vm::compiler::visitors
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
-            ctx.variableTracker.getNextLocalSlot(),
-            ctx.variableTracker.getCurrentScopeDepth(),
-            false);
-        ctx.variableTracker.beginScope();  // Constructor body scope
+                                                    ctx.variableTracker.getNextLocalSlot(),
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    false);
+        ctx.variableTracker.beginScope(); // Constructor body scope
 
         // Track parameters as locals (including 'this')
-        for (const auto& paramName : paramNames) {
+        for (const auto& paramName : paramNames)
+        {
             ctx.variableTracker.declareLocal(paramName, value::ValueType::VOID, "");
         }
 
@@ -493,39 +560,47 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
         // Handle super constructor call
-        if (ctx.currentClassNode && ctx.currentClassNode->hasParentClass()) {
+        if (ctx.currentClassNode && ctx.currentClassNode->hasParentClass())
+        {
             std::string parentClassName = ctx.currentClassNode->getParentClassName();
             auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
 
-            if (node->hasSuperInitializer()) {
+            if (node->hasSuperInitializer())
+            {
                 // Explicit super() call - compile it
                 auto* superInit = node->getSuperInitializer();
-                if (superInit) {
-                    superInit->accept(ctx.visitor);  // Will need delegation
+                if (superInit)
+                {
+                    superInit->accept(ctx.visitor); // Will need delegation
                 }
-            } else if (parentClassDef) {
+            }
+            else if (parentClassDef)
+            {
                 // No explicit super() - automatically call parent's default constructor if it exists
                 auto parentDefaultCtor = parentClassDef->findConstructor(0);
-                if (parentDefaultCtor) {
+                if (parentDefaultCtor)
+                {
                     // Emit SUPER_CONSTRUCTOR call with 0 arguments
                     std::string currentClassName = ctx.currentClassNode->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0));  // 0 arguments
+                                     static_cast<uint32_t>(0)); // 0 arguments
                 }
             }
         }
 
         // Initialize instance fields with their default values (before constructor body)
-        if (ctx.currentClassNode) {
+        if (ctx.currentClassNode)
+        {
             initializeInstanceFields(ctx.currentClassNode);
         }
 
         // Compile constructor body
         auto* body = node->getBodyPtr();
-        if (body) {
-            body->accept(ctx.visitor);  // Will need delegation
+        if (body)
+        {
+            body->accept(ctx.visitor); // Will need delegation
         }
 
         // Restore instance method context
@@ -538,7 +613,7 @@ namespace vm::compiler::visitors
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
-        ctx.variableTracker.endScope();      // End constructor body scope
+        ctx.variableTracker.endScope(); // End constructor body scope
         ctx.functionFrameManager.exitFunctionFrame();
 
         size_t constructorEnd = ctx.program.getCurrentOffset();
@@ -564,7 +639,8 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(constructorName, metadata);
 
         // If this is a generic class, also register with full generic name
-        if (ctx.currentClassNode && ctx.currentClassNode->isGeneric()) {
+        if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
+        {
             std::string fullClassName = ctx.currentClassNode->getFullClassName();
             std::string genericConstructorName = fullClassName + "::<init>/" + std::to_string(params.size());
             ctx.program.registerFunction(genericConstructorName, metadata);
@@ -579,18 +655,23 @@ namespace vm::compiler::visitors
         bool isStatic = node->getIsStatic();
 
         // Only compile static fields here (instance fields are initialized in constructor)
-        if (isStatic) {
+        if (isStatic)
+        {
             // Get initial value or null
             auto* initValue = node->getInitialValue();
-            if (initValue) {
-                initValue->accept(ctx.visitor);  // Will need delegation
-            } else {
+            if (initValue)
+            {
+                initValue->accept(ctx.visitor); // Will need delegation
+            }
+            else
+            {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
             }
 
             // Store in static field with fully qualified name: ClassName::fieldName
             std::string qualifiedName = fieldName;
-            if (ctx.currentClassNode) {
+            if (ctx.currentClassNode)
+            {
                 qualifiedName = ctx.currentClassNode->getClassName() + "::" + fieldName;
             }
             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
@@ -610,21 +691,25 @@ namespace vm::compiler::visitors
         std::vector<std::string> typeArguments;
 
         size_t genericStart = fullClassName.find('<');
-        if (genericStart != std::string::npos) {
+        if (genericStart != std::string::npos)
+        {
             baseClassName = fullClassName.substr(0, genericStart);
 
             // Extract type arguments from within <>
             size_t genericEnd = fullClassName.rfind('>');
-            if (genericEnd != std::string::npos && genericEnd > genericStart) {
+            if (genericEnd != std::string::npos && genericEnd > genericStart)
+            {
                 std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
                 // Parse individual type arguments
                 size_t start = 0;
                 size_t depth = 0;
-                for (size_t i = 0; i < typeArgsStr.length(); ++i) {
+                for (size_t i = 0; i < typeArgsStr.length(); ++i)
+                {
                     if (typeArgsStr[i] == '<') depth++;
                     else if (typeArgsStr[i] == '>') depth--;
-                    else if (typeArgsStr[i] == ',' && depth == 0) {
+                    else if (typeArgsStr[i] == ',' && depth == 0)
+                    {
                         std::string arg = typeArgsStr.substr(start, i - start);
                         // Trim whitespace
                         arg.erase(0, arg.find_first_not_of(" \t"));
@@ -637,7 +722,8 @@ namespace vm::compiler::visitors
                 std::string arg = typeArgsStr.substr(start);
                 arg.erase(0, arg.find_first_not_of(" \t"));
                 arg.erase(arg.find_last_not_of(" \t") + 1);
-                if (!arg.empty()) {
+                if (!arg.empty())
+                {
                     typeArguments.push_back(arg);
                 }
 
@@ -646,10 +732,13 @@ namespace vm::compiler::visitors
                     "int", "float", "bool", "string", "void"
                 };
 
-                for (const auto& typeArg : typeArguments) {
-                    if (primitiveTypes.find(typeArg) != primitiveTypes.end()) {
+                for (const auto& typeArg : typeArguments)
+                {
+                    if (primitiveTypes.find(typeArg) != primitiveTypes.end())
+                    {
                         throw errors::TypeException(
-                            "Generic type arguments cannot be primitive types. Use wrapper classes instead (Int, Float, Bool, String). Found: " + typeArg,
+                            "Generic type arguments cannot be primitive types. Use wrapper classes instead (Int, Float, Bool, String). Found: "
+                            + typeArg,
                             node->getLocation()
                         );
                     }
@@ -662,51 +751,66 @@ namespace vm::compiler::visitors
 
         // Try to find the class definition to get constructor parameter types
         auto classDef = ctx.environment->findClass(baseClassName);
-        if (classDef) {
+        if (classDef)
+        {
             // Get constructors from the class
             const auto& constructors = classDef->getConstructors();
 
             // Find a constructor that matches the argument count
             bool foundMatchingConstructor = false;
-            for (const auto& constructor : constructors) {
-                if (constructor->getParameterCount() == arguments.size()) {
+            for (const auto& constructor : constructors)
+            {
+                if (constructor->getParameterCount() == arguments.size())
+                {
                     foundMatchingConstructor = true;
 
                     // Validate parameter types
                     const auto& params = constructor->getParametersWithTypes();
-                    for (size_t i = 0; i < arguments.size(); ++i) {
+                    for (size_t i = 0; i < arguments.size(); ++i)
+                    {
                         const auto& paramType = params[i].second;
                         value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
                         // Skip validation if we can't infer the type
-                        if (argType == value::ValueType::VOID) {
+                        if (argType == value::ValueType::VOID)
+                        {
                             continue;
                         }
 
                         // For object types, check class names
-                        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+                        {
                             std::string expectedClass = paramType.className.value();
 
                             // Skip generic type parameters (single uppercase letters)
-                            if (expectedClass.length() <= 2 && std::isupper(expectedClass[0])) {
+                            if (expectedClass.length() <= 2 && std::isupper(expectedClass[0]))
+                            {
                                 continue;
                             }
 
-                            if (argType != value::ValueType::OBJECT) {
+                            if (argType != value::ValueType::OBJECT)
+                            {
                                 // Allow null
-                                if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                    std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+                                if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                                {
+                                    std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(
+                                        argType);
                                     throw errors::TypeException(
                                         "Constructor parameter " + std::to_string(i + 1) +
                                         " expects " + expectedClass + " but got " + argTypeStr,
                                         node->getLocation()
                                     );
                                 }
-                            } else {
+                            }
+                            else
+                            {
                                 // Check class name match
-                                std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-                                if (!argClassName.empty() && argClassName != expectedClass && expectedClass != "object") {
-                                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                std::string argClassName = ctx.typeInference.inferExpressionClassName(
+                                    arguments[i].get());
+                                if (!argClassName.empty() && argClassName != expectedClass && expectedClass != "object")
+                                {
+                                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                                    {
                                         throw errors::TypeException(
                                             "Constructor parameter " + std::to_string(i + 1) +
                                             " expects " + expectedClass + " but got " + argClassName,
@@ -717,13 +821,18 @@ namespace vm::compiler::visitors
                             }
                         }
                         // For primitive types
-                        else {
-                            std::string expectedTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType);
+                        else
+                        {
+                            std::string expectedTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(
+                                paramType.basicType);
                             std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
 
-                            if (paramType.basicType != argType) {
+                            if (paramType.basicType != argType)
+                            {
                                 // Allow int to float conversion
-                                if (!(paramType.basicType == value::ValueType::FLOAT && argType == value::ValueType::INT)) {
+                                if (!(paramType.basicType == value::ValueType::FLOAT && argType ==
+                                    value::ValueType::INT))
+                                {
                                     throw errors::TypeException(
                                         "Constructor parameter " + std::to_string(i + 1) +
                                         " expects " + expectedTypeStr + " but got " + argTypeStr,
@@ -733,14 +842,15 @@ namespace vm::compiler::visitors
                             }
                         }
                     }
-                    break;  // Found matching constructor, stop checking
+                    break; // Found matching constructor, stop checking
                 }
             }
         }
 
         // Push constructor arguments onto stack (left to right)
-        for (const auto& arg : arguments) {
-            arg->accept(ctx.visitor);  // Will need delegation
+        for (const auto& arg : arguments)
+        {
+            arg->accept(ctx.visitor); // Will need delegation
         }
 
         // Store the FULL class name including generics (e.g., "Box<Int>")
@@ -748,13 +858,13 @@ namespace vm::compiler::visitors
 
         // Emit NEW_OBJECT instruction with full class name and argument count
         ctx.program.emit(bytecode::OpCode::NEW_OBJECT,
-                     static_cast<uint32_t>(classNameIndex),
-                     static_cast<uint32_t>(arguments.size()));
+                         static_cast<uint32_t>(classNameIndex),
+                         static_cast<uint32_t>(arguments.size()));
         // Add source location for the new instruction
         ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                     node->getLocation().getLine(),
-                                     node->getLocation().getColumn(),
-                                     node->getLocation().getFilename());
+                                      node->getLocation().getLine(),
+                                      node->getLocation().getColumn(),
+                                      node->getLocation().getFilename());
 
         return std::monostate{};
     }
@@ -764,20 +874,26 @@ namespace vm::compiler::visitors
         std::string memberName = node->getMemberName();
         bool isStaticAccess = node->getIsStaticAccess();
 
-        if (isStaticAccess) {
+        if (isStaticAccess)
+        {
             // Static field access: ClassName::fieldName
             size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(fieldNameIndex), node);
-        } else {
+        }
+        else
+        {
             // Instance field access: object.fieldName
             // First, compile the object expression
-            node->getObject()->accept(ctx.visitor);  // Will need delegation
+            node->getObject()->accept(ctx.visitor); // Will need delegation
 
             // Check if this is array.length access
-            if (memberName == "length") {
+            if (memberName == "length")
+            {
                 // Special case: array.length should use ARRAY_LENGTH opcode
                 ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
-            } else {
+            }
+            else
+            {
                 // Regular field access - emit GET_FIELD instruction
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
@@ -792,10 +908,10 @@ namespace vm::compiler::visitors
         std::string memberName = node->getMemberName();
 
         // Compile the object expression
-        node->getObject()->accept(ctx.visitor);  // Will need delegation
+        node->getObject()->accept(ctx.visitor); // Will need delegation
 
         // Compile the value to assign
-        node->getValue()->accept(ctx.visitor);  // Will need delegation
+        node->getValue()->accept(ctx.visitor); // Will need delegation
 
         // Emit SET_FIELD instruction (object and value are on stack)
         size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
@@ -810,16 +926,19 @@ namespace vm::compiler::visitors
         bool isStaticCall = node->getIsStaticCall();
         const auto& arguments = node->getArguments();
 
-        if (isStaticCall) {
+        if (isStaticCall)
+        {
             // Static method call: ClassName::methodName(args) or this::methodName(args)
 
             // Build fully qualified method name
             std::string className;
             auto* objectNode = node->getObject();
-            if (auto* varNode = dynamic_cast<ast::VariableNode*>(objectNode)) {
+            if (auto* varNode = dynamic_cast<ast::VariableNode*>(objectNode))
+            {
                 className = varNode->getName();
                 // If using "this::", replace with actual class name
-                if (className == "this" && ctx.currentClassNode) {
+                if (className == "this" && ctx.currentClassNode)
+                {
                     className = ctx.currentClassNode->getClassName();
                 }
             }
@@ -829,45 +948,50 @@ namespace vm::compiler::visitors
             validateMethodParameters(qualifiedName, qualifiedName, arguments, node->getLocation());
 
             // Push all arguments onto stack
-            for (const auto& arg : arguments) {
-                arg->accept(ctx.visitor);  // Will need delegation
+            for (const auto& arg : arguments)
+            {
+                arg->accept(ctx.visitor); // Will need delegation
             }
 
             // Emit CALL_STATIC instruction with fully qualified name
             size_t methodNameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
-                         static_cast<uint32_t>(methodNameIndex),
-                         static_cast<uint32_t>(arguments.size()));
-        } else {
+                             static_cast<uint32_t>(methodNameIndex),
+                             static_cast<uint32_t>(arguments.size()));
+        }
+        else
+        {
             // Instance method call: object.methodName(args)
 
             // Infer the class of the object for type checking
             std::string objectClassName = ctx.typeInference.inferExpressionClassName(node->getObject());
 
             // Validate parameter count and types for instance methods
-            if (!objectClassName.empty()) {
+            if (!objectClassName.empty())
+            {
                 std::string qualifiedName = objectClassName + "::" + methodName;
                 validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
             }
 
             // First, compile the object expression
-            node->getObject()->accept(ctx.visitor);  // Will need delegation
+            node->getObject()->accept(ctx.visitor); // Will need delegation
 
             // Push all arguments onto stack
-            for (const auto& arg : arguments) {
-                arg->accept(ctx.visitor);  // Will need delegation
+            for (const auto& arg : arguments)
+            {
+                arg->accept(ctx.visitor); // Will need delegation
             }
 
             // Emit CALL_METHOD instruction with source location
             size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
             ctx.program.emit(bytecode::OpCode::CALL_METHOD,
-                         static_cast<uint32_t>(methodNameIndex),
-                         static_cast<uint32_t>(arguments.size()));
+                             static_cast<uint32_t>(methodNameIndex),
+                             static_cast<uint32_t>(arguments.size()));
             // Add source location for the call instruction
             ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+                                          node->getLocation().getLine(),
+                                          node->getLocation().getColumn(),
+                                          node->getLocation().getFilename());
         }
 
         return std::monostate{};
@@ -877,16 +1001,17 @@ namespace vm::compiler::visitors
     {
         // Push arguments onto stack
         const auto& arguments = node->getArguments();
-        for (const auto& arg : arguments) {
-            arg->accept(ctx.visitor);  // Will need delegation
+        for (const auto& arg : arguments)
+        {
+            arg->accept(ctx.visitor); // Will need delegation
         }
 
         // Emit SUPER_CONSTRUCTOR instruction with current class name
         std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
-                     static_cast<uint32_t>(classNameIndex),
-                     static_cast<uint32_t>(arguments.size()));
+                         static_cast<uint32_t>(classNameIndex),
+                         static_cast<uint32_t>(arguments.size()));
 
         return std::monostate{};
     }
@@ -897,8 +1022,9 @@ namespace vm::compiler::visitors
 
         // Push arguments onto stack
         const auto& arguments = node->getArguments();
-        for (const auto& arg : arguments) {
-            arg->accept(ctx.visitor);  // Will need delegation
+        for (const auto& arg : arguments)
+        {
+            arg->accept(ctx.visitor); // Will need delegation
         }
 
         // Emit SUPER_INVOKE instruction with current class name
@@ -907,11 +1033,11 @@ namespace vm::compiler::visitors
         size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
 
         ctx.program.emit(bytecode::OpCode::SUPER_INVOKE,
-                     std::vector<uint32_t>{
-                         static_cast<uint32_t>(classNameIndex),
-                         static_cast<uint32_t>(methodNameIndex),
-                         static_cast<uint32_t>(arguments.size())
-                     });
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(classNameIndex),
+                             static_cast<uint32_t>(methodNameIndex),
+                             static_cast<uint32_t>(arguments.size())
+                         });
 
         return std::monostate{};
     }

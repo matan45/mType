@@ -2902,6 +2902,33 @@
     <None Include="tests\testFiles\error\error\classUndefinedMember.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\duplicateClassInterfaceName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateClassName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateFunctionName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateFunctionNativeName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateInstanceMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateInterfaceName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateNativeFunctionName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateStaticInstanceMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\duplicateStaticMethodName.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\enhancedArgumentMismatchLocation.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
@@ -3027,6 +3054,12 @@
     </None>
     <None Include="tests\testFiles\error\error\typeReturnTypeMismatch.mt">
       <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\basicErrorReportingValid.expected">
       <Filter>tests\testFiles\error\pass</Filter>

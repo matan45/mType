@@ -142,24 +142,19 @@ namespace evaluator
                 throw UndefinedException("Class '" + resolvedClassName + "' not found");
             }
 
-            // Try to find method with exact argument count first
-            auto method = classDef->findMethod(methodName, args.size());
+            // Try to find static method with exact argument count first
+            auto method = classDef->findStaticMethod(methodName, args.size());
 
             // If not found, try without argument count matching as a fallback
             if (!method)
             {
-                method = classDef->getMethod(methodName);
+                method = classDef->getStaticMethod(methodName);
             }
 
-            // Check if method exists and is static
+            // Check if method exists (it's guaranteed to be static if found via getStaticMethod)
             if (!method)
             {
-                throw UndefinedException("Method '" + methodName + "' not found in class '" + className + "'");
-            }
-
-            if (!method->isStatic())
-            {
-                throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
+                throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
             }
 
             // ACCESS CONTROL: Validate method access permissions
@@ -271,15 +266,10 @@ namespace evaluator
             }
 
             // Find the static method
-            auto method = classDef->getMethod(methodName);
+            auto method = classDef->getStaticMethod(methodName);
             if (!method)
             {
                 throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
-            }
-
-            if (!method->isStatic())
-            {
-                throw UndefinedException("Method '" + methodName + "' in class '" + className + "' is not static");
             }
 
             // ACCESS CONTROL: Validate method access permissions

@@ -205,6 +205,43 @@ namespace runtimeTypes::klass
         return nullptr;
     }
 
+    // NEW: Separate static and instance method lookup implementations
+    std::shared_ptr<MethodDefinition> ClassDefinition::getStaticMethod(const std::string& methodName) const
+    {
+        auto it = staticMethods.find(methodName);
+        if (it != staticMethods.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::getInstanceMethod(const std::string& methodName) const
+    {
+        auto it = instanceMethods.find(methodName);
+        if (it != instanceMethods.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethod(const std::string& methodName, size_t argCount) const
+    {
+        auto method = getStaticMethod(methodName);
+        if (method && method->getParameters().size() == argCount) {
+            return method;
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethod(const std::string& methodName, size_t argCount) const
+    {
+        auto method = getInstanceMethod(methodName);
+        if (method && method->getParameters().size() == argCount) {
+            return method;
+        }
+        return nullptr;
+    }
+
     // NEW: Generic-related method implementations
     std::string ClassDefinition::getGenericClassName() const
     {
@@ -385,6 +422,54 @@ namespace runtimeTypes::klass
 
         while (current && depth < MAX_INHERITANCE_DEPTH) {
             method = current->findMethod(methodName, argCount);
+            if (method) {
+                return method;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodInHierarchy(const std::string& methodName, size_t argCount) const
+    {
+        // First, check in this class (instance methods only)
+        auto method = findInstanceMethod(methodName, argCount);
+        if (method) {
+            return method;
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            method = current->findInstanceMethod(methodName, argCount);
+            if (method) {
+                return method;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const
+    {
+        // First, check in this class (static methods only)
+        auto method = findStaticMethod(methodName, argCount);
+        if (method) {
+            return method;
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            method = current->findStaticMethod(methodName, argCount);
             if (method) {
                 return method;
             }

@@ -10,6 +10,7 @@
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../errors/ParseException.hpp"
+#include <unordered_set>
 
 namespace parser
 {
@@ -61,6 +62,23 @@ namespace parser
             throw ParseException("Failed to create class node", tokenStream.current().location);
         }
 
+        // Check for duplicate class/interface name
+        const std::string& className = classNodePtr->getClassName();
+        if (context.isTypeDeclared(className))
+        {
+            throw ParseException(
+                "Duplicate type declaration: '" + className + "' has already been declared as a class or interface",
+                classNodePtr->getLocation()
+            );
+        }
+
+        // Register the class name
+        context.registerTypeName(className);
+
+        // Track method signatures for this class (local to this function)
+        std::unordered_set<std::string> declaredStaticMethodSignatures;
+        std::unordered_set<std::string> declaredInstanceMethodSignatures;
+
         // Set class context when parsing class body
         ParseContext::ClassContextGuard classGuard(context);
 
@@ -91,6 +109,49 @@ namespace parser
                 auto method = methodParser->parseMethod();
                 if (method)
                 {
+                    // Check for duplicate method signatures (static and instance tracked separately)
+                    auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
+                    if (methodNode)
+                    {
+                        const std::string& methodName = methodNode->getName();
+                        bool isStatic = methodNode->getIsStatic();
+
+                        // Build signature: "methodName(type1,type2,...)"
+                        std::string signature = methodName + "(";
+                        const auto& params = methodNode->getGenericParameters();
+                        for (size_t i = 0; i < params.size(); ++i) {
+                            if (i > 0) signature += ",";
+                            // Use GenericType's toString() method for full type representation
+                            signature += params[i].second->toString();
+                        }
+                        signature += ")";
+
+                        if (isStatic)
+                        {
+                            // Check for duplicate static method signature
+                            if (declaredStaticMethodSignatures.count(signature) > 0)
+                            {
+                                throw ParseException(
+                                    "Duplicate static method declaration: '" + signature + "' has already been declared in class '" + className + "'",
+                                    methodNode->getLocation()
+                                );
+                            }
+                            declaredStaticMethodSignatures.insert(signature);
+                        }
+                        else
+                        {
+                            // Check for duplicate instance method signature
+                            if (declaredInstanceMethodSignatures.count(signature) > 0)
+                            {
+                                throw ParseException(
+                                    "Duplicate instance method declaration: '" + signature + "' has already been declared in class '" + className + "'",
+                                    methodNode->getLocation()
+                                );
+                            }
+                            declaredInstanceMethodSignatures.insert(signature);
+                        }
+                    }
+
                     classNodePtr->addMethod(std::move(method));
                 }
             }
@@ -101,8 +162,48 @@ namespace parser
                 if (field)
                 {
                     // Check if the parsed field is actually a method (static function)
-                    if (dynamic_cast<MethodNode*>(field.get()))
+                    auto* methodNode = dynamic_cast<MethodNode*>(field.get());
+                    if (methodNode)
                     {
+                        // Check for duplicate method signatures
+                        const std::string& methodName = methodNode->getName();
+                        bool isStatic = methodNode->getIsStatic();
+
+                        // Build signature: "methodName(type1,type2,...)"
+                        std::string signature = methodName + "(";
+                        const auto& params = methodNode->getGenericParameters();
+                        for (size_t i = 0; i < params.size(); ++i) {
+                            if (i > 0) signature += ",";
+                            // Use GenericType's toString() method for full type representation
+                            signature += params[i].second->toString();
+                        }
+                        signature += ")";
+
+                        if (isStatic)
+                        {
+                            // Check for duplicate static method signature
+                            if (declaredStaticMethodSignatures.count(signature) > 0)
+                            {
+                                throw ParseException(
+                                    "Duplicate static method declaration: '" + signature + "' has already been declared in class '" + className + "'",
+                                    methodNode->getLocation()
+                                );
+                            }
+                            declaredStaticMethodSignatures.insert(signature);
+                        }
+                        else
+                        {
+                            // Check for duplicate instance method signature
+                            if (declaredInstanceMethodSignatures.count(signature) > 0)
+                            {
+                                throw ParseException(
+                                    "Duplicate instance method declaration: '" + signature + "' has already been declared in class '" + className + "'",
+                                    methodNode->getLocation()
+                                );
+                            }
+                            declaredInstanceMethodSignatures.insert(signature);
+                        }
+
                         classNodePtr->addMethod(std::move(field));
                     }
                     else

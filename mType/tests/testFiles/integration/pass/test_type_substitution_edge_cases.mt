@@ -171,27 +171,6 @@ class EdgeCaHashSetest {
     }
 }
 
-// Test 8: Performance stress test
-class PerformanceStressTest {
-    public static function stressTestCache(): void {
-        print("=== Performance Stress Tests ===");
-
-        // Rapid repeated instantiation of same types
-        print("Stress testing repeated List<Int> instantiation...");
-        for (int i = 0; i < 100; ++i) {
-            // Simulate repeated List<Int> creation - should be very fast after first
-        }
-
-        print("Stress testing mixed common/complex patterns...");
-        for (int i = 0; i < 50; ++i) {
-            // Alternate between fast-cacheable and complex patterns
-        }
-
-        print("Stress testing concurrent access simulation...");
-        // Test cache behavior under simulated concurrent access
-    }
-}
-
 // Test 9: Memory management edge cases
 class MemoryEdgeCaHashSetest {
     static function testMemoryEdgeCases(): void {

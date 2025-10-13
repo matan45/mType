@@ -86,6 +86,18 @@ namespace parser
             interfaceName, genericParams, tokenStream.current().location
         );
 
+        // NEW: Check for duplicate class/interface name
+        if (context.isTypeDeclared(interfaceName))
+        {
+            throw ParseException(
+                "Duplicate type declaration: '" + interfaceName + "' has already been declared as a class or interface",
+                location
+            );
+        }
+
+        // Register the interface name
+        context.registerTypeName(interfaceName);
+
         // Parse optional extends clause
         if (tokenStream.current().type == TokenType::EXTENDS)
         {

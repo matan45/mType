@@ -328,6 +328,8 @@ namespace vm::compiler::visitors
                 arg->accept(ctx.visitor);  // Will need delegation
             }
 
+            // Note: We don't append "$static" here because the CALL_STATIC opcode handler
+            // will append it when looking up the bytecode
             size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
             // Static method call - use CALL_STATIC with source location
             ctx.program.emit(bytecode::OpCode::CALL_STATIC,
@@ -345,6 +347,9 @@ namespace vm::compiler::visitors
             // 3. Regular function call (global function)
             //
             // Check if a method with this name exists in the current class
+            // Important: static and instance methods can have the same name, so we need to:
+            // - In static context: only look for static methods
+            // - In instance context: look for instance methods first, then static methods
             bool isMethodCall = false;
             bool isStaticMethodCall = false;
             const auto& methods = ctx.currentClassNode->getMethods();
@@ -353,9 +358,37 @@ namespace vm::compiler::visitors
                 if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
                     if (methodNode->getName() == functionName &&
                         methodNode->getParameters().size() == arguments.size()) {
-                        isMethodCall = true;
-                        isStaticMethodCall = methodNode->getIsStatic();
-                        break;
+                        // If we're in a static method, only match static methods
+                        // If we're in an instance method, prefer instance methods
+                        if (ctx.inStaticMethod) {
+                            if (methodNode->getIsStatic()) {
+                                isMethodCall = true;
+                                isStaticMethodCall = true;
+                                break;
+                            }
+                        } else if (ctx.inInstanceMethod) {
+                            if (!methodNode->getIsStatic()) {
+                                isMethodCall = true;
+                                isStaticMethodCall = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If we didn't find a matching method in the preferred namespace,
+            // check the other namespace (only in instance context, static can also call instance)
+            if (!isMethodCall && ctx.inInstanceMethod) {
+                for (const auto& method : methods) {
+                    if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
+                        if (methodNode->getName() == functionName &&
+                            methodNode->getParameters().size() == arguments.size() &&
+                            methodNode->getIsStatic()) {
+                            isMethodCall = true;
+                            isStaticMethodCall = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -370,6 +403,8 @@ namespace vm::compiler::visitors
                         arg->accept(ctx.visitor);  // Will need delegation
                     }
 
+                    // Note: We don't append "$static" here because the CALL_STATIC opcode handler
+                    // will append it when looking up the bytecode
                     size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
                     ctx.program.emit(bytecode::OpCode::CALL_STATIC,
                                  static_cast<uint32_t>(nameIndex),
