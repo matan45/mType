@@ -120,6 +120,10 @@ namespace vm::bytecode
         ARRAY_LENGTH,       // Get array length
         ARRAY_LITERAL,      // Create array from literal values (operand: count)
 
+        // SoA Field Access Optimization (avoids object materialization)
+        ARRAY_GET_FIELD,    // Get array[index].field (generic, SoA-optimized)
+        ARRAY_SET_FIELD,    // Set array[index].field = value (generic, SoA-optimized)
+
         // === Lambda Operations (95-99) ===
         LAMBDA,             // Create lambda value
         LAMBDA_INVOKE,      // Invoke lambda
@@ -270,6 +274,8 @@ namespace vm::bytecode
             case OpCode::ARRAY_SET_INT: return "ARRAY_SET_INT";
             case OpCode::ARRAY_LENGTH: return "ARRAY_LENGTH";
             case OpCode::ARRAY_LITERAL: return "ARRAY_LITERAL";
+            case OpCode::ARRAY_GET_FIELD: return "ARRAY_GET_FIELD";
+            case OpCode::ARRAY_SET_FIELD: return "ARRAY_SET_FIELD";
 
             case OpCode::LAMBDA: return "LAMBDA";
             case OpCode::LAMBDA_INVOKE: return "LAMBDA_INVOKE";

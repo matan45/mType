@@ -25,6 +25,10 @@ namespace vm::runtime
         void handleArraySet();
         void handleArrayLength();
 
+        // SoA Field Access Optimization (avoids object materialization)
+        void handleArrayGetField(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleArraySetField(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         ExecutionContext& context;
 

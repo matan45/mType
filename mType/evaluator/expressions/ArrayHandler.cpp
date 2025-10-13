@@ -12,7 +12,6 @@
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../evaluator/utils/ObjectHelper.hpp"
-
 using namespace errors;
 using namespace evaluator::utils;
 

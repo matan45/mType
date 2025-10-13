@@ -1,6 +1,5 @@
 #include "ObjectArray.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
-
 namespace mType
 {
     namespace value

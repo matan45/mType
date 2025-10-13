@@ -458,6 +458,12 @@ namespace vm::runtime
         case OpCode::ARRAY_LENGTH: arrayExecutor->handleArrayLength();
             break;
 
+        // SoA Field Access Optimization
+        case OpCode::ARRAY_GET_FIELD: arrayExecutor->handleArrayGetField(instr);
+            break;
+        case OpCode::ARRAY_SET_FIELD: arrayExecutor->handleArraySetField(instr);
+            break;
+
         // Type operations - delegated to TypeExecutor
         case OpCode::INSTANCEOF: typeExecutor->handleInstanceof(instr);
             break;

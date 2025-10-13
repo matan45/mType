@@ -7,7 +7,6 @@
 #include "../../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
-
 namespace evaluator
 {
     namespace objects

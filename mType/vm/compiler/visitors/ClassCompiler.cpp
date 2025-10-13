@@ -4,6 +4,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../runtime/utils/TypeConverter.hpp"
 #include <unordered_set>
 
@@ -922,18 +923,38 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Instance field access: object.fieldName
-            // First, compile the object expression
-            node->getObject()->accept(ctx.visitor); // Will need delegation
-
-            // Check if this is array.length access
+            // Special case: .length is ALWAYS handled with ARRAY_LENGTH opcode
+            // This must be checked BEFORE the SoA optimization because:
+            // 1. array[index].length should work for nested arrays
+            // 2. .length is not a field in SoA structure
             if (memberName == "length")
             {
-                // Special case: array.length should use ARRAY_LENGTH opcode
+                // Compile the object/array expression (could be array[index] or just array)
+                node->getObject()->accept(ctx.visitor);
+                // Emit ARRAY_LENGTH opcode
                 ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+            }
+            // Check if this is array[index].field pattern (SoA optimization opportunity)
+            else if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(node->getObject()))
+            {
+                // This is array[index].field - use ARRAY_GET_FIELD for SoA optimization!
+                // Compile the array expression
+                indexAccessNode->getCollection()->accept(ctx.visitor);
+
+                // Compile the index expression
+                indexAccessNode->getIndex()->accept(ctx.visitor);
+
+                // Emit optimized ARRAY_GET_FIELD opcode
+                // This will use fast path for SoA arrays (direct field access)
+                size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
             }
             else
             {
+                // Regular instance field access: object.fieldName
+                // First, compile the object expression
+                node->getObject()->accept(ctx.visitor); // Will need delegation
+
                 // Regular field access - emit GET_FIELD instruction
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
@@ -947,15 +968,38 @@ namespace vm::compiler::visitors
     {
         std::string memberName = node->getMemberName();
 
-        // Compile the object expression
-        node->getObject()->accept(ctx.visitor); // Will need delegation
+        // Check if this is array[index].field = value pattern (SoA optimization opportunity)
+        auto* objectNode = node->getObject();
+        if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(objectNode))
+        {
+            // This is array[index].field = value - use ARRAY_SET_FIELD for SoA optimization!
+            // Compile the array expression
+            indexAccessNode->getCollection()->accept(ctx.visitor);
 
-        // Compile the value to assign
-        node->getValue()->accept(ctx.visitor); // Will need delegation
+            // Compile the index expression
+            indexAccessNode->getIndex()->accept(ctx.visitor);
 
-        // Emit SET_FIELD instruction (object and value are on stack)
-        size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+            // Compile the value to assign
+            node->getValue()->accept(ctx.visitor);
+
+            // Emit optimized ARRAY_SET_FIELD opcode
+            // This will use fast path for SoA arrays (direct field write)
+            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+        }
+        else
+        {
+            // Regular member assignment: object.field = value
+            // Compile the object expression
+            node->getObject()->accept(ctx.visitor); // Will need delegation
+
+            // Compile the value to assign
+            node->getValue()->accept(ctx.visitor); // Will need delegation
+
+            // Emit SET_FIELD instruction (object and value are on stack)
+            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+        }
 
         return std::monostate{};
     }
