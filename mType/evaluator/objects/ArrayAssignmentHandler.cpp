@@ -4,6 +4,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
 
@@ -131,6 +132,50 @@ namespace evaluator
                         }
                     }
                 }
+                else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArrayValue))
+                {
+                    auto baseArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArrayValue);
+                    Value firstIndexValue = exprEvaluator->evaluate(indexAccessNode->getIndex());
+                    Value secondIndexValue = exprEvaluator->evaluate(node->getIndex());
+                    Value newValue = exprEvaluator->evaluate(node->getValue());
+
+                    if (std::holds_alternative<int>(firstIndexValue) && std::holds_alternative<int>(secondIndexValue))
+                    {
+                        int firstIndex = std::get<int>(firstIndexValue);
+                        int secondIndex = std::get<int>(secondIndexValue);
+
+                        if (firstIndex < 0)
+                        {
+                            throw TypeException(
+                                "FlatMultiObjectArray first index " + std::to_string(firstIndex) +
+                                " is negative",
+                                node->getLocation());
+                        }
+                        if (secondIndex < 0)
+                        {
+                            throw TypeException(
+                                "FlatMultiObjectArray second index " + std::to_string(secondIndex) +
+                                " is negative",
+                                node->getLocation());
+                        }
+
+                        std::vector<size_t> indices;
+                        indices.push_back(static_cast<size_t>(firstIndex));
+                        indices.push_back(static_cast<size_t>(secondIndex));
+
+                        try
+                        {
+                            baseArray->set(indices, newValue);
+                            return newValue;
+                        }
+                        catch (const std::out_of_range& e)
+                        {
+                            throw TypeException(
+                                "FlatMultiObjectArray assignment failed: " + std::string(e.what()),
+                                node->getLocation());
+                        }
+                    }
+                }
             }
 
             // Regular 1D array or nested array assignment
@@ -208,6 +253,12 @@ namespace evaluator
                 expectedRank = sparseArray->getRank();
                 isMultiDimensional = true;
             }
+            else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArray))
+            {
+                auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArray);
+                expectedRank = flatMultiObjectArray->getRank();
+                isMultiDimensional = true;
+            }
             else if (std::holds_alternative<std::shared_ptr<NativeArray>>(baseArray))
             {
                 expectedRank = indexNodes.size();
@@ -220,7 +271,8 @@ namespace evaluator
             }
 
             if ((std::holds_alternative<std::shared_ptr<FlatMultiArray>>(baseArray) ||
-                    std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray)) &&
+                    std::holds_alternative<std::shared_ptr<SparseMultiArray>>(baseArray) ||
+                    std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArray)) &&
                 indexNodes.size() != expectedRank)
             {
                 return std::nullopt;
@@ -285,6 +337,23 @@ namespace evaluator
                 catch (const std::out_of_range& e)
                 {
                     throw TypeException("Sparse multi-dimensional array assignment failed: " + std::string(e.what()),
+                                        location);
+                }
+            }
+
+            // Handle FlatMultiObjectArray
+            if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArray))
+            {
+                auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(baseArray);
+
+                try
+                {
+                    flatMultiObjectArray->set(indices, newValue);
+                    return newValue;
+                }
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("FlatMultiObjectArray multi-dimensional assignment failed: " + std::string(e.what()),
                                         location);
                 }
             }

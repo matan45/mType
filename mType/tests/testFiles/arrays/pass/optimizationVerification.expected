@@ -18,21 +18,21 @@ StringPool tests passed!
 
 --- SoA Optimization: Object Arrays ---
 Total Age (SoA): 1185
-Total Salary (SoA): 1935000.0
+Total Salary (SoA): 1.935e+06
 Active Employees (SoA): 15
 SoA object tests passed!
 
 --- Multi-Dimensional Arrays ---
 2D Int Matrix [3][2]: 32
 2D String Matrix [2][3]: Cell
-2D Vector [3][2] X: 3.0
+2D Vector [3][2] X: 3
 3D Int Cube [2][1][2]: 23
 3D Employee Cube [1][2][1] ID: 2016
 Multi-dimensional tests passed!
 
 --- Mixed Workload Test ---
 Mixed Int [10]: 10
-Mixed Float [10]: 20.0
+Mixed Float [10]: 20
 Mixed Bool [10]: true
 Mixed String [10]: Item10
 Mixed Employee [10] ID: 3010
@@ -40,9 +40,9 @@ Mixed workload tests passed!
 
 --- Performance-Critical Patterns ---
 Sequential Sum (SIMD): 4950
-Position X Sum (SoA): 1225.0
-Position Y Sum (SoA): 2450.0
-Position Z Sum (SoA): 3675.0
+Position X Sum (SoA): 1225
+Position Y Sum (SoA): 2450
+Position Z Sum (SoA): 3675
 Category A Count (StringPool): 20
 Performance patterns tests passed!
 

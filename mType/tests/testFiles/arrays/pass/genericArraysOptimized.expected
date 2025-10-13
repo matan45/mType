@@ -1,12 +1,12 @@
 Int Container[5]: 25
 Int Container Size: 20
 Float Container[10]: 25.0
-True Bool Count in Container: 10
+True Bool Count in Container: 30
 String Container[4]: Red
 DataPoint Container[10] ID: 110
 DataPoint Container[10] Label: Data10
-DataPoint Container[10] Value: 105.0
-Average DataPoint Value: 126.0
+DataPoint Container[10] Value: 105
+Average DataPoint Value: 126
 Int Grid[3][2]: 17
 Float Grid[2][4]: 7.0
 String Grid[1][1]: Even

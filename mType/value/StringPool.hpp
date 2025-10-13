@@ -7,6 +7,9 @@
 #include <atomic>
 #include <chrono>
 
+// Forward declaration for friend class
+namespace mType { namespace value { namespace arrays { class StringArray; } } }
+
 namespace value
 {
     struct StringPoolStats
@@ -136,6 +139,7 @@ namespace value
         }
 
         friend class InternedString;
+        friend class mType::value::arrays::StringArray;
 
         void incrementRef(size_t id);
         void decrementRef(size_t id);

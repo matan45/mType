@@ -4,6 +4,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/StringPool.hpp"
 #include <sstream>
@@ -43,6 +44,9 @@ namespace evaluator::utils
                 return val != nullptr;
             }
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
+                return val != nullptr;
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>) {
                 return val != nullptr;
             }
             else if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -112,6 +116,12 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
                 if (val) {
                     return "[sparse-array " + std::to_string(val->totalSize()) + "]";
+                }
+                return "null";
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>) {
+                if (val) {
+                    return "[object-array " + std::to_string(val->totalSize()) + "]";
                 }
                 return "null";
             }
@@ -214,6 +224,9 @@ namespace evaluator::utils
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
                 return ValueType::OBJECT;
             }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>) {
+                return ValueType::OBJECT;  // Multi-dimensional object arrays with SoA
+            }
             else if constexpr (std::is_same_v<T, std::shared_ptr<value::PromiseValue>>) {
                 return ValueType::OBJECT;  // Promises are object types
             }
@@ -295,6 +308,8 @@ namespace evaluator::utils
                     return l.get() == r.get(); // Multi-array identity comparison
                 } else if constexpr (std::is_same_v<T1, std::shared_ptr<value::SparseMultiArray>>) {
                     return l.get() == r.get(); // Sparse array identity comparison
+                } else if constexpr (std::is_same_v<T1, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>) {
+                    return l.get() == r.get(); // Object array identity comparison
                 } else if constexpr (std::is_same_v<T1, std::monostate>) {
                     return true; // monostate values are always equal
                 } else if constexpr (std::is_same_v<T1, std::nullptr_t>) {

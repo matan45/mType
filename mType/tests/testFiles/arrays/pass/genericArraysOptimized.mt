@@ -1,7 +1,10 @@
 // Test Generic Type Arrays with SIMD and SoA Optimizations
 // Generic arrays automatically benefit from optimizations when instantiated
 // with primitive types (SIMD) or object types (SoA)
-
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Float.mt";
+import * from "../../lib/primitives/Bool.mt";
 // ============================================
 // Generic Container Classes
 // ============================================
@@ -76,26 +79,26 @@ class DataPoint {
 // ============================================
 
 // Test 1.1: Generic Container with int (SIMD optimized for size >= 16)
-Container<int> intContainer = new Container<int>(20);
+Container<Int> intContainer = new Container<Int>(20);
 for (int i = 0; i < 20; i = i + 1) {
-    intContainer.add(i * 5);
+    intContainer.add(new Int(i * 5));
 }
 
-print("Int Container[5]: " + intContainer.get(5)); // Expected: 25
+print("Int Container[5]: " + intContainer.get(5).toString()); // Expected: 25
 print("Int Container Size: " + intContainer.getSize()); // Expected: 20
 
 // Test 1.2: Generic Container with float (SIMD optimized)
-Container<float> floatContainer = new Container<float>(25);
+Container<Float> floatContainer = new Container<Float>(25);
 for (int i = 0; i < 25; i = i + 1) {
-    floatContainer.add(i * 2.5);
+    floatContainer.add(new Float(i * 2.5));
 }
 
-print("Float Container[10]: " + floatContainer.get(10)); // Expected: 25.0
+print("Float Container[10]: " + floatContainer.get(10).toString()); // Expected: 25.0
 
 // Test 1.3: Generic Container with bool (SIMD optimized)
-Container<bool> boolContainer = new Container<bool>(30);
+Container<Bool> boolContainer = new Container<Bool>(30);
 for (int i = 0; i < 30; i = i + 1) {
-    boolContainer.add(i % 3 == 0);
+    boolContainer.add(new Bool(i % 3 == 0));
 }
 
 int trueBoolCount = 0;
@@ -107,23 +110,23 @@ for (int i = 0; i < boolContainer.getSize(); i = i + 1) {
 print("True Bool Count in Container: " + trueBoolCount); // Expected: 10
 
 // Test 1.4: Generic Container with string (StringPool optimized)
-Container<string> stringContainer = new Container<string>(20);
+Container<String> stringContainer = new Container<String>(20);
 for (int i = 0; i < 20; i = i + 1) {
     if (i % 4 == 0) {
-        stringContainer.add("Red");
+        stringContainer.add(new String("Red"));
     }
     if (i % 4 == 1) {
-        stringContainer.add("Green");
+        stringContainer.add(new String("Green"));
     }
     if (i % 4 == 2) {
-        stringContainer.add("Blue");
+        stringContainer.add(new String("Blue"));
     }
     if (i % 4 == 3) {
-        stringContainer.add("Yellow");
+        stringContainer.add(new String("Yellow"));
     }
 }
 
-print("String Container[4]: " + stringContainer.get(4)); // Expected: Red
+print("String Container[4]: " + stringContainer.get(4).toString()); // Expected: Red
 
 // ============================================
 // 1D Generic Arrays - SoA Optimization for Objects
@@ -151,40 +154,40 @@ print("Average DataPoint Value: " + avgValue); // Expected: 126.0
 // 2D Generic Arrays - Multi-dimensional Optimization
 // ============================================
 
-// Test 3.1: Generic Grid with int (2D SIMD optimization)
-Grid<int> intGrid = new Grid<int>(5, 5);
+// Test 3.1: Generic Grid with Int (2D SIMD optimization)
+Grid<Int> intGrid = new Grid<Int>(5, 5);
 for (int i = 0; i < 5; i = i + 1) {
     for (int j = 0; j < 5; j = j + 1) {
-        intGrid.set(i, j, i * 5 + j);
+        intGrid.set(i, j, new Int(i * 5 + j));
     }
 }
 
-print("Int Grid[3][2]: " + intGrid.get(3, 2)); // Expected: 17
+print("Int Grid[3][2]: " + intGrid.get(3, 2).toString()); // Expected: 17
 
-// Test 3.2: Generic Grid with float (2D SIMD optimization)
-Grid<float> floatGrid = new Grid<float>(4, 6);
+// Test 3.2: Generic Grid with Float (2D SIMD optimization)
+Grid<Float> floatGrid = new Grid<Float>(4, 6);
 for (int i = 0; i < 4; i = i + 1) {
     for (int j = 0; j < 6; j = j + 1) {
-        floatGrid.set(i, j, i * 2.5 + j * 0.5);
+        floatGrid.set(i, j, new Float(i * 2.5 + j * 0.5));
     }
 }
 
-print("Float Grid[2][4]: " + floatGrid.get(2, 4)); // Expected: 7.0
+print("Float Grid[2][4]: " + floatGrid.get(2, 4).toString()); // Expected: 7.0
 
 // Test 3.3: Generic Grid with string (2D StringPool optimization)
-Grid<string> stringGrid = new Grid<string>(5, 5);
+Grid<String> stringGrid = new Grid<String>(5, 5);
 for (int i = 0; i < 5; i = i + 1) {
     for (int j = 0; j < 5; j = j + 1) {
         if ((i + j) % 2 == 0) {
-            stringGrid.set(i, j, "Even");
+            stringGrid.set(i, j, new String("Even"));
         }
         if ((i + j) % 2 == 1) {
-            stringGrid.set(i, j, "Odd");
+            stringGrid.set(i, j, new String("Odd"));
         }
     }
 }
 
-print("String Grid[1][1]: " + stringGrid.get(1, 1)); // Expected: Even
+print("String Grid[1][1]: " + stringGrid.get(1, 1).toString()); // Expected: Even
 
 // Test 3.4: Generic Grid with DataPoint objects (2D SoA optimization)
 Grid<DataPoint> dataGrid = new Grid<DataPoint>(4, 5);
@@ -202,60 +205,60 @@ print("DataGrid[2][3] Label: " + dataGrid.get(2, 3).label); // Expected: Grid13
 // Generic Pair Arrays - Mixed Optimization
 // ============================================
 
-// Test 4.1: Array of Pair<int, string> - 20 elements (SoA for Pair objects)
-Pair<int, string>[] pairs = new Pair<int, string>[20];
+// Test 4.1: Array of Pair<Int, string> - 20 elements (SoA for Pair objects)
+Pair<Int, String>[] pairs = new Pair<Int, String>[20];
 for (int i = 0; i < 20; i = i + 1) {
-    pairs[i] = new Pair<int, string>(i, "Value" + i);
+    pairs[i] = new Pair<Int, String>(new Int(i), new String("Value" + i));
 }
 
-print("Pair[10] Key: " + pairs[10].key);     // Expected: 10
-print("Pair[10] Value: " + pairs[10].value); // Expected: Value10
+print("Pair[10] Key: " + pairs[10].key.toString());     // Expected: 10
+print("Pair[10] Value: " + pairs[10].value.toString()); // Expected: Value10
 
-// Test 4.2: Array of Pair<string, int> - 25 elements
-Pair<string, int>[] reversePairs = new Pair<string, int>[25];
+// Test 4.2: Array of Pair<string, Int> - 25 elements
+Pair<String, Int>[] reversePairs = new Pair<String, Int>[25];
 for (int i = 0; i < 25; i = i + 1) {
-    reversePairs[i] = new Pair<string, int>("Key" + i, i * 100);
+    reversePairs[i] = new Pair<String, Int>(new String("Key" + i), new Int(i * 100));
 }
 
-print("ReversePair[15] Key: " + reversePairs[15].key);     // Expected: Key15
-print("ReversePair[15] Value: " + reversePairs[15].value); // Expected: 1500
+print("ReversePair[15] Key: " + reversePairs[15].key.toString());     // Expected: Key15
+print("ReversePair[15] Value: " + reversePairs[15].value.toString()); // Expected: 1500
 
-// Test 4.3: Array of Pair<float, bool> - 30 elements
-Pair<float, bool>[] floatBoolPairs = new Pair<float, bool>[30];
+// Test 4.3: Array of Pair<Float, Bool> - 30 elements
+Pair<Float, Bool>[] floatBoolPairs = new Pair<Float, Bool>[30];
 for (int i = 0; i < 30; i = i + 1) {
-    floatBoolPairs[i] = new Pair<float, bool>(i * 1.5, (i % 2 == 0));
+    floatBoolPairs[i] = new Pair<Float, Bool>(new Float(i * 1.5), new Bool(i % 2 == 0));
 }
 
-print("FloatBoolPair[20] Key: " + floatBoolPairs[20].key);     // Expected: 30.0
-print("FloatBoolPair[20] Value: " + floatBoolPairs[20].value); // Expected: true
+print("FloatBoolPair[20] Key: " + floatBoolPairs[20].key.toString());     // Expected: 30.0
+print("FloatBoolPair[20] Value: " + floatBoolPairs[20].value.toString()); // Expected: true
 
 // ============================================
 // Nested Generic Arrays - Complex Optimization
 // ============================================
 
-// Test 5.1: Container of Container<int> (nested SIMD optimization)
-Container<Container<int>> nestedContainer = new Container<Container<int>>(5);
+// Test 5.1: Container of Container<Int> (nested SIMD optimization)
+Container<Container<Int>> nestedContainer = new Container<Container<Int>>(5);
 for (int i = 0; i < 5; i = i + 1) {
-    Container<int> inner = new Container<int>(20);
+    Container<Int> inner = new Container<Int>(20);
     for (int j = 0; j < 20; j = j + 1) {
-        inner.add(i * 100 + j);
+        inner.add(new Int(i * 100 + j));
     }
     nestedContainer.add(inner);
 }
 
-print("NestedContainer[2][10]: " + nestedContainer.get(2).get(10)); // Expected: 210
+print("NestedContainer[2][10]: " + nestedContainer.get(2).get(10).toString()); // Expected: 210
 
 // ============================================
 // Large Generic Arrays - Maximum Optimization Benefit
 // ============================================
 
-// Test 6.1: Large generic int array - 100 elements (SIMD)
-Container<int> largeIntContainer = new Container<int>(100);
+// Test 6.1: Large generic Int array - 100 elements (SIMD)
+Container<Int> largeIntContainer = new Container<Int>(100);
 for (int i = 0; i < 100; i = i + 1) {
-    largeIntContainer.add(i * i);
+    largeIntContainer.add(new Int(i * i));
 }
 
-print("Large Int Container[50]: " + largeIntContainer.get(50)); // Expected: 2500
+print("Large Int Container[50]: " + largeIntContainer.get(50).toString()); // Expected: 2500
 
 // Test 6.2: Large generic object array - 100 elements (SoA)
 Container<DataPoint> largeDataContainer = new Container<DataPoint>(100);

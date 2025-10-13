@@ -1,8 +1,8 @@
 Person[0] ID: 1000
 Person[0] Name: Person0
 Person[5] Age: 25
-Person[10] Salary: 60000.0
-Average Age: 29.5
+Person[10] Salary: 60000
+Average Age: 29
 Point[10] X: 100
 Point[10] Y: 200
 Small Person[5] ID: 5
@@ -11,7 +11,7 @@ PeopleGrid[2][3] Name: Grid13
 PeopleGrid[2][3] Age: 38
 PointsGrid[3][2] X: 320
 PointsGrid[3][2] Y: 640
-Total Salary (2D Grid): 1195000.0
+Total Salary (2D Grid): 1.195e+06
 PointsCube[1][2][1] X: 16
 PointsCube[1][2][1] Y: 160
 PeopleCube[1][1][2] ID: 3018
