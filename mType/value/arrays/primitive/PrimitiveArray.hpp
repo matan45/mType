@@ -35,30 +35,18 @@ namespace mType
 
                 // Construction
                 explicit PrimitiveArray(size_t initialSize = 0)
-                    : data_(initialSize), aligned_(false)
+                    : data_(initialSize)
                 {
-                    if (initialSize >= mType::value::simd::SIMDThreshold::MIN_ELEMENTS)
-                    {
-                        ensureAlignment();
-                    }
                 }
 
                 explicit PrimitiveArray(const std::vector<T>& data)
-                    : data_(data), aligned_(false)
+                    : data_(data)
                 {
-                    if (data_.size() >= mType::value::simd::SIMDThreshold::MIN_ELEMENTS)
-                    {
-                        ensureAlignment();
-                    }
                 }
 
                 explicit PrimitiveArray(std::vector<T>&& data)
-                    : data_(std::move(data)), aligned_(false)
+                    : data_(std::move(data))
                 {
-                    if (data_.size() >= mType::value::simd::SIMDThreshold::MIN_ELEMENTS)
-                    {
-                        ensureAlignment();
-                    }
                 }
 
                 // IArray implementation
@@ -111,25 +99,16 @@ namespace mType
                 void reserve(size_t newCapacity) override
                 {
                     data_.reserve(newCapacity);
-                    if (newCapacity >= mType::value::simd::SIMDThreshold::MIN_ELEMENTS)
-                    {
-                        ensureAlignment();
-                    }
                 }
 
                 void resize(size_t newSize) override
                 {
                     data_.resize(newSize);
-                    if (newSize >= mType::value::simd::SIMDThreshold::MIN_ELEMENTS)
-                    {
-                        ensureAlignment();
-                    }
                 }
 
                 void clear() override
                 {
                     data_.clear();
-                    aligned_ = false;
                 }
 
                 bool supportsSIMD() const override
@@ -216,37 +195,12 @@ namespace mType
                     data_[index] = std::get<T>(value);
                 }
 
-                // Aligned allocation for SIMD efficiency
-                bool isAligned() const { return aligned_; }
-
-                void ensureAlignment()
-                {
-                    // std::vector<bool> is a special case - it's bit-packed and doesn't provide .data()
-                    // For bool arrays, we can't check alignment, so just mark as not aligned
-                    if constexpr (std::is_same<T, bool>::value)
-                    {
-                        aligned_ = false;
-                    }
-                    else
-                    {
-                        // Check if data is already aligned
-                        uintptr_t addr = reinterpret_cast<uintptr_t>(data_.data());
-                        if (addr % mType::value::simd::SIMDAlignment::BYTES == 0)
-                        {
-                            aligned_ = true;
-                        }
-                        else
-                        {
-                            aligned_ = false;
-                            // Note: std::vector doesn't guarantee alignment beyond alignof(T)
-                            // For production use, would need custom allocator
-                        }
-                    }
-                }
-
             private:
                 std::vector<T> data_;
-                bool aligned_;
+
+                // Note: We use unaligned SIMD intrinsics (_mm_loadu_*, _mm_storeu_*)
+                // std::vector doesn't guarantee SIMD alignment (only alignof(T))
+                // For aligned intrinsics, would need custom allocator with std::aligned_alloc()
             };
 
             // Type aliases for clarity

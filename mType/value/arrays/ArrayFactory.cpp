@@ -254,8 +254,25 @@ namespace mType
                 {
                     return 0;
                 }
-                return std::accumulate(dimensions.begin(), dimensions.end(),
-                                       size_t(1), std::multiplies<size_t>());
+
+                size_t total = 1;
+                for (size_t dim : dimensions)
+                {
+                    // Check for overflow before multiplication
+                    if (dim == 0)
+                    {
+                        throw std::invalid_argument("Array dimension cannot be zero");
+                    }
+
+                    if (total > SIZE_MAX / dim)
+                    {
+                        throw std::overflow_error("Array dimensions too large - would exceed maximum size");
+                    }
+
+                    total *= dim;
+                }
+
+                return total;
             }
         } // namespace arrays
     } // namespace value

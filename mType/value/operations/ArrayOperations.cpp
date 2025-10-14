@@ -1,5 +1,6 @@
 #include "ArrayOperations.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../simd/SIMDOperations.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -61,21 +62,22 @@ namespace value::operations
         size_t size = array1->size();
         ValueType elemType = array1->getElementType();
 
-        // SIMD path: Use underlying SIMD arrays directly
+        // SIMD path: Use real SIMD intrinsics for performance
         if (elemType == ValueType::INT && array1->getSIMDIntData() && array2->getSIMDIntData()) {
             auto result = std::make_shared<NativeArray>(size, ValueType::INT);
             auto resultData = result->getSIMDIntData();
 
             if (resultData) {
-                // SIMD-accelerated addition
                 auto data1 = array1->getSIMDIntData();
                 auto data2 = array2->getSIMDIntData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    int val1 = std::get<int>(data1->get(i));
-                    int val2 = std::get<int>(data2->get(i));
-                    resultData->set(i, Value(val1 + val2));
-                }
+                // Use SIMD intrinsics (4-8× faster than scalar)
+                mType::value::simd::SIMDOperations::addInt(
+                    data1->data(),      // Direct pointer access
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -85,15 +87,16 @@ namespace value::operations
             auto resultData = result->getSIMDFloatData();
 
             if (resultData) {
-                // SIMD-accelerated addition
                 auto data1 = array1->getSIMDFloatData();
                 auto data2 = array2->getSIMDFloatData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    float val1 = std::get<float>(data1->get(i));
-                    float val2 = std::get<float>(data2->get(i));
-                    resultData->set(i, Value(val1 + val2));
-                }
+                // Use SIMD intrinsics (4-8× faster than scalar)
+                mType::value::simd::SIMDOperations::addFloat(
+                    data1->data(),
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -136,10 +139,12 @@ namespace value::operations
             auto sourceData = array->getSIMDIntData();
 
             if (resultData && sourceData) {
-                for (size_t i = 0; i < size; ++i) {
-                    int val = std::get<int>(sourceData->get(i));
-                    resultData->set(i, Value(val + scalarVal));
-                }
+                mType::value::simd::SIMDOperations::addScalarInt(
+                    sourceData->data(),
+                    scalarVal,
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -156,10 +161,12 @@ namespace value::operations
             auto sourceData = array->getSIMDFloatData();
 
             if (resultData && sourceData) {
-                for (size_t i = 0; i < size; ++i) {
-                    float val = std::get<float>(sourceData->get(i));
-                    resultData->set(i, Value(val + scalarVal));
-                }
+                mType::value::simd::SIMDOperations::addScalarFloat(
+                    sourceData->data(),
+                    scalarVal,
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -195,11 +202,12 @@ namespace value::operations
                 auto data1 = array1->getSIMDIntData();
                 auto data2 = array2->getSIMDIntData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    int val1 = std::get<int>(data1->get(i));
-                    int val2 = std::get<int>(data2->get(i));
-                    resultData->set(i, Value(val1 - val2));
-                }
+                mType::value::simd::SIMDOperations::subtractInt(
+                    data1->data(),
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -213,11 +221,12 @@ namespace value::operations
                 auto data1 = array1->getSIMDFloatData();
                 auto data2 = array2->getSIMDFloatData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    float val1 = std::get<float>(data1->get(i));
-                    float val2 = std::get<float>(data2->get(i));
-                    resultData->set(i, Value(val1 - val2));
-                }
+                mType::value::simd::SIMDOperations::subtractFloat(
+                    data1->data(),
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -257,11 +266,12 @@ namespace value::operations
                 auto data1 = array1->getSIMDIntData();
                 auto data2 = array2->getSIMDIntData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    int val1 = std::get<int>(data1->get(i));
-                    int val2 = std::get<int>(data2->get(i));
-                    resultData->set(i, Value(val1 * val2));
-                }
+                mType::value::simd::SIMDOperations::multiplyInt(
+                    data1->data(),
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -275,11 +285,12 @@ namespace value::operations
                 auto data1 = array1->getSIMDFloatData();
                 auto data2 = array2->getSIMDFloatData();
 
-                for (size_t i = 0; i < size; ++i) {
-                    float val1 = std::get<float>(data1->get(i));
-                    float val2 = std::get<float>(data2->get(i));
-                    resultData->set(i, Value(val1 * val2));
-                }
+                mType::value::simd::SIMDOperations::multiplyFloat(
+                    data1->data(),
+                    data2->data(),
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -322,10 +333,12 @@ namespace value::operations
             auto sourceData = array->getSIMDIntData();
 
             if (resultData && sourceData) {
-                for (size_t i = 0; i < size; ++i) {
-                    int val = std::get<int>(sourceData->get(i));
-                    resultData->set(i, Value(val * scalarVal));
-                }
+                mType::value::simd::SIMDOperations::multiplyScalarInt(
+                    sourceData->data(),
+                    scalarVal,
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -342,10 +355,12 @@ namespace value::operations
             auto sourceData = array->getSIMDFloatData();
 
             if (resultData && sourceData) {
-                for (size_t i = 0; i < size; ++i) {
-                    float val = std::get<float>(sourceData->get(i));
-                    resultData->set(i, Value(val * scalarVal));
-                }
+                mType::value::simd::SIMDOperations::multiplyScalarFloat(
+                    sourceData->data(),
+                    scalarVal,
+                    resultData->data(),
+                    size
+                );
             }
             return result;
         }
@@ -374,20 +389,20 @@ namespace value::operations
         // SIMD path for int arrays
         if (elemType == ValueType::INT && array->getSIMDIntData()) {
             auto data = array->getSIMDIntData();
-            int total = 0;
-            for (size_t i = 0; i < array->size(); ++i) {
-                total += std::get<int>(data->get(i));
-            }
+            int total = mType::value::simd::SIMDOperations::sumInt(
+                data->data(),
+                array->size()
+            );
             return Value(total);
         }
 
         // SIMD path for float arrays
         if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
             auto data = array->getSIMDFloatData();
-            float total = 0.0f;
-            for (size_t i = 0; i < array->size(); ++i) {
-                total += std::get<float>(data->get(i));
-            }
+            float total = mType::value::simd::SIMDOperations::sumFloat(
+                data->data(),
+                array->size()
+            );
             return Value(total);
         }
 
@@ -420,22 +435,20 @@ namespace value::operations
         // SIMD path for int arrays
         if (elemType == ValueType::INT && array->getSIMDIntData()) {
             auto data = array->getSIMDIntData();
-            int minVal = std::get<int>(data->get(0));
-            for (size_t i = 1; i < array->size(); ++i) {
-                int val = std::get<int>(data->get(i));
-                if (val < minVal) minVal = val;
-            }
+            int minVal = mType::value::simd::SIMDOperations::minInt(
+                data->data(),
+                array->size()
+            );
             return Value(minVal);
         }
 
         // SIMD path for float arrays
         if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
             auto data = array->getSIMDFloatData();
-            float minVal = std::get<float>(data->get(0));
-            for (size_t i = 1; i < array->size(); ++i) {
-                float val = std::get<float>(data->get(i));
-                if (val < minVal) minVal = val;
-            }
+            float minVal = mType::value::simd::SIMDOperations::minFloat(
+                data->data(),
+                array->size()
+            );
             return Value(minVal);
         }
 
@@ -463,22 +476,20 @@ namespace value::operations
         // SIMD path for int arrays
         if (elemType == ValueType::INT && array->getSIMDIntData()) {
             auto data = array->getSIMDIntData();
-            int maxVal = std::get<int>(data->get(0));
-            for (size_t i = 1; i < array->size(); ++i) {
-                int val = std::get<int>(data->get(i));
-                if (val > maxVal) maxVal = val;
-            }
+            int maxVal = mType::value::simd::SIMDOperations::maxInt(
+                data->data(),
+                array->size()
+            );
             return Value(maxVal);
         }
 
         // SIMD path for float arrays
         if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
             auto data = array->getSIMDFloatData();
-            float maxVal = std::get<float>(data->get(0));
-            for (size_t i = 1; i < array->size(); ++i) {
-                float val = std::get<float>(data->get(i));
-                if (val > maxVal) maxVal = val;
-            }
+            float maxVal = mType::value::simd::SIMDOperations::maxFloat(
+                data->data(),
+                array->size()
+            );
             return Value(maxVal);
         }
 

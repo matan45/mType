@@ -1065,6 +1065,9 @@
     <ClInclude Include="value\simd\SIMDConfig.hpp">
       <Filter>value\simd</Filter>
     </ClInclude>
+    <ClInclude Include="value\simd\SIMDOperations.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
     <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
       <Filter>value\simd\detection</Filter>
     </ClInclude>
@@ -1732,6 +1735,9 @@
     </ClCompile>
     <ClCompile Include="value\operations\ArrayOperations.cpp">
       <Filter>value\operations</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\SIMDOperations.cpp">
+      <Filter>value\simd</Filter>
     </ClCompile>
     <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
       <Filter>value\simd\detection</Filter>
