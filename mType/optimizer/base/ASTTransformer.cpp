@@ -12,7 +12,9 @@
 #include "../../ast/nodes/statements/CaseNode.hpp"
 #include "../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
+#include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
+#include "../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
@@ -66,6 +68,8 @@ namespace optimizer::base {
 			result = visitAssignmentNode(node);
 		} else if (auto* node = dynamic_cast<ast::TryNode*>(child)) {
 			result = visitTryNode(node);
+		} else if (auto* node = dynamic_cast<ast::CatchNode*>(child)) {
+			result = visitCatchNode(node);
 		} else if (auto* node = dynamic_cast<ast::ThrowNode*>(child)) {
 			result = visitThrowNode(node);
 		} else if (auto* node = dynamic_cast<ast::FunctionNode*>(child)) {
@@ -74,6 +78,8 @@ namespace optimizer::base {
 			result = visitClassNode(node);
 		} else if (auto* node = dynamic_cast<ast::MethodNode*>(child)) {
 			result = visitMethodNode(node);
+		} else if (auto* node = dynamic_cast<ast::LambdaNode*>(child)) {
+			result = visitLambdaNode(node);
 		}
 
 		// If visit method returned nullptr (no transformation), use clone() as fallback

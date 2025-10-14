@@ -34,10 +34,12 @@
 #include "../../ast/nodes/statements/TryNode.hpp"
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/BreakNode.hpp"
+#include "../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
+#include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
@@ -134,6 +136,12 @@ namespace optimizer::passes {
 			if (tryNode->hasFinallyBlock()) {
 				count += countNodes(tryNode->getFinallyBlock());
 			}
+		}
+		else if (auto* catchNode = dynamic_cast<const CatchNode*>(node)) {
+			count += countNodes(catchNode->getBody());
+		}
+		else if (auto* lambdaNode = dynamic_cast<const ast::nodes::expressions::LambdaNode*>(node)) {
+			count += countNodes(lambdaNode->getBody());
 		}
 
 		return count;
@@ -661,6 +669,181 @@ namespace optimizer::passes {
 		}
 
 		return nullptr; // Use clone()
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitCatchNode(CatchNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitCatchNode: Processing catch block for exception type '" << node->getExceptionType() << "'\n";
+		}
+
+		// Transform the catch body (which should be a BlockNode)
+		auto body = node->getBody();
+		if (!body) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitCatchNode: No body, using clone()\n";
+			}
+			return nullptr; // Use clone() for catch blocks without body
+		}
+
+		// Transform the body through the visitor - this will trigger visitBlockNode
+		auto transformedBody = transformChild(body);
+
+		// If transformation occurred, create new CatchNode with transformed body
+		if (transformedBody) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitCatchNode: Body was transformed, creating new CatchNode\n";
+			}
+
+			// Create new CatchNode with transformed body
+			auto newCatch = std::make_unique<CatchNode>(
+				node->getExceptionType(),
+				node->getVariableName(),
+				std::move(transformedBody),
+				node->getLocation()
+			);
+
+			return newCatch;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitCatchNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitLambdaNode(ast::nodes::expressions::LambdaNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitLambdaNode: Processing lambda with " << node->getParameters().size() << " parameters\n";
+		}
+
+		// Only transform block lambdas, not expression lambdas
+		if (!node->isBlockLambda()) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitLambdaNode: Expression lambda, no dead code elimination needed\n";
+			}
+			return nullptr; // Expression lambdas don't have dead code
+		}
+
+		// Transform the lambda body (which should be a BlockNode for block lambdas)
+		auto body = node->getBody();
+		if (!body) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitLambdaNode: No body, using clone()\n";
+			}
+			return nullptr; // Use clone() for lambdas without body
+		}
+
+		// Transform the body through the visitor - this will trigger visitBlockNode
+		auto transformedBody = transformChild(body);
+
+		// If transformation occurred, create new LambdaNode with transformed body
+		if (transformedBody) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitLambdaNode: Body was transformed, creating new LambdaNode\n";
+			}
+
+			// Create new LambdaNode with transformed body
+			auto newLambda = std::make_unique<ast::nodes::expressions::LambdaNode>(
+				node->getParameters(),
+				std::move(transformedBody),
+				node->getLocation(),
+				node->getBodyType(),
+				node->getIsAsync()
+			);
+
+			return newLambda;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitLambdaNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitClassNode(ast::nodes::classes::ClassNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitClassNode: Processing class '" << node->getClassName() << "'\n";
+		}
+
+		// Transform constructors
+		bool anyConstructorTransformed = false;
+		std::vector<std::unique_ptr<ast::ASTNode>> transformedConstructors;
+		transformedConstructors.reserve(node->getConstructors().size());
+
+		for (const auto& constructor : node->getConstructors()) {
+			auto transformed = transformChild(constructor.get());
+			if (transformed) {
+				anyConstructorTransformed = true;
+				transformedConstructors.push_back(std::move(transformed));
+			} else {
+				transformedConstructors.push_back(constructor->clone());
+			}
+		}
+
+		// Transform methods
+		bool anyMethodTransformed = false;
+		std::vector<std::unique_ptr<ast::ASTNode>> transformedMethods;
+		transformedMethods.reserve(node->getMethods().size());
+
+		for (const auto& method : node->getMethods()) {
+			auto transformed = transformChild(method.get());
+			if (transformed) {
+				anyMethodTransformed = true;
+				transformedMethods.push_back(std::move(transformed));
+			} else {
+				transformedMethods.push_back(method->clone());
+			}
+		}
+
+		// If any constructor or method was transformed, create new ClassNode
+		if (anyConstructorTransformed || anyMethodTransformed) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitClassNode: Creating new ClassNode with transformed methods/constructors\n";
+			}
+
+			// Create new ClassNode with inheritance constructor to preserve extends/implements
+			auto newClass = std::make_unique<ast::nodes::classes::ClassNode>(
+				node->getClassName(),
+				node->getGenericParameters(),
+				node->getParentClassName(),
+				node->getImplementedInterfaces(),
+				node->getLocation()
+			);
+
+			// Clone fields (fields don't have dead code to eliminate)
+			for (const auto& field : node->getFields()) {
+				if (field) {
+					newClass->addField(field->clone());
+				}
+			}
+
+			// Add transformed constructors
+			for (auto& constructor : transformedConstructors) {
+				newClass->addConstructor(std::move(constructor));
+			}
+
+			// Add transformed methods
+			for (auto& method : transformedMethods) {
+				newClass->addMethod(std::move(method));
+			}
+
+			// Preserve other attributes
+			newClass->setFinal(node->isFinal());
+			newClass->setVisibility(node->getVisibility());
+
+			return newClass;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitClassNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
 	}
 
 	// ================= DeadCodeEliminationPass Implementation =================
