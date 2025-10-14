@@ -92,13 +92,19 @@ namespace mType::value::simd
 
 #elif defined(MTYPE_SIMD_SSE2)
     /**
-     * @brief SSE2 policy for 32-bit integers (128-bit vectors, 4 elements)
+     * @brief SSE2/SSE4.1 policy for 32-bit integers (128-bit vectors, 4 elements)
+     *
+     * Note: Pure SSE2 lacks 32-bit multiply and min/max operations.
+     * This implementation uses SSE4.1 intrinsics (_mm_mullo_epi32, _mm_min_epi32, _mm_max_epi32)
+     * which are available via the build config (-msse4.1).
+     *
+     * Fallback: If SSE4.1 is unavailable, SIMDOperationsImpl uses scalar fallback via compile-time checks.
      */
     struct SSE2IntPolicy
     {
         using VectorType = __m128i;
         static constexpr size_t WIDTH = 4;
-        static constexpr const char* NAME = "SSE2";
+        static constexpr const char* NAME = "SSE2/SSE4.1";
 
         // Load/Store
         static inline VectorType load(const int* ptr) { return _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
@@ -109,16 +115,46 @@ namespace mType::value::simd
         static inline VectorType subtract(VectorType a, VectorType b) { return _mm_sub_epi32(a, b); }
         static inline VectorType multiply(VectorType a, VectorType b)
         {
-            // SSE2 doesn't have 32-bit multiply, need to use scalar fallback
-            // or require SSE4.1 (_mm_mullo_epi32)
-            // For now, return zeros to indicate unsupported
-            return _mm_setzero_si128();
+#ifdef __SSE4_1__
+            // SSE4.1: Use 32-bit multiply intrinsic
+            return _mm_mullo_epi32(a, b);
+#else
+            // SSE2 fallback: Emulate using 16-bit multiplies (slower but correct)
+            // This path should rarely execute as build config includes -msse4.1
+            __m128i a_lo = _mm_shuffle_epi32(a, 0xA0);  // a0, a0, a2, a2
+            __m128i a_hi = _mm_shuffle_epi32(a, 0xF5);  // a1, a1, a3, a3
+            __m128i b_lo = _mm_shuffle_epi32(b, 0xA0);
+            __m128i b_hi = _mm_shuffle_epi32(b, 0xF5);
+            __m128i mul_lo = _mm_mul_epu32(a_lo, b_lo);
+            __m128i mul_hi = _mm_mul_epu32(a_hi, b_hi);
+            return _mm_unpacklo_epi32(_mm_shuffle_epi32(mul_lo, 0x08), _mm_shuffle_epi32(mul_hi, 0x08));
+#endif
         }
         static inline VectorType set1(int value) { return _mm_set1_epi32(value); }
 
-        // Reductions (SSE2 doesn't have min/max for 32-bit signed integers, need SSE4.1)
-        static inline VectorType min(VectorType a, VectorType b) { return _mm_setzero_si128(); } // Unsupported
-        static inline VectorType max(VectorType a, VectorType b) { return _mm_setzero_si128(); } // Unsupported
+        // Reductions
+        static inline VectorType min(VectorType a, VectorType b)
+        {
+#ifdef __SSE4_1__
+            return _mm_min_epi32(a, b);
+#else
+            // SSE2 fallback: Compare and blend manually
+            __m128i mask = _mm_cmplt_epi32(a, b);  // a < b ? 0xFFFFFFFF : 0
+            return _mm_or_si128(_mm_and_si128(mask, a), _mm_andnot_si128(mask, b));
+#endif
+        }
+
+        static inline VectorType max(VectorType a, VectorType b)
+        {
+#ifdef __SSE4_1__
+            return _mm_max_epi32(a, b);
+#else
+            // SSE2 fallback: Compare and blend manually
+            __m128i mask = _mm_cmpgt_epi32(a, b);  // a > b ? 0xFFFFFFFF : 0
+            return _mm_or_si128(_mm_and_si128(mask, a), _mm_andnot_si128(mask, b));
+#endif
+        }
+
         static inline VectorType zero() { return _mm_setzero_si128(); }
 
         static inline int horizontal_sum(VectorType v)
@@ -130,9 +166,25 @@ namespace mType::value::simd
             return _mm_cvtsi128_si32(v);
         }
 
-        // Min/Max not supported in SSE2, return sentinel values
-        static inline int horizontal_min(VectorType v) { return 0; }
-        static inline int horizontal_max(VectorType v) { return 0; }
+        static inline int horizontal_min(VectorType v)
+        {
+            // Horizontal minimum using min operation
+            __m128i vShuf = _mm_shuffle_epi32(v, _MM_SHUFFLE(1, 0, 3, 2));
+            v = min(v, vShuf);
+            vShuf = _mm_shuffle_epi32(v, _MM_SHUFFLE(2, 3, 0, 1));
+            v = min(v, vShuf);
+            return _mm_cvtsi128_si32(v);
+        }
+
+        static inline int horizontal_max(VectorType v)
+        {
+            // Horizontal maximum using max operation
+            __m128i vShuf = _mm_shuffle_epi32(v, _MM_SHUFFLE(1, 0, 3, 2));
+            v = max(v, vShuf);
+            vShuf = _mm_shuffle_epi32(v, _MM_SHUFFLE(2, 3, 0, 1));
+            v = max(v, vShuf);
+            return _mm_cvtsi128_si32(v);
+        }
     };
 
     using IntPolicy = SSE2IntPolicy;

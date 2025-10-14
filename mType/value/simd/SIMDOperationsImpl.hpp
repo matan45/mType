@@ -6,10 +6,6 @@
 
 namespace mType::value::simd
 {
-    // Forward declarations for compile-time checks
-    struct SSE2IntPolicy;
-    struct SSE2FloatPolicy;
-
     /**
      * @brief Template-based SIMD operations using policy-based design
      *
@@ -210,29 +206,17 @@ namespace mType::value::simd
         constexpr size_t WIDTH = Policy::WIDTH;
         const size_t simdSize = (size / WIDTH) * WIDTH;
 
-        // Check if multiply is supported (SSE2 doesn't support 32-bit int multiply)
-        if constexpr (WIDTH == 1 || std::is_same_v<Policy, SSE2IntPolicy>)
+        for (size_t i = 0; i < simdSize; i += WIDTH)
         {
-            // Scalar fallback for unsupported operations
-            for (size_t i = 0; i < size; ++i)
-            {
-                result[i] = a[i] * b[i];
-            }
+            auto va = Policy::load(&a[i]);
+            auto vb = Policy::load(&b[i]);
+            auto vr = Policy::multiply(va, vb);
+            Policy::store(&result[i], vr);
         }
-        else
-        {
-            for (size_t i = 0; i < simdSize; i += WIDTH)
-            {
-                auto va = Policy::load(&a[i]);
-                auto vb = Policy::load(&b[i]);
-                auto vr = Policy::multiply(va, vb);
-                Policy::store(&result[i], vr);
-            }
 
-            for (size_t i = simdSize; i < size; ++i)
-            {
-                result[i] = a[i] * b[i];
-            }
+        for (size_t i = simdSize; i < size; ++i)
+        {
+            result[i] = a[i] * b[i];
         }
     }
 
@@ -245,30 +229,18 @@ namespace mType::value::simd
         constexpr size_t WIDTH = Policy::WIDTH;
         const size_t simdSize = (size / WIDTH) * WIDTH;
 
-        // Check if multiply is supported (SSE2 doesn't support 32-bit int multiply)
-        if constexpr (WIDTH == 1 || std::is_same_v<Policy, SSE2IntPolicy>)
+        auto vScalar = Policy::set1(scalar);
+
+        for (size_t i = 0; i < simdSize; i += WIDTH)
         {
-            // Scalar fallback for unsupported operations
-            for (size_t i = 0; i < size; ++i)
-            {
-                result[i] = a[i] * scalar;
-            }
+            auto va = Policy::load(&a[i]);
+            auto vr = Policy::multiply(va, vScalar);
+            Policy::store(&result[i], vr);
         }
-        else
+
+        for (size_t i = simdSize; i < size; ++i)
         {
-            auto vScalar = Policy::set1(scalar);
-
-            for (size_t i = 0; i < simdSize; i += WIDTH)
-            {
-                auto va = Policy::load(&a[i]);
-                auto vr = Policy::multiply(va, vScalar);
-                Policy::store(&result[i], vr);
-            }
-
-            for (size_t i = simdSize; i < size; ++i)
-            {
-                result[i] = a[i] * scalar;
-            }
+            result[i] = a[i] * scalar;
         }
     }
 
@@ -313,32 +285,19 @@ namespace mType::value::simd
         const size_t simdSize = (size / WIDTH) * WIDTH;
 
         T minVal = data[0];
+        auto vMin = Policy::set1(minVal);
 
-        // Check if min is supported (SSE2 doesn't support 32-bit signed int min/max)
-        if constexpr (WIDTH == 1 || std::is_same_v<Policy, SSE2IntPolicy>)
+        for (size_t i = 0; i < simdSize; i += WIDTH)
         {
-            // Scalar fallback
-            for (size_t i = 1; i < size; ++i)
-            {
-                minVal = std::min(minVal, data[i]);
-            }
+            auto v = Policy::load(&data[i]);
+            vMin = Policy::min(vMin, v);
         }
-        else
+
+        minVal = Policy::horizontal_min(vMin);
+
+        for (size_t i = simdSize; i < size; ++i)
         {
-            auto vMin = Policy::set1(minVal);
-
-            for (size_t i = 0; i < simdSize; i += WIDTH)
-            {
-                auto v = Policy::load(&data[i]);
-                vMin = Policy::min(vMin, v);
-            }
-
-            minVal = Policy::horizontal_min(vMin);
-
-            for (size_t i = simdSize; i < size; ++i)
-            {
-                minVal = std::min(minVal, data[i]);
-            }
+            minVal = std::min(minVal, data[i]);
         }
 
         return minVal;
@@ -356,32 +315,19 @@ namespace mType::value::simd
         const size_t simdSize = (size / WIDTH) * WIDTH;
 
         T maxVal = data[0];
+        auto vMax = Policy::set1(maxVal);
 
-        // Check if max is supported (SSE2 doesn't support 32-bit signed int min/max)
-        if constexpr (WIDTH == 1 || std::is_same_v<Policy, SSE2IntPolicy>)
+        for (size_t i = 0; i < simdSize; i += WIDTH)
         {
-            // Scalar fallback
-            for (size_t i = 1; i < size; ++i)
-            {
-                maxVal = std::max(maxVal, data[i]);
-            }
+            auto v = Policy::load(&data[i]);
+            vMax = Policy::max(vMax, v);
         }
-        else
+
+        maxVal = Policy::horizontal_max(vMax);
+
+        for (size_t i = simdSize; i < size; ++i)
         {
-            auto vMax = Policy::set1(maxVal);
-
-            for (size_t i = 0; i < simdSize; i += WIDTH)
-            {
-                auto v = Policy::load(&data[i]);
-                vMax = Policy::max(vMax, v);
-            }
-
-            maxVal = Policy::horizontal_max(vMax);
-
-            for (size_t i = simdSize; i < size; ++i)
-            {
-                maxVal = std::max(maxVal, data[i]);
-            }
+            maxVal = std::max(maxVal, data[i]);
         }
 
         return maxVal;
