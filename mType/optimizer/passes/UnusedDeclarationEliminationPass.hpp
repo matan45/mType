@@ -86,6 +86,9 @@ namespace optimizer::passes {
 		// Analyze the entire AST to collect declarations and usages
 		void analyzeAST(ast::ASTNode* node, UsageAnalyzer& analyzer);
 
+		// Recursively analyze bodies of used functions and classes to find transitive dependencies
+		void analyzeUsedDeclarations(ast::ASTNode* node, UsageAnalyzer& analyzer);
+
 		// Phase 2: Remove unused declarations
 		std::unique_ptr<ast::ASTNode> removeUnusedDeclarations(
 			std::unique_ptr<ast::ASTNode> node,
