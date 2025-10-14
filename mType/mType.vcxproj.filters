@@ -822,6 +822,9 @@
     <ClInclude Include="optimizer\passes\DeadCodeEliminationPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\UnusedDeclarationEliminationPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ClassParser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -1575,6 +1578,9 @@
       <Filter>optimizer\base</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\UnusedDeclarationEliminationPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="parser\ClassParser.cpp">

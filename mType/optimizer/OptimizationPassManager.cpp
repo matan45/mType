@@ -1,5 +1,6 @@
 #include "OptimizationPassManager.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
+#include "passes/UnusedDeclarationEliminationPass.hpp"
 #include <stdexcept>
 
 namespace optimizer
@@ -28,9 +29,16 @@ namespace optimizer
     void OptimizationPassManager::registerDefaultPasses()
     {
         // Register passes based on optimization level
+        // Order matters! Dead code elimination should run first, then unused declaration elimination
+
         if (config.isDeadCodeEliminationEnabled())
         {
             registerPass(std::make_unique<passes::DeadCodeEliminationPass>());
+        }
+
+        if (config.isUnusedDeclarationEliminationEnabled())
+        {
+            registerPass(std::make_unique<passes::UnusedDeclarationEliminationPass>());
         }
 
         // Future passes can be registered here:

@@ -15,7 +15,8 @@ namespace optimizer {
 	class OptimizationConfig {
 	private:
 		OptimizationLevel level;
-		bool enableDeadCodeElimination;
+		bool enableDeadCodeElimination;  // O1: Unreachable code after return/break/continue/throw
+		bool enableUnusedDeclarationElimination;  // O2: Remove unused functions/classes/variables
 		bool enableConstantFolding;
 		bool enableUnreachableCodeRemoval;
 
@@ -38,11 +39,13 @@ namespace optimizer {
 		// Configuration accessors
 		OptimizationLevel getLevel() const { return level; }
 		bool isDeadCodeEliminationEnabled() const { return enableDeadCodeElimination; }
+		bool isUnusedDeclarationEliminationEnabled() const { return enableUnusedDeclarationElimination; }
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }
 		bool isUnreachableCodeRemovalEnabled() const { return enableUnreachableCodeRemoval; }
 
 		// Pass-specific configuration
 		OptimizationConfig& setDeadCodeElimination(bool enable);
+		OptimizationConfig& setUnusedDeclarationElimination(bool enable);
 		OptimizationConfig& setConstantFolding(bool enable);
 		OptimizationConfig& setUnreachableCodeRemoval(bool enable);
 

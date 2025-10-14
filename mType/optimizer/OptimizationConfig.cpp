@@ -14,20 +14,23 @@ namespace optimizer {
 		case OptimizationLevel::O0:
 			// No optimization
 			enableDeadCodeElimination = false;
+			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
 			break;
 
 		case OptimizationLevel::O1:
-			// Basic optimization
+			// Basic optimization - only unreachable code elimination
 			enableDeadCodeElimination = true;
+			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
 			break;
 
 		case OptimizationLevel::O2:
-			// Aggressive optimization
+			// Aggressive optimization - includes unused declaration removal
 			enableDeadCodeElimination = true;
+			enableUnusedDeclarationElimination = true;
 			enableConstantFolding = true;
 			enableUnreachableCodeRemoval = true;
 			break;
@@ -35,6 +38,7 @@ namespace optimizer {
 		default:
 			// Default to O1
 			enableDeadCodeElimination = true;
+			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
 			break;
@@ -55,6 +59,11 @@ namespace optimizer {
 
 	OptimizationConfig& OptimizationConfig::setDeadCodeElimination(bool enable) {
 		enableDeadCodeElimination = enable;
+		return *this;
+	}
+
+	OptimizationConfig& OptimizationConfig::setUnusedDeclarationElimination(bool enable) {
+		enableUnusedDeclarationElimination = enable;
 		return *this;
 	}
 
