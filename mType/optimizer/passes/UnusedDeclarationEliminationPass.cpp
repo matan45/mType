@@ -25,9 +25,13 @@
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
+#include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../ast/nodes/functions/ReturnNode.hpp"
+#include "../../ast/nodes/statements/SwitchNode.hpp"
+#include "../../ast/nodes/statements/CaseNode.hpp"
 #include <chrono>
 #include <iostream>
 
@@ -325,7 +329,50 @@ namespace optimizer::passes
             return;
         }
 
-        // TODO: Add more node types as needed (MethodCallNode, etc.)
+        if (auto* switchNode = dynamic_cast<SwitchNode*>(node))
+        {
+            analyzeAST(switchNode->getExpression(), analyzer);
+            for (const auto& caseNode : switchNode->getCases())
+            {
+                analyzeAST(caseNode.get(), analyzer);
+            }
+            return;
+        }
+
+        if (auto* caseNode = dynamic_cast<CaseNode*>(node))
+        {
+            analyzeAST(caseNode->getValue(), analyzer);
+            for (const auto& stmt : caseNode->getStatements())
+            {
+                analyzeAST(stmt.get(), analyzer);
+            }
+            return;
+        }
+
+        if (auto* methodCallNode = dynamic_cast<MethodCallNode*>(node))
+        {
+            // Analyze the object being called on
+            analyzeAST(methodCallNode->getObject(), analyzer);
+
+            // Analyze all arguments
+            for (const auto& arg : methodCallNode->getArguments())
+            {
+                analyzeAST(arg.get(), analyzer);
+            }
+            return;
+        }
+
+        if (auto* returnNode = dynamic_cast<ReturnNode*>(node))
+        {
+            if (returnNode->hasReturnValue())
+            {
+                analyzeAST(returnNode->getReturnValue(), analyzer);
+            }
+            return;
+        }
+
+        // For any other node types, we don't need to analyze them for this pass
+        // (literals, operators, etc. don't declare or use functions/classes)
     }
 
     void UnusedDeclarationEliminationPass::analyzeUsedDeclarations(
