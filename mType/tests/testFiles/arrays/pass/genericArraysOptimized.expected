@@ -1,0 +1,25 @@
+Int Container[5]: 25
+Int Container Size: 20
+Float Container[10]: 25.0
+True Bool Count in Container: 30
+String Container[4]: Red
+DataPoint Container[10] ID: 110
+DataPoint Container[10] Label: Data10
+DataPoint Container[10] Value: 105
+Average DataPoint Value: 126
+Int Grid[3][2]: 17
+Float Grid[2][4]: 7.0
+String Grid[1][1]: Even
+DataGrid[2][3] ID: 213
+DataGrid[2][3] Label: Grid13
+Pair[10] Key: 10
+Pair[10] Value: Value10
+ReversePair[15] Key: Key15
+ReversePair[15] Value: 1500
+FloatBoolPair[20] Key: 30.0
+FloatBoolPair[20] Value: true
+NestedContainer[2][10]: 210
+Large Int Container[50]: 2500
+Large Data Container[75] ID: 575
+Total IDs in Large Container: 54950
+Generic Arrays Optimization Test Completed!

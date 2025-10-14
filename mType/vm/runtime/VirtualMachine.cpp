@@ -458,6 +458,12 @@ namespace vm::runtime
         case OpCode::ARRAY_LENGTH: arrayExecutor->handleArrayLength();
             break;
 
+        // SoA Field Access Optimization
+        case OpCode::ARRAY_GET_FIELD: arrayExecutor->handleArrayGetField(instr);
+            break;
+        case OpCode::ARRAY_SET_FIELD: arrayExecutor->handleArraySetField(instr);
+            break;
+
         // Type operations - delegated to TypeExecutor
         case OpCode::INSTANCEOF: typeExecutor->handleInstanceof(instr);
             break;
@@ -495,6 +501,12 @@ namespace vm::runtime
 
         case OpCode::NOP:
             // Do nothing
+            break;
+
+        // Loop optimization markers (no-op at runtime, used by optimizer)
+        case OpCode::LOOP_START:
+        case OpCode::LOOP_END:
+            // No-op: these are markers for the loop optimizer
             break;
 
         // Async/Await Operations

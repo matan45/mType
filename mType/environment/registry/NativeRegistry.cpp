@@ -4,6 +4,7 @@
 #include <functional>
 #include <thread>
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../../errors/ArgumentException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/StringPool.hpp"

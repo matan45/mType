@@ -4,6 +4,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../runtime/utils/TypeConverter.hpp"
 #include <unordered_set>
 
@@ -21,12 +22,39 @@ namespace vm::compiler::visitors
         const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
         const ast::SourceLocation& location)
     {
+        // Try to find method metadata - first try with full qualified name
         const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
 
-        // Skip validation if method not found or is native
-        if (!methodMetadata || methodMetadata->isNative)
+        // If not found and qualified name contains generics, try stripping them
+        // For example: "Container<Bool>::add" -> "Container::add"
+        if (!methodMetadata && qualifiedName.find('<') != std::string::npos)
         {
+            // Extract base class name without generic parameters
+            size_t genericStart = qualifiedName.find('<');
+            size_t methodSeparator = qualifiedName.find("::");
+
+            if (genericStart < methodSeparator)
+            {
+                // Strip generics: "Container<Bool>::add" -> "Container::add"
+                std::string baseClassName = qualifiedName.substr(0, genericStart);
+                std::string methodPart = qualifiedName.substr(methodSeparator);
+                std::string baseQualifiedName = baseClassName + methodPart;
+
+                methodMetadata = ctx.program.getFunction(baseQualifiedName);
+            }
+        }
+
+        // Skip validation only for native methods
+        if (!methodMetadata)
+        {
+            // Method not found - could be a native method or external library
+            // For now, skip validation but this could be made stricter
             return;
+        }
+
+        if (methodMetadata->isNative)
+        {
+            return; // Skip validation for native methods
         }
 
         // For instance methods, parameterCount includes 'this', so subtract 1
@@ -76,8 +104,21 @@ namespace vm::compiler::visitors
                 continue; // Skip validation for generic type parameters
             }
 
+            // Infer argument type early for validation checks
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
             std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+
+            // Skip validation for generic array types (like T[], E[], Array<T>, etc.)
+            // These appear as "Array" or "Array<T>" when the generic parameter couldn't be resolved
+            if (expectedType == "Array" || expectedType.find("Array<") == 0)
+            {
+                // Check if argument is any array type (Int[], String[], etc.)
+                std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
+                if (argType == value::ValueType::OBJECT && argClassName.find("[]") != std::string::npos)
+                {
+                    continue; // Any array type is acceptable for generic array parameter
+                }
+            }
 
             // Check if expected type is a primitive
             bool isPrimitive = (expectedType == "int" || expectedType == "float" ||
@@ -882,18 +923,38 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Instance field access: object.fieldName
-            // First, compile the object expression
-            node->getObject()->accept(ctx.visitor); // Will need delegation
-
-            // Check if this is array.length access
+            // Special case: .length is ALWAYS handled with ARRAY_LENGTH opcode
+            // This must be checked BEFORE the SoA optimization because:
+            // 1. array[index].length should work for nested arrays
+            // 2. .length is not a field in SoA structure
             if (memberName == "length")
             {
-                // Special case: array.length should use ARRAY_LENGTH opcode
+                // Compile the object/array expression (could be array[index] or just array)
+                node->getObject()->accept(ctx.visitor);
+                // Emit ARRAY_LENGTH opcode
                 ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+            }
+            // Check if this is array[index].field pattern (SoA optimization opportunity)
+            else if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(node->getObject()))
+            {
+                // This is array[index].field - use ARRAY_GET_FIELD for SoA optimization!
+                // Compile the array expression
+                indexAccessNode->getCollection()->accept(ctx.visitor);
+
+                // Compile the index expression
+                indexAccessNode->getIndex()->accept(ctx.visitor);
+
+                // Emit optimized ARRAY_GET_FIELD opcode
+                // This will use fast path for SoA arrays (direct field access)
+                size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
             }
             else
             {
+                // Regular instance field access: object.fieldName
+                // First, compile the object expression
+                node->getObject()->accept(ctx.visitor); // Will need delegation
+
                 // Regular field access - emit GET_FIELD instruction
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
@@ -907,15 +968,38 @@ namespace vm::compiler::visitors
     {
         std::string memberName = node->getMemberName();
 
-        // Compile the object expression
-        node->getObject()->accept(ctx.visitor); // Will need delegation
+        // Check if this is array[index].field = value pattern (SoA optimization opportunity)
+        auto* objectNode = node->getObject();
+        if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(objectNode))
+        {
+            // This is array[index].field = value - use ARRAY_SET_FIELD for SoA optimization!
+            // Compile the array expression
+            indexAccessNode->getCollection()->accept(ctx.visitor);
 
-        // Compile the value to assign
-        node->getValue()->accept(ctx.visitor); // Will need delegation
+            // Compile the index expression
+            indexAccessNode->getIndex()->accept(ctx.visitor);
 
-        // Emit SET_FIELD instruction (object and value are on stack)
-        size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+            // Compile the value to assign
+            node->getValue()->accept(ctx.visitor);
+
+            // Emit optimized ARRAY_SET_FIELD opcode
+            // This will use fast path for SoA arrays (direct field write)
+            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+        }
+        else
+        {
+            // Regular member assignment: object.field = value
+            // Compile the object expression
+            node->getObject()->accept(ctx.visitor); // Will need delegation
+
+            // Compile the value to assign
+            node->getValue()->accept(ctx.visitor); // Will need delegation
+
+            // Emit SET_FIELD instruction (object and value are on stack)
+            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+        }
 
         return std::monostate{};
     }

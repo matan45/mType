@@ -234,9 +234,10 @@ namespace evaluator
                 {
                     auto array = std::get<std::shared_ptr<value::NativeArray>>(collectionValue);
 
+                    // OPTIMIZATION: Use unchecked access since loop bounds are verified by i < array->size()
                     for (size_t i = 0; i < array->size(); ++i)
                     {
-                        Value element = array->get(i);
+                        Value element = array->getUnchecked(i);  // Faster than array->get(i)
 
                         // Define the loop variable in this scope
                         auto varType = node->getVariableType();
@@ -355,9 +356,10 @@ namespace evaluator
                     }
 
                     // Iterate through the array
+                    // OPTIMIZATION: Use unchecked access since loop bounds are verified by i < iterationArray->size()
                     for (size_t i = 0; i < iterationArray->size(); ++i)
                     {
-                        Value element = iterationArray->get(i);
+                        Value element = iterationArray->getUnchecked(i);  // Faster than iterationArray->get(i)
 
                         // Define the loop variable in this scope
                         auto varType = node->getVariableType();

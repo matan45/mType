@@ -1,0 +1,13 @@
+SIMD Int Array Sum: 1900
+SIMD Float Array Sum: 750
+SIMD Bool Array True Count: 15
+Small Array [5]: 5
+SIMD 2D Int [2][3]: 13
+SIMD 2D Float [3][4]: 6.5
+SIMD 2D Bool True Count: 12
+SIMD 3D Int [1][2][1]: 16
+SIMD 3D Float [1][2][2]: 20
+SIMD 3D Bool True Count: 8
+Large SIMD Int [50]: 2500
+Large SIMD Float [100]: 50
+SIMD Primitive Arrays Test Completed!
