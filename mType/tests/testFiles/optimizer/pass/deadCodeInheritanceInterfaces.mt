@@ -1,6 +1,6 @@
 // Test file for O1/O2 optimization - Dead Code Elimination with Inheritance and Interfaces
 // Tests that extends and implements are preserved while dead code is removed from methods
-
+import * from "../../lib/primitives/String.mt";
 // Base interface
 interface Drawable {
     function draw(): void;
@@ -226,7 +226,7 @@ circle.draw();
 print("Circle radius: " + circle.getRadius());
 
 // Test generic Box (extends Shape)
-Box<string> box = new Box<string>("green", "treasure");
+Box<String> box = new Box<String>("green", new String("treasure"));
 print("Box content: " + box.getContent());
 box.setContent("gold");
 

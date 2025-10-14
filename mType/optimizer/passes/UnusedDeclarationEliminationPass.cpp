@@ -340,7 +340,16 @@ namespace optimizer::passes
 
         if (auto* newNode = dynamic_cast<NewNode*>(node))
         {
-            analyzer.analyzeUsedClass(newNode->getClassName());
+            // Extract base class name from generic instantiation
+            // e.g., "Box<String>" -> "Box"
+            std::string className = newNode->getClassName();
+            size_t genericStart = className.find('<');
+            if (genericStart != std::string::npos)
+            {
+                className = className.substr(0, genericStart);
+            }
+
+            analyzer.analyzeUsedClass(className);
 
             // Analyze constructor arguments
             for (const auto& arg : newNode->getArguments())
