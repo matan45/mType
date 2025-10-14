@@ -234,11 +234,22 @@ namespace mType
                 // Try to get class definition from registry
                 try
                 {
-                    return classRegistry->findClass(typeName);
+                    auto classDef = classRegistry->findClass(typeName);
+
+                    // Explicit nullptr check for clarity
+                    // Note: This is defensive programming - findClass() returns nullptr
+                    // if class not found, which is expected behavior (not an error)
+                    if (!classDef)
+                    {
+                        return nullptr;
+                    }
+
+                    return classDef;
                 }
                 catch (...)
                 {
-                    // Class not found - return nullptr
+                    // Catch any unexpected exceptions (e.g., internal registry errors)
+                    // Class not found or registry error - return nullptr
                     return nullptr;
                 }
             }
