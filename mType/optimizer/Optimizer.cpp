@@ -1,6 +1,23 @@
 #include "Optimizer.hpp"
+#include "passes/DeadCodeEliminationPass.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
+#include "../ast/nodes/statements/IfNode.hpp"
+#include "../ast/nodes/statements/WhileNode.hpp"
+#include "../ast/nodes/statements/DoWhileNode.hpp"
+#include "../ast/nodes/statements/ForNode.hpp"
+#include "../ast/nodes/statements/ForEachNode.hpp"
+#include "../ast/nodes/statements/SwitchNode.hpp"
+#include "../ast/nodes/statements/TryNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/classes/MethodNode.hpp"
+#include "../ast/nodes/classes/ConstructorNode.hpp"
 
 namespace optimizer {
+
+	using namespace ast::nodes::statements;
+	using namespace ast::nodes::functions;
+	using namespace ast::nodes::classes;
 
 	Optimizer::Optimizer(const OptimizationConfig& cfg)
 		: config(cfg)
@@ -38,6 +55,15 @@ namespace optimizer {
 
 	OptimizationResult Optimizer::getLastResult() const {
 		return passManager->getLastResult();
+	}
+
+	// Forward declare the count function from DeadCodeEliminationPass.cpp
+	namespace passes {
+		extern size_t countNodes(const ast::ASTNode* node);
+	}
+
+	size_t Optimizer::countASTNodes(const ast::ASTNode* node) const {
+		return passes::countNodes(node);
 	}
 
 } // namespace optimizer

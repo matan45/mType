@@ -52,6 +52,80 @@ namespace optimizer::passes {
 	// Debug flag - set to true to enable debug logging
 	constexpr bool DCE_DEBUG = false;
 
+	// ================= Node Counting Utility =================
+
+	// Recursively count all nodes in the AST
+	size_t countNodes(const ast::ASTNode* node) {
+		if (!node) {
+			return 0;
+		}
+
+		size_t count = 1; // Count this node
+
+		// Count children based on node type
+		if (auto* programNode = dynamic_cast<const ProgramNode*>(node)) {
+			for (const auto& stmt : programNode->getStatements()) {
+				count += countNodes(stmt.get());
+			}
+		}
+		else if (auto* blockNode = dynamic_cast<const BlockNode*>(node)) {
+			for (const auto& stmt : blockNode->getStatements()) {
+				count += countNodes(stmt.get());
+			}
+		}
+		else if (auto* functionNode = dynamic_cast<const FunctionNode*>(node)) {
+			count += countNodes(functionNode->getBodyPtr());
+		}
+		else if (auto* methodNode = dynamic_cast<const MethodNode*>(node)) {
+			count += countNodes(methodNode->getBodyPtr());
+		}
+		else if (auto* constructorNode = dynamic_cast<const ConstructorNode*>(node)) {
+			count += countNodes(constructorNode->getBodyPtr());
+		}
+		else if (auto* ifNode = dynamic_cast<const IfNode*>(node)) {
+			count += countNodes(ifNode->getCondition());
+			count += countNodes(ifNode->getThenStatement());
+			if (ifNode->hasElseStatement()) {
+				count += countNodes(ifNode->getElseStatement());
+			}
+		}
+		else if (auto* whileNode = dynamic_cast<const WhileNode*>(node)) {
+			count += countNodes(whileNode->getCondition());
+			count += countNodes(whileNode->getBody());
+		}
+		else if (auto* doWhileNode = dynamic_cast<const DoWhileNode*>(node)) {
+			count += countNodes(doWhileNode->getBody());
+			count += countNodes(doWhileNode->getCondition());
+		}
+		else if (auto* forNode = dynamic_cast<const ForNode*>(node)) {
+			count += countNodes(forNode->getInitialization());
+			count += countNodes(forNode->getCondition());
+			count += countNodes(forNode->getUpdate());
+			count += countNodes(forNode->getBody());
+		}
+		else if (auto* forEachNode = dynamic_cast<const ForEachNode*>(node)) {
+			count += countNodes(forEachNode->getCollection());
+			count += countNodes(forEachNode->getBody());
+		}
+		else if (auto* switchNode = dynamic_cast<const SwitchNode*>(node)) {
+			count += countNodes(switchNode->getExpression());
+			for (const auto& caseNode : switchNode->getCases()) {
+				count += countNodes(caseNode.get());
+			}
+		}
+		else if (auto* tryNode = dynamic_cast<const TryNode*>(node)) {
+			count += countNodes(tryNode->getTryBlock());
+			for (const auto& catchBlock : tryNode->getCatchBlocks()) {
+				count += countNodes(catchBlock.get());
+			}
+			if (tryNode->hasFinallyBlock()) {
+				count += countNodes(tryNode->getFinallyBlock());
+			}
+		}
+
+		return count;
+	}
+
 	// ================= DCETransformer Implementation =================
 
 	DeadCodeEliminationPass::DCETransformer::DCETransformer(

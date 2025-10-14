@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <thread>
 #include <atomic>
+#include <iomanip>
 
 #include "ImportManager.hpp"
 #include "../parser/Parser.hpp"
@@ -157,7 +158,23 @@ namespace services
                 std::cout << "APPLYING AST OPTIMIZATIONS (Level O" << static_cast<int>(optimizationLevel) << ")\n";
                 std::cout << std::string(60, '=') << "\n";
 
+                // Count nodes before optimization
+                size_t nodesBefore = optimizer->countASTNodes(ast.get());
+                std::cout << "\nAST Statistics:\n";
+                std::cout << "  Total nodes before: " << nodesBefore << "\n";
+
                 ast = optimizer->optimize(std::move(ast), environment);
+
+                // Count nodes after optimization
+                size_t nodesAfter = optimizer->countASTNodes(ast.get());
+                size_t nodesRemoved = nodesBefore - nodesAfter;
+
+                std::cout << "  Total nodes after:  " << nodesAfter << "\n";
+                std::cout << "  Nodes removed:      " << nodesRemoved << "\n";
+                if (nodesBefore > 0) {
+                    double reductionPercent = (static_cast<double>(nodesRemoved) / nodesBefore) * 100.0;
+                    std::cout << "  Reduction:          " << std::fixed << std::setprecision(1) << reductionPercent << "%\n";
+                }
 
                 // Get and print optimization results
                 auto result = optimizer->getLastResult();

@@ -47,6 +47,9 @@ namespace optimizer {
 
 		// Results
 		OptimizationResult getLastResult() const;
+
+		// Utility - count total nodes in AST
+		size_t countASTNodes(const ast::ASTNode* node) const;
 	};
 
 } // namespace optimizer

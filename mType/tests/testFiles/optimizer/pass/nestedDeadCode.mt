@@ -1,11 +1,7 @@
 // Test: Dead code elimination in nested blocks
 // Expected output: 10 20
 
-function outer(): int {
-    int x = 10;
-    print(x);
-
-    function inner(): int {
+function inner(): int {
         int y = 20;
         print(y);
         return y;
@@ -13,6 +9,11 @@ function outer(): int {
         print("Unreachable in inner");
         int z = 30;
     }
+
+
+function outer(): int {
+    int x = 10;
+    print(x);
 
     int result = inner();
     return result;
