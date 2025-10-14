@@ -503,6 +503,12 @@ namespace vm::runtime
             // Do nothing
             break;
 
+        // Loop optimization markers (no-op at runtime, used by optimizer)
+        case OpCode::LOOP_START:
+        case OpCode::LOOP_END:
+            // No-op: these are markers for the loop optimizer
+            break;
+
         // Async/Await Operations
         case OpCode::CREATE_PROMISE:
             {

@@ -42,6 +42,9 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileWhile(ast::WhileNode* node)
     {
+        // Emit LOOP_START marker for optimization passes
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
         size_t loopStart = ctx.program.getCurrentOffset();
 
         // Compile condition
@@ -59,6 +62,9 @@ namespace vm::compiler::visitors
         // Jump back to start
         ctx.emitter.emitLoop(loopStart);
 
+        // Emit LOOP_END marker
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
+
         // Exit loop and patch jumps
         ctx.emitter.patchJump(exitJump);
         for (size_t breakJump : ctx.loopManager.getBreakJumps()) {
@@ -74,6 +80,9 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileDoWhile(ast::DoWhileNode* node)
     {
+        // Emit LOOP_START marker for optimization passes
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
         size_t loopStart = ctx.program.getCurrentOffset();
 
         // Enter loop context
@@ -88,6 +97,9 @@ namespace vm::compiler::visitors
         // Jump back to start if condition is true
         size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
         ctx.program.patchJump(continueJump, static_cast<uint32_t>(loopStart));
+
+        // Emit LOOP_END marker
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
 
         // Exit loop and patch jumps
         for (size_t breakJump : ctx.loopManager.getBreakJumps()) {
@@ -109,6 +121,9 @@ namespace vm::compiler::visitors
         if (node->getInitialization()) {
             node->getInitialization()->accept(ctx.visitor);  // Will need delegation
         }
+
+        // Emit LOOP_START marker for optimization passes
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
 
         size_t loopStart = ctx.program.getCurrentOffset();
 
@@ -148,6 +163,9 @@ namespace vm::compiler::visitors
 
         // Jump to increment
         ctx.emitter.emitLoop(incrementStart);
+
+        // Emit LOOP_END marker
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
 
         // Exit loop and patch jumps
         ctx.emitter.patchJump(exitJump);
@@ -203,6 +221,9 @@ namespace vm::compiler::visitors
         size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
         ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot));
 
+        // Emit LOOP_START marker for optimization passes
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
         // Loop start
         size_t loopStart = ctx.program.getCurrentOffset();
         ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot));
@@ -247,6 +268,9 @@ namespace vm::compiler::visitors
 
         // Jump back to loop start
         ctx.emitter.emitLoop(loopStart);
+
+        // Emit LOOP_END marker
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
 
         // Patch exit jump
         ctx.emitter.patchJump(exitJump);

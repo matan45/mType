@@ -8,6 +8,7 @@
 #include "../../environment/registry/ExportRegistry.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../errors/TypeException.hpp"
+#include "../runtime/optimization/LoopOptimizer.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
@@ -63,6 +64,11 @@ namespace vm::compiler
 
         // Emit halt instruction
         program.emit(bytecode::OpCode::HALT);
+
+        // OPTIMIZATION PASS: Run loop optimizer after bytecode generation
+        // This analyzes LOOP_START/LOOP_END markers and applies optimizations
+        runtime::optimization::LoopOptimizer loopOptimizer(program);
+        loopOptimizer.optimize();
 
         return std::move(program);
     }

@@ -280,9 +280,6 @@
     <Filter Include="value\arrays\object">
       <UniqueIdentifier>{0967E5E9-75C8-C2F7-FE35-09AA6A96F9B6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="value\arrays\operations">
-      <UniqueIdentifier>{5608AF42-C23F-F7D9-CB49-5BFD37001ED3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="value\arrays\primitive">
       <UniqueIdentifier>{0B1FFC12-F718-2565-E085-BB75CC1E8BD1}</UniqueIdentifier>
     </Filter>
@@ -294,18 +291,6 @@
     </Filter>
     <Filter Include="value\simd\detection">
       <UniqueIdentifier>{CCF20A81-B881-944A-61A0-A8454D0EA5F0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="value\simd\dispatch">
-      <UniqueIdentifier>{FDDC802E-693E-5E3C-F2AB-A4EE5E0C95FB}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="value\simd\primitives">
-      <UniqueIdentifier>{19A8360C-8514-F206-4E08-8A64BA33146F}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="value\simd\primitives\scalar">
-      <UniqueIdentifier>{BE5C00EF-AA17-F09A-53CF-68E53F693A2B}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="value\simd\primitives\sse2">
-      <UniqueIdentifier>{6525843E-5135-300F-BAEE-942DA61D1FA8}</UniqueIdentifier>
     </Filter>
     <Filter Include="vm">
       <UniqueIdentifier>{E8795900-D405-880B-3DB4-880B295F880B}</UniqueIdentifier>
@@ -342,6 +327,9 @@
     </Filter>
     <Filter Include="vm\runtime\executors">
       <UniqueIdentifier>{8C754881-7804-D24A-2123-E6450D91E2F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\runtime\optimization">
+      <UniqueIdentifier>{91718ABA-FDA8-D251-06B3-36757269F94A}</UniqueIdentifier>
     </Filter>
     <Filter Include="vm\runtime\stack">
       <UniqueIdentifier>{C0847BD2-AC7D-9A24-D5AF-7FA9C1077A30}</UniqueIdentifier>
@@ -1059,9 +1047,6 @@
     <ClInclude Include="value\arrays\object\ObjectArray.hpp">
       <Filter>value\arrays\object</Filter>
     </ClInclude>
-    <ClInclude Include="value\arrays\operations\ArrayOperations.hpp">
-      <Filter>value\arrays\operations</Filter>
-    </ClInclude>
     <ClInclude Include="value\arrays\primitive\PrimitiveArray.hpp">
       <Filter>value\arrays\primitive</Filter>
     </ClInclude>
@@ -1073,15 +1058,6 @@
     </ClInclude>
     <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
       <Filter>value\simd\detection</Filter>
-    </ClInclude>
-    <ClInclude Include="value\simd\dispatch\SIMDDispatcher.hpp">
-      <Filter>value\simd\dispatch</Filter>
-    </ClInclude>
-    <ClInclude Include="value\simd\primitives\scalar\ScalarOps.hpp">
-      <Filter>value\simd\primitives\scalar</Filter>
-    </ClInclude>
-    <ClInclude Include="value\simd\primitives\sse2\SSE2Ops.hpp">
-      <Filter>value\simd\primitives\sse2</Filter>
     </ClInclude>
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
@@ -1193,6 +1169,9 @@
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\VariableExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\optimization\LoopOptimizer.hpp">
+      <Filter>vm\runtime\optimization</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\stack\StackManager.hpp">
       <Filter>vm\runtime\stack</Filter>
@@ -1739,20 +1718,8 @@
     <ClCompile Include="value\arrays\object\ObjectArray.cpp">
       <Filter>value\arrays\object</Filter>
     </ClCompile>
-    <ClCompile Include="value\arrays\operations\ArrayOperations.cpp">
-      <Filter>value\arrays\operations</Filter>
-    </ClCompile>
     <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
       <Filter>value\simd\detection</Filter>
-    </ClCompile>
-    <ClCompile Include="value\simd\dispatch\SIMDDispatcher.cpp">
-      <Filter>value\simd\dispatch</Filter>
-    </ClCompile>
-    <ClCompile Include="value\simd\primitives\scalar\ScalarOps.cpp">
-      <Filter>value\simd\primitives\scalar</Filter>
-    </ClCompile>
-    <ClCompile Include="value\simd\primitives\sse2\SSE2Ops.cpp">
-      <Filter>value\simd\primitives\sse2</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
       <Filter>vm\bytecode</Filter>
@@ -1855,6 +1822,9 @@
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\VariableExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\optimization\LoopOptimizer.cpp">
+      <Filter>vm\runtime\optimization</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\stack\StackManager.cpp">
       <Filter>vm\runtime\stack</Filter>
