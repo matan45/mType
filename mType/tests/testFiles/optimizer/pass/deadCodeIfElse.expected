@@ -1,0 +1,36 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 62
+  Total nodes after:  55
+  Nodes removed:      7
+  Reduction:          11.3%
+
+Optimization Summary:
+  Total Transformations: 7
+  Total Time: 0 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 7
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 0
+    Time: 0 ms
+    Modified: No
+
+============================================================
+
+Result 1: 10
+Result 2: 75
+Reachable if x <= 0
+Result 3: 5
+Result 4: 0
+If/Else Dead Code Test Complete!

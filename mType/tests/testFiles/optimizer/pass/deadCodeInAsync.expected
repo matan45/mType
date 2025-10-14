@@ -1,0 +1,4 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+Error
+Error at mType\tests\testFiles\optimizer\pass\deadCodeInAsync.mt:7:1: Unexpected token in primary expression

@@ -1,0 +1,34 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 9
+  Total nodes after:  9
+  Nodes removed:      0
+  Reduction:          0.0%
+
+Optimization Summary:
+  Total Transformations: 3
+  Total Time: 0 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 3
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 0
+    Time: 0 ms
+    Modified: No
+
+============================================================
+
+Color: blue
+Drawing rectangle: blue
+Area: 200
+Test Complete!

@@ -1,0 +1,36 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 152
+  Total nodes after:  127
+  Nodes removed:      25
+  Reduction:          16.4%
+
+Optimization Summary:
+  Total Transformations: 16
+  Total Time: 0 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 14
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 2
+    Time: 0 ms
+    Modified: Yes
+
+============================================================
+
+=== Testing Finally Block Dead Code Elimination ===
+Try block
+Finally block
+Result 1 (finally return): 30
+Error: Error at <unknown>:1:1: Runtime error: Function not found: testFinallyWithThrow
+Error at <unknown>:1:1: Runtime error: Function not found: testFinallyWithThrow

@@ -62,3 +62,4 @@ function unusedFunction(): void {
 }
 
 
+testCalculator();

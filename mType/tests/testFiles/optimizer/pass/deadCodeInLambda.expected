@@ -1,0 +1,4 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+Error
+Error at mType\tests\testFiles\optimizer\pass\deadCodeInLambda.mt:19:35: Expected token but found different token

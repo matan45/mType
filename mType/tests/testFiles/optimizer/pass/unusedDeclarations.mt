@@ -1,6 +1,5 @@
 // Test file for O2 optimization - Unused Declaration Elimination
 // This file has unused functions, classes, and variables
-import * from "unusedMethods.mt";
 // ===== USED CODE (should be kept) =====
 
 function usedFunction(int x): int {
