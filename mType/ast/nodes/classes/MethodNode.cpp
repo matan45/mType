@@ -196,4 +196,31 @@ namespace ast::nodes::classes
     {
         return visitor.visitMethodNode(this);
     }
+
+    std::unique_ptr<ASTNode> MethodNode::clone() const
+    {
+        // Clone the body (shared_ptr -> unique_ptr for constructor, then convert back to shared_ptr)
+        std::shared_ptr<ASTNode> clonedBody = body ? std::shared_ptr<ASTNode>(body->clone()) : nullptr;
+
+        // Clone generic parameters (copy constructor works for GenericTypeParameter)
+        std::vector<GenericTypeParameter> clonedGenericParams = genericParameters;
+
+        // Clone parameters with GenericType (need deep copy of shared_ptrs)
+        std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> clonedParams;
+        clonedParams.reserve(parameters.size());
+        for (const auto& param : parameters) {
+            // Deep copy GenericType via copy constructor
+            auto clonedGenericType = std::make_shared<GenericType>(*param.second);
+            clonedParams.emplace_back(param.first, clonedGenericType);
+        }
+
+        // Clone return type
+        std::shared_ptr<GenericType> clonedReturnType =
+            returnType ? std::make_shared<GenericType>(*returnType) : nullptr;
+
+        return std::make_unique<MethodNode>(
+            name, clonedReturnType, clonedParams, clonedBody, isStatic,
+            clonedGenericParams, accessModifier, isAsync, location
+        );
+    }
 }

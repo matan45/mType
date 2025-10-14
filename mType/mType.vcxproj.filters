@@ -256,6 +256,12 @@
     <Filter Include="tests\testFiles\native">
       <UniqueIdentifier>{D0DB4994-BCD5-72E6-A542-09F791DBD852}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\optimizer">
+      <UniqueIdentifier>{6C5DEBDF-D81F-1F6A-21D0-ADF68DD1F747}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\optimizer\pass">
+      <UniqueIdentifier>{F2360C7A-DE5C-D6E0-C7A2-5BACB367FBAC}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
     </Filter>
@@ -1014,6 +1020,9 @@
     <ClInclude Include="tests\suites\NativeTest.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\OptimizerTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\StringPoolTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -1761,6 +1770,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\OptimizerTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StringPoolTestSuite.cpp">
@@ -4545,6 +4557,27 @@
     </None>
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterBreak.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterContinue.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterReturn.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterThrow.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\deadCodeInIfBranches.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\nestedDeadCode.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\noDeadCode.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">
       <Filter>tests\testFiles\stringpool</Filter>

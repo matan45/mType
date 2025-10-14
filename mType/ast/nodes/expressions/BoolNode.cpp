@@ -21,4 +21,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitBoolNode(this);
     }
+
+    std::unique_ptr<ASTNode> BoolNode::clone() const
+    {
+        return std::make_unique<BoolNode>(value, location);
+    }
 }

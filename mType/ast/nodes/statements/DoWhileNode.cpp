@@ -32,4 +32,12 @@ namespace ast::nodes::statements
     {
         return visitor.visitDoWhileNode(this);
     }
+
+    std::unique_ptr<ASTNode> DoWhileNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedCondition = condition ? condition->clone() : nullptr;
+
+        return std::make_unique<DoWhileNode>(std::move(clonedBody), std::move(clonedCondition), location);
+    }
 }

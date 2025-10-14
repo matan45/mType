@@ -58,4 +58,12 @@ namespace ast::nodes::statements
     {
         return visitor.visitMemberAssignmentNode(this);
     }
+
+    std::unique_ptr<ASTNode> MemberAssignmentNode::clone() const
+    {
+        std::shared_ptr<ASTNode> clonedObject = object ? std::shared_ptr<ASTNode>(object->clone()) : nullptr;
+        std::shared_ptr<ASTNode> clonedValue = value ? std::shared_ptr<ASTNode>(value->clone()) : nullptr;
+
+        return std::make_unique<MemberAssignmentNode>(clonedObject, memberName, clonedValue, location);
+    }
 }

@@ -13,6 +13,7 @@
 #include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
+#include "../tests/suites/OptimizerTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -95,6 +96,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<AwaitTestSuite>();
     }
+    else if (suiteName == "optimizer" || suiteName == "optimize" || suiteName == "dce")
+    {
+        return std::make_unique<OptimizerTestSuite>();
+    }
     return nullptr;
 }
 
@@ -115,6 +120,7 @@ void printAvailableTestSuites()
     std::cout << "  cast         - Cast and Type Checking Test Suite\n";
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
+    std::cout << "  optimizer    - AST Optimizer Test Suite (Dead Code Elimination)\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -185,6 +191,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     suites.push_back(std::make_unique<CastTestSuite>());
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
+    suites.push_back(std::make_unique<OptimizerTestSuite>());
 
     for (auto& suite : suites)
     {

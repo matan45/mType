@@ -26,4 +26,17 @@ namespace ast::nodes::statements
     {
         return visitor.visitDefaultCaseNode(this);
     }
+
+    std::unique_ptr<ASTNode> DefaultCaseNode::clone() const
+    {
+        auto clonedDefault = std::make_unique<DefaultCaseNode>(location);
+
+        for (const auto& stmt : statements) {
+            if (stmt) {
+                clonedDefault->addStatement(stmt->clone());
+            }
+        }
+
+        return clonedDefault;
+    }
 }

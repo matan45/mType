@@ -69,4 +69,13 @@ namespace ast::nodes::statements
     {
         return visitor.visitForEachNode(this);
     }
+
+    std::unique_ptr<ASTNode> ForEachNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedCollection = collection ? collection->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+
+        return std::make_unique<ForEachNode>(variableName, variableTypeInfo,
+                                             std::move(clonedCollection), std::move(clonedBody), location);
+    }
 }

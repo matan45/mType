@@ -88,11 +88,11 @@ namespace ast::nodes::expressions
 
         /**
          * Creates a copy of this node.
-         * @return Shared pointer to a new copy of this node
+         * @return Unique pointer to a new copy of this node
          */
-        std::shared_ptr<ASTNode> clone() const {
+        std::unique_ptr<ASTNode> clone() const override {
             auto clonedType = type ? std::make_shared<GenericType>(*type) : nullptr;
-            return std::make_shared<GenericTypeRefNode>(clonedType, getLocation());
+            return std::make_unique<GenericTypeRefNode>(clonedType, getLocation());
         }
     };
 }

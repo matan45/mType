@@ -26,4 +26,13 @@ namespace ast::nodes::functions
     {
         return visitor.visitReturnNode(this);
     }
+
+    std::unique_ptr<ASTNode> ReturnNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedValue = nullptr;
+        if (returnValue) {
+            clonedValue = returnValue->clone();
+        }
+        return std::make_unique<ReturnNode>(std::move(clonedValue), location);
+    }
 }

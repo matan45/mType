@@ -36,4 +36,19 @@ namespace ast::nodes::statements
     {
         return visitor.visitSwitchNode(this);
     }
+
+    std::unique_ptr<ASTNode> SwitchNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedExpression = expression ? expression->clone() : nullptr;
+
+        auto clonedSwitch = std::make_unique<SwitchNode>(std::move(clonedExpression), location);
+
+        for (const auto& caseNode : cases) {
+            if (caseNode) {
+                clonedSwitch->addCase(caseNode->clone());
+            }
+        }
+
+        return clonedSwitch;
+    }
 }

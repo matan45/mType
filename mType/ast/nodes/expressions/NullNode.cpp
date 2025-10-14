@@ -11,4 +11,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitNullNode(this);
     }
+
+    std::unique_ptr<ASTNode> NullNode::clone() const
+    {
+        return std::make_unique<NullNode>(location);
+    }
 }

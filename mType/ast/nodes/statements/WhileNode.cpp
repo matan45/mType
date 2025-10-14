@@ -31,4 +31,12 @@ namespace ast::nodes::statements
     {
         return visitor.visitWhileNode(this);
     }
+
+    std::unique_ptr<ASTNode> WhileNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedCondition = condition ? condition->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+
+        return std::make_unique<WhileNode>(std::move(clonedCondition), std::move(clonedBody), location);
+    }
 }

@@ -48,4 +48,14 @@ namespace ast::nodes::statements
     {
         return visitor.visitIfNode(this);
     }
+
+    std::unique_ptr<ASTNode> IfNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedCondition = condition ? condition->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedThen = thenStatement ? thenStatement->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedElse = elseStatement ? elseStatement->clone() : nullptr;
+
+        return std::make_unique<IfNode>(std::move(clonedCondition), std::move(clonedThen),
+                                        std::move(clonedElse), location);
+    }
 }

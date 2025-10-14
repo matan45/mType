@@ -56,4 +56,17 @@ namespace ast::nodes::statements
     {
         return visitor.visitAssignmentNode(this);
     }
+
+    std::unique_ptr<ASTNode> AssignmentNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedValue = value ? value->clone() : nullptr;
+
+        auto clonedAssignment = std::make_unique<AssignmentNode>(
+            variableName, std::move(clonedValue), variableType, className, isFinal, isStatic, location
+        );
+
+        clonedAssignment->setVisibility(visibility);
+
+        return clonedAssignment;
+    }
 }

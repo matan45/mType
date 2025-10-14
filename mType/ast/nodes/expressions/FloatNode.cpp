@@ -21,4 +21,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitFloatNode(this);
     }
+
+    std::unique_ptr<ASTNode> FloatNode::clone() const
+    {
+        return std::make_unique<FloatNode>(value, location);
+    }
 }

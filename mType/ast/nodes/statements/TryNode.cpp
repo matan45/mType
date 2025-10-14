@@ -60,4 +60,25 @@ namespace ast::nodes::statements
     {
         return visitor.visitTryNode(this);
     }
+
+    std::unique_ptr<ASTNode> TryNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedTryBlock = tryBlock ? tryBlock->clone() : nullptr;
+
+        std::vector<std::unique_ptr<CatchNode>> clonedCatchBlocks;
+        clonedCatchBlocks.reserve(catchBlocks.size());
+        for (const auto& catchBlock : catchBlocks) {
+            if (catchBlock) {
+                auto clonedCatch = std::unique_ptr<CatchNode>(
+                    static_cast<CatchNode*>(catchBlock->clone().release())
+                );
+                clonedCatchBlocks.push_back(std::move(clonedCatch));
+            }
+        }
+
+        std::unique_ptr<ASTNode> clonedFinallyBlock = finallyBlock ? finallyBlock->clone() : nullptr;
+
+        return std::make_unique<TryNode>(std::move(clonedTryBlock), std::move(clonedCatchBlocks),
+                                         std::move(clonedFinallyBlock), location);
+    }
 }

@@ -11,4 +11,9 @@ namespace ast::nodes::statements
     {
         return visitor.visitBreakNode(this);
     }
+
+    std::unique_ptr<ASTNode> BreakNode::clone() const
+    {
+        return std::make_unique<BreakNode>(location);
+    }
 }

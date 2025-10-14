@@ -11,4 +11,9 @@ namespace ast::nodes::statements
     {
         return visitor.visitContinueNode(this);
     }
+
+    std::unique_ptr<ASTNode> ContinueNode::clone() const
+    {
+        return std::make_unique<ContinueNode>(location);
+    }
 }

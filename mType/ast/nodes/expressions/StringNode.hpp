@@ -16,5 +16,6 @@ namespace ast::nodes::expressions
         void setValue(const std::string& val);
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }
