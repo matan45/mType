@@ -9,6 +9,8 @@
 #include "../../ast/nodes/statements/BreakNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
+#include "../../ast/nodes/statements/CaseNode.hpp"
+#include "../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
@@ -56,6 +58,10 @@ namespace optimizer::base {
 			result = visitReturnNode(node);
 		} else if (auto* node = dynamic_cast<ast::SwitchNode*>(child)) {
 			result = visitSwitchNode(node);
+		} else if (auto* node = dynamic_cast<ast::CaseNode*>(child)) {
+			result = visitCaseNode(node);
+		} else if (auto* node = dynamic_cast<ast::DefaultCaseNode*>(child)) {
+			result = visitDefaultCaseNode(node);
 		} else if (auto* node = dynamic_cast<ast::AssignmentNode*>(child)) {
 			result = visitAssignmentNode(node);
 		} else if (auto* node = dynamic_cast<ast::TryNode*>(child)) {

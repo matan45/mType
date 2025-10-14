@@ -29,6 +29,8 @@
 #include "../../ast/nodes/statements/ForNode.hpp"
 #include "../../ast/nodes/statements/ForEachNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
+#include "../../ast/nodes/statements/CaseNode.hpp"
+#include "../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/BreakNode.hpp"
@@ -111,6 +113,17 @@ namespace optimizer::passes {
 			count += countNodes(switchNode->getExpression());
 			for (const auto& caseNode : switchNode->getCases()) {
 				count += countNodes(caseNode.get());
+			}
+		}
+		else if (auto* caseNode = dynamic_cast<const CaseNode*>(node)) {
+			count += countNodes(caseNode->getValue());
+			for (const auto& stmt : caseNode->getStatements()) {
+				count += countNodes(stmt.get());
+			}
+		}
+		else if (auto* defaultCaseNode = dynamic_cast<const DefaultCaseNode*>(node)) {
+			for (const auto& stmt : defaultCaseNode->getStatements()) {
+				count += countNodes(stmt.get());
 			}
 		}
 		else if (auto* tryNode = dynamic_cast<const TryNode*>(node)) {
@@ -526,6 +539,82 @@ namespace optimizer::passes {
 			}
 
 			return newSwitch;
+		}
+
+		return nullptr; // Use clone()
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitCaseNode(CaseNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitCaseNode: Processing case with " << node->getStatements().size() << " statements\n";
+		}
+
+		// Transform the case value expression
+		auto transformedValue = transformChild(node->getValue());
+
+		// Transform statements - this is where we remove dead code after return/break
+		size_t originalSize = node->getStatements().size();
+		auto transformedStatements = transformStatements(node->getStatements());
+
+		// Check if anything was transformed (value changed OR statement count changed)
+		bool hasChanges = transformedValue != nullptr || transformedStatements.size() != originalSize;
+
+		if (hasChanges) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitCaseNode: Creating new CaseNode with " << transformedStatements.size()
+				          << " statements (was " << originalSize << ")\n";
+			}
+
+			// Create new CaseNode with transformed value and statements
+			auto newCase = std::make_unique<CaseNode>(
+				transformedValue ? std::move(transformedValue) : node->getValue()->clone(),
+				node->getLocation()
+			);
+
+			// Add transformed statements
+			for (auto& stmt : transformedStatements) {
+				newCase->addStatement(std::move(stmt));
+			}
+
+			return newCase;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitCaseNode: No transformation, using clone()\n";
+		}
+
+		return nullptr; // Use clone()
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitDefaultCaseNode(DefaultCaseNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitDefaultCaseNode: Processing default case with " << node->getStatements().size() << " statements\n";
+		}
+
+		// Transform statements - this is where we remove dead code after return/break
+		size_t originalSize = node->getStatements().size();
+		auto transformedStatements = transformStatements(node->getStatements());
+
+		// Check if anything was transformed (statement count changed)
+		if (transformedStatements.size() != originalSize) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitDefaultCaseNode: Creating new DefaultCaseNode with " << transformedStatements.size()
+				          << " statements (was " << originalSize << ")\n";
+			}
+
+			// Create new DefaultCaseNode with transformed statements
+			auto newDefaultCase = std::make_unique<DefaultCaseNode>(node->getLocation());
+
+			// Add transformed statements
+			for (auto& stmt : transformedStatements) {
+				newDefaultCase->addStatement(std::move(stmt));
+			}
+
+			return newDefaultCase;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitDefaultCaseNode: No transformation, using clone()\n";
 		}
 
 		return nullptr; // Use clone()

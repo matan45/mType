@@ -1,6 +1,6 @@
 // Test file for O2 optimization - Unused Declaration Elimination
 // This file has unused functions, classes, and variables
-
+import * from "unusedMethods.mt";
 // ===== USED CODE (should be kept) =====
 
 function usedFunction(int x): int {
@@ -25,6 +25,8 @@ function unusedHelper(): int {
     return 42;
 }
 
+
+
 function anotherUnusedFunction(int x,int y): int {
     return x + y;
 }
@@ -48,6 +50,8 @@ string unusedString = "This is unused";
 
 int result = usedFunction(10);
 print("Result: " + result);
+
+
 
 UsedClass obj = new UsedClass(25);
 print("Object value: " + obj.getValue());

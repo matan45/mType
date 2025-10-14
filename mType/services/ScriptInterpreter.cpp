@@ -151,6 +151,10 @@ namespace services
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
 
+            // IMPORTANT: Resolve all imports BEFORE optimization
+            // This ensures the optimizer can see and analyze imported code
+            resolveImports(ast.get());
+
             // Apply AST optimizations if optimization level is Release
             if (optimizationLevel == constants::OptimizationLevel::Release && optimizer)
             {

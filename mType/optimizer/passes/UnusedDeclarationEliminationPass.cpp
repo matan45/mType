@@ -28,10 +28,18 @@
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
+#include "../../ast/AccessModifier.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../../ast/nodes/expressions/TernaryExpNode.hpp"
+#include "../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
 #include "../../ast/nodes/statements/CaseNode.hpp"
+#include "../../ast/nodes/statements/ImportNode.hpp"
 #include <chrono>
 #include <iostream>
 
@@ -43,7 +51,7 @@ namespace optimizer::passes
     using namespace ast::nodes::classes;
     using namespace ast::nodes::expressions;
 
-    // Debug flag
+    // Debug flag - SET TO TRUE to see detailed optimization logs
     constexpr bool UDE_DEBUG = false;
 
     // ================= UsageAnalyzer Implementation =================
@@ -101,6 +109,40 @@ namespace optimizer::passes
         declaredVariables.insert(name);
     }
 
+    void UnusedDeclarationEliminationPass::UsageAnalyzer::analyzeDeclaredMethod(
+        const std::string& className, const std::string& methodName, bool isPublic, bool isStatic)
+    {
+        // Create unique key that includes static/instance distinction
+        std::string fullName = className + "::" + (isStatic ? "STATIC::" : "") + methodName;
+
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Declaring method: " << fullName
+                      << (isStatic ? " (STATIC)" : " (INSTANCE)")
+                      << (isPublic ? " (PUBLIC)" : " (PRIVATE)") << "\n";
+        }
+
+        declaredMethods.insert(fullName);
+
+        // Check if this is a special method that should always be kept
+        if (methodName == "constructor" || methodName == "toString" ||
+            methodName == "equals" || methodName == "hashCode")
+        {
+            specialMethods.insert(methodName);
+            usedMethods.insert(fullName);  // Always mark special methods as used
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE]   Special method always kept: " << fullName << "\n";
+            }
+        }
+        else if (isPublic)
+        {
+            publicMethods.insert(fullName);
+            // NOTE: We DON'T automatically mark public methods as used
+            // The optimizer will remove them if they're truly unused
+        }
+    }
+
     void UnusedDeclarationEliminationPass::UsageAnalyzer::analyzeUsedFunction(
         const std::string& name)
     {
@@ -131,6 +173,22 @@ namespace optimizer::passes
         const std::string& name)
     {
         usedVariables.insert(name);
+    }
+
+    void UnusedDeclarationEliminationPass::UsageAnalyzer::analyzeUsedMethod(
+        const std::string& className, const std::string& methodName)
+    {
+        // For simplicity, mark both static and instance versions as used
+        // This is conservative but safe
+        std::string instanceName = className + "::" + methodName;
+        std::string staticName = className + "::STATIC::" + methodName;
+
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Marking method as USED: " << instanceName << " (and static variant)\n";
+        }
+        usedMethods.insert(instanceName);
+        usedMethods.insert(staticName);
     }
 
     void UnusedDeclarationEliminationPass::UsageAnalyzer::computeTransitiveClosure()
@@ -186,6 +244,16 @@ namespace optimizer::passes
         return usedVariables.find(name) != usedVariables.end();
     }
 
+    bool UnusedDeclarationEliminationPass::UsageAnalyzer::isMethodUsed(
+        const std::string& className, const std::string& methodName) const
+    {
+        // Check both static and instance versions
+        std::string instanceName = className + "::" + methodName;
+        std::string staticName = className + "::STATIC::" + methodName;
+        return usedMethods.find(instanceName) != usedMethods.end() ||
+               usedMethods.find(staticName) != usedMethods.end();
+    }
+
     // ================= AST Analysis (Phase 1) =================
 
     void UnusedDeclarationEliminationPass::analyzeAST(
@@ -206,7 +274,8 @@ namespace optimizer::passes
         if (auto* classNode = dynamic_cast<ClassNode*>(node))
         {
             bool isPublic = classNode->isPublic();
-            analyzer.analyzeDeclaredClass(classNode->getClassName(), isPublic);
+            std::string className = classNode->getClassName();
+            analyzer.analyzeDeclaredClass(className, isPublic);
 
             // Classes that extend other classes use those classes
             if (!classNode->getParentClassName().empty())
@@ -220,7 +289,18 @@ namespace optimizer::passes
                 analyzer.analyzeUsedInterface(iface);
             }
 
-            // Don't analyze methods here - we'll do it in second pass for used classes only
+            // Declare all methods in this class
+            for (const auto& method : classNode->getMethods())
+            {
+                if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                {
+                    bool isMethodPublic = (methodNode->getAccessModifier() == AccessModifier::PUBLIC);
+                    bool isStatic = methodNode->getIsStatic();
+                    analyzer.analyzeDeclaredMethod(className, methodNode->getName(), isMethodPublic, isStatic);
+                }
+            }
+
+            // Don't analyze method bodies here - we'll do it in second pass for used classes only
             return;
         }
 
@@ -279,10 +359,40 @@ namespace optimizer::passes
         // Recursively analyze children
         if (auto* programNode = dynamic_cast<ProgramNode*>(node))
         {
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] Analyzing ProgramNode with " << programNode->getStatements().size() << " statements\n";
+            }
             for (const auto& stmt : programNode->getStatements())
             {
                 analyzeAST(stmt.get(), analyzer);
             }
+            return;
+        }
+
+        // Track ImportNodes (for debugging)
+        if (auto* importNode = dynamic_cast<ImportNode*>(node))
+        {
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] Found ImportNode: " << importNode->getFilePath()
+                          << " (type: " << (importNode->isWildcard() ? "wildcard" : "selective") << ")\n";
+            }
+
+            // Analyze the imported AST directly (set by resolveImports)
+            if (importNode->getImportedAST())
+            {
+                if (UDE_DEBUG)
+                {
+                    std::cout << "[UDE] Analyzing imported AST from: " << importNode->getFilePath() << "\n";
+                }
+                analyzeAST(importNode->getImportedAST(), analyzer);
+            }
+            else if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] WARNING: ImportNode has no imported AST: " << importNode->getFilePath() << "\n";
+            }
+
             return;
         }
 
@@ -351,6 +461,34 @@ namespace optimizer::passes
 
         if (auto* methodCallNode = dynamic_cast<MethodCallNode*>(node))
         {
+            std::string methodName = methodCallNode->getMethodName();
+
+            // For static calls (Class::method), try to extract the class name
+            if (methodCallNode->getIsStaticCall())
+            {
+                // The object is a VariableNode containing the class name
+                if (auto* classNameNode = dynamic_cast<VariableNode*>(methodCallNode->getObject()))
+                {
+                    std::string className = classNameNode->getName();
+                    // Mark static method explicitly
+                    std::string staticMethodKey = className + "::STATIC::" + methodName;
+                    analyzer.usedMethods.insert(staticMethodKey);
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Found static method call: " << staticMethodKey << "\n";
+                    }
+                }
+            }
+            else
+            {
+                // For instance calls, track method name only
+                analyzer.calledMethodNames.insert(methodName);
+                if (UDE_DEBUG)
+                {
+                    std::cout << "[UDE] Found instance method call: " << methodName << "()\n";
+                }
+            }
+
             // Analyze the object being called on
             analyzeAST(methodCallNode->getObject(), analyzer);
 
@@ -371,8 +509,62 @@ namespace optimizer::passes
             return;
         }
 
+        // Handle binary expressions (e.g., "a + b")
+        if (auto* binaryNode = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node))
+        {
+            analyzeAST(binaryNode->getLeft(), analyzer);
+            analyzeAST(binaryNode->getRight(), analyzer);
+            return;
+        }
+
+        // Handle unary expressions (e.g., "!x", "-y")
+        if (auto* unaryNode = dynamic_cast<ast::nodes::expressions::UnaryExpNode*>(node))
+        {
+            analyzeAST(unaryNode->getOperand(), analyzer);
+            return;
+        }
+
+        // Handle ternary expressions (e.g., "condition ? a : b")
+        if (auto* ternaryNode = dynamic_cast<ast::nodes::expressions::TernaryExpNode*>(node))
+        {
+            analyzeAST(ternaryNode->getCondition(), analyzer);
+            analyzeAST(ternaryNode->getTrueExpression(), analyzer);
+            analyzeAST(ternaryNode->getFalseExpression(), analyzer);
+            return;
+        }
+
+        // Handle index access (e.g., "array[0]")
+        if (auto* indexNode = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node))
+        {
+            analyzeAST(indexNode->getCollection(), analyzer);
+            analyzeAST(indexNode->getIndex(), analyzer);
+            return;
+        }
+
+        // Handle array creation (e.g., "new int[10]")
+        if (auto* arrayCreationNode = dynamic_cast<ast::nodes::expressions::ArrayCreationNode*>(node))
+        {
+            // Analyze size expressions if present
+            for (const auto& sizeExpr : arrayCreationNode->getSizeExpressions())
+            {
+                analyzeAST(sizeExpr.get(), analyzer);
+            }
+            return;
+        }
+
+        // Handle array literals (e.g., "[1, 2, 3]")
+        if (auto* arrayLiteralNode = dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(node))
+        {
+            // Analyze each element in the array literal
+            for (const auto& element : arrayLiteralNode->getElements())
+            {
+                analyzeAST(element.get(), analyzer);
+            }
+            return;
+        }
+
         // For any other node types, we don't need to analyze them for this pass
-        // (literals, operators, etc. don't declare or use functions/classes)
+        // (literals, etc. don't declare or use functions/classes)
     }
 
     void UnusedDeclarationEliminationPass::analyzeUsedDeclarations(
@@ -431,16 +623,58 @@ namespace optimizer::passes
                     }
                 }
 
-                // Analyze method bodies
+                // Mark methods as used if they're called anywhere in the code
+                // (Since we don't have full type inference, we use method name matching)
                 for (const auto& method : classNode->getMethods())
                 {
                     if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get()))
                     {
+                        std::string methodName = methodNode->getName();
+                        bool isStatic = methodNode->getIsStatic();
+                        std::string className = classNode->getClassName();
+
+                        // Build the correct key based on static/instance
+                        std::string methodKey = className + "::" + (isStatic ? "STATIC::" : "") + methodName;
+
+                        // Mark method as used if:
+                        // 1. It's already marked as used (special methods, or explicit static calls)
+                        // 2. For instance methods: There's a method call with this name in the code
+                        bool isUsed = analyzer.usedMethods.find(methodKey) != analyzer.usedMethods.end();
+                        if (!isUsed && !isStatic)
+                        {
+                            // For instance methods, also check by name
+                            isUsed = analyzer.calledMethodNames.find(methodName) != analyzer.calledMethodNames.end();
+                        }
+
+                        if (isUsed)
+                        {
+                            analyzer.usedMethods.insert(methodKey);
+                            if (UDE_DEBUG)
+                            {
+                                std::cout << "[UDE]   Marking method as used: " << methodKey << "\n";
+                            }
+                        }
+
+                        // Always analyze method bodies for dependencies (even if method might be unused)
                         analyzeAST(methodNode->getBodyPtr(), analyzer);
                     }
                 }
             }
             return;  // Don't recurse further for class nodes
+        }
+
+        // Handle ImportNodes - recurse into imported AST
+        if (auto* importNode = dynamic_cast<ImportNode*>(node))
+        {
+            if (importNode->getImportedAST())
+            {
+                if (UDE_DEBUG)
+                {
+                    std::cout << "[UDE] Analyzing used declarations in import: " << importNode->getFilePath() << "\n";
+                }
+                analyzeUsedDeclarations(importNode->getImportedAST(), analyzer);
+            }
+            return;
         }
 
         // For container nodes, recursively process children
@@ -475,6 +709,14 @@ namespace optimizer::passes
             {
                 bool keep = true;
 
+                // ImportNodes are always kept (they're just metadata)
+                // Note: ImportNodes will be optimized separately in the optimizeImportedAST pass
+                if (dynamic_cast<ImportNode*>(stmt.get()))
+                {
+                    keptStatements.push_back(stmt->clone());
+                    continue;
+                }
+
                 // Check if this is an unused declaration
                 if (auto* funcNode = dynamic_cast<FunctionNode*>(stmt.get()))
                 {
@@ -497,6 +739,78 @@ namespace optimizer::passes
                         if (UDE_DEBUG)
                         {
                             std::cout << "[UDE] Removing unused class: " << classNode->getClassName() << "\n";
+                        }
+                    }
+                    else
+                    {
+                        // Class is used, but check if it has unused methods
+                        std::string className = classNode->getClassName();
+                        bool hasUnusedMethods = false;
+
+                        // Count how many methods are unused
+                        for (const auto& method : classNode->getMethods())
+                        {
+                            if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                            {
+                                if (!analyzer.isMethodUsed(className, methodNode->getName()))
+                                {
+                                    hasUnusedMethods = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (hasUnusedMethods)
+                        {
+                            // Clone class with only used methods
+                            auto optimizedClass = classNode->clone();
+                            auto* optClassNode = dynamic_cast<ClassNode*>(optimizedClass.get());
+
+                            // Create new class with filtered methods
+                            auto newClass = std::make_unique<ClassNode>(
+                                optClassNode->getClassName(),
+                                optClassNode->getGenericParameters(),
+                                optClassNode->getParentClassName(),
+                                optClassNode->getImplementedInterfaces(),
+                                optClassNode->getLocation()
+                            );
+                            newClass->setVisibility(optClassNode->getVisibility());
+                            newClass->setFinal(optClassNode->isFinal());
+
+                            // Copy all fields
+                            for (const auto& field : optClassNode->getFields())
+                            {
+                                newClass->addField(field->clone());
+                            }
+
+                            // Copy all constructors (always needed)
+                            for (const auto& ctor : optClassNode->getConstructors())
+                            {
+                                newClass->addConstructor(ctor->clone());
+                            }
+
+                            // Copy only used methods
+                            for (const auto& method : optClassNode->getMethods())
+                            {
+                                if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                                {
+                                    if (analyzer.isMethodUsed(className, methodNode->getName()))
+                                    {
+                                        newClass->addMethod(method->clone());
+                                    }
+                                    else
+                                    {
+                                        removedMethods++;
+                                        if (UDE_DEBUG)
+                                        {
+                                            std::cout << "[UDE] Removing unused method: " << className << "::" << methodNode->getName() << "\n";
+                                        }
+                                    }
+                                }
+                            }
+
+                            keptStatements.push_back(std::move(newClass));
+                            continue;
                         }
                     }
                 }
@@ -528,6 +842,201 @@ namespace optimizer::passes
 
         // For other nodes, just clone
         return node;
+    }
+
+    // ================= Imported AST Optimization =================
+
+    void UnusedDeclarationEliminationPass::optimizeImportedAST(
+        ast::ASTNode* importedAST,
+        const UsageAnalyzer& analyzer,
+        std::unordered_set<ast::ASTNode*>& optimizedASTs)
+    {
+        if (!importedAST) return;
+
+        // Check if we've already optimized this AST (avoid duplicate work)
+        if (optimizedASTs.find(importedAST) != optimizedASTs.end())
+        {
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] Imported AST already optimized, skipping\n";
+            }
+            return;
+        }
+
+        // Mark as optimized to avoid infinite loops
+        optimizedASTs.insert(importedAST);
+
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Optimizing imported AST in-place\n";
+        }
+
+        // Must be a ProgramNode to optimize
+        auto* programNode = dynamic_cast<ProgramNode*>(importedAST);
+        if (!programNode)
+        {
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] WARNING: Imported AST is not a ProgramNode, cannot optimize\n";
+            }
+            return;
+        }
+
+        // First, recursively optimize any nested imports in this AST
+        for (const auto& stmt : programNode->getStatements())
+        {
+            if (auto* importNode = dynamic_cast<ImportNode*>(stmt.get()))
+            {
+                if (importNode->getImportedAST())
+                {
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Found nested import: " << importNode->getFilePath() << "\n";
+                    }
+                    optimizeImportedAST(importNode->getImportedAST(), analyzer, optimizedASTs);
+                }
+            }
+        }
+
+        // Now optimize this ProgramNode's declarations
+        std::vector<std::unique_ptr<ast::ASTNode>> keptStatements;
+
+        for (const auto& stmt : programNode->getStatements())
+        {
+            bool keep = true;
+
+            // ImportNodes are always kept (they're just metadata)
+            if (dynamic_cast<ImportNode*>(stmt.get()))
+            {
+                keptStatements.push_back(stmt->clone());
+                continue;
+            }
+
+            // Check if this is an unused declaration
+            if (auto* funcNode = dynamic_cast<FunctionNode*>(stmt.get()))
+            {
+                if (!analyzer.isFunctionUsed(funcNode->getName()))
+                {
+                    keep = false;
+                    removedFunctions++;
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Removing unused function from import: " << funcNode->getName() << "\n";
+                    }
+                }
+            }
+            else if (auto* classNode = dynamic_cast<ClassNode*>(stmt.get()))
+            {
+                if (!analyzer.isClassUsed(classNode->getClassName()))
+                {
+                    keep = false;
+                    removedClasses++;
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Removing unused class from import: " << classNode->getClassName() << "\n";
+                    }
+                }
+                else
+                {
+                    // Class is used, but check if it has unused methods
+                    std::string className = classNode->getClassName();
+                    bool hasUnusedMethods = false;
+
+                    // Count how many methods are unused
+                    for (const auto& method : classNode->getMethods())
+                    {
+                        if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                        {
+                            if (!analyzer.isMethodUsed(className, methodNode->getName()))
+                            {
+                                hasUnusedMethods = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hasUnusedMethods)
+                    {
+                        // Clone class with only used methods
+                        auto optimizedClass = classNode->clone();
+                        auto* optClassNode = dynamic_cast<ClassNode*>(optimizedClass.get());
+
+                        // Create new class with filtered methods
+                        auto newClass = std::make_unique<ClassNode>(
+                            optClassNode->getClassName(),
+                            optClassNode->getGenericParameters(),
+                            optClassNode->getParentClassName(),
+                            optClassNode->getImplementedInterfaces(),
+                            optClassNode->getLocation()
+                        );
+                        newClass->setVisibility(optClassNode->getVisibility());
+                        newClass->setFinal(optClassNode->isFinal());
+
+                        // Copy all fields
+                        for (const auto& field : optClassNode->getFields())
+                        {
+                            newClass->addField(field->clone());
+                        }
+
+                        // Copy all constructors (always needed)
+                        for (const auto& ctor : optClassNode->getConstructors())
+                        {
+                            newClass->addConstructor(ctor->clone());
+                        }
+
+                        // Copy only used methods
+                        for (const auto& method : optClassNode->getMethods())
+                        {
+                            if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                            {
+                                if (analyzer.isMethodUsed(className, methodNode->getName()))
+                                {
+                                    newClass->addMethod(method->clone());
+                                }
+                                else
+                                {
+                                    removedMethods++;
+                                    if (UDE_DEBUG)
+                                    {
+                                        std::cout << "[UDE] Removing unused method from import: " << className << "::" << methodNode->getName() << "\n";
+                                    }
+                                }
+                            }
+                        }
+
+                        keptStatements.push_back(std::move(newClass));
+                        continue;
+                    }
+                }
+            }
+            else if (auto* ifaceNode = dynamic_cast<InterfaceNode*>(stmt.get()))
+            {
+                if (!analyzer.isInterfaceUsed(ifaceNode->getName()))
+                {
+                    keep = false;
+                    removedInterfaces++;
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Removing unused interface from import: " << ifaceNode->getName() << "\n";
+                    }
+                }
+            }
+
+            if (keep)
+            {
+                keptStatements.push_back(stmt->clone());
+            }
+        }
+
+        // CRITICAL: Modify the ProgramNode in-place by replacing its statements
+        // We need to use const_cast because we have a non-const pointer to the cached AST
+        // This is safe because we own the cache through ImportManager
+        programNode->setStatements(std::move(keptStatements));
+
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Imported AST optimized successfully\n";
+        }
     }
 
     // ================= UnusedDeclarationEliminationPass Implementation =================
@@ -625,16 +1134,59 @@ namespace optimizer::passes
             {
                 std::cout << "[UDE]   - " << cls << "\n";
             }
+            std::cout << "[UDE] Called method names: " << analyzer.calledMethodNames.size() << "\n";
+            for (const auto& method : analyzer.calledMethodNames)
+            {
+                std::cout << "[UDE]   - " << method << "()\n";
+            }
+            std::cout << "[UDE] Declared methods: " << analyzer.declaredMethods.size() << "\n";
+            for (const auto& method : analyzer.declaredMethods)
+            {
+                std::cout << "[UDE]   - " << method << "\n";
+            }
+            std::cout << "[UDE] Used methods: " << analyzer.usedMethods.size() << "\n";
+            for (const auto& method : analyzer.usedMethods)
+            {
+                std::cout << "[UDE]   - " << method << "\n";
+            }
         }
 
-        // Phase 2: Remove unused declarations
+        // Phase 2a: Optimize imported ASTs first (in-place modification)
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Phase 2a: Optimizing imported ASTs...\n";
+        }
+        std::unordered_set<ast::ASTNode*> optimizedASTs;
+        if (auto* programNode = dynamic_cast<ProgramNode*>(node.get()))
+        {
+            for (const auto& stmt : programNode->getStatements())
+            {
+                if (auto* importNode = dynamic_cast<ImportNode*>(stmt.get()))
+                {
+                    if (importNode->getImportedAST())
+                    {
+                        if (UDE_DEBUG)
+                        {
+                            std::cout << "[UDE] Optimizing import: " << importNode->getFilePath() << "\n";
+                        }
+                        optimizeImportedAST(importNode->getImportedAST(), analyzer, optimizedASTs);
+                    }
+                }
+            }
+        }
+
+        // Phase 2b: Remove unused declarations from main AST
+        if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Phase 2b: Removing unused declarations from main AST...\n";
+        }
         auto result = removeUnusedDeclarations(std::move(node), analyzer);
 
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         setExecutionTime(duration);
 
-        size_t totalRemoved = removedFunctions + removedClasses + removedInterfaces + removedVariables;
+        size_t totalRemoved = removedFunctions + removedClasses + removedInterfaces + removedVariables + removedMethods;
 
         if (totalRemoved > 0)
         {
@@ -644,10 +1196,13 @@ namespace optimizer::passes
 
         if (UDE_DEBUG)
         {
-            std::cout << "[UDE] Removed: " << removedFunctions << " functions, "
-                << removedClasses << " classes, "
-                << removedInterfaces << " interfaces, "
-                << removedVariables << " variables\n";
+            std::cout << "\n[UDE] ===== OPTIMIZATION SUMMARY =====\n";
+            std::cout << "[UDE] Removed " << removedFunctions << " unused functions\n";
+            std::cout << "[UDE] Removed " << removedClasses << " unused classes\n";
+            std::cout << "[UDE] Removed " << removedInterfaces << " unused interfaces\n";
+            std::cout << "[UDE] Removed " << removedVariables << " unused variables\n";
+            std::cout << "[UDE] Removed " << removedMethods << " unused methods\n";
+            std::cout << "[UDE] Total declarations removed: " << totalRemoved << "\n";
             std::cout << "[UDE] ===== Unused Declaration Elimination Pass Complete =====\n\n";
         }
 
@@ -661,7 +1216,7 @@ namespace optimizer::passes
 
     void UnusedDeclarationEliminationPass::reportMetrics(OptimizationResult& result) const
     {
-        size_t totalRemoved = removedFunctions + removedClasses + removedInterfaces + removedVariables;
+        size_t totalRemoved = removedFunctions + removedClasses + removedInterfaces + removedVariables + removedMethods;
 
         optimizer::PassMetrics metrics(
             getName(),
@@ -679,5 +1234,6 @@ namespace optimizer::passes
         removedClasses = 0;
         removedInterfaces = 0;
         removedVariables = 0;
+        removedMethods = 0;
     }
 } // namespace optimizer::passes

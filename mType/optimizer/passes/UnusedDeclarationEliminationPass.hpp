@@ -40,6 +40,7 @@ namespace optimizer::passes {
 		size_t removedClasses = 0;
 		size_t removedInterfaces = 0;
 		size_t removedVariables = 0;
+		size_t removedMethods = 0;
 
 		// Phase 1: Usage tracking
 		struct UsageAnalyzer {
@@ -48,17 +49,26 @@ namespace optimizer::passes {
 			std::unordered_set<std::string> declaredClasses;
 			std::unordered_set<std::string> declaredInterfaces;
 			std::unordered_set<std::string> declaredVariables;
+			std::unordered_set<std::string> declaredMethods;  // Format: "ClassName::methodName"
 
 			// Usages
 			std::unordered_set<std::string> usedFunctions;
 			std::unordered_set<std::string> usedClasses;
 			std::unordered_set<std::string> usedInterfaces;
 			std::unordered_set<std::string> usedVariables;
+			std::unordered_set<std::string> usedMethods;  // Format: "ClassName::methodName" or "ClassName::STATIC::methodName"
 
 			// Public/exported (always keep)
 			std::unordered_set<std::string> publicFunctions;
 			std::unordered_set<std::string> publicClasses;
 			std::unordered_set<std::string> publicInterfaces;
+			std::unordered_set<std::string> publicMethods;  // Format: "ClassName::methodName" or "ClassName::STATIC::methodName"
+
+			// Special methods that should never be removed (constructors, toString, etc.)
+			std::unordered_set<std::string> specialMethods;  // Method names like "constructor", "toString"
+
+			// Track method calls by name (without class information)
+			std::unordered_set<std::string> calledMethodNames;  // Just method names: "add", "getValue", etc.
 
 			// Track which functions contain which calls (for transitive closure)
 			std::unordered_map<std::string, std::unordered_set<std::string>> functionCalls;
@@ -67,11 +77,13 @@ namespace optimizer::passes {
 			void analyzeDeclaredClass(const std::string& name, bool isPublic);
 			void analyzeDeclaredInterface(const std::string& name, bool isPublic);
 			void analyzeDeclaredVariable(const std::string& name);
+			void analyzeDeclaredMethod(const std::string& className, const std::string& methodName, bool isPublic, bool isStatic);
 
 			void analyzeUsedFunction(const std::string& name);
 			void analyzeUsedClass(const std::string& name);
 			void analyzeUsedInterface(const std::string& name);
 			void analyzeUsedVariable(const std::string& name);
+			void analyzeUsedMethod(const std::string& className, const std::string& methodName);
 
 			// Compute transitive closure of used declarations
 			void computeTransitiveClosure();
@@ -81,6 +93,7 @@ namespace optimizer::passes {
 			bool isClassUsed(const std::string& name) const;
 			bool isInterfaceUsed(const std::string& name) const;
 			bool isVariableUsed(const std::string& name) const;
+			bool isMethodUsed(const std::string& className, const std::string& methodName) const;
 		};
 
 		// Analyze the entire AST to collect declarations and usages
@@ -93,6 +106,13 @@ namespace optimizer::passes {
 		std::unique_ptr<ast::ASTNode> removeUnusedDeclarations(
 			std::unique_ptr<ast::ASTNode> node,
 			const UsageAnalyzer& analyzer
+		);
+
+		// Helper: Recursively optimize imported AST in-place
+		void optimizeImportedAST(
+			ast::ASTNode* importedAST,
+			const UsageAnalyzer& analyzer,
+			std::unordered_set<ast::ASTNode*>& optimizedASTs
 		);
 
 	public:
