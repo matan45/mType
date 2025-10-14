@@ -20,6 +20,7 @@
 
 #include "DeadCodeEliminationPass.hpp"
 #include "../OptimizationResult.hpp"
+#include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
@@ -29,6 +30,7 @@
 #include "../../ast/nodes/statements/ForEachNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
+#include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/BreakNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
@@ -36,7 +38,9 @@
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
+#include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include <chrono>
+#include <iostream>
 
 namespace optimizer::passes {
 
@@ -44,6 +48,9 @@ namespace optimizer::passes {
 	using namespace ast::nodes::statements;
 	using namespace ast::nodes::functions;
 	using namespace ast::nodes::classes;
+
+	// Debug flag - set to true to enable debug logging
+	constexpr bool DCE_DEBUG = false;
 
 	// ================= DCETransformer Implementation =================
 
@@ -71,6 +78,10 @@ namespace optimizer::passes {
 	std::vector<std::unique_ptr<ast::ASTNode>> DeadCodeEliminationPass::DCETransformer::transformStatements(
 		const std::vector<std::unique_ptr<ast::ASTNode>>& statements) {
 
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] transformStatements: Analyzing " << statements.size() << " statements\n";
+		}
+
 		std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
 		bool foundTerminator = false;
 		size_t terminatorIndex = SIZE_MAX;
@@ -78,6 +89,10 @@ namespace optimizer::passes {
 		// Find the first terminating statement
 		for (size_t i = 0; i < statements.size(); ++i) {
 			if (isTerminatingStatement(statements[i].get())) {
+				if (DCE_DEBUG) {
+					std::cout << "[DCE] transformStatements: Found terminator at index " << i
+					          << " (type: " << typeid(*statements[i]).name() << ")\n";
+				}
 				foundTerminator = true;
 				terminatorIndex = i;
 				break;
@@ -87,23 +102,41 @@ namespace optimizer::passes {
 		// If we found a terminator and there are statements after it, we have dead code
 		if (foundTerminator && terminatorIndex + 1 < statements.size()) {
 			size_t deadCount = statements.size() - (terminatorIndex + 1);
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] transformStatements: Removing " << deadCount << " dead statements after terminator\n";
+			}
 			removedCount += deadCount;
 			modified = true;
 			context->recordTransformation("DeadCodeElimination");
 
-			// Clone all statements up to and including the terminator
+			// Transform all statements up to and including the terminator
 			transformedStatements.reserve(terminatorIndex + 1);
 			for (size_t i = 0; i <= terminatorIndex; ++i) {
 				if (statements[i]) {
-					transformedStatements.push_back(statements[i]->clone());
+					// Recursively transform child nodes (e.g., function bodies)
+					auto transformed = transformChild(statements[i].get());
+					if (transformed) {
+						transformedStatements.push_back(std::move(transformed));
+					} else {
+						transformedStatements.push_back(statements[i]->clone());
+					}
 				}
 			}
 		} else {
-			// No dead code - clone all statements
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] transformStatements: No dead code found, transforming all statements recursively\n";
+			}
+			// No dead code at this level - but still need to recursively transform children
 			transformedStatements.reserve(statements.size());
 			for (const auto& stmt : statements) {
 				if (stmt) {
-					transformedStatements.push_back(stmt->clone());
+					// Recursively transform child nodes (e.g., function bodies)
+					auto transformed = transformChild(stmt.get());
+					if (transformed) {
+						transformedStatements.push_back(std::move(transformed));
+					} else {
+						transformedStatements.push_back(stmt->clone());
+					}
 				}
 			}
 		}
@@ -112,85 +145,358 @@ namespace optimizer::passes {
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitProgramNode(ProgramNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitProgramNode: Processing " << node->getStatements().size() << " statements\n";
+		}
+
 		// Transform statements - remove dead code
 		auto transformedStatements = transformStatements(node->getStatements());
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitProgramNode: After transform, have " << transformedStatements.size() << " statements\n";
+		}
 
 		// Create new ProgramNode with transformed statements
 		return std::make_unique<ProgramNode>(std::move(transformedStatements), node->getLocation());
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitBlockNode(BlockNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitBlockNode: Processing " << node->getStatements().size() << " statements\n";
+		}
+
 		// Transform statements - remove dead code
 		auto transformedStatements = transformStatements(node->getStatements());
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitBlockNode: After transform, have " << transformedStatements.size() << " statements\n";
+		}
 
 		// Create new BlockNode with transformed statements
 		return std::make_unique<BlockNode>(std::move(transformedStatements), node->getLocation());
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitFunctionNode(FunctionNode* node) {
-		// Recursively process function body - dead code elimination happens in nested blocks
-		// Returning nullptr means ASTTransformer will automatically clone the node
-		auto body = node->getBodyPtr();
-		if (body) {
-			transformChild(body);
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitFunctionNode: Processing function '" << node->getName() << "'\n";
 		}
-		return nullptr; // Use clone() - node structure preserved, nested blocks already transformed
+
+		// Transform the function body (which is a BlockNode)
+		auto body = node->getBodyPtr();
+		if (!body) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitFunctionNode: No body, using clone()\n";
+			}
+			return nullptr; // Use clone() for functions without body
+		}
+
+		// Transform the body through the visitor - this will trigger visitBlockNode
+		auto transformedBodyUnique = transformChild(body);
+
+		// If transformation occurred, create new FunctionNode with transformed body
+		if (transformedBodyUnique) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitFunctionNode: Body was transformed, creating new FunctionNode\n";
+			}
+
+			// Convert unique_ptr to shared_ptr for FunctionNode constructor
+			std::shared_ptr<ast::ASTNode> transformedBody = std::move(transformedBodyUnique);
+
+			// Create new FunctionNode with transformed body
+			auto transformedFunction = std::make_unique<FunctionNode>(
+				node->getName(),
+				node->getGenericReturnType(),
+				node->getGenericParameters(),
+				transformedBody,
+				node->getGenericTypeParameters(),
+				node->getIsAsync(),
+				node->getLocation()
+			);
+
+			// Preserve visibility modifier
+			transformedFunction->setVisibility(node->getVisibility());
+
+			return transformedFunction;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitFunctionNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitMethodNode(MethodNode* node) {
-		// Recursively process method body - dead code elimination happens in nested blocks
+		// Transform the method body (which is a BlockNode)
 		auto body = node->getBodyPtr();
-		if (body) {
-			transformChild(body);
+		if (!body) {
+			return nullptr; // Use clone() for methods without body
 		}
-		return nullptr; // Use clone() - node structure preserved, nested blocks already transformed
+
+		// Transform the body through the visitor - this will trigger visitBlockNode
+		auto transformedBodyUnique = transformChild(body);
+
+		// If transformation occurred, create new MethodNode with transformed body
+		if (transformedBodyUnique) {
+			// Convert unique_ptr to shared_ptr for MethodNode constructor
+			std::shared_ptr<ast::ASTNode> transformedBody = std::move(transformedBodyUnique);
+
+			// Create new MethodNode with transformed body
+			auto transformedMethod = std::make_unique<MethodNode>(
+				node->getName(),
+				node->getGenericReturnType(),
+				node->getGenericParameters(),
+				transformedBody,
+				node->getIsStatic(),
+				node->getGenericTypeParameters(),
+				node->getAccessModifier(),
+				node->getIsAsync(),
+				node->getLocation()
+			);
+
+			return transformedMethod;
+		}
+
+		// No transformation - use clone()
+		return nullptr;
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitConstructorNode(ConstructorNode* node) {
-		// Constructor bodies are handled like method bodies
-		// Returning nullptr uses clone() which preserves the constructor structure
+		// Transform the constructor body (which is a BlockNode)
+		auto body = node->getBodyPtr();
+		if (!body) {
+			return nullptr; // Use clone() for constructors without body
+		}
+
+		// Transform the body through the visitor - this will trigger visitBlockNode
+		auto transformedBodyUnique = transformChild(body);
+
+		// If transformation occurred, create new ConstructorNode with transformed body
+		if (transformedBodyUnique) {
+			// Convert unique_ptr to shared_ptr for ConstructorNode constructor
+			std::shared_ptr<ast::ASTNode> transformedBody = std::move(transformedBodyUnique);
+
+			// Create new ConstructorNode with transformed body
+			auto transformedConstructor = std::make_unique<ConstructorNode>(
+				node->getParametersWithTypes(),
+				transformedBody,
+				node->getAccessModifier(),
+				node->getLocation()
+			);
+
+			// Clone super initializer if present (cannot transform, so we clone it)
+			if (node->hasSuperInitializer()) {
+				auto clonedSuper = std::unique_ptr<ast::nodes::classes::SuperConstructorCallNode>(
+					static_cast<ast::nodes::classes::SuperConstructorCallNode*>(
+						node->getSuperInitializer()->clone().release()
+					)
+				);
+				transformedConstructor->setSuperInitializer(std::move(clonedSuper));
+			}
+
+			return transformedConstructor;
+		}
+
+		// No transformation - use clone()
 		return nullptr;
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitIfNode(IfNode* node) {
-		// Recursively process then/else branches - dead code elimination happens in nested blocks
-		if (node->getThenStatement()) {
-			transformChild(node->getThenStatement());
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitIfNode: Processing if statement\n";
 		}
+
+		// Transform condition (no dead code elimination here, but recursively check)
+		auto transformedCondition = transformChild(node->getCondition());
+		auto* conditionToUse = transformedCondition ? transformedCondition.get() : node->getCondition();
+
+		// Transform then branch
+		auto transformedThen = transformChild(node->getThenStatement());
+		auto* thenToUse = transformedThen ? transformedThen.get() : node->getThenStatement();
+
+		// Transform else branch if present
+		std::unique_ptr<ast::ASTNode> transformedElse = nullptr;
+		ASTNode* elseToUse = nullptr;
 		if (node->hasElseStatement() && node->getElseStatement()) {
-			transformChild(node->getElseStatement());
+			transformedElse = transformChild(node->getElseStatement());
+			elseToUse = transformedElse ? transformedElse.get() : node->getElseStatement();
 		}
-		return nullptr; // Use clone() - node structure preserved, nested blocks already transformed
+
+		// If any branch was transformed, create new IfNode
+		if (transformedCondition || transformedThen || transformedElse) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitIfNode: Creating new IfNode with transformed branches\n";
+			}
+
+			auto newIfNode = std::make_unique<IfNode>(
+				transformedCondition ? std::move(transformedCondition) : conditionToUse->clone(),
+				transformedThen ? std::move(transformedThen) : thenToUse->clone(),
+				elseToUse ? (transformedElse ? std::move(transformedElse) : elseToUse->clone()) : nullptr,
+				node->getLocation()
+			);
+
+			return newIfNode;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitIfNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitWhileNode(WhileNode* node) {
-		// Loop bodies don't need special DCE handling at the loop level
-		// Dead code elimination happens inside the loop body blocks
+		// Transform condition and body
+		auto transformedCondition = transformChild(node->getCondition());
+		auto transformedBody = transformChild(node->getBody());
+
+		// If either was transformed, create new WhileNode
+		if (transformedCondition || transformedBody) {
+			return std::make_unique<WhileNode>(
+				transformedCondition ? std::move(transformedCondition) : node->getCondition()->clone(),
+				transformedBody ? std::move(transformedBody) : node->getBody()->clone(),
+				node->getLocation()
+			);
+		}
+
 		return nullptr; // Use clone()
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitDoWhileNode(DoWhileNode* node) {
-		// Loop bodies don't need special DCE handling at the loop level
+		// Transform body and condition
+		auto transformedBody = transformChild(node->getBody());
+		auto transformedCondition = transformChild(node->getCondition());
+
+		// If either was transformed, create new DoWhileNode
+		if (transformedBody || transformedCondition) {
+			return std::make_unique<DoWhileNode>(
+				transformedBody ? std::move(transformedBody) : node->getBody()->clone(),
+				transformedCondition ? std::move(transformedCondition) : node->getCondition()->clone(),
+				node->getLocation()
+			);
+		}
+
 		return nullptr; // Use clone()
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitForNode(ForNode* node) {
-		// Loop bodies don't need special DCE handling at the loop level
+		// Transform all parts of for loop
+		auto transformedInit = node->getInitialization() ? transformChild(node->getInitialization()) : nullptr;
+		auto transformedCondition = node->getCondition() ? transformChild(node->getCondition()) : nullptr;
+		auto transformedUpdate = node->getUpdate() ? transformChild(node->getUpdate()) : nullptr;
+		auto transformedBody = transformChild(node->getBody());
+
+		// If any part was transformed, create new ForNode
+		if (transformedInit || transformedCondition || transformedUpdate || transformedBody) {
+			return std::make_unique<ForNode>(
+				transformedInit ? std::move(transformedInit) : (node->getInitialization() ? node->getInitialization()->clone() : nullptr),
+				transformedCondition ? std::move(transformedCondition) : (node->getCondition() ? node->getCondition()->clone() : nullptr),
+				transformedUpdate ? std::move(transformedUpdate) : (node->getUpdate() ? node->getUpdate()->clone() : nullptr),
+				transformedBody ? std::move(transformedBody) : node->getBody()->clone(),
+				node->getLocation()
+			);
+		}
+
 		return nullptr; // Use clone()
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitForEachNode(ForEachNode* node) {
-		// Loop bodies don't need special DCE handling at the loop level
+		// Transform collection and body
+		auto transformedCollection = transformChild(node->getCollection());
+		auto transformedBody = transformChild(node->getBody());
+
+		// If either was transformed, create new ForEachNode
+		if (transformedCollection || transformedBody) {
+			return std::make_unique<ForEachNode>(
+				node->getVariableName(),
+				node->getVariableTypeInfo(),
+				transformedCollection ? std::move(transformedCollection) : node->getCollection()->clone(),
+				transformedBody ? std::move(transformedBody) : node->getBody()->clone(),
+				node->getLocation()
+			);
+		}
+
 		return nullptr; // Use clone()
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitSwitchNode(SwitchNode* node) {
-		// Switch cases are handled individually - dead code elimination happens in case blocks
+		// Transform expression
+		auto transformedExpr = transformChild(node->getExpression());
+
+		// Transform each case
+		bool anyCaseTransformed = false;
+		std::vector<std::unique_ptr<ast::ASTNode>> transformedCases;
+		transformedCases.reserve(node->getCases().size());
+
+		for (const auto& caseNode : node->getCases()) {
+			auto transformed = transformChild(caseNode.get());
+			if (transformed) {
+				anyCaseTransformed = true;
+				transformedCases.push_back(std::move(transformed));
+			} else {
+				transformedCases.push_back(caseNode->clone());
+			}
+		}
+
+		// If expression or any case was transformed, create new SwitchNode
+		if (transformedExpr || anyCaseTransformed) {
+			auto newSwitch = std::make_unique<SwitchNode>(
+				transformedExpr ? std::move(transformedExpr) : node->getExpression()->clone(),
+				node->getLocation()
+			);
+
+			for (auto& caseNode : transformedCases) {
+				newSwitch->addCase(std::move(caseNode));
+			}
+
+			return newSwitch;
+		}
+
 		return nullptr; // Use clone()
 	}
 
 	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitTryNode(TryNode* node) {
-		// Try/catch/finally blocks are handled individually
+		// Transform try block
+		auto transformedTry = transformChild(node->getTryBlock());
+
+		// Transform catch blocks
+		bool anyCatchTransformed = false;
+		std::vector<std::unique_ptr<CatchNode>> transformedCatches;
+		transformedCatches.reserve(node->getCatchBlocks().size());
+
+		for (const auto& catchBlock : node->getCatchBlocks()) {
+			auto transformed = transformChild(catchBlock.get());
+			if (transformed) {
+				anyCatchTransformed = true;
+				transformedCatches.push_back(std::unique_ptr<CatchNode>(
+					static_cast<CatchNode*>(transformed.release())
+				));
+			} else {
+				transformedCatches.push_back(std::unique_ptr<CatchNode>(
+					static_cast<CatchNode*>(catchBlock->clone().release())
+				));
+			}
+		}
+
+		// Transform finally block
+		std::unique_ptr<ast::ASTNode> transformedFinally = nullptr;
+		if (node->hasFinallyBlock()) {
+			transformedFinally = transformChild(node->getFinallyBlock());
+		}
+
+		// If any part was transformed, create new TryNode
+		if (transformedTry || anyCatchTransformed || transformedFinally) {
+			return std::make_unique<TryNode>(
+				transformedTry ? std::move(transformedTry) : node->getTryBlock()->clone(),
+				std::move(transformedCatches),
+				transformedFinally ? std::move(transformedFinally) :
+					(node->hasFinallyBlock() ? node->getFinallyBlock()->clone() : nullptr),
+				node->getLocation()
+			);
+		}
+
 		return nullptr; // Use clone()
 	}
 
@@ -205,6 +511,11 @@ namespace optimizer::passes {
 		std::unique_ptr<ast::ASTNode> node,
 		base::OptimizationContext& context) {
 
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] ===== Starting Dead Code Elimination Pass =====\n";
+			std::cout << "[DCE] Input node type: " << (node ? typeid(*node).name() : "nullptr") << "\n";
+		}
+
 		auto startTime = std::chrono::high_resolution_clock::now();
 
 		// Create transformer and run it
@@ -213,18 +524,38 @@ namespace optimizer::passes {
 		// Manual dispatch - check node type and call appropriate visit method
 		std::unique_ptr<ast::ASTNode> result;
 		if (auto* programNode = dynamic_cast<ProgramNode*>(node.get())) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] Detected ProgramNode, calling visitProgramNode()\n";
+			}
 			result = transformer.visitProgramNode(programNode);
 		}
 		else if (auto* blockNode = dynamic_cast<BlockNode*>(node.get())) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] Detected BlockNode, calling visitBlockNode()\n";
+			}
 			result = transformer.visitBlockNode(blockNode);
 		}
 		else if (auto* functionNode = dynamic_cast<FunctionNode*>(node.get())) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] Detected FunctionNode, calling visitFunctionNode()\n";
+			}
 			result = transformer.visitFunctionNode(functionNode);
+		}
+		else {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] WARNING: Unknown node type, no transformation applied\n";
+			}
 		}
 
 		auto endTime = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 		setExecutionTime(duration);
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] Transformation result: " << (result ? "NEW NODE" : "nullptr (using original)") << "\n";
+			std::cout << "[DCE] Removed statements: " << removedStatements << "\n";
+			std::cout << "[DCE] ===== Dead Code Elimination Pass Complete =====\n\n";
+		}
 
 		// If transformation occurred, return transformed node
 		// Otherwise, return original node

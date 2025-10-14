@@ -58,4 +58,17 @@ namespace ast::nodes::classes
     {
         return visitor.visitMemberAccessNode(this);
     }
+
+    std::unique_ptr<ASTNode> MemberAccessNode::clone() const
+    {
+        // Clone the object (shared_ptr -> unique_ptr -> shared_ptr)
+        std::shared_ptr<ASTNode> clonedObject = object ? std::shared_ptr<ASTNode>(object->clone()) : nullptr;
+
+        return std::make_unique<MemberAccessNode>(
+            clonedObject,
+            memberName,
+            isStaticAccess,
+            location
+        );
+    }
 }

@@ -48,4 +48,15 @@ namespace ast::nodes::expressions
     {
         return visitor.visitUnaryOpNode(this);
     }
+
+    std::unique_ptr<ASTNode> UnaryExpNode::clone() const
+    {
+        auto clonedOperand = operand ? operand->clone() : nullptr;
+        return std::make_unique<UnaryExpNode>(
+            operator_,
+            std::move(clonedOperand),
+            position,
+            location
+        );
+    }
 }

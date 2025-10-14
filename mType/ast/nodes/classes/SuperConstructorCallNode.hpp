@@ -19,5 +19,6 @@ namespace ast::nodes::classes
         size_t getArgumentCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

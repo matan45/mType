@@ -47,4 +47,25 @@ namespace ast::nodes::expressions
     {
         return visitor.visitLambdaNode(this);
     }
+
+    std::unique_ptr<ASTNode> LambdaNode::clone() const
+    {
+        // Clone parameters (deep copy of Parameter structs with GenericType)
+        std::vector<Parameter> clonedParams;
+        clonedParams.reserve(parameters.size());
+        for (const auto& param : parameters) {
+            std::shared_ptr<GenericType> clonedType = param.type ? std::make_shared<GenericType>(*param.type) : nullptr;
+            clonedParams.emplace_back(param.name, clonedType);
+        }
+
+        // Clone body
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+
+        auto clonedLambda = std::make_unique<LambdaNode>(clonedParams, std::move(clonedBody), location, bodyType, isAsync);
+
+        clonedLambda->setTargetInterface(targetInterface);
+        clonedLambda->setTargetMethod(targetMethod);
+
+        return clonedLambda;
+    }
 }

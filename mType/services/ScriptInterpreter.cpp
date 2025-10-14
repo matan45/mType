@@ -153,7 +153,16 @@ namespace services
             // Apply AST optimizations if optimization level > O0
             if (optimizationLevel != constants::OptimizationLevel::O0 && optimizer)
             {
+                std::cout << "\n" << std::string(60, '=') << "\n";
+                std::cout << "APPLYING AST OPTIMIZATIONS (Level O" << static_cast<int>(optimizationLevel) << ")\n";
+                std::cout << std::string(60, '=') << "\n";
+
                 ast = optimizer->optimize(std::move(ast), environment);
+
+                // Get and print optimization results
+                auto result = optimizer->getLastResult();
+                std::cout << "\n" << result.generateReport() << "\n";
+                std::cout << std::string(60, '=') << "\n\n";
             }
 
             // Execute based on execution mode

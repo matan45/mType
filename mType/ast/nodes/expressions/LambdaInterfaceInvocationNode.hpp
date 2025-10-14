@@ -86,6 +86,8 @@ namespace ast::nodes::expressions
         void cleanup();
         bool needsCleanup() const;
 
+        std::unique_ptr<ASTNode> clone() const override;
+
     private:
         // Helper methods
         std::string getValueTypeName(value::ValueType type) const;

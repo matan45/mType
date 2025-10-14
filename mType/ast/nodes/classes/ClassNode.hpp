@@ -80,5 +80,6 @@ namespace ast::nodes::classes
         bool isPrivate() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

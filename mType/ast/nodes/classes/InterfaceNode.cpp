@@ -106,4 +106,26 @@ namespace ast::nodes::classes
     {
         return visitor.visitInterfaceNode(this);
     }
+
+    std::unique_ptr<ASTNode> InterfaceNode::clone() const
+    {
+        auto clonedInterface = std::make_unique<InterfaceNode>(name, genericParameters, location);
+
+        // Clone methods
+        for (const auto& method : methods) {
+            if (method) {
+                clonedInterface->addMethod(method->clone());
+            }
+        }
+
+        // Copy extended interfaces
+        for (const auto& extendedInterface : extendsInterfaces) {
+            clonedInterface->addExtendedInterface(extendedInterface);
+        }
+
+        clonedInterface->setFinal(finalInterface);
+        clonedInterface->setVisibility(visibility);
+
+        return clonedInterface;
+    }
 }

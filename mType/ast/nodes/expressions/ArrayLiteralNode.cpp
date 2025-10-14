@@ -19,4 +19,16 @@ namespace ast::nodes::expressions
     {
         return visitor.visitArrayLiteralNode(this);
     }
+
+    std::unique_ptr<ASTNode> ArrayLiteralNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedElements;
+        clonedElements.reserve(elements.size());
+        for (const auto& elem : elements) {
+            if (elem) {
+                clonedElements.push_back(elem->clone());
+            }
+        }
+        return std::make_unique<ArrayLiteralNode>(std::move(clonedElements), location);
+    }
 }

@@ -112,4 +112,26 @@ namespace ast::nodes::classes
     {
         return visitor.visitFieldNode(this);
     }
+
+    std::unique_ptr<ASTNode> FieldNode::clone() const
+    {
+        // Clone initial value
+        std::unique_ptr<ASTNode> clonedInitValue = initialValue ? initialValue->clone() : nullptr;
+
+        // Clone the GenericType
+        std::shared_ptr<GenericType> clonedType = type ? std::make_shared<GenericType>(*type) : nullptr;
+
+        // Create cloned field
+        auto clonedField = std::make_unique<FieldNode>(
+            name,
+            clonedType,
+            std::move(clonedInitValue),
+            isStatic,
+            isFinal,
+            accessModifier,
+            location
+        );
+
+        return clonedField;
+    }
 }

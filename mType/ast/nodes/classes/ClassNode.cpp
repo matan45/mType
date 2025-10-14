@@ -172,4 +172,43 @@ namespace ast::nodes::classes
     {
         return visitor.visitClassNode(this);
     }
+
+    std::unique_ptr<ASTNode> ClassNode::clone() const
+    {
+        // Create cloned class with inheritance constructor
+        auto clonedClass = std::make_unique<ClassNode>(
+            className,
+            genericParameters,
+            parentClassName,
+            implementedInterfaces,
+            location
+        );
+
+        // Clone fields
+        for (const auto& field : fields) {
+            if (field) {
+                clonedClass->addField(field->clone());
+            }
+        }
+
+        // Clone constructors
+        for (const auto& constructor : constructors) {
+            if (constructor) {
+                clonedClass->addConstructor(constructor->clone());
+            }
+        }
+
+        // Clone methods
+        for (const auto& method : methods) {
+            if (method) {
+                clonedClass->addMethod(method->clone());
+            }
+        }
+
+        // Set other attributes
+        clonedClass->setFinal(finalClass);
+        clonedClass->setVisibility(visibility);
+
+        return clonedClass;
+    }
 }

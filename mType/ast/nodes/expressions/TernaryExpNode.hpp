@@ -24,5 +24,6 @@ namespace ast::nodes::expressions
         void setFalseExpression(std::unique_ptr<ASTNode> falseExpr);
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }
