@@ -69,7 +69,7 @@ namespace services
 
     public:
         ScriptInterpreter();
-        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::O1);
+        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
 

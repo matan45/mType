@@ -47,7 +47,7 @@ namespace services
 {
     ScriptInterpreter::ScriptInterpreter()
         : executionMode(constants::ExecutionMode::AST_INTERPRETER),
-          optimizationLevel(constants::OptimizationLevel::O0)
+          optimizationLevel(constants::OptimizationLevel::Debug)
     {
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
@@ -151,11 +151,11 @@ namespace services
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
 
-            // Apply AST optimizations if optimization level > O0
-            if (optimizationLevel != constants::OptimizationLevel::O0 && optimizer)
+            // Apply AST optimizations if optimization level is Release
+            if (optimizationLevel == constants::OptimizationLevel::Release && optimizer)
             {
                 std::cout << "\n" << std::string(60, '=') << "\n";
-                std::cout << "APPLYING AST OPTIMIZATIONS (Level O" << static_cast<int>(optimizationLevel) << ")\n";
+                std::cout << "APPLYING AST OPTIMIZATIONS (Release Mode)\n";
                 std::cout << std::string(60, '=') << "\n";
 
                 // Count nodes before optimization

@@ -18,7 +18,7 @@ namespace optimizer {
 	 * Follows Single Responsibility - coordinates optimization process
 	 *
 	 * Usage:
-	 *   auto config = OptimizationConfig::forLevel(OptimizationLevel::O2);
+	 *   auto config = OptimizationConfig::forLevel(OptimizationLevel::Release);
 	 *   Optimizer optimizer(config);
 	 *   ast = optimizer.optimize(std::move(ast), environment);
 	 */

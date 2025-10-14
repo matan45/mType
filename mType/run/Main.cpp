@@ -266,7 +266,8 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (AST interpreter mode)\n";
         std::cout << "  " << argv[0] << " --bytecode <script.mt>     - Run with bytecode VM\n";
         std::cout << "  " << argv[0] << " --dual <script.mt>         - Run with dual validation (AST + Bytecode)\n";
-        std::cout << "  " << argv[0] << " -O<level> <script.mt>      - Set optimization level (0-3)\n";
+        std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug mode (no optimization)\n";
+        std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
@@ -279,9 +280,8 @@ int main(int argc, char* argv[])
         std::cout << "  Bytecode VM (--bytecode)  - Stack-based bytecode virtual machine\n";
         std::cout << "  Dual Validation (--dual)  - Run both and compare results\n\n";
         std::cout << "Optimization Levels:\n";
-        std::cout << "  -O0 - No optimization (default)\n";
-        std::cout << "  -O1 - Basic optimization\n";
-        std::cout << "  -O2 - Advanced optimization\n";
+        std::cout << "  -debug   - Debug mode (no dead code optimization)\n";
+        std::cout << "  -release - Release mode (includes dead code elimination and unused declaration removal)\n";
         printAvailableTestSuites();
         return 0;
     }
@@ -328,7 +328,7 @@ int main(int argc, char* argv[])
     }
 
     // Parse optimization level and filename
-    constants::OptimizationLevel optLevel = constants::OptimizationLevel::O0;
+    constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug;
     std::string filename;
 
     for (int i = 1; i < argc; ++i)
@@ -343,17 +343,13 @@ int main(int argc, char* argv[])
         {
             execMode = constants::ExecutionMode::DUAL_VALIDATION;
         }
-        else if (arg.substr(0, 2) == "-O" && arg.length() == 3)
+        else if (arg == "-debug")
         {
-            char level = arg[2];
-            if (level == '0') optLevel = constants::OptimizationLevel::O0;
-            else if (level == '1') optLevel = constants::OptimizationLevel::O1;
-            else if (level == '2') optLevel = constants::OptimizationLevel::O2;
-            else
-            {
-                std::cerr << "Invalid optimization level: " << arg << std::endl;
-                return 1;
-            }
+            optLevel = constants::OptimizationLevel::Debug;
+        }
+        else if (arg == "-release")
+        {
+            optLevel = constants::OptimizationLevel::Release;
         }
         else if (arg[0] != '-')
         {
@@ -386,7 +382,17 @@ int main(int argc, char* argv[])
             std::cout << "Dual Validation";
             break;
         }
-        std::cout << " (Optimization Level: O" << static_cast<int>(optLevel) << ")\n\n";
+        std::cout << " (Optimization: ";
+        switch (optLevel)
+        {
+        case constants::OptimizationLevel::Debug:
+            std::cout << "Debug";
+            break;
+        case constants::OptimizationLevel::Release:
+            std::cout << "Release";
+            break;
+        }
+        std::cout << ")\n\n";
 
         interpreter.runScript(filename);
     }

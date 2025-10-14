@@ -23,6 +23,7 @@
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
+#include "../../ast/nodes/classes/FieldNode.hpp"
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
@@ -351,11 +352,39 @@ namespace optimizer::passes
         {
             if (analyzer.isClassUsed(classNode->getClassName()))
             {
-                // This class is used, analyze its methods for dependencies
+                // This class is used, analyze its fields and methods for dependencies
                 if (UDE_DEBUG)
                 {
-                    std::cout << "[UDE] Analyzing methods of used class: " << classNode->getClassName() << "\n";
+                    std::cout << "[UDE] Analyzing fields and methods of used class: " << classNode->getClassName() << "\n";
                 }
+
+                // Analyze field types - if a class has a field of type X, then X is used
+                for (const auto& field : classNode->getFields())
+                {
+                    // Cast to FieldNode to access field properties
+                    if (auto* fieldNode = dynamic_cast<FieldNode*>(field.get()))
+                    {
+                        // Get the field type - use GenericType API
+                        auto fieldType = fieldNode->getGenericType();
+                        if (fieldType)
+                        {
+                            std::string typeName = fieldType->getBaseTypeName();
+
+                            // Check if this is a known class type (not a primitive)
+                            if (typeName != "int" && typeName != "float" && typeName != "bool" &&
+                                typeName != "string" && typeName != "void" && typeName != "null")
+                            {
+                                analyzer.analyzeUsedClass(typeName);
+                                if (UDE_DEBUG)
+                                {
+                                    std::cout << "[UDE]   Field '" << fieldNode->getName() << "' uses class: " << typeName << "\n";
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Analyze method bodies
                 for (const auto& method : classNode->getMethods())
                 {
                     if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get()))

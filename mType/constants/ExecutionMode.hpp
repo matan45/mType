@@ -29,12 +29,11 @@ namespace constants
     };
 
     /**
-     * Optimization level for bytecode compilation
+     * Optimization level for the compiler
      */
     enum class OptimizationLevel
     {
-        O0,  // No optimization - AST interpretation
-        O1,  // Basic bytecode compilation
-        O2  // Optimized bytecode (constant folding, dead code elimination)
+        Debug,   // No optimization - no dead code passes
+        Release  // Full optimization - includes dead code elimination and unused declaration removal
     };
 }

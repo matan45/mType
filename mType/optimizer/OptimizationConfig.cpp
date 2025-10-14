@@ -11,24 +11,16 @@ namespace optimizer {
 
 		// Configure based on optimization level
 		switch (level) {
-		case OptimizationLevel::O0:
-			// No optimization
+		case OptimizationLevel::Debug:
+			// Debug mode - no dead code passes
 			enableDeadCodeElimination = false;
 			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
 			break;
 
-		case OptimizationLevel::O1:
-			// Basic optimization - only unreachable code elimination
-			enableDeadCodeElimination = true;
-			enableUnusedDeclarationElimination = false;
-			enableConstantFolding = false;
-			enableUnreachableCodeRemoval = false;
-			break;
-
-		case OptimizationLevel::O2:
-			// Aggressive optimization - includes unused declaration removal
+		case OptimizationLevel::Release:
+			// Release mode - full optimization including dead code elimination
 			enableDeadCodeElimination = true;
 			enableUnusedDeclarationElimination = true;
 			enableConstantFolding = true;
@@ -36,8 +28,8 @@ namespace optimizer {
 			break;
 
 		default:
-			// Default to O1
-			enableDeadCodeElimination = true;
+			// Default to Debug
+			enableDeadCodeElimination = false;
 			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
@@ -50,11 +42,11 @@ namespace optimizer {
 	}
 
 	OptimizationConfig OptimizationConfig::noOptimization() {
-		return OptimizationConfig(OptimizationLevel::O0);
+		return OptimizationConfig(OptimizationLevel::Debug);
 	}
 
 	OptimizationConfig OptimizationConfig::aggressive() {
-		return OptimizationConfig(OptimizationLevel::O2);
+		return OptimizationConfig(OptimizationLevel::Release);
 	}
 
 	OptimizationConfig& OptimizationConfig::setDeadCodeElimination(bool enable) {

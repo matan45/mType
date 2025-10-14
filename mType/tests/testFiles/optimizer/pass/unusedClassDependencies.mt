@@ -10,7 +10,7 @@ class UsedHelper {
         this.value = v;
     }
 
-    function getValue(): int {
+    public function getValue(): int {
         return this.value;
     }
 }
@@ -24,7 +24,7 @@ class UsedMain {
         this.helper = new UsedHelper(val);
     }
 
-    function getInfo(): string {
+    public function getInfo(): string {
         return this.name + ": " + this.helper.getValue();
     }
 }

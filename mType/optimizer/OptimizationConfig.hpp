@@ -15,8 +15,8 @@ namespace optimizer {
 	class OptimizationConfig {
 	private:
 		OptimizationLevel level;
-		bool enableDeadCodeElimination;  // O1: Unreachable code after return/break/continue/throw
-		bool enableUnusedDeclarationElimination;  // O2: Remove unused functions/classes/variables
+		bool enableDeadCodeElimination;  // Release: Unreachable code after return/break/continue/throw
+		bool enableUnusedDeclarationElimination;  // Release: Remove unused functions/classes/variables
 		bool enableConstantFolding;
 		bool enableUnreachableCodeRemoval;
 
@@ -29,7 +29,7 @@ namespace optimizer {
 		bool verboseOutput;
 
 	public:
-		explicit OptimizationConfig(OptimizationLevel level = OptimizationLevel::O1);
+		explicit OptimizationConfig(OptimizationLevel level = OptimizationLevel::Debug);
 
 		// Level-based presets
 		static OptimizationConfig forLevel(OptimizationLevel level);
