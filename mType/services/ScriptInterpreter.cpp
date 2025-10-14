@@ -38,6 +38,8 @@
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../runtime/EventLoop.hpp"
+#include "../optimizer/Optimizer.hpp"
+#include "../optimizer/OptimizationConfig.hpp"
 #include <fstream>
 
 namespace services
@@ -51,6 +53,9 @@ namespace services
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
+        optimizer = std::make_unique<optimizer::Optimizer>(
+            optimizer::OptimizationConfig::forLevel(optimizationLevel)
+        );
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -75,6 +80,9 @@ namespace services
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
+        optimizer = std::make_unique<optimizer::Optimizer>(
+            optimizer::OptimizationConfig::forLevel(optimizationLevel)
+        );
 
         // Set up method call handler for native functions
         auto nativeRegistry = environment->getNativeRegistry();
@@ -141,6 +149,12 @@ namespace services
 
             // Set ImportManager on environment for clean architecture
             environment->setImportManager(importManagerPtr);
+
+            // Apply AST optimizations if optimization level > O0
+            if (optimizationLevel != constants::OptimizationLevel::O0 && optimizer)
+            {
+                ast = optimizer->optimize(std::move(ast), environment);
+            }
 
             // Execute based on execution mode
             value::Value result;
@@ -689,6 +703,10 @@ namespace services
     void ScriptInterpreter::setOptimizationLevel(constants::OptimizationLevel level)
     {
         optimizationLevel = level;
+        if (optimizer)
+        {
+            optimizer->setConfig(optimizer::OptimizationConfig::forLevel(level));
+        }
     }
 
     // Execution mode helpers

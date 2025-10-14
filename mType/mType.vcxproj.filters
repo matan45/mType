@@ -67,6 +67,15 @@
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer">
+      <UniqueIdentifier>{28F51FAF-945F-D425-DD9D-85CB4947B27A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\base">
+      <UniqueIdentifier>{D25639DB-BE24-2DE1-A7B8-9D0793250946}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\passes">
+      <UniqueIdentifier>{26D592AF-12CE-B101-3B00-97862758910D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="parser">
       <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
     </Filter>
@@ -783,6 +792,30 @@
     <ClInclude Include="lexer\TokenFactory.hpp">
       <Filter>lexer</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\OptimizationConfig.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\OptimizationPassManager.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\OptimizationResult.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\Optimizer.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\ASTTransformer.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\OptimizationContext.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\OptimizationPass.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\DeadCodeEliminationPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ClassParser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -1202,6 +1235,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ast\ASTNode.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
     <ClCompile Include="ast\AccessModifier.cpp">
       <Filter>ast</Filter>
     </ClCompile>
@@ -1507,6 +1543,30 @@
     </ClCompile>
     <ClCompile Include="lexer\TokenFactory.cpp">
       <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationConfig.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationPassManager.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationResult.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\Optimizer.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\ASTTransformer.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\OptimizationContext.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\OptimizationPass.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
+      <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="parser\ClassParser.cpp">
       <Filter>parser</Filter>
