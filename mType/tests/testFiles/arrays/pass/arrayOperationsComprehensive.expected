@@ -1,0 +1,66 @@
+Large arrays:
+ sum[0]=
+100
+ sum[50]=
+100
+ sum=
+4950
+ min=
+0
+ max=
+99
+ Chained:
+ result[0]=
+9
+ result[5]=
+29
+ Float:
+ sum=
+1.6
+ avg=
+0.1
+ Copy:
+ orig=
+0
+ c1=
+999
+ c2=
+888
+ Reverse:
+ before=
+210
+ after=
+210
+ first=
+20
+ last=
+1
+ Fill:
+ sum=
+100
+ doubled=
+200
+ Edge:
+ single=
+42
+ small=
+15
+ Values:
+ quad[0]=
+4
+ negSum=
+-16
+ MinMax:
+ ascMin=
+0
+ ascMax=
+19
+ descMin=
+0
+ descMax=
+19
+ sameMin=
+7
+ sameMax=
+7
+ Done

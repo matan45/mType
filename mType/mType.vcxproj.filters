@@ -286,6 +286,9 @@
     <Filter Include="value\arrays\string">
       <UniqueIdentifier>{093884F4-7599-6102-FE06-A8B46A6798C1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="value\operations">
+      <UniqueIdentifier>{75B30D6D-61AC-2CBF-8ADE-114476360CCB}</UniqueIdentifier>
+    </Filter>
     <Filter Include="value\simd">
       <UniqueIdentifier>{DE8C03FF-CA44-454C-334C-1EA81F23E03C}</UniqueIdentifier>
     </Filter>
@@ -900,6 +903,9 @@
     <ClInclude Include="runtimeTypes\collections\Collection.hpp">
       <Filter>runtimeTypes\collections</Filter>
     </ClInclude>
+    <ClInclude Include="runtimeTypes\global\ArrayOperationsNative.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
     <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
       <Filter>runtimeTypes\global</Filter>
     </ClInclude>
@@ -1052,6 +1058,9 @@
     </ClInclude>
     <ClInclude Include="value\arrays\string\StringArray.hpp">
       <Filter>value\arrays\string</Filter>
+    </ClInclude>
+    <ClInclude Include="value\operations\ArrayOperations.hpp">
+      <Filter>value\operations</Filter>
     </ClInclude>
     <ClInclude Include="value\simd\SIMDConfig.hpp">
       <Filter>value\simd</Filter>
@@ -1607,6 +1616,9 @@
     <ClCompile Include="runtimeTypes\Definition.cpp">
       <Filter>runtimeTypes</Filter>
     </ClCompile>
+    <ClCompile Include="runtimeTypes\global\ArrayOperationsNative.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
     <ClCompile Include="runtimeTypes\global\FunctionDefinition.cpp">
       <Filter>runtimeTypes\global</Filter>
     </ClCompile>
@@ -1717,6 +1729,9 @@
     </ClCompile>
     <ClCompile Include="value\arrays\object\ObjectArray.cpp">
       <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\operations\ArrayOperations.cpp">
+      <Filter>value\operations</Filter>
     </ClCompile>
     <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
       <Filter>value\simd\detection</Filter>
@@ -1901,6 +1916,18 @@
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\arrayLiteralsObjects.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayOperationsComprehensive.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayOperationsComprehensive.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayOperationsSIMD.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayOperationsSIMD.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\arrayPoolingAndMemory.expected">

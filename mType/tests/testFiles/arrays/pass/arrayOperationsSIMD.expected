@@ -1,0 +1,60 @@
+arrayAdd:
+3
+
+13
+
+41
+ arrayAddScalar:
+11
+
+20
+ arraySubtract:
+1
+
+1
+ arrayMultiply:
+2
+
+30
+ arrayMultiplyScalar:
+3
+
+18
+ arrayAdd(float):
+4
+
+4
+ arrayAddScalar(float):
+7.5
+ arrayMultiply(float):
+3.75
+ arraySum:
+210
+ arrayMin:
+1
+ arrayMax:
+20
+ arrayAverage:
+10.5
+ arraySum(float):
+40
+ arrayFill:
+42
+
+42
+
+42
+ arrayCopy:
+1
+
+999
+ arrayReverse:
+16
+
+1
+ smallArrayAdd:
+3
+
+11
+ smallArraySum:
+15

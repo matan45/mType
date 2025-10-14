@@ -70,6 +70,13 @@ namespace tests::testSuite
         addOutputVerificationTest("Comprehensive Optimization Verification",
                                   passPath + "optimizationVerification.mt");
 
+        // Phase 7: SIMD-Accelerated Array Operations
+        addOutputVerificationTest("SIMD Array Operations (Arithmetic, Reduction, Utility)",
+                                  passPath + "arrayOperationsSIMD.mt");
+
+        addOutputVerificationTest("Array Operations Comprehensive (Edge Cases, Chains, Mixed)",
+                                  passPath + "arrayOperationsComprehensive.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",

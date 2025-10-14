@@ -1,4 +1,5 @@
 #include "EnvironmentBuilder.hpp"
+#include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 
 namespace environment
 {
@@ -55,7 +56,7 @@ namespace environment
     std::shared_ptr<Environment> EnvironmentBuilder::build()
     {
         withDefaults();
-        
+
         auto environment = std::make_shared<Environment>(
             classRegistry,
             functionRegistry,
@@ -63,8 +64,12 @@ namespace environment
             scopeManager,
             nativeRegistry
         );
-        
+
         environment->initialize();
+
+        // Register SIMD-accelerated array operations
+        runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
+
         return environment;
     }
 
