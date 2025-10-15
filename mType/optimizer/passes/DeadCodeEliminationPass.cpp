@@ -23,6 +23,7 @@
 #include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
+#include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
 #include "../../ast/nodes/statements/WhileNode.hpp"
 #include "../../ast/nodes/statements/DoWhileNode.hpp"
@@ -840,6 +841,54 @@ namespace optimizer::passes {
 
 		if (DCE_DEBUG) {
 			std::cout << "[DCE] visitClassNode: No transformation, using clone()\n";
+		}
+
+		// No transformation - use clone()
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitAssignmentNode(ast::nodes::statements::AssignmentNode* node) {
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitAssignmentNode: Processing assignment to '" << node->getVariableName() << "'\n";
+		}
+
+		// Transform the value expression (which may contain a lambda with dead code)
+		auto value = node->getValue();
+		if (!value) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitAssignmentNode: No value, using clone()\n";
+			}
+			return nullptr; // Use clone() for assignments without value
+		}
+
+		// Transform the value through the visitor - this will trigger visitLambdaNode if it's a lambda
+		auto transformedValue = transformChild(value);
+
+		// If transformation occurred, create new AssignmentNode with transformed value
+		if (transformedValue) {
+			if (DCE_DEBUG) {
+				std::cout << "[DCE] visitAssignmentNode: Value was transformed, creating new AssignmentNode\n";
+			}
+
+			// Create new AssignmentNode with transformed value
+			auto newAssignment = std::make_unique<ast::nodes::statements::AssignmentNode>(
+				node->getVariableName(),
+				std::move(transformedValue),
+				node->getVariableType(),
+				node->getClassName(),
+				node->getIsFinal(),
+				node->getIsStatic(),
+				node->getLocation()
+			);
+
+			// Preserve visibility modifier
+			newAssignment->setVisibility(node->getVisibility());
+
+			return newAssignment;
+		}
+
+		if (DCE_DEBUG) {
+			std::cout << "[DCE] visitAssignmentNode: No transformation, using clone()\n";
 		}
 
 		// No transformation - use clone()

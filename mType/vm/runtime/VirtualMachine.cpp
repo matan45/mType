@@ -131,9 +131,17 @@ namespace vm::runtime
     {
         suspendedByAwait = false;  // Reset flag at start
 
+        // Debug flag
+        constexpr bool DEBUG_EXCEPTION = false;
+
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
+
+            if (DEBUG_EXCEPTION) {
+                std::cout << "[VM] IP=" << instructionPointer << " OpCode="
+                          << bytecode::getOpCodeName(instr.opcode) << "\n";
+            }
 
             try
             {
@@ -142,6 +150,11 @@ namespace vm::runtime
             }
             catch (errors::UserException& e)
             {
+                if (DEBUG_EXCEPTION) {
+                    std::cout << "[VM] Exception caught at IP=" << instructionPointer
+                              << " type=" << e.getExceptionTypeName() << "\n";
+                }
+
                 // User exception thrown - need to find matching catch handler
                 // Search forward for CATCH instruction that matches the exception type
 
@@ -174,6 +187,46 @@ namespace vm::runtime
 
                             if (e.matchesCatchType(catchType))
                             {
+                                if (DEBUG_EXCEPTION) {
+                                    std::cout << "[VM] Found matching CATCH at IP=" << searchIP
+                                              << " for type=" << catchType << "\n";
+                                }
+
+                                // Check if the CATCH is beyond the current function's boundary
+                                // If so, we need to unwind call frames until we reach the function containing the CATCH
+                                while (!callStack.empty())
+                                {
+                                    const CallFrame& frame = callStack.back();
+
+                                    // Check if the CATCH is within the current function's range
+                                    auto* funcMetadata = program->getFunction(frame.functionName);
+                                    if (funcMetadata)
+                                    {
+                                        size_t funcStart = funcMetadata->startOffset;
+                                        size_t funcEnd = funcStart + funcMetadata->instructionCount;
+
+                                        // If CATCH is within this function, stop unwinding
+                                        if (searchIP >= funcStart && searchIP < funcEnd)
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    // CATCH is outside this function - unwind the call frame
+                                    if (DEBUG_EXCEPTION) {
+                                        std::cout << "[VM] Unwinding call frame to reach CATCH: " << frame.functionName
+                                                  << " returnAddress=" << frame.returnAddress << "\n";
+                                    }
+
+                                    callStack.pop_back();
+
+                                    // Clean up the stack
+                                    while (stackManager->size() > frame.frameBase)
+                                    {
+                                        stackManager->getStack().pop_back();
+                                    }
+                                }
+
                                 // Push exception object onto stack for STORE_LOCAL
                                 stackManager->push(e.getExceptionValue());
 
@@ -222,6 +275,11 @@ namespace vm::runtime
                         CallFrame frame = callStack.back();
                         callStack.pop_back();
 
+                        if (DEBUG_EXCEPTION) {
+                            std::cout << "[VM] Unwinding call frame: " << frame.functionName
+                                      << " returnAddress=" << frame.returnAddress << "\n";
+                        }
+
                         // Clean up the stack - pop all locals from the function
                         // Restore stack to the frame base (same as RETURN does)
                         while (stackManager->size() > frame.frameBase)
@@ -249,6 +307,46 @@ namespace vm::runtime
 
                                     if (e.matchesCatchType(catchType))
                                     {
+                                        if (DEBUG_EXCEPTION) {
+                                            std::cout << "[VM] Found matching CATCH at IP=" << searchIP
+                                                      << " (after unwind) for type=" << catchType << "\n";
+                                        }
+
+                                        // Check if the CATCH is beyond the current function's boundary
+                                        // If so, we need to unwind more call frames
+                                        while (!callStack.empty())
+                                        {
+                                            const CallFrame& frame = callStack.back();
+
+                                            // Check if the CATCH is within the current function's range
+                                            auto* funcMetadata = program->getFunction(frame.functionName);
+                                            if (funcMetadata)
+                                            {
+                                                size_t funcStart = funcMetadata->startOffset;
+                                                size_t funcEnd = funcStart + funcMetadata->instructionCount;
+
+                                                // If CATCH is within this function, stop unwinding
+                                                if (searchIP >= funcStart && searchIP < funcEnd)
+                                                {
+                                                    break;
+                                                }
+                                            }
+
+                                            // CATCH is outside this function - unwind the call frame
+                                            if (DEBUG_EXCEPTION) {
+                                                std::cout << "[VM] Unwinding call frame to reach CATCH: " << frame.functionName
+                                                          << " returnAddress=" << frame.returnAddress << "\n";
+                                            }
+
+                                            callStack.pop_back();
+
+                                            // Clean up the stack
+                                            while (stackManager->size() > frame.frameBase)
+                                            {
+                                                stackManager->getStack().pop_back();
+                                            }
+                                        }
+
                                         stackManager->push(e.getExceptionValue());
                                         instructionPointer = searchIP;
                                         handled = true;

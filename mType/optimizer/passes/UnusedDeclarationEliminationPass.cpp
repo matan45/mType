@@ -329,6 +329,32 @@ namespace optimizer::passes
             // We track it as a variable either way
             analyzer.analyzeDeclaredVariable(assignNode->getVariableName());
 
+            // If the variable has an OBJECT type, mark that class/interface as USED
+            // This is critical for lambda variables like: Processor<Int> doubler = x -> { ... }
+            if (assignNode->getVariableType() == ValueType::OBJECT)
+            {
+                std::string typeName = assignNode->getClassName();
+                if (!typeName.empty())
+                {
+                    // Extract base class/interface name from generic types
+                    // e.g., "Processor<Int>" -> "Processor"
+                    size_t anglePos = typeName.find('<');
+                    if (anglePos != std::string::npos)
+                    {
+                        typeName = typeName.substr(0, anglePos);
+                    }
+
+                    // Mark the class/interface as USED
+                    analyzer.analyzeUsedClass(typeName);
+                    analyzer.analyzeUsedInterface(typeName);
+
+                    if (UDE_DEBUG)
+                    {
+                        std::cout << "[UDE] Marking variable type as USED: " << typeName << "\n";
+                    }
+                }
+            }
+
             // Analyze value/initializer for usages
             if (assignNode->getValue())
             {

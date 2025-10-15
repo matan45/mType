@@ -66,6 +66,7 @@ namespace optimizer::passes {
 			std::unique_ptr<ast::ASTNode> visitCatchNode(ast::CatchNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitLambdaNode(ast::LambdaNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitClassNode(ast::ClassNode* node) override;
+			std::unique_ptr<ast::ASTNode> visitAssignmentNode(ast::AssignmentNode* node) override;
 		};
 
 		size_t removedStatements;
