@@ -1071,8 +1071,42 @@ namespace services
         Parser parser(lexer, std::move(importManager));
         auto ast = parser.parseProgram();
 
+        // Set ImportManager on environment
+        environment->setImportManager(importMgrPtr);
+
         // Resolve all imports using ImportManager
         importMgrPtr->resolveAllImports(ast.get());
+
+        // Apply AST optimizations if optimization level is Release
+        if (optimizationLevel == constants::OptimizationLevel::Release && optimizer)
+        {
+            std::cout << "\n" << std::string(60, '=') << "\n";
+            std::cout << "APPLYING AST OPTIMIZATIONS (Release Mode)\n";
+            std::cout << std::string(60, '=') << "\n";
+
+            // Count nodes before optimization
+            size_t nodesBefore = optimizer->countASTNodes(ast.get());
+            std::cout << "\nAST Statistics:\n";
+            std::cout << "  Total nodes before: " << nodesBefore << "\n";
+
+            ast = optimizer->optimize(std::move(ast), environment);
+
+            // Count nodes after optimization
+            size_t nodesAfter = optimizer->countASTNodes(ast.get());
+            size_t nodesRemoved = nodesBefore - nodesAfter;
+
+            std::cout << "  Total nodes after:  " << nodesAfter << "\n";
+            std::cout << "  Nodes removed:      " << nodesRemoved << "\n";
+            if (nodesBefore > 0) {
+                double reductionPercent = (static_cast<double>(nodesRemoved) / nodesBefore) * 100.0;
+                std::cout << "  Reduction:          " << std::fixed << std::setprecision(1) << reductionPercent << "%\n";
+            }
+
+            // Get and print optimization results
+            auto result = optimizer->getLastResult();
+            std::cout << "\n" << result.generateReport() << "\n";
+            std::cout << std::string(60, '=') << "\n\n";
+        }
 
         // Compile to bytecode
         BytecodeCompiler bytecodeCompiler(environment);
@@ -1282,10 +1316,37 @@ namespace services
         // Register classes from metadata
         registerClassesFromMetadata(program.getClasses());
 
-        // Execute the bytecode
-        if (!vm) {
-            vm = std::make_unique<VirtualMachine>(environment);
+        // Execute the bytecode using the same logic as executeBytecode
+        // JavaScript model: Only use EventLoop if program actually contains await
+        if (program.hasAwaitInstructions())
+        {
+            // Program uses await - need EventLoop for task suspension/resumption
+            auto* eventLoop = vm->ensureEventLoop();
+
+            // Schedule main program as a task
+            size_t mainTaskId = eventLoop->scheduleTask(
+                [this, program]() -> value::Value {
+                    return vm->execute(program);
+                }
+            );
+
+            // Set VM reference so it knows its task ID
+            eventLoop->setTaskVM(mainTaskId, vm);
+
+            // Run event loop until all tasks complete
+            eventLoop->run();
+
+            // Check if main task failed and re-throw error
+            auto mainTask = eventLoop->getTask(mainTaskId);
+            if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
+            {
+                throw std::runtime_error(mainTask->errorMessage);
+            }
         }
-        vm->execute(program);
+        else
+        {
+            // No await in program - execute directly without EventLoop overhead
+            vm->execute(program);
+        }
     }
 }

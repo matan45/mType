@@ -13,7 +13,6 @@
 #include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
-#include "../tests/suites/OptimizerTestSuite.hpp"
 #include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
@@ -96,10 +95,6 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<AwaitTestSuite>();
     }
-    else if (suiteName == "optimizer" || suiteName == "optimize" || suiteName == "dce")
-    {
-        return std::make_unique<OptimizerTestSuite>();
-    }
     return nullptr;
 }
 
@@ -120,7 +115,6 @@ void printAvailableTestSuites()
     std::cout << "  cast         - Cast and Type Checking Test Suite\n";
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
-    std::cout << "  optimizer    - AST Optimizer Test Suite (Dead Code Elimination)\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -191,7 +185,6 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     suites.push_back(std::make_unique<CastTestSuite>());
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
-    suites.push_back(std::make_unique<OptimizerTestSuite>());
 
     for (auto& suite : suites)
     {
@@ -269,6 +262,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug mode (no optimization)\n";
         std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
+        std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
@@ -286,24 +280,54 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // Handle --compile command
-    if (argc == 3 && std::string(argv[1]) == "--compile")
+    // Handle --compile command (supports --compile -release <file.mt>)
+    for (int i = 1; i < argc; ++i)
     {
-        std::string sourceFile = argv[2];
-        std::string outputFile = sourceFile + "c"; // .mt -> .mtc
-
-        try
+        if (std::string(argv[i]) == "--compile")
         {
-            std::cout << "Compiling " << sourceFile << " to " << outputFile << "...\n";
+            std::string sourceFile;
+            constants::OptimizationLevel compileOptLevel = constants::OptimizationLevel::Debug;
 
-            ScriptInterpreter interpreter;
-            interpreter.compileToFile(sourceFile, outputFile);
-            return 0;
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "Compilation error: " << e.what() << std::endl;
-            return 1;
+            // Parse remaining arguments for optimization level and filename
+            for (int j = i + 1; j < argc; ++j)
+            {
+                std::string arg = argv[j];
+                if (arg == "-release")
+                {
+                    compileOptLevel = constants::OptimizationLevel::Release;
+                }
+                else if (arg == "-debug")
+                {
+                    compileOptLevel = constants::OptimizationLevel::Debug;
+                }
+                else if (arg[0] != '-')
+                {
+                    sourceFile = arg;
+                }
+            }
+
+            if (sourceFile.empty())
+            {
+                std::cerr << "Error: No source file specified for --compile\n";
+                return 1;
+            }
+
+            std::string outputFile = sourceFile + "c"; // .mt -> .mtc
+
+            try
+            {
+                std::cout << "Compiling " << sourceFile << " to " << outputFile;
+                std::cout << " (Optimization: " << (compileOptLevel == constants::OptimizationLevel::Release ? "Release" : "Debug") << ")...\n";
+
+                ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM, compileOptLevel);
+                interpreter.compileToFile(sourceFile, outputFile);
+                return 0;
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "Compilation error: " << e.what() << std::endl;
+                return 1;
+            }
         }
     }
 
