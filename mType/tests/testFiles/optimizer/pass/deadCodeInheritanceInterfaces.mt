@@ -228,7 +228,7 @@ print("Circle radius: " + circle.getRadius());
 // Test generic Box (extends Shape)
 Box<String> box = new Box<String>("green", new String("treasure"));
 print("Box content: " + box.getContent());
-box.setContent("gold");
+box.setContent(new String("gold"));
 
 // Test final ImmutablePoint (implements Drawable)
 ImmutablePoint point = new ImmutablePoint(10, 20);
