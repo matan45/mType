@@ -2,21 +2,23 @@
 // Tests unreachable code after return/throw statements in async functions, methods, and lambdas
 
 import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test 1: Async function with dead code after return
-async function fetchData(int id): string {
+function async fetchData(int id): Promise<String> {
     print("Fetching data for id: " + id);
     if (id < 0) {
-        return "error";
+        return new String("error");
         print("Dead after return in async function");  // Should be removed
         id = 0;                                         // Should be removed
     }
 
-    return "data_" + id;
+    return new String("data_" + id);
 }
 
 // Test 2: Async function with throw and dead code
-async function validateInput(string input): void {
+function async validateInput(string input): Promise<void> {
     print("Validating input: " + input);
 
     if (input == "") {
@@ -26,26 +28,27 @@ async function validateInput(string input): void {
     }
 
     print("Input is valid");
+	return null;
 }
 
+function async innerProcess(int x): Promise<Int> {
+        if (x < 0) {
+            return new Int(0);
+            print("Dead in inner async");  // Should be removed
+        }
+        return new Int(x + 10);
+    }
+
 // Test 3: Nested async function with dead code
-async function processData(int value): int {
+function async  processData(int value): Promise<Int> {
     print("Processing: " + value);
 
     if (value > 100) {
-        return value * 2;
+        return new Int(value * 2);
         print("Dead in outer async");  // Should be removed
     }
 
-    async function innerProcess(int x): int {
-        if (x < 0) {
-            return 0;
-            print("Dead in inner async");  // Should be removed
-        }
-        return x + 10;
-    }
-
-    int result = await innerProcess(value);
+    Int result = await innerProcess(value);
     return result;
 }
 
@@ -57,19 +60,19 @@ class DataService {
         this.apiUrl = url;
     }
 
-    public async function fetchUser(int userId): string {
+    public function async fetchUser(int userId): Promise<String> {
         print("Fetching user: " + userId);
 
         if (userId <= 0) {
-            return "invalid_user";
+            return new String("invalid_user");
             print("Dead after return in async method");  // Should be removed
             userId = 1;                                   // Should be removed
         }
 
-        return "user_" + userId;
+        return new String("user_" + userId);
     }
 
-    public async function updateUser(int userId, string data): void {
+    public function async updateUser(int userId, string data): Promise<void> {
         print("Updating user: " + userId);
 
         if (data == "") {
@@ -78,76 +81,78 @@ class DataService {
         }
 
         print("User updated successfully");
+		return null;
     }
 
     // UNUSED async method - should be removed by unused code elimination
-    private async function unusedAsyncMethod(): void {
+    private function async unusedAsyncMethod(): Promise<void> {
         print("This is never called");
-        return;
+        return null;
         print("Dead code in unused async method");
     }
 }
 
 // Test 5: Async lambda with dead code
 interface AsyncProcessor<T> {
-    async function process(T value): T;
+    function async process(T value): T;
 }
 
-function testAsyncLambda(): void {
-    AsyncProcessor<int> processor = async (int x) -> {
+function async testAsyncLambda(): Promise<void> {
+    AsyncProcessor<Int> processor = async x -> {
         print("Processing in async lambda: " + x);
 
-        if (x == 0) {
+        if (x.value == 0) {
             return 1;
             print("Dead after return in async lambda");  // Should be removed
-            x = 10;                                       // Should be removed
+            x.value = 10;                                       // Should be removed
         }
 
-        return x * 2;
+        return new Int(x.value * 2);
     };
 
-    int result = await processor.process(5);
-    print("Async lambda result: " + result);
+    Int result = await processor.process(new Int(5));
+    print("Async lambda result: " + result.toString());
+	return null;
 }
 
 // Test 6: Async function with multiple returns
-async function classifyValue(int x): string {
+function async classifyValue(int x): Promise<String> {
     if (x < 0) {
-        return "negative";
+        return new String("negative");
     }
     if (x == 0) {
-        return "zero";
+        return new String("zero");
     }
     if (x > 0) {
-        return "positive";
+        return new String("positive");
     }
     print("Dead after all returns in async");  // Should be removed
-    return "unknown";                           // Should be removed
+    return new String("unknown");                           // Should be removed
 }
 
 // Test 7: Async function with try-catch and dead code
-async function riskyOperation(int code): string {
+function async  riskyOperation(int code): Promise<String> {
     try {
         if (code == 1) {
             throw new Exception("Error 1");
         }
         if (code == 2) {
-            return "success";
+            return new String("success");
             print("Dead after return in async try");  // Should be removed
         }
         print("Try block continues");
     } catch (Exception e) {
         print("Caught in async: " + e.getMessage());
-        return "error_handled";
+        return new String("error_handled");
         print("Dead after return in async catch");  // Should be removed
     }
 
     print("This is reachable if code is not 1 or 2");
-    return "completed";
+    return new String("completed");
 }
 
 // Test 8: Async function with while loop and dead code
-async function processItems(int count): int {
+function async processItems(int count): Promise<Int> {
     int sum = 0;
     int i = 0;
 
@@ -155,7 +160,7 @@ async function processItems(int count): int {
         sum = sum + i;
 
         if (sum > 50) {
-            return sum;
+            return new Int(sum);
             print("Dead after return in async while");  // Should be removed
             break;                                       // Should be removed
         }
@@ -163,36 +168,36 @@ async function processItems(int count): int {
         i = i + 1;
     }
 
-    return sum;
+    return new Int(sum);
 }
 
 // Test 9: Async method with nested if-else and dead code
 class AsyncCalculator {
-    public async function compute(int a, int b, string operation): int {
+    public function async compute(int a, int b, string operation): Promise<Int> {
         if (operation == "add") {
-            return a + b;
+            return new Int(a + b);
             print("Dead after add");  // Should be removed
         } else if (operation == "subtract") {
-            return a - b;
+            return new Int(a - b);
             print("Dead after subtract");  // Should be removed
         } else {
-            return 0;
+            return new Int(0);
             print("Dead after default");  // Should be removed
         }
 
         print("Dead after complete if-else chain");  // Should be removed
-        return -1;                                    // Should be removed
+        return new Int(-1);                                    // Should be removed
     }
 }
 
 // Entry point
 print("=== Testing Async Function Dead Code Elimination ===");
 
-string result1 = await fetchData(10);
-print("fetchData result: " + result1);
+String result1 = await fetchData(10);
+print("fetchData result: " + result1.toString());
 
-string result2 = await fetchData(-1);
-print("fetchData error: " + result2);
+String result2 = await fetchData(-1);
+print("fetchData error: " + result2.toString());
 
 try {
     await validateInput("");
@@ -200,12 +205,12 @@ try {
     print("Caught validation exception");
 }
 
-int result3 = await processData(150);
-print("processData result: " + result3);
+Int result3 = await processData(150);
+print("processData result: " + result3.toString());
 
 DataService service = new DataService("https://api.example.com");
-string user = await service.fetchUser(42);
-print("User: " + user);
+String user = await service.fetchUser(42);
+print("User: " + user.toString());
 
 try {
     await service.updateUser(1, "");
@@ -215,17 +220,17 @@ try {
 
 testAsyncLambda();
 
-string classification = await classifyValue(-10);
-print("Classification: " + classification);
+String classification = await classifyValue(-10);
+print("Classification: " + classification.toString());
 
-string riskyResult = await riskyOperation(2);
-print("Risky operation: " + riskyResult);
+String riskyResult = await riskyOperation(2);
+print("Risky operation: " + riskyResult.toString());
 
-int sumResult = await processItems(20);
-print("Process items sum: " + sumResult);
+Int sumResult = await processItems(20);
+print("Process items sum: " + sumResult.toString());
 
 AsyncCalculator calc = new AsyncCalculator();
-int computeResult = await calc.compute(10, 5, "add");
-print("Compute result: " + computeResult);
+Int computeResult = await calc.compute(10, 5, "add");
+print("Compute result: " + computeResult.toString());
 
 print("Async Dead Code Test Complete!");

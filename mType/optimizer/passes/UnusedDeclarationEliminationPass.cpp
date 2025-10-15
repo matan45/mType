@@ -64,7 +64,7 @@ namespace optimizer::passes
     using namespace ast::nodes::expressions;
 
     // Debug flag - SET TO TRUE to see detailed optimization logs
-    constexpr bool UDE_DEBUG = true;
+    constexpr bool UDE_DEBUG = false;
 
     // ================= UsageAnalyzer Implementation =================
 
