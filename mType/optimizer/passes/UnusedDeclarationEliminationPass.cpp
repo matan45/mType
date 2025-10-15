@@ -18,6 +18,7 @@
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
 #include "../../ast/nodes/statements/WhileNode.hpp"
+#include "../../ast/nodes/statements/DoWhileNode.hpp"
 #include "../../ast/nodes/statements/ForNode.hpp"
 #include "../../ast/nodes/statements/ForEachNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
@@ -27,6 +28,7 @@
 #include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
+#include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
 #include "../../ast/AccessModifier.hpp"
 #include "../../ast/nodes/expressions/VariableNode.hpp"
@@ -36,9 +38,19 @@
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../../ast/nodes/expressions/CastExpression.hpp"
+#include "../../ast/nodes/expressions/InstanceOfExpression.hpp"
+#include "../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/statements/SwitchNode.hpp"
 #include "../../ast/nodes/statements/CaseNode.hpp"
+#include "../../ast/nodes/statements/DefaultCaseNode.hpp"
+#include "../../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../../ast/nodes/statements/TryNode.hpp"
+#include "../../ast/nodes/statements/CatchNode.hpp"
+#include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include <chrono>
 #include <iostream>
@@ -52,7 +64,7 @@ namespace optimizer::passes
     using namespace ast::nodes::expressions;
 
     // Debug flag - SET TO TRUE to see detailed optimization logs
-    constexpr bool UDE_DEBUG = false;
+    constexpr bool UDE_DEBUG = true;
 
     // ================= UsageAnalyzer Implementation =================
 
@@ -432,6 +444,13 @@ namespace optimizer::passes
             return;
         }
 
+        if (auto* doWhileNode = dynamic_cast<DoWhileNode*>(node))
+        {
+            analyzeAST(doWhileNode->getBody(), analyzer);
+            analyzeAST(doWhileNode->getCondition(), analyzer);
+            return;
+        }
+
         if (auto* forNode = dynamic_cast<ForNode*>(node))
         {
             analyzeAST(forNode->getInitialization(), analyzer);
@@ -465,6 +484,48 @@ namespace optimizer::passes
             {
                 analyzeAST(stmt.get(), analyzer);
             }
+            return;
+        }
+
+        if (auto* defaultCaseNode = dynamic_cast<DefaultCaseNode*>(node))
+        {
+            for (const auto& stmt : defaultCaseNode->getStatements())
+            {
+                analyzeAST(stmt.get(), analyzer);
+            }
+            return;
+        }
+
+        if (auto* tryNode = dynamic_cast<TryNode*>(node))
+        {
+            // Analyze try block
+            analyzeAST(tryNode->getTryBlock(), analyzer);
+
+            // Analyze all catch blocks
+            for (const auto& catchBlock : tryNode->getCatchBlocks())
+            {
+                analyzeAST(catchBlock.get(), analyzer);
+            }
+
+            // Analyze finally block if present
+            if (tryNode->hasFinallyBlock())
+            {
+                analyzeAST(tryNode->getFinallyBlock(), analyzer);
+            }
+            return;
+        }
+
+        if (auto* catchNode = dynamic_cast<CatchNode*>(node))
+        {
+            // Analyze catch block body
+            analyzeAST(catchNode->getBody(), analyzer);
+            return;
+        }
+
+        if (auto* throwNode = dynamic_cast<ThrowNode*>(node))
+        {
+            // Analyze the exception expression (e.g., new NullPointerException(...))
+            analyzeAST(throwNode->getException(), analyzer);
             return;
         }
 
@@ -569,6 +630,89 @@ namespace optimizer::passes
             {
                 analyzeAST(element.get(), analyzer);
             }
+            return;
+        }
+
+        // Handle instanceof expressions (e.g., "obj instanceof MyClass")
+        if (auto* instanceOfNode = dynamic_cast<ast::nodes::expressions::InstanceOfExpression*>(node))
+        {
+            // Mark the target type as USED
+            auto targetType = instanceOfNode->getTargetType();
+            if (targetType)
+            {
+                std::string typeName = targetType->getBaseTypeName();
+                // Only mark non-primitive types as used
+                if (typeName != "int" && typeName != "float" && typeName != "bool" &&
+                    typeName != "string" && typeName != "void" && typeName != "null")
+                {
+                    analyzer.analyzeUsedClass(typeName);
+                }
+            }
+            // Analyze the expression being checked
+            analyzeAST(instanceOfNode->getExpression(), analyzer);
+            return;
+        }
+
+        // Handle cast expressions (e.g., "(MyClass)obj")
+        if (auto* castNode = dynamic_cast<ast::nodes::expressions::CastExpression*>(node))
+        {
+            // Mark the target type as USED
+            auto targetType = castNode->getTargetType();
+            if (targetType)
+            {
+                std::string typeName = targetType->getBaseTypeName();
+                // Only mark non-primitive types as used
+                if (typeName != "int" && typeName != "float" && typeName != "bool" &&
+                    typeName != "string" && typeName != "void" && typeName != "null")
+                {
+                    analyzer.analyzeUsedClass(typeName);
+                }
+            }
+            // Analyze the expression being cast
+            analyzeAST(castNode->getExpression(), analyzer);
+            return;
+        }
+
+        // Handle lambda expressions
+        if (auto* lambdaNode = dynamic_cast<ast::nodes::expressions::LambdaNode*>(node))
+        {
+            // Analyze lambda body (can contain class instantiations)
+            analyzeAST(lambdaNode->getBody(), analyzer);
+            return;
+        }
+
+        // Handle await expressions (e.g., "await promise")
+        if (auto* awaitNode = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node))
+        {
+            // Analyze the expression being awaited
+            analyzeAST(awaitNode->getExpressionPtr(), analyzer);
+            return;
+        }
+
+        // Handle member access (e.g., "obj.field")
+        if (auto* memberAccessNode = dynamic_cast<ast::nodes::classes::MemberAccessNode*>(node))
+        {
+            // Analyze the object being accessed
+            analyzeAST(memberAccessNode->getObject(), analyzer);
+            return;
+        }
+
+        // Handle member assignment (e.g., "obj.field = value")
+        if (auto* memberAssignNode = dynamic_cast<ast::nodes::statements::MemberAssignmentNode*>(node))
+        {
+            // Analyze the object and the value
+            analyzeAST(memberAssignNode->getObject(), analyzer);
+            analyzeAST(memberAssignNode->getValue(), analyzer);
+            return;
+        }
+
+        // Handle index assignment (e.g., "arr[i] = value")
+        if (auto* indexAssignNode = dynamic_cast<ast::nodes::statements::IndexAssignmentNode*>(node))
+        {
+            // Analyze object, index, and value
+            analyzeAST(indexAssignNode->getObject(), analyzer);
+            analyzeAST(indexAssignNode->getIndex(), analyzer);
+            analyzeAST(indexAssignNode->getValue(), analyzer);
             return;
         }
 

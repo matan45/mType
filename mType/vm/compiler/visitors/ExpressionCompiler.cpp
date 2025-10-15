@@ -189,16 +189,18 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // Check parent class for inherited fields
+            // Check parent class hierarchy for inherited fields (recursive search)
             if (ctx.currentClassNode->hasParentClass()) {
                 std::string parentClassName = ctx.currentClassNode->getParentClassName();
-                auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
-                if (parentClassDef) {
-                    auto parentField = parentClassDef->getField(name);
+
+                // Walk up the entire inheritance chain
+                auto currentParentDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
+                while (currentParentDef) {
+                    auto parentField = currentParentDef->getField(name);
                     if (parentField) {
                         if (parentField->isStatic()) {
-                            // Access inherited static field using parent class name
-                            std::string qualifiedName = parentClassName + "::" + name;
+                            // Access inherited static field using the class where it's defined
+                            std::string qualifiedName = currentParentDef->getName() + "::" + name;
                             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
                             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
                             return std::monostate{};
@@ -214,6 +216,9 @@ namespace vm::compiler::visitors
                             }
                         }
                     }
+
+                    // Move to next parent in the chain
+                    currentParentDef = currentParentDef->getParentClass();
                 }
             }
         }

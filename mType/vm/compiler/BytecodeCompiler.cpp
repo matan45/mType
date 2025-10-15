@@ -355,6 +355,10 @@ namespace vm::compiler
             // they will be resolved relative to the imported file's directory
             importManager->setCurrentFilePath(resolvedPath);
 
+            // IMPORTANT: Process nested imports FIRST
+            // This ensures all dependencies are loaded before class registration
+            processNestedImports(importedAST);
+
             // Validate selective imports - check that imported symbols are public
             if (node->isSelective()) {
                 auto exportRegistry = environment->getExportRegistry();
@@ -384,8 +388,8 @@ namespace vm::compiler
                 }
             }
 
-            // IMPORTANT: Register classes and interfaces BEFORE compiling
-            // This ensures that class metadata is available for type checking
+            // IMPORTANT: Register classes and interfaces AFTER nested imports are processed
+            // This ensures that parent classes from nested imports are available
             registerClassesForBytecode(importedAST);
             linkParentClasses(importedAST);
 
@@ -419,6 +423,28 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
     {
         return controlFlowCompiler.compileThrow(node);
+    }
+
+    void BytecodeCompiler::processNestedImports(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Handle ProgramNode - traverse all statements
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            const auto& statements = programNode->getStatements();
+            for (const auto& stmt : statements)
+            {
+                processNestedImports(stmt.get());
+            }
+        }
+        // Handle ImportNode - process the import recursively
+        else if (auto importNode = dynamic_cast<ast::ImportNode*>(node))
+        {
+            // Process this import by visiting it
+            // This will recursively load all nested dependencies
+            visitImportNode(importNode);
+        }
     }
 
     void BytecodeCompiler::collectExportedSymbols(ast::ASTNode* ast,
