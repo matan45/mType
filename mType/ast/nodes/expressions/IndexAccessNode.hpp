@@ -23,5 +23,6 @@ namespace ast::nodes::expressions
         [[nodiscard]] std::unique_ptr<ASTNode> transferIndexOwnership();
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

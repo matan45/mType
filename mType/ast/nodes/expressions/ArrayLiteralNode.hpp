@@ -41,5 +41,7 @@ namespace ast::nodes::expressions
          * @return Result of visitor operation
          */
         Value accept(ASTVisitor<Value>& visitor) override;
+
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

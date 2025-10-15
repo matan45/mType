@@ -39,4 +39,16 @@ namespace ast::nodes::classes
     {
         return visitor.visitSuperMethodCallNode(this);
     }
+
+    std::unique_ptr<ASTNode> SuperMethodCallNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedArgs;
+        clonedArgs.reserve(arguments.size());
+        for (const auto& arg : arguments) {
+            if (arg) {
+                clonedArgs.push_back(arg->clone());
+            }
+        }
+        return std::make_unique<SuperMethodCallNode>(methodName, std::move(clonedArgs), location);
+    }
 }

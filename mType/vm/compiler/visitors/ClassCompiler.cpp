@@ -97,16 +97,36 @@ namespace vm::compiler::visitors
             // Resolve generic type parameters if present
             expectedType = ctx.resolveGenericType(expectedType);
 
-            // Skip validation for unresolved generic type parameters (like K, V, T, E)
-            // These are single uppercase letters or short names that couldn't be resolved
-            if (expectedType.length() <= 2 && std::isupper(expectedType[0]))
-            {
-                continue; // Skip validation for generic type parameters
-            }
-
             // Infer argument type early for validation checks
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
             std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+
+            // For unresolved generic type parameters (like K, V, T, E), we still need to validate
+            // that primitives aren't passed where objects are expected
+            if (expectedType.length() <= 2 && std::isupper(expectedType[0]))
+            {
+                // If we can't infer the argument type (VOID), skip validation
+                // This happens when accessing generic fields like current.data where data is of type T
+                if (argType == value::ValueType::VOID)
+                {
+                    continue; // Can't validate, rely on runtime
+                }
+
+                // Generic parameters represent OBJECT types (since primitives can't be generic type arguments)
+                // So if argType is a primitive (and not VOID/NULL), this is an error
+                if (argType != value::ValueType::OBJECT && argType != value::ValueType::NULL_TYPE)
+                {
+                    throw errors::TypeException(
+                        "Method '" + methodName + "' parameter " + std::to_string(i + 1) +
+                        " expects an object type (generic parameter " + expectedType + ") but got primitive type " + argTypeStr +
+                        ". Cannot pass primitive types to generic parameters.",
+                        location
+                    );
+                }
+                // For OBJECT types, we can't validate the exact class without resolving the generic,
+                // so we allow it and rely on runtime validation
+                continue;
+            }
 
             // Skip validation for generic array types (like T[], E[], Array<T>, etc.)
             // These appear as "Array" or "Array<T>" when the generic parameter couldn't be resolved
@@ -1050,11 +1070,78 @@ namespace vm::compiler::visitors
             // Infer the class of the object for type checking
             std::string objectClassName = ctx.typeInference.inferExpressionClassName(node->getObject());
 
+            // Extract generic type bindings from objectClassName if it's a generic instantiation
+            // E.g., "Box<String>" -> push {T: String} onto the binding stack
+            std::unordered_map<std::string, std::string> genericBindings;
+            if (objectClassName.find('<') != std::string::npos)
+            {
+                // Parse "Box<String>" into base class and type arguments
+                size_t angleStart = objectClassName.find('<');
+                size_t angleEnd = objectClassName.rfind('>');
+                if (angleEnd != std::string::npos && angleEnd > angleStart)
+                {
+                    std::string baseClassName = objectClassName.substr(0, angleStart);
+                    std::string typeArgsStr = objectClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
+
+                    // Look up the base class to get its generic parameter names
+                    auto classDef = ctx.environment->findClass(baseClassName);
+
+                    if (classDef && classDef->isGeneric())
+                    {
+                        const auto& genericParams = classDef->getGenericParameters();
+
+                        // Parse type arguments (e.g., "String" or "String, Int")
+                        std::vector<std::string> typeArgs;
+                        size_t start = 0;
+                        size_t depth = 0;
+                        for (size_t i = 0; i < typeArgsStr.length(); ++i)
+                        {
+                            if (typeArgsStr[i] == '<') depth++;
+                            else if (typeArgsStr[i] == '>') depth--;
+                            else if (typeArgsStr[i] == ',' && depth == 0)
+                            {
+                                std::string arg = typeArgsStr.substr(start, i - start);
+                                arg.erase(0, arg.find_first_not_of(" \t"));
+                                arg.erase(arg.find_last_not_of(" \t") + 1);
+                                typeArgs.push_back(arg);
+                                start = i + 1;
+                            }
+                        }
+                        // Add last argument
+                        std::string arg = typeArgsStr.substr(start);
+                        arg.erase(0, arg.find_first_not_of(" \t"));
+                        arg.erase(arg.find_last_not_of(" \t") + 1);
+                        if (!arg.empty())
+                        {
+                            typeArgs.push_back(arg);
+                        }
+
+                        // Create bindings: T -> String, etc.
+                        for (size_t i = 0; i < genericParams.size() && i < typeArgs.size(); ++i)
+                        {
+                            genericBindings[genericParams[i].name] = typeArgs[i];
+                        }
+                    }
+                }
+            }
+
+            // Push generic type bindings onto the stack for resolution during validation
+            if (!genericBindings.empty())
+            {
+                ctx.pushGenericTypeBindings(genericBindings);
+            }
+
             // Validate parameter count and types for instance methods
             if (!objectClassName.empty())
             {
                 std::string qualifiedName = objectClassName + "::" + methodName;
                 validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
+            }
+
+            // Pop generic type bindings after validation
+            if (!genericBindings.empty())
+            {
+                ctx.popGenericTypeBindings();
             }
 
             // First, compile the object expression

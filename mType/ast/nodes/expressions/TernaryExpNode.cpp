@@ -43,4 +43,17 @@ namespace ast::nodes::expressions
     {
         return visitor.visitTernaryOpNode(this);
     }
+
+    std::unique_ptr<ASTNode> TernaryExpNode::clone() const
+    {
+        auto clonedCondition = condition ? condition->clone() : nullptr;
+        auto clonedTrueExpr = trueExpression ? trueExpression->clone() : nullptr;
+        auto clonedFalseExpr = falseExpression ? falseExpression->clone() : nullptr;
+        return std::make_unique<TernaryExpNode>(
+            std::move(clonedCondition),
+            std::move(clonedTrueExpr),
+            std::move(clonedFalseExpr),
+            location
+        );
+    }
 }

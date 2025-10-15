@@ -39,4 +39,15 @@ namespace ast::nodes::expressions
     {
         return visitor.visitIndexAccessNode(this);
     }
+
+    std::unique_ptr<ASTNode> IndexAccessNode::clone() const
+    {
+        auto clonedCollection = collection ? collection->clone() : nullptr;
+        auto clonedIndex = index ? index->clone() : nullptr;
+        return std::make_unique<IndexAccessNode>(
+            std::move(clonedCollection),
+            std::move(clonedIndex),
+            location
+        );
+    }
 }

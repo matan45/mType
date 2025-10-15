@@ -15,4 +15,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitIntegerNode(this);
     }
+
+    std::unique_ptr<ASTNode> IntegerNode::clone() const
+    {
+        return std::make_unique<IntegerNode>(value, location);
+    }
 }

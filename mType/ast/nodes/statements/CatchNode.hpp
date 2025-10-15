@@ -32,5 +32,6 @@ namespace ast::nodes::statements
         void setBody(std::unique_ptr<ASTNode> catchBody);
 
         value::Value accept(ASTVisitor<value::Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

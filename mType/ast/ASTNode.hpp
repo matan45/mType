@@ -25,6 +25,9 @@ namespace ast
         // Accept method for visitor pattern
         virtual Value accept(ASTVisitor<Value>& visitor) = 0;
 
+        // Clone method for AST transformation (default implementation throws)
+        virtual std::unique_ptr<ASTNode> clone() const;
+
         const SourceLocation& getLocation() const { return location; }
     };
 }

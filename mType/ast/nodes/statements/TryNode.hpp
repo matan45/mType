@@ -38,5 +38,6 @@ namespace ast::nodes::statements
         size_t getCatchBlockCount() const;
 
         value::Value accept(ASTVisitor<value::Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

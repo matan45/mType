@@ -24,8 +24,10 @@ namespace ast::nodes::expressions
          * @param loc Source location where this type reference appears
          */
         explicit GenericTypeRefNode(std::shared_ptr<GenericType> genericType,
-                                   const SourceLocation& loc = SourceLocation())
-            : ASTNode(loc), type(genericType) {}
+                                    const SourceLocation& loc = SourceLocation())
+            : ASTNode(loc), type(genericType)
+        {
+        }
 
         /**
          * Gets the generic type being referenced.
@@ -43,7 +45,8 @@ namespace ast::nodes::expressions
          * Gets a string representation of this type reference.
          * @return String representation like "T", "Array<T>", "Map<K,V>"
          */
-        std::string getTypeString() const {
+        std::string getTypeString() const
+        {
             return type ? type->toString() : "unknown";
         }
 
@@ -51,7 +54,8 @@ namespace ast::nodes::expressions
          * Checks if this references a generic type parameter.
          * @return true if this is a type parameter (T, E, etc.), false if concrete
          */
-        bool isGenericParameter() const {
+        bool isGenericParameter() const
+        {
             return type && type->isGenericParameter();
         }
 
@@ -59,7 +63,8 @@ namespace ast::nodes::expressions
          * Checks if this references a parameterized type.
          * @return true if this has type arguments (Array<T>), false otherwise
          */
-        bool isParameterized() const {
+        bool isParameterized() const
+        {
             return type && type->isParameterized();
         }
 
@@ -74,7 +79,8 @@ namespace ast::nodes::expressions
          * Gets the node type for debugging and logging.
          * @return String identifier for this node type
          */
-        std::string getNodeType() const {
+        std::string getNodeType() const
+        {
             return "GenericTypeRefNode";
         }
 
@@ -82,17 +88,19 @@ namespace ast::nodes::expressions
          * Creates a string representation of this node for debugging.
          * @return Debug string
          */
-        std::string toString() const {
+        std::string toString() const
+        {
             return "GenericTypeRef(" + getTypeString() + ")";
         }
 
         /**
          * Creates a copy of this node.
-         * @return Shared pointer to a new copy of this node
+         * @return Unique pointer to a new copy of this node
          */
-        std::shared_ptr<ASTNode> clone() const {
+        std::unique_ptr<ASTNode> clone() const override
+        {
             auto clonedType = type ? std::make_shared<GenericType>(*type) : nullptr;
-            return std::make_shared<GenericTypeRefNode>(clonedType, getLocation());
+            return std::make_unique<GenericTypeRefNode>(clonedType, getLocation());
         }
     };
 }

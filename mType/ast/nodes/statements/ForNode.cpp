@@ -53,4 +53,15 @@ namespace ast::nodes::statements
     {
         return visitor.visitForNode(this);
     }
+
+    std::unique_ptr<ASTNode> ForNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedInit = initialization ? initialization->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedCondition = condition ? condition->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedUpdate = update ? update->clone() : nullptr;
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+
+        return std::make_unique<ForNode>(std::move(clonedInit), std::move(clonedCondition),
+                                         std::move(clonedUpdate), std::move(clonedBody), location);
+    }
 }

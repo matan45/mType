@@ -45,6 +45,6 @@ namespace ast::nodes::statements
         void setVisibility(VisibilityModifier vis);
 
         Value accept(ASTVisitor<Value>& visitor) override;
-        
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

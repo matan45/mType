@@ -36,4 +36,18 @@ namespace ast::nodes::statements
     {
         return visitor.visitProgramNode(this);
     }
+
+    std::unique_ptr<ASTNode> ProgramNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedStatements;
+        clonedStatements.reserve(statements.size());
+
+        for (const auto& stmt : statements) {
+            if (stmt) {
+                clonedStatements.push_back(stmt->clone());
+            }
+        }
+
+        return std::make_unique<ProgramNode>(std::move(clonedStatements), location);
+    }
 }

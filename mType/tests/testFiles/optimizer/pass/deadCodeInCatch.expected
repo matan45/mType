@@ -1,0 +1,49 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 124
+  Total nodes after:  113
+  Nodes removed:      11
+  Reduction:          8.9%
+
+Optimization Summary:
+  Total Transformations: 14
+  Total Time: 1 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 11
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 3
+    Time: 1 ms
+    Modified: Yes
+
+============================================================
+
+Caught exception
+Result 1: error handled
+Rethrowing exception
+Caught rethrown exception
+Inner catch
+Result 3: 42
+Caught NullPointerException
+Result 4: null error
+Loop iteration: 0
+Loop iteration: 1
+Breaking from catch
+Continuing from catch
+No exception for i=1
+After catch for i=1
+Continuing from catch
+No exception for i=3
+After catch for i=3
+Continuing from catch
+Catch Block Dead Code Test Complete!

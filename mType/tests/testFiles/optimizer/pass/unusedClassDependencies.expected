@@ -1,0 +1,32 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 13
+  Total nodes after:  6
+  Nodes removed:      7
+  Reduction:          53.8%
+
+Optimization Summary:
+  Total Transformations: 7
+  Total Time: 0 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 0
+    Time: 0 ms
+    Modified: No
+  UnusedDeclarationElimination:
+    Transformations: 7
+    Time: 0 ms
+    Modified: Yes
+
+============================================================
+
+Test: 100
+Unused Class Dependencies Test Complete!

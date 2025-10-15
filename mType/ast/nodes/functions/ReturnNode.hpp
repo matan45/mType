@@ -18,5 +18,6 @@ namespace ast::nodes::functions
         bool hasReturnValue() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

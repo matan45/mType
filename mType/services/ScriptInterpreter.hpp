@@ -25,6 +25,11 @@ namespace vm::runtime
     class VirtualMachine;
 }
 
+namespace optimizer
+{
+    class Optimizer;
+}
+
 namespace services
 {
     using NativeFunction = std::function<value::Value(const std::vector<value::Value>&)>;
@@ -36,6 +41,7 @@ namespace services
         std::unique_ptr<evaluator::Evaluator> evaluator;
         std::unique_ptr<vm::compiler::BytecodeCompiler> compiler;
         std::shared_ptr<vm::runtime::VirtualMachine> vm;  // Changed to shared_ptr for enable_shared_from_this support
+        std::unique_ptr<optimizer::Optimizer> optimizer;  // AST optimizer
 
         // Execution mode
         constants::ExecutionMode executionMode;
@@ -63,7 +69,7 @@ namespace services
 
     public:
         ScriptInterpreter();
-        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::O1);
+        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
 

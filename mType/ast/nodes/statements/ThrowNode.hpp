@@ -23,5 +23,6 @@ namespace ast::nodes::statements
         void setException(std::unique_ptr<ASTNode> expr);
 
         value::Value accept(ASTVisitor<value::Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

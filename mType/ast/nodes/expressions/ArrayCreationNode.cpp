@@ -87,4 +87,16 @@ namespace ast::nodes::expressions
     {
         return visitor.visitArrayCreationNode(this);
     }
+
+    std::unique_ptr<ASTNode> ArrayCreationNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedSizeExprs;
+        clonedSizeExprs.reserve(sizeExpressions.size());
+        for (const auto& sizeExpr : sizeExpressions) {
+            if (sizeExpr) {
+                clonedSizeExprs.push_back(sizeExpr->clone());
+            }
+        }
+        return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(clonedSizeExprs), location);
+    }
 }

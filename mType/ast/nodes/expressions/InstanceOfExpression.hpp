@@ -66,5 +66,12 @@ namespace ast::nodes::expressions
         {
             return visitor.visitInstanceOfExpression(this);
         }
+
+        std::unique_ptr<ASTNode> clone() const override
+        {
+            std::unique_ptr<ASTNode> clonedExpr = expression ? expression->clone() : nullptr;
+            std::shared_ptr<GenericType> clonedType = targetType ? std::make_shared<GenericType>(*targetType) : nullptr;
+            return std::make_unique<InstanceOfExpression>(std::move(clonedExpr), clonedType, location);
+        }
     };
 }

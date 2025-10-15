@@ -19,9 +19,10 @@ namespace ast::nodes::statements
 
         void setExpression(std::unique_ptr<ASTNode> expr);
         void addCase(std::unique_ptr<ASTNode> caseNode);
-        
+
         size_t getCaseCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

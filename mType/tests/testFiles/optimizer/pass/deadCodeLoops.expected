@@ -1,0 +1,46 @@
+Execution Mode: Bytecode VM (Optimization: Release)
+
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 174
+  Total nodes after:  157
+  Nodes removed:      17
+  Reduction:          9.8%
+
+Optimization Summary:
+  Total Transformations: 17
+  Total Time: 1 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 17
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 0
+    Time: 1 ms
+    Modified: No
+
+============================================================
+
+While return: 30
+While break: 57
+While continue: 25
+For return: 50
+For break: 21
+For continue: 25
+Reachable after inner loop
+Reachable after inner loop
+Reachable after inner loop
+Reachable after inner loop
+Reachable after inner loop
+Nested loops: 0
+Loop all returns: 1
+Do-while return: 20
+Do-while break: 34
+Loop Dead Code Test Complete!

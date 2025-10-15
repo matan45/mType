@@ -42,4 +42,11 @@ namespace ast::nodes::statements
     {
         return visitor.visitCatchNode(this);
     }
+
+    std::unique_ptr<ASTNode> CatchNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedBody = body ? body->clone() : nullptr;
+
+        return std::make_unique<CatchNode>(exceptionType, variableName, std::move(clonedBody), location);
+    }
 }

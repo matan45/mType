@@ -100,4 +100,29 @@ namespace ast::nodes::statements
     {
         return visitor.visitImportNode(this);
     }
+
+    std::unique_ptr<ASTNode> ImportNode::clone() const
+    {
+        // Clone imported declarations
+        std::vector<std::unique_ptr<ASTNode>> clonedDeclarations;
+        clonedDeclarations.reserve(importedDeclarations.size());
+        for (const auto& decl : importedDeclarations) {
+            if (decl) {
+                clonedDeclarations.push_back(decl->clone());
+            }
+        }
+
+        // Clone the import node
+        auto clonedImport = std::make_unique<ImportNode>(filePath, importType, importedSymbols, location);
+
+        // Set the imported AST (non-owning pointer, just copy)
+        clonedImport->setImportedAST(importedAST);
+
+        // Move cloned declarations
+        for (auto& decl : clonedDeclarations) {
+            clonedImport->addImportedDeclaration(std::move(decl));
+        }
+
+        return clonedImport;
+    }
 }

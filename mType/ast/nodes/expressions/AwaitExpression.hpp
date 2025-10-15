@@ -72,5 +72,11 @@ namespace ast::nodes::expressions
         {
             return visitor.visitAwaitExpression(this);
         }
+
+        std::unique_ptr<ASTNode> clone() const override
+        {
+            std::unique_ptr<ASTNode> clonedExpr = expression ? expression->clone() : nullptr;
+            return std::make_unique<AwaitExpression>(std::move(clonedExpr), location);
+        }
     };
 }

@@ -21,4 +21,13 @@ namespace ast::nodes::statements
     {
         return visitor.visitThrowNode(this);
     }
+
+    std::unique_ptr<ASTNode> ThrowNode::clone() const
+    {
+        std::unique_ptr<ASTNode> clonedException = nullptr;
+        if (exception) {
+            clonedException = exception->clone();
+        }
+        return std::make_unique<ThrowNode>(std::move(clonedException), location);
+    }
 }

@@ -41,4 +41,16 @@ namespace ast::nodes::classes
     {
         return visitor.visitNewNode(this);
     }
+
+    std::unique_ptr<ASTNode> NewNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedArgs;
+        clonedArgs.reserve(arguments.size());
+        for (const auto& arg : arguments) {
+            if (arg) {
+                clonedArgs.push_back(arg->clone());
+            }
+        }
+        return std::make_unique<NewNode>(className, std::move(clonedArgs), location);
+    }
 }

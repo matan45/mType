@@ -21,4 +21,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitStringNode(this);
     }
+
+    std::unique_ptr<ASTNode> StringNode::clone() const
+    {
+        return std::make_unique<StringNode>(value, location);
+    }
 }

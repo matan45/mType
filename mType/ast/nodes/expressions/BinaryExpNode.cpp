@@ -42,4 +42,16 @@ namespace ast::nodes::expressions
     {
         return visitor.visitBinaryOpNode(this);
     }
+
+    std::unique_ptr<ASTNode> BinaryExpNode::clone() const
+    {
+        auto clonedLeft = left ? left->clone() : nullptr;
+        auto clonedRight = right ? right->clone() : nullptr;
+        return std::make_unique<BinaryExpNode>(
+            std::move(clonedLeft),
+            operator_,
+            std::move(clonedRight),
+            location
+        );
+    }
 }

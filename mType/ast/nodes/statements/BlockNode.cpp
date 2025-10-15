@@ -31,4 +31,18 @@ namespace ast::nodes::statements
     {
         return visitor.visitBlockNode(this);
     }
+
+    std::unique_ptr<ASTNode> BlockNode::clone() const
+    {
+        std::vector<std::unique_ptr<ASTNode>> clonedStatements;
+        clonedStatements.reserve(statements.size());
+
+        for (const auto& stmt : statements) {
+            if (stmt) {
+                clonedStatements.push_back(stmt->clone());
+            }
+        }
+
+        return std::make_unique<BlockNode>(std::move(clonedStatements), location);
+    }
 }

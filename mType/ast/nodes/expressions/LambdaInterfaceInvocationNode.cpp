@@ -252,4 +252,36 @@ namespace ast::nodes::expressions
             default: return "unknown";
         }
     }
+
+    std::unique_ptr<ASTNode> LambdaInterfaceInvocationNode::clone() const
+    {
+        // Clone arguments
+        std::vector<std::shared_ptr<ASTNode>> clonedArgs;
+        clonedArgs.reserve(arguments.size());
+        for (const auto& arg : arguments) {
+            if (arg) {
+                clonedArgs.push_back(std::shared_ptr<ASTNode>(arg->clone()));
+            }
+        }
+
+        // Get the shared_ptr to lambda (if valid)
+        std::shared_ptr<LambdaNode> lambdaPtr = lambdaNode.lock();
+
+        // Create cloned invocation node
+        auto clonedNode = std::make_unique<LambdaInterfaceInvocationNode>(
+            lambdaPtr,
+            clonedArgs,
+            interfaceName,
+            methodName,
+            interfaceParameterTypes,
+            interfaceReturnType
+        );
+
+        // Copy generic type bindings
+        for (const auto& [typeParam, actualType] : genericTypeBindings) {
+            clonedNode->setGenericTypeBinding(typeParam, actualType);
+        }
+
+        return clonedNode;
+    }
 }

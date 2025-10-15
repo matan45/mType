@@ -51,5 +51,6 @@ namespace ast::nodes::expressions {
         void setIsAsync(bool async) { isAsync = async; }
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

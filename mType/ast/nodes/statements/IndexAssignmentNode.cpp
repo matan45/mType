@@ -63,4 +63,13 @@ namespace ast::nodes::statements
     {
         return visitor.visitIndexAssignmentNode(this);
     }
+
+    std::unique_ptr<ASTNode> IndexAssignmentNode::clone() const
+    {
+        std::shared_ptr<ASTNode> clonedObject = object ? std::shared_ptr<ASTNode>(object->clone()) : nullptr;
+        std::shared_ptr<ASTNode> clonedIndex = index ? std::shared_ptr<ASTNode>(index->clone()) : nullptr;
+        std::shared_ptr<ASTNode> clonedValue = value ? std::shared_ptr<ASTNode>(value->clone()) : nullptr;
+
+        return std::make_unique<IndexAssignmentNode>(clonedObject, clonedIndex, clonedValue, location);
+    }
 }

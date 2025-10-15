@@ -179,6 +179,26 @@ namespace vm::compiler::types
             return;
         }
 
+        // Check if trying to assign a primitive to an OBJECT type
+        // This catches cases like passing string literal "gold" to Box<String>.setContent(String item)
+        if (varType == value::ValueType::OBJECT && valueType != value::ValueType::OBJECT && valueType != value::ValueType::VOID) {
+            // Exception: Allow primitive string to be assigned to String class (auto-boxing)
+            // This is allowed only when varClassName is explicitly empty or "string" (not "String" class)
+            if (valueType == value::ValueType::STRING && varClassName.empty()) {
+                return; // Generic OBJECT can accept string primitives
+            }
+
+            // Reject primitive values when OBJECT with specific class is expected
+            if (!varClassName.empty()) {
+                std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
+                throw errors::TypeException(
+                    "Type mismatch: cannot assign primitive " + valueTypeStr + " to object type " + varClassName,
+                    location
+                );
+            }
+            return;
+        }
+
         // For non-OBJECT types, check primitive type compatibility
         if (varType != value::ValueType::OBJECT && valueType != value::ValueType::VOID && valueType != varType) {
             // Special case: INT can be assigned to FLOAT (implicit conversion)

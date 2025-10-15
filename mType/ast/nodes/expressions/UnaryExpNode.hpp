@@ -36,5 +36,6 @@ namespace ast::nodes::expressions
         bool isPostfix() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

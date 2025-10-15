@@ -23,5 +23,6 @@ namespace ast::nodes::statements
         size_t getStatementCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

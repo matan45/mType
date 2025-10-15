@@ -21,4 +21,9 @@ namespace ast::nodes::expressions
     {
         return visitor.visitVariableNode(this);
     }
+
+    std::unique_ptr<ASTNode> VariableNode::clone() const
+    {
+        return std::make_unique<VariableNode>(name, location);
+    }
 }
