@@ -7,13 +7,114 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 174
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 31 statements
+[UDE] Declaring function: testWhileReturn (PUBLIC)
+[UDE] Declaring function: testWhileBreak (PUBLIC)
+[UDE] Declaring function: testWhileContinue (PUBLIC)
+[UDE] Declaring function: testForReturn (PUBLIC)
+[UDE] Declaring function: testForBreak (PUBLIC)
+[UDE] Declaring function: testForContinue (PUBLIC)
+[UDE] Declaring function: testNestedLoops (PUBLIC)
+[UDE] Declaring function: testLoopWithAllReturns (PUBLIC)
+[UDE] Declaring function: testDoWhileReturn (PUBLIC)
+[UDE] Declaring function: testDoWhileBreak (PUBLIC)
+[UDE] Marking function as USED: testWhileReturn
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testWhileBreak
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testWhileContinue
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testForReturn
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testForBreak
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testForContinue
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testNestedLoops
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testLoopWithAllReturns
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testDoWhileReturn
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testDoWhileBreak
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 11
+[UDE]   - print
+[UDE]   - testWhileReturn
+[UDE]   - testWhileBreak
+[UDE]   - testForBreak
+[UDE]   - testWhileContinue
+[UDE]   - testForReturn
+[UDE]   - testNestedLoops
+[UDE]   - testForContinue
+[UDE]   - testLoopWithAllReturns
+[UDE]   - testDoWhileReturn
+[UDE]   - testDoWhileBreak
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing body of used function: testWhileReturn
+[UDE] Analyzing body of used function: testWhileBreak
+[UDE] Analyzing body of used function: testWhileContinue
+[UDE] Analyzing body of used function: testForReturn
+[UDE] Analyzing body of used function: testForBreak
+[UDE] Analyzing body of used function: testForContinue
+[UDE] Analyzing body of used function: testNestedLoops
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: testLoopWithAllReturns
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: testDoWhileReturn
+[UDE] Analyzing body of used function: testDoWhileBreak
+[UDE] Declared functions: 10
+[UDE]   - testWhileReturn
+[UDE]   - testWhileBreak
+[UDE]   - testForBreak
+[UDE]   - testWhileContinue
+[UDE]   - testForReturn
+[UDE]   - testLoopWithAllReturns
+[UDE]   - testNestedLoops
+[UDE]   - testForContinue
+[UDE]   - testDoWhileReturn
+[UDE]   - testDoWhileBreak
+[UDE] Used functions: 11
+[UDE]   - print
+[UDE]   - testWhileReturn
+[UDE]   - testWhileBreak
+[UDE]   - testForBreak
+[UDE]   - testWhileContinue
+[UDE]   - testForReturn
+[UDE]   - testNestedLoops
+[UDE]   - testForContinue
+[UDE]   - testLoopWithAllReturns
+[UDE]   - testDoWhileReturn
+[UDE]   - testDoWhileBreak
+[UDE] Declared classes: 0
+[UDE] Used classes: 0
+[UDE] Called method names: 0
+[UDE] Declared methods: 0
+[UDE] Used methods: 0
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 0 unused functions
+[UDE] Removed 0 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 0 unused methods
+[UDE] Total declarations removed: 0
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  157
   Nodes removed:      17
   Reduction:          9.8%
 
 Optimization Summary:
   Total Transformations: 17
-  Total Time: 0 ms
+  Total Time: 1 ms
   Status: Success
 
 Pass Details:
@@ -23,7 +124,7 @@ Pass Details:
     Modified: Yes
   UnusedDeclarationElimination:
     Transformations: 0
-    Time: 0 ms
+    Time: 1 ms
     Modified: No
 
 ============================================================

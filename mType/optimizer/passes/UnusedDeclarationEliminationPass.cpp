@@ -340,7 +340,33 @@ namespace optimizer::passes
         // Track usages
         if (auto* funcCallNode = dynamic_cast<FunctionCallNode*>(node))
         {
-            analyzer.analyzeUsedFunction(funcCallNode->getFunctionName());
+            std::string functionName = funcCallNode->getFunctionName();
+
+            // Check if this is actually a static method call (e.g., "UsedMath::add")
+            size_t colonPos = functionName.find("::");
+            if (colonPos != std::string::npos)
+            {
+                // This is a static method call in the form "ClassName::methodName"
+                std::string className = functionName.substr(0, colonPos);
+                std::string methodName = functionName.substr(colonPos + 2);
+
+                // CRITICAL: Mark the class as USED (static methods require the class!)
+                analyzer.analyzeUsedClass(className);
+
+                // Mark the static method as used
+                std::string staticMethodKey = className + "::STATIC::" + methodName;
+                analyzer.usedMethods.insert(staticMethodKey);
+
+                if (UDE_DEBUG)
+                {
+                    std::cout << "[UDE] Found static method call (via FunctionCallNode): " << staticMethodKey << "\n";
+                }
+            }
+            else
+            {
+                // Regular function call
+                analyzer.analyzeUsedFunction(functionName);
+            }
 
             // Analyze arguments
             for (const auto& arg : funcCallNode->getArguments())
@@ -540,6 +566,10 @@ namespace optimizer::passes
                 if (auto* classNameNode = dynamic_cast<VariableNode*>(methodCallNode->getObject()))
                 {
                     std::string className = classNameNode->getName();
+
+                    // CRITICAL: Mark the class as USED (static methods require the class!)
+                    analyzer.analyzeUsedClass(className);
+
                     // Mark static method explicitly
                     std::string staticMethodKey = className + "::STATIC::" + methodName;
                     analyzer.usedMethods.insert(staticMethodKey);

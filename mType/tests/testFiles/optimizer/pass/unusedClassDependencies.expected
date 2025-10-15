@@ -7,6 +7,93 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 13
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 12 statements
+[UDE] Declaring class: UsedHelper (PUBLIC)
+[UDE] Declaring method: UsedHelper::getValue (INSTANCE) (PUBLIC)
+[UDE] Declaring class: UsedMain (PUBLIC)
+[UDE] Declaring method: UsedMain::getInfo (INSTANCE) (PUBLIC)
+[UDE] Declaring class: UnusedHelper (PUBLIC)
+[UDE] Declaring method: UnusedHelper::getData (INSTANCE) (PRIVATE)
+[UDE] Declaring class: UnusedData (PUBLIC)
+[UDE] Declaring method: UnusedData::getCount (INSTANCE) (PRIVATE)
+[UDE] Declaring class: UnusedMain (PUBLIC)
+[UDE] Declaring method: UnusedMain::getLabel (INSTANCE) (PRIVATE)
+[UDE] Declaring class: IsolatedUnused (PUBLIC)
+[UDE] Declaring class: UnusedA (PUBLIC)
+[UDE] Declaring class: UnusedB (PUBLIC)
+[UDE] Declaring class: UnusedC (PUBLIC)
+[UDE] Marking class as USED: UsedMain
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getInfo()
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 1
+[UDE]   - print
+[UDE] After Phase 1a - Used classes: 1
+[UDE]   - UsedMain
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing fields and methods of used class: UsedMain
+[UDE] Marking class as USED: UsedHelper
+[UDE]   Field 'helper' uses class: UsedHelper
+[UDE]   Marking method as used: UsedMain::getInfo
+[UDE] Found instance method call: getValue()
+[UDE] Found new dependencies: 0 functions, 1 classes
+[UDE] Iteration 2...
+[UDE] Analyzing fields and methods of used class: UsedHelper
+[UDE]   Marking method as used: UsedHelper::getValue
+[UDE] Analyzing fields and methods of used class: UsedMain
+[UDE] Marking class as USED: UsedHelper
+[UDE]   Field 'helper' uses class: UsedHelper
+[UDE]   Marking method as used: UsedMain::getInfo
+[UDE] Found instance method call: getValue()
+[UDE] Declared functions: 0
+[UDE] Used functions: 1
+[UDE]   - print
+[UDE] Declared classes: 9
+[UDE]   - UsedHelper
+[UDE]   - UsedMain
+[UDE]   - UnusedHelper
+[UDE]   - UnusedB
+[UDE]   - UnusedData
+[UDE]   - UnusedMain
+[UDE]   - IsolatedUnused
+[UDE]   - UnusedA
+[UDE]   - UnusedC
+[UDE] Used classes: 2
+[UDE]   - UsedMain
+[UDE]   - UsedHelper
+[UDE] Called method names: 2
+[UDE]   - getInfo()
+[UDE]   - getValue()
+[UDE] Declared methods: 5
+[UDE]   - UnusedHelper::getData
+[UDE]   - UsedHelper::getValue
+[UDE]   - UsedMain::getInfo
+[UDE]   - UnusedData::getCount
+[UDE]   - UnusedMain::getLabel
+[UDE] Used methods: 2
+[UDE]   - UsedMain::getInfo
+[UDE]   - UsedHelper::getValue
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+[UDE] Removing unused class: UnusedHelper
+[UDE] Removing unused class: UnusedData
+[UDE] Removing unused class: UnusedMain
+[UDE] Removing unused class: IsolatedUnused
+[UDE] Removing unused class: UnusedA
+[UDE] Removing unused class: UnusedB
+[UDE] Removing unused class: UnusedC
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 0 unused functions
+[UDE] Removed 7 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 0 unused methods
+[UDE] Total declarations removed: 7
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  6
   Nodes removed:      7
   Reduction:          53.8%

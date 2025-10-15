@@ -7,6 +7,295 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 37
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 36 statements
+[UDE] Found ImportNode: ../../lib/primitives/String.mt (type: wildcard)
+[UDE] Analyzing imported AST from: ../../lib/primitives/String.mt
+[UDE] Analyzing ProgramNode with 1 statements
+[UDE] Declaring class: String (PUBLIC)
+[UDE] Declaring method: String::getValue (INSTANCE) (PUBLIC)
+[UDE] Declaring method: String::setValue (INSTANCE) (PUBLIC)
+[UDE] Declaring method: String::length (INSTANCE) (PUBLIC)
+[UDE] Declaring method: String::isEmpty (INSTANCE) (PUBLIC)
+[UDE] Declaring method: String::equals (INSTANCE) (PUBLIC)
+[UDE]   Special method always kept: String::equals
+[UDE] Declaring method: String::toString (INSTANCE) (PUBLIC)
+[UDE]   Special method always kept: String::toString
+[UDE] Declaring method: String::hashCode (INSTANCE) (PUBLIC)
+[UDE]   Special method always kept: String::hashCode
+[UDE] Declaring method: String::concat (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Shape (PUBLIC)
+[UDE] Declaring method: Shape::getColor (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Shape::describe (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Rectangle (PUBLIC)
+[UDE] Marking class as USED: Shape
+[UDE] Declaring method: Rectangle::draw (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Rectangle::resize (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Rectangle::getArea (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Circle (PUBLIC)
+[UDE] Marking class as USED: Shape
+[UDE] Declaring method: Circle::draw (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Circle::getRadius (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Box (PUBLIC)
+[UDE] Marking class as USED: Shape
+[UDE] Declaring method: Box::getContent (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Box::setContent (INSTANCE) (PUBLIC)
+[UDE] Declaring class: ImmutablePoint (PUBLIC)
+[UDE] Declaring method: ImmutablePoint::draw (INSTANCE) (PUBLIC)
+[UDE] Declaring method: ImmutablePoint::getX (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Animal (PUBLIC)
+[UDE] Declaring method: Animal::speak (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Mammal (PUBLIC)
+[UDE] Marking class as USED: Animal
+[UDE] Declaring method: Mammal::speak (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Dog (PUBLIC)
+[UDE] Marking class as USED: Mammal
+[UDE] Declaring method: Dog::speak (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Dog::getBreed (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Document (PUBLIC)
+[UDE] Declaring method: Document::print (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Document::serialize (INSTANCE) (PUBLIC)
+[UDE] Marking function as USED: print
+[UDE] Marking class as USED: Rectangle
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getColor()
+[UDE] Found instance method call: draw()
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getArea()
+[UDE] Found instance method call: resize()
+[UDE] Marking class as USED: Circle
+[UDE] Found instance method call: draw()
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getRadius()
+[UDE] Marking class as USED: Box
+[UDE] Marking class as USED: String
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getContent()
+[UDE] Found instance method call: setContent()
+[UDE] Marking class as USED: ImmutablePoint
+[UDE] Found instance method call: draw()
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getX()
+[UDE] Marking class as USED: Dog
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: speak()
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: getBreed()
+[UDE] Marking class as USED: Document
+[UDE] Found instance method call: print()
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: serialize()
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 1
+[UDE]   - print
+[UDE] After Phase 1a - Used classes: 10
+[UDE]   - Rectangle
+[UDE]   - Shape
+[UDE]   - Animal
+[UDE]   - String
+[UDE]   - Mammal
+[UDE]   - Circle
+[UDE]   - Box
+[UDE]   - ImmutablePoint
+[UDE]   - Dog
+[UDE]   - Document
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing used declarations in import: ../../lib/primitives/String.mt
+[UDE] Analyzing fields and methods of used class: String
+[UDE] Marking function as USED: strLength
+[UDE]   Marking method as used: String::equals
+[UDE]   Marking method as used: String::toString
+[UDE]   Marking method as used: String::hashCode
+[UDE] Marking function as USED: hashCode
+[UDE] Marking class as USED: String
+[UDE] Analyzing fields and methods of used class: Shape
+[UDE]   Marking method as used: Shape::getColor
+[UDE] Marking function as USED: print
+[UDE] Analyzing fields and methods of used class: Rectangle
+[UDE]   Marking method as used: Rectangle::draw
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Rectangle::resize
+[UDE] Marking class as USED: Exception
+[UDE]   Marking method as used: Rectangle::getArea
+[UDE] Analyzing fields and methods of used class: Circle
+[UDE]   Marking method as used: Circle::draw
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Circle::getRadius
+[UDE] Analyzing fields and methods of used class: Box
+[UDE] Marking class as USED: T
+[UDE]   Field 'content' uses class: T
+[UDE]   Marking method as used: Box::getContent
+[UDE]   Marking method as used: Box::setContent
+[UDE] Analyzing fields and methods of used class: ImmutablePoint
+[UDE]   Marking method as used: ImmutablePoint::draw
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: ImmutablePoint::getX
+[UDE] Analyzing fields and methods of used class: Animal
+[UDE]   Marking method as used: Animal::speak
+[UDE] Analyzing fields and methods of used class: Mammal
+[UDE]   Marking method as used: Mammal::speak
+[UDE] Analyzing fields and methods of used class: Dog
+[UDE]   Marking method as used: Dog::speak
+[UDE]   Marking method as used: Dog::getBreed
+[UDE] Analyzing fields and methods of used class: Document
+[UDE]   Marking method as used: Document::print
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Document::serialize
+[UDE] Found new dependencies: 2 functions, 2 classes
+[UDE] Iteration 2...
+[UDE] Analyzing used declarations in import: ../../lib/primitives/String.mt
+[UDE] Analyzing fields and methods of used class: String
+[UDE] Marking function as USED: strLength
+[UDE]   Marking method as used: String::equals
+[UDE]   Marking method as used: String::toString
+[UDE]   Marking method as used: String::hashCode
+[UDE] Marking function as USED: hashCode
+[UDE] Marking class as USED: String
+[UDE] Analyzing fields and methods of used class: Shape
+[UDE]   Marking method as used: Shape::getColor
+[UDE] Marking function as USED: print
+[UDE] Analyzing fields and methods of used class: Rectangle
+[UDE]   Marking method as used: Rectangle::draw
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Rectangle::resize
+[UDE] Marking class as USED: Exception
+[UDE]   Marking method as used: Rectangle::getArea
+[UDE] Analyzing fields and methods of used class: Circle
+[UDE]   Marking method as used: Circle::draw
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Circle::getRadius
+[UDE] Analyzing fields and methods of used class: Box
+[UDE] Marking class as USED: T
+[UDE]   Field 'content' uses class: T
+[UDE]   Marking method as used: Box::getContent
+[UDE]   Marking method as used: Box::setContent
+[UDE] Analyzing fields and methods of used class: ImmutablePoint
+[UDE]   Marking method as used: ImmutablePoint::draw
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: ImmutablePoint::getX
+[UDE] Analyzing fields and methods of used class: Animal
+[UDE]   Marking method as used: Animal::speak
+[UDE] Analyzing fields and methods of used class: Mammal
+[UDE]   Marking method as used: Mammal::speak
+[UDE] Analyzing fields and methods of used class: Dog
+[UDE]   Marking method as used: Dog::speak
+[UDE]   Marking method as used: Dog::getBreed
+[UDE] Analyzing fields and methods of used class: Document
+[UDE]   Marking method as used: Document::print
+[UDE] Marking function as USED: print
+[UDE]   Marking method as used: Document::serialize
+[UDE] Declared functions: 0
+[UDE] Used functions: 3
+[UDE]   - hashCode
+[UDE]   - print
+[UDE]   - strLength
+[UDE] Declared classes: 10
+[UDE]   - Mammal
+[UDE]   - String
+[UDE]   - Rectangle
+[UDE]   - Shape
+[UDE]   - Circle
+[UDE]   - Box
+[UDE]   - ImmutablePoint
+[UDE]   - Animal
+[UDE]   - Dog
+[UDE]   - Document
+[UDE] Used classes: 12
+[UDE]   - Rectangle
+[UDE]   - Shape
+[UDE]   - Animal
+[UDE]   - String
+[UDE]   - Mammal
+[UDE]   - Circle
+[UDE]   - Box
+[UDE]   - ImmutablePoint
+[UDE]   - Dog
+[UDE]   - Document
+[UDE]   - Exception
+[UDE]   - T
+[UDE] Called method names: 12
+[UDE]   - getColor()
+[UDE]   - draw()
+[UDE]   - getArea()
+[UDE]   - resize()
+[UDE]   - getX()
+[UDE]   - getRadius()
+[UDE]   - getContent()
+[UDE]   - setContent()
+[UDE]   - speak()
+[UDE]   - getBreed()
+[UDE]   - print()
+[UDE]   - serialize()
+[UDE] Declared methods: 25
+[UDE]   - String::getValue
+[UDE]   - String::hashCode
+[UDE]   - String::equals
+[UDE]   - String::isEmpty
+[UDE]   - String::setValue
+[UDE]   - String::toString
+[UDE]   - String::length
+[UDE]   - String::concat
+[UDE]   - Shape::getColor
+[UDE]   - Box::getContent
+[UDE]   - Rectangle::getArea
+[UDE]   - Shape::describe
+[UDE]   - Rectangle::draw
+[UDE]   - Rectangle::resize
+[UDE]   - Circle::draw
+[UDE]   - Circle::getRadius
+[UDE]   - Box::setContent
+[UDE]   - ImmutablePoint::draw
+[UDE]   - ImmutablePoint::getX
+[UDE]   - Animal::speak
+[UDE]   - Mammal::speak
+[UDE]   - Dog::speak
+[UDE]   - Dog::getBreed
+[UDE]   - Document::print
+[UDE]   - Document::serialize
+[UDE] Used methods: 19
+[UDE]   - String::equals
+[UDE]   - String::toString
+[UDE]   - Shape::getColor
+[UDE]   - String::hashCode
+[UDE]   - Rectangle::draw
+[UDE]   - Rectangle::resize
+[UDE]   - Box::getContent
+[UDE]   - Rectangle::getArea
+[UDE]   - Circle::draw
+[UDE]   - Circle::getRadius
+[UDE]   - Box::setContent
+[UDE]   - ImmutablePoint::draw
+[UDE]   - ImmutablePoint::getX
+[UDE]   - Animal::speak
+[UDE]   - Mammal::speak
+[UDE]   - Dog::speak
+[UDE]   - Dog::getBreed
+[UDE]   - Document::print
+[UDE]   - Document::serialize
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Optimizing import: ../../lib/primitives/String.mt
+[UDE] Optimizing imported AST in-place
+[UDE] Removing unused method from import: String::getValue
+[UDE] Removing unused method from import: String::setValue
+[UDE] Removing unused method from import: String::length
+[UDE] Removing unused method from import: String::isEmpty
+[UDE] Removing unused method from import: String::concat
+[UDE] Imported AST optimized successfully
+[UDE] Phase 2b: Removing unused declarations from main AST...
+[UDE] Removing unused method: Shape::describe
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 0 unused functions
+[UDE] Removed 0 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 6 unused methods
+[UDE] Total declarations removed: 6
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  37
   Nodes removed:      0
   Reduction:          0.0%

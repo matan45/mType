@@ -7,6 +7,50 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 17
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 3 statements
+[UDE] Declaring function: inner (PUBLIC)
+[UDE] Declaring function: outer (PUBLIC)
+[UDE] Marking function as USED: outer
+[UDE] After Phase 1a - Used functions: 1
+[UDE]   - outer
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing body of used function: outer
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: inner
+[UDE] Found new dependencies: 2 functions, 0 classes
+[UDE] Iteration 2...
+[UDE] Analyzing body of used function: inner
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: outer
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: inner
+[UDE] Declared functions: 2
+[UDE]   - inner
+[UDE]   - outer
+[UDE] Used functions: 3
+[UDE]   - outer
+[UDE]   - print
+[UDE]   - inner
+[UDE] Declared classes: 0
+[UDE] Used classes: 0
+[UDE] Called method names: 0
+[UDE] Declared methods: 0
+[UDE] Used methods: 0
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 0 unused functions
+[UDE] Removed 0 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 0 unused methods
+[UDE] Total declarations removed: 0
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  13
   Nodes removed:      4
   Reduction:          23.5%

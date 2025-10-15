@@ -7,6 +7,97 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 19
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 6 statements
+[UDE] Declaring class: ArrayProcessor (PUBLIC)
+[UDE] Declaring method: ArrayProcessor::set (INSTANCE) (PUBLIC)
+[UDE] Declaring method: ArrayProcessor::get (INSTANCE) (PUBLIC)
+[UDE] Declaring method: ArrayProcessor::clear (INSTANCE) (PUBLIC)
+[UDE] Declaring method: ArrayProcessor::sum (INSTANCE) (PUBLIC)
+[UDE] Declaring class: UnusedArrayHelper (PUBLIC)
+[UDE] Declaring method: UnusedArrayHelper::STATIC::reverse (STATIC) (PUBLIC)
+[UDE] Declaring function: processArray (PUBLIC)
+[UDE] Declaring function: unusedArrayFunction (PUBLIC)
+[UDE] Marking function as USED: processArray
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 2
+[UDE]   - processArray
+[UDE]   - print
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing body of used function: processArray
+[UDE] Marking class as USED: ArrayProcessor
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: get()
+[UDE] Marking function as USED: print
+[UDE] Found new dependencies: 0 functions, 1 classes
+[UDE] Iteration 2...
+[UDE] Analyzing fields and methods of used class: ArrayProcessor
+[UDE] Marking class as USED: Array
+[UDE]   Field 'data' uses class: Array
+[UDE]   Marking method as used: ArrayProcessor::set
+[UDE]   Marking method as used: ArrayProcessor::get
+[UDE] Analyzing body of used function: processArray
+[UDE] Marking class as USED: ArrayProcessor
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: get()
+[UDE] Marking function as USED: print
+[UDE] Found new dependencies: 0 functions, 1 classes
+[UDE] Iteration 3...
+[UDE] Analyzing fields and methods of used class: ArrayProcessor
+[UDE] Marking class as USED: Array
+[UDE]   Field 'data' uses class: Array
+[UDE]   Marking method as used: ArrayProcessor::set
+[UDE]   Marking method as used: ArrayProcessor::get
+[UDE] Analyzing body of used function: processArray
+[UDE] Marking class as USED: ArrayProcessor
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: set()
+[UDE] Found instance method call: get()
+[UDE] Marking function as USED: print
+[UDE] Declared functions: 2
+[UDE]   - processArray
+[UDE]   - unusedArrayFunction
+[UDE] Used functions: 2
+[UDE]   - processArray
+[UDE]   - print
+[UDE] Declared classes: 2
+[UDE]   - ArrayProcessor
+[UDE]   - UnusedArrayHelper
+[UDE] Used classes: 2
+[UDE]   - ArrayProcessor
+[UDE]   - Array
+[UDE] Called method names: 2
+[UDE]   - set()
+[UDE]   - get()
+[UDE] Declared methods: 5
+[UDE]   - ArrayProcessor::set
+[UDE]   - ArrayProcessor::get
+[UDE]   - ArrayProcessor::clear
+[UDE]   - ArrayProcessor::sum
+[UDE]   - UnusedArrayHelper::STATIC::reverse
+[UDE] Used methods: 2
+[UDE]   - ArrayProcessor::set
+[UDE]   - ArrayProcessor::get
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+[UDE] Removing unused method: ArrayProcessor::clear
+[UDE] Removing unused method: ArrayProcessor::sum
+[UDE] Removing unused class: UnusedArrayHelper
+[UDE] Removing unused function: unusedArrayFunction
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 1 unused functions
+[UDE] Removed 1 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 2 unused methods
+[UDE] Total declarations removed: 4
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  11
   Nodes removed:      8
   Reduction:          42.1%

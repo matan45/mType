@@ -7,6 +7,66 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 94
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 13 statements
+[UDE] Declaring function: testSwitchReturn (PUBLIC)
+[UDE] Declaring function: testSwitchBreak (PUBLIC)
+[UDE] Declaring function: testSwitchMixed (PUBLIC)
+[UDE] Declaring function: testNestedSwitch (PUBLIC)
+[UDE] Marking function as USED: testSwitchReturn
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testSwitchBreak
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testSwitchMixed
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: testNestedSwitch
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 5
+[UDE]   - testSwitchReturn
+[UDE]   - print
+[UDE]   - testSwitchMixed
+[UDE]   - testSwitchBreak
+[UDE]   - testNestedSwitch
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing body of used function: testSwitchReturn
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: testSwitchBreak
+[UDE] Analyzing body of used function: testSwitchMixed
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: testNestedSwitch
+[UDE] Declared functions: 4
+[UDE]   - testSwitchReturn
+[UDE]   - testSwitchMixed
+[UDE]   - testSwitchBreak
+[UDE]   - testNestedSwitch
+[UDE] Used functions: 5
+[UDE]   - testSwitchReturn
+[UDE]   - print
+[UDE]   - testSwitchMixed
+[UDE]   - testSwitchBreak
+[UDE]   - testNestedSwitch
+[UDE] Declared classes: 0
+[UDE] Used classes: 0
+[UDE] Called method names: 0
+[UDE] Declared methods: 0
+[UDE] Used methods: 0
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 0 unused functions
+[UDE] Removed 0 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 0 unused methods
+[UDE] Total declarations removed: 0
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  75
   Nodes removed:      19
   Reduction:          20.2%

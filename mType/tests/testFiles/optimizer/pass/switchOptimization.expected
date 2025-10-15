@@ -7,6 +7,73 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 21
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 6 statements
+[UDE] Declaring class: StatusHandler (PUBLIC)
+[UDE] Declaring method: StatusHandler::process (INSTANCE) (PUBLIC)
+[UDE] Declaring method: StatusHandler::getStatus (INSTANCE) (PUBLIC)
+[UDE] Declaring method: StatusHandler::setStatus (INSTANCE) (PUBLIC)
+[UDE] Declaring class: UnusedHandler (PUBLIC)
+[UDE] Declaring method: UnusedHandler::handle (INSTANCE) (PUBLIC)
+[UDE] Declaring function: testSwitch (PUBLIC)
+[UDE] Declaring function: unusedSwitch (PUBLIC)
+[UDE] Marking function as USED: testSwitch
+[UDE] Marking function as USED: print
+[UDE] After Phase 1a - Used functions: 2
+[UDE]   - testSwitch
+[UDE]   - print
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing body of used function: testSwitch
+[UDE] Marking class as USED: StatusHandler
+[UDE] Found instance method call: process()
+[UDE] Found new dependencies: 0 functions, 1 classes
+[UDE] Iteration 2...
+[UDE] Analyzing fields and methods of used class: StatusHandler
+[UDE]   Marking method as used: StatusHandler::process
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Analyzing body of used function: testSwitch
+[UDE] Marking class as USED: StatusHandler
+[UDE] Found instance method call: process()
+[UDE] Declared functions: 2
+[UDE]   - testSwitch
+[UDE]   - unusedSwitch
+[UDE] Used functions: 2
+[UDE]   - testSwitch
+[UDE]   - print
+[UDE] Declared classes: 2
+[UDE]   - StatusHandler
+[UDE]   - UnusedHandler
+[UDE] Used classes: 1
+[UDE]   - StatusHandler
+[UDE] Called method names: 1
+[UDE]   - process()
+[UDE] Declared methods: 4
+[UDE]   - StatusHandler::process
+[UDE]   - StatusHandler::getStatus
+[UDE]   - StatusHandler::setStatus
+[UDE]   - UnusedHandler::handle
+[UDE] Used methods: 1
+[UDE]   - StatusHandler::process
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Phase 2b: Removing unused declarations from main AST...
+[UDE] Removing unused method: StatusHandler::getStatus
+[UDE] Removing unused method: StatusHandler::setStatus
+[UDE] Removing unused class: UnusedHandler
+[UDE] Removing unused function: unusedSwitch
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 1 unused functions
+[UDE] Removed 1 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 2 unused methods
+[UDE] Total declarations removed: 4
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  8
   Nodes removed:      13
   Reduction:          61.9%

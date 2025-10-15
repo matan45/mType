@@ -7,6 +7,126 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 14
+[UDE] ===== Starting Unused Declaration Elimination Pass =====
+[UDE] Analyzing ProgramNode with 6 statements
+[UDE] Found ImportNode: MathLibrary.mt (type: wildcard)
+[UDE] Analyzing imported AST from: MathLibrary.mt
+[UDE] Analyzing ProgramNode with 3 statements
+[UDE] Declaring class: UsedMath (PUBLIC)
+[UDE] Declaring method: UsedMath::STATIC::add (STATIC) (PUBLIC)
+[UDE] Declaring method: UsedMath::STATIC::subtract (STATIC) (PUBLIC)
+[UDE] Declaring method: UsedMath::STATIC::multiply (STATIC) (PUBLIC)
+[UDE] Declaring method: UsedMath::STATIC::divide (STATIC) (PRIVATE)
+[UDE] Declaring class: UnusedMath (PUBLIC)
+[UDE] Declaring method: UnusedMath::STATIC::power (STATIC) (PUBLIC)
+[UDE] Declaring method: UnusedMath::STATIC::factorial (STATIC) (PUBLIC)
+[UDE] Declaring class: AnotherUnusedClass (PUBLIC)
+[UDE] Declaring method: AnotherUnusedClass::getValue (INSTANCE) (PUBLIC)
+[UDE] Declaring class: Calculator (PUBLIC)
+[UDE] Declaring method: Calculator::calculate (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Calculator::reset (INSTANCE) (PUBLIC)
+[UDE] Declaring method: Calculator::doubleResult (INSTANCE) (PRIVATE)
+[UDE] Declaring method: Calculator::toString (INSTANCE) (PUBLIC)
+[UDE]   Special method always kept: Calculator::toString
+[UDE] Declaring class: UnusedCalculator (PUBLIC)
+[UDE] Declaring method: UnusedCalculator::compute (INSTANCE) (PUBLIC)
+[UDE] Declaring function: unusedHelper (PUBLIC)
+[UDE] Declaring function: main (PUBLIC)
+[UDE] Marking function as USED: main
+[UDE] After Phase 1a - Used functions: 1
+[UDE]   - main
+[UDE] After Phase 1a - Used classes: 0
+[UDE] Phase 1b: Analyzing used declarations recursively...
+[UDE] Iteration 1...
+[UDE] Analyzing used declarations in import: MathLibrary.mt
+[UDE] Analyzing body of used function: main
+[UDE] Marking class as USED: Calculator
+[UDE] Found instance method call: calculate()
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: toString()
+[UDE] Found new dependencies: 1 functions, 1 classes
+[UDE] Iteration 2...
+[UDE] Analyzing used declarations in import: MathLibrary.mt
+[UDE] Analyzing fields and methods of used class: Calculator
+[UDE]   Marking method as used: Calculator::calculate
+[UDE] Marking function as USED: UsedMath::add
+[UDE]   Marking method as used: Calculator::toString
+[UDE] Analyzing body of used function: main
+[UDE] Marking class as USED: Calculator
+[UDE] Found instance method call: calculate()
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: toString()
+[UDE] Found new dependencies: 1 functions, 0 classes
+[UDE] Iteration 3...
+[UDE] Analyzing used declarations in import: MathLibrary.mt
+[UDE] Analyzing fields and methods of used class: Calculator
+[UDE]   Marking method as used: Calculator::calculate
+[UDE] Marking function as USED: UsedMath::add
+[UDE]   Marking method as used: Calculator::toString
+[UDE] Analyzing body of used function: main
+[UDE] Marking class as USED: Calculator
+[UDE] Found instance method call: calculate()
+[UDE] Marking function as USED: print
+[UDE] Marking function as USED: print
+[UDE] Found instance method call: toString()
+[UDE] Declared functions: 2
+[UDE]   - unusedHelper
+[UDE]   - main
+[UDE] Used functions: 3
+[UDE]   - print
+[UDE]   - main
+[UDE]   - UsedMath::add
+[UDE] Declared classes: 5
+[UDE]   - AnotherUnusedClass
+[UDE]   - UsedMath
+[UDE]   - Calculator
+[UDE]   - UnusedMath
+[UDE]   - UnusedCalculator
+[UDE] Used classes: 1
+[UDE]   - Calculator
+[UDE] Called method names: 2
+[UDE]   - calculate()
+[UDE]   - toString()
+[UDE] Declared methods: 12
+[UDE]   - UsedMath::STATIC::add
+[UDE]   - Calculator::calculate
+[UDE]   - AnotherUnusedClass::getValue
+[UDE]   - UsedMath::STATIC::subtract
+[UDE]   - UnusedMath::STATIC::power
+[UDE]   - UsedMath::STATIC::multiply
+[UDE]   - UsedMath::STATIC::divide
+[UDE]   - UnusedMath::STATIC::factorial
+[UDE]   - Calculator::reset
+[UDE]   - Calculator::doubleResult
+[UDE]   - Calculator::toString
+[UDE]   - UnusedCalculator::compute
+[UDE] Used methods: 2
+[UDE]   - Calculator::toString
+[UDE]   - Calculator::calculate
+[UDE] Phase 2a: Optimizing imported ASTs...
+[UDE] Optimizing import: MathLibrary.mt
+[UDE] Optimizing imported AST in-place
+[UDE] Removing unused class from import: UsedMath
+[UDE] Removing unused class from import: UnusedMath
+[UDE] Removing unused class from import: AnotherUnusedClass
+[UDE] Imported AST optimized successfully
+[UDE] Phase 2b: Removing unused declarations from main AST...
+[UDE] Removing unused method: Calculator::reset
+[UDE] Removing unused method: Calculator::doubleResult
+[UDE] Removing unused class: UnusedCalculator
+[UDE] Removing unused function: unusedHelper
+
+[UDE] ===== OPTIMIZATION SUMMARY =====
+[UDE] Removed 1 unused functions
+[UDE] Removed 4 unused classes
+[UDE] Removed 0 unused interfaces
+[UDE] Removed 0 unused variables
+[UDE] Removed 2 unused methods
+[UDE] Total declarations removed: 7
+[UDE] ===== Unused Declaration Elimination Pass Complete =====
+
   Total nodes after:  10
   Nodes removed:      4
   Reduction:          28.6%
