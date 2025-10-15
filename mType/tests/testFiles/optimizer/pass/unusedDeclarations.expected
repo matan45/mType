@@ -7,65 +7,6 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 19
-[UDE] ===== Starting Unused Declaration Elimination Pass =====
-[UDE] Analyzing ProgramNode with 12 statements
-[UDE] Declaring function: usedFunction (PUBLIC)
-[UDE] Declaring class: UsedClass (PUBLIC)
-[UDE] Declaring method: UsedClass::getValue (INSTANCE) (PUBLIC)
-[UDE] Declaring function: unusedHelper (PUBLIC)
-[UDE] Declaring function: anotherUnusedFunction (PUBLIC)
-[UDE] Declaring class: UnusedClass (PUBLIC)
-[UDE] Declaring method: UnusedClass::printData (INSTANCE) (PRIVATE)
-[UDE] Marking function as USED: usedFunction
-[UDE] Marking function as USED: print
-[UDE] Marking class as USED: UsedClass
-[UDE] Marking function as USED: print
-[UDE] Found instance method call: getValue()
-[UDE] Marking function as USED: print
-[UDE] After Phase 1a - Used functions: 2
-[UDE]   - print
-[UDE]   - usedFunction
-[UDE] After Phase 1a - Used classes: 1
-[UDE]   - UsedClass
-[UDE] Phase 1b: Analyzing used declarations recursively...
-[UDE] Iteration 1...
-[UDE] Analyzing body of used function: usedFunction
-[UDE] Analyzing fields and methods of used class: UsedClass
-[UDE]   Marking method as used: UsedClass::getValue
-[UDE] Declared functions: 3
-[UDE]   - usedFunction
-[UDE]   - unusedHelper
-[UDE]   - anotherUnusedFunction
-[UDE] Used functions: 2
-[UDE]   - print
-[UDE]   - usedFunction
-[UDE] Declared classes: 2
-[UDE]   - UsedClass
-[UDE]   - UnusedClass
-[UDE] Used classes: 1
-[UDE]   - UsedClass
-[UDE] Called method names: 1
-[UDE]   - getValue()
-[UDE] Declared methods: 2
-[UDE]   - UsedClass::getValue
-[UDE]   - UnusedClass::printData
-[UDE] Used methods: 1
-[UDE]   - UsedClass::getValue
-[UDE] Phase 2a: Optimizing imported ASTs...
-[UDE] Phase 2b: Removing unused declarations from main AST...
-[UDE] Removing unused function: unusedHelper
-[UDE] Removing unused function: anotherUnusedFunction
-[UDE] Removing unused class: UnusedClass
-
-[UDE] ===== OPTIMIZATION SUMMARY =====
-[UDE] Removed 2 unused functions
-[UDE] Removed 1 unused classes
-[UDE] Removed 0 unused interfaces
-[UDE] Removed 0 unused variables
-[UDE] Removed 0 unused methods
-[UDE] Total declarations removed: 3
-[UDE] ===== Unused Declaration Elimination Pass Complete =====
-
   Total nodes after:  12
   Nodes removed:      7
   Reduction:          36.8%

@@ -7,67 +7,6 @@ APPLYING AST OPTIMIZATIONS (Release Mode)
 
 AST Statistics:
   Total nodes before: 9
-[UDE] ===== Starting Unused Declaration Elimination Pass =====
-[UDE] Analyzing ProgramNode with 8 statements
-[UDE] Declaring class: Shape (PUBLIC)
-[UDE] Declaring method: Shape::getColor (INSTANCE) (PUBLIC)
-[UDE] Declaring class: Rectangle (PUBLIC)
-[UDE] Marking class as USED: Shape
-[UDE] Declaring method: Rectangle::draw (INSTANCE) (PUBLIC)
-[UDE] Declaring method: Rectangle::getArea (INSTANCE) (PUBLIC)
-[UDE] Marking class as USED: Rectangle
-[UDE] Marking function as USED: print
-[UDE] Found instance method call: getColor()
-[UDE] Found instance method call: draw()
-[UDE] Marking function as USED: print
-[UDE] Found instance method call: getArea()
-[UDE] Marking function as USED: print
-[UDE] After Phase 1a - Used functions: 1
-[UDE]   - print
-[UDE] After Phase 1a - Used classes: 2
-[UDE]   - Rectangle
-[UDE]   - Shape
-[UDE] Phase 1b: Analyzing used declarations recursively...
-[UDE] Iteration 1...
-[UDE] Analyzing fields and methods of used class: Shape
-[UDE]   Marking method as used: Shape::getColor
-[UDE] Analyzing fields and methods of used class: Rectangle
-[UDE]   Marking method as used: Rectangle::draw
-[UDE] Marking function as USED: print
-[UDE]   Marking method as used: Rectangle::getArea
-[UDE] Declared functions: 0
-[UDE] Used functions: 1
-[UDE]   - print
-[UDE] Declared classes: 2
-[UDE]   - Rectangle
-[UDE]   - Shape
-[UDE] Used classes: 2
-[UDE]   - Rectangle
-[UDE]   - Shape
-[UDE] Called method names: 3
-[UDE]   - getColor()
-[UDE]   - draw()
-[UDE]   - getArea()
-[UDE] Declared methods: 3
-[UDE]   - Shape::getColor
-[UDE]   - Rectangle::draw
-[UDE]   - Rectangle::getArea
-[UDE] Used methods: 3
-[UDE]   - Shape::getColor
-[UDE]   - Rectangle::draw
-[UDE]   - Rectangle::getArea
-[UDE] Phase 2a: Optimizing imported ASTs...
-[UDE] Phase 2b: Removing unused declarations from main AST...
-
-[UDE] ===== OPTIMIZATION SUMMARY =====
-[UDE] Removed 0 unused functions
-[UDE] Removed 0 unused classes
-[UDE] Removed 0 unused interfaces
-[UDE] Removed 0 unused variables
-[UDE] Removed 0 unused methods
-[UDE] Total declarations removed: 0
-[UDE] ===== Unused Declaration Elimination Pass Complete =====
-
   Total nodes after:  9
   Nodes removed:      0
   Reduction:          0.0%

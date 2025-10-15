@@ -1,4 +1,50 @@
 Execution Mode: Bytecode VM (Optimization: Release)
 
-Error
-Error at mType\tests\testFiles\optimizer\pass\deadCodeInAsync.mt:7:1: Unexpected token in primary expression
+
+============================================================
+APPLYING AST OPTIMIZATIONS (Release Mode)
+============================================================
+
+AST Statistics:
+  Total nodes before: 138
+  Total nodes after:  128
+  Nodes removed:      10
+  Reduction:          7.2%
+
+Optimization Summary:
+  Total Transformations: 35
+  Total Time: 4 ms
+  Status: Success
+
+Pass Details:
+  DeadCodeElimination:
+    Transformations: 19
+    Time: 0 ms
+    Modified: Yes
+  UnusedDeclarationElimination:
+    Transformations: 16
+    Time: 4 ms
+    Modified: Yes
+
+============================================================
+
+=== Testing Async Function Dead Code Elimination ===
+Fetching data for id: 10
+fetchData result: data_10
+Fetching data for id: -1
+fetchData error: error
+Validating input: 
+Caught validation exception
+Processing: 150
+processData result: 300
+Fetching user: 42
+User: user_42
+Updating user: 1
+Caught update exception
+Processing in async lambda: 5
+Async lambda result: 10
+Classification: negative
+Risky operation: success
+Process items sum: 55
+Compute result: 15
+Async Dead Code Test Complete!
