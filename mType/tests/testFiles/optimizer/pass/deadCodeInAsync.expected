@@ -13,7 +13,7 @@ AST Statistics:
 
 Optimization Summary:
   Total Transformations: 35
-  Total Time: 4 ms
+  Total Time: 3 ms
   Status: Success
 
 Pass Details:
@@ -23,7 +23,7 @@ Pass Details:
     Modified: Yes
   UnusedDeclarationElimination:
     Transformations: 16
-    Time: 4 ms
+    Time: 3 ms
     Modified: Yes
 
 ============================================================

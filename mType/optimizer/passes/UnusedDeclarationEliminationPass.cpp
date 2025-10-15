@@ -130,8 +130,8 @@ namespace optimizer::passes
         if (UDE_DEBUG)
         {
             std::cout << "[UDE] Declaring method: " << fullName
-                      << (isStatic ? " (STATIC)" : " (INSTANCE)")
-                      << (isPublic ? " (PUBLIC)" : " (PRIVATE)") << "\n";
+                << (isStatic ? " (STATIC)" : " (INSTANCE)")
+                << (isPublic ? " (PUBLIC)" : " (PRIVATE)") << "\n";
         }
 
         declaredMethods.insert(fullName);
@@ -141,7 +141,7 @@ namespace optimizer::passes
             methodName == "equals" || methodName == "hashCode")
         {
             specialMethods.insert(methodName);
-            usedMethods.insert(fullName);  // Always mark special methods as used
+            usedMethods.insert(fullName); // Always mark special methods as used
             if (UDE_DEBUG)
             {
                 std::cout << "[UDE]   Special method always kept: " << fullName << "\n";
@@ -263,7 +263,7 @@ namespace optimizer::passes
         std::string instanceName = className + "::" + methodName;
         std::string staticName = className + "::STATIC::" + methodName;
         return usedMethods.find(instanceName) != usedMethods.end() ||
-               usedMethods.find(staticName) != usedMethods.end();
+            usedMethods.find(staticName) != usedMethods.end();
     }
 
     // ================= AST Analysis (Phase 1) =================
@@ -434,7 +434,8 @@ namespace optimizer::passes
         {
             if (UDE_DEBUG)
             {
-                std::cout << "[UDE] Analyzing ProgramNode with " << programNode->getStatements().size() << " statements\n";
+                std::cout << "[UDE] Analyzing ProgramNode with " << programNode->getStatements().size() <<
+                    " statements\n";
             }
             for (const auto& stmt : programNode->getStatements())
             {
@@ -449,7 +450,7 @@ namespace optimizer::passes
             if (UDE_DEBUG)
             {
                 std::cout << "[UDE] Found ImportNode: " << importNode->getFilePath()
-                          << " (type: " << (importNode->isWildcard() ? "wildcard" : "selective") << ")\n";
+                    << " (type: " << (importNode->isWildcard() ? "wildcard" : "selective") << ")\n";
             }
 
             // Analyze the imported AST directly (set by resolveImports)
@@ -793,7 +794,7 @@ namespace optimizer::passes
                 }
                 analyzeAST(funcNode->getBodyPtr(), analyzer);
             }
-            return;  // Don't recurse further for function nodes
+            return; // Don't recurse further for function nodes
         }
 
         if (auto* classNode = dynamic_cast<ClassNode*>(node))
@@ -803,7 +804,8 @@ namespace optimizer::passes
                 // This class is used, analyze its fields and methods for dependencies
                 if (UDE_DEBUG)
                 {
-                    std::cout << "[UDE] Analyzing fields and methods of used class: " << classNode->getClassName() << "\n";
+                    std::cout << "[UDE] Analyzing fields and methods of used class: " << classNode->getClassName() <<
+                        "\n";
                 }
 
                 // Analyze field types - if a class has a field of type X, then X is used
@@ -825,7 +827,8 @@ namespace optimizer::passes
                                 analyzer.analyzeUsedClass(typeName);
                                 if (UDE_DEBUG)
                                 {
-                                    std::cout << "[UDE]   Field '" << fieldNode->getName() << "' uses class: " << typeName << "\n";
+                                    std::cout << "[UDE]   Field '" << fieldNode->getName() << "' uses class: " <<
+                                        typeName << "\n";
                                 }
                             }
                         }
@@ -869,7 +872,7 @@ namespace optimizer::passes
                     }
                 }
             }
-            return;  // Don't recurse further for class nodes
+            return; // Don't recurse further for class nodes
         }
 
         // Handle ImportNodes - recurse into imported AST
@@ -1012,7 +1015,8 @@ namespace optimizer::passes
                                         removedMethods++;
                                         if (UDE_DEBUG)
                                         {
-                                            std::cout << "[UDE] Removing unused method: " << className << "::" << methodNode->getName() << "\n";
+                                            std::cout << "[UDE] Removing unused method: " << className << "::" <<
+                                                methodNode->getName() << "\n";
                                         }
                                     }
                                 }
@@ -1207,7 +1211,8 @@ namespace optimizer::passes
                                     removedMethods++;
                                     if (UDE_DEBUG)
                                     {
-                                        std::cout << "[UDE] Removing unused method from import: " << className << "::" << methodNode->getName() << "\n";
+                                        std::cout << "[UDE] Removing unused method from import: " << className << "::"
+                                            << methodNode->getName() << "\n";
                                     }
                                 }
                             }
@@ -1313,8 +1318,8 @@ namespace optimizer::passes
             if (UDE_DEBUG && changed)
             {
                 std::cout << "[UDE] Found new dependencies: "
-                          << (afterFunctions - beforeFunctions) << " functions, "
-                          << (afterClasses - beforeClasses) << " classes\n";
+                    << (afterFunctions - beforeFunctions) << " functions, "
+                    << (afterClasses - beforeClasses) << " classes\n";
             }
         }
 
