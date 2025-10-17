@@ -105,7 +105,16 @@ namespace vm::runtime
                         // Allow initialization of final fields (when not yet initialized)
                         if (fieldDef->isInitialized())
                         {
-                            throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
+                            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                            if (loc)
+                            {
+                                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                                throw errors::RuntimeException("Cannot assign to final field '" + varName + "'", errorLoc);
+                            }
+                            else
+                            {
+                                throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
+                            }
                         }
                     }
                     // Set the field value
@@ -141,8 +150,18 @@ namespace vm::runtime
                                     // Allow initialization of final static fields (when not yet initialized)
                                     if (it->second->isInitialized())
                                     {
-                                        throw errors::RuntimeException(
-                                            "Cannot assign to final static field '" + varName + "'");
+                                        auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                                        if (loc)
+                                        {
+                                            errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                                            throw errors::RuntimeException(
+                                                "Cannot assign to final static field '" + varName + "'", errorLoc);
+                                        }
+                                        else
+                                        {
+                                            throw errors::RuntimeException(
+                                                "Cannot assign to final static field '" + varName + "'");
+                                        }
                                     }
                                 }
                                 it->second->setValue(val);
@@ -160,7 +179,16 @@ namespace vm::runtime
         // Check if variable is final
         if (varDef->isFinal())
         {
-            throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc)
+            {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'", errorLoc);
+            }
+            else
+            {
+                throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
+            }
         }
         varDef->setValue(val);
         // Push value back for assignment expressions (e.g., x = y = 5)
