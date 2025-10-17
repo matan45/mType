@@ -106,7 +106,13 @@ namespace vm::runtime
         int right = std::get<int>(context.stackManager->pop());
         int left = std::get<int>(context.stackManager->pop());
         if (right == 0) {
-            throw errors::RuntimeException("Division by zero");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Division by zero", errorLoc);
+            } else {
+                throw errors::RuntimeException("Division by zero");
+            }
         }
         context.stackManager->push(left / right);
     }
@@ -123,10 +129,26 @@ namespace vm::runtime
                 case OpCode::SUB: return l - r;
                 case OpCode::MUL: return l * r;
                 case OpCode::DIV:
-                    if (r == 0) throw errors::RuntimeException("Division by zero");
+                    if (r == 0) {
+                        auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                        if (loc) {
+                            errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                            throw errors::RuntimeException("Division by zero", errorLoc);
+                        } else {
+                            throw errors::RuntimeException("Division by zero");
+                        }
+                    }
                     return l / r;
                 case OpCode::MOD:
-                    if (r == 0) throw errors::RuntimeException("Modulo by zero");
+                    if (r == 0) {
+                        auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                        if (loc) {
+                            errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                            throw errors::RuntimeException("Modulo by zero", errorLoc);
+                        } else {
+                            throw errors::RuntimeException("Modulo by zero");
+                        }
+                    }
                     return l % r;
                 default: break;
             }
@@ -142,7 +164,15 @@ namespace vm::runtime
                 case OpCode::SUB: return l - r;
                 case OpCode::MUL: return l * r;
                 case OpCode::DIV:
-                    if (r == 0.0f) throw errors::RuntimeException("Division by zero");
+                    if (r == 0.0f) {
+                        auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                        if (loc) {
+                            errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                            throw errors::RuntimeException("Division by zero", errorLoc);
+                        } else {
+                            throw errors::RuntimeException("Division by zero");
+                        }
+                    }
                     return l / r;
                 default: break;
             }

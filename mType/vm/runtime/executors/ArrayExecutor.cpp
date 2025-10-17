@@ -80,8 +80,15 @@ namespace vm::runtime
 
         // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()), errorLoc);
+            } else {
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()));
+            }
         }
 
         // Get element using unchecked access (bounds already verified)
@@ -104,8 +111,15 @@ namespace vm::runtime
 
         // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()), errorLoc);
+            } else {
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()));
+            }
         }
 
         // Set element using unchecked access (bounds already verified)
@@ -242,8 +256,15 @@ namespace vm::runtime
 
         // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()), errorLoc);
+            } else {
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()));
+            }
         }
 
         size_t arrayIndex = static_cast<size_t>(index);
@@ -292,8 +313,15 @@ namespace vm::runtime
 
         // Bounds check (VM does bounds check once)
         if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                         " for array of size " + std::to_string(array->size()));
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()), errorLoc);
+            } else {
+                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
+                                             " for array of size " + std::to_string(array->size()));
+            }
         }
 
         size_t arrayIndex = static_cast<size_t>(index);

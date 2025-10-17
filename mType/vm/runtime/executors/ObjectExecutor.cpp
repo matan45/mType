@@ -110,7 +110,13 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object", errorLoc);
+            } else {
+                throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object");
+            }
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
@@ -143,7 +149,13 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object", errorLoc);
+            } else {
+                throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object");
+            }
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
@@ -283,7 +295,13 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object", errorLoc);
+            } else {
+                throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+            }
         }
 
         // Check if this is a lambda (interface method invocation)

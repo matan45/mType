@@ -137,11 +137,23 @@ namespace vm::runtime
             try {
                 return std::stoi(std::get<std::string>(val));
             } catch (...) {
-                throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val));
+                auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                if (loc) {
+                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val), errorLoc);
+                } else {
+                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val));
+                }
             }
         }
         else {
-            throw errors::RuntimeException("Cannot cast to int from this type");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Cannot cast to int from this type", errorLoc);
+            } else {
+                throw errors::RuntimeException("Cannot cast to int from this type");
+            }
         }
     }
 
@@ -156,11 +168,23 @@ namespace vm::runtime
             try {
                 return std::stof(std::get<std::string>(val));
             } catch (...) {
-                throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val));
+                auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                if (loc) {
+                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val), errorLoc);
+                } else {
+                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val));
+                }
             }
         }
         else {
-            throw errors::RuntimeException("Cannot cast to float from this type");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Cannot cast to float from this type", errorLoc);
+            } else {
+                throw errors::RuntimeException("Cannot cast to float from this type");
+            }
         }
     }
 
@@ -189,7 +213,13 @@ namespace vm::runtime
             return str.length() > 0;
         }
         else {
-            throw errors::RuntimeException("Cannot cast to bool from this type");
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Cannot cast to bool from this type", errorLoc);
+            } else {
+                throw errors::RuntimeException("Cannot cast to bool from this type");
+            }
         }
     }
 
@@ -280,20 +310,39 @@ namespace vm::runtime
                 if (canCast) {
                     return obj;
                 } else {
-                    throw errors::RuntimeException(
-                        "Cannot cast " + className + " to " + targetTypeName +
-                        ": incompatible types in inheritance hierarchy"
-                    );
+                    auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                    if (loc) {
+                        errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                        throw errors::RuntimeException(
+                            "Cannot cast " + className + " to " + targetTypeName +
+                            ": incompatible types in inheritance hierarchy", errorLoc);
+                    } else {
+                        throw errors::RuntimeException(
+                            "Cannot cast " + className + " to " + targetTypeName +
+                            ": incompatible types in inheritance hierarchy");
+                    }
                 }
             } else {
-                throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
+                auto* loc = context.program->getSourceLocation(context.instructionPointer);
+                if (loc) {
+                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName, errorLoc);
+                } else {
+                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
+                }
             }
         }
         else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
             return val; // null remains null for object casts
         }
         else {
-            throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName);
+            auto* loc = context.program->getSourceLocation(context.instructionPointer);
+            if (loc) {
+                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
+                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName, errorLoc);
+            } else {
+                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName);
+            }
         }
     }
 
