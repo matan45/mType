@@ -46,8 +46,11 @@ namespace arrays {
  * - Column-Store Pattern: Field-oriented storage
  * - Strategy Pattern: Different array types per field
  * - Stride Indexing: From FlatMultiArray design
+ *
+ * Supports view semantics: sub-arrays are views into parent data, not copies.
+ * Modifications to sub-arrays affect the parent array.
  */
-class FlatMultiObjectArray {
+class FlatMultiObjectArray : public std::enable_shared_from_this<FlatMultiObjectArray> {
 public:
     /**
      * @brief Construct multi-dimensional object array
@@ -202,8 +205,49 @@ private:
     std::vector<size_t> strides_;     // Stride for each dimension [s1, s2, s3, ...]
     size_t totalSize_;                // Total number of objects (n1 × n2 × n3 × ...)
 
-    // Field-oriented storage (SoA)
+    // Field-oriented storage (SoA) - only used if not a view
     std::unordered_map<std::string, std::shared_ptr<IArray>> fieldArrays_;
+
+    // View support: allows sub-arrays to reference parent's data instead of copying
+    std::shared_ptr<FlatMultiObjectArray> parent_;  // Parent array (nullptr if this is not a view)
+    size_t viewOffset_;                             // Offset into parent's data (0 if not a view)
+
+    /**
+     * @brief Check if this is a view into another array
+     */
+    bool isView() const {
+        return parent_ != nullptr;
+    }
+
+    /**
+     * @brief Get reference to the actual field arrays storage (own or parent's)
+     */
+    std::unordered_map<std::string, std::shared_ptr<IArray>>& getFieldArraysStorage() {
+        return isView() ? parent_->getFieldArraysStorage() : fieldArrays_;
+    }
+
+    const std::unordered_map<std::string, std::shared_ptr<IArray>>& getFieldArraysStorage() const {
+        return isView() ? parent_->getFieldArraysStorage() : fieldArrays_;
+    }
+
+    /**
+     * @brief Get the effective offset for data access
+     */
+    size_t getEffectiveOffset() const {
+        return isView() ? viewOffset_ : 0;
+    }
+
+    /**
+     * @brief Private constructor for creating views (used by getSubArray)
+     * @param parentArray Parent array to create view into
+     * @param offset Offset into parent's data
+     * @param dims Dimensions for this view
+     */
+    FlatMultiObjectArray(
+        std::shared_ptr<FlatMultiObjectArray> parentArray,
+        size_t offset,
+        const std::vector<size_t>& dims
+    );
 
     /**
      * @brief Calculate linear index from multi-dimensional indices

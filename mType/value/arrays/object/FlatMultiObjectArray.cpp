@@ -11,7 +11,9 @@ namespace mType
                 std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
                 const std::vector<size_t>& dims
             ) : classDefinition_(classDef),
-                dimensions_(dims)
+                dimensions_(dims),
+                parent_(nullptr),
+                viewOffset_(0)
             {
                 if (!classDef)
                 {
@@ -26,6 +28,21 @@ namespace mType
                 calculateStrides();
                 totalSize_ = calculateTotalSize();
                 initializeFieldArrays();
+            }
+
+            // Private constructor for creating views
+            FlatMultiObjectArray::FlatMultiObjectArray(
+                std::shared_ptr<FlatMultiObjectArray> parentArray,
+                size_t offset,
+                const std::vector<size_t>& dims
+            ) : classDefinition_(parentArray->classDefinition_),
+                dimensions_(dims),
+                parent_(parentArray),
+                viewOffset_(offset)
+            {
+                calculateStrides();
+                totalSize_ = calculateTotalSize();
+                // No field array initialization - this is a view into parent
             }
 
             void FlatMultiObjectArray::calculateStrides()
@@ -110,7 +127,8 @@ namespace mType
                     return std::monostate{}; // Out of bounds
                 }
 
-                return materializeInstance(linearIndex);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                return materializeInstance(effectiveIndex);
             }
 
             void FlatMultiObjectArray::set(const std::vector<size_t>& indices, const ::value::Value& value)
@@ -137,7 +155,8 @@ namespace mType
                     throw std::runtime_error("ObjectInstance class mismatch");
                 }
 
-                decomposeInstance(linearIndex, instance);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                decomposeInstance(effectiveIndex, instance);
             }
 
             ::value::Value FlatMultiObjectArray::getLinear(size_t linearIndex) const
@@ -147,7 +166,8 @@ namespace mType
                     throw std::out_of_range("Linear index out of bounds");
                 }
 
-                return materializeInstance(linearIndex);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                return materializeInstance(effectiveIndex);
             }
 
             void FlatMultiObjectArray::setLinear(size_t linearIndex, const ::value::Value& value)
@@ -169,7 +189,8 @@ namespace mType
                     throw std::runtime_error("ObjectInstance class mismatch");
                 }
 
-                decomposeInstance(linearIndex, instance);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                decomposeInstance(effectiveIndex, instance);
             }
 
             // Field-level access
@@ -185,13 +206,15 @@ namespace mType
                     throw std::out_of_range("Invalid indices");
                 }
 
-                auto it = fieldArrays_.find(fieldName);
-                if (it == fieldArrays_.end())
+                const auto& storage = getFieldArraysStorage();
+                auto it = storage.find(fieldName);
+                if (it == storage.end())
                 {
                     throw std::runtime_error("Field not found: " + fieldName);
                 }
 
-                return it->second->get(linearIndex);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                return it->second->get(effectiveIndex);
             }
 
             void FlatMultiObjectArray::setField(
@@ -206,8 +229,9 @@ namespace mType
                     throw std::out_of_range("Invalid indices");
                 }
 
-                auto it = fieldArrays_.find(fieldName);
-                if (it == fieldArrays_.end())
+                auto& storage = getFieldArraysStorage();
+                auto it = storage.find(fieldName);
+                if (it == storage.end())
                 {
                     throw std::runtime_error("Field not found: " + fieldName);
                 }
@@ -217,13 +241,15 @@ namespace mType
                     throw std::runtime_error("Field type mismatch for: " + fieldName);
                 }
 
-                it->second->set(linearIndex, value);
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                it->second->set(effectiveIndex, value);
             }
 
             std::shared_ptr<IArray> FlatMultiObjectArray::getFieldArray(const std::string& fieldName) const
             {
-                auto it = fieldArrays_.find(fieldName);
-                if (it == fieldArrays_.end())
+                const auto& storage = getFieldArraysStorage();
+                auto it = storage.find(fieldName);
+                if (it == storage.end())
                 {
                     return nullptr;
                 }
@@ -246,25 +272,18 @@ namespace mType
                     return nullptr; // Would be scalar
                 }
 
-                auto subArray = std::make_shared<FlatMultiObjectArray>(classDefinition_, subDims);
+                // Calculate offset into parent's data for this sub-array
+                size_t subArrayOffset = getEffectiveOffset() + (index * strides_[0]);
 
-                // Copy relevant portion of each field array
-                size_t subArraySize = subArray->totalSize();
-                size_t startOffset = index * strides_[0];
+                // Get the root parent (if this is already a view, use the same root parent)
+                std::shared_ptr<FlatMultiObjectArray> rootParent = isView() ? parent_ :
+                    std::const_pointer_cast<FlatMultiObjectArray>(shared_from_this());
 
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
-                {
-                    auto subFieldArray = subArray->fieldArrays_[fieldName];
-
-                    for (size_t i = 0; i < subArraySize; ++i)
-                    {
-                        if (startOffset + i < totalSize_)
-                        {
-                            ::value::Value val = fieldArray->get(startOffset + i);
-                            subFieldArray->set(i, val);
-                        }
-                    }
-                }
+                // Create a VIEW into the parent array (not a copy!)
+                // This allows modifications to propagate to the parent
+                auto subArray = std::shared_ptr<FlatMultiObjectArray>(
+                    new FlatMultiObjectArray(rootParent, subArrayOffset, subDims)
+                );
 
                 return subArray;
             }
@@ -273,10 +292,11 @@ namespace mType
 
             std::vector<std::string> FlatMultiObjectArray::getFieldNames() const
             {
+                const auto& storage = getFieldArraysStorage();
                 std::vector<std::string> names;
-                names.reserve(fieldArrays_.size());
+                names.reserve(storage.size());
 
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
+                for (const auto& [fieldName, fieldArray] : storage)
                 {
                     names.push_back(fieldName);
                 }
@@ -286,7 +306,8 @@ namespace mType
 
             bool FlatMultiObjectArray::hasField(const std::string& fieldName) const
             {
-                return fieldArrays_.find(fieldName) != fieldArrays_.end();
+                const auto& storage = getFieldArraysStorage();
+                return storage.find(fieldName) != storage.end();
             }
 
             // Memory statistics
@@ -295,8 +316,10 @@ namespace mType
             {
                 MemoryStats stats;
 
+                const auto& storage = getFieldArraysStorage();
+
                 stats.objectCount = totalSize_;
-                stats.fieldCount = fieldArrays_.size();
+                stats.fieldCount = storage.size();
                 stats.dimensionCount = dimensions_.size();
 
                 // Calculate SoA memory
@@ -304,7 +327,7 @@ namespace mType
                 stats.soaMemoryUsage += dimensions_.capacity() * sizeof(size_t);
                 stats.soaMemoryUsage += strides_.capacity() * sizeof(size_t);
 
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
+                for (const auto& [fieldName, fieldArray] : storage)
                 {
                     stats.soaMemoryUsage += fieldName.capacity();
                     stats.soaMemoryUsage += fieldArray->capacity() * 8; // Rough estimate
@@ -315,7 +338,7 @@ namespace mType
                 stats.aosMemoryUsage = totalSize_ * (
                     sizeof(runtimeTypes::klass::ObjectInstance) +
                     64 + // shared_ptr overhead
-                    fieldArrays_.size() * (64 + 32) // hash map per object
+                    storage.size() * (64 + 32) // hash map per object
                 );
 
                 stats.memorySaved = stats.aosMemoryUsage > stats.soaMemoryUsage
@@ -331,7 +354,8 @@ namespace mType
 
             bool FlatMultiObjectArray::supportsSIMD() const
             {
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
+                const auto& storage = getFieldArraysStorage();
+                for (const auto& [fieldName, fieldArray] : storage)
                 {
                     if (fieldArray->supportsSIMD())
                     {
@@ -349,7 +373,8 @@ namespace mType
             {
                 auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDefinition_);
 
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
+                const auto& storage = getFieldArraysStorage();
+                for (const auto& [fieldName, fieldArray] : storage)
                 {
                     ::value::Value fieldValue = fieldArray->get(linearIndex);
                     instance->setField(fieldName, fieldValue);
@@ -363,7 +388,8 @@ namespace mType
                 const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance
             )
             {
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
+                auto& storage = getFieldArraysStorage();
+                for (const auto& [fieldName, fieldArray] : storage)
                 {
                     ::value::Value fieldValue = instance->getFieldValue(fieldName);
                     fieldArray->set(linearIndex, fieldValue);
