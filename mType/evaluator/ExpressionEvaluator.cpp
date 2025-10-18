@@ -31,7 +31,6 @@
 #include "../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../value/ArrayPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"

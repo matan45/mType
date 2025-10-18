@@ -16,8 +16,11 @@ namespace value
      * - Sparsity ratio (non-default elements / total elements)
      * - Memory usage thresholds
      * - Array size constraints
+     *
+     * Supports view semantics: sub-arrays are views into parent data, not copies.
+     * Modifications to sub-arrays affect the parent array.
      */
-    class SparseMultiArray
+    class SparseMultiArray : public std::enable_shared_from_this<SparseMultiArray>
     {
     public:
         enum class StorageMode
@@ -27,8 +30,8 @@ namespace value
         };
 
     private:
-        std::vector<Value> denseData; // Dense storage when beneficial
-        std::unordered_map<size_t, Value> sparseData; // Sparse storage for scattered data
+        std::vector<Value> denseData; // Dense storage when beneficial (only used if not a view)
+        std::unordered_map<size_t, Value> sparseData; // Sparse storage for scattered data (only used if not a view)
         std::vector<size_t> dimensions; // Size of each dimension [n1, n2, n3, ...]
         std::vector<size_t> strides; // Stride for each dimension
         Value defaultValue; // Default value for unset elements
@@ -37,6 +40,64 @@ namespace value
         size_t nonDefaultCount; // Count of non-default elements
         size_t totalAccesses; // Total access operations
         size_t sparseAccesses; // Accesses to sparse locations
+
+        // View support: allows sub-arrays to reference parent's data instead of copying
+        std::shared_ptr<SparseMultiArray> parent; // Parent array (nullptr if this is not a view)
+        size_t viewOffset; // Offset into parent's data (0 if not a view)
+
+        /**
+         * @brief Check if this is a view into another array
+         */
+        bool isView() const {
+            return parent != nullptr;
+        }
+
+        /**
+         * @brief Get reference to the actual dense data storage (own or parent's)
+         */
+        std::vector<Value>& getDenseDataStorage() {
+            return isView() ? parent->getDenseDataStorage() : denseData;
+        }
+
+        const std::vector<Value>& getDenseDataStorage() const {
+            return isView() ? parent->getDenseDataStorage() : denseData;
+        }
+
+        /**
+         * @brief Get reference to the actual sparse data storage (own or parent's)
+         */
+        std::unordered_map<size_t, Value>& getSparseDataStorage() {
+            return isView() ? parent->getSparseDataStorage() : sparseData;
+        }
+
+        const std::unordered_map<size_t, Value>& getSparseDataStorage() const {
+            return isView() ? parent->getSparseDataStorage() : sparseData;
+        }
+
+        /**
+         * @brief Get the effective offset for data access
+         */
+        size_t getEffectiveOffset() const {
+            return isView() ? viewOffset : 0;
+        }
+
+        /**
+         * @brief Get the root parent's storage mode
+         */
+        StorageMode getEffectiveMode() const {
+            return isView() ? parent->getEffectiveMode() : currentMode;
+        }
+
+        /**
+         * @brief Update non-default count (called by child views)
+         */
+        void updateNonDefaultCount(bool wasDefault, bool isDefault) {
+            if (wasDefault && !isDefault) {
+                ++nonDefaultCount;
+            } else if (!wasDefault && isDefault) {
+                --nonDefaultCount;
+            }
+        }
 
         // Configuration thresholds
         static constexpr double SPARSE_THRESHOLD = 0.1; // Switch to sparse if <10% filled
@@ -223,7 +284,7 @@ namespace value
          */
         explicit SparseMultiArray(const std::vector<size_t>& dims, const Value& defaultVal = std::monostate{})
             : dimensions(dims), defaultValue(defaultVal), nonDefaultCount(0),
-              totalAccesses(0), sparseAccesses(0)
+              totalAccesses(0), sparseAccesses(0), parent(nullptr), viewOffset(0)
         {
             calculateStrides();
             size_t totalSize = calculateTotalSize();
@@ -248,6 +309,27 @@ namespace value
         }
 
         /**
+         * @brief Construct a view into parent array (private, used by getSubArray)
+         * @param parentArray Parent array to create view into
+         * @param offset Offset into parent's data
+         * @param dims Dimensions for this view
+         * @param defaultVal Default value
+         */
+    private:
+        SparseMultiArray(std::shared_ptr<SparseMultiArray> parentArray, size_t offset,
+                        const std::vector<size_t>& dims, const Value& defaultVal)
+            : dimensions(dims), defaultValue(defaultVal), parent(parentArray), viewOffset(offset),
+              nonDefaultCount(0), totalAccesses(0), sparseAccesses(0)
+        {
+            calculateStrides();
+            // currentMode is inherited from parent via getEffectiveMode()
+            currentMode = parent->getEffectiveMode();
+            // No data allocation - this is a view into parent
+        }
+
+    public:
+
+        /**
          * @brief Get element at multi-dimensional index
          */
         Value get(const std::vector<size_t>& indices) const
@@ -258,20 +340,26 @@ namespace value
                 return std::monostate{};
             }
 
+            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+            StorageMode effectiveMode = getEffectiveMode();
 
-            switch (currentMode)
+            switch (effectiveMode)
             {
             case StorageMode::DENSE:
-                if (linearIndex >= denseData.size())
                 {
-                    return std::monostate{};
+                    const auto& denseStorage = getDenseDataStorage();
+                    if (effectiveIndex >= denseStorage.size())
+                    {
+                        return std::monostate{};
+                    }
+                    return denseStorage[effectiveIndex];
                 }
-                return denseData[linearIndex];
 
             case StorageMode::SPARSE:
                 {
-                    auto it = sparseData.find(linearIndex);
-                    return (it != sparseData.end()) ? it->second : defaultValue;
+                    const auto& sparseStorage = getSparseDataStorage();
+                    auto it = sparseStorage.find(effectiveIndex);
+                    return (it != sparseStorage.end()) ? it->second : defaultValue;
                 }
 
             default:
@@ -290,45 +378,63 @@ namespace value
                 throw std::out_of_range("Invalid multi-dimensional array indices");
             }
 
-
+            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
             bool isDefault = valuesEqual(value, defaultValue);
+            StorageMode effectiveMode = getEffectiveMode();
 
-            switch (currentMode)
+            switch (effectiveMode)
             {
             case StorageMode::DENSE:
                 {
-                    if (linearIndex >= denseData.size())
+                    auto& denseStorage = getDenseDataStorage();
+                    if (effectiveIndex >= denseStorage.size())
                     {
                         throw std::out_of_range("Index exceeds array bounds");
                     }
 
-                    bool wasDefault = valuesEqual(denseData[linearIndex], defaultValue);
-                    denseData[linearIndex] = value;
+                    bool wasDefault = valuesEqual(denseStorage[effectiveIndex], defaultValue);
+                    denseStorage[effectiveIndex] = value;
 
-                    // Update non-default count
-                    if (wasDefault && !isDefault)
+                    // Update non-default count (only for root, not views)
+                    if (!isView())
                     {
-                        ++nonDefaultCount;
+                        if (wasDefault && !isDefault)
+                        {
+                            ++nonDefaultCount;
+                        }
+                        else if (!wasDefault && isDefault)
+                        {
+                            --nonDefaultCount;
+                        }
                     }
-                    else if (!wasDefault && isDefault)
+                    else
                     {
-                        --nonDefaultCount;
+                        // For views, update parent's count
+                        parent->updateNonDefaultCount(wasDefault, isDefault);
                     }
                 }
                 break;
 
             case StorageMode::SPARSE:
                 {
-                    auto it = sparseData.find(linearIndex);
-                    bool exists = (it != sparseData.end());
+                    auto& sparseStorage = getSparseDataStorage();
+                    auto it = sparseStorage.find(effectiveIndex);
+                    bool exists = (it != sparseStorage.end());
 
                     if (isDefault)
                     {
                         // Setting to default - remove from sparse storage
                         if (exists)
                         {
-                            sparseData.erase(it);
-                            --nonDefaultCount;
+                            sparseStorage.erase(it);
+                            if (!isView())
+                            {
+                                --nonDefaultCount;
+                            }
+                            else
+                            {
+                                parent->updateNonDefaultCount(false, true);
+                            }
                         }
                     }
                     else
@@ -336,8 +442,15 @@ namespace value
                         // Setting to non-default value
                         if (!exists)
                         {
-                            sparseData[linearIndex] = value;
-                            ++nonDefaultCount;
+                            sparseStorage[effectiveIndex] = value;
+                            if (!isView())
+                            {
+                                ++nonDefaultCount;
+                            }
+                            else
+                            {
+                                parent->updateNonDefaultCount(true, false);
+                            }
                         }
                         else
                         {
@@ -348,8 +461,11 @@ namespace value
                 break;
             }
 
-            // Periodically check if storage mode should be adjusted
-            const_cast<SparseMultiArray*>(this)->maybeAdjustStorageMode();
+            // Periodically check if storage mode should be adjusted (only for root)
+            if (!isView())
+            {
+                const_cast<SparseMultiArray*>(this)->maybeAdjustStorageMode();
+            }
         }
 
         /**
@@ -402,9 +518,16 @@ namespace value
 
         /**
          * @brief Reset array with new default value (for pool reuse)
+         * Note: Only works on root arrays, not views
          */
         void reset(const Value& newDefaultValue = std::monostate{})
         {
+            if (isView())
+            {
+                // Cannot reset a view - must reset the root parent
+                throw std::logic_error("Cannot reset a view array");
+            }
+
             defaultValue = newDefaultValue;
             nonDefaultCount = 0;
             totalAccesses = 0;
@@ -431,6 +554,7 @@ namespace value
 
         /**
          * @brief Get sub-array for chained indexing compatibility (e.g., arr[0][1])
+         * Creates a VIEW into the parent array - modifications to the sub-array affect the parent!
          * @param index The first dimension index
          * @return Shared pointer to sub-array view
          */
@@ -450,47 +574,18 @@ namespace value
                 return nullptr;
             }
 
-            // Create a new sparse array for the sub-view
-            auto subArray = std::make_shared<SparseMultiArray>(subDimensions, defaultValue);
+            // Calculate offset into parent's data for this sub-array
+            size_t subArrayOffset = getEffectiveOffset() + (index * strides[0]);
 
-            // Copy relevant data from the current sparse array
-            size_t stride = strides[0]; // First dimension stride
-            size_t startOffset = index * stride;
-            size_t endOffset = startOffset + stride;
+            // Get the root parent (if this is already a view, use the same root parent)
+            std::shared_ptr<SparseMultiArray> rootParent = isView() ? parent :
+                std::const_pointer_cast<SparseMultiArray>(shared_from_this());
 
-            switch (currentMode)
-            {
-            case StorageMode::DENSE:
-                // For dense storage, copy the relevant portion
-                if (startOffset < denseData.size())
-                {
-                    subArray->currentMode = StorageMode::DENSE;
-                    subArray->denseData.resize(stride, defaultValue);
-
-                    for (size_t i = 0; i < stride && (startOffset + i) < denseData.size(); ++i)
-                    {
-                        subArray->denseData[i] = denseData[startOffset + i];
-                        if (!valuesEqual(denseData[startOffset + i], defaultValue))
-                        {
-                            subArray->nonDefaultCount++;
-                        }
-                    }
-                }
-                break;
-
-            case StorageMode::SPARSE:
-                // For sparse storage, copy relevant entries
-                for (const auto& [linearIndex, value] : sparseData)
-                {
-                    if (linearIndex >= startOffset && linearIndex < endOffset)
-                    {
-                        size_t subIndex = linearIndex - startOffset;
-                        subArray->sparseData[subIndex] = value;
-                        subArray->nonDefaultCount++;
-                    }
-                }
-                break;
-            }
+            // Create a VIEW into the parent array (not a copy!)
+            // This allows modifications to propagate to the parent
+            auto subArray = std::shared_ptr<SparseMultiArray>(
+                new SparseMultiArray(rootParent, subArrayOffset, subDimensions, defaultValue)
+            );
 
             return subArray;
         }

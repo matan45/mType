@@ -17,14 +17,46 @@ namespace value
      * - Single allocation instead of recursive allocations
      * - Reduced memory overhead
      * - Better performance for large multi-dimensional arrays
+     *
+     * Supports view semantics: sub-arrays are views into parent data, not copies.
+     * Modifications to sub-arrays affect the parent array.
      */
-    class FlatMultiArray
+    class FlatMultiArray : public std::enable_shared_from_this<FlatMultiArray>
     {
     private:
-        std::vector<Value> data;           // Contiguous storage for all elements
+        std::vector<Value> data;           // Contiguous storage for all elements (only used if not a view)
         std::vector<size_t> dimensions;    // Size of each dimension [n1, n2, n3, ...]
         std::vector<size_t> strides;       // Stride for each dimension
         Value defaultValue;                // Default value for initialization
+
+        // View support: allows sub-arrays to reference parent's data instead of copying
+        std::shared_ptr<FlatMultiArray> parent;  // Parent array (nullptr if this is not a view)
+        size_t viewOffset;                       // Offset into parent's data (0 if not a view)
+
+        /**
+         * @brief Check if this is a view into another array
+         */
+        bool isView() const {
+            return parent != nullptr;
+        }
+
+        /**
+         * @brief Get reference to the actual data storage (own or parent's)
+         */
+        std::vector<Value>& getDataStorage() {
+            return isView() ? parent->getDataStorage() : data;
+        }
+
+        const std::vector<Value>& getDataStorage() const {
+            return isView() ? parent->getDataStorage() : data;
+        }
+
+        /**
+         * @brief Get the effective offset for data access
+         */
+        size_t getEffectiveOffset() const {
+            return isView() ? viewOffset : 0;
+        }
 
         /**
          * @brief Calculate linear index from multi-dimensional indices
@@ -76,12 +108,29 @@ namespace value
          * @param defaultVal Default value to initialize elements
          */
         explicit FlatMultiArray(const std::vector<size_t>& dims, const Value& defaultVal = std::monostate{})
-            : dimensions(dims), defaultValue(defaultVal) {
+            : dimensions(dims), defaultValue(defaultVal), parent(nullptr), viewOffset(0) {
 
             calculateStrides();
             size_t totalSize = calculateTotalSize();
             data.resize(totalSize, defaultValue);
         }
+
+        /**
+         * @brief Construct a view into parent array (private, used by getSubArray)
+         * @param parentArray Parent array to create view into
+         * @param offset Offset into parent's data
+         * @param dims Dimensions for this view
+         * @param defaultVal Default value
+         */
+    private:
+        FlatMultiArray(std::shared_ptr<FlatMultiArray> parentArray, size_t offset,
+                      const std::vector<size_t>& dims, const Value& defaultVal)
+            : dimensions(dims), defaultValue(defaultVal), parent(parentArray), viewOffset(offset) {
+            calculateStrides();
+            // No data allocation - this is a view into parent
+        }
+
+    public:
 
         /**
          * @brief Get element at multi-dimensional index
@@ -90,10 +139,17 @@ namespace value
          */
         Value get(const std::vector<size_t>& indices) const {
             size_t linearIndex = calculateLinearIndex(indices);
-            if (linearIndex == SIZE_MAX || linearIndex >= data.size()) {
+            if (linearIndex == SIZE_MAX) {
+                return std::monostate{}; // Return null for invalid indices
+            }
+
+            const auto& dataStorage = getDataStorage();
+            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+
+            if (effectiveIndex >= dataStorage.size()) {
                 return std::monostate{}; // Return null for out of bounds
             }
-            return data[linearIndex];
+            return dataStorage[effectiveIndex];
         }
 
         /**
@@ -107,41 +163,57 @@ namespace value
                 // This indicates invalid indices (out of bounds or wrong number of dimensions)
                 throw std::out_of_range("Invalid multi-dimensional array indices");
             }
-            if (linearIndex >= data.size()) {
+
+            auto& dataStorage = getDataStorage();
+            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+
+            if (effectiveIndex >= dataStorage.size()) {
                 throw std::out_of_range("Calculated index exceeds array bounds");
             }
-            data[linearIndex] = value;
+            dataStorage[effectiveIndex] = value;
         }
 
         /**
-         * @brief Get element at single index (for 1D arrays)
+         * @brief Get element at single index (for 1D arrays or linear access)
          * @param index Linear index
          * @return Value at the specified position
          */
         Value get(size_t index) const {
-            if (index >= data.size()) {
+            const auto& dataStorage = getDataStorage();
+            size_t effectiveIndex = getEffectiveOffset() + index;
+
+            if (index >= calculateTotalSize()) {
                 throw std::out_of_range("Single-dimensional array index " + std::to_string(index) +
-                                      " exceeds array size of " + std::to_string(data.size()) + " elements");
+                                      " exceeds array size of " + std::to_string(calculateTotalSize()) + " elements");
             }
-            return data[index];
+            if (effectiveIndex >= dataStorage.size()) {
+                throw std::out_of_range("Effective index exceeds storage bounds");
+            }
+            return dataStorage[effectiveIndex];
         }
 
         /**
-         * @brief Set element at single index (for 1D arrays)
+         * @brief Set element at single index (for 1D arrays or linear access)
          * @param index Linear index
          * @param value Value to set
          */
         void set(size_t index, const Value& value) {
-            if (index >= data.size()) {
+            auto& dataStorage = getDataStorage();
+            size_t effectiveIndex = getEffectiveOffset() + index;
+
+            if (index >= calculateTotalSize()) {
                 throw std::out_of_range("Single-dimensional array assignment index " + std::to_string(index) +
-                                      " exceeds array size of " + std::to_string(data.size()) + " elements");
+                                      " exceeds array size of " + std::to_string(calculateTotalSize()) + " elements");
             }
-            data[index] = value;
+            if (effectiveIndex >= dataStorage.size()) {
+                throw std::out_of_range("Effective index exceeds storage bounds");
+            }
+            dataStorage[effectiveIndex] = value;
         }
 
         /**
          * @brief Get sub-array at specified first dimension index
-         * Creates a view into the flattened array for multi-dimensional access
+         * Creates a VIEW into the parent array - modifications to the sub-array affect the parent!
          * @param index Index for the first dimension
          * @return Shared pointer to sub-array view
          */
@@ -157,26 +229,27 @@ namespace value
                 return nullptr;
             }
 
-            auto subArray = std::make_shared<FlatMultiArray>(subDims, defaultValue);
+            // Calculate offset into parent's data for this sub-array
+            size_t subArrayOffset = getEffectiveOffset() + (index * strides[0]);
 
-            // Copy relevant portion of data
-            size_t subArraySize = subArray->totalSize();
-            size_t startOffset = index * strides[0];
+            // Get the root parent (if this is already a view, use the same root parent)
+            std::shared_ptr<FlatMultiArray> rootParent = isView() ? parent :
+                std::const_pointer_cast<FlatMultiArray>(shared_from_this());
 
-            for (size_t i = 0; i < subArraySize; ++i) {
-                if (startOffset + i < data.size()) {
-                    subArray->data[i] = data[startOffset + i];
-                }
-            }
+            // Create a VIEW into the parent array (not a copy!)
+            // This allows modifications to propagate to the parent
+            auto subArray = std::shared_ptr<FlatMultiArray>(
+                new FlatMultiArray(rootParent, subArrayOffset, subDims, defaultValue)
+            );
 
             return subArray;
         }
 
         /**
-         * @brief Get total number of elements in the array
+         * @brief Get total number of elements in this array (or view)
          */
         size_t totalSize() const {
-            return data.size();
+            return calculateTotalSize();
         }
 
         /**
@@ -210,8 +283,13 @@ namespace value
         /**
          * @brief Reset array with new default value (for pool reuse)
          * @param newDefaultValue New value to fill the array with
+         * Note: Only works on root arrays, not views
          */
         void reset(const Value& newDefaultValue = std::monostate{}) {
+            if (isView()) {
+                // Cannot reset a view - must reset the root parent
+                throw std::logic_error("Cannot reset a view array");
+            }
             defaultValue = newDefaultValue;
             std::fill(data.begin(), data.end(), defaultValue);
         }
