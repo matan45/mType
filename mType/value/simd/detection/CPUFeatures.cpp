@@ -31,9 +31,10 @@ namespace mType
 #ifdef MTYPE_ARCH_X64
                 uint32_t eax, ebx, ecx, edx;
 
-                // Check CPUID support
+                // Check CPUID support and get maximum CPUID level
                 cpuid(0, eax, ebx, ecx, edx);
-                if (eax == 0) return;
+                uint32_t maxCPUIDLevel = eax;  // Save max level for later use
+                if (maxCPUIDLevel == 0) return;
 
                 // Feature flags in CPUID.01H
                 cpuid(1, eax, ebx, ecx, edx);
@@ -48,9 +49,8 @@ namespace mType
                 {
                     avx_ = true;
 
-                    // Extended features in CPUID.07H
-                    cpuid(0, eax, ebx, ecx, edx);
-                    if (eax >= 7)
+                    // Extended features in CPUID.07H (requires max CPUID level >= 7)
+                    if (maxCPUIDLevel >= 7)
                     {
                         cpuid(7, eax, ebx, ecx, edx);
                         avx2_ = (ebx & (1 << 5)) != 0;

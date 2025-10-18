@@ -3,6 +3,9 @@
 #include "../utils/TypeConverter.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../../value/ArrayPool.hpp"
+#include "../../../value/FlatMultiArray.hpp"
+#include "../../../value/SparseMultiArray.hpp"
 #include <vector>
 
 namespace vm::runtime
@@ -43,6 +46,12 @@ namespace vm::runtime
         std::shared_ptr<value::NativeArray> createNestedArray(
             const std::vector<int>& dimensions,
             size_t dimIndex,
+            const std::string& elementTypeName
+        );
+
+        // ArrayPool-based creation for primitive multi-dimensional arrays
+        value::Value createPooledMultiDimensionalArray(
+            const std::vector<size_t>& dimensions,
             const std::string& elementTypeName
         );
     };

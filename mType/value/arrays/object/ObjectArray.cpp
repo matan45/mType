@@ -9,53 +9,11 @@ namespace mType
             ObjectArray::ObjectArray(
                 std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
                 size_t initialSize
-            ) : classDefinition_(classDef),
+            ) : ObjectArrayBase(classDef),
                 size_(initialSize),
                 capacity_(initialSize)
             {
-                if (!classDef)
-                {
-                    throw std::invalid_argument("ClassDefinition cannot be null");
-                }
-
-                initializeFieldArrays();
-            }
-
-            void ObjectArray::initializeFieldArrays()
-            {
-                const auto& fields = classDefinition_->getInstanceFields();
-
-                for (const auto& [fieldName, fieldDef] : fields)
-                {
-                    auto fieldArray = createFieldArray(fieldDef, capacity_);
-                    fieldArrays_[fieldName] = fieldArray;
-                }
-            }
-
-            std::shared_ptr<IArray> ObjectArray::createFieldArray(
-                const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-                size_t capacity
-            )
-            {
-                ::value::ValueType fieldType = field->getType();
-
-                // Determine field type and create appropriate array
-                switch (fieldType)
-                {
-                case ::value::ValueType::INT:
-                    return std::make_shared<IntArray>(capacity);
-                case ::value::ValueType::FLOAT:
-                    return std::make_shared<FloatArray>(capacity);
-                case ::value::ValueType::BOOL:
-                    return std::make_shared<BoolArray>(capacity);
-                case ::value::ValueType::STRING:
-                    return std::make_shared<StringArray>(capacity);
-                default:
-                    // Object types: Use generic IArray implementation
-                    // For now, we'll use a simple wrapper - could optimize later
-                    // This is for nested objects, which are less common
-                    return std::make_shared<IntArray>(capacity); // Placeholder - needs generic array impl
-                }
+                initializeFieldArrays(capacity_);
             }
 
             // IArray implementation
@@ -168,19 +126,6 @@ namespace mType
                 size_ = 0;
             }
 
-            bool ObjectArray::supportsSIMD() const
-            {
-                // ObjectArray supports SIMD if any field array supports it
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
-                {
-                    if (fieldArray->supportsSIMD())
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
             size_t ObjectArray::simdWidth() const
             {
                 // Return maximum SIMD width across all field arrays
@@ -243,34 +188,6 @@ namespace mType
                 }
 
                 it->second->set(index, value);
-            }
-
-            bool ObjectArray::hasField(const std::string& fieldName) const
-            {
-                return fieldArrays_.find(fieldName) != fieldArrays_.end();
-            }
-
-            std::vector<std::string> ObjectArray::getFieldNames() const
-            {
-                std::vector<std::string> names;
-                names.reserve(fieldArrays_.size());
-
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
-                {
-                    names.push_back(fieldName);
-                }
-
-                return names;
-            }
-
-            std::shared_ptr<IArray> ObjectArray::getFieldArray(const std::string& fieldName) const
-            {
-                auto it = fieldArrays_.find(fieldName);
-                if (it == fieldArrays_.end())
-                {
-                    return nullptr;
-                }
-                return it->second;
             }
 
             size_t ObjectArray::getMemoryUsage() const
@@ -338,61 +255,6 @@ namespace mType
                 return stats;
             }
 
-            // Private helper methods
-
-            std::shared_ptr<runtimeTypes::klass::ObjectInstance> ObjectArray::materializeInstance(size_t index) const
-            {
-                // Create new instance with class definition
-                auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDefinition_);
-
-                // Populate fields from SoA storage
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
-                {
-                    ::value::Value fieldValue = fieldArray->get(index);
-                    instance->setField(fieldName, fieldValue);
-                }
-
-                return instance;
-            }
-
-            void ObjectArray::decomposeInstance(
-                size_t index,
-                const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance
-            )
-            {
-                // Extract each field value and store in corresponding array
-                for (const auto& [fieldName, fieldArray] : fieldArrays_)
-                {
-                    ::value::Value fieldValue = instance->getFieldValue(fieldName);
-                    fieldArray->set(index, fieldValue);
-                }
-            }
-
-            bool ObjectArray::validateFieldType(const std::string& fieldName, const ::value::Value& value) const
-            {
-                auto field = classDefinition_->getField(fieldName);
-                if (!field)
-                {
-                    return false;
-                }
-
-                ::value::ValueType expectedType = field->getType();
-                ::value::ValueType actualType = ::value::getValueType(value);
-
-                // Type checking
-                return expectedType == actualType;
-            }
-
-            ::value::ValueType ObjectArray::getFieldType(const std::string& fieldName) const
-            {
-                auto field = classDefinition_->getField(fieldName);
-                if (!field)
-                {
-                    return ::value::ValueType::VOID;
-                }
-
-                return field->getType();
-            }
         } // namespace arrays
     } // namespace value
 } // namespace mType

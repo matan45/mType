@@ -65,6 +65,19 @@ namespace validation {
             const SourceLocation& location);
 
         /**
+         * Validate function return type with class name and async support
+         * Handles special case: async functions with Promise<void> can return void
+         * @throws TypeException if return type doesn't match expected type
+         */
+        static void validateFunctionReturn(
+            ValueType expectedType,
+            const Value& returnValue,
+            const std::string& functionName,
+            const SourceLocation& location,
+            const std::string& returnClassName,
+            bool isAsync);
+
+        /**
          * Validate that a class or interface exists in the environment
          * @throws UndefinedException if class/interface not found
          */
@@ -107,14 +120,18 @@ namespace validation {
             const std::string& expectedClassName,
             std::shared_ptr<EvaluationContext> context);
 
-    private:
         /**
-         * Helper to resolve generic type parameters from context
+         * Resolve generic type parameters from context (e.g., "T" -> "Int")
+         * Checks both context's generic type bindings and current instance's bindings
+         * @param className The class name that may contain generic type parameters
+         * @param context The evaluation context with generic type bindings
+         * @return Resolved class name with generic parameters substituted
          */
         static std::string resolveGenericClassName(
             const std::string& className,
             std::shared_ptr<EvaluationContext> context);
 
+    private:
         /**
          * Helper to extract base class name from generic type
          */

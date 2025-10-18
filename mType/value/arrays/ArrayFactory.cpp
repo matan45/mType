@@ -25,12 +25,14 @@ namespace mType
                 }
 
                 // For object arrays with ClassDefinition, use SoA-optimized constructor
-                if (elemType == ::value::ValueType::OBJECT && classDef && meetsThreshold(size))
+                // ONLY if the class doesn't have nested object/array fields (SoA limitation)
+                if (elemType == ::value::ValueType::OBJECT && classDef && meetsThreshold(size) &&
+                    !hasNestedObjectOrArrayFields(classDef))
                 {
                     return std::make_shared<::value::NativeArray>(size, classDef);
                 }
 
-                // For all other cases (primitives, strings, objects without ClassDef),
+                // For all other cases (primitives, strings, objects without ClassDef, or with nested fields),
                 // use standard constructor which will auto-select SIMD/StringPool optimization
                 return std::make_shared<::value::NativeArray>(size, elemType, elemTypeName);
             }
@@ -61,14 +63,16 @@ namespace mType
                 }
 
                 // For object arrays with ClassDefinition, use FlatMultiObjectArray with SoA
+                // ONLY if the class doesn't have nested object/array fields (SoA limitation)
                 size_t totalSize = calculateTotalSize(dimensions);
-                if (elemType == ::value::ValueType::OBJECT && classDef && meetsThreshold(totalSize))
+                if (elemType == ::value::ValueType::OBJECT && classDef && meetsThreshold(totalSize) &&
+                    !hasNestedObjectOrArrayFields(classDef))
                 {
                     auto flatMultiObjArray = std::make_shared<FlatMultiObjectArray>(classDef, dimensions);
                     return flatMultiObjArray;
                 }
 
-                // For other types (primitives, strings, objects without ClassDef),
+                // For other types (primitives, strings, objects without ClassDef or with nested fields),
                 // use existing FlatMultiArray
                 ::value::Value defaultValue = std::monostate{};
                 switch (elemType)
@@ -85,9 +89,20 @@ namespace mType
                 case ::value::ValueType::STRING:
                     defaultValue = std::string("");
                     break;
-                default:
+                case ::value::ValueType::OBJECT:
+                    // Object types fall back to FlatMultiArray with null default
+                    // This happens when:
+                    // 1. No ClassDefinition available, OR
+                    // 2. ClassDefinition has nested object/array fields (can't use SoA)
+                    // Use monostate (null) as default value for object arrays
                     defaultValue = std::monostate{};
                     break;
+                case ::value::ValueType::VOID:
+                    // VOID type arrays use monostate as default
+                    defaultValue = std::monostate{};
+                    break;
+                default:
+                    throw std::runtime_error("Unsupported array element type for multi-dimensional arrays");
                 }
 
                 return std::make_shared<::value::FlatMultiArray>(dimensions, defaultValue);
@@ -146,8 +161,8 @@ namespace mType
                     return true;
                 }
 
-                // Objects benefit only if ClassDefinition available (for SoA)
-                if (elemType == ::value::ValueType::OBJECT && classDef)
+                // Objects benefit only if ClassDefinition available (for SoA) AND no nested object/array fields
+                if (elemType == ::value::ValueType::OBJECT && classDef && !hasNestedObjectOrArrayFields(classDef))
                 {
                     return true;
                 }
@@ -210,6 +225,10 @@ namespace mType
                 case ::value::ValueType::OBJECT:
                     if (classDef)
                     {
+                        if (hasNestedObjectOrArrayFields(classDef))
+                        {
+                            return "HETEROGENEOUS (class has nested object/array fields)";
+                        }
                         return "SOA_OBJECT (Structure-of-Arrays optimized)";
                     }
                     return "HETEROGENEOUS (no ClassDefinition)";
@@ -220,6 +239,30 @@ namespace mType
             }
 
             // Private helpers
+
+            bool ArrayFactory::hasNestedObjectOrArrayFields(
+                std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
+            )
+            {
+                if (!classDef)
+                {
+                    return false;
+                }
+
+                // Check all instance fields for OBJECT or ARRAY types
+                const auto& fields = classDef->getInstanceFields();
+                for (const auto& [fieldName, fieldDef] : fields)
+                {
+                    ::value::ValueType fieldType = fieldDef->getType();
+                    if (fieldType == ::value::ValueType::OBJECT || fieldType == ::value::ValueType::ARRAY)
+                    {
+                        // Found a nested object or array field - SoA not supported
+                        return true;
+                    }
+                }
+
+                return false;
+            }
 
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> ArrayFactory::resolveClassDefinition(
                 const std::string& typeName,
@@ -234,22 +277,35 @@ namespace mType
                 // Try to get class definition from registry
                 try
                 {
+                    // Strategy 1: Try the full type name first (e.g., "HashSet<Int>")
+                    // This handles instantiated generic classes
                     auto classDef = classRegistry->findClass(typeName);
-
-                    // Explicit nullptr check for clarity
-                    // Note: This is defensive programming - findClass() returns nullptr
-                    // if class not found, which is expected behavior (not an error)
-                    if (!classDef)
+                    if (classDef)
                     {
-                        return nullptr;
+                        return classDef;
                     }
 
-                    return classDef;
+                    // Strategy 2: If type name contains generics, try the base name
+                    // (e.g., "HashMap<Int,String>" -> "HashMap")
+                    size_t genericStart = typeName.find('<');
+                    if (genericStart != std::string::npos)
+                    {
+                        std::string baseTypeName = typeName.substr(0, genericStart);
+                        classDef = classRegistry->findClass(baseTypeName);
+                        if (classDef)
+                        {
+                            return classDef;
+                        }
+                    }
+
+                    // Not found
+                    return nullptr;
                 }
-                catch (...)
+                catch (const std::exception&)
                 {
-                    // Catch any unexpected exceptions (e.g., internal registry errors)
+                    // Only catch std::exception and derived types (not all exceptions)
                     // Class not found or registry error - return nullptr
+                    // Note: Unexpected exceptions will propagate to caller
                     return nullptr;
                 }
             }

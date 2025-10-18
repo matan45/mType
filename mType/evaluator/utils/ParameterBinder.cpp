@@ -84,7 +84,7 @@ namespace evaluator::utils
         const SourceLocation& location)
     {
         // Convert old format to new format and delegate
-        auto newParams = ParameterType::fromValueTypeVector(params);
+        auto newParams = ParameterTypeConverter::fromValueTypeVector(params);
         bindAndValidateParameters(newParams, args, functionName, env, location);
     }
 
@@ -276,7 +276,7 @@ namespace evaluator::utils
             return checkBasicTypeConversion(actualValue, expectedType);
         }
 
-        ValueType actualType = value::getValueType(actualValue); // Use global getValueType, not ValueConverter
+        ValueType actualType = value::ValueTypeUtils::getValueType(actualValue); // Use global getValueType, not ValueConverter
 
         // Special handling for array types
         // Arrays are stored with className like "Array<int>" but actualType is ARRAY, not OBJECT
@@ -401,7 +401,7 @@ namespace evaluator::utils
         const Value& actualValue,
         const ParameterType& expectedType)
     {
-        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
+        ValueType actualType = value::ValueTypeUtils::getValueType(actualValue); // Use global getValueType
         return isValidParameterConversion(actualType, expectedType.basicType);
     }
 
@@ -469,7 +469,7 @@ namespace evaluator::utils
         std::shared_ptr<Environment> env,
         const SourceLocation& location)
     {
-        ValueType actualType = value::getValueType(actualValue); // Use global getValueType
+        ValueType actualType = value::ValueTypeUtils::getValueType(actualValue); // Use global getValueType
         bool isValid = isValidParameterConversion(actualValue, expectedType, env);
 
         if (!isValid)

@@ -1,6 +1,7 @@
 #include "ArrayHandler.hpp"
 #include "../ExpressionEvaluator.hpp"
 #include "../utils/ValueConverter.hpp"
+#include "../validation/TypeValidator.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
@@ -96,10 +97,18 @@ namespace evaluator
                 auto elementTypeInfo = node->getElementTypeInfo();
                 auto classRegistry = context->getEnvironment()->getClassRegistry().get();
 
+                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
+                std::string resolvedClassName = elementTypeInfo.className;
+                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
+                {
+                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
+                        elementTypeInfo.className, context);
+                }
+
                 auto nativeArray = mType::value::arrays::ArrayFactory::create1DArray(
                     dimensions[0],
                     elementTypeInfo.baseType,
-                    elementTypeInfo.className,
+                    resolvedClassName,
                     nullptr, // ClassDefinition will be resolved by ArrayFactory
                     classRegistry
                 );
@@ -138,10 +147,18 @@ namespace evaluator
                 auto elementTypeInfo = node->getElementTypeInfo();
                 auto classRegistry = context->getEnvironment()->getClassRegistry().get();
 
+                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
+                std::string resolvedClassName = elementTypeInfo.className;
+                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
+                {
+                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
+                        elementTypeInfo.className, context);
+                }
+
                 auto jaggedArray = mType::value::arrays::ArrayFactory::create1DArray(
                     firstDimension,
                     elementTypeInfo.baseType,
-                    elementTypeInfo.className,
+                    resolvedClassName,
                     nullptr,
                     classRegistry
                 );
@@ -160,11 +177,19 @@ namespace evaluator
                 auto elementTypeInfo = node->getElementTypeInfo();
                 auto classRegistry = context->getEnvironment()->getClassRegistry().get();
 
+                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
+                std::string resolvedClassName = elementTypeInfo.className;
+                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
+                {
+                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
+                        elementTypeInfo.className, context);
+                }
+
                 // Try ArrayFactory for multi-dimensional arrays (supports FlatMultiObjectArray for objects)
                 Value adaptiveArray = mType::value::arrays::ArrayFactory::createMultiDimensionalArray(
                     dimensions,
                     elementTypeInfo.baseType,
-                    elementTypeInfo.className,
+                    resolvedClassName,
                     nullptr, // ClassDefinition resolved by ArrayFactory
                     classRegistry
                 );
@@ -261,7 +286,7 @@ namespace evaluator
             for (const auto& element : elements)
             {
                 Value elementValue = exprEvaluator->evaluate(element.get());
-                ValueType currentType = value::getValueType(elementValue); // Use global getValueType
+                ValueType currentType = value::ValueTypeUtils::getValueType(elementValue); // Use global getValueType
 
                 if (isFirstElement)
                 {

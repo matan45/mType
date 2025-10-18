@@ -181,6 +181,50 @@ namespace value
             }
         }
 
+        /**
+         * @brief Common pool acquisition logic extracted to eliminate duplication
+         * @param pool Pool entry to acquire from
+         * @param dimensions Expected array dimensions for validation
+         * @param defaultValue Default value to reset array with
+         * @return Pooled array if available and valid, nullptr otherwise
+         *
+         * This helper eliminates ~45 lines of duplication between acquire() and acquireAdaptive()
+         */
+        std::shared_ptr<FlatMultiArray> acquireFromPoolInternal(
+            PoolEntry& pool,
+            const std::vector<size_t>& dimensions,
+            const Value& defaultValue)
+        {
+            if (pool.available.empty()) {
+                // Pool is empty - caller should create new array
+                pool.stats.poolMisses++;
+                globalStats.poolMisses++;
+                return nullptr;
+            }
+
+            // Validate array integrity BEFORE removing from pool
+            auto array = pool.available.back();
+            if (!array || !array->hasDimensions(dimensions)) {
+                // Pool corruption detected - remove corrupted array
+                pool.available.pop_back();
+                pool.stats.poolMisses++;
+                globalStats.poolMisses++;
+                pool.stats.poolDiscards++;
+                globalStats.poolDiscards++;
+                return nullptr; // Caller should create new array
+            }
+
+            // Array is valid - remove from pool and prepare for reuse
+            pool.available.pop_back();
+            pool.stats.poolHits++;
+            globalStats.poolHits++;
+            pool.stats.currentPoolSize = pool.available.size();
+
+            // Reset the validated pooled array with new default value
+            array->reset(defaultValue);
+            return array;
+        }
+
     public:
         /**
          * @brief Get singleton instance
@@ -198,7 +242,6 @@ namespace value
                                               const Value& defaultValue = std::monostate{})
         {
             std::lock_guard<std::mutex> lock(poolMutex);
-
             globalStats.totalAllocations++;
 
             if (!shouldPool(dimensions)) {
@@ -210,61 +253,14 @@ namespace value
             auto& pool = pools[key];
             pool.stats.totalAllocations++;
 
-            if (!pool.available.empty()) {
-                // SAFE: Check pool integrity before accessing elements
-                std::shared_ptr<FlatMultiArray> array = nullptr;
-
-                try {
-                    // Verify we can safely access the last element
-                    if (pool.available.size() == 0) {
-                        // Double-check in case of race condition
-                        pool.stats.poolMisses++;
-                        globalStats.poolMisses++;
-                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                    }
-
-                    // Safe access to back element after size verification
-                    array = pool.available.back();
-
-                    // Validate array integrity BEFORE using it
-                    if (!array || !array->hasDimensions(dimensions)) {
-                        // Pool corruption detected - safely remove corrupted array
-                        pool.available.pop_back();  // Now safe since we verified size > 0
-                        pool.stats.poolMisses++;
-                        globalStats.poolMisses++;
-                        pool.stats.poolDiscards++;  // Track as discard, not hit
-                        globalStats.poolDiscards++;
-                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                    }
-                } catch (const std::exception&) {
-                    // Exception during pool access - treat as corruption
-                    if (!pool.available.empty()) {
-                        pool.available.pop_back();  // Safe cleanup if possible
-                    }
-                    pool.stats.poolMisses++;
-                    globalStats.poolMisses++;
-                    pool.stats.poolDiscards++;
-                    globalStats.poolDiscards++;
-                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                }
-
-                // Array is valid - now safe to remove from pool
-                pool.available.pop_back();
-
-                pool.stats.poolHits++;
-                globalStats.poolHits++;
-                pool.stats.currentPoolSize = pool.available.size();
-
-                // Reset the validated pooled array with new default value
-                array->reset(defaultValue);
-                return array;  // Return the reused array, not a new one
+            // Try to acquire from pool using extracted helper
+            auto array = acquireFromPoolInternal(pool, dimensions, defaultValue);
+            if (array) {
+                return array; // Successfully acquired from pool
             }
-            else {
-                // Create new
-                pool.stats.poolMisses++;
-                globalStats.poolMisses++;
-                return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-            }
+
+            // Pool miss - create new array
+            return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
         }
 
         /**
@@ -274,7 +270,6 @@ namespace value
                              const Value& defaultValue = std::monostate{})
         {
             std::lock_guard<std::mutex> lock(poolMutex);
-
             globalStats.totalAllocations++;
 
             // Determine optimal array type based on size characteristics
@@ -284,47 +279,26 @@ namespace value
                 // For sparse arrays, don't use pooling yet (could be added later)
                 globalStats.poolMisses++;
                 return std::make_shared<SparseMultiArray>(dimensions, defaultValue);
-            } else {
-                // Use existing pooling logic for dense arrays
-                if (!shouldPool(dimensions)) {
-                    globalStats.poolMisses++;
-                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                }
-
-                std::string key = getDimensionKey(dimensions);
-                auto& pool = pools[key];
-                pool.stats.totalAllocations++;
-
-                if (!pool.available.empty()) {
-                    // Verify array integrity BEFORE removing from pool
-                    auto array = pool.available.back();
-                    if (!array || !array->hasDimensions(dimensions)) {
-                        // Pool corruption detected - remove corrupted array and create new one
-                        pool.available.pop_back();
-                        pool.stats.poolMisses++;
-                        globalStats.poolMisses++;
-                        pool.stats.poolDiscards++;
-                        globalStats.poolDiscards++;
-                        return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                    }
-
-                    // Array is valid - now safe to remove from pool
-                    pool.available.pop_back();
-
-                    pool.stats.poolHits++;
-                    globalStats.poolHits++;
-                    pool.stats.currentPoolSize = pool.available.size();
-
-                    // Reset the validated pooled array with new default value
-                    array->reset(defaultValue);
-                    return array;
-                } else {
-                    // Create new dense array
-                    pool.stats.poolMisses++;
-                    globalStats.poolMisses++;
-                    return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
-                }
             }
+
+            // Use pooling logic for dense arrays
+            if (!shouldPool(dimensions)) {
+                globalStats.poolMisses++;
+                return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
+            }
+
+            std::string key = getDimensionKey(dimensions);
+            auto& pool = pools[key];
+            pool.stats.totalAllocations++;
+
+            // Try to acquire from pool using extracted helper
+            auto array = acquireFromPoolInternal(pool, dimensions, defaultValue);
+            if (array) {
+                return array; // Successfully acquired from pool
+            }
+
+            // Pool miss - create new dense array
+            return std::make_shared<FlatMultiArray>(dimensions, defaultValue);
         }
 
         /**

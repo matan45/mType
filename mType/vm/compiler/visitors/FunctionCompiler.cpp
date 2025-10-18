@@ -103,9 +103,15 @@ namespace vm::compiler::visitors
         }
 
         // Emit implicit return for void functions (if no explicit return)
-        if (node->getReturnType() == value::ValueType::VOID) {
+        // This includes both:
+        // - function foo(): void { ... }
+        // - function async foo(): Promise<void> { ... }
+        bool isVoidFunction = (node->getReturnType() == value::ValueType::VOID);
+        bool isAsyncVoidFunction = (node->getIsAsync() && returnTypeStr == "Promise<void>");
+
+        if (isVoidFunction || isAsyncVoidFunction) {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-            // NEW: Wrap in Promise if async function
+            // Wrap in Promise if async function
             if (node->getIsAsync()) {
                 ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
             }
@@ -537,8 +543,12 @@ namespace vm::compiler::visitors
                         }
                     }
                 } else {
-                    // Function returns nothing
-                    if (expectedReturnType != "void") {
+                    // Function returns nothing (return;)
+                    // For async functions, allow return; in Promise<void> functions
+                    bool isAsyncVoidReturn = ctx.functionFrameManager.currentFrame().isAsync &&
+                                             expectedReturnType == "Promise<void>";
+
+                    if (expectedReturnType != "void" && !isAsyncVoidReturn) {
                         throw errors::TypeException(
                             "Return type mismatch: expected " + expectedReturnType + " but got void",
                             node->getLocation()
@@ -586,14 +596,40 @@ namespace vm::compiler::visitors
                     ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
                 }
             } else {
+                // return; (no value)
                 // Check if we're in a try block with a finally
                 if (ctx.exceptionManager.hasPendingFinally()) {
-                    // Push null for void return, then jump to finally
+                    // Push null for void return
                     ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+                    // For async functions, wrap in Promise before storing for finally
+                    if (ctx.functionFrameManager.currentFrame().isAsync) {
+                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                    }
+
+                    // Check if we already have a return value slot
+                    size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+                    if (returnValueSlot == SIZE_MAX) {
+                        // Allocate slot for return value
+                        returnValueSlot = ctx.variableTracker.getNextLocalSlot();
+                        ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+                        ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
+                    }
+
+                    // Store return value and jump to finally
+                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
                     size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                     ctx.exceptionManager.registerReturnJump(returnJump);
                 } else {
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                    // For async functions, treat return; as return null; wrapped in Promise
+                    // This allows Promise<void> functions to use return; like regular void functions
+                    if (ctx.functionFrameManager.currentFrame().isAsync) {
+                        ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+                    } else {
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                    }
                 }
             }
         } else {

@@ -1,10 +1,6 @@
 #pragma once
 #include "../base/IArray.hpp"
-#include "../primitive/PrimitiveArray.hpp"
-#include "../string/StringArray.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include <unordered_map>
+#include "ObjectArrayBase.hpp"
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -38,7 +34,7 @@ namespace arrays {
  * // AoS (current): [{id:1, name:"A"}, {id:2, name:"B"}]
  * // SoA (this):    {id: [1,2], name: ["A","B"]}
  */
-class ObjectArray : public IArray {
+class ObjectArray : public IArray, public ObjectArrayBase {
 public:
     /**
      * @brief Construct ObjectArray for a specific class type
@@ -65,7 +61,7 @@ public:
     void resize(size_t newSize) override;
     void clear() override;
 
-    bool supportsSIMD() const override;
+    bool supportsSIMD() const override { return ObjectArrayBase::supportsSIMD(); }
     size_t simdWidth() const override;
 
     std::unique_ptr<IArray> clone() const override;
@@ -88,29 +84,11 @@ public:
      */
     void setField(size_t index, const std::string& fieldName, const ::value::Value& value);
 
-    /**
-     * @brief Check if a field exists in the schema
-     */
-    bool hasField(const std::string& fieldName) const;
-
-    /**
-     * @brief Get the class definition shared by all instances
-     */
-    std::shared_ptr<runtimeTypes::klass::ClassDefinition> getClassDefinition() const {
-        return classDefinition_;
-    }
-
-    /**
-     * @brief Get all field names in schema
-     */
-    std::vector<std::string> getFieldNames() const;
-
-    /**
-     * @brief Get field array for direct bulk operations
-     * @param fieldName Field to get array for
-     * @return Shared pointer to field's array, or nullptr if field doesn't exist
-     */
-    std::shared_ptr<IArray> getFieldArray(const std::string& fieldName) const;
+    // Field metadata (inherited from ObjectArrayBase):
+    // - hasField()
+    // - getFieldNames()
+    // - getFieldArray()
+    // - getClassDefinition()
 
     /**
      * @brief Calculate memory usage for this ObjectArray
@@ -124,19 +102,10 @@ public:
      */
     size_t getMemorySavings() const;
 
-    struct MemoryStats {
-        size_t soaMemoryUsage;      // SoA total memory
-        size_t aosMemoryUsage;      // AoS equivalent memory (estimated)
-        size_t memorySaved;         // Bytes saved
-        double savingsPercentage;   // Percentage saved
-        size_t objectCount;         // Number of objects
-        size_t fieldCount;          // Number of fields
-    };
-
     /**
-     * @brief Get detailed memory statistics
+     * @brief Get detailed memory statistics (MemoryStats struct defined in ObjectArrayBase)
      */
-    MemoryStats getMemoryStats() const;
+    ObjectArrayBase::MemoryStats getMemoryStats() const;
 
     // PERFORMANCE OPTIMIZATION: Unchecked access methods
 
@@ -174,65 +143,26 @@ public:
      * Bounds check must be done by caller
      * WARNING: Still expensive due to materialization!
      * Performance: ~180-200 ns (vs ~200-220 ns for get())
+     * Note: Can throw from materializeInstance() (std::bad_alloc, etc.)
      */
-    inline ::value::Value getUnchecked(size_t index) const noexcept
+    inline ::value::Value getUnchecked(size_t index) const
     {
         return materializeInstance(index);
     }
 
 private:
-    // Shared class definition (Flyweight pattern)
-    std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDefinition_;
+    // Field-oriented storage inherited from ObjectArrayBase:
+    // - classDefinition_
+    // - fieldArrays_
+    // - initializeFieldArrays()
+    // - createFieldArray()
+    // - materializeInstance()
+    // - decomposeInstance()
+    // - validateFieldType()
 
-    // Field-oriented storage: fieldName -> array of values
-    // Each field stored in optimal array type:
-    // - int fields -> IntArray (SIMD-optimized)
-    // - float fields -> FloatArray (SIMD-optimized)
-    // - bool fields -> BoolArray (SIMD-optimized)
-    // - string fields -> StringArray (StringPool-optimized)
-    // - object fields -> std::vector<Value> (heterogeneous)
-    std::unordered_map<std::string, std::shared_ptr<IArray>> fieldArrays_;
-
-    // Number of object instances
-    size_t size_;
-
-    // Capacity for growth
-    size_t capacity_;
-
-    /**
-     * @brief Initialize field arrays based on class definition
-     */
-    void initializeFieldArrays();
-
-    /**
-     * @brief Create appropriate array type for field
-     */
-    std::shared_ptr<IArray> createFieldArray(
-        const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-        size_t capacity
-    );
-
-    /**
-     * @brief Materialize ObjectInstance from SoA data at index
-     * This reconstructs a full ObjectInstance with field values
-     */
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> materializeInstance(size_t index) const;
-
-    /**
-     * @brief Decompose ObjectInstance into SoA storage at index
-     * This extracts field values and stores them in field arrays
-     */
-    void decomposeInstance(size_t index, const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance);
-
-    /**
-     * @brief Validate field type matches expected type
-     */
-    bool validateFieldType(const std::string& fieldName, const ::value::Value& value) const;
-
-    /**
-     * @brief Get field type from class definition
-     */
-    ::value::ValueType getFieldType(const std::string& fieldName) const;
+    // ObjectArray-specific members
+    size_t size_;      // Number of object instances
+    size_t capacity_;  // Capacity for growth
 };
 
 } // namespace arrays

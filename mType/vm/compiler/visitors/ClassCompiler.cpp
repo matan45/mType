@@ -471,9 +471,15 @@ namespace vm::compiler::visitors
             paramTypes.push_back(paramTypeStr);
         }
 
-        // Convert return type to string
+        // Convert return type to string, preserving class names for object types
         value::ValueType returnType = node->getReturnType();
-        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(returnType);
+        std::string returnTypeStr;
+        auto genericReturnType = node->getGenericReturnType();
+        if (genericReturnType) {
+            returnTypeStr = genericReturnType->toString();
+        } else {
+            returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(returnType);
+        }
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
@@ -523,7 +529,13 @@ namespace vm::compiler::visitors
         ctx.inStaticMethod = wasInStaticMethod;
 
         // Emit implicit return for void methods (if no explicit return)
-        if (returnType == value::ValueType::VOID)
+        // This includes both:
+        // - method foo(): void { ... }
+        // - method async foo(): Promise<void> { ... }
+        bool isVoidMethod = (returnType == value::ValueType::VOID);
+        bool isAsyncVoidMethod = (node->getIsAsync() && returnTypeStr == "Promise<void>");
+
+        if (isVoidMethod || isAsyncVoidMethod)
         {
             ctx.program.emit(bytecode::OpCode::PUSH_NULL);
             // Wrap in Promise if async method

@@ -260,8 +260,9 @@ namespace statements {
 
         if (genericRetType && node->getReturnType() == ValueType::OBJECT)
         {
-            // For object types, try to get the specific class/interface name
-            std::string typeName = genericRetType->getBaseTypeName();
+            // For object types, get the full type string (e.g., "Promise<void>")
+            // Use toString() to preserve generic parameters like Promise<void>
+            std::string typeName = genericRetType->toString();
             if (typeName != "object")
             {
                 returnClassName = typeName;

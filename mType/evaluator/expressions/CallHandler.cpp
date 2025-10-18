@@ -367,7 +367,7 @@ namespace evaluator
                             // Validate return type
                             validation::TypeValidator::validateFunctionReturn(
                                 funcDef->getReturnType(), result, node->getFunctionName(),
-                                node->getLocation());
+                                node->getLocation(), funcDef->getReturnClassName(), funcDef->getIsAsync());
                         }
                     }
                     else
@@ -410,7 +410,7 @@ namespace evaluator
                     // Validate return type
                     validation::TypeValidator::validateFunctionReturn(
                         funcDef->getReturnType(), returnValue, node->getFunctionName(),
-                        node->getLocation());
+                        node->getLocation(), funcDef->getReturnClassName(), funcDef->getIsAsync());
 
                     // Restore previous generic type bindings before returning
                     if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())

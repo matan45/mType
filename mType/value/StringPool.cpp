@@ -3,64 +3,6 @@
 
 namespace value
 {
-    // InternedString implementation
-    InternedString::InternedString(const InternedString& other)
-        : poolId(other.poolId), pool(other.pool)
-    {
-        if (pool && poolId != 0) {
-            pool->incrementRef(poolId);
-        }
-    }
-
-    InternedString& InternedString::operator=(const InternedString& other)
-    {
-        if (this != &other) {
-            if (pool && poolId != 0) {
-                pool->decrementRef(poolId);
-            }
-
-            poolId = other.poolId;
-            pool = other.pool;
-
-            if (pool && poolId != 0) {
-                pool->incrementRef(poolId);
-            }
-        }
-        return *this;
-    }
-
-    InternedString& InternedString::operator=(InternedString&& other) noexcept
-    {
-        if (this != &other) {
-            if (pool && poolId != 0) {
-                pool->decrementRef(poolId);
-            }
-
-            poolId = other.poolId;
-            pool = other.pool;
-
-            other.poolId = 0;
-            other.pool = nullptr;
-        }
-        return *this;
-    }
-
-    InternedString::~InternedString()
-    {
-        if (pool && poolId != 0) {
-            pool->decrementRef(poolId);
-        }
-    }
-
-    const std::string& InternedString::getString() const
-    {
-        if (pool) {
-            return pool->getStringById(poolId);
-        }
-        static const std::string empty;
-        return empty;
-    }
-
     InternedString StringPool::intern(const std::string& str)
     {
         if (!shouldIntern(str)) {
@@ -156,8 +98,16 @@ namespace value
         if (it != idToEntry.end()) {
             size_t refs = it->second->refCount.fetch_sub(1);
             if (refs == 1) {
-                stringToId.erase(it->second->value);
+                // Save string value before erasing to prevent use-after-free
+                // and ensure exception safety
+                std::string value = it->second->value;
+
+                // Erase from idToEntry first - this invalidates iterator
                 idToEntry.erase(it);
+
+                // Then erase from stringToId using saved value
+                // If this throws, at least idToEntry is already cleaned up
+                stringToId.erase(value);
             }
         }
     }

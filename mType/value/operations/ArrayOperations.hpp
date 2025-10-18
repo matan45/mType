@@ -131,6 +131,36 @@ namespace value::operations
         static bool extractInt(const Value& val, int& out);
         static bool extractFloat(const Value& val, float& out);
         static bool extractBool(const Value& val, bool& out);
+
+        // Template helper for binary operations (add, subtract, multiply)
+        template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+        static std::shared_ptr<NativeArray> performBinaryOperation(
+            const std::shared_ptr<NativeArray>& array1,
+            const std::shared_ptr<NativeArray>& array2,
+            IntSimdOp intSimdOp,
+            FloatSimdOp floatSimdOp,
+            ScalarOp scalarOp,
+            const char* operationName);
+
+        // Template helper for scalar operations (addScalar, multiplyScalar)
+        template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+        static std::shared_ptr<NativeArray> performScalarOperation(
+            const std::shared_ptr<NativeArray>& array,
+            const Value& scalar,
+            IntSimdOp intSimdOp,
+            FloatSimdOp floatSimdOp,
+            ScalarOp scalarOp,
+            const char* operationName);
+
+        // Template helper for reduction operations (sum, min, max)
+        template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+        static Value performReduction(
+            const std::shared_ptr<NativeArray>& array,
+            IntSimdOp intSimdOp,
+            FloatSimdOp floatSimdOp,
+            ScalarOp scalarOp,
+            const char* operationName,
+            bool allowEmpty = false);
     };
 
 } // namespace value::operations

@@ -60,7 +60,7 @@ namespace runtimeTypes::klass
                                   const std::vector<std::pair<std::string, Value>>& args,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
+            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)), arguments(args),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
               typeSubstitutionMap(), isAsync(false)
@@ -90,7 +90,7 @@ namespace runtimeTypes::klass
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterType::fromValueTypeVector(params)), arguments(args),
+            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)), arguments(args),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false)
@@ -124,12 +124,12 @@ namespace runtimeTypes::klass
         // Backward compatibility methods for ValueType
         std::vector<std::pair<std::string, ValueType>> getParametersAsValueType() const
         {
-            return ParameterType::toValueTypeVector(parameters);
+            return ParameterTypeConverter::toValueTypeVector(parameters);
         }
 
         void setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
         {
-            parameters = ParameterType::fromValueTypeVector(params);
+            parameters = ParameterTypeConverter::fromValueTypeVector(params);
         }
 
         ASTNode* getBody() const { return body.get(); }

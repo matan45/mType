@@ -31,7 +31,6 @@
 #include "../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
-#include "../value/ArrayPool.hpp"
 #include "../parser/TypeParser.hpp"
 #include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
@@ -703,7 +702,7 @@ namespace evaluator
         }
 
         // Handle null - null can be cast to any object type but not primitives
-        ValueType sourceValueType = value::getValueType(sourceValue);
+        ValueType sourceValueType = value::ValueTypeUtils::getValueType(sourceValue);
 
         bool isSourceNull = (sourceValueType == ValueType::NULL_TYPE) ||
                             std::holds_alternative<std::monostate>(sourceValue) ||
@@ -758,7 +757,7 @@ namespace evaluator
             return false;
         }
 
-        ValueType valueType = value::getValueType(value);
+        ValueType valueType = value::ValueTypeUtils::getValueType(value);
 
         // For primitives, check exact type match
         if (valueType != ValueType::OBJECT) {
@@ -812,7 +811,7 @@ namespace evaluator
 
     Value ExpressionEvaluator::castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location)
     {
-        ValueType sourceType = value::getValueType(value);
+        ValueType sourceType = value::ValueTypeUtils::getValueType(value);
 
         // Same type - no conversion needed
         if (sourceType == targetType) {

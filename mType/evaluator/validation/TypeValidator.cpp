@@ -132,15 +132,74 @@ namespace evaluator
                 return;
             }
 
-            // Check for type mismatch
-            if (actualType != expectedType)
+            // Allow exact type matches
+            if (actualType == expectedType)
             {
-                throw TypeException(
-                    "Return type mismatch in function '" + functionName + "': expected " +
-                    ValueConverter::valueTypeToString(expectedType) +
-                    " but got " + ValueConverter::valueTypeToString(actualType),
-                    location);
+                return;
             }
+
+            // Allow valid implicit conversions
+            if (isValidTypeConversion(actualType, expectedType))
+            {
+                return;
+            }
+
+            // Type mismatch
+            throw TypeException(
+                "Return type mismatch in function '" + functionName + "': expected " +
+                ValueConverter::valueTypeToString(expectedType) +
+                " but got " + ValueConverter::valueTypeToString(actualType),
+                location);
+        }
+
+        void TypeValidator::validateFunctionReturn(
+            ValueType expectedType,
+            const Value& returnValue,
+            const std::string& functionName,
+            const SourceLocation& location,
+            const std::string& returnClassName,
+            bool isAsync)
+        {
+            ValueType actualType = ValueConverter::getValueType(returnValue);
+
+            // Allow null return for object types
+            if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
+            {
+                return;
+            }
+
+            // Allow void returns (monostate) for void functions
+            if (actualType == ValueType::VOID && expectedType == ValueType::VOID)
+            {
+                return;
+            }
+
+            // Special case: async functions with Promise<void> can return void
+            // The AsyncReturnGuard will wrap the void value in a Promise
+            if (isAsync && returnClassName == "Promise<void>" &&
+                actualType == ValueType::VOID && expectedType == ValueType::OBJECT)
+            {
+                return;
+            }
+
+            // Allow exact type matches
+            if (actualType == expectedType)
+            {
+                return;
+            }
+
+            // Allow valid implicit conversions
+            if (isValidTypeConversion(actualType, expectedType))
+            {
+                return;
+            }
+
+            // Type mismatch
+            throw TypeException(
+                "Return type mismatch in function '" + functionName + "': expected " +
+                ValueConverter::valueTypeToString(expectedType) +
+                " but got " + ValueConverter::valueTypeToString(actualType),
+                location);
         }
 
         void TypeValidator::validateClassExists(
@@ -285,6 +344,14 @@ namespace evaluator
         {
             // Allow int to float conversion (common implicit conversion)
             if (from == ValueType::INT && to == ValueType::FLOAT)
+            {
+                return true;
+            }
+
+            // Arrays are objects - allow ARRAY type to match OBJECT type
+            // This handles the case where arrays are declared as "int[] arr" (OBJECT type)
+            // but ValueTypeUtils::getValueType() correctly returns ARRAY type
+            if (from == ValueType::ARRAY && to == ValueType::OBJECT)
             {
                 return true;
             }

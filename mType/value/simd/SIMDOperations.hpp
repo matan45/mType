@@ -142,16 +142,6 @@ namespace mType::value::simd
          */
         static void reverseInt(int* data, size_t size);
         static void reverseFloat(float* data, size_t size);
-
-    private:
-        // Helper: Process remainder elements when size not multiple of SIMD width
-        static inline void processRemainderInt(const int* a, const int* b, int* result,
-                                               size_t start, size_t end,
-                                               void (*op)(const int*, const int*, int*, size_t));
-
-        static inline void processRemainderFloat(const float* a, const float* b, float* result,
-                                                 size_t start, size_t end,
-                                                 void (*op)(const float*, const float*, float*, size_t));
     };
 
 } // namespace mType::value::simd
