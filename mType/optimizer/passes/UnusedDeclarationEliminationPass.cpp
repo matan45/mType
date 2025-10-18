@@ -916,6 +916,7 @@ namespace optimizer::passes
         if (auto* programNode = dynamic_cast<ProgramNode*>(node.get()))
         {
             std::vector<std::unique_ptr<ast::ASTNode>> keptStatements;
+            bool anyChanges = false; // Track if any declarations were removed or modified
 
             for (const auto& stmt : programNode->getStatements())
             {
@@ -935,6 +936,7 @@ namespace optimizer::passes
                     if (!analyzer.isFunctionUsed(funcNode->getName()))
                     {
                         keep = false;
+                        anyChanges = true;
                         removedFunctions++;
                         if (UDE_DEBUG)
                         {
@@ -947,6 +949,7 @@ namespace optimizer::passes
                     if (!analyzer.isClassUsed(classNode->getClassName()))
                     {
                         keep = false;
+                        anyChanges = true;
                         removedClasses++;
                         if (UDE_DEBUG)
                         {
@@ -974,6 +977,7 @@ namespace optimizer::passes
 
                         if (hasUnusedMethods)
                         {
+                            anyChanges = true; // Class was modified
                             // Clone class with only used methods
                             auto optimizedClass = classNode->clone();
                             auto* optClassNode = dynamic_cast<ClassNode*>(optimizedClass.get());
@@ -1032,6 +1036,7 @@ namespace optimizer::passes
                     if (!analyzer.isInterfaceUsed(ifaceNode->getName()))
                     {
                         keep = false;
+                        anyChanges = true;
                         removedInterfaces++;
                         if (UDE_DEBUG)
                         {
@@ -1050,10 +1055,17 @@ namespace optimizer::passes
                 }
             }
 
-            return std::make_unique<ProgramNode>(std::move(keptStatements), programNode->getLocation());
+            // Only create new node if declarations were removed or modified
+            if (anyChanges)
+            {
+                return std::make_unique<ProgramNode>(std::move(keptStatements), programNode->getLocation());
+            }
+
+            // No changes - return original node
+            return node;
         }
 
-        // For other nodes, just clone
+        // For other nodes, just return as-is
         return node;
     }
 
@@ -1113,6 +1125,7 @@ namespace optimizer::passes
 
         // Now optimize this ProgramNode's declarations
         std::vector<std::unique_ptr<ast::ASTNode>> keptStatements;
+        bool anyChanges = false; // Track if any declarations were removed or modified
 
         for (const auto& stmt : programNode->getStatements())
         {
@@ -1131,6 +1144,7 @@ namespace optimizer::passes
                 if (!analyzer.isFunctionUsed(funcNode->getName()))
                 {
                     keep = false;
+                    anyChanges = true;
                     removedFunctions++;
                     if (UDE_DEBUG)
                     {
@@ -1143,6 +1157,7 @@ namespace optimizer::passes
                 if (!analyzer.isClassUsed(classNode->getClassName()))
                 {
                     keep = false;
+                    anyChanges = true;
                     removedClasses++;
                     if (UDE_DEBUG)
                     {
@@ -1170,6 +1185,7 @@ namespace optimizer::passes
 
                     if (hasUnusedMethods)
                     {
+                        anyChanges = true; // Class was modified
                         // Clone class with only used methods
                         auto optimizedClass = classNode->clone();
                         auto* optClassNode = dynamic_cast<ClassNode*>(optimizedClass.get());
@@ -1228,6 +1244,7 @@ namespace optimizer::passes
                 if (!analyzer.isInterfaceUsed(ifaceNode->getName()))
                 {
                     keep = false;
+                    anyChanges = true;
                     removedInterfaces++;
                     if (UDE_DEBUG)
                     {
@@ -1242,14 +1259,22 @@ namespace optimizer::passes
             }
         }
 
-        // CRITICAL: Modify the ProgramNode in-place by replacing its statements
-        // We need to use const_cast because we have a non-const pointer to the cached AST
-        // This is safe because we own the cache through ImportManager
-        programNode->setStatements(std::move(keptStatements));
-
-        if (UDE_DEBUG)
+        // Only modify the ProgramNode if declarations were removed or modified
+        if (anyChanges)
         {
-            std::cout << "[UDE] Imported AST optimized successfully\n";
+            // CRITICAL: Modify the ProgramNode in-place by replacing its statements
+            // We need to use const_cast because we have a non-const pointer to the cached AST
+            // This is safe because we own the cache through ImportManager
+            programNode->setStatements(std::move(keptStatements));
+
+            if (UDE_DEBUG)
+            {
+                std::cout << "[UDE] Imported AST optimized successfully\n";
+            }
+        }
+        else if (UDE_DEBUG)
+        {
+            std::cout << "[UDE] Imported AST had no unused declarations to remove\n";
         }
     }
 

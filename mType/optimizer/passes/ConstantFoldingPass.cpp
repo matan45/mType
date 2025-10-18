@@ -28,7 +28,7 @@
 namespace optimizer::passes {
 
 // Debug flag - set to true to enable debug logging
-constexpr bool CF_DEBUG = true;
+constexpr bool CF_DEBUG = false;
 
 using namespace ast;
 using namespace constant_folding;
@@ -373,23 +373,20 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitProgramNo
         std::cout << "[CF] visitProgramNode: Processing " << node->getStatements().size() << " statements\n";
     }
 
+    // Track folded expressions before transforming children
+    size_t foldedBefore = foldedExpressionsCount;
+
     // Transform all statements (this will descend into functions)
-    bool anyTransformed = false;
     std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
     transformedStatements.reserve(node->getStatements().size());
 
     for (const auto& stmt : node->getStatements()) {
         auto transformed = transformChild(stmt.get());
-        if (transformed) {
-            anyTransformed = true;
-            transformedStatements.push_back(std::move(transformed));
-        } else {
-            transformedStatements.push_back(stmt->clone());
-        }
+        transformedStatements.push_back(std::move(transformed));
     }
 
-    // If any statement was transformed, return new ProgramNode
-    if (anyTransformed) {
+    // Only create new node if expressions were folded in children
+    if (foldedExpressionsCount > foldedBefore) {
         if (CF_DEBUG) {
             std::cout << "[CF] visitProgramNode: Created new ProgramNode with transformed statements\n";
         }
@@ -406,23 +403,20 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitBlockNode
         std::cout << "[CF] visitBlockNode: Processing " << node->getStatements().size() << " statements\n";
     }
 
+    // Track folded expressions before transforming children
+    size_t foldedBefore = foldedExpressionsCount;
+
     // Transform all statements
-    bool anyTransformed = false;
     std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
     transformedStatements.reserve(node->getStatements().size());
 
     for (const auto& stmt : node->getStatements()) {
         auto transformed = transformChild(stmt.get());
-        if (transformed) {
-            anyTransformed = true;
-            transformedStatements.push_back(std::move(transformed));
-        } else {
-            transformedStatements.push_back(stmt->clone());
-        }
+        transformedStatements.push_back(std::move(transformed));
     }
 
-    // If any statement was transformed, return new BlockNode
-    if (anyTransformed) {
+    // Only create new node if expressions were folded in children
+    if (foldedExpressionsCount > foldedBefore) {
         if (CF_DEBUG) {
             std::cout << "[CF] visitBlockNode: Created new BlockNode with transformed statements\n";
         }
@@ -445,10 +439,13 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitFunctionN
         return nullptr; // No body
     }
 
+    // Track folded expressions before transforming children
+    size_t foldedBefore = foldedExpressionsCount;
+
     auto transformedBody = transformChild(body);
 
-    // If body was transformed, create new FunctionNode
-    if (transformedBody) {
+    // Only create new node if expressions were folded in children
+    if (foldedExpressionsCount > foldedBefore) {
         if (CF_DEBUG) {
             std::cout << "[CF] visitFunctionNode: Body was transformed, creating new FunctionNode\n";
         }
@@ -519,6 +516,9 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitAssignmen
         return nullptr;
     }
 
+    // Track folded expressions before transforming children
+    size_t foldedBefore = foldedExpressionsCount;
+
     auto transformedValue = transformChild(value);
 
     if (CF_DEBUG) {
@@ -526,8 +526,8 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitAssignmen
                   << (transformedValue ? "NON-NULL" : "NULL") << "\n";
     }
 
-    // If value was transformed, create new AssignmentNode
-    if (transformedValue) {
+    // Only create new node if expressions were folded in children
+    if (foldedExpressionsCount > foldedBefore) {
         if (CF_DEBUG) {
             std::cout << "[CF] visitAssignmentNode: Value was transformed\n";
         }
