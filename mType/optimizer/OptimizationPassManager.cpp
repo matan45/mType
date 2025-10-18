@@ -3,6 +3,7 @@
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/UnusedDeclarationEliminationPass.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace optimizer
 {
@@ -80,6 +81,9 @@ namespace optimizer
             anyPassModified = false;
             iteration++;
 
+            // Track metrics for this iteration (for verbose logging)
+            std::vector<PassMetrics> iterationMetrics;
+
             // Run each enabled pass
             for (auto& pass : passes)
             {
@@ -106,8 +110,16 @@ namespace optimizer
                 {
                     ast = pass->optimize(std::move(ast), context);
 
-                    // Report metrics
+                    // Report metrics to both the overall result and iteration tracking
+                    OptimizationResult iterationResult;
+                    pass->reportMetrics(iterationResult);
                     pass->reportMetrics(lastResult);
+
+                    // Store metrics for this iteration's logging
+                    if (!iterationResult.getPassMetrics().empty())
+                    {
+                        iterationMetrics.push_back(iterationResult.getPassMetrics()[0]);
+                    }
 
                     // Track if this pass modified the AST
                     if (context.wasModified())
@@ -131,13 +143,51 @@ namespace optimizer
                 }
             }
 
-            // Log iteration if verbose
-            if (config.isVerboseOutputEnabled() && anyPassModified)
+            // Log iteration details if verbose
+            if (config.isVerboseOutputEnabled())
             {
-                // TODO: Log iteration number and modifications
+                std::cout << "\n[Optimization] Iteration " << iteration << ":\n";
+                for (const auto& metrics : iterationMetrics)
+                {
+                    std::cout << "  - " << metrics.passName << ": "
+                             << metrics.transformationsApplied << " transformation"
+                             << (metrics.transformationsApplied != 1 ? "s" : "");
+
+                    if (metrics.modified)
+                    {
+                        std::cout << " (AST modified)";
+                    }
+
+                    if (metrics.executionTime.count() > 0)
+                    {
+                        std::cout << ", " << metrics.executionTime.count() << " ms";
+                    }
+
+                    std::cout << "\n";
+                }
+
+                if (!anyPassModified)
+                {
+                    std::cout << "  (No modifications - converged)\n";
+                }
             }
 
         } while (anyPassModified && iteration < maxIterations);
+
+        // Log final summary if verbose
+        if (config.isVerboseOutputEnabled())
+        {
+            if (iteration >= maxIterations && anyPassModified)
+            {
+                std::cout << "\n[Optimization] WARNING: Reached maximum iteration limit ("
+                         << maxIterations << ") - may not be fully optimized\n";
+            }
+            else
+            {
+                std::cout << "\n[Optimization] Converged after " << iteration
+                         << " iteration" << (iteration != 1 ? "s" : "") << "\n";
+            }
+        }
 
         // Warn if we hit max iterations (potential infinite loop)
         if (iteration >= maxIterations && anyPassModified)

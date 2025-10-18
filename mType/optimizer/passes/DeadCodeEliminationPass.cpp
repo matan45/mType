@@ -955,7 +955,10 @@ namespace optimizer::passes {
 		// If transformation occurred, return transformed node
 		// Otherwise, return original node
 		if (result) {
-			context.setModified(true);
+			// Only mark as modified if we actually removed dead code
+			if (transformer.wasModified()) {
+				context.setModified(true);
+		}
 			return result;
 		}
 

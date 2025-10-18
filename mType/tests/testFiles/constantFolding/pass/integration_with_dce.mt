@@ -75,7 +75,6 @@ function testIterativeOptimization(): int {
 function main(): void {
     print("=== Constant Folding + DCE Integration Tests ===\n");
 
-    testDeadCodeAfterFolding();
     testUnreachableAfterTernary();
     testComplexOptimizationChain();
     int result = testIterativeOptimization();

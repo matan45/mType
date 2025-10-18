@@ -1289,6 +1289,14 @@ namespace optimizer::passes
         std::unique_ptr<ast::ASTNode> node,
         base::OptimizationContext& context)
     {
+        // CRITICAL: Reset counters at the START of each optimize() call
+        // Otherwise they accumulate across iterations causing infinite loop
+        removedFunctions = 0;
+        removedClasses = 0;
+        removedInterfaces = 0;
+        removedVariables = 0;
+        removedMethods = 0;
+
         if (UDE_DEBUG)
         {
             std::cout << "[UDE] ===== Starting Unused Declaration Elimination Pass =====\n";

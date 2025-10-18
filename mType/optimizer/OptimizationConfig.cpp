@@ -17,6 +17,7 @@ namespace optimizer {
 			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
+			verboseOutput = false;  // No verbose output in debug mode
 			break;
 
 		case OptimizationLevel::Release:
@@ -25,6 +26,7 @@ namespace optimizer {
 			enableUnusedDeclarationElimination = true;
 			enableConstantFolding = true;
 			enableUnreachableCodeRemoval = true;
+			verboseOutput = false;  // Disabled verbose output
 			break;
 
 		default:
@@ -33,6 +35,7 @@ namespace optimizer {
 			enableUnusedDeclarationElimination = false;
 			enableConstantFolding = false;
 			enableUnreachableCodeRemoval = false;
+			verboseOutput = false;
 			break;
 		}
 	}
