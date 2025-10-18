@@ -76,6 +76,9 @@
     <Filter Include="optimizer\passes">
       <UniqueIdentifier>{26D592AF-12CE-B101-3B00-97862758910D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer\passes\constant_folding">
+      <UniqueIdentifier>{E1A28FFD-4D11-E57C-96FA-9F7C02A8DA18}</UniqueIdentifier>
+    </Filter>
     <Filter Include="parser">
       <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
     </Filter>
@@ -159,6 +162,12 @@
     </Filter>
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\constantFolding">
+      <UniqueIdentifier>{968B7C27-026F-8B67-0B72-B9A377D451B8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\constantFolding\pass">
+      <UniqueIdentifier>{5CCF82D3-48B6-44CB-F106-ABE8DDCCBD31}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
@@ -819,11 +828,20 @@
     <ClInclude Include="optimizer\base\OptimizationPass.hpp">
       <Filter>optimizer\base</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\ConstantFoldingPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="optimizer\passes\DeadCodeEliminationPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\UnusedDeclarationEliminationPass.hpp">
       <Filter>optimizer\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\constant_folding\ConstantEvaluator.hpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\constant_folding\SafeArithmetic.hpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
     </ClInclude>
     <ClInclude Include="parser\ClassParser.hpp">
       <Filter>parser</Filter>
@@ -1021,9 +1039,6 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\NativeTest.hpp">
-      <Filter>tests\suites</Filter>
-    </ClInclude>
-    <ClInclude Include="tests\suites\OptimizerTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\StringPoolTestSuite.hpp">
@@ -1577,11 +1592,20 @@
     <ClCompile Include="optimizer\base\OptimizationPass.cpp">
       <Filter>optimizer\base</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\ConstantFoldingPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\UnusedDeclarationEliminationPass.cpp">
       <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\constant_folding\ConstantEvaluator.cpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\constant_folding\SafeArithmetic.cpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
     </ClCompile>
     <ClCompile Include="parser\ClassParser.cpp">
       <Filter>parser</Filter>
@@ -1776,9 +1800,6 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NativeTest.cpp">
-      <Filter>tests\suites</Filter>
-    </ClCompile>
-    <ClCompile Include="tests\suites\OptimizerTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StringPoolTestSuite.cpp">
@@ -2931,6 +2952,21 @@
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.mt">
       <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\constantFolding\pass\arithmetic_folding.mt">
+      <Filter>tests\testFiles\constantFolding\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\constantFolding\pass\comparison_folding.mt">
+      <Filter>tests\testFiles\constantFolding\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\constantFolding\pass\integration_with_dce.mt">
+      <Filter>tests\testFiles\constantFolding\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\constantFolding\pass\logical_folding.mt">
+      <Filter>tests\testFiles\constantFolding\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\constantFolding\pass\ternary_and_strings.mt">
+      <Filter>tests\testFiles\constantFolding\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
@@ -4563,6 +4599,9 @@
     </None>
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\MathLibrary.expected">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\MathLibrary.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>

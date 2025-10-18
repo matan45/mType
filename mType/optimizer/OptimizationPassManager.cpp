@@ -1,4 +1,5 @@
 #include "OptimizationPassManager.hpp"
+#include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/UnusedDeclarationEliminationPass.hpp"
 #include <stdexcept>
@@ -29,7 +30,19 @@ namespace optimizer
     void OptimizationPassManager::registerDefaultPasses()
     {
         // Register passes based on optimization level
-        // Order matters! Dead code elimination should run first, then unused declaration elimination
+        // CRITICAL ORDER: Constant Folding -> Dead Code Elimination -> Unused Declaration Elimination
+        //
+        // Rationale:
+        // 1. Constant Folding exposes unreachable code (e.g., if(false) branches)
+        // 2. Dead Code Elimination removes unreachable code after control flow terminators
+        // 3. Unused Declaration Elimination removes unused functions/classes
+        //
+        // These will run in fixed-point iteration until no changes occur
+
+        if (config.isConstantFoldingEnabled())
+        {
+            registerPass(std::make_unique<passes::ConstantFoldingPass>());
+        }
 
         if (config.isDeadCodeEliminationEnabled())
         {
@@ -41,10 +54,7 @@ namespace optimizer
             registerPass(std::make_unique<passes::UnusedDeclarationEliminationPass>());
         }
 
-        // Future passes can be registered here:
-        // if (config.isConstantFoldingEnabled()) {
-        //     registerPass(std::make_unique<passes::ConstantFoldingPass>());
-        // }
+        // Future passes:
         // if (config.isUnreachableCodeRemovalEnabled()) {
         //     registerPass(std::make_unique<passes::UnreachableCodePass>());
         // }
@@ -61,46 +71,82 @@ namespace optimizer
             // TODO: Add verbose logging
         }
 
-        // Run each enabled pass
-        for (auto& pass : passes)
-        {
-            if (!pass->isEnabled())
+        // Fixed-point iteration: run passes until no modifications occur
+        size_t iteration = 0;
+        const size_t maxIterations = config.getMaxPassIterations();
+        bool anyPassModified = false;
+
+        do {
+            anyPassModified = false;
+            iteration++;
+
+            // Run each enabled pass
+            for (auto& pass : passes)
             {
-                continue;
-            }
-
-            // Check dependencies
-            if (!checkDependenciesSatisfied(pass.get()))
-            {
-                lastResult.addWarning(
-                    "Skipping pass '" + pass->getName() +
-                    "' - dependencies not satisfied"
-                );
-                continue;
-            }
-
-            // Run the pass
-            try
-            {
-                ast = pass->optimize(std::move(ast), context);
-
-                // Report metrics
-                pass->reportMetrics(lastResult);
-
-                // Optionally validate after each pass
-                if (config.shouldValidateAfterEachPass())
+                if (!pass->isEnabled())
                 {
-                    // TODO: Implement validation
+                    continue;
+                }
+
+                // Check dependencies
+                if (!checkDependenciesSatisfied(pass.get()))
+                {
+                    lastResult.addWarning(
+                        "Skipping pass '" + pass->getName() +
+                        "' - dependencies not satisfied"
+                    );
+                    continue;
+                }
+
+                // Reset context modification flag for this pass
+                context.setModified(false);
+
+                // Run the pass
+                try
+                {
+                    ast = pass->optimize(std::move(ast), context);
+
+                    // Report metrics
+                    pass->reportMetrics(lastResult);
+
+                    // Track if this pass modified the AST
+                    if (context.wasModified())
+                    {
+                        anyPassModified = true;
+                    }
+
+                    // Optionally validate after each pass
+                    if (config.shouldValidateAfterEachPass())
+                    {
+                        // TODO: Implement validation
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    lastResult.addError(
+                        "Pass '" + pass->getName() + "' failed: " + e.what()
+                    );
+                    lastResult.setSuccessful(false);
+                    return ast; // Exit on error
                 }
             }
-            catch (const std::exception& e)
+
+            // Log iteration if verbose
+            if (config.isVerboseOutputEnabled() && anyPassModified)
             {
-                lastResult.addError(
-                    "Pass '" + pass->getName() + "' failed: " + e.what()
-                );
-                lastResult.setSuccessful(false);
-                break;
+                // TODO: Log iteration number and modifications
             }
+
+        } while (anyPassModified && iteration < maxIterations);
+
+        // Warn if we hit max iterations (potential infinite loop)
+        if (iteration >= maxIterations && anyPassModified)
+        {
+            lastResult.addWarning(
+                "Optimization reached maximum iteration limit (" +
+                std::to_string(maxIterations) +
+                "). AST may not be fully optimized."
+            );
         }
 
         return ast;
