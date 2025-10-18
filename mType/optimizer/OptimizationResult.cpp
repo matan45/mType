@@ -10,7 +10,25 @@ namespace optimizer {
 	}
 
 	void OptimizationResult::addPassMetrics(const PassMetrics& metrics) {
-		passMetrics.push_back(metrics);
+		// Check if we already have metrics for this pass (for fixed-point iteration)
+		bool found = false;
+		for (auto& existingMetrics : passMetrics) {
+			if (existingMetrics.passName == metrics.passName) {
+				// Aggregate metrics for the same pass across iterations
+				existingMetrics.transformationsApplied += metrics.transformationsApplied;
+				existingMetrics.executionTime += metrics.executionTime;
+				existingMetrics.modified = existingMetrics.modified || metrics.modified;
+				found = true;
+				break;
+			}
+		}
+
+		// If this is the first time we see this pass, add it
+		if (!found) {
+			passMetrics.push_back(metrics);
+		}
+
+		// Update totals
 		totalTransformations += metrics.transformationsApplied;
 		totalTime += metrics.executionTime;
 	}

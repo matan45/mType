@@ -23,8 +23,12 @@
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../value/StringPool.hpp"
+#include <iostream>
 
 namespace optimizer::passes {
+
+// Debug flag - set to true to enable debug logging
+constexpr bool CF_DEBUG = true;
 
 using namespace ast;
 using namespace constant_folding;
@@ -105,6 +109,10 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::createLiteralN
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldBinaryOp(
     BinaryOpNode* node
 ) {
+    if (CF_DEBUG) {
+        std::cout << "[CF] tryFoldBinaryOp: Entered for binary operation\n";
+    }
+
     // First, recursively transform children (bottom-up)
     auto leftChild = transformChild(node->getLeft());
     auto rightChild = transformChild(node->getRight());
@@ -113,8 +121,17 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldBinaryO
     auto leftValue = extractLiteralValue(leftChild.get());
     auto rightValue = extractLiteralValue(rightChild.get());
 
+    if (CF_DEBUG) {
+        std::cout << "[CF] tryFoldBinaryOp: leftValue=" << (leftValue.has_value() ? "YES" : "NO")
+                  << " rightValue=" << (rightValue.has_value() ? "YES" : "NO") << "\n";
+    }
+
     // If both operands are literals, try to fold
     if (leftValue && rightValue) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] Found foldable binary operation\n";
+        }
+
         auto result = ConstantEvaluator::evaluateBinaryOp(
             *leftValue,
             *rightValue,
@@ -126,6 +143,19 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldBinaryO
             if (foldedNode) {
                 foldedExpressionsCount++;
                 modified = true;
+
+                if (CF_DEBUG) {
+                    std::cout << "[CF] ✓ Folded binary expression → ";
+                    if (std::holds_alternative<int>(*result)) {
+                        std::cout << std::get<int>(*result);
+                    } else if (std::holds_alternative<float>(*result)) {
+                        std::cout << std::get<float>(*result);
+                    } else if (std::holds_alternative<bool>(*result)) {
+                        std::cout << (std::get<bool>(*result) ? "true" : "false");
+                    }
+                    std::cout << "\n";
+                }
+
                 return foldedNode;
             }
         }
@@ -178,6 +208,11 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldUnaryOp
             if (foldedNode) {
                 foldedExpressionsCount++;
                 modified = true;
+
+                if (CF_DEBUG) {
+                    std::cout << "[CF] ✓ Folded unary expression\n";
+                }
+
                 return foldedNode;
             }
         }
@@ -210,12 +245,18 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldTernary
 
         if (condBool) {
             // Condition is true - return true branch
+            if (CF_DEBUG) {
+                std::cout << "[CF] ✓ Folded ternary (condition=true) → taking true branch\n";
+            }
             auto trueExpr = transformChild(node->getTrueExpression());
             foldedExpressionsCount++;
             modified = true;
             return trueExpr;
         } else {
             // Condition is false - return false branch
+            if (CF_DEBUG) {
+                std::cout << "[CF] ✓ Folded ternary (condition=false) → taking false branch\n";
+            }
             auto falseExpr = transformChild(node->getFalseExpression());
             foldedExpressionsCount++;
             modified = true;
@@ -277,6 +318,11 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldCast(
                 if (foldedNode) {
                     foldedExpressionsCount++;
                     modified = true;
+
+                    if (CF_DEBUG) {
+                        std::cout << "[CF] ✓ Folded type cast → " << targetType->getBaseTypeName() << "\n";
+                    }
+
                     return foldedNode;
                 }
             }
@@ -323,19 +369,110 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitCastExpre
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitProgramNode(
     ProgramNode* node
 ) {
-    return ASTTransformer::visitProgramNode(node);
+    if (CF_DEBUG) {
+        std::cout << "[CF] visitProgramNode: Processing " << node->getStatements().size() << " statements\n";
+    }
+
+    // Transform all statements (this will descend into functions)
+    bool anyTransformed = false;
+    std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
+    transformedStatements.reserve(node->getStatements().size());
+
+    for (const auto& stmt : node->getStatements()) {
+        auto transformed = transformChild(stmt.get());
+        if (transformed) {
+            anyTransformed = true;
+            transformedStatements.push_back(std::move(transformed));
+        } else {
+            transformedStatements.push_back(stmt->clone());
+        }
+    }
+
+    // If any statement was transformed, return new ProgramNode
+    if (anyTransformed) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] visitProgramNode: Created new ProgramNode with transformed statements\n";
+        }
+        return std::make_unique<ProgramNode>(std::move(transformedStatements), node->getLocation());
+    }
+
+    return nullptr; // No changes
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitBlockNode(
     BlockNode* node
 ) {
-    return ASTTransformer::visitBlockNode(node);
+    if (CF_DEBUG) {
+        std::cout << "[CF] visitBlockNode: Processing " << node->getStatements().size() << " statements\n";
+    }
+
+    // Transform all statements
+    bool anyTransformed = false;
+    std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
+    transformedStatements.reserve(node->getStatements().size());
+
+    for (const auto& stmt : node->getStatements()) {
+        auto transformed = transformChild(stmt.get());
+        if (transformed) {
+            anyTransformed = true;
+            transformedStatements.push_back(std::move(transformed));
+        } else {
+            transformedStatements.push_back(stmt->clone());
+        }
+    }
+
+    // If any statement was transformed, return new BlockNode
+    if (anyTransformed) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] visitBlockNode: Created new BlockNode with transformed statements\n";
+        }
+        return std::make_unique<BlockNode>(std::move(transformedStatements), node->getLocation());
+    }
+
+    return nullptr; // No changes
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitFunctionNode(
     FunctionNode* node
 ) {
-    return ASTTransformer::visitFunctionNode(node);
+    if (CF_DEBUG) {
+        std::cout << "[CF] visitFunctionNode: Processing function '" << node->getName() << "'\n";
+    }
+
+    // Transform the function body
+    auto body = node->getBodyPtr();
+    if (!body) {
+        return nullptr; // No body
+    }
+
+    auto transformedBody = transformChild(body);
+
+    // If body was transformed, create new FunctionNode
+    if (transformedBody) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] visitFunctionNode: Body was transformed, creating new FunctionNode\n";
+        }
+
+        // Convert unique_ptr to shared_ptr for FunctionNode constructor
+        std::shared_ptr<ast::ASTNode> transformedBodyShared = std::move(transformedBody);
+
+        auto transformedFunction = std::make_unique<FunctionNode>(
+            node->getName(),
+            node->getGenericReturnType(),
+            node->getGenericParameters(),
+            transformedBodyShared,
+            node->getGenericTypeParameters(),
+            node->getIsAsync(),
+            node->getLocation()
+        );
+
+        // Preserve visibility modifier
+        transformedFunction->setVisibility(node->getVisibility());
+
+        return transformedFunction;
+    }
+
+    return nullptr; // No changes
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitMethodNode(
@@ -371,7 +508,45 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitForNode(
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitAssignmentNode(
     AssignmentNode* node
 ) {
-    return ASTTransformer::visitAssignmentNode(node);
+    if (CF_DEBUG) {
+        std::cout << "[CF] visitAssignmentNode: Processing assignment to '" << node->getVariableName() << "'\n";
+        std::cout << "[CF] visitAssignmentNode: Value node type: " << typeid(*node->getValue()).name() << "\n";
+    }
+
+    // Transform the value expression
+    auto value = node->getValue();
+    if (!value) {
+        return nullptr;
+    }
+
+    auto transformedValue = transformChild(value);
+
+    if (CF_DEBUG) {
+        std::cout << "[CF] visitAssignmentNode: After transformChild, result is "
+                  << (transformedValue ? "NON-NULL" : "NULL") << "\n";
+    }
+
+    // If value was transformed, create new AssignmentNode
+    if (transformedValue) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] visitAssignmentNode: Value was transformed\n";
+        }
+
+        auto newAssignment = std::make_unique<ast::nodes::statements::AssignmentNode>(
+            node->getVariableName(),
+            std::move(transformedValue),
+            node->getVariableType(),
+            node->getClassName(),
+            node->getIsFinal(),
+            node->getIsStatic(),
+            node->getLocation()
+        );
+
+        newAssignment->setVisibility(node->getVisibility());
+        return newAssignment;
+    }
+
+    return nullptr;
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitReturnNode(
@@ -405,6 +580,11 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::optimize(
     std::unique_ptr<ast::ASTNode> node,
     base::OptimizationContext& context
 ) {
+    if (CF_DEBUG) {
+        std::cout << "\n[CF] ===== Starting Constant Folding Pass =====\n";
+        std::cout << "[CF] Input node type: " << (node ? typeid(*node).name() : "nullptr") << "\n";
+    }
+
     // Reset metrics
     foldedExpressions = 0;
     transformationCount = 0;
@@ -417,13 +597,27 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::optimize(
     // Manual dispatch - check node type and call appropriate visit method
     std::unique_ptr<ast::ASTNode> result;
     if (auto* programNode = dynamic_cast<ProgramNode*>(node.get())) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] Detected ProgramNode, calling visitProgramNode()\n";
+        }
         result = transformer.visitProgramNode(programNode);
     }
     else if (auto* blockNode = dynamic_cast<BlockNode*>(node.get())) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] Detected BlockNode, calling visitBlockNode()\n";
+        }
         result = transformer.visitBlockNode(blockNode);
     }
     else if (auto* functionNode = dynamic_cast<FunctionNode*>(node.get())) {
+        if (CF_DEBUG) {
+            std::cout << "[CF] Detected FunctionNode, calling visitFunctionNode()\n";
+        }
         result = transformer.visitFunctionNode(functionNode);
+    }
+    else {
+        if (CF_DEBUG) {
+            std::cout << "[CF] WARNING: Unknown node type, no transformation applied\n";
+        }
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -435,6 +629,12 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::optimize(
     // Mark context as modified if we folded any expressions
     if (transformer.wasModified()) {
         context.setModified(true);
+    }
+
+    if (CF_DEBUG) {
+        std::cout << "[CF] Transformation result: " << (result ? "NEW NODE" : "nullptr (using original)") << "\n";
+        std::cout << "[CF] Folded expressions: " << foldedExpressions << "\n";
+        std::cout << "[CF] ===== Constant Folding Pass Complete =====\n\n";
     }
 
     // If transformation occurred, return transformed node; otherwise return original

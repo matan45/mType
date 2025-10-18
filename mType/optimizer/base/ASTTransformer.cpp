@@ -15,6 +15,10 @@
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../../ast/nodes/expressions/TernaryExpNode.hpp"
+#include "../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
@@ -80,6 +84,16 @@ namespace optimizer::base {
 			result = visitMethodNode(node);
 		} else if (auto* node = dynamic_cast<ast::LambdaNode*>(child)) {
 			result = visitLambdaNode(node);
+		}
+		// Expression nodes
+		else if (auto* node = dynamic_cast<ast::BinaryOpNode*>(child)) {
+			result = visitBinaryOpNode(node);
+		} else if (auto* node = dynamic_cast<ast::UnaryOpNode*>(child)) {
+			result = visitUnaryOpNode(node);
+		} else if (auto* node = dynamic_cast<ast::TernaryOpNode*>(child)) {
+			result = visitTernaryOpNode(node);
+		} else if (auto* node = dynamic_cast<ast::CastExpression*>(child)) {
+			result = visitCastExpression(node);
 		}
 
 		// If visit method returned nullptr (no transformation), use clone() as fallback

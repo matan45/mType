@@ -4,7 +4,7 @@ namespace optimizer {
 
 	OptimizationConfig::OptimizationConfig(OptimizationLevel level)
 		: level(level)
-		, maxPassIterations(10)
+		, maxPassIterations(50)
 		, timeoutPerPass(std::chrono::milliseconds(5000))
 		, validateAfterEachPass(false)
 		, verboseOutput(false) {
