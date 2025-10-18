@@ -65,6 +65,19 @@ namespace validation {
             const SourceLocation& location);
 
         /**
+         * Validate function return type with class name and async support
+         * Handles special case: async functions with Promise<void> can return void
+         * @throws TypeException if return type doesn't match expected type
+         */
+        static void validateFunctionReturn(
+            ValueType expectedType,
+            const Value& returnValue,
+            const std::string& functionName,
+            const SourceLocation& location,
+            const std::string& returnClassName,
+            bool isAsync);
+
+        /**
          * Validate that a class or interface exists in the environment
          * @throws UndefinedException if class/interface not found
          */

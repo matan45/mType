@@ -143,6 +143,47 @@ namespace evaluator
             }
         }
 
+        void TypeValidator::validateFunctionReturn(
+            ValueType expectedType,
+            const Value& returnValue,
+            const std::string& functionName,
+            const SourceLocation& location,
+            const std::string& returnClassName,
+            bool isAsync)
+        {
+            ValueType actualType = ValueConverter::getValueType(returnValue);
+
+            // Allow null return for object types
+            if (actualType == ValueType::NULL_TYPE && expectedType == ValueType::OBJECT)
+            {
+                return;
+            }
+
+            // Allow void returns (monostate) for void functions
+            if (actualType == ValueType::VOID && expectedType == ValueType::VOID)
+            {
+                return;
+            }
+
+            // Special case: async functions with Promise<void> can return void
+            // The AsyncReturnGuard will wrap the void value in a Promise
+            if (isAsync && returnClassName == "Promise<void>" &&
+                actualType == ValueType::VOID && expectedType == ValueType::OBJECT)
+            {
+                return;
+            }
+
+            // Check for type mismatch
+            if (actualType != expectedType)
+            {
+                throw TypeException(
+                    "Return type mismatch in function '" + functionName + "': expected " +
+                    ValueConverter::valueTypeToString(expectedType) +
+                    " but got " + ValueConverter::valueTypeToString(actualType),
+                    location);
+            }
+        }
+
         void TypeValidator::validateClassExists(
             const std::string& className,
             const SourceLocation& location,
