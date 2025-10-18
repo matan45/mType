@@ -1,4 +1,5 @@
 #pragma once
+#include "InternedString.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,92 +13,34 @@ namespace mType { namespace value { namespace arrays { class StringArray; } } }
 
 namespace value
 {
-    struct StringPoolStats
-    {
-        size_t totalRequests = 0;
-        size_t poolHits = 0;
-        size_t poolMisses = 0;
-        size_t currentPoolSize = 0;
-        size_t totalMemorySaved = 0;
-        size_t maxPoolSize = 0;
-
-        double getHitRate() const {
-            return totalRequests > 0 ?
-                   static_cast<double>(poolHits) / totalRequests : 0.0;
-        }
-
-        double getMemoryEfficiency() const {
-            return currentPoolSize > 0 ?
-                   static_cast<double>(totalMemorySaved) / currentPoolSize : 0.0;
-        }
-    };
-
-    class StringPool;
-
-    class InternedString
-    {
-    private:
-        size_t poolId;
-        StringPool* pool;
-
-        friend class StringPool;
-
-        InternedString(size_t id, StringPool* p) : poolId(id), pool(p) {}
-
-    public:
-        InternedString() : poolId(0), pool(nullptr) {}
-
-        InternedString(const InternedString& other);
-
-        InternedString(InternedString&& other) noexcept
-            : poolId(other.poolId), pool(other.pool) {
-            other.poolId = 0;
-            other.pool = nullptr;
-        }
-
-        InternedString& operator=(const InternedString& other);
-        InternedString& operator=(InternedString&& other) noexcept;
-
-        ~InternedString();
-
-        const std::string& getString() const;
-
-        operator const std::string&() const { return getString(); }
-
-        bool operator==(const InternedString& other) const {
-            return poolId == other.poolId && pool == other.pool;
-        }
-
-        bool operator!=(const InternedString& other) const {
-            return !(*this == other);
-        }
-
-        bool operator==(const std::string& str) const {
-            return getString() == str;
-        }
-
-        bool operator!=(const std::string& str) const {
-            return getString() != str;
-        }
-
-        // String concatenation operators
-        std::string operator+(const std::string& str) const {
-            return getString() + str;
-        }
-
-        std::string operator+(const InternedString& other) const {
-            return getString() + other.getString();
-        }
-
-        size_t hash() const noexcept { return poolId; }
-
-        bool empty() const { return poolId == 0; }
-        size_t size() const { return getString().size(); }
-        size_t length() const { return size(); }
-
-        size_t getPoolId() const { return poolId; }
-    };
-
+    /**
+     * @brief Thread-safe global string pool with automatic memory management
+     *
+     * Implements string interning (deduplication) using the Flyweight pattern.
+     * Strings are stored once and referenced by ID, saving memory for duplicate strings.
+     *
+     * Design principles:
+     * - Singleton Pattern: One global pool per application
+     * - Thread-Safe: All operations protected by mutex
+     * - Reference Counting: Automatic cleanup when no references remain
+     * - LRU-like Cleanup: Periodic cleanup of zero-ref-count entries
+     *
+     * Performance characteristics:
+     * - intern(): O(log n) average (hash map lookup + insertion)
+     * - String comparison: O(1) for InternedString vs InternedString
+     * - Memory savings: Significant for applications with many duplicate strings
+     *
+     * Use cases:
+     * - String literals and constants
+     * - Identifiers (variable names, class names)
+     * - Repeated user input strings
+     * - Dictionary keys and enum-like strings
+     *
+     * Not recommended for:
+     * - Unique strings (adds overhead without benefit)
+     * - Very long strings (> 1KB by default)
+     * - Short-lived temporary strings
+     */
     class StringPool
     {
     private:
@@ -145,7 +88,6 @@ namespace value
         void decrementRef(size_t id);
         const std::string& getStringById(size_t id) const;
 
-    private:
         // Private constructor for singleton
         StringPool() = default;
 
@@ -154,23 +96,48 @@ namespace value
         StringPool& operator=(const StringPool&) = delete;
 
     public:
+        /**
+         * @brief Get singleton instance of StringPool
+         */
         static StringPool& getInstance()
         {
             static StringPool instance;
             return instance;
         }
 
+        /**
+         * @brief Intern a string (lvalue reference)
+         * @param str String to intern
+         * @return InternedString handle (or empty if string shouldn't be interned)
+         */
         InternedString intern(const std::string& str);
+
+        /**
+         * @brief Intern a string (rvalue reference - efficient for temporaries)
+         * @param str String to intern (moved into pool)
+         * @return InternedString handle (or empty if string shouldn't be interned)
+         */
         InternedString intern(std::string&& str);
 
+        /**
+         * @brief Check if a string is already in the pool
+         */
         bool contains(const std::string& str) const
         {
             std::lock_guard<std::mutex> lock(poolMutex);
             return stringToId.find(str) != stringToId.end();
         }
 
+        /**
+         * @brief Get InternedString by pool ID (for deserialization)
+         * @param id Pool ID
+         * @return InternedString handle (or empty if ID not found)
+         */
         InternedString getById(size_t id) const;
 
+        /**
+         * @brief Get current pool statistics
+         */
         StringPoolStats getStats() const
         {
             std::lock_guard<std::mutex> lock(poolMutex);
@@ -180,6 +147,9 @@ namespace value
             return currentStats;
         }
 
+        /**
+         * @brief Clear all pooled strings (use with caution - invalidates all InternedStrings!)
+         */
         void clear()
         {
             std::lock_guard<std::mutex> lock(poolMutex);
@@ -189,34 +159,25 @@ namespace value
             nextId.store(1);
         }
 
+        /**
+         * @brief Manually trigger cleanup of expired entries
+         */
         void cleanup()
         {
             std::lock_guard<std::mutex> lock(poolMutex);
             cleanupExpiredEntries();
         }
 
+        /**
+         * @brief Calculate total memory usage of the pool
+         */
         size_t getTotalMemoryUsage() const;
+
+        /**
+         * @brief Get most frequently referenced strings
+         * @param count Number of top strings to return
+         * @return Vector of (string, refCount) pairs, sorted by refCount descending
+         */
         std::vector<std::pair<std::string, size_t>> getTopStrings(size_t count = 10) const;
-    };
-}
-
-// Global operators for string concatenation
-namespace value
-{
-    inline std::string operator+(const std::string& lhs, const InternedString& rhs)
-    {
-        return lhs + rhs.getString();
-    }
-}
-
-namespace std
-{
-    template<>
-    struct hash<value::InternedString>
-    {
-        size_t operator()(const value::InternedString& is) const noexcept
-        {
-            return is.hash();
-        }
     };
 }

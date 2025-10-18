@@ -205,7 +205,7 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
 
         // Determine type from value
-        value::ValueType type = value::getValueType(val);
+        value::ValueType type = value::ValueTypeUtils::getValueType(val);
 
         // Check if variable is final (third operand)
         bool isFinal = false;

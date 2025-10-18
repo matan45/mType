@@ -1,9 +1,8 @@
 #pragma once
-#include "ValueType.hpp"
+#include "MultiArrayBase.hpp"
 #include <vector>
 #include <unordered_map>
 #include <memory>
-#include <numeric>
 #include <stdexcept>
 #include <algorithm>
 
@@ -20,7 +19,7 @@ namespace value
      * Supports view semantics: sub-arrays are views into parent data, not copies.
      * Modifications to sub-arrays affect the parent array.
      */
-    class SparseMultiArray : public std::enable_shared_from_this<SparseMultiArray>
+    class SparseMultiArray : public MultiArrayBase<SparseMultiArray>
     {
     public:
         enum class StorageMode
@@ -30,62 +29,41 @@ namespace value
         };
 
     private:
-        std::vector<Value> denseData; // Dense storage when beneficial (only used if not a view)
-        std::unordered_map<size_t, Value> sparseData; // Sparse storage for scattered data (only used if not a view)
-        std::vector<size_t> dimensions; // Size of each dimension [n1, n2, n3, ...]
-        std::vector<size_t> strides; // Stride for each dimension
-        Value defaultValue; // Default value for unset elements
+        std::vector<Value> denseData_; // Dense storage when beneficial (only used if not a view)
+        std::unordered_map<size_t, Value> sparseData_; // Sparse storage for scattered data (only used if not a view)
 
-        StorageMode currentMode; // Current storage strategy
-        size_t nonDefaultCount; // Count of non-default elements
-        size_t totalAccesses; // Total access operations
-        size_t sparseAccesses; // Accesses to sparse locations
-
-        // View support: allows sub-arrays to reference parent's data instead of copying
-        std::shared_ptr<SparseMultiArray> parent; // Parent array (nullptr if this is not a view)
-        size_t viewOffset; // Offset into parent's data (0 if not a view)
-
-        /**
-         * @brief Check if this is a view into another array
-         */
-        bool isView() const {
-            return parent != nullptr;
-        }
+        StorageMode currentMode_; // Current storage strategy
+        size_t nonDefaultCount_; // Count of non-default elements
+        size_t totalAccesses_; // Total access operations
+        size_t sparseAccesses_; // Accesses to sparse locations
 
         /**
          * @brief Get reference to the actual dense data storage (own or parent's)
          */
         std::vector<Value>& getDenseDataStorage() {
-            return isView() ? parent->getDenseDataStorage() : denseData;
+            return isView() ? parent_->getDenseDataStorage() : denseData_;
         }
 
         const std::vector<Value>& getDenseDataStorage() const {
-            return isView() ? parent->getDenseDataStorage() : denseData;
+            return isView() ? parent_->getDenseDataStorage() : denseData_;
         }
 
         /**
          * @brief Get reference to the actual sparse data storage (own or parent's)
          */
         std::unordered_map<size_t, Value>& getSparseDataStorage() {
-            return isView() ? parent->getSparseDataStorage() : sparseData;
+            return isView() ? parent_->getSparseDataStorage() : sparseData_;
         }
 
         const std::unordered_map<size_t, Value>& getSparseDataStorage() const {
-            return isView() ? parent->getSparseDataStorage() : sparseData;
-        }
-
-        /**
-         * @brief Get the effective offset for data access
-         */
-        size_t getEffectiveOffset() const {
-            return isView() ? viewOffset : 0;
+            return isView() ? parent_->getSparseDataStorage() : sparseData_;
         }
 
         /**
          * @brief Get the root parent's storage mode
          */
         StorageMode getEffectiveMode() const {
-            return isView() ? parent->getEffectiveMode() : currentMode;
+            return isView() ? parent_->getEffectiveMode() : currentMode_;
         }
 
         /**
@@ -93,9 +71,9 @@ namespace value
          */
         void updateNonDefaultCount(bool wasDefault, bool isDefault) {
             if (wasDefault && !isDefault) {
-                ++nonDefaultCount;
+                ++nonDefaultCount_;
             } else if (!wasDefault && isDefault) {
-                --nonDefaultCount;
+                --nonDefaultCount_;
             }
         }
 
@@ -104,53 +82,6 @@ namespace value
         static constexpr double DENSE_THRESHOLD = 0.3; // Switch to dense if >30% filled
         static constexpr size_t MIN_SIZE_FOR_SPARSE = 1000; // Only optimize large arrays
         static constexpr size_t MAX_DENSE_SIZE = 10000000; // 10M elements max for dense
-
-        /**
-         * @brief Calculate linear index from multi-dimensional indices
-         */
-        size_t calculateLinearIndex(const std::vector<size_t>& indices) const
-        {
-            if (indices.size() != dimensions.size())
-            {
-                return SIZE_MAX;
-            }
-
-            size_t linearIndex = 0;
-            for (size_t i = 0; i < indices.size(); ++i)
-            {
-                if (indices[i] >= dimensions[i])
-                {
-                    return SIZE_MAX;
-                }
-                linearIndex += indices[i] * strides[i];
-            }
-            return linearIndex;
-        }
-
-        /**
-         * @brief Calculate strides for each dimension
-         */
-        void calculateStrides()
-        {
-            strides.resize(dimensions.size());
-            if (dimensions.empty()) return;
-
-            strides.back() = 1;
-            for (int i = static_cast<int>(dimensions.size()) - 2; i >= 0; --i)
-            {
-                strides[i] = strides[i + 1] * dimensions[i + 1];
-            }
-        }
-
-        /**
-         * @brief Calculate total number of elements
-         */
-        size_t calculateTotalSize() const
-        {
-            if (dimensions.empty()) return 0;
-            return std::accumulate(dimensions.begin(), dimensions.end(),
-                                   size_t(1), std::multiplies<size_t>());
-        }
 
         /**
          * @brief Determine optimal storage mode based on current state
@@ -172,10 +103,10 @@ namespace value
             }
 
             // Calculate sparsity ratio
-            double sparsityRatio = static_cast<double>(nonDefaultCount) / totalSize;
+            double sparsityRatio = static_cast<double>(nonDefaultCount_) / totalSize;
 
             // Hysteresis: different thresholds for switching vs staying
-            if (currentMode == StorageMode::SPARSE)
+            if (currentMode_ == StorageMode::SPARSE)
             {
                 return (sparsityRatio > DENSE_THRESHOLD) ? StorageMode::DENSE : StorageMode::SPARSE;
             }
@@ -190,20 +121,20 @@ namespace value
          */
         void convertToSparse()
         {
-            sparseData.clear();
-            sparseData.reserve(nonDefaultCount * 2); // Reserve with some headroom
+            sparseData_.clear();
+            sparseData_.reserve(nonDefaultCount_ * 2); // Reserve with some headroom
 
-            for (size_t i = 0; i < denseData.size(); ++i)
+            for (size_t i = 0; i < denseData_.size(); ++i)
             {
-                if (!valuesEqual(denseData[i], defaultValue))
+                if (!valuesEqual(denseData_[i], defaultValue_))
                 {
-                    sparseData[i] = denseData[i];
+                    sparseData_[i] = denseData_[i];
                 }
             }
 
-            denseData.clear();
-            denseData.shrink_to_fit();
-            currentMode = StorageMode::SPARSE;
+            denseData_.clear();
+            denseData_.shrink_to_fit();
+            currentMode_ = StorageMode::SPARSE;
         }
 
         /**
@@ -212,18 +143,18 @@ namespace value
         void convertToDense()
         {
             size_t totalSize = calculateTotalSize();
-            denseData.resize(totalSize, defaultValue);
+            denseData_.resize(totalSize, defaultValue_);
 
-            for (const auto& [index, value] : sparseData)
+            for (const auto& [index, value] : sparseData_)
             {
                 if (index < totalSize)
                 {
-                    denseData[index] = value;
+                    denseData_[index] = value;
                 }
             }
 
-            sparseData.clear();
-            currentMode = StorageMode::DENSE;
+            sparseData_.clear();
+            currentMode_ = StorageMode::DENSE;
         }
 
         /**
@@ -259,10 +190,10 @@ namespace value
         void maybeAdjustStorageMode()
         {
             // Only check every N operations to avoid overhead
-            if (++totalAccesses % 100 != 0) return;
+            if (++totalAccesses_ % 100 != 0) return;
 
             StorageMode optimalMode = calculateOptimalMode();
-            if (optimalMode != currentMode)
+            if (optimalMode != currentMode_)
             {
                 switch (optimalMode)
                 {
@@ -283,28 +214,27 @@ namespace value
          * @brief Construct adaptive multi-dimensional array
          */
         explicit SparseMultiArray(const std::vector<size_t>& dims, const Value& defaultVal = std::monostate{})
-            : dimensions(dims), defaultValue(defaultVal), nonDefaultCount(0),
-              totalAccesses(0), sparseAccesses(0), parent(nullptr), viewOffset(0)
+            : MultiArrayBase<SparseMultiArray>(dims, defaultVal),
+              nonDefaultCount_(0), totalAccesses_(0), sparseAccesses_(0)
         {
-            calculateStrides();
             size_t totalSize = calculateTotalSize();
 
             // Choose initial storage mode
             if (totalSize < MIN_SIZE_FOR_SPARSE)
             {
-                currentMode = StorageMode::DENSE;
-                denseData.resize(totalSize, defaultValue);
+                currentMode_ = StorageMode::DENSE;
+                denseData_.resize(totalSize, defaultValue_);
             }
             else if (totalSize > MAX_DENSE_SIZE)
             {
-                currentMode = StorageMode::SPARSE;
-                sparseData.reserve(std::min(totalSize / 10, size_t(1000))); // Conservative estimate
+                currentMode_ = StorageMode::SPARSE;
+                sparseData_.reserve(std::min(totalSize / 10, size_t(1000))); // Conservative estimate
             }
             else
             {
                 // Start with sparse for large arrays, will adapt based on usage
-                currentMode = StorageMode::SPARSE;
-                sparseData.reserve(100); // Small initial capacity
+                currentMode_ = StorageMode::SPARSE;
+                sparseData_.reserve(100); // Small initial capacity
             }
         }
 
@@ -318,12 +248,11 @@ namespace value
     private:
         SparseMultiArray(std::shared_ptr<SparseMultiArray> parentArray, size_t offset,
                         const std::vector<size_t>& dims, const Value& defaultVal)
-            : dimensions(dims), defaultValue(defaultVal), parent(parentArray), viewOffset(offset),
-              nonDefaultCount(0), totalAccesses(0), sparseAccesses(0)
+            : MultiArrayBase<SparseMultiArray>(parentArray, offset, dims, defaultVal),
+              nonDefaultCount_(0), totalAccesses_(0), sparseAccesses_(0)
         {
-            calculateStrides();
             // currentMode is inherited from parent via getEffectiveMode()
-            currentMode = parent->getEffectiveMode();
+            currentMode_ = parent_->getEffectiveMode();
             // No data allocation - this is a view into parent
         }
 
@@ -359,11 +288,11 @@ namespace value
                 {
                     const auto& sparseStorage = getSparseDataStorage();
                     auto it = sparseStorage.find(effectiveIndex);
-                    return (it != sparseStorage.end()) ? it->second : defaultValue;
+                    return (it != sparseStorage.end()) ? it->second : defaultValue_;
                 }
 
             default:
-                return defaultValue;
+                return defaultValue_;
             }
         }
 
@@ -379,7 +308,7 @@ namespace value
             }
 
             size_t effectiveIndex = getEffectiveOffset() + linearIndex;
-            bool isDefault = valuesEqual(value, defaultValue);
+            bool isDefault = valuesEqual(value, defaultValue_);
             StorageMode effectiveMode = getEffectiveMode();
 
             switch (effectiveMode)
@@ -392,7 +321,7 @@ namespace value
                         throw std::out_of_range("Index exceeds array bounds");
                     }
 
-                    bool wasDefault = valuesEqual(denseStorage[effectiveIndex], defaultValue);
+                    bool wasDefault = valuesEqual(denseStorage[effectiveIndex], defaultValue_);
                     denseStorage[effectiveIndex] = value;
 
                     // Update non-default count (only for root, not views)
@@ -400,17 +329,17 @@ namespace value
                     {
                         if (wasDefault && !isDefault)
                         {
-                            ++nonDefaultCount;
+                            ++nonDefaultCount_;
                         }
                         else if (!wasDefault && isDefault)
                         {
-                            --nonDefaultCount;
+                            --nonDefaultCount_;
                         }
                     }
                     else
                     {
                         // For views, update parent's count
-                        parent->updateNonDefaultCount(wasDefault, isDefault);
+                        parent_->updateNonDefaultCount(wasDefault, isDefault);
                     }
                 }
                 break;
@@ -429,11 +358,11 @@ namespace value
                             sparseStorage.erase(it);
                             if (!isView())
                             {
-                                --nonDefaultCount;
+                                --nonDefaultCount_;
                             }
                             else
                             {
-                                parent->updateNonDefaultCount(false, true);
+                                parent_->updateNonDefaultCount(false, true);
                             }
                         }
                     }
@@ -445,11 +374,11 @@ namespace value
                             sparseStorage[effectiveIndex] = value;
                             if (!isView())
                             {
-                                ++nonDefaultCount;
+                                ++nonDefaultCount_;
                             }
                             else
                             {
-                                parent->updateNonDefaultCount(true, false);
+                                parent_->updateNonDefaultCount(true, false);
                             }
                         }
                         else
@@ -471,7 +400,7 @@ namespace value
         /**
          * @brief Get current storage mode (for debugging/monitoring)
          */
-        StorageMode getStorageMode() const { return currentMode; }
+        StorageMode getStorageMode() const { return currentMode_; }
 
         /**
          * @brief Get sparsity statistics
@@ -490,31 +419,32 @@ namespace value
             size_t totalSize = calculateTotalSize();
             size_t memoryUsed = 0;
 
-            switch (currentMode)
+            switch (currentMode_)
             {
             case StorageMode::DENSE:
-                memoryUsed = denseData.capacity() * sizeof(Value);
+                memoryUsed = denseData_.capacity() * sizeof(Value);
                 break;
             case StorageMode::SPARSE:
-                memoryUsed = sparseData.size() * (sizeof(size_t) + sizeof(Value));
+                memoryUsed = sparseData_.size() * (sizeof(size_t) + sizeof(Value));
                 break;
             }
 
             return {
-                static_cast<double>(nonDefaultCount) / std::max(totalSize, size_t(1)),
-                nonDefaultCount,
+                static_cast<double>(nonDefaultCount_) / std::max(totalSize, size_t(1)),
+                nonDefaultCount_,
                 totalSize,
-                currentMode,
+                currentMode_,
                 memoryUsed
             };
         }
 
-        // Existing interface compatibility
-        size_t totalSize() const { return calculateTotalSize(); }
-        const std::vector<size_t>& getDimensions() const { return dimensions; }
-        size_t getRank() const { return dimensions.size(); }
-        bool empty() const { return dimensions.empty(); }
-        size_t size() const { return dimensions.empty() ? 0 : dimensions[0]; }
+        // Common interface inherited from MultiArrayBase:
+        // - totalSize()
+        // - getDimensions()
+        // - getRank()
+        // - empty()
+        // - size()
+        // - hasDimensions()
 
         /**
          * @brief Reset array with new default value (for pool reuse)
@@ -524,32 +454,23 @@ namespace value
         {
             if (isView())
             {
-                // Cannot reset a view - must reset the root parent
                 throw std::logic_error("Cannot reset a view array");
             }
 
-            defaultValue = newDefaultValue;
-            nonDefaultCount = 0;
-            totalAccesses = 0;
-            sparseAccesses = 0;
+            defaultValue_ = newDefaultValue;
+            nonDefaultCount_ = 0;
+            totalAccesses_ = 0;
+            sparseAccesses_ = 0;
 
-            switch (currentMode)
+            switch (currentMode_)
             {
             case StorageMode::DENSE:
-                std::fill(denseData.begin(), denseData.end(), defaultValue);
+                std::fill(denseData_.begin(), denseData_.end(), defaultValue_);
                 break;
             case StorageMode::SPARSE:
-                sparseData.clear();
+                sparseData_.clear();
                 break;
             }
-        }
-
-        /**
-         * @brief Check if array has same dimensions (for pool compatibility)
-         */
-        bool hasDimensions(const std::vector<size_t>& dims) const
-        {
-            return dimensions == dims;
         }
 
         /**
@@ -560,34 +481,16 @@ namespace value
          */
         std::shared_ptr<SparseMultiArray> getSubArray(size_t index) const
         {
-            if (dimensions.empty() || index >= dimensions[0])
-            {
-                return nullptr;
-            }
+            auto subDims = getSubDimensions();
+            if (subDims.empty()) return nullptr;
 
-            // Create sub-dimensions (remove first dimension)
-            std::vector<size_t> subDimensions(dimensions.begin() + 1, dimensions.end());
+            size_t subArrayOffset = calculateSubArrayOffset(index);
+            if (subArrayOffset == SIZE_MAX) return nullptr;
 
-            if (subDimensions.empty())
-            {
-                // If this would result in 0D array, return null
-                return nullptr;
-            }
-
-            // Calculate offset into parent's data for this sub-array
-            size_t subArrayOffset = getEffectiveOffset() + (index * strides[0]);
-
-            // Get the root parent (if this is already a view, use the same root parent)
-            std::shared_ptr<SparseMultiArray> rootParent = isView() ? parent :
-                std::const_pointer_cast<SparseMultiArray>(shared_from_this());
-
-            // Create a VIEW into the parent array (not a copy!)
-            // This allows modifications to propagate to the parent
-            auto subArray = std::shared_ptr<SparseMultiArray>(
-                new SparseMultiArray(rootParent, subArrayOffset, subDimensions, defaultValue)
+            auto rootParent = getRootParent();
+            return std::shared_ptr<SparseMultiArray>(
+                new SparseMultiArray(rootParent, subArrayOffset, subDims, defaultValue_)
             );
-
-            return subArray;
         }
     };
 }

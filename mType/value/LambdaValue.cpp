@@ -102,7 +102,7 @@ namespace value
             Value currentValue = captured.getValue();
 
             // Check if reference is still valid (for reference captures)
-            if (!captured.isCapturedByValue && std::holds_alternative<std::monostate>(currentValue))
+            if (!captured.isCapturedByValue() && std::holds_alternative<std::monostate>(currentValue))
             {
                 throw errors::RuntimeException("Lambda references captured variable '" + name +
                     "' which is no longer accessible");
@@ -300,13 +300,6 @@ namespace value
         // Return type inference would be implemented during type checking
         // For now, return VOID for block lambdas and OBJECT for expression lambdas
         return lambdaNode->isExpressionLambda() ? ValueType::OBJECT : ValueType::VOID;
-    }
-
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> LambdaValue::createInterfaceProxy() const
-    {
-        // This would create an anonymous class implementation of the functional interface
-        // For now, return nullptr - this will be implemented when we add interface support
-        return nullptr;
     }
 
     void LambdaValue::captureCurrentEnvironment()
@@ -556,7 +549,7 @@ namespace value
         // Check captured variables (for reference captures)
         for (const auto& [name, captured] : capturedVariables)
         {
-            if (!captured.isCapturedByValue)
+            if (!captured.isCapturedByValue())
             {
                 // Check if weak reference is still valid
                 Value currentValue = captured.getValue();
@@ -600,7 +593,7 @@ namespace value
         size_t expiredRefs = 0;
         for (const auto& [name, captured] : capturedVariables)
         {
-            if (!captured.isCapturedByValue)
+            if (!captured.isCapturedByValue())
             {
                 Value currentValue = captured.getValue();
                 if (std::holds_alternative<std::monostate>(currentValue))
@@ -657,7 +650,7 @@ namespace value
         // Check for expired captured variable references
         for (const auto& [name, captured] : capturedVariables)
         {
-            if (!captured.isCapturedByValue)
+            if (!captured.isCapturedByValue())
             {
                 Value currentValue = captured.getValue();
                 if (std::holds_alternative<std::monostate>(currentValue))

@@ -132,15 +132,24 @@ namespace evaluator
                 return;
             }
 
-            // Check for type mismatch
-            if (actualType != expectedType)
+            // Allow exact type matches
+            if (actualType == expectedType)
             {
-                throw TypeException(
-                    "Return type mismatch in function '" + functionName + "': expected " +
-                    ValueConverter::valueTypeToString(expectedType) +
-                    " but got " + ValueConverter::valueTypeToString(actualType),
-                    location);
+                return;
             }
+
+            // Allow valid implicit conversions
+            if (isValidTypeConversion(actualType, expectedType))
+            {
+                return;
+            }
+
+            // Type mismatch
+            throw TypeException(
+                "Return type mismatch in function '" + functionName + "': expected " +
+                ValueConverter::valueTypeToString(expectedType) +
+                " but got " + ValueConverter::valueTypeToString(actualType),
+                location);
         }
 
         void TypeValidator::validateFunctionReturn(
@@ -173,15 +182,24 @@ namespace evaluator
                 return;
             }
 
-            // Check for type mismatch
-            if (actualType != expectedType)
+            // Allow exact type matches
+            if (actualType == expectedType)
             {
-                throw TypeException(
-                    "Return type mismatch in function '" + functionName + "': expected " +
-                    ValueConverter::valueTypeToString(expectedType) +
-                    " but got " + ValueConverter::valueTypeToString(actualType),
-                    location);
+                return;
             }
+
+            // Allow valid implicit conversions
+            if (isValidTypeConversion(actualType, expectedType))
+            {
+                return;
+            }
+
+            // Type mismatch
+            throw TypeException(
+                "Return type mismatch in function '" + functionName + "': expected " +
+                ValueConverter::valueTypeToString(expectedType) +
+                " but got " + ValueConverter::valueTypeToString(actualType),
+                location);
         }
 
         void TypeValidator::validateClassExists(
@@ -326,6 +344,14 @@ namespace evaluator
         {
             // Allow int to float conversion (common implicit conversion)
             if (from == ValueType::INT && to == ValueType::FLOAT)
+            {
+                return true;
+            }
+
+            // Arrays are objects - allow ARRAY type to match OBJECT type
+            // This handles the case where arrays are declared as "int[] arr" (OBJECT type)
+            // but ValueTypeUtils::getValueType() correctly returns ARRAY type
+            if (from == ValueType::ARRAY && to == ValueType::OBJECT)
             {
                 return true;
             }

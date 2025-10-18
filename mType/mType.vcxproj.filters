@@ -163,12 +163,6 @@
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\constantFolding">
-      <UniqueIdentifier>{968B7C27-026F-8B67-0B72-B9A377D451B8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\constantFolding\pass">
-      <UniqueIdentifier>{5CCF82D3-48B6-44CB-F106-ABE8DDCCBD31}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
     </Filter>
@@ -1077,16 +1071,28 @@
     <ClInclude Include="value\AsyncPromiseValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\CapturedVariable.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\InternedString.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\LambdaValue.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\MultiArrayBase.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\NativeArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\ParameterType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ParameterTypeConverter.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\PromiseValue.hpp">
@@ -1101,6 +1107,9 @@
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\ValueTypeUtils.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\arrays\ArrayFactory.hpp">
       <Filter>value\arrays</Filter>
     </ClInclude>
@@ -1111,6 +1120,9 @@
       <Filter>value\arrays\object</Filter>
     </ClInclude>
     <ClInclude Include="value\arrays\object\ObjectArray.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\ObjectArrayBase.hpp">
       <Filter>value\arrays\object</Filter>
     </ClInclude>
     <ClInclude Include="value\arrays\primitive\PrimitiveArray.hpp">
@@ -1823,10 +1835,19 @@
     <ClCompile Include="types\TypeRegistry.cpp">
       <Filter>types</Filter>
     </ClCompile>
+    <ClCompile Include="value\AsyncPromiseValue.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\InternedString.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
     <ClCompile Include="value\LambdaValue.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ValueTypeUtils.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\arrays\ArrayFactory.cpp">
@@ -1836,6 +1857,9 @@
       <Filter>value\arrays\object</Filter>
     </ClCompile>
     <ClCompile Include="value\arrays\object\ObjectArray.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\ObjectArrayBase.cpp">
       <Filter>value\arrays\object</Filter>
     </ClCompile>
     <ClCompile Include="value\operations\ArrayOperations.cpp">
@@ -2952,21 +2976,6 @@
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.mt">
       <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\constantFolding\pass\arithmetic_folding.mt">
-      <Filter>tests\testFiles\constantFolding\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\constantFolding\pass\comparison_folding.mt">
-      <Filter>tests\testFiles\constantFolding\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\constantFolding\pass\integration_with_dce.mt">
-      <Filter>tests\testFiles\constantFolding\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\constantFolding\pass\logical_folding.mt">
-      <Filter>tests\testFiles\constantFolding\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\constantFolding\pass\ternary_and_strings.mt">
-      <Filter>tests\testFiles\constantFolding\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
@@ -4600,139 +4609,85 @@
     <None Include="tests\testFiles\native\nativeExample.mt">
       <Filter>tests\testFiles\native</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\MathLibrary.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\MathLibrary.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\arrayOptimization.expected">
+    <None Include="tests\testFiles\optimizer\pass\arithmetic_folding.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\arrayOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterBreak.expected">
+    <None Include="tests\testFiles\optimizer\pass\comparison_folding.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeAfterBreak.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterContinue.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeAfterContinue.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterReturn.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeAfterReturn.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeAfterThrow.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeAfterThrow.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeIfElse.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeIfElse.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInAsync.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInAsync.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInCatch.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInCatch.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInFinally.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInFinally.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInIfBranches.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInIfBranches.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInLambda.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInLambda.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInheritanceInterfaces.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInheritanceInterfaces.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeInheritanceSimple.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeInheritanceSimple.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeLoops.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeLoops.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\deadCodeSwitch.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\deadCodeSwitch.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\nestedDeadCode.expected">
+    <None Include="tests\testFiles\optimizer\pass\integration_with_dce.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\logical_folding.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\nestedDeadCode.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\noDeadCode.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\noDeadCode.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\switchOptimization.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\switchOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\testImportOptimization.expected">
+    <None Include="tests\testFiles\optimizer\pass\ternary_and_strings.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\testImportOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\unusedClassDependencies.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\unusedClassDependencies.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
-    <None Include="tests\testFiles\optimizer\pass\unusedDeclarations.expected">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
     <None Include="tests\testFiles\optimizer\pass\unusedDeclarations.mt">
-      <Filter>tests\testFiles\optimizer\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\optimizer\pass\unusedMethods.expected">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\unusedMethods.mt">

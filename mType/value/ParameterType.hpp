@@ -96,24 +96,15 @@ namespace value {
             return basicType;
         }
 
-        // Static helper to convert from old ValueType vector to new ParameterType vector
-        static std::vector<std::pair<std::string, ParameterType>> fromValueTypeVector(
-            const std::vector<std::pair<std::string, ValueType>>& oldParams) {
-            std::vector<std::pair<std::string, ParameterType>> newParams;
-            for (const auto& param : oldParams) {
-                newParams.emplace_back(param.first, ParameterType(param.second));
-            }
-            return newParams;
-        }
-
-        // Static helper to convert from new ParameterType vector to old ValueType vector
-        static std::vector<std::pair<std::string, ValueType>> toValueTypeVector(
-            const std::vector<std::pair<std::string, ParameterType>>& newParams) {
-            std::vector<std::pair<std::string, ValueType>> oldParams;
-            for (const auto& param : newParams) {
-                oldParams.emplace_back(param.first, param.second.basicType);
-            }
-            return oldParams;
-        }
+        // NOTE: Static conversion helpers have been moved to ParameterTypeConverter
+        // for better separation of concerns (Single Responsibility Principle).
+        // Include "ParameterTypeConverter.hpp" to use:
+        // - ParameterTypeConverter::fromValueTypeVector()
+        // - ParameterTypeConverter::toValueTypeVector()
+        // - ParameterTypeConverter::fromValueType()
+        // - ParameterTypeConverter::toValueType()
     };
 }
+
+// Forward compatibility: Include converter for users who expect these methods here
+#include "ParameterTypeConverter.hpp"

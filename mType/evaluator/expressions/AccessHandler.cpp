@@ -12,6 +12,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
+#include "../../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../validation/AccessValidator.hpp"
 #include "../base/AccessContext.hpp"
 #include <string>
@@ -367,6 +368,22 @@ namespace evaluator
                 {
                     // For sparse multi-dimensional arrays, return the first dimension size
                     return static_cast<int>(sparseArray->getDimensions()[0]);
+                }
+                else
+                {
+                    throw UndefinedException("Array does not have member '" + node->getMemberName() + "'",
+                                             node->getLocation());
+                }
+            }
+
+            // Handle FlatMultiObjectArray (Structure-of-Arrays for objects)
+            if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(objectValue))
+            {
+                auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(objectValue);
+                if (node->getMemberName() == "length")
+                {
+                    // For multi-dimensional object arrays, return the first dimension size
+                    return static_cast<int>(flatMultiObjectArray->getDimensions()[0]);
                 }
                 else
                 {

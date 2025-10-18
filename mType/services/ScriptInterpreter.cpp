@@ -259,7 +259,7 @@ namespace services
     {
         // Create a variable definition and register it
         auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-            name, getValueType(value), false, false);
+            name, value::ValueTypeUtils::getValueType(value), false, false);
         varDef->setValue(value);
 
         environment->declareVariable(name, varDef);

@@ -179,7 +179,7 @@ namespace statements {
         }
 
         // For primitive types (if someone throws a string/int/etc.)
-        ValueType type = getValueType(exceptionValue);
+        ValueType type = value::ValueTypeUtils::getValueType(exceptionValue);
         switch (type)
         {
         case ValueType::INT: return "int";

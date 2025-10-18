@@ -117,7 +117,7 @@ namespace ast::nodes::expressions
 
         // Check type compatibility for each parameter
         for (size_t i = 0; i < actualArgs.size(); ++i) {
-            value::ValueType actualType = value::getValueType(actualArgs[i]);
+            value::ValueType actualType = value::ValueTypeUtils::getValueType(actualArgs[i]);
             value::ValueType interfaceType = interfaceParameterTypes[i];
 
             // Use the enhanced type conversion utils for compatibility checking
@@ -167,7 +167,7 @@ namespace ast::nodes::expressions
 
     bool LambdaInterfaceInvocationNode::validateReturnType(const value::Value& returnValue, std::string* errorMessage) const
     {
-        value::ValueType actualReturnType = value::getValueType(returnValue);
+        value::ValueType actualReturnType = value::ValueTypeUtils::getValueType(returnValue);
 
         if (!isReturnTypeCompatible(actualReturnType)) {
             if (errorMessage) {

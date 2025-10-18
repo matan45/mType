@@ -74,21 +74,7 @@ namespace value
          *
          * @param callback Function to call with resolved value
          */
-        void then(std::function<void(Value)> callback)
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-
-            if (isFulfilled())
-            {
-                // Already resolved - execute immediately
-                callback(getValue());
-            }
-            else
-            {
-                // Store for later execution
-                thenCallbacks.push_back(callback);
-            }
-        }
+        void then(std::function<void(Value)> callback);
 
         /**
          * @brief Register error handler for when promise is rejected
@@ -98,21 +84,7 @@ namespace value
          *
          * @param callback Function to call with error message
          */
-        void catch_(std::function<void(std::string)> callback)
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-
-            if (isRejected())
-            {
-                // Already rejected - execute immediately
-                callback(getError());
-            }
-            else
-            {
-                // Store for later execution
-                catchCallbacks.push_back(callback);
-            }
-        }
+        void catch_(std::function<void(std::string)> callback);
 
         /**
          * @brief Register callback that runs regardless of fulfill/reject
@@ -121,21 +93,7 @@ namespace value
          *
          * @param callback Function to call when promise settles
          */
-        void finally(std::function<void()> callback)
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-
-            if (isFulfilled() || isRejected())
-            {
-                // Already settled - execute immediately
-                callback();
-            }
-            else
-            {
-                // Store for later execution
-                finallyCallbacks.push_back(callback);
-            }
-        }
+        void finally(std::function<void()> callback);
 
         /**
          * @brief Resolve promise and notify all waiting tasks
@@ -146,58 +104,7 @@ namespace value
          * @param val The value to resolve with
          * @throws std::runtime_error if promise is already settled
          */
-        void resolve(const Value& val)
-        {
-            // Local storage for errors to log outside the lock
-            std::vector<std::string> errorsToLog;
-
-            {
-                std::lock_guard<std::mutex> lock(callbackMutex);
-
-                // Call parent resolve() which validates state
-                PromiseValue::resolve(val);
-
-                // Execute all .then() callbacks
-                for (auto& callback : thenCallbacks)
-                {
-                    try
-                    {
-                        callback(val);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::string errorMsg = "Error in .then() callback: " + std::string(e.what());
-                        callbackErrors.push_back(errorMsg);
-                        errorsToLog.push_back(errorMsg);
-                    }
-                }
-
-                // Execute .finally() callbacks
-                for (auto& callback : finallyCallbacks)
-                {
-                    try
-                    {
-                        callback();
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
-                        callbackErrors.push_back(errorMsg);
-                        errorsToLog.push_back(errorMsg);
-                    }
-                }
-
-                // Clear callbacks after execution
-                thenCallbacks.clear();
-                finallyCallbacks.clear();
-            }
-
-            // Log errors outside the lock to avoid I/O under lock
-            for (const auto& error : errorsToLog)
-            {
-                std::cerr << "AsyncPromiseValue: " << error << std::endl;
-            }
-        }
+        void resolve(const Value& val);
 
         /**
          * @brief Reject promise and notify error handlers
@@ -208,58 +115,7 @@ namespace value
          * @param error Error message describing the rejection
          * @throws std::runtime_error if promise is already settled
          */
-        void reject(const std::string& error)
-        {
-            // Local storage for errors to log outside the lock
-            std::vector<std::string> errorsToLog;
-
-            {
-                std::lock_guard<std::mutex> lock(callbackMutex);
-
-                // Call parent reject() which validates state
-                PromiseValue::reject(error);
-
-                // Execute all .catch() callbacks
-                for (auto& callback : catchCallbacks)
-                {
-                    try
-                    {
-                        callback(error);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
-                        callbackErrors.push_back(errorMsg);
-                        errorsToLog.push_back(errorMsg);
-                    }
-                }
-
-                // Execute .finally() callbacks
-                for (auto& callback : finallyCallbacks)
-                {
-                    try
-                    {
-                        callback();
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
-                        callbackErrors.push_back(errorMsg);
-                        errorsToLog.push_back(errorMsg);
-                    }
-                }
-
-                // Clear callbacks after execution
-                catchCallbacks.clear();
-                finallyCallbacks.clear();
-            }
-
-            // Log errors outside the lock to avoid I/O under lock
-            for (const auto& error : errorsToLog)
-            {
-                std::cerr << "AsyncPromiseValue: " << error << std::endl;
-            }
-        }
+        void reject(const std::string& error);
 
         /**
          * @brief Chain another promise to this one
@@ -270,40 +126,12 @@ namespace value
          * @param transform Function to transform the resolved value
          * @return New promise that will be fulfilled with transformed value
          */
-        std::shared_ptr<AsyncPromiseValue> chain(
-            std::function<Value(Value)> transform)
-        {
-            auto chainedPromise = std::make_shared<AsyncPromiseValue>();
-
-            then([chainedPromise, transform](Value result)
-            {
-                try
-                {
-                    Value transformed = transform(result);
-                    chainedPromise->resolve(transformed);
-                }
-                catch (const std::exception& e)
-                {
-                    chainedPromise->reject(e.what());
-                }
-            });
-
-            catch_([chainedPromise](std::string error)
-            {
-                chainedPromise->reject(error);
-            });
-
-            return chainedPromise;
-        }
+        std::shared_ptr<AsyncPromiseValue> chain(std::function<Value(Value)> transform);
 
         /**
          * @brief Get number of pending callbacks
          */
-        size_t getPendingCallbackCount() const
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-            return thenCallbacks.size() + catchCallbacks.size() + finallyCallbacks.size();
-        }
+        size_t getPendingCallbackCount() const;
 
         /**
          * @brief Get all errors that occurred during callback execution
@@ -313,33 +141,21 @@ namespace value
          *
          * @return Vector of error messages
          */
-        std::vector<std::string> getCallbackErrors() const
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-            return callbackErrors;
-        }
+        std::vector<std::string> getCallbackErrors() const;
 
         /**
          * @brief Check if any callbacks threw exceptions
          *
          * @return true if there were callback errors, false otherwise
          */
-        bool hasCallbackErrors() const
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-            return !callbackErrors.empty();
-        }
+        bool hasCallbackErrors() const;
 
         /**
          * @brief Clear all stored callback errors
          *
          * Useful for resetting error state between operations.
          */
-        void clearCallbackErrors()
-        {
-            std::lock_guard<std::mutex> lock(callbackMutex);
-            callbackErrors.clear();
-        }
+        void clearCallbackErrors();
     };
 
     /**

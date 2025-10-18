@@ -7,6 +7,7 @@
 #include "../../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../value/ValueTypeUtils.hpp"
 #include <sstream>
 
 namespace evaluator::utils
@@ -194,53 +195,9 @@ namespace evaluator::utils
     
     ValueType ValueConverter::getValueType(const Value& value)
     {
-        return std::visit([](const auto& val) -> ValueType {
-            using T = std::decay_t<decltype(val)>;
-            
-            if constexpr (std::is_same_v<T, int>) {
-                return ValueType::INT;
-            }
-            else if constexpr (std::is_same_v<T, float>) {
-                return ValueType::FLOAT;
-            }
-            else if constexpr (std::is_same_v<T, std::string>) {
-                return ValueType::STRING;
-            }
-            else if constexpr (std::is_same_v<T, value::InternedString>) {
-                return ValueType::STRING;
-            }
-            else if constexpr (std::is_same_v<T, bool>) {
-                return ValueType::BOOL;
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<ObjectInstance>>) {
-                return ValueType::OBJECT;
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>) {
-                return ValueType::OBJECT;
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>) {
-                return ValueType::OBJECT;
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>) {
-                return ValueType::OBJECT;
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>) {
-                return ValueType::OBJECT;  // Multi-dimensional object arrays with SoA
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::PromiseValue>>) {
-                return ValueType::OBJECT;  // Promises are object types
-            }
-            else if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return ValueType::NULL_TYPE;
-            }
-            // Collection types removed - now implemented in mType
-            else if constexpr (std::is_same_v<T, std::monostate>) {
-                return ValueType::VOID;
-            }
-            else {
-                return ValueType::VOID;
-            }
-        }, value);
+        // Delegate to ValueTypeUtils to eliminate code duplication (DRY principle)
+        // This also fixes a bug where arrays were incorrectly reported as OBJECT type
+        return value::ValueTypeUtils::getValueType(value);
     }
     
     std::string ValueConverter::valueTypeToString(ValueType type)

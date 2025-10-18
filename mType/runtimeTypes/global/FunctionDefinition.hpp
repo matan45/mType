@@ -34,7 +34,7 @@ namespace runtimeTypes::global
 
         // Backward compatibility constructor for old ValueType parameters
         explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
-            : Definition(name), returnType(retType), returnClassName(""), parameters(ParameterType::fromValueTypeVector(params)), body(nullptr), isAsync(false) {}
+            : Definition(name), returnType(retType), returnClassName(""), parameters(ParameterTypeConverter::fromValueTypeVector(params)), body(nullptr), isAsync(false) {}
 
         ValueType getReturnType() const { return returnType; }
         void setReturnType(ValueType type) { returnType = type; }
@@ -47,10 +47,10 @@ namespace runtimeTypes::global
 
         // Backward compatibility methods for old ValueType format
         std::vector<std::pair<std::string, ValueType>> getParametersAsValueType() const {
-            return ParameterType::toValueTypeVector(parameters);
+            return ParameterTypeConverter::toValueTypeVector(parameters);
         }
         void setParameters(const std::vector<std::pair<std::string, ValueType>>& params) {
-            parameters = ParameterType::fromValueTypeVector(params);
+            parameters = ParameterTypeConverter::fromValueTypeVector(params);
         }
         
         size_t getParameterCount() const { return parameters.size(); }

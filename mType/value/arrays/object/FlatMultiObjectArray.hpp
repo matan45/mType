@@ -1,10 +1,5 @@
 #pragma once
-#include "../base/IArray.hpp"
-#include "../primitive/PrimitiveArray.hpp"
-#include "../string/StringArray.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include <unordered_map>
+#include "ObjectArrayBase.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,7 +45,7 @@ namespace arrays {
  * Supports view semantics: sub-arrays are views into parent data, not copies.
  * Modifications to sub-arrays affect the parent array.
  */
-class FlatMultiObjectArray : public std::enable_shared_from_this<FlatMultiObjectArray> {
+class FlatMultiObjectArray : public ObjectArrayBase, public std::enable_shared_from_this<FlatMultiObjectArray> {
 public:
     /**
      * @brief Construct multi-dimensional object array
@@ -110,13 +105,11 @@ public:
      */
     void setField(const std::vector<size_t>& indices, const std::string& fieldName, const ::value::Value& value);
 
-    /**
-     * @brief Get entire field array for batch operations
-     * Allows SIMD operations on entire field columns
-     * @param fieldName Field to get array for
-     * @return Shared pointer to field array
-     */
-    std::shared_ptr<IArray> getFieldArray(const std::string& fieldName) const;
+    // Field operations (inherited from ObjectArrayBase):
+    // - getFieldArray()
+    // - getFieldNames()
+    // - hasField()
+    // - getClassDefinition()
 
     // Dimensional information
 
@@ -155,58 +148,29 @@ public:
      */
     std::shared_ptr<FlatMultiObjectArray> getSubArray(size_t index) const;
 
-    // Class and field metadata
-
-    /**
-     * @brief Get class definition
-     */
-    std::shared_ptr<runtimeTypes::klass::ClassDefinition> getClassDefinition() const {
-        return classDefinition_;
-    }
-
-    /**
-     * @brief Get all field names
-     */
-    std::vector<std::string> getFieldNames() const;
-
-    /**
-     * @brief Check if field exists
-     */
-    bool hasField(const std::string& fieldName) const;
-
     // Memory statistics
 
-    struct MemoryStats {
-        size_t soaMemoryUsage;      // SoA total memory
-        size_t aosMemoryUsage;      // AoS equivalent memory (estimated)
-        size_t memorySaved;         // Bytes saved
-        double savingsPercentage;   // Percentage saved
-        size_t objectCount;         // Total objects
-        size_t fieldCount;          // Number of fields
+    /**
+     * @brief Memory statistics extended with dimension count
+     */
+    struct MultiDimMemoryStats : public ObjectArrayBase::MemoryStats {
         size_t dimensionCount;      // Number of dimensions
     };
 
     /**
      * @brief Get detailed memory statistics
      */
-    MemoryStats getMemoryStats() const;
-
-    /**
-     * @brief Check if SIMD is supported for any field
-     */
-    bool supportsSIMD() const;
+    MultiDimMemoryStats getMemoryStats() const;
 
 private:
-    // Shared class definition (Flyweight pattern)
-    std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDefinition_;
+    // Field-oriented storage inherited from ObjectArrayBase:
+    // - classDefinition_
+    // - fieldArrays_
 
     // Multi-dimensional indexing
     std::vector<size_t> dimensions_;  // Size of each dimension [n1, n2, n3, ...]
     std::vector<size_t> strides_;     // Stride for each dimension [s1, s2, s3, ...]
     size_t totalSize_;                // Total number of objects (n1 × n2 × n3 × ...)
-
-    // Field-oriented storage (SoA) - only used if not a view
-    std::unordered_map<std::string, std::shared_ptr<IArray>> fieldArrays_;
 
     // View support: allows sub-arrays to reference parent's data instead of copying
     std::shared_ptr<FlatMultiObjectArray> parent_;  // Parent array (nullptr if this is not a view)
@@ -267,33 +231,12 @@ private:
      */
     size_t calculateTotalSize() const;
 
-    /**
-     * @brief Initialize field arrays based on class definition
-     */
-    void initializeFieldArrays();
-
-    /**
-     * @brief Create appropriate array type for field
-     */
-    std::shared_ptr<IArray> createFieldArray(
-        const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-        size_t capacity
-    );
-
-    /**
-     * @brief Materialize ObjectInstance from SoA data at linear index
-     */
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> materializeInstance(size_t linearIndex) const;
-
-    /**
-     * @brief Decompose ObjectInstance into SoA storage at linear index
-     */
-    void decomposeInstance(size_t linearIndex, const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance);
-
-    /**
-     * @brief Validate field type
-     */
-    bool validateFieldType(const std::string& fieldName, const ::value::Value& value) const;
+    // Helper methods inherited from ObjectArrayBase:
+    // - initializeFieldArrays(size_t capacity)
+    // - createFieldArray()
+    // - materializeInstance()
+    // - decomposeInstance()
+    // - validateFieldType()
 };
 
 } // namespace arrays

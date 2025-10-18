@@ -49,461 +49,308 @@ namespace value::operations
         return false;
     }
 
+    // ========== Template Helper Implementations ==========
+
+    template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+    std::shared_ptr<NativeArray> ArrayOperations::performBinaryOperation(
+        const std::shared_ptr<NativeArray>& array1,
+        const std::shared_ptr<NativeArray>& array2,
+        IntSimdOp intSimdOp,
+        FloatSimdOp floatSimdOp,
+        ScalarOp scalarOp,
+        const char* operationName)
+    {
+        if (!areCompatible(array1, array2)) {
+            throw errors::RuntimeException(
+                std::string("Arrays must have same size and type for ") + operationName);
+        }
+
+        size_t size = array1->size();
+        ValueType elemType = array1->getElementType();
+
+        // SIMD path for int arrays
+        if (elemType == ValueType::INT && array1->getSIMDIntData() && array2->getSIMDIntData()) {
+            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
+            auto resultData = result->getSIMDIntData();
+
+            if (resultData) {
+                auto data1 = array1->getSIMDIntData();
+                auto data2 = array2->getSIMDIntData();
+                intSimdOp(data1->data(), data2->data(), resultData->data(), size);
+            }
+            return result;
+        }
+
+        // SIMD path for float arrays
+        if (elemType == ValueType::FLOAT && array1->getSIMDFloatData() && array2->getSIMDFloatData()) {
+            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
+            auto resultData = result->getSIMDFloatData();
+
+            if (resultData) {
+                auto data1 = array1->getSIMDFloatData();
+                auto data2 = array2->getSIMDFloatData();
+                floatSimdOp(data1->data(), data2->data(), resultData->data(), size);
+            }
+            return result;
+        }
+
+        // Fallback: Scalar operation
+        auto result = std::make_shared<NativeArray>(size, elemType);
+        for (size_t i = 0; i < size; ++i) {
+            Value val1 = array1->get(i);
+            Value val2 = array2->get(i);
+
+            if (std::holds_alternative<int>(val1) && std::holds_alternative<int>(val2)) {
+                result->set(i, Value(scalarOp(std::get<int>(val1), std::get<int>(val2))));
+            } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
+                result->set(i, Value(scalarOp(std::get<float>(val1), std::get<float>(val2))));
+            }
+        }
+        return result;
+    }
+
+    template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+    std::shared_ptr<NativeArray> ArrayOperations::performScalarOperation(
+        const std::shared_ptr<NativeArray>& array,
+        const Value& scalar,
+        IntSimdOp intSimdOp,
+        FloatSimdOp floatSimdOp,
+        ScalarOp scalarOp,
+        const char* operationName)
+    {
+        if (!array) {
+            throw errors::RuntimeException("Array cannot be null");
+        }
+
+        size_t size = array->size();
+        ValueType elemType = array->getElementType();
+
+        // SIMD path for int arrays
+        if (elemType == ValueType::INT && array->getSIMDIntData()) {
+            int scalarVal;
+            if (!extractInt(scalar, scalarVal)) {
+                throw errors::RuntimeException(
+                    std::string("Scalar must be int for int array in ") + operationName);
+            }
+
+            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
+            auto resultData = result->getSIMDIntData();
+            auto sourceData = array->getSIMDIntData();
+
+            if (resultData && sourceData) {
+                intSimdOp(sourceData->data(), scalarVal, resultData->data(), size);
+            }
+            return result;
+        }
+
+        // SIMD path for float arrays
+        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
+            float scalarVal;
+            if (!extractFloat(scalar, scalarVal)) {
+                throw errors::RuntimeException(
+                    std::string("Scalar must be numeric for float array in ") + operationName);
+            }
+
+            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
+            auto resultData = result->getSIMDFloatData();
+            auto sourceData = array->getSIMDFloatData();
+
+            if (resultData && sourceData) {
+                floatSimdOp(sourceData->data(), scalarVal, resultData->data(), size);
+            }
+            return result;
+        }
+
+        // Fallback: Scalar operation
+        auto result = std::make_shared<NativeArray>(size, elemType);
+        for (size_t i = 0; i < size; ++i) {
+            Value val = array->get(i);
+            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(scalar)) {
+                result->set(i, Value(scalarOp(std::get<int>(val), std::get<int>(scalar))));
+            } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(scalar)) {
+                result->set(i, Value(scalarOp(std::get<float>(val), std::get<float>(scalar))));
+            }
+        }
+        return result;
+    }
+
+    template<typename IntSimdOp, typename FloatSimdOp, typename ScalarOp>
+    Value ArrayOperations::performReduction(
+        const std::shared_ptr<NativeArray>& array,
+        IntSimdOp intSimdOp,
+        FloatSimdOp floatSimdOp,
+        ScalarOp scalarOp,
+        const char* operationName,
+        bool allowEmpty)
+    {
+        if (!array || array->size() == 0) {
+            if (allowEmpty) {
+                return Value(0);
+            }
+            throw errors::RuntimeException(
+                std::string("Cannot perform ") + operationName + " on empty array");
+        }
+
+        ValueType elemType = array->getElementType();
+
+        // SIMD path for int arrays
+        if (elemType == ValueType::INT && array->getSIMDIntData()) {
+            auto data = array->getSIMDIntData();
+            int result = intSimdOp(data->data(), array->size());
+            return Value(result);
+        }
+
+        // SIMD path for float arrays
+        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
+            auto data = array->getSIMDFloatData();
+            float result = floatSimdOp(data->data(), array->size());
+            return Value(result);
+        }
+
+        // Fallback: Use scalar operation
+        return scalarOp(array);
+    }
+
     // ========== Arithmetic Operations ==========
 
     std::shared_ptr<NativeArray> ArrayOperations::add(
         const std::shared_ptr<NativeArray>& array1,
         const std::shared_ptr<NativeArray>& array2)
     {
-        if (!areCompatible(array1, array2)) {
-            throw errors::RuntimeException("Arrays must have same size and type for addition");
-        }
-
-        size_t size = array1->size();
-        ValueType elemType = array1->getElementType();
-
-        // SIMD path: Use real SIMD intrinsics for performance
-        if (elemType == ValueType::INT && array1->getSIMDIntData() && array2->getSIMDIntData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
-            auto resultData = result->getSIMDIntData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDIntData();
-                auto data2 = array2->getSIMDIntData();
-
-                // Use SIMD intrinsics (4-8× faster than scalar)
-                mType::value::simd::SIMDOperations::addInt(
-                    data1->data(),      // Direct pointer access
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        if (elemType == ValueType::FLOAT && array1->getSIMDFloatData() && array2->getSIMDFloatData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
-            auto resultData = result->getSIMDFloatData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDFloatData();
-                auto data2 = array2->getSIMDFloatData();
-
-                // Use SIMD intrinsics (4-8× faster than scalar)
-                mType::value::simd::SIMDOperations::addFloat(
-                    data1->data(),
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // Fallback: Scalar addition
-        auto result = std::make_shared<NativeArray>(size, elemType);
-        for (size_t i = 0; i < size; ++i) {
-            Value val1 = array1->get(i);
-            Value val2 = array2->get(i);
-
-            if (std::holds_alternative<int>(val1) && std::holds_alternative<int>(val2)) {
-                result->set(i, Value(std::get<int>(val1) + std::get<int>(val2)));
-            } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
-                result->set(i, Value(std::get<float>(val1) + std::get<float>(val2)));
-            }
-        }
-        return result;
+        return performBinaryOperation(
+            array1, array2,
+            mType::value::simd::SIMDOperations::addInt,
+            mType::value::simd::SIMDOperations::addFloat,
+            [](auto a, auto b) { return a + b; },
+            "addition"
+        );
     }
 
     std::shared_ptr<NativeArray> ArrayOperations::addScalar(
         const std::shared_ptr<NativeArray>& array,
         const Value& scalar)
     {
-        if (!array) {
-            throw errors::RuntimeException("Array cannot be null");
-        }
-
-        size_t size = array->size();
-        ValueType elemType = array->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            int scalarVal;
-            if (!extractInt(scalar, scalarVal)) {
-                throw errors::RuntimeException("Scalar must be int for int array");
-            }
-
-            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
-            auto resultData = result->getSIMDIntData();
-            auto sourceData = array->getSIMDIntData();
-
-            if (resultData && sourceData) {
-                mType::value::simd::SIMDOperations::addScalarInt(
-                    sourceData->data(),
-                    scalarVal,
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            float scalarVal;
-            if (!extractFloat(scalar, scalarVal)) {
-                throw errors::RuntimeException("Scalar must be numeric for float array");
-            }
-
-            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
-            auto resultData = result->getSIMDFloatData();
-            auto sourceData = array->getSIMDFloatData();
-
-            if (resultData && sourceData) {
-                mType::value::simd::SIMDOperations::addScalarFloat(
-                    sourceData->data(),
-                    scalarVal,
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // Fallback
-        auto result = std::make_shared<NativeArray>(size, elemType);
-        for (size_t i = 0; i < size; ++i) {
-            Value val = array->get(i);
-            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(scalar)) {
-                result->set(i, Value(std::get<int>(val) + std::get<int>(scalar)));
-            }
-        }
-        return result;
+        return performScalarOperation(
+            array, scalar,
+            mType::value::simd::SIMDOperations::addScalarInt,
+            mType::value::simd::SIMDOperations::addScalarFloat,
+            [](auto a, auto b) { return a + b; },
+            "scalar addition"
+        );
     }
 
     std::shared_ptr<NativeArray> ArrayOperations::subtract(
         const std::shared_ptr<NativeArray>& array1,
         const std::shared_ptr<NativeArray>& array2)
     {
-        if (!areCompatible(array1, array2)) {
-            throw errors::RuntimeException("Arrays must have same size and type for subtraction");
-        }
-
-        size_t size = array1->size();
-        ValueType elemType = array1->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array1->getSIMDIntData() && array2->getSIMDIntData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
-            auto resultData = result->getSIMDIntData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDIntData();
-                auto data2 = array2->getSIMDIntData();
-
-                mType::value::simd::SIMDOperations::subtractInt(
-                    data1->data(),
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array1->getSIMDFloatData() && array2->getSIMDFloatData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
-            auto resultData = result->getSIMDFloatData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDFloatData();
-                auto data2 = array2->getSIMDFloatData();
-
-                mType::value::simd::SIMDOperations::subtractFloat(
-                    data1->data(),
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // Fallback
-        auto result = std::make_shared<NativeArray>(size, elemType);
-        for (size_t i = 0; i < size; ++i) {
-            Value val1 = array1->get(i);
-            Value val2 = array2->get(i);
-
-            if (std::holds_alternative<int>(val1) && std::holds_alternative<int>(val2)) {
-                result->set(i, Value(std::get<int>(val1) - std::get<int>(val2)));
-            } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
-                result->set(i, Value(std::get<float>(val1) - std::get<float>(val2)));
-            }
-        }
-        return result;
+        return performBinaryOperation(
+            array1, array2,
+            mType::value::simd::SIMDOperations::subtractInt,
+            mType::value::simd::SIMDOperations::subtractFloat,
+            [](auto a, auto b) { return a - b; },
+            "subtraction"
+        );
     }
 
     std::shared_ptr<NativeArray> ArrayOperations::multiply(
         const std::shared_ptr<NativeArray>& array1,
         const std::shared_ptr<NativeArray>& array2)
     {
-        if (!areCompatible(array1, array2)) {
-            throw errors::RuntimeException("Arrays must have same size and type for multiplication");
-        }
-
-        size_t size = array1->size();
-        ValueType elemType = array1->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array1->getSIMDIntData() && array2->getSIMDIntData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
-            auto resultData = result->getSIMDIntData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDIntData();
-                auto data2 = array2->getSIMDIntData();
-
-                mType::value::simd::SIMDOperations::multiplyInt(
-                    data1->data(),
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array1->getSIMDFloatData() && array2->getSIMDFloatData()) {
-            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
-            auto resultData = result->getSIMDFloatData();
-
-            if (resultData) {
-                auto data1 = array1->getSIMDFloatData();
-                auto data2 = array2->getSIMDFloatData();
-
-                mType::value::simd::SIMDOperations::multiplyFloat(
-                    data1->data(),
-                    data2->data(),
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // Fallback
-        auto result = std::make_shared<NativeArray>(size, elemType);
-        for (size_t i = 0; i < size; ++i) {
-            Value val1 = array1->get(i);
-            Value val2 = array2->get(i);
-
-            if (std::holds_alternative<int>(val1) && std::holds_alternative<int>(val2)) {
-                result->set(i, Value(std::get<int>(val1) * std::get<int>(val2)));
-            } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
-                result->set(i, Value(std::get<float>(val1) * std::get<float>(val2)));
-            }
-        }
-        return result;
+        return performBinaryOperation(
+            array1, array2,
+            mType::value::simd::SIMDOperations::multiplyInt,
+            mType::value::simd::SIMDOperations::multiplyFloat,
+            [](auto a, auto b) { return a * b; },
+            "multiplication"
+        );
     }
 
     std::shared_ptr<NativeArray> ArrayOperations::multiplyScalar(
         const std::shared_ptr<NativeArray>& array,
         const Value& scalar)
     {
-        if (!array) {
-            throw errors::RuntimeException("Array cannot be null");
-        }
-
-        size_t size = array->size();
-        ValueType elemType = array->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            int scalarVal;
-            if (!extractInt(scalar, scalarVal)) {
-                throw errors::RuntimeException("Scalar must be int for int array");
-            }
-
-            auto result = std::make_shared<NativeArray>(size, ValueType::INT);
-            auto resultData = result->getSIMDIntData();
-            auto sourceData = array->getSIMDIntData();
-
-            if (resultData && sourceData) {
-                mType::value::simd::SIMDOperations::multiplyScalarInt(
-                    sourceData->data(),
-                    scalarVal,
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            float scalarVal;
-            if (!extractFloat(scalar, scalarVal)) {
-                throw errors::RuntimeException("Scalar must be numeric for float array");
-            }
-
-            auto result = std::make_shared<NativeArray>(size, ValueType::FLOAT);
-            auto resultData = result->getSIMDFloatData();
-            auto sourceData = array->getSIMDFloatData();
-
-            if (resultData && sourceData) {
-                mType::value::simd::SIMDOperations::multiplyScalarFloat(
-                    sourceData->data(),
-                    scalarVal,
-                    resultData->data(),
-                    size
-                );
-            }
-            return result;
-        }
-
-        // Fallback
-        auto result = std::make_shared<NativeArray>(size, elemType);
-        for (size_t i = 0; i < size; ++i) {
-            Value val = array->get(i);
-            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(scalar)) {
-                result->set(i, Value(std::get<int>(val) * std::get<int>(scalar)));
-            }
-        }
-        return result;
+        return performScalarOperation(
+            array, scalar,
+            mType::value::simd::SIMDOperations::multiplyScalarInt,
+            mType::value::simd::SIMDOperations::multiplyScalarFloat,
+            [](auto a, auto b) { return a * b; },
+            "scalar multiplication"
+        );
     }
 
     // ========== Reduction Operations ==========
 
     Value ArrayOperations::sum(const std::shared_ptr<NativeArray>& array)
     {
-        if (!array || array->size() == 0) {
-            return Value(0);
-        }
+        return performReduction(
+            array,
+            mType::value::simd::SIMDOperations::sumInt,
+            mType::value::simd::SIMDOperations::sumFloat,
+            [](const std::shared_ptr<NativeArray>& arr) -> Value {
+                int intSum = 0;
+                float floatSum = 0.0f;
+                bool isFloat = false;
 
-        ValueType elemType = array->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            auto data = array->getSIMDIntData();
-            int total = mType::value::simd::SIMDOperations::sumInt(
-                data->data(),
-                array->size()
-            );
-            return Value(total);
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            auto data = array->getSIMDFloatData();
-            float total = mType::value::simd::SIMDOperations::sumFloat(
-                data->data(),
-                array->size()
-            );
-            return Value(total);
-        }
-
-        // Fallback
-        int intSum = 0;
-        float floatSum = 0.0f;
-        bool isFloat = false;
-
-        for (size_t i = 0; i < array->size(); ++i) {
-            Value val = array->get(i);
-            if (std::holds_alternative<int>(val)) {
-                intSum += std::get<int>(val);
-            } else if (std::holds_alternative<float>(val)) {
-                floatSum += std::get<float>(val);
-                isFloat = true;
-            }
-        }
-
-        return isFloat ? Value(floatSum + intSum) : Value(intSum);
+                for (size_t i = 0; i < arr->size(); ++i) {
+                    Value val = arr->get(i);
+                    if (std::holds_alternative<int>(val)) {
+                        intSum += std::get<int>(val);
+                    } else if (std::holds_alternative<float>(val)) {
+                        floatSum += std::get<float>(val);
+                        isFloat = true;
+                    }
+                }
+                return isFloat ? Value(floatSum + intSum) : Value(intSum);
+            },
+            "sum",
+            true  // allowEmpty
+        );
     }
 
     Value ArrayOperations::min(const std::shared_ptr<NativeArray>& array)
     {
-        if (!array || array->size() == 0) {
-            throw errors::RuntimeException("Cannot find min of empty array");
-        }
-
-        ValueType elemType = array->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            auto data = array->getSIMDIntData();
-            int minVal = mType::value::simd::SIMDOperations::minInt(
-                data->data(),
-                array->size()
-            );
-            return Value(minVal);
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            auto data = array->getSIMDFloatData();
-            float minVal = mType::value::simd::SIMDOperations::minFloat(
-                data->data(),
-                array->size()
-            );
-            return Value(minVal);
-        }
-
-        // Fallback
-        Value minVal = array->get(0);
-        for (size_t i = 1; i < array->size(); ++i) {
-            Value val = array->get(i);
-            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(minVal)) {
-                if (std::get<int>(val) < std::get<int>(minVal)) minVal = val;
-            } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(minVal)) {
-                if (std::get<float>(val) < std::get<float>(minVal)) minVal = val;
-            }
-        }
-        return minVal;
+        return performReduction(
+            array,
+            mType::value::simd::SIMDOperations::minInt,
+            mType::value::simd::SIMDOperations::minFloat,
+            [](const std::shared_ptr<NativeArray>& arr) -> Value {
+                Value minVal = arr->get(0);
+                for (size_t i = 1; i < arr->size(); ++i) {
+                    Value val = arr->get(i);
+                    if (std::holds_alternative<int>(val) && std::holds_alternative<int>(minVal)) {
+                        if (std::get<int>(val) < std::get<int>(minVal)) minVal = val;
+                    } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(minVal)) {
+                        if (std::get<float>(val) < std::get<float>(minVal)) minVal = val;
+                    }
+                }
+                return minVal;
+            },
+            "min",
+            false  // don't allowEmpty
+        );
     }
 
     Value ArrayOperations::max(const std::shared_ptr<NativeArray>& array)
     {
-        if (!array || array->size() == 0) {
-            throw errors::RuntimeException("Cannot find max of empty array");
-        }
-
-        ValueType elemType = array->getElementType();
-
-        // SIMD path for int arrays
-        if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            auto data = array->getSIMDIntData();
-            int maxVal = mType::value::simd::SIMDOperations::maxInt(
-                data->data(),
-                array->size()
-            );
-            return Value(maxVal);
-        }
-
-        // SIMD path for float arrays
-        if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            auto data = array->getSIMDFloatData();
-            float maxVal = mType::value::simd::SIMDOperations::maxFloat(
-                data->data(),
-                array->size()
-            );
-            return Value(maxVal);
-        }
-
-        // Fallback
-        Value maxVal = array->get(0);
-        for (size_t i = 1; i < array->size(); ++i) {
-            Value val = array->get(i);
-            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(maxVal)) {
-                if (std::get<int>(val) > std::get<int>(maxVal)) maxVal = val;
-            } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(maxVal)) {
-                if (std::get<float>(val) > std::get<float>(maxVal)) maxVal = val;
-            }
-        }
-        return maxVal;
+        return performReduction(
+            array,
+            mType::value::simd::SIMDOperations::maxInt,
+            mType::value::simd::SIMDOperations::maxFloat,
+            [](const std::shared_ptr<NativeArray>& arr) -> Value {
+                Value maxVal = arr->get(0);
+                for (size_t i = 1; i < arr->size(); ++i) {
+                    Value val = arr->get(i);
+                    if (std::holds_alternative<int>(val) && std::holds_alternative<int>(maxVal)) {
+                        if (std::get<int>(val) > std::get<int>(maxVal)) maxVal = val;
+                    } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(maxVal)) {
+                        if (std::get<float>(val) > std::get<float>(maxVal)) maxVal = val;
+                    }
+                }
+                return maxVal;
+            },
+            "max",
+            false  // don't allowEmpty
+        );
     }
 
     Value ArrayOperations::average(const std::shared_ptr<NativeArray>& array)

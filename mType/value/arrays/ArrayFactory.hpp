@@ -150,6 +150,21 @@ namespace mType
                 );
 
                 /**
+                 * @brief Check if ClassDefinition has nested object or array fields
+                 *
+                 * FlatMultiObjectArray (SoA optimization) doesn't support fields that are
+                 * themselves OBJECT or ARRAY types. This function checks if a class has
+                 * such fields and returns true if it does, indicating we should fall back
+                 * to regular FlatMultiArray instead.
+                 *
+                 * @param classDef ClassDefinition to check
+                 * @return true if class has OBJECT or ARRAY fields (cannot use SoA)
+                 */
+                static bool hasNestedObjectOrArrayFields(
+                    std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
+                );
+
+                /**
                  * @brief Check if size meets optimization threshold
                  */
                 static bool meetsThreshold(size_t size);

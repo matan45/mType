@@ -187,10 +187,11 @@ namespace mType
 
                 /**
                  * @brief Unchecked set with Value extraction (internal use)
-                 * Bounds check and type check must be done by caller
+                 * Bounds check must be done by caller
+                 * Type check STRONGLY RECOMMENDED or std::get will throw std::bad_variant_access
                  * Performance: ~2-3 ns (vs ~4-5 ns for set())
                  */
-                inline void setUnchecked(size_t index, const ::value::Value& value) noexcept
+                inline void setUnchecked(size_t index, const ::value::Value& value)
                 {
                     data_[index] = std::get<T>(value);
                 }
