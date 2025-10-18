@@ -42,8 +42,32 @@ namespace arrays {
  * - Strategy Pattern: Different array types per field
  * - Stride Indexing: From FlatMultiArray design
  *
- * Supports view semantics: sub-arrays are views into parent data, not copies.
- * Modifications to sub-arrays affect the parent array.
+ * VIEW SEMANTICS - MEMORY SAFETY CRITICAL:
+ * ==========================================
+ *
+ * Sub-arrays are VIEWS (aliases) into parent data, NOT independent copies!
+ *
+ * Example demonstrating view behavior:
+ * ```cpp
+ * auto arr = std::make_shared<FlatMultiObjectArray>(classDef, std::vector<size_t>{10, 20});
+ * arr->setField({0, 0}, "id", 42);
+ *
+ * auto subArr = arr->getSubArray(0);    // Creates VIEW, not copy
+ * subArr->setField({0}, "id", 99);      // Modifies arr[0][0].id!
+ *
+ * arr->getField({0, 0}, "id");  // Returns 99 (changed by view!)
+ * ```
+ *
+ * LIFETIME & OWNERSHIP:
+ * - Root array owns fieldArrays_ (SoA storage)
+ * - Views hold shared_ptr to root, keeping it alive
+ * - Destroying root's external references is SAFE - views keep data alive
+ * - All sibling views see each other's modifications immediately
+ *
+ * THREAD SAFETY:
+ * - Concurrent reads: SAFE (if no writes)
+ * - Concurrent writes or read+write: UNDEFINED BEHAVIOR
+ * - Requires external synchronization for concurrent modification
  */
 class FlatMultiObjectArray : public ObjectArrayBase, public std::enable_shared_from_this<FlatMultiObjectArray> {
 public:
@@ -143,10 +167,14 @@ public:
     /**
      * @brief Get sub-array at specified first dimension index
      * Creates a new FlatMultiObjectArray view with reduced dimensions
+     *
+     * Note: This is intentionally non-const because it creates a modifiable view that can
+     * alter the parent array's data, making it logically a non-const operation.
+     *
      * @param index Index for the first dimension
      * @return Shared pointer to sub-array
      */
-    std::shared_ptr<FlatMultiObjectArray> getSubArray(size_t index) const;
+    std::shared_ptr<FlatMultiObjectArray> getSubArray(size_t index);
 
     // Memory statistics
 

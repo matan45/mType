@@ -208,7 +208,7 @@ namespace mType
 
             // Sub-array slicing
 
-            std::shared_ptr<FlatMultiObjectArray> FlatMultiObjectArray::getSubArray(size_t index) const
+            std::shared_ptr<FlatMultiObjectArray> FlatMultiObjectArray::getSubArray(size_t index)
             {
                 if (dimensions_.empty() || index >= dimensions_[0])
                 {
@@ -226,8 +226,7 @@ namespace mType
                 size_t subArrayOffset = getEffectiveOffset() + (index * strides_[0]);
 
                 // Get the root parent (if this is already a view, use the same root parent)
-                std::shared_ptr<FlatMultiObjectArray> rootParent = isView() ? parent_ :
-                    std::const_pointer_cast<FlatMultiObjectArray>(shared_from_this());
+                std::shared_ptr<FlatMultiObjectArray> rootParent = isView() ? parent_ : shared_from_this();
 
                 // Create a VIEW into the parent array (not a copy!)
                 // This allows modifications to propagate to the parent

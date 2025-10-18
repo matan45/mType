@@ -16,8 +16,33 @@ namespace value
      * - Memory usage thresholds
      * - Array size constraints
      *
-     * Supports view semantics: sub-arrays are views into parent data, not copies.
-     * Modifications to sub-arrays affect the parent array.
+     * VIEW SEMANTICS - MEMORY SAFETY CRITICAL:
+     * ==========================================
+     *
+     * Sub-arrays are VIEWS (aliases) into parent data, NOT independent copies!
+     *
+     * Example demonstrating view behavior:
+     * ```cpp
+     * auto arr = std::make_shared<SparseMultiArray>(std::vector<size_t>{1000, 1000}, 0);
+     * arr->set({0, 0}, 42);
+     *
+     * auto subArr = arr->getSubArray(0);  // Creates VIEW, not copy
+     * subArr->set({0}, 99);               // Modifies arr[0][0]!
+     *
+     * arr->get({0, 0});  // Returns 99 (changed by view!)
+     * ```
+     *
+     * LIFETIME & OWNERSHIP:
+     * - Root array owns denseData_ or sparseData_
+     * - Views hold shared_ptr to root, keeping it alive
+     * - Destroying root's external references is SAFE - views keep data alive
+     * - All sibling views see each other's modifications immediately
+     *
+     * THREAD SAFETY:
+     * - Concurrent reads: SAFE (if no writes and no mode transitions)
+     * - Concurrent writes or read+write: UNDEFINED BEHAVIOR
+     * - Mode transitions (sparse↔dense): NOT thread-safe
+     * - Requires external synchronization for concurrent modification
      */
     class SparseMultiArray : public MultiArrayBase<SparseMultiArray>
     {
@@ -476,10 +501,14 @@ namespace value
         /**
          * @brief Get sub-array for chained indexing compatibility (e.g., arr[0][1])
          * Creates a VIEW into the parent array - modifications to the sub-array affect the parent!
+         *
+         * Note: This is intentionally non-const because it creates a modifiable view that can
+         * alter the parent array's data, making it logically a non-const operation.
+         *
          * @param index The first dimension index
          * @return Shared pointer to sub-array view
          */
-        std::shared_ptr<SparseMultiArray> getSubArray(size_t index) const
+        std::shared_ptr<SparseMultiArray> getSubArray(size_t index)
         {
             auto subDims = getSubDimensions();
             if (subDims.empty()) return nullptr;
