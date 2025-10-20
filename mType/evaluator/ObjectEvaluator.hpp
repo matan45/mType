@@ -3,6 +3,7 @@
 #include "managers/InstanceManager.hpp"
 #include "utils/GenericTypeManager.hpp"
 #include "utils/NodeDispatcher.hpp"
+#include "interfaces/IObjectEvaluator.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include <memory>
 #include <vector>
@@ -37,8 +38,11 @@ namespace evaluator
      * - Liskov Substitution: Implements IObjectEvaluator interface
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions
+     *
+     * Implements IObjectEvaluator to provide object-oriented evaluation functionality.
+     * Clients can depend on the interface for loose coupling and testability.
      */
-    class ObjectEvaluator
+    class ObjectEvaluator : public interfaces::IObjectEvaluator
     {
     public:
         // Configuration constants
@@ -64,13 +68,41 @@ namespace evaluator
 
     public:
         explicit ObjectEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ObjectEvaluator();
-
-        // IEvaluator interface implementation
-        Value evaluate(ASTNode* node);
-        bool canHandle(ASTNode* node) const;
+        ~ObjectEvaluator() override;
 
         // IObjectEvaluator interface implementation
+        Value evaluate(ASTNode* node) override;
+        bool canHandle(ASTNode* node) const override;
+
+        // Interface method implementations
+        Value callMethod(std::shared_ptr<ObjectInstance> instance, const std::string& methodName,
+                         const std::vector<Value>& args) override;
+        Value callMethod(std::shared_ptr<ObjectInstance> instance, const std::string& methodName,
+                         const std::vector<Value>& args,
+                         const errors::SourceLocation& location) override;
+        std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
+                                                       const std::vector<Value>& constructorArgs) override;
+        std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
+                                                       const std::vector<Value>& constructorArgs,
+                                                       const std::unordered_map<std::string, std::string>& typeBindings) override;
+
+        // Interface method implementations with override
+        Value accessStaticMember(const std::string& className, const std::string& memberName) override;
+        void assignStaticMember(const std::string& className, const std::string& memberName,
+                                const Value& value) override;
+        Value callStaticMethod(const std::string& className, const std::string& methodName,
+                               const std::vector<Value>& args,
+                               const errors::SourceLocation& location = errors::SourceLocation{}) override;
+        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const errors::SourceLocation& location = errors::SourceLocation{}) override;
+        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
+                          const Value& value,
+                          const errors::SourceLocation& location = errors::SourceLocation{}) override;
+        Value evaluateMemberAccessNode(MemberAccessNode* node) override;
+        Value evaluateMethodCallNode(MethodCallNode* node) override;
+        std::string resolveTypeParameterFromContext(const std::string& typeParam) override;
+
+        // Additional public methods (not part of interface)
 
         // Class and object evaluation methods
         Value evaluateClassNode(ClassNode* node);
@@ -79,46 +111,18 @@ namespace evaluator
         Value evaluateFieldNode(FieldNode* node);
         Value evaluateConstructorNode(ConstructorNode* node);
         Value evaluateNewNode(NewNode* node);
-        Value evaluateMemberAccessNode(MemberAccessNode* node);
-        Value evaluateMethodCallNode(MethodCallNode* node);
         Value evaluateMemberAssignmentNode(MemberAssignmentNode* node);
         Value evaluateIndexAssignmentNode(IndexAssignmentNode* node);
 
-        // Static member operations
-        Value accessStaticMember(const std::string& className, const std::string& memberName);
-        void assignStaticMember(const std::string& className, const std::string& memberName,
-                                const Value& value);
-        Value callStaticMethod(const std::string& className, const std::string& methodName,
-                               const std::vector<Value>& args,
-                               const errors::SourceLocation& location = errors::SourceLocation{});
-
+        // Overload for callStaticMethod with generic type arguments (not in interface)
         Value callStaticMethod(const std::string& className, const std::string& methodName,
                                const std::vector<Value>& args,
                                const std::vector<std::string>& genericTypeArguments,
                                const errors::SourceLocation& location = errors::SourceLocation{});
 
-        // Instance operations
-        std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
-                                                       const std::vector<Value>& constructorArgs);
-        std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
-                                                       const std::vector<Value>& constructorArgs,
-                                                       const std::unordered_map<std::string, std::string>& typeBindings);
-        Value accessMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                          const errors::SourceLocation& location = errors::SourceLocation{});
-        void assignMember(std::shared_ptr<ObjectInstance> object, const std::string& memberName,
-                          const Value& value,
-                          const errors::SourceLocation& location = errors::SourceLocation{});
-        Value callMethod(std::shared_ptr<ObjectInstance> object, const std::string& methodName,
-                         const std::vector<Value>& args,
-                         const errors::SourceLocation& location = errors::SourceLocation{});
-
-
         // Dependency injection for cross-evaluator communication
         void setExpressionEvaluator(ExpressionEvaluator* evaluator);
         void setStatementEvaluator(StatementEvaluator* evaluator);
-
-        // Generic type resolution
-        std::string resolveTypeParameterFromContext(const std::string& typeParam);
 
     private:
         // Initialize dispatcher with all handler registrations
@@ -128,8 +132,5 @@ namespace evaluator
         bool isObjectNode(ASTNode* node) const;
         void registerClass(std::shared_ptr<ClassDefinition> classDef);
         std::vector<Value> evaluateArgumentList(const std::vector<std::unique_ptr<ASTNode>>& args);
-        void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef, ClassNode* node);
-        std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(const std::string& interfaceName);
-        std::string resolveGenericType(const std::string& typeName, const std::unordered_map<std::string, std::string>& typeSubstitutions);
     };
 }

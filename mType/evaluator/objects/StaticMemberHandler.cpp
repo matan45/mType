@@ -1,5 +1,5 @@
 #include "StaticMemberHandler.hpp"
-#include "../StatementEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/GenericTypeManager.hpp"
@@ -9,6 +9,7 @@
 #include "../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
+#include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/ReturnException.hpp"
 #include <mutex>
 #include <unordered_map>
@@ -154,7 +155,7 @@ namespace evaluator
             // Check if method exists (it's guaranteed to be static if found via getStaticMethod)
             if (!method)
             {
-                throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
+                throw MethodNotFoundException(methodName, className, SourceLocation{});
             }
 
             // ACCESS CONTROL: Validate method access permissions
@@ -269,7 +270,7 @@ namespace evaluator
             auto method = classDef->getStaticMethod(methodName);
             if (!method)
             {
-                throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'");
+                throw MethodNotFoundException(methodName, className, SourceLocation{});
             }
 
             // ACCESS CONTROL: Validate method access permissions

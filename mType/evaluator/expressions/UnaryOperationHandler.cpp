@@ -1,6 +1,4 @@
 #include "UnaryOperationHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../ObjectEvaluator.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
@@ -23,12 +21,12 @@ namespace evaluator
         {
         }
 
-        void UnaryOperationHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void UnaryOperationHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }
 
-        void UnaryOperationHandler::setObjectEvaluator(ObjectEvaluator* evaluator)
+        void UnaryOperationHandler::setObjectEvaluator(interfaces::IObjectEvaluator* evaluator)
         {
             objEvaluator = evaluator;
         }

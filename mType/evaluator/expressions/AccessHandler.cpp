@@ -30,17 +30,17 @@ namespace evaluator
         {
         }
 
-        void AccessHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void AccessHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }
 
-        void AccessHandler::setObjectEvaluator(ObjectEvaluator* evaluator)
+        void AccessHandler::setObjectEvaluator(interfaces::IObjectEvaluator* evaluator)
         {
             objEvaluator = evaluator;
         }
 
-        void AccessHandler::setStatementEvaluator(StatementEvaluator* evaluator)
+        void AccessHandler::setStatementEvaluator(interfaces::IStatementEvaluator* evaluator)
         {
             stmtEvaluator = evaluator;
         }

@@ -1,5 +1,5 @@
 #include "InstanceOperationHandler.hpp"
-#include "../StatementEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/AsyncReturnGuard.hpp"
@@ -12,6 +12,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
+#include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/ReturnException.hpp"
 
 using namespace errors;
@@ -178,8 +179,7 @@ namespace objects {
         auto method = classDef->findInstanceMethodInHierarchy(methodName, args.size());
         if (!method)
         {
-            throw UndefinedException("Instance method '" + methodName + "' not found in class '" +
-                classDef->getName() + "'");
+            throw MethodNotFoundException(methodName, classDef->getName(), SourceLocation{});
         }
 
         // ACCESS CONTROL: Validate method access permissions

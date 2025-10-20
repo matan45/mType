@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IObjectEvaluator.hpp"
 #include "../../ast/NodeClassesDeclaration.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>
@@ -15,12 +17,6 @@ namespace ast
             class AssignmentNode;
         }
     }
-}
-
-namespace evaluator
-{
-    class ExpressionEvaluator;
-    class ObjectEvaluator;
 }
 
 namespace evaluator
@@ -45,13 +41,14 @@ namespace evaluator
          * Design Principles:
          * - Single Responsibility: Only declaration and assignment logic
          * - Delegates type validation to TypeValidator utility
+         * - Dependency Inversion: Depends on interfaces
          */
         class DeclarationHandler
         {
         private:
             std::shared_ptr<EvaluationContext> context;
-            evaluator::ExpressionEvaluator* exprEvaluator;
-            evaluator::ObjectEvaluator* objEvaluator;
+            interfaces::IExpressionEvaluator* exprEvaluator;
+            interfaces::IObjectEvaluator* objEvaluator;
 
         public:
             explicit DeclarationHandler(std::shared_ptr<EvaluationContext> ctx)
@@ -59,12 +56,12 @@ namespace evaluator
             {
             }
 
-            void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator)
+            void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
             {
                 exprEvaluator = evaluator;
             }
 
-            void setObjectEvaluator(evaluator::ObjectEvaluator* evaluator)
+            void setObjectEvaluator(interfaces::IObjectEvaluator* evaluator)
             {
                 objEvaluator = evaluator;
             }
@@ -118,8 +115,6 @@ namespace evaluator
                                                    std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
 
             // Utility helpers
-            Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
-                                           const SourceLocation& location);
             std::shared_ptr<runtimeTypes::global::VariableDefinition> createVariableDefinition(
                 AssignmentNode* node, const Value& value);
         };

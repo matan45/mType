@@ -44,25 +44,15 @@ namespace evaluator::managers
                          const std::string& memberName,
                          const Value& value,
                          const SourceLocation& location = SourceLocation());
-        
-        Value callMethod(std::shared_ptr<ObjectInstance> object,
-                        const std::string& methodName,
-                        const std::vector<Value>& args,
-                        std::shared_ptr<Environment> environment,
-                        const SourceLocation& location = SourceLocation());
-        
-        Value accessStaticMember(const std::string& className, 
+
+        Value accessStaticMember(const std::string& className,
                                 const std::string& memberName,
                                 std::shared_ptr<Environment> environment) const;
-        void assignStaticMember(const std::string& className, 
+        void assignStaticMember(const std::string& className,
                                const std::string& memberName,
                                const Value& value,
                                std::shared_ptr<Environment> environment);
-        Value callStaticMethod(const std::string& className, 
-                              const std::string& methodName,
-                              const std::vector<Value>& args,
-                              std::shared_ptr<Environment> environment);
-        
+
         // Copy prevention
         InstanceManager(const InstanceManager&) = delete;
         InstanceManager& operator=(const InstanceManager&) = delete;

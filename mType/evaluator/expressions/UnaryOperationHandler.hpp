@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IObjectEvaluator.hpp"
 #include "../../ast/NodeClassesDeclaration.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>
@@ -12,11 +14,6 @@ namespace expressions {
     class UnaryExpNode;
 }
 }
-}
-
-namespace evaluator {
-    class ExpressionEvaluator;
-    class ObjectEvaluator;
 }
 
 namespace evaluator {
@@ -38,19 +35,20 @@ namespace expressions {
      * Design Principles:
      * - Single Responsibility: Only unary operations
      * - Handles both simple variables and member access expressions
+     * - Dependency Inversion: Depends on interfaces
      */
     class UnaryOperationHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        ExpressionEvaluator* exprEvaluator;
-        ObjectEvaluator* objEvaluator;
+        interfaces::IExpressionEvaluator* exprEvaluator;
+        interfaces::IObjectEvaluator* objEvaluator;
 
     public:
         explicit UnaryOperationHandler(std::shared_ptr<EvaluationContext> ctx);
 
-        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+        void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator);
 
-        void setObjectEvaluator(ObjectEvaluator* evaluator);
+        void setObjectEvaluator(interfaces::IObjectEvaluator* evaluator);
 
         Value evaluateUnaryOperation(UnaryExpNode* node);
     };

@@ -111,37 +111,6 @@ namespace evaluator::managers
                                  object->getTypeName() + "'", location);
     }
 
-    Value InstanceManager::callMethod(std::shared_ptr<ObjectInstance> object,
-                                      const std::string& methodName,
-                                      const std::vector<Value>& args,
-                                      std::shared_ptr<Environment> environment,
-                                      const SourceLocation& location)
-    {
-        if (!object)
-        {
-            throw TypeException("Cannot call method '" + methodName + "' on null object", location);
-        }
-
-        auto classDef = object->getClassDefinition();
-        if (!classDef)
-        {
-            throw TypeException("Object has no class definition", location);
-        }
-
-        auto method = classDef->findMethod(methodName, args.size());
-        if (!method)
-        {
-            throw UndefinedException("Method '" + methodName + "' with " +
-                                     std::to_string(args.size()) +
-                                     " arguments not found in class '" +
-                                     object->getTypeName() + "'", location);
-        }
-
-        // Method execution would be handled by the calling evaluator
-        // This manager only validates and finds the method
-        throw TypeException("Method execution should be handled by calling evaluator", location);
-    }
-
     Value InstanceManager::accessStaticMember(const std::string& className,
                                               const std::string& memberName,
                                               std::shared_ptr<Environment> environment) const
@@ -196,34 +165,5 @@ namespace evaluator::managers
         }
 
         field->setValue(value);
-    }
-
-    Value InstanceManager::callStaticMethod(const std::string& className,
-                                            const std::string& methodName,
-                                            const std::vector<Value>& args,
-                                            std::shared_ptr<Environment> environment)
-    {
-        if (!environment)
-        {
-            throw TypeException("Environment is null during static method call");
-        }
-
-        auto classDef = environment->getClassRegistry()->findItem(className);
-        if (!classDef)
-        {
-            throw UndefinedException("Class '" + className + "' is not defined");
-        }
-
-        auto method = classDef->findMethod(methodName, args.size());
-        if (!method || !method->isStatic())
-        {
-            throw UndefinedException("Static method '" + methodName + "' with " +
-                std::to_string(args.size()) +
-                " arguments not found in class '" + className + "'");
-        }
-
-        // Static method execution would be handled by the calling evaluator
-        // This manager only validates and finds the method
-        throw TypeException("Static method execution should be handled by calling evaluator");
     }
 }

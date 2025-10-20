@@ -351,6 +351,13 @@ namespace evaluator
 
     Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object,
                                       const std::string& methodName,
+                                      const std::vector<Value>& args)
+    {
+        return callMethod(object, methodName, args, errors::SourceLocation{});
+    }
+
+    Value ObjectEvaluator::callMethod(std::shared_ptr<ObjectInstance> object,
+                                      const std::string& methodName,
                                       const std::vector<Value>& args,
                                       const errors::SourceLocation& location)
     {

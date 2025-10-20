@@ -24,166 +24,24 @@ namespace objects {
         std::vector<Value> args = evaluateArgumentList(node->getArguments());
         std::string className = node->getClassName();
 
-        // Handle regular class instantiation
-        std::shared_ptr<ClassDefinition> classDef;
-        auto env = context->getEnvironment();
+        // Resolve type parameters from context
+        std::string resolvedClassName = resolveClassName(className);
 
-        // Try to resolve type parameters from current object context first
-        std::string resolvedClassName = className;
-        if (utils::GenericTypeManager::isGenericInstantiation(className))
-        {
-            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
-
-            std::vector<std::string> resolvedTypeArguments;
-            bool hasResolvedParams = false;
-            for (const std::string& typeArg : typeArguments)
-            {
-                std::string resolvedType = resolveTypeParameterFromContext(typeArg);
-                resolvedTypeArguments.push_back(resolvedType);
-                if (resolvedType != typeArg)
-                {
-                    hasResolvedParams = true;
-                }
-            }
-
-            // If we resolved any type parameters, construct the resolved class name
-            if (hasResolvedParams)
-            {
-                resolvedClassName = baseName + "<" + resolvedTypeArguments[0];
-                for (size_t i = 1; i < resolvedTypeArguments.size(); ++i)
-                {
-                    resolvedClassName += "," + resolvedTypeArguments[i];
-                }
-                resolvedClassName += ">";
-            }
-        }
-
-        // Check if we should use the resolved class name for direct instantiation
-        if (resolvedClassName != className)
-        {
-            // We resolved type parameters - try to find the instantiated class directly
-            auto instantiatedClass = env->findClass(resolvedClassName);
-            if (instantiatedClass)
-            {
-                classDef = instantiatedClass;
-            }
-            else
-            {
-                className = resolvedClassName; // Use resolved name for generic instantiation
-            }
-        }
-
-        // Check if this is a generic instantiation (only if we haven't already found instantiated class)
-        if (!classDef && utils::GenericTypeManager::isGenericInstantiation(className))
-        {
-            // Parse generic instantiation
-            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
-
-            // Find the generic class template
-            auto genericClass = env->findClass(baseName);
-            if (!genericClass)
-            {
-                throw UndefinedException("Generic class '" + baseName + "' not found");
-            }
-
-            if (!genericClass->isGeneric())
-            {
-                throw TypeException("Class '" + baseName + "' is not generic but used with type arguments",
-                                   node->getLocation());
-            }
-
-            // Validate type arguments
-            if (!utils::GenericTypeManager::validateTypeArguments(genericClass, typeArguments))
-            {
-                throw TypeException("Invalid type arguments for generic class '" + baseName + "'",
-                                   node->getLocation());
-            }
-
-            // Create instantiated class
-            classDef = utils::GenericTypeManager::instantiateGenericClass(genericClass, typeArguments);
-            if (!classDef)
-            {
-                throw TypeException("Failed to instantiate generic class '" + className + "'",
-                                   node->getLocation());
-            }
-
-            // Register the instantiated class for future use
-            env->registerClass(className, classDef);
-        }
-        else
-        {
-            // Regular non-generic class - use resolved class name if available
-            std::string classNameToLookup = (resolvedClassName != className) ? resolvedClassName : className;
-            classDef = env->findClass(classNameToLookup);
-        }
-
+        // Find or instantiate the class
+        auto classDef = findOrInstantiateClass(resolvedClassName, node);
         if (!classDef)
         {
-            std::string classNameToReport = (resolvedClassName != className) ? resolvedClassName : className;
-            throw UndefinedException("Class '" + classNameToReport + "' not found");
+            throw UndefinedException("Class '" + resolvedClassName + "' not found");
         }
-
-        std::string classNameForInstance = (resolvedClassName != className) ? resolvedClassName : className;
 
         // Extract generic type bindings for this instance
-        std::unordered_map<std::string, std::string> genericTypeBindings;
-        std::string baseClassName = classNameForInstance;
-
-        if (utils::GenericTypeManager::isGenericInstantiation(classNameForInstance))
-        {
-            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(classNameForInstance);
-
-            // Use the base class name for lookup (e.g., "LinkedList" instead of "LinkedList<String>")
-            baseClassName = baseName;
-
-            // Look up the generic template class
-            auto templateClassDef = env->findClass(baseClassName);
-
-            if (templateClassDef && templateClassDef->isGeneric())
-            {
-                const auto& genericParams = templateClassDef->getGenericParameters();
-
-                // Map each generic parameter to its concrete type
-                for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
-                {
-                    // Resolve the type argument in case it's itself a type parameter
-                    // For example, if we're in a generic method<T> and create new HashSet<T>(),
-                    // we need to resolve T to its actual type (e.g., String)
-                    std::string resolvedTypeArg = typeArguments[i];
-
-                    // Try to resolve from context's type bindings (for generic methods)
-                    const auto& contextBindings = context->getGenericTypeBindings();
-
-                    auto it = contextBindings.find(typeArguments[i]);
-                    if (it != contextBindings.end())
-                    {
-                        resolvedTypeArg = it->second;
-                    }
-                    else
-                    {
-                        // Try to resolve from current instance's type bindings (for generic classes)
-                        auto currentInstance = context->getCurrentInstance();
-                        if (currentInstance)
-                        {
-                            const auto& instanceBindings = currentInstance->getGenericTypeBindings();
-                            auto instIt = instanceBindings.find(typeArguments[i]);
-                            if (instIt != instanceBindings.end())
-                            {
-                                resolvedTypeArg = instIt->second;
-                            }
-                        }
-                    }
-
-                    genericTypeBindings[genericParams[i].name] = resolvedTypeArg;
-                }
-
-                // Use the template class definition for creating the instance
-                classDef = templateClassDef;
-            }
-        }
+        auto genericTypeBindings = extractGenericTypeBindings(resolvedClassName);
 
         // Create instance using ObjectEvaluator's helper method
-        auto instance = objEvaluator->createInstanceWithTypeBindings(classNameForInstance, args, genericTypeBindings);
+        auto instance = objEvaluator->createInstanceWithTypeBindings(resolvedClassName, args, genericTypeBindings);
+
+        // Get environment for constructor execution
+        auto env = context->getEnvironment();
 
         // Execute constructor if it exists
         if (classDef && !classDef->getConstructors().empty())
@@ -348,6 +206,153 @@ namespace objects {
             }
         }
         return typeParam; // Return original if not found
+    }
+
+    // ========== Helper Methods for evaluateNew Refactoring ==========
+
+    std::string GenericInstantiationHandler::resolveClassName(const std::string& className)
+    {
+        if (!utils::GenericTypeManager::isGenericInstantiation(className))
+        {
+            return className;
+        }
+
+        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+        std::vector<std::string> resolvedTypeArguments;
+        bool hasResolvedParams = false;
+
+        for (const std::string& typeArg : typeArguments)
+        {
+            std::string resolvedType = resolveTypeParameterFromContext(typeArg);
+            resolvedTypeArguments.push_back(resolvedType);
+            if (resolvedType != typeArg)
+            {
+                hasResolvedParams = true;
+            }
+        }
+
+        if (!hasResolvedParams)
+        {
+            return className;
+        }
+
+        // Construct resolved class name
+        std::string resolvedClassName = baseName + "<" + resolvedTypeArguments[0];
+        for (size_t i = 1; i < resolvedTypeArguments.size(); ++i)
+        {
+            resolvedClassName += "," + resolvedTypeArguments[i];
+        }
+        resolvedClassName += ">";
+        return resolvedClassName;
+    }
+
+    std::shared_ptr<runtimeTypes::klass::ClassDefinition>
+    GenericInstantiationHandler::findOrInstantiateClass(const std::string& className, const NewNode* node)
+    {
+        auto env = context->getEnvironment();
+
+        // Check if this is a generic instantiation
+        if (!utils::GenericTypeManager::isGenericInstantiation(className))
+        {
+            return env->findClass(className);
+        }
+
+        // Parse generic instantiation
+        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(className);
+
+        // Try to find already instantiated class
+        auto instantiatedClass = env->findClass(className);
+        if (instantiatedClass)
+        {
+            return instantiatedClass;
+        }
+
+        // Find the generic class template
+        auto genericClass = env->findClass(baseName);
+        if (!genericClass)
+        {
+            throw UndefinedException("Generic class '" + baseName + "' not found");
+        }
+
+        if (!genericClass->isGeneric())
+        {
+            throw TypeException("Class '" + baseName + "' is not generic but used with type arguments",
+                               node->getLocation());
+        }
+
+        // Validate type arguments
+        if (!utils::GenericTypeManager::validateTypeArguments(genericClass, typeArguments))
+        {
+            throw TypeException("Invalid type arguments for generic class '" + baseName + "'",
+                               node->getLocation());
+        }
+
+        // Create instantiated class
+        auto classDef = utils::GenericTypeManager::instantiateGenericClass(genericClass, typeArguments);
+        if (!classDef)
+        {
+            throw TypeException("Failed to instantiate generic class '" + className + "'",
+                               node->getLocation());
+        }
+
+        // Register the instantiated class for future use
+        env->registerClass(className, classDef);
+        return classDef;
+    }
+
+    std::unordered_map<std::string, std::string>
+    GenericInstantiationHandler::extractGenericTypeBindings(const std::string& classNameForInstance)
+    {
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+
+        if (!utils::GenericTypeManager::isGenericInstantiation(classNameForInstance))
+        {
+            return genericTypeBindings;
+        }
+
+        auto env = context->getEnvironment();
+        auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(classNameForInstance);
+
+        // Look up the generic template class
+        auto templateClassDef = env->findClass(baseName);
+        if (!templateClassDef || !templateClassDef->isGeneric())
+        {
+            return genericTypeBindings;
+        }
+
+        const auto& genericParams = templateClassDef->getGenericParameters();
+
+        // Map each generic parameter to its concrete type
+        for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+        {
+            std::string resolvedTypeArg = typeArguments[i];
+
+            // Try to resolve from context's type bindings (for generic methods)
+            const auto& contextBindings = context->getGenericTypeBindings();
+            auto it = contextBindings.find(typeArguments[i]);
+            if (it != contextBindings.end())
+            {
+                resolvedTypeArg = it->second;
+            }
+            else
+            {
+                // Try to resolve from current instance's type bindings (for generic classes)
+                auto currentInstance = context->getCurrentInstance();
+                if (currentInstance)
+                {
+                    const auto& instanceBindings = currentInstance->getGenericTypeBindings();
+                    auto instIt = instanceBindings.find(typeArguments[i]);
+                    if (instIt != instanceBindings.end())
+                    {
+                        resolvedTypeArg = instIt->second;
+                    }
+                }
+            }
+
+            genericTypeBindings[genericParams[i].name] = resolvedTypeArg;
+        }
+
+        return genericTypeBindings;
     }
 
 } // namespace objects

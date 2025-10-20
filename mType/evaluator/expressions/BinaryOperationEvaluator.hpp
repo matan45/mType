@@ -44,13 +44,47 @@ namespace evaluator
 
             void setExpressionEvaluator(ExpressionEvaluator* evaluator);
 
-            Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
+            Value evaluateArithmetic(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
 
-            Value evaluateComparison(const Value& left, const Value& right, TokenType op);
+            Value evaluateComparison(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
 
-            Value evaluateLogical(const Value& left, const Value& right, TokenType op);
+            Value evaluateLogical(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
 
-            Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
+            Value evaluateStringOperation(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
+
+        private:
+            // Helper methods for evaluateComparison refactoring
+            template<typename T>
+            bool performComparisonOp(const T& leftVal, const T& rightVal, TokenType op, const errors::SourceLocation& location);
+
+            std::string extractStringValue(const Value& value, const errors::SourceLocation& location);
+
+            Value compareNulls(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
+
+            Value compareStrings(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
+
+            Value compareBooleans(bool leftBool, bool rightBool, TokenType op, const errors::SourceLocation& location);
+
+            Value compareObjects(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
+
+            Value compareNumeric(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
         };
+
+        // Template implementation must be in header
+        template<typename T>
+        bool BinaryOperationEvaluator::performComparisonOp(const T& leftVal, const T& rightVal, TokenType op, const errors::SourceLocation& location)
+        {
+            switch (op)
+            {
+            case TokenType::EQUALS: return leftVal == rightVal;
+            case TokenType::NOT_EQUALS: return leftVal != rightVal;
+            case TokenType::LESS: return leftVal < rightVal;
+            case TokenType::LESS_EQUALS: return leftVal <= rightVal;
+            case TokenType::GREATER: return leftVal > rightVal;
+            case TokenType::GREATER_EQUALS: return leftVal >= rightVal;
+            default:
+                throw errors::TypeException("Invalid comparison operator", location);
+            }
+        }
     }
 }

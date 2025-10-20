@@ -1,6 +1,4 @@
 #include "ImportAndFunctionHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../StatementEvaluator.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
@@ -15,6 +13,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../services/ImportManager.hpp"
 #include "../../environment/registry/ExportRegistry.hpp"
+#include "../../environment/registry/ExportSymbolCollector.hpp"
 
 using namespace errors;
 using namespace runtimeTypes::global;
@@ -117,74 +116,16 @@ namespace statements {
                                                           const std::string& filePath,
                                                           std::shared_ptr<ExportRegistry> exportRegistry)
     {
-        if (!ast) return;
-
-        // Handle ProgramNode - traverse all statements
-        if (auto programNode = dynamic_cast<ast::nodes::statements::ProgramNode*>(ast))
-        {
-            const auto& statements = programNode->getStatements();
-            for (const auto& stmt : statements)
-            {
-                collectExportedSymbolsFromNode(stmt.get(), filePath, exportRegistry);
-            }
-        }
-        else
-        {
-            collectExportedSymbolsFromNode(ast, filePath, exportRegistry);
-        }
+        // Delegate to shared utility - eliminates code duplication with BytecodeCompiler (VM)
+        ExportSymbolCollector::collectExportedSymbols(ast, filePath, exportRegistry);
     }
 
     void ImportAndFunctionHandler::collectExportedSymbolsFromNode(ASTNode* node,
                                                                   const std::string& filePath,
                                                                   std::shared_ptr<ExportRegistry> exportRegistry)
     {
-        using namespace ast::nodes::classes;
-        using namespace ast::nodes::functions;
-        using namespace ast::nodes::statements;
-
-        if (!node) return;
-
-        // Register class
-        if (auto classNode = dynamic_cast<ClassNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                classNode->getClassName(),
-                ExportedSymbolType::CLASS,
-                classNode->getVisibility()
-            );
-        }
-        // Register interface
-        else if (auto interfaceNode = dynamic_cast<InterfaceNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                interfaceNode->getName(),
-                ExportedSymbolType::INTERFACE,
-                interfaceNode->getVisibility()
-            );
-        }
-        // Register function
-        else if (auto functionNode = dynamic_cast<FunctionNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                functionNode->getName(),
-                ExportedSymbolType::FUNCTION,
-                functionNode->getVisibility()
-            );
-        }
-        // Register variable (top-level declarations)
-        else if (auto assignmentNode = dynamic_cast<AssignmentNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                assignmentNode->getVariableName(),
-                ExportedSymbolType::VARIABLE,
-                assignmentNode->getVisibility()
-            );
-        }
-        // Handle other node types if needed
+        // Delegate to shared utility - eliminates code duplication with BytecodeCompiler (VM)
+        ExportSymbolCollector::collectExportedSymbolsFromNode(node, filePath, exportRegistry);
     }
 
     void ImportAndFunctionHandler::validateAndImportSymbols(ImportNode* node,
@@ -327,52 +268,6 @@ namespace statements {
 
 
         return std::monostate{}; // Function definitions don't return values
-    }
-
-    Value ImportAndFunctionHandler::convertLambdaToInterface(const Value& lambdaValue,
-                                                            const std::string& interfaceName,
-                                                            const errors::SourceLocation& location)
-    {
-        // Extract the lambda value
-        auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
-        auto* lambdaNode = lambdaPtr->getLambda();
-
-        // Get the interface definition from the environment
-        auto env = context->getEnvironment();
-        auto interfaceDef = env->findInterface(interfaceName);
-
-        if (!interfaceDef)
-        {
-            return lambdaValue;
-        }
-
-        // Check if the interface is functional (has exactly one method)
-        if (!interfaceDef->isFunctionalInterface())
-        {
-            auto methodSignatures = interfaceDef->getMethodSignatures();
-            throw errors::TypeException(
-                "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
-                "Lambdas can only be assigned to interfaces with exactly one method. " +
-                "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
-                "Consider using a functional interface (single method) or implement the interface explicitly.",
-                location
-            );
-        }
-
-        // Create the lambda implementation class
-        auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
-        if (!implClass)
-        {
-            return lambdaValue;
-        }
-
-        // Create an instance of the implementation class
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
-
-        // Store the lambda in a special field that the implementation can access
-        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, lambdaValue);
-
-        return instance;
     }
 
 } // namespace statements

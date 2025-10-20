@@ -189,6 +189,17 @@ namespace value
             );
         }
 
+        // IMultiDimensionalArray interface implementation
+        const char* getTypeName() const override {
+            return "FlatMultiArray";
+        }
+
+        std::shared_ptr<IMultiDimensionalArray> getSubArray(size_t index) const override {
+            // Cast away const for view creation (view modifications are tracked separately)
+            auto* self = const_cast<FlatMultiArray*>(this);
+            return std::static_pointer_cast<IMultiDimensionalArray>(self->getSubArray(index));
+        }
+
         // Common interface inherited from MultiArrayBase:
         // - totalSize()
         // - getDimensions()
@@ -196,6 +207,8 @@ namespace value
         // - empty()
         // - size()
         // - hasDimensions()
+        // - get(indices) - already implemented
+        // - get(index) - already implemented
 
         /**
          * @brief Reset array with new default value (for pool reuse)

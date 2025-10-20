@@ -14,7 +14,9 @@
 
 // Forward declarations
 namespace evaluator {
-    class StatementEvaluator;
+namespace interfaces {
+    class IStatementEvaluator;
+}
 }
 
 namespace evaluator {
@@ -39,19 +41,20 @@ namespace objects {
      * - Single Responsibility: Only instance-level operations
      * - Delegates low-level operations to InstanceManager
      * - Handles complex method invocation with context management
+     * - Dependency Inversion: Depends on IStatementEvaluator interface
      */
     class InstanceOperationHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
         InstanceManager* instanceManager;
-        evaluator::StatementEvaluator* stmtEvaluator;
+        interfaces::IStatementEvaluator* stmtEvaluator;
 
     public:
         explicit InstanceOperationHandler(std::shared_ptr<EvaluationContext> ctx,
                                          InstanceManager* instMgr)
             : context(ctx), instanceManager(instMgr), stmtEvaluator(nullptr) {}
 
-        void setStatementEvaluator(evaluator::StatementEvaluator* evaluator) {
+        void setStatementEvaluator(interfaces::IStatementEvaluator* evaluator) {
             stmtEvaluator = evaluator;
         }
 

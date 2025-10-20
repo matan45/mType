@@ -9,8 +9,9 @@
 #include <optional>
 
 namespace evaluator {
-    // Forward declaration
-    class ExpressionEvaluator;
+namespace interfaces {
+    class IExpressionEvaluator;
+}
 }
 
 namespace evaluator {
@@ -32,16 +33,17 @@ namespace objects {
      * Design Principles:
      * - Single Responsibility: Only array assignment operations
      * - Supports: 2D arrays, 3D+ arrays, jagged arrays
+     * - Dependency Inversion: Depends on IExpressionEvaluator interface
      */
     class ArrayAssignmentHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        ExpressionEvaluator* exprEvaluator;
+        interfaces::IExpressionEvaluator* exprEvaluator;
 
     public:
         explicit ArrayAssignmentHandler(std::shared_ptr<EvaluationContext> ctx);
-        
-        void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+
+        void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator);
 
        
         Value evaluateIndexAssignment(IndexAssignmentNode* node);

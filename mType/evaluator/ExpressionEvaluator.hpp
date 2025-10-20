@@ -2,6 +2,8 @@
 #include "base/EvaluationContext.hpp"
 #include "utils/ValueConverter.hpp"
 #include "utils/NodeDispatcher.hpp"
+#include "interfaces/IExpressionEvaluator.hpp"
+#include "interfaces/IValueConverter.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/expressions/NullNode.hpp"
@@ -21,6 +23,8 @@ namespace expressions {
     class ArrayHandler;
     class UnaryOperationHandler;
     class AccessHandler;
+    class SuperCallHandler;
+    class CastAndTypeCheckHandler;
 }
 }
 
@@ -39,9 +43,13 @@ namespace evaluator
      * @brief Refactored Expression Evaluator following SOLID principles
      * - Single Responsibility: Only handles expression evaluation
      * - Open/Closed: Extensible through composition
-     * - Liskov Substitution: Implements IExpressionEvaluator interface
-     * - Interface Segregation: Uses specialized interfaces
+     * - Liskov Substitution: Implements IExpressionEvaluator and IValueConverter interfaces
+     * - Interface Segregation: Implements two focused interfaces
      * - Dependency Inversion: Depends on abstractions (EvaluationContext)
+     *
+     * Implements both IExpressionEvaluator (core evaluation) and IValueConverter
+     * (type conversions) to provide complete expression evaluation functionality.
+     * Clients can depend on either interface based on their needs.
      */
     // Forward declarations
     namespace expressions {
@@ -49,7 +57,8 @@ namespace evaluator
         class BinaryOperationEvaluator;
     }
 
-    class ExpressionEvaluator
+    class ExpressionEvaluator : public interfaces::IExpressionEvaluator,
+                                 public interfaces::IValueConverter
     {
     private:
         std::shared_ptr<EvaluationContext> context;
@@ -61,6 +70,8 @@ namespace evaluator
         std::unique_ptr<expressions::ArrayHandler> arrayHandler;
         std::unique_ptr<expressions::UnaryOperationHandler> unaryOpHandler;
         std::unique_ptr<expressions::AccessHandler> accessHandler;
+        std::unique_ptr<expressions::SuperCallHandler> superCallHandler;
+        std::unique_ptr<expressions::CastAndTypeCheckHandler> castAndTypeCheckHandler;
 
         // Node dispatcher for O(1) dispatch instead of cascading dynamic_cast
         utils::NodeDispatcher<ExpressionEvaluator> dispatcher;
@@ -71,17 +82,17 @@ namespace evaluator
 
     public:
         explicit ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~ExpressionEvaluator();
+        ~ExpressionEvaluator() override;
 
-        // Main interface methods
-        Value evaluate(ASTNode* node);
-        bool canHandle(ASTNode* node) const;
+        // IExpressionEvaluator interface implementation
+        Value evaluate(ASTNode* node) override;
+        bool canHandle(ASTNode* node) const override;
 
-        // Type conversion methods
-        bool isTruthy(const Value& value) const;
-        std::string toString(const Value& value) const;
-        float toFloat(const Value& value) const;
-        int toInt(const Value& value) const;
+        // IValueConverter interface implementation
+        bool isTruthy(const Value& value) const override;
+        std::string toString(const Value& value) const override;
+        float toFloat(const Value& value) const override;
+        int toInt(const Value& value) const override;
 
         // Expression evaluation methods (now private implementation details)
         Value evaluateIntegerNode(IntegerNode* node);
@@ -112,8 +123,7 @@ namespace evaluator
         Value evaluateCastExpression(CastExpression* node);
         Value evaluateInstanceOfExpression(InstanceOfExpression* node);
 
-        // Async/await expressions
-        Value evaluateAwaitExpression(AwaitExpression* node);
+        // NOTE: AwaitExpression is handled by EvaluatorCoordinator for async/await support
 
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
@@ -124,10 +134,8 @@ namespace evaluator
         void initializeDispatcher();
 
         // Helper methods for binary operations
-        Value evaluateArithmetic(const Value& left, const Value& right, TokenType op);
-        Value evaluateComparison(const Value& left, const Value& right, TokenType op);
-        Value evaluateLogical(const Value& left, const Value& right, TokenType op);
-        Value evaluateStringOperation(const Value& left, const Value& right, TokenType op);
+        Value evaluateArithmetic(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
+        Value evaluateComparison(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location);
 
         // Node type checking - now delegated to NodeTypeRegistry
         bool isExpressionNode(ASTNode* node) const;
@@ -138,10 +146,5 @@ namespace evaluator
 
         // Helper for default values
         Value getDefaultValueForType(const ::parser::TypeInfo& elementType);
-
-        // Cast helper methods
-        Value castPrimitive(const Value& value, ValueType targetType, const std::string& targetTypeName, const SourceLocation& location);
-        Value castObject(const Value& value, const std::string& targetClassName, const SourceLocation& location);
-        bool isInstanceOfClass(std::shared_ptr<ObjectInstance> objInstance, const std::string& targetClassName);
     };
 }

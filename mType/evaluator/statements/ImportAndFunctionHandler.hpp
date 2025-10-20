@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include <memory>
@@ -26,11 +28,6 @@ namespace registry {
 }
 
 namespace evaluator {
-    class ExpressionEvaluator;
-    class StatementEvaluator;
-}
-
-namespace evaluator {
 namespace statements {
 
     using namespace base;
@@ -50,23 +47,23 @@ namespace statements {
      * Design Principles:
      * - Single Responsibility: Only imports and function registration
      * - Delegates to ImportManager for actual import logic
-     * - Handles function/native function registration
+     * - Dependency Inversion: Depends on interfaces
      */
     class ImportAndFunctionHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-        evaluator::StatementEvaluator* stmtEvaluator;
+        interfaces::IExpressionEvaluator* exprEvaluator;
+        interfaces::IStatementEvaluator* stmtEvaluator;
 
     public:
         explicit ImportAndFunctionHandler(std::shared_ptr<EvaluationContext> ctx)
             : context(ctx), exprEvaluator(nullptr), stmtEvaluator(nullptr) {}
 
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
+        void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator) {
             exprEvaluator = evaluator;
         }
 
-        void setStatementEvaluator(evaluator::StatementEvaluator* evaluator) {
+        void setStatementEvaluator(interfaces::IStatementEvaluator* evaluator) {
             stmtEvaluator = evaluator;
         }
 
@@ -79,12 +76,6 @@ namespace statements {
          * Evaluate a function definition
          */
         Value evaluateFunction(FunctionNode* node);
-
-        /**
-         * Convert a lambda value to an interface implementation
-         */
-        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
-                                      const errors::SourceLocation& location = errors::SourceLocation{});
 
     private:
         /**

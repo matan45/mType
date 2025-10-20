@@ -46,6 +46,9 @@
     <Filter Include="evaluator\expressions">
       <UniqueIdentifier>{4A3D52C9-B6A9-0DC4-7F9D-A521EBC82F2C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="evaluator\interfaces">
+      <UniqueIdentifier>{2B6E0012-17FD-89DB-C01B-9ED6AC899A81}</UniqueIdentifier>
+    </Filter>
     <Filter Include="evaluator\managers">
       <UniqueIdentifier>{B575FFA2-A159-C0F8-0ABA-BA4BF6BCAA7A}</UniqueIdentifier>
     </Filter>
@@ -588,6 +591,9 @@
     <ClInclude Include="environment\registry\ExportRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\ExportSymbolCollector.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\FunctionRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
@@ -711,11 +717,29 @@
     <ClInclude Include="evaluator\expressions\CallHandler.hpp">
       <Filter>evaluator\expressions</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\expressions\CastAndTypeCheckHandler.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\expressions\LiteralEvaluator.hpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\expressions\SuperCallHandler.hpp">
       <Filter>evaluator\expressions</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\expressions\UnaryOperationHandler.hpp">
       <Filter>evaluator\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\interfaces\IExpressionEvaluator.hpp">
+      <Filter>evaluator\interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\interfaces\IObjectEvaluator.hpp">
+      <Filter>evaluator\interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\interfaces\IStatementEvaluator.hpp">
+      <Filter>evaluator\interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\interfaces\IValueConverter.hpp">
+      <Filter>evaluator\interfaces</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\managers\ControlFlowManager.hpp">
       <Filter>evaluator\managers</Filter>
@@ -760,6 +784,12 @@
       <Filter>evaluator\utils</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\GenericTypeManager.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\LambdaConversionUtils.hpp">
+      <Filter>evaluator\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="evaluator\utils\MultiArrayAccessor.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
     <ClInclude Include="evaluator\utils\NodeDispatcher.hpp">
@@ -1096,6 +1126,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\FlatMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\IMultiDimensionalArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\InternedString.hpp">
@@ -1475,6 +1508,9 @@
     <ClCompile Include="environment\registry\ExportRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\ExportSymbolCollector.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\FunctionRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
@@ -1520,7 +1556,13 @@
     <ClCompile Include="evaluator\expressions\CallHandler.cpp">
       <Filter>evaluator\expressions</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\expressions\CastAndTypeCheckHandler.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\expressions\LiteralEvaluator.cpp">
+      <Filter>evaluator\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\expressions\SuperCallHandler.cpp">
       <Filter>evaluator\expressions</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\expressions\UnaryOperationHandler.cpp">
@@ -1566,6 +1608,9 @@
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\GenericTypeManager.cpp">
+      <Filter>evaluator\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="evaluator\utils\LambdaConversionUtils.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
     <ClCompile Include="evaluator\utils\NodeTypeRegistry.cpp">

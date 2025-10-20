@@ -1,4 +1,5 @@
 #pragma once
+#include "IMultiDimensionalArray.hpp"
 #include "ValueType.hpp"
 #include <vector>
 #include <memory>
@@ -60,7 +61,7 @@ namespace value
      *    - ✅ Understanding shared ownership through shared_ptr
      */
     template<typename Derived>
-    class MultiArrayBase : public std::enable_shared_from_this<Derived>
+    class MultiArrayBase : public IMultiDimensionalArray, public std::enable_shared_from_this<Derived>
     {
     protected:
         std::vector<size_t> dimensions_;    // Size of each dimension [n1, n2, n3, ...]

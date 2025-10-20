@@ -1,12 +1,10 @@
 #include "LoopEvaluator.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../StatementEvaluator.hpp"
-#include "../ObjectEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/BreakException.hpp"
 #include "../../errors/ContinueException.hpp"
+#include "../../errors/ReturnException.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -237,52 +235,38 @@ namespace evaluator
                     // OPTIMIZATION: Use unchecked access since loop bounds are verified by i < array->size()
                     for (size_t i = 0; i < array->size(); ++i)
                     {
-                        Value element = array->getUnchecked(i);  // Faster than array->get(i)
-
-                        // Define the loop variable in this scope
-                        auto varType = node->getVariableType();
-                        auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                            node->getVariableName(), varType, element, false, "");
-
-                        env->declareVariable(node->getVariableName(), variableDef);
-
-                        // Execute the loop body
-                        if (node->getBody())
+                        try
                         {
-                            try
-                            {
-                                Value result = stmtEvaluator->evaluate(node->getBody());
+                            executeForEachIteration(array->getUnchecked(i), node);
+                        }
+                        catch (const BreakException&)
+                        {
+                            // Break caught - exit foreach loop
+                            flowManager->resetLoopFlags();
+                            flowManager->exitLoop();
+                            return std::monostate{};
+                        }
+                        catch (const ContinueException&)
+                        {
+                            // Continue caught - reset flags and continue to next iteration
+                            flowManager->resetLoopFlags();
+                            continue;
+                        }
+                        catch (const errors::ReturnException& e)
+                        {
+                            // Return caught - exit loop and propagate return value
+                            flowManager->exitLoop();
+                            return e.returnValue;
+                        }
 
-                                // Handle control flow statements
-                                if (context->shouldReturn())
-                                {
-                                    flowManager->exitLoop();
-                                    return result;
-                                }
-                            }
-                            catch (const BreakException&)
-                            {
-                                // Break caught - exit foreach loop
-                                flowManager->resetLoopFlags();
-                                flowManager->exitLoop();
-                                return std::monostate{};
-                            }
-                            catch (const ContinueException&)
-                            {
-                                // Continue caught - reset flags and continue to next iteration
-                                flowManager->resetLoopFlags();
-                                continue;
-                            }
-
-                            // Check for other control flow interruptions
-                            if (flowManager->isBreaking())
-                            {
-                                break;
-                            }
-                            if (flowManager->isContinuing())
-                            {
-                                flowManager->resetLoopFlags();
-                            }
+                        // Check for other control flow interruptions
+                        if (flowManager->isBreaking())
+                        {
+                            break;
+                        }
+                        if (flowManager->isContinuing())
+                        {
+                            flowManager->resetLoopFlags();
                         }
                     }
                     flowManager->exitLoop();
@@ -293,118 +277,46 @@ namespace evaluator
                 if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue))
                 {
                     auto collection = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue);
-                    auto classDef = collection->getClassDefinition();
 
-                    if (!classDef)
-                    {
-                        throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
-                    }
-
-                    std::string className = classDef->getName();
-
-                    // Check if this is a collection class by trying to get an array for iteration
-                    std::shared_ptr<value::NativeArray> iterationArray = nullptr;
-
-                    // For Map collections, iterate over values by default
-                    if (className.find("Map<") == 0)
-                    {
-                        // Call getValues() method
-                        auto getValuesMethod = classDef->findMethod("getValues", 0);
-                        if (getValuesMethod)
-                        {
-                            // Set current instance context for method call
-                            context->setCurrentInstance(collection);
-
-                            // Call getValues() method
-                            Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
-
-                            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult))
-                            {
-                                iterationArray = std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
-                            }
-
-                            context->clearCurrentInstance();
-                        }
-                    }
-                    else
-                    {
-                        // For other collections (Set, List, Stack, Queue), try toArray() method
-                        auto toArrayMethod = classDef->findMethod("toArray", 0);
-                        if (toArrayMethod)
-                        {
-                            // Set current instance context for method call
-                            context->setCurrentInstance(collection);
-
-                            // Call toArray() method
-                            Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
-
-                            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult))
-                            {
-                                iterationArray = std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
-                            }
-
-                            context->clearCurrentInstance();
-                        }
-                    }
-
-                    if (!iterationArray)
-                    {
-                        throw errors::ScriptException(
-                            "Collection '" + className +
-                            "' does not support iteration (missing toArray() or getValues() method)",
-                            node->getLocation());
-                    }
+                    // Extract array from collection (handles Map, Set, List, Stack, Queue)
+                    auto iterationArray = extractArrayFromCollection(collection, node);
 
                     // Iterate through the array
                     // OPTIMIZATION: Use unchecked access since loop bounds are verified by i < iterationArray->size()
                     for (size_t i = 0; i < iterationArray->size(); ++i)
                     {
-                        Value element = iterationArray->getUnchecked(i);  // Faster than iterationArray->get(i)
-
-                        // Define the loop variable in this scope
-                        auto varType = node->getVariableType();
-                        auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                            node->getVariableName(), varType, element, false, "");
-
-                        env->declareVariable(node->getVariableName(), variableDef);
-
-                        // Execute the loop body
-                        if (node->getBody())
+                        try
                         {
-                            try
-                            {
-                                Value result = stmtEvaluator->evaluate(node->getBody());
+                            executeForEachIteration(iterationArray->getUnchecked(i), node);
+                        }
+                        catch (const BreakException&)
+                        {
+                            // Break caught - exit foreach loop
+                            flowManager->resetLoopFlags();
+                            flowManager->exitLoop();
+                            return std::monostate{};
+                        }
+                        catch (const ContinueException&)
+                        {
+                            // Continue caught - reset flags and continue to next iteration
+                            flowManager->resetLoopFlags();
+                            continue;
+                        }
+                        catch (const errors::ReturnException& e)
+                        {
+                            // Return caught - exit loop and propagate return value
+                            flowManager->exitLoop();
+                            return e.returnValue;
+                        }
 
-                                // Handle control flow statements
-                                if (context->shouldReturn())
-                                {
-                                    flowManager->exitLoop();
-                                    return result;
-                                }
-                            }
-                            catch (const BreakException&)
-                            {
-                                // Break caught - exit foreach loop
-                                flowManager->resetLoopFlags();
-                                flowManager->exitLoop();
-                                return std::monostate{};
-                            }
-                            catch (const ContinueException&)
-                            {
-                                // Continue caught - reset flags and continue to next iteration
-                                flowManager->resetLoopFlags();
-                                continue;
-                            }
-
-                            // Check for other control flow interruptions
-                            if (flowManager->isBreaking())
-                            {
-                                break;
-                            }
-                            if (flowManager->isContinuing())
-                            {
-                                flowManager->resetLoopFlags();
-                            }
+                        // Check for other control flow interruptions
+                        if (flowManager->isBreaking())
+                        {
+                            break;
+                        }
+                        if (flowManager->isContinuing())
+                        {
+                            flowManager->resetLoopFlags();
                         }
                     }
                     flowManager->exitLoop();
@@ -429,5 +341,85 @@ namespace evaluator
             flowManager->exitLoop();
             return std::monostate{};
         }
+
+        // ========== Helper Methods for evaluateForEach Refactoring ==========
+
+        void LoopEvaluator::executeForEachIteration(const Value& element, ForEachNode* node)
+        {
+            auto env = context->getEnvironment();
+
+            // Define the loop variable in this scope
+            auto varType = node->getVariableType();
+            auto variableDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                node->getVariableName(), varType, element, false, "");
+
+            env->declareVariable(node->getVariableName(), variableDef);
+
+            // Execute the loop body
+            if (node->getBody())
+            {
+                Value result = stmtEvaluator->evaluate(node->getBody());
+
+                // Handle return - propagate up
+                if (context->shouldReturn())
+                {
+                    flowManager->exitLoop();
+                    throw errors::ReturnException(result);
+                }
+            }
+
+            // Note: Break/Continue are handled via exceptions in the calling loop
+        }
+
+        std::shared_ptr<value::NativeArray> LoopEvaluator::extractArrayFromCollection(
+            std::shared_ptr<runtimeTypes::klass::ObjectInstance> collection,
+            ForEachNode* node)
+        {
+            auto classDef = collection->getClassDefinition();
+            if (!classDef)
+            {
+                throw ScriptException("Invalid collection object for foreach iteration", node->getLocation());
+            }
+
+            std::string className = classDef->getName();
+
+            // For Map collections, iterate over values by default
+            if (className.find("Map<") == 0)
+            {
+                auto getValuesMethod = classDef->findMethod("getValues", 0);
+                if (getValuesMethod)
+                {
+                    context->setCurrentInstance(collection);
+                    Value valuesResult = objEvaluator->callMethod(collection, "getValues", {});
+                    context->clearCurrentInstance();
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valuesResult))
+                    {
+                        return std::get<std::shared_ptr<value::NativeArray>>(valuesResult);
+                    }
+                }
+            }
+            else
+            {
+                // For other collections (Set, List, Stack, Queue), try toArray() method
+                auto toArrayMethod = classDef->findMethod("toArray", 0);
+                if (toArrayMethod)
+                {
+                    context->setCurrentInstance(collection);
+                    Value arrayResult = objEvaluator->callMethod(collection, "toArray", {});
+                    context->clearCurrentInstance();
+
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayResult))
+                    {
+                        return std::get<std::shared_ptr<value::NativeArray>>(arrayResult);
+                    }
+                }
+            }
+
+            throw errors::ScriptException(
+                "Collection '" + className + "' does not support iteration (missing toArray() or getValues() method)",
+                node->getLocation());
+        }
+
     } // namespace statements
 } // namespace evaluator
