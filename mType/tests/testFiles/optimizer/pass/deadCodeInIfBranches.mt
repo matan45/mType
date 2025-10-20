@@ -2,6 +2,7 @@
 // Expected output: true branch
 
 bool condition = true;
+function test():void{
 
 if (condition) {
     print("true branch");
@@ -15,5 +16,8 @@ if (condition) {
     print("Unreachable in else");
 }
 
+}
+
+test();
 // This is also unreachable
 print("After if-else");
