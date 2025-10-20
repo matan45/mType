@@ -15,15 +15,9 @@ namespace vm::compiler::visitors
     {
     }
 
-    value::Value StatementCompiler::compileAssignment(ast::AssignmentNode* node)
+    bool StatementCompiler::detectReassignment(const std::string& name, std::string& existingClassName)
     {
-        std::string name = node->getVariableName();
-        value::ValueType varType = node->getVariableType();
-        auto* value = node->getValue();
-
-        // Check if this is a reassignment (variable already exists) or a declaration
         bool isReassignment = false;
-        std::string existingClassName;
 
         if (ctx.functionFrameManager.isInFunction()) {
             existingClassName = ctx.variableTracker.getLocalClassNameByName(name);
@@ -37,7 +31,13 @@ namespace vm::compiler::visitors
             existingClassName = ctx.globalRegistry.getClassName(name);
         }
 
-        // Type checking for class/interface existence
+        return isReassignment;
+    }
+
+    void StatementCompiler::validateClassOrInterfaceType(ast::AssignmentNode* node)
+    {
+        value::ValueType varType = node->getVariableType();
+
         if (varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
             std::string className = node->getClassName();
             bool isArrayType = className.find("[]") != std::string::npos;
@@ -67,178 +67,223 @@ namespace vm::compiler::visitors
                 }
             }
         }
+    }
 
-        // Lambda validation
-        if (value && dynamic_cast<ast::LambdaNode*>(value)) {
-            // Check if assigning lambda to functional interface (for declarations)
-            if (!isReassignment && varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
-                // Validate that the interface is functional (has exactly one method)
-                auto interfaceDef = ctx.environment->findInterface(node->getClassName());
-                if (interfaceDef && !interfaceDef->isFunctionalInterface()) {
-                    auto methodSignatures = interfaceDef->getMethodSignatures();
-                    throw errors::TypeException(
-                        "Cannot assign lambda to non-functional interface '" + node->getClassName() + "'. " +
-                        "Lambdas can only be assigned to interfaces with exactly one method. " +
-                        "Interface '" + node->getClassName() + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
-                        "Consider using a functional interface (single method) or implement the interface explicitly.",
-                        node->getLocation()
-                    );
-                }
-            }
+    void StatementCompiler::validateLambdaAssignment(ast::AssignmentNode* node, bool isReassignment,
+                                                     const std::string& existingClassName)
+    {
+        auto* value = node->getValue();
+        if (!value || !dynamic_cast<ast::LambdaNode*>(value)) {
+            return;
+        }
 
-            // Lambda reassignment validation
-            if (isReassignment) {
-                // If the variable is an interface type, reject reassignment
-                if (!existingClassName.empty() && ctx.environment->findInterface(existingClassName)) {
-                    throw errors::TypeException(
-                        "Type mismatch for variable '" + name + "': expected object but got void",
-                        node->getLocation()
-                    );
-                }
+        value::ValueType varType = node->getVariableType();
+
+        // Check if assigning lambda to functional interface (for declarations)
+        if (!isReassignment && varType == value::ValueType::OBJECT && !node->getClassName().empty()) {
+            // Validate that the interface is functional (has exactly one method)
+            auto interfaceDef = ctx.environment->findInterface(node->getClassName());
+            if (interfaceDef && !interfaceDef->isFunctionalInterface()) {
+                auto methodSignatures = interfaceDef->getMethodSignatures();
+                throw errors::TypeException(
+                    "Cannot assign lambda to non-functional interface '" + node->getClassName() + "'. " +
+                    "Lambdas can only be assigned to interfaces with exactly one method. " +
+                    "Interface '" + node->getClassName() + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
+                    "Consider using a functional interface (single method) or implement the interface explicitly.",
+                    node->getLocation()
+                );
             }
         }
 
-        // Type compatibility validation for reassignments
-        if (isReassignment && !existingClassName.empty() && value) {
-            std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
-            value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-            bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
-
-            // Only validate if we have actual type information
-            if (!valueClassName.empty() || valueType != value::ValueType::OBJECT) {
-                // Resolve generic type parameters if present
-                std::string resolvedExistingClassName = ctx.resolveGenericType(existingClassName);
-                std::string resolvedValueClassName = ctx.resolveGenericType(valueClassName);
-
-                // Validate that the assigned value is compatible with the variable's type
-                ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
-                                                    valueType, resolvedValueClassName, isNullValue, node->getLocation());
+        // Lambda reassignment validation
+        if (isReassignment) {
+            // If the variable is an interface type, reject reassignment
+            if (!existingClassName.empty() && ctx.environment->findInterface(existingClassName)) {
+                throw errors::TypeException(
+                    "Type mismatch for variable '" + node->getVariableName() + "': expected object but got void",
+                    node->getLocation()
+                );
             }
         }
+    }
 
-        // Compile the value
-        if (value) {
-            // Type validation for declarations
-            if (varType != value::ValueType::VOID) {
-                value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-                std::string varClassName = node->getClassName();
-                std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
-                bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
-
-                // Resolve generic type parameters if present
-                varClassName = ctx.resolveGenericType(varClassName);
-                valueClassName = ctx.resolveGenericType(valueClassName);
-
-                ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
-                                                    valueClassName, isNullValue, node->getLocation());
-            }
-            value->accept(ctx.visitor);  // Will need delegation
-        } else {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+    void StatementCompiler::validateReassignmentType(ast::AssignmentNode* node, const std::string& existingClassName)
+    {
+        auto* value = node->getValue();
+        if (existingClassName.empty() || !value) {
+            return;
         }
 
-        // Check if this is a declaration or pure assignment
-        if (varType != value::ValueType::VOID) {
-            // Declaration with initializer
-            if (ctx.functionFrameManager.isInFunction() && ctx.variableTracker.getCurrentScopeDepth() > 0) {
-                // Check if variable exists anywhere in the function (including parameters)
-                // This prevents parameter shadowing and variable redefinition
-                if (ctx.variableTracker.existsInFunction(name)) {
-                    throw errors::EnvironmentException(
-                        "Variable '" + name + "' is already defined in this scope",
-                        node->getLocation()
-                    );
-                }
+        std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
+        value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+        bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
 
-                ctx.variableTracker.declareLocal(name, varType, node->getClassName());
-                ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+        // Only validate if we have actual type information
+        if (!valueClassName.empty() || valueType != value::ValueType::OBJECT) {
+            // Resolve generic type parameters if present
+            std::string resolvedExistingClassName = ctx.resolveGenericType(existingClassName);
+            std::string resolvedValueClassName = ctx.resolveGenericType(valueClassName);
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
-                size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
-                size_t nameIndex = ctx.program.getConstantPool().addString(name);
-                ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
-                               static_cast<uint32_t>(slot),
-                               static_cast<uint32_t>(nameIndex));
-                // Add source location for the store instruction
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
-                return std::monostate{};
-            }
+            // Validate that the assigned value is compatible with the variable's type
+            ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
+                                                valueType, resolvedValueClassName, isNullValue, node->getLocation());
+        }
+    }
 
-            // Global variable declaration - check for redefinition
-            if (ctx.globalRegistry.existsInCurrentScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+    void StatementCompiler::emitVariableDeclaration(ast::AssignmentNode* node)
+    {
+        std::string name = node->getVariableName();
+        value::ValueType varType = node->getVariableType();
+
+        if (ctx.functionFrameManager.isInFunction() && ctx.variableTracker.getCurrentScopeDepth() > 0) {
+            // Check if variable exists anywhere in the function (including parameters)
+            // This prevents parameter shadowing and variable redefinition
+            if (ctx.variableTracker.existsInFunction(name)) {
                 throw errors::EnvironmentException(
                     "Variable '" + name + "' is already defined in this scope",
                     node->getLocation()
                 );
             }
 
-            ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(),
-                                             ctx.variableTracker.getCurrentScopeDepth());
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName());
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
+            ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+            size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            size_t typeIndex = ctx.program.getConstantPool().addString("auto");
-            uint32_t isFinal = node->getIsFinal() ? 1 : 0;
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
+                           static_cast<uint32_t>(slot),
+                           static_cast<uint32_t>(nameIndex));
+            // Add source location for the store instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
+            return;
+        }
 
-            ctx.program.emit(bytecode::OpCode::DECLARE_VAR,
-                           std::vector<uint32_t>{
-                               static_cast<uint32_t>(nameIndex),
-                               static_cast<uint32_t>(typeIndex),
-                               isFinal
-                           });
-        } else {
-            // Pure assignment - check if it's a local or global
-            if (name.find("::") != std::string::npos) {
-                size_t nameIndex = ctx.program.getConstantPool().addString(name);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
-                return std::monostate{};
-            }
+        // Global variable declaration - check for redefinition
+        if (ctx.globalRegistry.existsInCurrentScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+            throw errors::EnvironmentException(
+                "Variable '" + name + "' is already defined in this scope",
+                node->getLocation()
+            );
+        }
 
-            // Check for local variable
-            size_t localSlot = SIZE_MAX;
-            if (ctx.functionFrameManager.isInFunction()) {
-                localSlot = ctx.variableTracker.resolveLocal(name,
-                    ctx.functionFrameManager.currentFrame().localStartSlot);
-            }
+        ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(),
+                                         ctx.variableTracker.getCurrentScopeDepth());
 
-            if (localSlot != SIZE_MAX) {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
-                size_t nameIndex = ctx.program.getConstantPool().addString(name);
-                ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
-                               static_cast<uint32_t>(localSlot),
-                               static_cast<uint32_t>(nameIndex));
-                // Add source location for the store instruction
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
-                return std::monostate{};
-            }
+        size_t nameIndex = ctx.program.getConstantPool().addString(name);
+        size_t typeIndex = ctx.program.getConstantPool().addString("auto");
+        uint32_t isFinal = node->getIsFinal() ? 1 : 0;
 
-            // Check if it's an instance field (when inside a method)
-            if (ctx.currentClassNode) {
-                auto classRegistry = ctx.environment->getClassRegistry();
-                if (classRegistry) {
-                    auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
-                    if (classDef) {
-                        const auto& instanceFields = classDef->getInstanceFields();
-                        if (instanceFields.find(name) != instanceFields.end()) {
-                            // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
-                            size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
-                            return std::monostate{};
-                        }
+        ctx.program.emit(bytecode::OpCode::DECLARE_VAR,
+                       std::vector<uint32_t>{
+                           static_cast<uint32_t>(nameIndex),
+                           static_cast<uint32_t>(typeIndex),
+                           isFinal
+                       });
+    }
+
+    void StatementCompiler::emitVariableReassignment(ast::AssignmentNode* node)
+    {
+        std::string name = node->getVariableName();
+
+        // Check for static field assignment
+        if (name.find("::") != std::string::npos) {
+            size_t nameIndex = ctx.program.getConstantPool().addString(name);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+            return;
+        }
+
+        // Check for local variable
+        size_t localSlot = SIZE_MAX;
+        if (ctx.functionFrameManager.isInFunction()) {
+            localSlot = ctx.variableTracker.resolveLocal(name,
+                ctx.functionFrameManager.currentFrame().localStartSlot);
+        }
+
+        if (localSlot != SIZE_MAX) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+            size_t nameIndex = ctx.program.getConstantPool().addString(name);
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
+                           static_cast<uint32_t>(localSlot),
+                           static_cast<uint32_t>(nameIndex));
+            // Add source location for the store instruction
+            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
+                                         node->getLocation().getLine(),
+                                         node->getLocation().getColumn(),
+                                         node->getLocation().getFilename());
+            return;
+        }
+
+        // Check if it's an instance field (when inside a method)
+        if (ctx.currentClassNode) {
+            auto classRegistry = ctx.environment->getClassRegistry();
+            if (classRegistry) {
+                auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
+                if (classDef) {
+                    const auto& instanceFields = classDef->getInstanceFields();
+                    if (instanceFields.find(name) != instanceFields.end()) {
+                        // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
+                        size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                        return;
                     }
                 }
             }
+        }
 
-            // Global variable assignment
-            size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
+        // Global variable assignment
+        size_t nameIndex = ctx.program.getConstantPool().addString(name);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
+    }
+
+    value::Value StatementCompiler::compileAssignment(ast::AssignmentNode* node)
+    {
+        std::string name = node->getVariableName();
+        value::ValueType varType = node->getVariableType();
+        auto* value = node->getValue();
+
+        // Detect whether this is a reassignment or new declaration
+        std::string existingClassName;
+        bool isReassignment = detectReassignment(name, existingClassName);
+
+        // Validate class/interface type exists
+        validateClassOrInterfaceType(node);
+
+        // Validate lambda assignments
+        validateLambdaAssignment(node, isReassignment, existingClassName);
+
+        // Type compatibility validation for reassignments
+        if (isReassignment) {
+            validateReassignmentType(node, existingClassName);
+        }
+
+        // Compile the value expression
+        if (value) {
+            // Type validation for declarations
+            if (varType != value::ValueType::VOID) {
+                value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+                std::string varClassName = ctx.resolveGenericType(node->getClassName());
+                std::string valueClassName = ctx.resolveGenericType(ctx.typeInference.inferExpressionClassName(value));
+                bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+
+                ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
+                                                    valueClassName, isNullValue, node->getLocation());
+            }
+            value->accept(ctx.visitor);
+        } else {
+            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+        }
+
+        // Emit bytecode based on whether this is a declaration or reassignment
+        if (varType != value::ValueType::VOID) {
+            emitVariableDeclaration(node);
+        } else {
+            emitVariableReassignment(node);
         }
 
         return std::monostate{};

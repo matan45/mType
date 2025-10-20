@@ -357,14 +357,16 @@ namespace vm::compiler
 
             // IMPORTANT: Process nested imports FIRST
             // This ensures all dependencies are loaded before class registration
-            processNestedImports(importedAST);
+            importHelper.processNestedImports(importedAST, [this](ast::ImportNode* node) {
+                visitImportNode(node);
+            });
 
             // Validate selective imports - check that imported symbols are public
             if (node->isSelective()) {
                 auto exportRegistry = environment->getExportRegistry();
                 if (exportRegistry) {
                     // Collect exported symbols from the imported file
-                    collectExportedSymbols(importedAST, resolvedPath, exportRegistry);
+                    importHelper.collectExportedSymbols(importedAST, resolvedPath, exportRegistry);
 
                     // Validate each requested symbol
                     const auto& requestedSymbols = node->getImportedSymbols();
@@ -423,100 +425,6 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitThrowNode(ast::ThrowNode* node)
     {
         return controlFlowCompiler.compileThrow(node);
-    }
-
-    void BytecodeCompiler::processNestedImports(ast::ASTNode* node)
-    {
-        if (!node) return;
-
-        // Handle ProgramNode - traverse all statements
-        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
-        {
-            const auto& statements = programNode->getStatements();
-            for (const auto& stmt : statements)
-            {
-                processNestedImports(stmt.get());
-            }
-        }
-        // Handle ImportNode - process the import recursively
-        else if (auto importNode = dynamic_cast<ast::ImportNode*>(node))
-        {
-            // Process this import by visiting it
-            // This will recursively load all nested dependencies
-            visitImportNode(importNode);
-        }
-    }
-
-    void BytecodeCompiler::collectExportedSymbols(ast::ASTNode* ast,
-                                                   const std::string& filePath,
-                                                   std::shared_ptr<environment::registry::ExportRegistry> exportRegistry)
-    {
-        if (!ast) return;
-
-        // Handle ProgramNode - traverse all statements
-        if (auto programNode = dynamic_cast<ast::ProgramNode*>(ast))
-        {
-            const auto& statements = programNode->getStatements();
-            for (const auto& stmt : statements)
-            {
-                collectExportedSymbolsFromNode(stmt.get(), filePath, exportRegistry);
-            }
-        }
-        else
-        {
-            collectExportedSymbolsFromNode(ast, filePath, exportRegistry);
-        }
-    }
-
-    void BytecodeCompiler::collectExportedSymbolsFromNode(ast::ASTNode* node,
-                                                           const std::string& filePath,
-                                                           std::shared_ptr<environment::registry::ExportRegistry> exportRegistry)
-    {
-        using namespace ast;
-        using namespace environment::registry;
-
-        if (!node) return;
-
-        // Register class
-        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                classNode->getClassName(),
-                ExportedSymbolType::CLASS,
-                classNode->getVisibility()
-            );
-        }
-        // Register interface
-        else if (auto interfaceNode = dynamic_cast<ast::InterfaceNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                interfaceNode->getName(),
-                ExportedSymbolType::INTERFACE,
-                interfaceNode->getVisibility()
-            );
-        }
-        // Register function
-        else if (auto functionNode = dynamic_cast<ast::FunctionNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                functionNode->getName(),
-                ExportedSymbolType::FUNCTION,
-                functionNode->getVisibility()
-            );
-        }
-        // Register variable (top-level declarations)
-        else if (auto assignmentNode = dynamic_cast<ast::AssignmentNode*>(node))
-        {
-            exportRegistry->registerSymbol(
-                filePath,
-                assignmentNode->getVariableName(),
-                ExportedSymbolType::VARIABLE,
-                assignmentNode->getVisibility()
-            );
-        }
     }
 
 } // namespace vm::compiler

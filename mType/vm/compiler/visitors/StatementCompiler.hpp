@@ -24,5 +24,14 @@ namespace vm::compiler::visitors
 
     private:
         CompilerContext& ctx;
+
+        // Helper methods for compileAssignment
+        bool detectReassignment(const std::string& name, std::string& existingClassName);
+        void validateClassOrInterfaceType(ast::AssignmentNode* node);
+        void validateLambdaAssignment(ast::AssignmentNode* node, bool isReassignment,
+                                     const std::string& existingClassName);
+        void validateReassignmentType(ast::AssignmentNode* node, const std::string& existingClassName);
+        void emitVariableDeclaration(ast::AssignmentNode* node);
+        void emitVariableReassignment(ast::AssignmentNode* node);
     };
 }

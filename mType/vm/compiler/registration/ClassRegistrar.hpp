@@ -4,6 +4,7 @@
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "InterfaceRegistrar.hpp"
+#include "ClassInheritanceValidator.hpp"
 #include <memory>
 #include <unordered_set>
 
@@ -39,6 +40,7 @@ namespace vm::compiler::registration
         std::shared_ptr<environment::Environment> environment;
         bytecode::BytecodeProgram& program;
         InterfaceRegistrar* interfaceRegistrar;
+        std::unique_ptr<ClassInheritanceValidator> inheritanceValidator;
 
         // Helper methods
         void registerSingleClass(ast::ClassNode* classNode);
@@ -63,8 +65,5 @@ namespace vm::compiler::registration
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
             const ast::SourceLocation& location
         ) const;
-
-        // Constants
-        static constexpr size_t MAX_INHERITANCE_DEPTH = 100;
     };
 }

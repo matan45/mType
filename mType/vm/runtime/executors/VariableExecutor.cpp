@@ -1,4 +1,5 @@
 #include "VariableExecutor.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 namespace vm::runtime
@@ -8,191 +9,204 @@ namespace vm::runtime
     {
     }
 
-    void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr)
-    {
-        if (instr.operands.empty())
-        {
-            throw errors::RuntimeException("LOAD_VAR requires operand");
+    bool VariableExecutor::tryLoadFromLambdaParentFrame(const std::string& varName) {
+        // Check if we're in a lambda with a parent frame (for late-bound variable access)
+        if (context.callStack.empty() || !context.callStack.back().originatingLambda) {
+            return false;
         }
-        const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
-        auto varDef = context.environment->findVariable(varName);
-        if (!varDef)
-        {
-            // Variable not found in global environment
-            // Check if we're in a lambda with a parent frame (for late-bound variable access)
-            if (!context.callStack.empty() && context.callStack.back().originatingLambda)
-            {
-                auto lambda = context.callStack.back().originatingLambda;
-                if (lambda->parentFrame)
-                {
-                    value::Value val = lambda->parentFrame->getLocalByName(varName);
-                    if (!std::holds_alternative<std::monostate>(val))
-                    {
-                        context.stackManager->push(val);
-                        return;
-                    }
-                }
-            }
 
-            // Check if we're in a method/constructor and should access a field from 'this'
-            if (!context.callStack.empty() && context.callStack.back().thisInstance)
-            {
-                auto thisInstance = context.callStack.back().thisInstance;
-                auto fieldDef = thisInstance->getField(varName);
-                if (fieldDef)
-                {
-                    // Field found - load its value
-                    value::Value fieldValue = thisInstance->getFieldValue(varName);
-                    context.stackManager->push(fieldValue);
-                    return;
-                }
-            }
-
-            // Check if we're in a static method and should access a static field
-            if (!context.callStack.empty())
-            {
-                const std::string& functionName = context.callStack.back().functionName;
-                // Static method names have format: ClassName::methodName
-                size_t colonPos = functionName.find("::");
-                if (colonPos != std::string::npos)
-                {
-                    std::string className = functionName.substr(0, colonPos);
-                    auto classRegistry = context.environment->getClassRegistry();
-                    if (classRegistry)
-                    {
-                        auto classDef = classRegistry->findClass(className);
-                        if (classDef)
-                        {
-                            const auto& staticFields = classDef->getStaticFields();
-                            auto it = staticFields.find(varName);
-                            if (it != staticFields.end())
-                            {
-                                value::Value fieldValue = it->second->getValue();
-                                context.stackManager->push(fieldValue);
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-
-            throw errors::RuntimeException("Variable not found: " + varName);
+        auto lambda = context.callStack.back().originatingLambda;
+        if (!lambda->parentFrame) {
+            return false;
         }
-        context.stackManager->push(varDef->getValue());
+
+        value::Value val = lambda->parentFrame->getLocalByName(varName);
+        if (std::holds_alternative<std::monostate>(val)) {
+            return false;
+        }
+
+        context.stackManager->push(val);
+        return true;
     }
 
-    void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr)
-    {
-        if (instr.operands.empty())
-        {
-            throw errors::RuntimeException("STORE_VAR requires operand");
+    bool VariableExecutor::tryLoadFromInstanceField(const std::string& varName) {
+        // Check if we're in a method/constructor and should access a field from 'this'
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            return false;
         }
+
+        auto thisInstance = context.callStack.back().thisInstance;
+        auto fieldDef = thisInstance->getField(varName);
+        if (!fieldDef) {
+            return false;
+        }
+
+        // Field found - load its value
+        value::Value fieldValue = thisInstance->getFieldValue(varName);
+        context.stackManager->push(fieldValue);
+        return true;
+    }
+
+    bool VariableExecutor::tryLoadFromStaticField(const std::string& varName) {
+        // Check if we're in a static method and should access a static field
+        if (context.callStack.empty()) {
+            return false;
+        }
+
+        const std::string& functionName = context.callStack.back().functionName;
+        // Static method names have format: ClassName::methodName
+        size_t colonPos = functionName.find("::");
+        if (colonPos == std::string::npos) {
+            return false;
+        }
+
+        std::string className = functionName.substr(0, colonPos);
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            return false;
+        }
+
+        auto classDef = classRegistry->findClass(className);
+        if (!classDef) {
+            return false;
+        }
+
+        const auto& staticFields = classDef->getStaticFields();
+        auto it = staticFields.find(varName);
+        if (it == staticFields.end()) {
+            return false;
+        }
+
+        value::Value fieldValue = it->second->getValue();
+        context.stackManager->push(fieldValue);
+        return true;
+    }
+
+    void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("LOAD_VAR requires operand");
+        }
+
         const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
-        value::Value val = context.stackManager->pop();
         auto varDef = context.environment->findVariable(varName);
-        if (!varDef)
-        {
-            // Check if we're in a method/constructor and should set a field on 'this'
-            if (!context.callStack.empty() && context.callStack.back().thisInstance)
-            {
-                auto thisInstance = context.callStack.back().thisInstance;
-                auto fieldDef = thisInstance->getField(varName);
-                if (fieldDef)
-                {
-                    // Field found - check if it's final
-                    if (fieldDef->isFinal())
-                    {
-                        // Allow initialization of final fields (when not yet initialized)
-                        if (fieldDef->isInitialized())
-                        {
-                            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                            if (loc)
-                            {
-                                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                                throw errors::RuntimeException("Cannot assign to final field '" + varName + "'", errorLoc);
-                            }
-                            else
-                            {
-                                throw errors::RuntimeException("Cannot assign to final field '" + varName + "'");
-                            }
-                        }
-                    }
-                    // Set the field value
-                    thisInstance->setField(varName, val);
-                    // Push value back for assignment expressions (e.g., x = y = 5)
-                    context.stackManager->push(val);
-                    return;
-                }
-            }
 
-            // Check if we're in a static method and should set a static field
-            if (!context.callStack.empty())
-            {
-                const std::string& functionName = context.callStack.back().functionName;
-                // Static method names have format: ClassName::methodName
-                size_t colonPos = functionName.find("::");
-                if (colonPos != std::string::npos)
-                {
-                    std::string className = functionName.substr(0, colonPos);
-                    auto classRegistry = context.environment->getClassRegistry();
-                    if (classRegistry)
-                    {
-                        auto classDef = classRegistry->findClass(className);
-                        if (classDef)
-                        {
-                            const auto& staticFields = classDef->getStaticFields();
-                            auto it = staticFields.find(varName);
-                            if (it != staticFields.end())
-                            {
-                                // Check if it's final
-                                if (it->second->isFinal())
-                                {
-                                    // Allow initialization of final static fields (when not yet initialized)
-                                    if (it->second->isInitialized())
-                                    {
-                                        auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                                        if (loc)
-                                        {
-                                            errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                                            throw errors::RuntimeException(
-                                                "Cannot assign to final static field '" + varName + "'", errorLoc);
-                                        }
-                                        else
-                                        {
-                                            throw errors::RuntimeException(
-                                                "Cannot assign to final static field '" + varName + "'");
-                                        }
-                                    }
-                                }
-                                it->second->setValue(val);
-                                // Push value back for assignment expressions (e.g., x = y = 5)
-                                context.stackManager->push(val);
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-
-            throw errors::RuntimeException("Variable not found: " + varName);
+        // Found in global environment
+        if (varDef) {
+            context.stackManager->push(varDef->getValue());
+            return;
         }
+
+        // Try alternative variable access methods
+        if (tryLoadFromLambdaParentFrame(varName)) return;
+        if (tryLoadFromInstanceField(varName)) return;
+        if (tryLoadFromStaticField(varName)) return;
+
+        // Variable not found anywhere
+        throw errors::RuntimeException("Variable not found: " + varName);
+    }
+
+    bool VariableExecutor::tryStoreToInstanceField(const std::string& varName, const value::Value& val) {
+        // Check if we're in a method/constructor and should set a field on 'this'
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            return false;
+        }
+
+        auto thisInstance = context.callStack.back().thisInstance;
+        auto fieldDef = thisInstance->getField(varName);
+        if (!fieldDef) {
+            return false;
+        }
+
+        // Field found - check if it's final
+        if (fieldDef->isFinal() && fieldDef->isInitialized()) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot assign to final field '" + varName + "'");
+        }
+
+        // Set the field value
+        thisInstance->setField(varName, val);
+        // Push value back for assignment expressions (e.g., x = y = 5)
+        context.stackManager->push(val);
+        return true;
+    }
+
+    bool VariableExecutor::tryStoreToStaticField(const std::string& varName, const value::Value& val) {
+        // Check if we're in a static method and should set a static field
+        if (context.callStack.empty()) {
+            return false;
+        }
+
+        const std::string& functionName = context.callStack.back().functionName;
+        // Static method names have format: ClassName::methodName
+        size_t colonPos = functionName.find("::");
+        if (colonPos == std::string::npos) {
+            return false;
+        }
+
+        std::string className = functionName.substr(0, colonPos);
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            return false;
+        }
+
+        auto classDef = classRegistry->findClass(className);
+        if (!classDef) {
+            return false;
+        }
+
+        const auto& staticFields = classDef->getStaticFields();
+        auto it = staticFields.find(varName);
+        if (it == staticFields.end()) {
+            return false;
+        }
+
+        // Check if it's final
+        if (it->second->isFinal() && it->second->isInitialized()) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot assign to final static field '" + varName + "'");
+        }
+
+        it->second->setValue(val);
+        // Push value back for assignment expressions (e.g., x = y = 5)
+        context.stackManager->push(val);
+        return true;
+    }
+
+    void VariableExecutor::validateAndStoreGlobalVariable(const std::string& varName,
+                                                          const value::Value& val,
+                                                          std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef) {
         // Check if variable is final
-        if (varDef->isFinal())
-        {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc)
-            {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'", errorLoc);
-            }
-            else
-            {
-                throw errors::RuntimeException("Cannot assign to final variable '" + varName + "'");
-            }
+        if (varDef->isFinal()) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot assign to final variable '" + varName + "'");
         }
+
         varDef->setValue(val);
         // Push value back for assignment expressions (e.g., x = y = 5)
         context.stackManager->push(val);
+    }
+
+    void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("STORE_VAR requires operand");
+        }
+
+        const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value val = context.stackManager->pop();
+        auto varDef = context.environment->findVariable(varName);
+
+        // Found in global environment
+        if (varDef) {
+            validateAndStoreGlobalVariable(varName, val, varDef);
+            return;
+        }
+
+        // Try alternative variable storage methods
+        if (tryStoreToInstanceField(varName, val)) return;
+        if (tryStoreToStaticField(varName, val)) return;
+
+        // Variable not found anywhere
+        throw errors::RuntimeException("Variable not found: " + varName);
     }
 
     void VariableExecutor::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr)

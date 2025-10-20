@@ -1,4 +1,5 @@
 ﻿#include "BytecodeProgram.hpp"
+#include "BytecodeIOHelper.hpp"
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
@@ -522,30 +523,80 @@ namespace vm::bytecode
         return false;
     }
 
-    // Helper to write a string vector
-    static void writeStringVector(std::ostream& out, const std::vector<std::string>& vec) {
-        size_t count = vec.size();
-        out.write(reinterpret_cast<const char*>(&count), sizeof(count));
-        for (const auto& str : vec) {
-            size_t len = str.size();
-            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-            out.write(str.data(), len);
-        }
+    // Helper functions now provided by BytecodeIOHelper utility class
+
+    void BytecodeProgram::writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const {
+        BytecodeIOHelper::writeString(out, field.name);
+        BytecodeIOHelper::writeString(out, field.type);
+        BytecodeIOHelper::writePrimitive(out, field.isStatic);
+        BytecodeIOHelper::writePrimitive(out, field.isFinal);
+        BytecodeIOHelper::writePrimitive(out, field.isPrivate);
+        BytecodeIOHelper::writePrimitive(out, field.isProtected);
     }
 
-    // Helper to read a string vector
-    static std::vector<std::string> readStringVector(std::istream& in) {
-        size_t count;
-        in.read(reinterpret_cast<char*>(&count), sizeof(count));
-        std::vector<std::string> vec(count);
-        for (size_t i = 0; i < count; ++i) {
-            size_t len;
-            in.read(reinterpret_cast<char*>(&len), sizeof(len));
-            std::string str(len, '\0');
-            in.read(&str[0], len);
-            vec[i] = str;
+    void BytecodeProgram::writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const {
+        BytecodeIOHelper::writeString(out, method.name);
+        BytecodeIOHelper::writeString(out, method.returnType);
+        BytecodeIOHelper::writeStringVector(out, method.parameterTypes);
+        BytecodeIOHelper::writeStringVector(out, method.parameterNames);
+        BytecodeIOHelper::writePrimitive(out, method.isStatic);
+        BytecodeIOHelper::writePrimitive(out, method.isFinal);
+        BytecodeIOHelper::writePrimitive(out, method.isPrivate);
+        BytecodeIOHelper::writePrimitive(out, method.isProtected);
+        BytecodeIOHelper::writePrimitive(out, method.startOffset);
+    }
+
+    void BytecodeProgram::writeConstructorMetadata(std::ostream& out, const ConstructorMetadata& ctor) const {
+        BytecodeIOHelper::writeStringVector(out, ctor.parameterTypes);
+        BytecodeIOHelper::writeStringVector(out, ctor.parameterNames);
+        BytecodeIOHelper::writePrimitive(out, ctor.startOffset);
+    }
+
+    void BytecodeProgram::writeClassMetadata(std::ostream& out, const ClassMetadata& classMeta) const {
+        // Write class name
+        BytecodeIOHelper::writeString(out, classMeta.name);
+
+        // Write parent class name
+        BytecodeIOHelper::writeString(out, classMeta.parentClassName);
+
+        // Write implemented interfaces and generic parameters
+        BytecodeIOHelper::writeStringVector(out, classMeta.implementedInterfaces);
+        BytecodeIOHelper::writeStringVector(out, classMeta.genericParameters);
+
+        // Write instance fields
+        size_t fieldCount = classMeta.instanceFields.size();
+        out.write(reinterpret_cast<const char*>(&fieldCount), sizeof(fieldCount));
+        for (const auto& field : classMeta.instanceFields) {
+            writeFieldMetadata(out, field);
         }
-        return vec;
+
+        // Write static fields
+        fieldCount = classMeta.staticFields.size();
+        out.write(reinterpret_cast<const char*>(&fieldCount), sizeof(fieldCount));
+        for (const auto& field : classMeta.staticFields) {
+            writeFieldMetadata(out, field);
+        }
+
+        // Write instance methods
+        size_t methodCount = classMeta.instanceMethods.size();
+        out.write(reinterpret_cast<const char*>(&methodCount), sizeof(methodCount));
+        for (const auto& method : classMeta.instanceMethods) {
+            writeMethodMetadata(out, method);
+        }
+
+        // Write static methods
+        methodCount = classMeta.staticMethods.size();
+        out.write(reinterpret_cast<const char*>(&methodCount), sizeof(methodCount));
+        for (const auto& method : classMeta.staticMethods) {
+            writeMethodMetadata(out, method);
+        }
+
+        // Write constructors
+        size_t ctorCount = classMeta.constructors.size();
+        out.write(reinterpret_cast<const char*>(&ctorCount), sizeof(ctorCount));
+        for (const auto& ctor : classMeta.constructors) {
+            writeConstructorMetadata(out, ctor);
+        }
     }
 
     void BytecodeProgram::writeClasses(std::ostream& out) const {
@@ -553,110 +604,84 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
 
         for (const auto& classMeta : classes) {
-            // Write class name
-            size_t len = classMeta.name.size();
-            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-            out.write(classMeta.name.data(), len);
+            writeClassMetadata(out, classMeta);
+        }
+    }
 
-            // Write parent class name
-            len = classMeta.parentClassName.size();
-            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-            out.write(classMeta.parentClassName.data(), len);
+    void BytecodeProgram::readFieldMetadata(std::istream& in, FieldMetadata& field) {
+        field.name = BytecodeIOHelper::readString(in);
+        field.type = BytecodeIOHelper::readString(in);
+        field.isStatic = BytecodeIOHelper::readPrimitive<bool>(in);
+        field.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
+        field.isPrivate = BytecodeIOHelper::readPrimitive<bool>(in);
+        field.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
+    }
 
-            // Write implemented interfaces
-            writeStringVector(out, classMeta.implementedInterfaces);
+    void BytecodeProgram::readMethodMetadata(std::istream& in, MethodMetadata& method) {
+        method.name = BytecodeIOHelper::readString(in);
+        method.returnType = BytecodeIOHelper::readString(in);
+        method.parameterTypes = BytecodeIOHelper::readStringVector(in);
+        method.parameterNames = BytecodeIOHelper::readStringVector(in);
+        method.isStatic = BytecodeIOHelper::readPrimitive<bool>(in);
+        method.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
+        method.isPrivate = BytecodeIOHelper::readPrimitive<bool>(in);
+        method.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
+        method.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+    }
 
-            // Write generic parameters
-            writeStringVector(out, classMeta.genericParameters);
+    void BytecodeProgram::readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor) {
+        ctor.parameterTypes = BytecodeIOHelper::readStringVector(in);
+        ctor.parameterNames = BytecodeIOHelper::readStringVector(in);
+        ctor.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+    }
 
-            // Write instance fields
-            size_t fieldCount = classMeta.instanceFields.size();
-            out.write(reinterpret_cast<const char*>(&fieldCount), sizeof(fieldCount));
-            for (const auto& field : classMeta.instanceFields) {
-                len = field.name.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(field.name.data(), len);
+    void BytecodeProgram::readClassMetadata(std::istream& in, ClassMetadata& classMeta) {
+        // Read class name
+        classMeta.name = BytecodeIOHelper::readString(in);
 
-                len = field.type.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(field.type.data(), len);
+        // Read parent class name
+        classMeta.parentClassName = BytecodeIOHelper::readString(in);
 
-                out.write(reinterpret_cast<const char*>(&field.isStatic), sizeof(field.isStatic));
-                out.write(reinterpret_cast<const char*>(&field.isFinal), sizeof(field.isFinal));
-                out.write(reinterpret_cast<const char*>(&field.isPrivate), sizeof(field.isPrivate));
-                out.write(reinterpret_cast<const char*>(&field.isProtected), sizeof(field.isProtected));
-            }
+        // Read implemented interfaces and generic parameters
+        classMeta.implementedInterfaces = BytecodeIOHelper::readStringVector(in);
+        classMeta.genericParameters = BytecodeIOHelper::readStringVector(in);
 
-            // Write static fields
-            fieldCount = classMeta.staticFields.size();
-            out.write(reinterpret_cast<const char*>(&fieldCount), sizeof(fieldCount));
-            for (const auto& field : classMeta.staticFields) {
-                len = field.name.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(field.name.data(), len);
+        // Read instance fields
+        size_t fieldCount;
+        in.read(reinterpret_cast<char*>(&fieldCount), sizeof(fieldCount));
+        classMeta.instanceFields.resize(fieldCount);
+        for (auto& field : classMeta.instanceFields) {
+            readFieldMetadata(in, field);
+        }
 
-                len = field.type.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(field.type.data(), len);
+        // Read static fields
+        in.read(reinterpret_cast<char*>(&fieldCount), sizeof(fieldCount));
+        classMeta.staticFields.resize(fieldCount);
+        for (auto& field : classMeta.staticFields) {
+            readFieldMetadata(in, field);
+        }
 
-                out.write(reinterpret_cast<const char*>(&field.isStatic), sizeof(field.isStatic));
-                out.write(reinterpret_cast<const char*>(&field.isFinal), sizeof(field.isFinal));
-                out.write(reinterpret_cast<const char*>(&field.isPrivate), sizeof(field.isPrivate));
-                out.write(reinterpret_cast<const char*>(&field.isProtected), sizeof(field.isProtected));
-            }
+        // Read instance methods
+        size_t methodCount;
+        in.read(reinterpret_cast<char*>(&methodCount), sizeof(methodCount));
+        classMeta.instanceMethods.resize(methodCount);
+        for (auto& method : classMeta.instanceMethods) {
+            readMethodMetadata(in, method);
+        }
 
-            // Write instance methods
-            size_t methodCount = classMeta.instanceMethods.size();
-            out.write(reinterpret_cast<const char*>(&methodCount), sizeof(methodCount));
-            for (const auto& method : classMeta.instanceMethods) {
-                len = method.name.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(method.name.data(), len);
+        // Read static methods
+        in.read(reinterpret_cast<char*>(&methodCount), sizeof(methodCount));
+        classMeta.staticMethods.resize(methodCount);
+        for (auto& method : classMeta.staticMethods) {
+            readMethodMetadata(in, method);
+        }
 
-                len = method.returnType.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(method.returnType.data(), len);
-
-                writeStringVector(out, method.parameterTypes);
-                writeStringVector(out, method.parameterNames);
-
-                out.write(reinterpret_cast<const char*>(&method.isStatic), sizeof(method.isStatic));
-                out.write(reinterpret_cast<const char*>(&method.isFinal), sizeof(method.isFinal));
-                out.write(reinterpret_cast<const char*>(&method.isPrivate), sizeof(method.isPrivate));
-                out.write(reinterpret_cast<const char*>(&method.isProtected), sizeof(method.isProtected));
-                out.write(reinterpret_cast<const char*>(&method.startOffset), sizeof(method.startOffset));
-            }
-
-            // Write static methods
-            methodCount = classMeta.staticMethods.size();
-            out.write(reinterpret_cast<const char*>(&methodCount), sizeof(methodCount));
-            for (const auto& method : classMeta.staticMethods) {
-                len = method.name.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(method.name.data(), len);
-
-                len = method.returnType.size();
-                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
-                out.write(method.returnType.data(), len);
-
-                writeStringVector(out, method.parameterTypes);
-                writeStringVector(out, method.parameterNames);
-
-                out.write(reinterpret_cast<const char*>(&method.isStatic), sizeof(method.isStatic));
-                out.write(reinterpret_cast<const char*>(&method.isFinal), sizeof(method.isFinal));
-                out.write(reinterpret_cast<const char*>(&method.isPrivate), sizeof(method.isPrivate));
-                out.write(reinterpret_cast<const char*>(&method.isProtected), sizeof(method.isProtected));
-                out.write(reinterpret_cast<const char*>(&method.startOffset), sizeof(method.startOffset));
-            }
-
-            // Write constructors
-            size_t ctorCount = classMeta.constructors.size();
-            out.write(reinterpret_cast<const char*>(&ctorCount), sizeof(ctorCount));
-            for (const auto& ctor : classMeta.constructors) {
-                writeStringVector(out, ctor.parameterTypes);
-                writeStringVector(out, ctor.parameterNames);
-                out.write(reinterpret_cast<const char*>(&ctor.startOffset), sizeof(ctor.startOffset));
-            }
+        // Read constructors
+        size_t ctorCount;
+        in.read(reinterpret_cast<char*>(&ctorCount), sizeof(ctorCount));
+        classMeta.constructors.resize(ctorCount);
+        for (auto& ctor : classMeta.constructors) {
+            readConstructorMetadata(in, ctor);
         }
     }
 
@@ -666,116 +691,7 @@ namespace vm::bytecode
 
         classes.resize(count);
         for (size_t i = 0; i < count; ++i) {
-            ClassMetadata& classMeta = classes[i];
-
-            // Read class name
-            size_t len;
-            in.read(reinterpret_cast<char*>(&len), sizeof(len));
-            classMeta.name.resize(len);
-            in.read(&classMeta.name[0], len);
-
-            // Read parent class name
-            in.read(reinterpret_cast<char*>(&len), sizeof(len));
-            classMeta.parentClassName.resize(len);
-            in.read(&classMeta.parentClassName[0], len);
-
-            // Read implemented interfaces
-            classMeta.implementedInterfaces = readStringVector(in);
-
-            // Read generic parameters
-            classMeta.genericParameters = readStringVector(in);
-
-            // Read instance fields
-            size_t fieldCount;
-            in.read(reinterpret_cast<char*>(&fieldCount), sizeof(fieldCount));
-            classMeta.instanceFields.resize(fieldCount);
-            for (auto& field : classMeta.instanceFields) {
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                field.name.resize(len);
-                in.read(&field.name[0], len);
-
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                field.type.resize(len);
-                in.read(&field.type[0], len);
-
-                in.read(reinterpret_cast<char*>(&field.isStatic), sizeof(field.isStatic));
-                in.read(reinterpret_cast<char*>(&field.isFinal), sizeof(field.isFinal));
-                in.read(reinterpret_cast<char*>(&field.isPrivate), sizeof(field.isPrivate));
-                in.read(reinterpret_cast<char*>(&field.isProtected), sizeof(field.isProtected));
-            }
-
-            // Read static fields
-            in.read(reinterpret_cast<char*>(&fieldCount), sizeof(fieldCount));
-            classMeta.staticFields.resize(fieldCount);
-            for (auto& field : classMeta.staticFields) {
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                field.name.resize(len);
-                in.read(&field.name[0], len);
-
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                field.type.resize(len);
-                in.read(&field.type[0], len);
-
-                in.read(reinterpret_cast<char*>(&field.isStatic), sizeof(field.isStatic));
-                in.read(reinterpret_cast<char*>(&field.isFinal), sizeof(field.isFinal));
-                in.read(reinterpret_cast<char*>(&field.isPrivate), sizeof(field.isPrivate));
-                in.read(reinterpret_cast<char*>(&field.isProtected), sizeof(field.isProtected));
-            }
-
-            // Read instance methods
-            size_t methodCount;
-            in.read(reinterpret_cast<char*>(&methodCount), sizeof(methodCount));
-            classMeta.instanceMethods.resize(methodCount);
-            for (auto& method : classMeta.instanceMethods) {
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                method.name.resize(len);
-                in.read(&method.name[0], len);
-
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                method.returnType.resize(len);
-                in.read(&method.returnType[0], len);
-
-                method.parameterTypes = readStringVector(in);
-                method.parameterNames = readStringVector(in);
-
-                in.read(reinterpret_cast<char*>(&method.isStatic), sizeof(method.isStatic));
-                in.read(reinterpret_cast<char*>(&method.isFinal), sizeof(method.isFinal));
-                in.read(reinterpret_cast<char*>(&method.isPrivate), sizeof(method.isPrivate));
-                in.read(reinterpret_cast<char*>(&method.isProtected), sizeof(method.isProtected));
-                in.read(reinterpret_cast<char*>(&method.startOffset), sizeof(method.startOffset));
-            }
-
-            // Read static methods
-            in.read(reinterpret_cast<char*>(&methodCount), sizeof(methodCount));
-            classMeta.staticMethods.resize(methodCount);
-            for (auto& method : classMeta.staticMethods) {
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                method.name.resize(len);
-                in.read(&method.name[0], len);
-
-                in.read(reinterpret_cast<char*>(&len), sizeof(len));
-                method.returnType.resize(len);
-                in.read(&method.returnType[0], len);
-
-                method.parameterTypes = readStringVector(in);
-                method.parameterNames = readStringVector(in);
-
-                in.read(reinterpret_cast<char*>(&method.isStatic), sizeof(method.isStatic));
-                in.read(reinterpret_cast<char*>(&method.isFinal), sizeof(method.isFinal));
-                in.read(reinterpret_cast<char*>(&method.isPrivate), sizeof(method.isPrivate));
-                in.read(reinterpret_cast<char*>(&method.isProtected), sizeof(method.isProtected));
-                in.read(reinterpret_cast<char*>(&method.startOffset), sizeof(method.startOffset));
-            }
-
-            // Read constructors
-            size_t ctorCount;
-            in.read(reinterpret_cast<char*>(&ctorCount), sizeof(ctorCount));
-            classMeta.constructors.resize(ctorCount);
-            for (auto& ctor : classMeta.constructors) {
-                ctor.parameterTypes = readStringVector(in);
-                ctor.parameterNames = readStringVector(in);
-                in.read(reinterpret_cast<char*>(&ctor.startOffset), sizeof(ctor.startOffset));
-            }
+            readClassMetadata(in, classes[i]);
         }
     }
 }

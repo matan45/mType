@@ -23,6 +23,7 @@
 #include "visitors/ControlFlowCompiler.hpp"
 #include "visitors/FunctionCompiler.hpp"
 #include "visitors/ClassCompiler.hpp"
+#include "ImportHelper.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -150,23 +151,15 @@ namespace vm::compiler
         visitors::FunctionCompiler functionCompiler;
         visitors::ClassCompiler classCompiler;
 
+        // Import helper
+        ImportHelper importHelper;
+
         // Import tracking (to avoid recompiling the same file)
         std::unordered_set<std::string> compiledImports;
 
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
-
-        // Import processing helpers
-        void processNestedImports(ast::ASTNode* node);
-
-        // Import validation helpers
-        void collectExportedSymbols(ast::ASTNode* ast,
-                                     const std::string& filePath,
-                                     std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
-        void collectExportedSymbolsFromNode(ast::ASTNode* node,
-                                             const std::string& filePath,
-                                             std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
     };
 }
 

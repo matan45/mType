@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include "TryStatementHelper.hpp"
 #include "../../../ast/nodes/statements/IfNode.hpp"
 #include "../../../ast/nodes/statements/WhileNode.hpp"
 #include "../../../ast/nodes/statements/DoWhileNode.hpp"
@@ -14,6 +15,7 @@
 #include "../../../ast/nodes/statements/CatchNode.hpp"
 #include "../../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../../value/ValueType.hpp"
+#include <memory>
 
 namespace vm::compiler::visitors
 {
@@ -45,5 +47,6 @@ namespace vm::compiler::visitors
 
     private:
         CompilerContext& ctx;
+        std::unique_ptr<TryStatementHelper> tryHelper;
     };
 }

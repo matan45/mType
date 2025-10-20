@@ -1,4 +1,5 @@
 #include "TypeExecutor.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
 #include <sstream>
 
@@ -137,23 +138,13 @@ namespace vm::runtime
             try {
                 return std::stoi(std::get<std::string>(val));
             } catch (...) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                if (loc) {
-                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val), errorLoc);
-                } else {
-                    throw errors::RuntimeException("Cannot cast string to int: " + std::get<std::string>(val));
-                }
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Cannot cast string to int: " + std::get<std::string>(val));
             }
         }
         else {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Cannot cast to int from this type", errorLoc);
-            } else {
-                throw errors::RuntimeException("Cannot cast to int from this type");
-            }
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot cast to int from this type");
         }
     }
 
@@ -168,23 +159,13 @@ namespace vm::runtime
             try {
                 return std::stof(std::get<std::string>(val));
             } catch (...) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                if (loc) {
-                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val), errorLoc);
-                } else {
-                    throw errors::RuntimeException("Cannot cast string to float: " + std::get<std::string>(val));
-                }
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Cannot cast string to float: " + std::get<std::string>(val));
             }
         }
         else {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Cannot cast to float from this type", errorLoc);
-            } else {
-                throw errors::RuntimeException("Cannot cast to float from this type");
-            }
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot cast to float from this type");
         }
     }
 
@@ -213,136 +194,135 @@ namespace vm::runtime
             return str.length() > 0;
         }
         else {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Cannot cast to bool from this type", errorLoc);
-            } else {
-                throw errors::RuntimeException("Cannot cast to bool from this type");
-            }
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot cast to bool from this type");
         }
     }
 
-    value::Value TypeExecutor::castToObject(const value::Value& val, const std::string& targetTypeName) {
-        // Object cast - check if it's a valid object type
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+    TypeExecutor::TypeComponents TypeExecutor::extractTypeComponents(const std::string& typeName) {
+        TypeComponents components;
+        components.baseName = typeName;
+        components.typeParams = "";
 
-            if (obj) {
-                auto classDef = obj->getClassDefinition();
-                std::string className = classDef->getName();
+        size_t genericStart = typeName.find('<');
+        if (genericStart != std::string::npos) {
+            components.baseName = typeName.substr(0, genericStart);
+            components.typeParams = typeName.substr(genericStart); // includes <>
+        }
 
-                // Extract base class name and type parameters from object's class
-                std::string baseClassName = className;
-                std::string classTypeParams = "";
-                size_t genericStart = className.find('<');
-                if (genericStart != std::string::npos) {
-                    baseClassName = className.substr(0, genericStart);
-                    classTypeParams = className.substr(genericStart); // includes <>
-                }
+        return components;
+    }
 
-                // Extract base target name and type parameters
-                std::string baseTargetName = targetTypeName;
-                std::string targetTypeParams = "";
-                genericStart = targetTypeName.find('<');
-                if (genericStart != std::string::npos) {
-                    baseTargetName = targetTypeName.substr(0, genericStart);
-                    targetTypeParams = targetTypeName.substr(genericStart); // includes <>
-                }
+    bool TypeExecutor::checkExactMatch(const std::string& className, const std::string& targetTypeName,
+                                       const TypeComponents& classComp, const TypeComponents& targetComp) {
+        // 1. Exact match (including generic type parameters)
+        if (className == targetTypeName) {
+            return true;
+        }
+        // 2. Base class match without type parameters (e.g., Box<Int> -> Box)
+        if (classComp.baseName == targetComp.baseName && targetComp.typeParams.empty()) {
+            return true;
+        }
+        return false;
+    }
 
-                // Check if the object's class can be cast to target type
-                bool canCast = false;
+    bool TypeExecutor::checkUpcastMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+                                        const std::string& targetTypeName, const TypeComponents& targetComp,
+                                        const std::string& baseClassName, const std::string& classTypeParams) {
+        // 3. Upcast - object is subclass of target type
+        if (classDef->isSubclassOf(targetTypeName)) {
+            return true;
+        }
+        // 4. Upcast with base names (for generic types)
+        if (classDef->isSubclassOf(targetComp.baseName)) {
+            // Check if type parameters match (if target has type params)
+            if (!targetComp.typeParams.empty() && !classTypeParams.empty()) {
+                // Type parameters must match for generic upcast
+                return (classTypeParams == targetComp.typeParams);
+            }
+            // No type params on target, allow upcast to generic base
+            return true;
+        }
+        return false;
+    }
 
-                // 1. Exact match (including generic type parameters)
-                if (className == targetTypeName) {
-                    canCast = true;
-                }
-                // 2. Base class match without type parameters (e.g., Box<Int> -> Box)
-                else if (baseClassName == baseTargetName && targetTypeParams.empty()) {
-                    canCast = true;
-                }
-                // 3. Upcast - object is subclass of target type
-                else if (classDef->isSubclassOf(targetTypeName)) {
-                    canCast = true;
-                }
-                // 4. Upcast with base names (for generic types)
-                else if (classDef->isSubclassOf(baseTargetName)) {
-                    // Check if type parameters match (if target has type params)
-                    if (!targetTypeParams.empty() && !classTypeParams.empty()) {
-                        // Type parameters must match for generic upcast
-                        canCast = (classTypeParams == targetTypeParams);
-                    } else {
-                        // No type params on target, allow upcast to generic base
-                        canCast = true;
-                    }
-                }
-                // 5. Downcast - target type is subclass of object's type (runtime check needed)
-                else {
-                    // Get target class from registry to check if it's a subclass
-                    auto targetClass = context.environment->findClass(baseTargetName);
-                    if (targetClass) {
-                        // Check if target class is a subclass of the object's actual class
-                        if (targetClass->isSubclassOf(baseClassName)) {
-                            // Check type parameter compatibility for generic downcast
-                            if (!targetTypeParams.empty() && !classTypeParams.empty()) {
-                                // Type parameters must match for valid generic downcast
-                                canCast = (classTypeParams == targetTypeParams);
-                            } else {
-                                // No type param mismatch, allow downcast
-                                canCast = true;
-                            }
-                        }
-                    }
-                }
+    bool TypeExecutor::checkDowncastMatch(const std::string& baseClassName, const std::string& baseTargetName,
+                                          const std::string& classTypeParams, const std::string& targetTypeParams) {
+        // Get target class from registry to check if it's a subclass
+        auto targetClass = context.environment->findClass(baseTargetName);
+        if (!targetClass) {
+            return false;
+        }
 
-                // 6. Interface check (with recursive hierarchy checking)
-                if (!canCast) {
-                    const auto& interfaces = classDef->getImplementedInterfaces();
-                    for (const auto& iface : interfaces) {
-                        std::unordered_set<std::string> visited;
-                        if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                            canCast = true;
-                            break;
-                        }
-                    }
-                }
+        // Check if target class is a subclass of the object's actual class
+        if (!targetClass->isSubclassOf(baseClassName)) {
+            return false;
+        }
 
-                if (canCast) {
-                    return obj;
-                } else {
-                    auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                    if (loc) {
-                        errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                        throw errors::RuntimeException(
-                            "Cannot cast " + className + " to " + targetTypeName +
-                            ": incompatible types in inheritance hierarchy", errorLoc);
-                    } else {
-                        throw errors::RuntimeException(
-                            "Cannot cast " + className + " to " + targetTypeName +
-                            ": incompatible types in inheritance hierarchy");
-                    }
-                }
-            } else {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                if (loc) {
-                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName, errorLoc);
-                } else {
-                    throw errors::RuntimeException("Cannot cast null to " + targetTypeName);
-                }
+        // Check type parameter compatibility for generic downcast
+        if (!targetTypeParams.empty() && !classTypeParams.empty()) {
+            // Type parameters must match for valid generic downcast
+            return (classTypeParams == targetTypeParams);
+        }
+        // No type param mismatch, allow downcast
+        return true;
+    }
+
+    bool TypeExecutor::checkInterfaceMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+                                           const std::string& targetTypeName) {
+        const auto& interfaces = classDef->getImplementedInterfaces();
+        for (const auto& iface : interfaces) {
+            std::unordered_set<std::string> visited;
+            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                return true;
             }
         }
-        else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
+        return false;
+    }
+
+    void TypeExecutor::throwIncompatibleCastError(const std::string& className, const std::string& targetTypeName) {
+        utils::ErrorLocationHelper::throwRuntimeError(context,
+            "Cannot cast " + className + " to " + targetTypeName +
+            ": incompatible types in inheritance hierarchy");
+    }
+
+    value::Value TypeExecutor::castToObject(const value::Value& val, const std::string& targetTypeName) {
+        // Handle null values
+        if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
             return val; // null remains null for object casts
         }
-        else {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName, errorLoc);
-            } else {
-                throw errors::RuntimeException("Cannot cast primitive type to " + targetTypeName);
-            }
+
+        // Handle non-object types
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot cast primitive type to " + targetTypeName);
+        }
+
+        // Object cast - check if it's a valid object type
+        auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (!obj) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot cast null to " + targetTypeName);
+        }
+
+        auto classDef = obj->getClassDefinition();
+        std::string className = classDef->getName();
+
+        // Extract base class name and type parameters
+        TypeComponents classComp = extractTypeComponents(className);
+        TypeComponents targetComp = extractTypeComponents(targetTypeName);
+
+        // Check if the object's class can be cast to target type
+        bool canCast = checkExactMatch(className, targetTypeName, classComp, targetComp) ||
+                       checkUpcastMatch(classDef, targetTypeName, targetComp, classComp.baseName, classComp.typeParams) ||
+                       checkDowncastMatch(classComp.baseName, targetComp.baseName, classComp.typeParams, targetComp.typeParams) ||
+                       checkInterfaceMatch(classDef, targetTypeName);
+
+        if (canCast) {
+            return obj;
+        } else {
+            throwIncompatibleCastError(className, targetTypeName);
+            return val; // Never reached, but satisfies return type
         }
     }
 

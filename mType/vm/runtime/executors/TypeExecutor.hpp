@@ -48,5 +48,22 @@ namespace vm::runtime
 
         // Convert value to string representation
         std::string valueToString(const value::Value& val);
+
+        // Helper methods for castToObject
+        struct TypeComponents {
+            std::string baseName;
+            std::string typeParams;
+        };
+        TypeComponents extractTypeComponents(const std::string& typeName);
+        bool checkExactMatch(const std::string& className, const std::string& targetTypeName,
+                            const TypeComponents& classComp, const TypeComponents& targetComp);
+        bool checkUpcastMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+                             const std::string& targetTypeName, const TypeComponents& targetComp,
+                             const std::string& baseClassName, const std::string& classTypeParams);
+        bool checkDowncastMatch(const std::string& baseClassName, const std::string& baseTargetName,
+                               const std::string& classTypeParams, const std::string& targetTypeParams);
+        bool checkInterfaceMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+                                const std::string& targetTypeName);
+        void throwIncompatibleCastError(const std::string& className, const std::string& targetTypeName);
     };
 }
