@@ -52,7 +52,8 @@ namespace services
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
-        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
+        bool skipStrictValidation = (optimizationLevel == constants::OptimizationLevel::Release);
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
         optimizer = std::make_unique<optimizer::Optimizer>(
             optimizer::OptimizationConfig::forLevel(optimizationLevel)
@@ -79,7 +80,8 @@ namespace services
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
         evaluator = std::make_unique<evaluator::Evaluator>(environment);
-        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment);
+        bool skipStrictValidation = (optimizationLevel == constants::OptimizationLevel::Release);
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
         optimizer = std::make_unique<optimizer::Optimizer>(
             optimizer::OptimizationConfig::forLevel(optimizationLevel)
@@ -896,7 +898,8 @@ namespace services
             vmEnvironment->setImportManager(environment->getImportManager());
 
             // Create fresh VM and compiler with new environment
-            auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment);
+            bool skipStrictValidation = (optimizationLevel == constants::OptimizationLevel::Release);
+            auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment, skipStrictValidation);
             auto vmMachine = std::make_shared<vm::runtime::VirtualMachine>(vmEnvironment);
 
             // The imports are already resolved in the AST (from AST execution)
@@ -1109,7 +1112,9 @@ namespace services
         }
 
         // Compile to bytecode
-        BytecodeCompiler bytecodeCompiler(environment);
+        // Skip strict validation in Release mode as AST optimizer may have removed unused methods
+        bool skipStrictValidation = (optimizationLevel == constants::OptimizationLevel::Release);
+        BytecodeCompiler bytecodeCompiler(environment, skipStrictValidation);
         auto program = bytecodeCompiler.compile(ast.get());
 
         // Store source file path for class registration when loading

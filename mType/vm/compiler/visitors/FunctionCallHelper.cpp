@@ -1,4 +1,5 @@
 #include "FunctionCallHelper.hpp"
+#include "../validation/CompileTimeValidator.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
@@ -94,6 +95,11 @@ namespace vm::compiler::visitors
             expectedType = ctx.resolveGenericType(expectedType);
 
             value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+
+            // Skip validation if type inference failed (returned void/unknown)
+            if (argType == value::ValueType::VOID) {
+                continue; // Can't validate - inference failed or expression is void
+            }
 
             // Convert argType to string for comparison
             std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
@@ -195,6 +201,18 @@ namespace vm::compiler::visitors
             actualFunctionName = ctx.currentClassNode->getClassName() + "::" + methodName;
         }
 
+        // Validate static method exists at compile time
+        if (ctx.compileTimeValidator) {
+            // Extract className and methodName from qualified name
+            size_t colonPos = actualFunctionName.find("::");
+            if (colonPos != std::string::npos) {
+                std::string className = actualFunctionName.substr(0, colonPos);
+                std::string methodName = actualFunctionName.substr(colonPos + 2);
+                ctx.compileTimeValidator->validateStaticMethodExists(className, methodName,
+                                                                     arguments.size(), node->getLocation());
+            }
+        }
+
         // Compile all arguments (left to right)
         for (const auto& arg : arguments) {
             arg->accept(ctx.visitor);
@@ -269,6 +287,13 @@ namespace vm::compiler::visitors
                 // Static method call - use CALL_STATIC with fully qualified name
                 std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
 
+                // Validate static method exists at compile time
+                if (ctx.compileTimeValidator) {
+                    ctx.compileTimeValidator->validateStaticMethodExists(
+                        ctx.currentClassNode->getClassName(), functionName,
+                        arguments.size(), node->getLocation());
+                }
+
                 // Compile all arguments
                 for (const auto& arg : arguments) {
                     arg->accept(ctx.visitor);
@@ -284,6 +309,14 @@ namespace vm::compiler::visitors
                                              node->getLocation().getFilename());
             } else {
                 // Instance method call - push 'this' onto stack BEFORE arguments
+
+                // Validate instance method exists at compile time
+                if (ctx.compileTimeValidator) {
+                    ctx.compileTimeValidator->validateInstanceMethodExists(
+                        ctx.currentClassNode->getClassName(), functionName,
+                        arguments.size(), node->getLocation());
+                }
+
                 ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
 
                 // Now compile arguments
@@ -310,6 +343,11 @@ namespace vm::compiler::visitors
     void FunctionCallHelper::emitRegularFunctionCall(ast::FunctionCallNode* node, const std::string& functionName,
                                                    const std::vector<std::unique_ptr<ast::ASTNode>>& arguments)
     {
+        // Validate function exists at compile time (all functions are pre-registered)
+        if (ctx.compileTimeValidator) {
+            ctx.compileTimeValidator->validateFunctionExists(functionName, node->getLocation());
+        }
+
         // Compile all arguments (left to right)
         for (const auto& arg : arguments) {
             arg->accept(ctx.visitor);

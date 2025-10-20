@@ -13,13 +13,15 @@
 
 namespace vm::compiler
 {
-    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env)
+    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env, bool skipStrictValidation)
         : environment(env)
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
         , typeValidator(env)
         , interfaceRegistrar(env, genericResolver)
         , classRegistrar(env, program, &interfaceRegistrar)
+        , functionRegistrar(program)
+        , compileTimeValidator(std::make_unique<validation::CompileTimeValidator>(env, program))
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager, exceptionManager,
                   typeInference, typeValidator, genericResolver)
@@ -30,9 +32,14 @@ namespace vm::compiler
         , controlFlowCompiler(context)
         , functionCompiler(context)
         , classCompiler(context)
+        , skipStrictValidation(skipStrictValidation)
     {
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
+
+        // Set up compile-time validator in context and registrar
+        context.compileTimeValidator = compileTimeValidator.get();
+        classRegistrar.setCompileTimeValidator(compileTimeValidator.get());
     }
 
     bytecode::BytecodeProgram BytecodeCompiler::compile(ast::ASTNode* root)
@@ -53,7 +60,10 @@ namespace vm::compiler
             program.registerFunction(name, metadata);
         }
 
-        // Second, register all classes and interfaces using registrars
+        // Second, pre-register all function signatures (allows forward references and mutual recursion)
+        functionRegistrar.registerFunctionSignatures(root);
+
+        // Third, register all classes and interfaces using registrars
         registerClassesForBytecode(root);
 
         // Third, establish parent-child relationships
@@ -61,6 +71,12 @@ namespace vm::compiler
 
         // Visit the root node to generate bytecode
         root->accept(*this);
+
+        // Validate all class methods have bytecode implementations
+        // Skip validation in Release mode as AST optimizer may have removed unused methods
+        if (!skipStrictValidation) {
+            classRegistrar.validateAllClassesHaveBytecode(root);
+        }
 
         // Emit halt instruction
         program.emit(bytecode::OpCode::HALT);

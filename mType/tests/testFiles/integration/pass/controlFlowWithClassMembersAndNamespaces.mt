@@ -53,13 +53,13 @@ function simulateBattle(Player player1, Player player2): string {
                 // Player 1 attacks Player 2
                 bool p2Alive = player2.takeDamage(15);
                 if (!p2Alive) {
-                    return player1.name + " wins in round " + toString(round + 1);
+                    return player1.name + " wins in round " + round + 1;
                 }
                 
                 // Player 2 attacks Player 1
                 bool p1Alive = player1.takeDamage(12);
                 if (!p1Alive) {
-                    return player2.name + " wins in round " + toString(round + 1);
+                    return player2.name + " wins in round " + round + 1;
                 }
                 
                 // Check for level up conditions (simplified)

@@ -21,6 +21,11 @@ namespace vm::compiler
     class BytecodeCompiler;  // Forward declaration
 }
 
+namespace vm::compiler::validation
+{
+    class CompileTimeValidator;  // Forward declaration
+}
+
 namespace vm::compiler::visitors
 {
     /**
@@ -46,6 +51,7 @@ namespace vm::compiler::visitors
         types::TypeInferenceEngine& typeInference;
         types::TypeValidator& typeValidator;
         types::GenericTypeResolver& genericResolver;
+        validation::CompileTimeValidator* compileTimeValidator = nullptr;
 
         // Class context (for member access)
         ast::ClassNode* currentClassNode = nullptr;

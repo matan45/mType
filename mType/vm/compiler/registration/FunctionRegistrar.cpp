@@ -1,0 +1,122 @@
+#include "FunctionRegistrar.hpp"
+#include "../../../ast/nodes/statements/ProgramNode.hpp"
+#include "../../../ast/nodes/statements/BlockNode.hpp"
+#include "../../../ast/nodes/statements/ImportNode.hpp"
+#include "../../../ast/nodes/classes/ClassNode.hpp"
+#include <stdexcept>
+
+namespace vm::compiler::registration
+{
+    FunctionRegistrar::FunctionRegistrar(bytecode::BytecodeProgram& program)
+        : program(program)
+    {
+    }
+
+    void FunctionRegistrar::registerFunctionSignatures(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a FunctionNode
+        if (auto functionNode = dynamic_cast<ast::FunctionNode*>(node))
+        {
+            registerSingleFunction(functionNode);
+            return; // Don't traverse into function body
+        }
+
+        // Check if this node is a ClassNode - skip it (methods handled by ClassRegistrar)
+        if (dynamic_cast<ast::ClassNode*>(node))
+        {
+            return; // ClassRegistrar handles methods
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                registerFunctionSignatures(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                registerFunctionSignatures(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process functions from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                registerFunctionSignatures(importNode->getImportedAST());
+            }
+        }
+    }
+
+    void FunctionRegistrar::registerSingleFunction(ast::FunctionNode* functionNode)
+    {
+        std::string funcName = functionNode->getName();
+
+        // Check if already registered (native or previously registered)
+        const auto* existingFunc = program.getFunction(funcName);
+        if (existingFunc)
+        {
+            return; // Already registered, skip
+        }
+
+        // Extract parameter information
+        auto paramTypesVec = functionNode->getParameterTypes();
+        std::vector<std::string> paramNames;
+        std::vector<std::string> paramTypes;
+
+        for (const auto& param : paramTypesVec)
+        {
+            paramNames.push_back(param.first);
+            const auto& paramType = param.second;
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+            {
+                paramTypes.push_back(paramType.className.value());
+            }
+            else
+            {
+                paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
+            }
+        }
+
+        // Get return type
+        value::ValueType returnType = functionNode->getReturnType();
+        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(returnType);
+        if (returnTypeStr.empty())
+        {
+            returnTypeStr = "void";
+        }
+
+        // Create placeholder metadata (will be filled in during actual compilation)
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = funcName;
+        metadata.startOffset = 0; // Placeholder
+        metadata.instructionCount = 0; // Placeholder
+        metadata.localCount = 0; // Placeholder
+        metadata.parameterCount = paramNames.size();
+        metadata.parameterNames = paramNames;
+        metadata.parameterTypes = paramTypes;
+        metadata.returnType = returnTypeStr;
+        metadata.isStatic = false;
+        metadata.isNative = false;
+        metadata.isAsync = functionNode->getIsAsync();
+
+        // Store generic type parameters if the function is generic
+        if (functionNode->isGeneric())
+        {
+            const auto& genericParams = functionNode->getGenericTypeParameters();
+            for (const auto& param : genericParams)
+            {
+                metadata.genericTypeParameters.push_back(param.name);
+            }
+        }
+
+        // Register the function signature
+        program.registerFunction(funcName, metadata);
+    }
+}

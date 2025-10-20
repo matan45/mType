@@ -8,6 +8,11 @@
 #include <memory>
 #include <unordered_set>
 
+namespace vm::compiler::validation
+{
+    class CompileTimeValidator;  // Forward declaration
+}
+
 namespace vm::compiler::registration
 {
     /**
@@ -25,9 +30,13 @@ namespace vm::compiler::registration
 
         ~ClassRegistrar() = default;
 
+        // Validator setup (called after construction)
+        void setCompileTimeValidator(validation::CompileTimeValidator* validator) { compileTimeValidator = validator; }
+
         // Main registration methods
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
+        void validateAllClassesHaveBytecode(ast::ASTNode* node);
 
         // Convenience aliases for cleaner API
         void registerClasses(ast::ASTNode* node) { registerClassesForBytecode(node); }
@@ -41,6 +50,7 @@ namespace vm::compiler::registration
         bytecode::BytecodeProgram& program;
         InterfaceRegistrar* interfaceRegistrar;
         std::unique_ptr<ClassInheritanceValidator> inheritanceValidator;
+        validation::CompileTimeValidator* compileTimeValidator = nullptr;
 
         // Helper methods
         void registerSingleClass(ast::ClassNode* classNode);

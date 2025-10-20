@@ -340,6 +340,9 @@
     <Filter Include="vm\compiler\types">
       <UniqueIdentifier>{B65BF898-2272-F62E-6BE9-8150D73EC7B6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\compiler\validation">
+      <UniqueIdentifier>{EC975F65-D891-88B7-C1FE-1EC8AD97EE23}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\compiler\variables">
       <UniqueIdentifier>{9A2C9335-0699-4E30-CF8C-E68D3BB87098}</UniqueIdentifier>
     </Filter>
@@ -1236,6 +1239,9 @@
     <ClInclude Include="vm\compiler\registration\ClassRegistrar.hpp">
       <Filter>vm\compiler\registration</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\registration\FunctionRegistrar.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\registration\InterfaceRegistrar.hpp">
       <Filter>vm\compiler\registration</Filter>
     </ClInclude>
@@ -1247,6 +1253,9 @@
     </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeValidator.hpp">
       <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\validation\CompileTimeValidator.hpp">
+      <Filter>vm\compiler\validation</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\variables\FunctionFrameManager.hpp">
       <Filter>vm\compiler\variables</Filter>
@@ -2015,6 +2024,9 @@
     <ClCompile Include="vm\compiler\registration\ClassRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\registration\FunctionRegistrar.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\registration\InterfaceRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
@@ -2026,6 +2038,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
       <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\variables\FunctionFrameManager.cpp">
       <Filter>vm\compiler\variables</Filter>

@@ -1,4 +1,5 @@
 #include "ClassRegistrar.hpp"
+#include "../validation/CompileTimeValidator.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
@@ -177,6 +178,45 @@ namespace vm::compiler::registration
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);
         program.registerClass(classMetadata);
+    }
+
+    void ClassRegistrar::validateAllClassesHaveBytecode(ast::ASTNode* node)
+    {
+        if (!node || !compileTimeValidator) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            compileTimeValidator->validateAllMethodsHaveBytecode(
+                classNode->getClassName(),
+                classNode->getLocation()
+            );
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                validateAllClassesHaveBytecode(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                validateAllClassesHaveBytecode(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process classes from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                validateAllClassesHaveBytecode(importNode->getImportedAST());
+            }
+        }
     }
 
     void ClassRegistrar::linkParentClasses(ast::ASTNode* node)

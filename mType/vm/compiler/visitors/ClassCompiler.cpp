@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
@@ -174,8 +175,14 @@ namespace vm::compiler::visitors
             baseClassName = fullClassName.substr(0, genericStart);
         }
 
-        // Validate constructor parameters if class definition exists
+        // Validate constructor exists at compile time
         const auto& arguments = node->getArguments();
+        if (ctx.compileTimeValidator)
+        {
+            ctx.compileTimeValidator->validateConstructorExists(baseClassName, arguments.size(), node->getLocation());
+        }
+
+        // Validate constructor parameters if class definition exists
         auto classDef = ctx.environment->findClass(baseClassName);
         if (classDef)
         {
@@ -315,6 +322,12 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
+            // Validate static method exists at compile time
+            if (ctx.compileTimeValidator)
+            {
+                ctx.compileTimeValidator->validateStaticMethodExists(className, methodName, arguments.size(), node->getLocation());
+            }
+
             // Validate parameter count and types
             paramValidator->validateMethodParameters(qualifiedName, qualifiedName, arguments, node->getLocation());
 
@@ -396,6 +409,19 @@ namespace vm::compiler::visitors
             if (!genericBindings.empty())
             {
                 ctx.pushGenericTypeBindings(genericBindings);
+            }
+
+            // Validate instance method exists at compile time
+            if (!objectClassName.empty() && ctx.compileTimeValidator)
+            {
+                // Extract base class name (without generic parameters)
+                std::string baseClassName = objectClassName;
+                size_t anglePos = objectClassName.find('<');
+                if (anglePos != std::string::npos)
+                {
+                    baseClassName = objectClassName.substr(0, anglePos);
+                }
+                ctx.compileTimeValidator->validateInstanceMethodExists(baseClassName, methodName, arguments.size(), node->getLocation());
             }
 
             // Validate parameter count and types for instance methods
