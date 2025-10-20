@@ -1,4 +1,5 @@
 #include "GenericParameterParser.hpp"
+#include "../utilities/ParserUtils.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser
@@ -155,19 +156,6 @@ namespace parser
         return GenericTypeParameter(paramName, constraints, location);
     }
 
-    std::string GenericParameterParser::parseNestedGenericType()
-    {
-        std::string result = parseGenericParameter();
-
-        while (tokenStream.check(TokenType::COMMA))
-        {
-            result += ", ";
-            tokenStream.advance();
-            result += parseGenericParameter();
-        }
-
-        return result;
-    }
 
     void GenericParameterParser::validateGenericParameterName(const std::string& paramName)
     {
@@ -181,42 +169,6 @@ namespace parser
 
     std::string GenericParameterParser::parseNestedGenericConstraint()
     {
-        std::string result = "<";
-        int depth = 1;
-        auto startLocation = tokenStream.current().location;
-        tokenStream.advance(); // consume '<'
-
-        while (depth > 0 && !tokenStream.isAtEnd())
-        {
-            if (tokenStream.current().type == TokenType::LESS)
-            {
-                depth++;
-                result += "<";
-            }
-            else if (tokenStream.current().type == TokenType::GREATER)
-            {
-                depth--;
-                result += ">";
-            }
-            else if (tokenStream.current().type == TokenType::IDENTIFIER)
-            {
-                result += tokenStream.current().stringValue.getString();
-            }
-            else if (tokenStream.current().type == TokenType::COMMA)
-            {
-                result += ",";
-            }
-            tokenStream.advance();
-        }
-
-        // Validate that brackets were properly closed
-        if (depth != 0)
-        {
-            throw ParseException(
-                "Malformed generic type constraint: unmatched '<' - expected matching '>'",
-                startLocation);
-        }
-
-        return result;
+        return ParserUtils::parseNestedGenericExpression(tokenStream);
     }
 }

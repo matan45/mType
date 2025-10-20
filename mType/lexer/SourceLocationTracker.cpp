@@ -1,5 +1,6 @@
 #include "SourceLocationTracker.hpp"
 #include <sstream>
+#include <cassert>
 
 namespace lexer
 {
@@ -23,6 +24,11 @@ namespace lexer
 
     void SourceLocationTracker::setPosition(int line, int column)
     {
+        // Precondition: Source positions use 1-based indexing
+        // Invalid values indicate a programming error in the caller
+        assert(line >= 1 && "Line number must be >= 1 (1-based indexing)");
+        assert(column >= 1 && "Column number must be >= 1 (1-based indexing)");
+
         currentLine = line;
         currentColumn = column;
     }
@@ -37,32 +43,11 @@ namespace lexer
         lines.clear();
         std::istringstream stream(input);
         std::string line;
-        
+
         while (std::getline(stream, line))
         {
             lines.push_back(line);
         }
-        
-        // Handle case where input doesn't end with newline
-        if (!input.empty() && input.back() != '\n')
-        {
-            // The last line is already added by getline
-        }
-    }
-
-    std::string SourceLocationTracker::getLineContent(int lineNumber) const
-    {
-        if (lineNumber >= 1 && static_cast<size_t>(lineNumber) <= lines.size())
-        {
-            return lines[lineNumber - 1]; // Convert to 0-based index
-        }
-        return "";
-    }
-
-    void SourceLocationTracker::reset()
-    {
-        currentLine = 1;
-        currentColumn = 1;
-        lines.clear();
+        // Note: std::getline handles input without trailing newline correctly
     }
 }

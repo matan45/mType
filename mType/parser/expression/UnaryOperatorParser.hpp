@@ -19,8 +19,8 @@ namespace parser::expression
         ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
 
     public:
-       explicit UnaryOperatorParser(TokenStream& stream, ParseContext& ctx);
-           
+        explicit UnaryOperatorParser(TokenStream& stream, ParseContext& ctx);
+
 
         // Method to set ExpressionParser reference after construction
         void setExpressionParser(ExpressionParser& exprParser);

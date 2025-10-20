@@ -96,7 +96,7 @@ namespace parser::expression
             else
             {
                 throw ParseException("ExpressionParser not initialized in BinaryOperatorParser",
-                                   tokenStream.current().location);
+                                     tokenStream.current().location);
             }
         }
 
@@ -142,61 +142,8 @@ namespace parser::expression
         }
         catch (const std::exception& e)
         {
-            throw ParseException("Binary operator parsing failed: " + std::string(e.what()), tokenStream.current().location);
-        }
-    }
-
-    bool BinaryOperatorParser::isBinaryOperator(TokenType type) const noexcept
-    {
-        switch (type)
-        {
-        case TokenType::OR:
-        case TokenType::AND:
-        case TokenType::EQUALS:
-        case TokenType::NOT_EQUALS:
-        case TokenType::LESS:
-        case TokenType::LESS_EQUALS:
-        case TokenType::GREATER:
-        case TokenType::GREATER_EQUALS:
-        case TokenType::PLUS:
-        case TokenType::MINUS:
-        case TokenType::MULTIPLY:
-        case TokenType::DIVIDE:
-        case TokenType::MODULO:
-        case TokenType::QUESTION: // Ternary operator
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    int BinaryOperatorParser::getOperatorPrecedence(TokenType type) const noexcept
-    {
-        switch (type)
-        {
-        case TokenType::OR:
-            return 1;
-        case TokenType::AND:
-            return 2;
-        case TokenType::EQUALS:
-        case TokenType::NOT_EQUALS:
-            return 3;
-        case TokenType::LESS:
-        case TokenType::LESS_EQUALS:
-        case TokenType::GREATER:
-        case TokenType::GREATER_EQUALS:
-            return 4;
-        case TokenType::PLUS:
-        case TokenType::MINUS:
-            return 5;
-        case TokenType::MULTIPLY:
-        case TokenType::DIVIDE:
-        case TokenType::MODULO:
-            return 6;
-        case TokenType::QUESTION:
-            return 0; // Lowest precedence
-        default:
-            return -1; // Not a binary operator
+            throw ParseException("Binary operator parsing failed: " + std::string(e.what()),
+                                 tokenStream.current().location);
         }
     }
 }

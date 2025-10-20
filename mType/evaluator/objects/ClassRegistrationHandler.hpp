@@ -70,12 +70,23 @@ namespace evaluator
             void registerClass(std::shared_ptr<ClassDefinition> classDef);
 
         private:
-            
+
             void validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef);
             std::pair<std::string, std::vector<std::string>>
             parseGenericInterfaceName(const std::string& interfaceName);
             std::string resolveGenericType(const std::string& typeName,
                                            const std::unordered_map<std::string, std::string>& substitutions);
+
+            /**
+             * @brief Creates a ParameterType with proper interface/class information
+             * @param baseType The basic value type
+             * @param genericType Optional generic type information
+             * @param env Environment for interface/class lookups
+             * @return Properly initialized ParameterType with single construction
+             */
+            ParameterType createParameterType(ValueType baseType,
+                                            std::shared_ptr<ast::GenericType> genericType,
+                                            environment::Environment* env) const;
         };
     } 
 } 

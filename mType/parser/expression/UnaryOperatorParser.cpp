@@ -53,7 +53,8 @@ namespace parser::expression
 
             if (isInNonAsyncFunction)
             {
-                throw ParseException("'await' can only be used inside async functions or at the top level", awaitLocation);
+                throw ParseException("'await' can only be used inside async functions or at the top level",
+                                     awaitLocation);
             }
 
             // Parse the expression being awaited

@@ -15,11 +15,14 @@ namespace parser
         if (!isLambdaStart())
         {
             // Debug: log current token info
-            std::string tokenInfo = "Current token: type=" + std::to_string(static_cast<int>(tokenStream.current().type));
-            if (tokenStream.current().type == TokenType::IDENTIFIER) {
+            std::string tokenInfo = "Current token: type=" + std::to_string(
+                static_cast<int>(tokenStream.current().type));
+            if (tokenStream.current().type == TokenType::IDENTIFIER)
+            {
                 tokenInfo += ", value=" + tokenStream.current().stringValue.getString();
             }
-            if (!tokenStream.isAtEnd()) {
+            if (!tokenStream.isAtEnd())
+            {
                 tokenInfo += ", next type=" + std::to_string(static_cast<int>(tokenStream.peek().type));
             }
             throw ParseException("Expected lambda expression. " + tokenInfo, tokenStream.current().location);
@@ -169,29 +172,6 @@ namespace parser
             // For more complex parameter lists, we'll be more conservative
             // and let the parser attempt to parse and handle errors
             return true; // Assume it might be a lambda for now
-        }
-
-        return false;
-    }
-
-    bool LambdaParser::isLambdaParameterPattern() const
-    {
-        // Check for valid lambda parameter patterns
-        TokenType current = tokenStream.current().type;
-
-        // Empty parameter list: ()
-        if (current == TokenType::LPAREN)
-        {
-            if (!tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::RPAREN)
-            {
-                return true;
-            }
-        }
-
-        // Identifier (could be single parameter or start of parameter list)
-        if (current == TokenType::IDENTIFIER)
-        {
-            return true;
         }
 
         return false;

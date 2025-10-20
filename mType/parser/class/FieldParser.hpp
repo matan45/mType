@@ -10,7 +10,6 @@ namespace parser
 {
     class FieldParser : public core::BaseParser
     {
-
     public:
         explicit FieldParser(TokenStream& stream, ParseContext& ctx);
 
@@ -21,7 +20,8 @@ namespace parser
         std::unique_ptr<ASTNode> parseField();
 
     private:
-        std::tuple<ast::AccessModifier, bool, bool> parseFieldModifiers(); // Returns {accessModifier, isStatic, isFinal}
+        std::tuple<ast::AccessModifier, bool, bool> parseFieldModifiers();
+        // Returns {accessModifier, isStatic, isFinal}
         std::unique_ptr<ASTNode> parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic, bool isFinal);
         std::unique_ptr<ASTNode> parseInitialValue();
     };

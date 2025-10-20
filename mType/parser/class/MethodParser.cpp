@@ -60,7 +60,8 @@ namespace parser
         return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true);
     }
 
-    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic, bool isAsync)
+    std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic,
+                                                                    bool isAsync)
     {
         // Handle function keyword (required for methods)
         if (tokenStream.current().type != TokenType::FUNCTION)
@@ -109,13 +110,14 @@ namespace parser
         // NEW: Set async context when parsing method body
         std::unique_ptr<ASTNode> body;
         {
-            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
+            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
             body = context.parseStatement();
         }
 
         // Create MethodNode with generic support, access modifier, and async flag
         return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), isStatic, methodGenericParameters, accessModifier, isAsync);
+                                            std::move(body), isStatic, methodGenericParameters, accessModifier,
+                                            isAsync);
     }
 
     std::vector<GenericTypeParameter> MethodParser::parseMethodGenericParameters()

@@ -94,4 +94,7 @@ namespace parser
     {
         tokenStream = std::ref(stream);
     }
+
+    // All type registry and context state methods are now delegated to composed components
+    // No implementation needed here - handled by TypeRegistry and ParserContextState
 }

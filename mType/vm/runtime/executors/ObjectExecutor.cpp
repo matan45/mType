@@ -1,6 +1,8 @@
 #include "ObjectExecutor.hpp"
 #include "FunctionExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
+#include "../../../errors/TypeException.hpp"
+#include "../../../types/TypeRegistry.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../value/LambdaValue.hpp"
 #include "../../../constants/LambdaConstants.hpp"
@@ -30,6 +32,48 @@ namespace vm::runtime
             size_t genericEnd = fullClassName.rfind('>');
             if (genericEnd != std::string::npos && genericEnd > genericStart) {
                 std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
+
+                // Validate generic type arguments
+                // Parse type arguments (simple comma-separated for now)
+                std::vector<std::string> typeArgs;
+                size_t start = 0;
+                size_t commaPos;
+                while ((commaPos = typeArgsStr.find(',', start)) != std::string::npos) {
+                    std::string typeArg = typeArgsStr.substr(start, commaPos - start);
+                    // Trim whitespace
+                    typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                    typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+                    typeArgs.push_back(typeArg);
+                    start = commaPos + 1;
+                }
+                // Add last type argument
+                if (start < typeArgsStr.length()) {
+                    std::string typeArg = typeArgsStr.substr(start);
+                    typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                    typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+                    typeArgs.push_back(typeArg);
+                }
+
+                // Validate that type arguments are not primitive types
+                // EXCEPTION: Promise<void> is allowed for async functions
+                auto& typeRegistry = types::getGlobalTypeRegistry();
+                for (const auto& typeArg : typeArgs) {
+                    if (typeArg.empty()) {
+                        throw errors::TypeException("Invalid empty type argument for generic class '" + baseClassName + "'");
+                    }
+
+                    // Allow void only for Promise type (used in async functions)
+                    if (typeArg == "void" && baseClassName == "Promise") {
+                        continue;
+                    }
+
+                    // Reject primitive types
+                    if (typeRegistry.isPrimitiveType(typeArg)) {
+                        throw errors::TypeException(
+                            "Generic type arguments must be object types (classes/interfaces) or generic parameters. "
+                            "Primitive type '" + typeArg + "' is not allowed as a generic argument for class '" + baseClassName + "'.");
+                    }
+                }
             }
         }
 

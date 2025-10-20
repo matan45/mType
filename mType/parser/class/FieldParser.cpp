@@ -3,11 +3,8 @@
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/AccessModifierParser.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
-#include "../../ast/nodes/classes/MethodNode.hpp"
 #include "../../errors/ParseException.hpp"
 #include <utility>
-
-#include "GenericParameterParser.hpp"
 
 namespace parser
 {
@@ -44,61 +41,13 @@ namespace parser
     {
         auto [accessModifier, isStatic, isFinal] = parseFieldModifiers();
 
-        // Check if this is actually a method (static/final function)
+        // FieldParser should only handle field declarations
+        // Method declarations should be detected and handled by ClassParser
         if (tokenStream.current().type == TokenType::FUNCTION)
         {
-            // Methods cannot be final - this is a syntax error
-            if (isFinal)
-            {
-                throw ParseException("Methods cannot be final", tokenStream.current().location);
-            }
-
-            // This is a static method, parse it here since we already have the modifiers
-            tokenStream.advance(); // consume 'function'
-
-            // Parse generic type parameters for static methods
-            std::vector<GenericTypeParameter> methodGenericParameters;
-            if (tokenStream.check(TokenType::LESS))
-            {
-                tokenStream.advance(); // consume '<'
-
-                // Use GenericParameterParser to properly parse the generic type parameters
-                GenericParameterParser genericParser(tokenStream, context);
-                methodGenericParameters = genericParser.parseGenericTypeParameters();
-
-                tokenStream.expect(TokenType::GREATER); // consume '>'
-            }
-
-            // Parse method name
-            if (tokenStream.current().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected method name", tokenStream.current().location);
-            }
-
-            std::string methodName = tokenStream.current().stringValue.getString();
-
-            // Validate static method naming convention
-            ParserUtils::validateFunctionNamingConvention(methodName, true, "Static method", tokenStream.location());
-
-            tokenStream.advance();
-
-            // Parse parameter list using generic-aware utility
-            auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
-
-            // Parse return type using generic type system
-            std::shared_ptr<GenericType> returnType = std::make_shared<ast::GenericType>(ValueType::VOID);
-            if (tokenStream.current().type == TokenType::COLON)
-            {
-                tokenStream.advance();
-                returnType = TypeParser::parseGenericType(tokenStream);
-            }
-
-            // Parse method body
-            auto body = context.parseStatement();
-
-            // Create MethodNode with generic support and access modifier
-            return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                                std::move(body), isStatic, methodGenericParameters, accessModifier);
+            throw ParseException("Unexpected 'function' keyword in field declaration context. "
+                                 "This should have been handled by MethodParser.",
+                                 tokenStream.current().location);
         }
 
         return parseFieldDeclaration(accessModifier, isStatic, isFinal);
@@ -128,7 +77,8 @@ namespace parser
         return {accessModifier, isStatic, isFinal};
     }
 
-    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic, bool isFinal)
+    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic,
+                                                                bool isFinal)
     {
         // Parse the complete type information using TypeParser
         auto fieldGenericType = TypeParser::parseGenericType(tokenStream);

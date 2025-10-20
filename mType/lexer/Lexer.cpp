@@ -8,46 +8,95 @@
 namespace lexer
 {
     // Static operator lookup table definitions
-    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {{
-        {"++", TokenType::INCREMENT, 2},
-        {"--", TokenType::DECREMENT, 2},
-        {"==", TokenType::EQUALS, 2},
-        {"!=", TokenType::NOT_EQUALS, 2},
-        {"<=", TokenType::LESS_EQUALS, 2},
-        {">=", TokenType::GREATER_EQUALS, 2},
-        {"&&", TokenType::AND, 2},
-        {"||", TokenType::OR, 2},
-        {"+=", TokenType::PLUS_ASSIGN, 2},
-        {"-=", TokenType::MINUS_ASSIGN, 2},
-        {"*=", TokenType::MULTIPLY_ASSIGN, 2},
-        {"/=", TokenType::DIVIDE_ASSIGN, 2},
-        {"%=", TokenType::MODULO_ASSIGN, 2},
-        {"::", TokenType::SCOPE, 2},
-        {"->", TokenType::ARROW, 2}
-    }};
+    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {
+        {
+            {"++", TokenType::INCREMENT, 2},
+            {"--", TokenType::DECREMENT, 2},
+            {"==", TokenType::EQUALS, 2},
+            {"!=", TokenType::NOT_EQUALS, 2},
+            {"<=", TokenType::LESS_EQUALS, 2},
+            {">=", TokenType::GREATER_EQUALS, 2},
+            {"&&", TokenType::AND, 2},
+            {"||", TokenType::OR, 2},
+            {"+=", TokenType::PLUS_ASSIGN, 2},
+            {"-=", TokenType::MINUS_ASSIGN, 2},
+            {"*=", TokenType::MULTIPLY_ASSIGN, 2},
+            {"/=", TokenType::DIVIDE_ASSIGN, 2},
+            {"%=", TokenType::MODULO_ASSIGN, 2},
+            {"::", TokenType::SCOPE, 2},
+            {"->", TokenType::ARROW, 2}
+        }
+    };
 
-    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {{
-        {"+", TokenType::PLUS, 1},
-        {"-", TokenType::MINUS, 1},
-        {"*", TokenType::MULTIPLY, 1},
-        {"/", TokenType::DIVIDE, 1},
-        {"%", TokenType::MODULO, 1},
-        {"=", TokenType::ASSIGN, 1},
-        {"(", TokenType::LPAREN, 1},
-        {")", TokenType::RPAREN, 1},
-        {"{", TokenType::LBRACE, 1},
-        {"}", TokenType::RBRACE, 1},
-        {"[", TokenType::LBRACKET, 1},
-        {"]", TokenType::RBRACKET, 1},
-        {",", TokenType::COMMA, 1},
-        {";", TokenType::SEMICOLON, 1},
-        {":", TokenType::COLON, 1},
-        {"?", TokenType::QUESTION, 1},
-        {"!", TokenType::NOT, 1},
-        {"<", TokenType::LESS, 1},
-        {">", TokenType::GREATER, 1},
-        {".", TokenType::DOT, 1}
-    }};
+    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {
+        {
+            {"+", TokenType::PLUS, 1},
+            {"-", TokenType::MINUS, 1},
+            {"*", TokenType::MULTIPLY, 1},
+            {"/", TokenType::DIVIDE, 1},
+            {"%", TokenType::MODULO, 1},
+            {"=", TokenType::ASSIGN, 1},
+            {"(", TokenType::LPAREN, 1},
+            {")", TokenType::RPAREN, 1},
+            {"{", TokenType::LBRACE, 1},
+            {"}", TokenType::RBRACE, 1},
+            {"[", TokenType::LBRACKET, 1},
+            {"]", TokenType::RBRACKET, 1},
+            {",", TokenType::COMMA, 1},
+            {";", TokenType::SEMICOLON, 1},
+            {":", TokenType::COLON, 1},
+            {"?", TokenType::QUESTION, 1},
+            {"!", TokenType::NOT, 1},
+            {"<", TokenType::LESS, 1},
+            {">", TokenType::GREATER, 1},
+            {".", TokenType::DOT, 1}
+        }
+    };
+
+    const std::unordered_map<std::string, TokenType> Lexer::keywords = {
+        {"function", TokenType::FUNCTION},
+        {"return", TokenType::RETURN},
+        {"if", TokenType::IF},
+        {"else", TokenType::ELSE},
+        {"while", TokenType::WHILE},
+        {"do", TokenType::DO},
+        {"for", TokenType::FOR},
+        {"final", TokenType::FINAL},
+        {"break", TokenType::BREAK},
+        {"continue", TokenType::CONTINUE},
+        {"int", TokenType::INT},
+        {"float", TokenType::FLOAT},
+        {"bool", TokenType::BOOL},
+        {"string", TokenType::STRING_TYPE},
+        {"void", TokenType::VOID},
+        {"class", TokenType::CLASS},
+        {"new", TokenType::NEW},
+        {"static", TokenType::STATIC},
+        {"private", TokenType::PRIVATE},
+        {"public", TokenType::PUBLIC},
+        {"protected", TokenType::PROTECTED},
+        {"constructor", TokenType::CONSTRUCTOR},
+        {"null", TokenType::NULL_LITERAL},
+        {"true", TokenType::TRUE},
+        {"native", TokenType::NATIVE},
+        {"import", TokenType::IMPORT},
+        {"from", TokenType::FROM},
+        {"false", TokenType::FALSE},
+        {"switch", TokenType::SWITCH},
+        {"case", TokenType::CASE},
+        {"interface", TokenType::INTERFACE},
+        {"implements", TokenType::IMPLEMENTS},
+        {"extends", TokenType::EXTENDS},
+        {"super", TokenType::SUPER},
+        {"default", TokenType::DEFAULT},
+        {"isClassOf", TokenType::ISCLASSOF},
+        {"async", TokenType::ASYNC},
+        {"await", TokenType::AWAIT},
+        {"try", TokenType::TRY},
+        {"catch", TokenType::CATCH},
+        {"throw", TokenType::THROW},
+        {"finally", TokenType::FINALLY}
+    };
 
     Lexer::Lexer(const std::string& filePath, std::unique_ptr<FileReader> reader)
         : pos(0), fileReader(std::move(reader)),
@@ -56,6 +105,31 @@ namespace lexer
     {
         input = fileReader->readFile(filePath);
         locationTracker->splitIntoLines(input);
+    }
+
+    Token Lexer::parseNumber()
+    {
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
+
+        // Look ahead to determine if this is a float or integer
+        size_t lookAhead = pos;
+        while (lookAhead < input.length() && std::isdigit(input[lookAhead]))
+        {
+            lookAhead++;
+        }
+
+        // Check if we found a decimal point followed by digits
+        if (lookAhead < input.length() && input[lookAhead] == '.' &&
+            lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
+        {
+            float value = parseFloat();
+            return TokenFactory::createFloatToken(value, location);
+        }
+        else
+        {
+            int value = parseInteger();
+            return TokenFactory::createIntegerToken(value, location);
+        }
     }
 
     Token Lexer::getNextToken()
@@ -73,26 +147,7 @@ namespace lexer
         // Numbers
         if (std::isdigit(current))
         {
-            // Look ahead to determine if this is a float or integer
-            // Check if there's a decimal point followed by digits in the number
-            size_t lookAhead = pos;
-            while (lookAhead < input.length() && std::isdigit(input[lookAhead]))
-            {
-                lookAhead++;
-            }
-
-            // Check if we found a decimal point followed by digits
-            if (lookAhead < input.length() && input[lookAhead] == '.' &&
-                lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
-            {
-                float value = parseFloat();
-                return TokenFactory::createFloatToken(value, location);
-            }
-            else
-            {
-                int value = parseInteger();
-                return TokenFactory::createIntegerToken(value, location);
-            }
+            return parseNumber();
         }
 
         // Identifiers and keywords
@@ -100,7 +155,7 @@ namespace lexer
         {
             std::string_view identifier = parseIdentifier();
             TokenType tokenType = findKeywordType(identifier);
-            
+
             if (tokenType == TokenType::IDENTIFIER)
             {
                 return TokenFactory::createIdentifierToken(identifier, location);
@@ -120,7 +175,7 @@ namespace lexer
 
         // Try to parse operators using lookup tables
         Token operatorToken = tryParseOperator();
-        if (operatorToken.type != TokenType::END) // Check if a valid operator was found
+        if (operatorToken.type != TokenType::END)
         {
             return operatorToken;
         }
@@ -129,39 +184,45 @@ namespace lexer
         throwError("Unexpected character: " + std::string(1, current));
     }
 
-    Token Lexer::peekNextToken()
+    Lexer::LexerState Lexer::captureState() const
     {
-        // Save current state
-        size_t savedPos = pos;
-        int savedLine = locationTracker->getCurrentLine();
-        int savedColumn = locationTracker->getCurrentColumn();
-        std::stack<char> savedBalanceStack = bracketBalancer->copyStack();
+        return LexerState{
+            pos,
+            locationTracker->getCurrentLine(),
+            locationTracker->getCurrentColumn(),
+            bracketBalancer->copyStack()
+        };
+    }
 
-        // Get the next token
-        Token token = getNextToken();
+    void Lexer::restoreState(const LexerState& state)
+    {
+        pos = state.pos;
+        locationTracker->setPosition(state.line, state.column);
 
-        // Restore state
-        pos = savedPos;
-        locationTracker->setPosition(savedLine, savedColumn);
-        
-        // Restore balance stack
+        // Restore bracket balancer stack
         bracketBalancer->clear();
-        std::stack<char> tempStack = savedBalanceStack;
+        std::stack<char> tempStack = state.balanceStack;
         std::vector<char> stackContents;
-        
+
         // Extract all elements from the stack
         while (!tempStack.empty())
         {
             stackContents.push_back(tempStack.top());
             tempStack.pop();
         }
-        
+
         // Push them back in reverse order to restore original stack
         for (auto it = stackContents.rbegin(); it != stackContents.rend(); ++it)
         {
             bracketBalancer->pushOpening(*it);
         }
+    }
 
+    Token Lexer::peekNextToken()
+    {
+        LexerState savedState = captureState();
+        Token token = getNextToken();
+        restoreState(savedState);
         return token;
     }
 
@@ -177,7 +238,8 @@ namespace lexer
         try
         {
             return std::stof(std::string(floatView)); // std::stof requires std::string
-        }catch (const std::out_of_range&)
+        }
+        catch (const std::out_of_range&)
         {
             // Handle float overflow - clamp to float limits
             std::string floatStr(floatView); // Convert to string for error handling
@@ -199,9 +261,9 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw errors::ParseException("Invalid float format: " + std::string(floatView), locationTracker->getCurrentLocation());
+            throw errors::ParseException("Invalid float format: " + std::string(floatView),
+                                         locationTracker->getCurrentLocation());
         }
-        
     }
 
     int Lexer::parseInteger()
@@ -239,7 +301,8 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw errors::ParseException("Invalid integer format: " + std::string(intView), locationTracker->getCurrentLocation());
+            throw errors::ParseException("Invalid integer format: " + std::string(intView),
+                                         locationTracker->getCurrentLocation());
         }
     }
 
@@ -251,6 +314,45 @@ namespace lexer
             advance();
         }
         return std::string_view(input.data() + start, pos - start);
+    }
+
+    std::string Lexer::processEscapeSequences(size_t start, size_t end)
+    {
+        std::string result;
+        result.reserve(end - start);
+
+        while (pos < input.length() && input[pos] != '"')
+        {
+            if (input[pos] == '\\' && pos + 1 < input.length())
+            {
+                advance(); // Skip backslash
+                switch (input[pos])
+                {
+                case 'n': result += '\n';
+                    break;
+                case 't': result += '\t';
+                    break;
+                case 'r': result += '\r';
+                    break;
+                case '\\': result += '\\';
+                    break;
+                case '"': result += '"';
+                    break;
+                default:
+                    result += '\\';
+                    result += input[pos];
+                    break;
+                }
+            }
+            else
+            {
+                result += input[pos];
+            }
+            advance();
+        }
+        advance(); // Skip closing quote
+
+        return result;
     }
 
     std::string Lexer::parseStringLiteral()
@@ -275,47 +377,16 @@ namespace lexer
         {
             throwError("Unterminated string literal");
         }
-        
-        std::string result;
+
         if (!hasEscapes)
         {
             // Optimization: no escapes, use string_view for direct copy
             std::string_view literalView(input.data() + start, end - start);
-            result = std::string(literalView);
             pos = end + 1; // Skip closing quote
-        }
-        else
-        {
-            // Handle escape sequences (original logic)
-            result.reserve(end - start); // Pre-allocate approximate size
-            while (pos < input.length() && input[pos] != '"')
-            {
-                if (input[pos] == '\\' && pos + 1 < input.length())
-                {
-                    advance(); // Skip backslash
-                    switch (input[pos])
-                    {
-                    case 'n': result += '\n'; break;
-                    case 't': result += '\t'; break;
-                    case 'r': result += '\r'; break;
-                    case '\\': result += '\\'; break;
-                    case '"': result += '"'; break;
-                    default:
-                        result += '\\';
-                        result += input[pos];
-                        break;
-                    }
-                }
-                else
-                {
-                    result += input[pos];
-                }
-                advance();
-            }
-            advance(); // Skip closing quote
+            return std::string(literalView);
         }
 
-        return result;
+        return processEscapeSequences(start, end);
     }
 
     void Lexer::skipWhitespaceAndComments()
@@ -444,110 +515,44 @@ namespace lexer
     Token Lexer::tryParseSpacedOperator()
     {
         errors::SourceLocation location = locationTracker->getCurrentLocation();
-        size_t originalPos = pos;
 
-        // Look for spaced two-character operators
-        if (pos < input.length())
+        if (pos >= input.length())
         {
-            char firstChar = input[pos];
-            size_t tempPos = pos + 1;
+            return TokenFactory::createEndToken(location);
+        }
 
-            // Skip whitespace
-            while (tempPos < input.length() && std::isspace(input[tempPos]))
+        char firstChar = input[pos];
+        size_t tempPos = pos + 1;
+
+        // Skip whitespace between operator characters
+        while (tempPos < input.length() && std::isspace(input[tempPos]))
+        {
+            tempPos++;
+        }
+
+        if (tempPos >= input.length())
+        {
+            return TokenFactory::createEndToken(location);
+        }
+
+        char secondChar = input[tempPos];
+
+        // Compare characters directly against operator table
+        // SAFETY: Direct character comparison avoids temporary buffer allocation
+        // and eliminates any potential string_view lifetime issues
+        for (const auto& op : TWO_CHAR_OPERATORS)
+        {
+            if (op.symbol.length() == 2 &&
+                op.symbol[0] == firstChar &&
+                op.symbol[1] == secondChar)
             {
-                tempPos++;
-            }
-
-            // Check if we have a second character that forms a valid spaced operator
-            if (tempPos < input.length())
-            {
-                char secondChar = input[tempPos];
-
-                // Check all possible spaced operator combinations
-                TokenType operatorType = TokenType::END;
-                std::string_view operatorSymbol;
-
-                // Comparison operators
-                if (firstChar == '=' && secondChar == '=')
-                {
-                    operatorType = TokenType::EQUALS;
-                    operatorSymbol = "==";
-                }
-                else if (firstChar == '!' && secondChar == '=')
-                {
-                    operatorType = TokenType::NOT_EQUALS;
-                    operatorSymbol = "!=";
-                }
-                else if (firstChar == '<' && secondChar == '=')
-                {
-                    operatorType = TokenType::LESS_EQUALS;
-                    operatorSymbol = "<=";
-                }
-                else if (firstChar == '>' && secondChar == '=')
-                {
-                    operatorType = TokenType::GREATER_EQUALS;
-                    operatorSymbol = ">=";
-                }
-                // Increment/Decrement operators
-                else if (firstChar == '+' && secondChar == '+')
-                {
-                    operatorType = TokenType::INCREMENT;
-                    operatorSymbol = "++";
-                }
-                else if (firstChar == '-' && secondChar == '-')
-                {
-                    operatorType = TokenType::DECREMENT;
-                    operatorSymbol = "--";
-                }
-                // Logical operators
-                else if (firstChar == '&' && secondChar == '&')
-                {
-                    operatorType = TokenType::AND;
-                    operatorSymbol = "&&";
-                }
-                else if (firstChar == '|' && secondChar == '|')
-                {
-                    operatorType = TokenType::OR;
-                    operatorSymbol = "||";
-                }
-                // Assignment operators
-                else if (firstChar == '+' && secondChar == '=')
-                {
-                    operatorType = TokenType::PLUS_ASSIGN;
-                    operatorSymbol = "+=";
-                }
-                else if (firstChar == '-' && secondChar == '=')
-                {
-                    operatorType = TokenType::MINUS_ASSIGN;
-                    operatorSymbol = "-=";
-                }
-                else if (firstChar == '*' && secondChar == '=')
-                {
-                    operatorType = TokenType::MULTIPLY_ASSIGN;
-                    operatorSymbol = "*=";
-                }
-                else if (firstChar == '/' && secondChar == '=')
-                {
-                    operatorType = TokenType::DIVIDE_ASSIGN;
-                    operatorSymbol = "/=";
-                }
-                else if (firstChar == '%' && secondChar == '=')
-                {
-                    operatorType = TokenType::MODULO_ASSIGN;
-                    operatorSymbol = "%=";
-                }
-
-                if (operatorType != TokenType::END)
-                {
-                    // Update position to after the second character
-                    pos = tempPos + 1;
-                    return TokenFactory::createOperatorToken(operatorType, operatorSymbol, location);
-                }
+                // Found a valid spaced operator - advance past both characters
+                pos = tempPos + 1;
+                return TokenFactory::createOperatorToken(op.type, op.symbol, location);
             }
         }
 
-        // No spaced operator found, restore position
-        pos = originalPos;
+        // No spaced operator found
         return TokenFactory::createEndToken(location);
     }
 
@@ -560,71 +565,78 @@ namespace lexer
         }
     }
 
+    bool Lexer::canPeekAhead(size_t offset) const
+    {
+        return pos + offset < input.length();
+    }
+
+    char Lexer::peekChar(size_t offset) const
+    {
+        if (canPeekAhead(offset))
+        {
+            return input[pos + offset];
+        }
+        return '\0';
+    }
+
     TokenType Lexer::findKeywordType(std::string_view identifier) const
     {
         // Use map lookup for all keywords to ensure correctness
         // The optimization can be added later if needed, but correctness first
         auto keywordIt = keywords.find(std::string(identifier));
-        if (keywordIt != keywords.end()) 
+        if (keywordIt != keywords.end())
         {
             return keywordIt->second;
         }
-        
+
         return TokenType::IDENTIFIER; // Not a keyword
     }
 
     Token Lexer::peekAhead(size_t offset)
     {
-        if (offset == 0) {
-            return peekNextToken(); // Use existing method for offset 0
+        if (offset == 0)
+        {
+            return peekNextToken();
         }
 
-        // Save complete lexer state
-        size_t savedPos = pos;
-        int savedLine = locationTracker->getCurrentLine();
-        int savedColumn = locationTracker->getCurrentColumn();
-        std::stack<char> savedBalanceStack = bracketBalancer->copyStack();
+        LexerState savedState = captureState();
 
         // Advance to the target token
         Token result;
-        for (size_t i = 0; i < offset; ++i) {
+        for (size_t i = 0; i < offset; ++i)
+        {
             result = getNextToken();
 
             // Check if we hit end of input
-            if (result.type == TokenType::END) {
+            if (result.type == TokenType::END)
+            {
                 break;
             }
         }
 
-        // Restore complete lexer state
-        pos = savedPos;
-        locationTracker->setPosition(savedLine, savedColumn);
-
-        // Restore bracket balancer stack
-        bracketBalancer->clear();
-        std::stack<char> tempStack = savedBalanceStack;
-        std::vector<char> stackContents;
-        while (!tempStack.empty()) {
-            stackContents.push_back(tempStack.top());
-            tempStack.pop();
-        }
-        for (auto it = stackContents.rbegin(); it != stackContents.rend(); ++it) {
-            bracketBalancer->pushOpening(*it);
-        }
-
+        restoreState(savedState);
         return result;
     }
 
     std::vector<Token> Lexer::peekMultiple(size_t count)
     {
+        LexerState savedState = captureState();
+
         std::vector<Token> tokens;
         tokens.reserve(count);
 
-        for (size_t i = 0; i < count; ++i) {
-            tokens.push_back(peekAhead(i));
+        for (size_t i = 0; i < count; ++i)
+        {
+            Token token = getNextToken();
+            tokens.push_back(token);
+
+            if (token.type == TokenType::END)
+            {
+                break;
+            }
         }
 
+        restoreState(savedState);
         return tokens;
     }
-
 }

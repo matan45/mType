@@ -3,76 +3,51 @@
 
 namespace lexer
 {
-    Token TokenFactory::createToken(TokenType type, const errors::SourceLocation& location)
+    value::InternedString TokenFactory::internString(std::string_view str)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{type, 0.0f, 0, pool.intern(""), location};
+        return value::StringPool::getInstance().intern(std::string(str));
     }
 
-    Token TokenFactory::createToken(TokenType type, std::string_view symbol, const errors::SourceLocation& location)
+    value::InternedString TokenFactory::emptyString()
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{type, 0.0f, 0, pool.intern(symbolToString(symbol)), location};
+        static value::InternedString empty = value::StringPool::getInstance().intern("");
+        return empty;
     }
 
     Token TokenFactory::createIntegerToken(int value, const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::INT_NUMBER, 0.0f, value, pool.intern(""), location};
+        return Token{TokenType::INT_NUMBER, 0.0f, value, emptyString(), location};
     }
 
     Token TokenFactory::createFloatToken(float value, const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::FLOAT_NUMBER, value, 0, pool.intern(""), location};
+        return Token{TokenType::FLOAT_NUMBER, value, 0, emptyString(), location};
     }
 
-    Token TokenFactory::createStringToken(const std::string& value, const errors::SourceLocation& location)
+    Token TokenFactory::createStringToken(std::string_view value, const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::STRING_LITERAL, 0.0f, 0, pool.intern(value), location};
+        return Token{TokenType::STRING_LITERAL, 0.0f, 0, internString(value), location};
     }
 
     Token TokenFactory::createIdentifierToken(std::string_view identifier, const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::IDENTIFIER, 0.0f, 0, pool.intern(symbolToString(identifier)), location};
+        return Token{TokenType::IDENTIFIER, 0.0f, 0, internString(identifier), location};
     }
 
-    Token TokenFactory::createKeywordToken(TokenType keywordType, std::string_view keyword, const errors::SourceLocation& location)
+    Token TokenFactory::createKeywordToken(TokenType keywordType, std::string_view keyword,
+                                           const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{keywordType, 0.0f, 0, pool.intern(symbolToString(keyword)), location};
+        return Token{keywordType, 0.0f, 0, internString(keyword), location};
     }
 
-    Token TokenFactory::createOperatorToken(TokenType operatorType, std::string_view symbol, const errors::SourceLocation& location)
+    Token TokenFactory::createOperatorToken(TokenType operatorType, std::string_view symbol,
+                                            const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{operatorType, 0.0f, 0, pool.intern(symbolToString(symbol)), location};
+        return Token{operatorType, 0.0f, 0, internString(symbol), location};
     }
 
     Token TokenFactory::createEndToken(const errors::SourceLocation& location)
     {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::END, 0.0f, 0, pool.intern(""), location};
-    }
-
-    Token TokenFactory::createBooleanToken(bool value, const errors::SourceLocation& location)
-    {
-        auto& pool = value::StringPool::getInstance();
-        TokenType type = value ? TokenType::TRUE : TokenType::FALSE;
-        std::string str = value ? "true" : "false";
-        return Token{type, 0.0f, 0, pool.intern(str), location};
-    }
-
-    Token TokenFactory::createNullToken(const errors::SourceLocation& location)
-    {
-        auto& pool = value::StringPool::getInstance();
-        return Token{TokenType::NULL_LITERAL, 0.0f, 0, pool.intern("null"), location};
-    }
-
-    std::string TokenFactory::symbolToString(std::string_view symbol)
-    {
-        return std::string(symbol);
+        return Token{TokenType::END, 0.0f, 0, emptyString(), location};
     }
 }

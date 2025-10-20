@@ -20,9 +20,9 @@ namespace parser::statement
         std::unique_ptr<ASTNode> parseDoWhileStatement();
         std::unique_ptr<ASTNode> parseForStatement();
         std::unique_ptr<ASTNode> parseForEachStatement();
+        // Wrapper for parseForStatement (handles both for and for-each)
 
     private:
         bool isLoopToken(token::TokenType type) const noexcept;
-        std::unique_ptr<ASTNode> tryParseForEach();
     };
 }

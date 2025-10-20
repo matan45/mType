@@ -1,5 +1,6 @@
 #include "ClassDeclarationParser.hpp"
 #include "GenericParameterParser.hpp"
+#include "../ParserConstants.hpp"
 #include "../ParserValidator.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/VisibilityParser.hpp"
@@ -63,13 +64,12 @@ namespace parser
             tokenStream.expect(TokenType::GREATER); // consume '>'
 
             // Validate generic parameter count limit
-            constexpr size_t MAX_GENERIC_PARAMETERS = 20;
-            if (genericParameters.size() > MAX_GENERIC_PARAMETERS)
+            if (genericParameters.size() > constants::MAX_GENERIC_PARAMETERS)
             {
                 throw ParseException(
                     "Class '" + className + "' has too many generic parameters (" +
                     std::to_string(genericParameters.size()) + "). Maximum allowed: " +
-                    std::to_string(MAX_GENERIC_PARAMETERS),
+                    std::to_string(constants::MAX_GENERIC_PARAMETERS),
                     tokenStream.current().location);
             }
         }
@@ -111,8 +111,10 @@ namespace parser
                 // Build inheritance chain for error message
                 auto chain = context.getClassInheritanceChain(className);
                 std::string chainStr = className;
-                for (const auto& ancestor : chain) {
-                    if (ancestor != className) {
+                for (const auto& ancestor : chain)
+                {
+                    if (ancestor != className)
+                    {
                         chainStr += " -> " + ancestor;
                     }
                 }
@@ -129,7 +131,8 @@ namespace parser
 
         tokenStream.expect(TokenType::LBRACE);
 
-        auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName,
+                                                     implementedInterfaces);
         classNode->setFinal(isFinal);
         classNode->setVisibility(visibility);
         return classNode;
@@ -147,15 +150,15 @@ namespace parser
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
             throw ParseException("Expected parent class name after 'extends'",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
 
         std::string parentClass = parseGenericInterfaceName(); // Reuse for generic parent support
 
         // Validate parent class name
         ParserUtils::validateCapitalizedName(parentClass.substr(0, parentClass.find('<')),
-                                            "Parent class",
-                                            tokenStream.current().location);
+                                             "Parent class",
+                                             tokenStream.current().location);
 
         return parentClass;
     }
@@ -216,53 +219,7 @@ namespace parser
         // Handle generic parameters for interface if present
         if (tokenStream.check(TokenType::LESS))
         {
-            interfaceName += "<";
-            tokenStream.advance(); // consume '<'
-
-            int depth = 1;
-            while (depth > 0 && !tokenStream.isAtEnd())
-            {
-                if (tokenStream.current().type == TokenType::LESS)
-                {
-                    depth++;
-                    interfaceName += "<";
-                }
-                else if (tokenStream.current().type == TokenType::GREATER)
-                {
-                    depth--;
-                    interfaceName += ">";
-                }
-                else if (tokenStream.current().type == TokenType::IDENTIFIER)
-                {
-                    interfaceName += tokenStream.current().stringValue.getString();
-                }
-                else if (tokenStream.current().type == TokenType::STRING_TYPE)
-                {
-                    interfaceName += "string";
-                }
-                else if (tokenStream.current().type == TokenType::INT)
-                {
-                    interfaceName += "int";
-                }
-                else if (tokenStream.current().type == TokenType::FLOAT)
-                {
-                    interfaceName += "float";
-                }
-                else if (tokenStream.current().type == TokenType::BOOL)
-                {
-                    interfaceName += "bool";
-                }
-                else if (tokenStream.current().type == TokenType::VOID)
-                {
-                    interfaceName += "void";
-                }
-                else if (tokenStream.current().type == TokenType::COMMA)
-                {
-                    interfaceName += ", ";
-                }
-
-                tokenStream.advance();
-            }
+            interfaceName += ParserUtils::parseNestedGenericExpression(tokenStream);
         }
 
         return interfaceName;

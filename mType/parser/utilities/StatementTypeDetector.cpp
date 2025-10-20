@@ -2,56 +2,84 @@
 
 namespace parser::utilities
 {
+    StatementType StatementTypeDetector::analyzeAccessModifier(const TokenStream& stream)
+    {
+        Token next = stream.peek();
+        if (next.type == TokenType::CLASS)
+        {
+            return StatementType::CLASS;
+        }
+        else if (next.type == TokenType::INTERFACE)
+        {
+            return StatementType::INTERFACE;
+        }
+        else if (next.type == TokenType::FUNCTION || next.type == TokenType::NATIVE)
+        {
+            return StatementType::FUNCTION;
+        }
+        else if (isTypeKeyword(next.type) || isModifierKeyword(next.type) || next.type == TokenType::IDENTIFIER)
+        {
+            // public/private followed by type keyword, modifier, or identifier (custom class) = variable declaration
+            return StatementType::DECLARATION;
+        }
+        return StatementType::UNKNOWN;
+    }
+
+    StatementType StatementTypeDetector::analyzeFinalKeyword(const TokenStream& stream)
+    {
+        Token next = stream.peek();
+        if (next.type == TokenType::CLASS)
+        {
+            return StatementType::CLASS;
+        }
+        else if (next.type == TokenType::INTERFACE)
+        {
+            return StatementType::INTERFACE;
+        }
+        return StatementType::UNKNOWN;
+    }
+
+    StatementType StatementTypeDetector::analyzeByKeywordCategory(TokenType currentType)
+    {
+        if (isControlFlowKeyword(currentType))
+        {
+            return StatementType::CONTROL_FLOW;
+        }
+
+        if (isLoopKeyword(currentType))
+        {
+            return StatementType::LOOP;
+        }
+
+        if (isFunctionKeyword(currentType))
+        {
+            return StatementType::FUNCTION;
+        }
+
+        if (isExceptionKeyword(currentType))
+        {
+            return StatementType::EXCEPTION;
+        }
+
+        if (isTypeKeyword(currentType) || isModifierKeyword(currentType))
+        {
+            return StatementType::DECLARATION;
+        }
+
+        return StatementType::UNKNOWN;
+    }
+
     StatementType StatementTypeDetector::detectStatementType(const TokenStream& stream)
     {
         const Token& current = stream.current();
 
+        // Handle simple token type cases
         switch (current.type)
         {
         case TokenType::CLASS:
             return StatementType::CLASS;
         case TokenType::INTERFACE:
             return StatementType::INTERFACE;
-        case TokenType::PUBLIC:
-        case TokenType::PRIVATE:
-            // Check if 'public'/'private' is followed by 'class', 'interface', 'function', or type keyword
-            {
-                Token next = stream.peek();
-                if (next.type == TokenType::CLASS)
-                {
-                    return StatementType::CLASS;
-                }
-                else if (next.type == TokenType::INTERFACE)
-                {
-                    return StatementType::INTERFACE;
-                }
-                else if (next.type == TokenType::FUNCTION || next.type == TokenType::NATIVE)
-                {
-                    return StatementType::FUNCTION;
-                }
-                else if (isTypeKeyword(next.type) || isModifierKeyword(next.type) || next.type == TokenType::IDENTIFIER)
-                {
-                    // public/private followed by type keyword, modifier, or identifier (custom class) = variable declaration
-                    return StatementType::DECLARATION;
-                }
-                // Otherwise fall through
-            }
-            break;
-        case TokenType::FINAL:
-            // Check if 'final' is followed by 'class' or 'interface'
-            {
-                Token next = stream.peek();
-                if (next.type == TokenType::CLASS)
-                {
-                    return StatementType::CLASS;
-                }
-                else if (next.type == TokenType::INTERFACE)
-                {
-                    return StatementType::INTERFACE;
-                }
-                // Otherwise fall through to check if it's a modifier for a declaration
-            }
-            break;
         case TokenType::LBRACE:
             return StatementType::BLOCK;
         case TokenType::SEMICOLON:
@@ -60,38 +88,32 @@ namespace parser::utilities
             return StatementType::IMPORT;
         case TokenType::END:
             return StatementType::UNKNOWN;
+        case TokenType::PUBLIC:
+        case TokenType::PRIVATE:
+            {
+                StatementType result = analyzeAccessModifier(stream);
+                if (result != StatementType::UNKNOWN)
+                    return result;
+            }
+            break;
+        case TokenType::FINAL:
+            {
+                StatementType result = analyzeFinalKeyword(stream);
+                if (result != StatementType::UNKNOWN)
+                    return result;
+            }
+            break;
+        case TokenType::IDENTIFIER:
+            return analyzeIdentifierStatement(stream);
         default:
             break;
         }
 
-        if (isControlFlowKeyword(current.type))
+        // Analyze by keyword category
+        StatementType result = analyzeByKeywordCategory(current.type);
+        if (result != StatementType::UNKNOWN)
         {
-            return StatementType::CONTROL_FLOW;
-        }
-
-        if (isLoopKeyword(current.type))
-        {
-            return StatementType::LOOP;
-        }
-
-        if (isFunctionKeyword(current.type))
-        {
-            return StatementType::FUNCTION;
-        }
-
-        if (isExceptionKeyword(current.type))
-        {
-            return StatementType::EXCEPTION;
-        }
-
-        if (isTypeKeyword(current.type) || isModifierKeyword(current.type))
-        {
-            return StatementType::DECLARATION;
-        }
-
-        if (current.type == TokenType::IDENTIFIER)
-        {
-            return analyzeIdentifierStatement(stream);
+            return result;
         }
 
         // Default to expression statement
@@ -227,16 +249,5 @@ namespace parser::utilities
 
         // Default to expression statement
         return StatementType::EXPRESSION;
-    }
-
-    bool StatementTypeDetector::looksLikeDeclaration(const TokenStream& stream)
-    {
-        // This method can be expanded for more sophisticated declaration detection
-        return analyzeIdentifierStatement(stream) == StatementType::DECLARATION;
-    }
-
-    bool StatementTypeDetector::looksLikeAssignment(const TokenStream& stream)
-    {
-        return analyzeIdentifierStatement(stream) == StatementType::ASSIGNMENT;
     }
 }

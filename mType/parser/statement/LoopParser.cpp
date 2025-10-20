@@ -151,70 +151,9 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> LoopParser::parseForEachStatement()
     {
-        // This method is for explicit for-each parsing
-        // We should be positioned at the start of the type (after the opening parenthesis)
-
-        TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
-
-        if (!tokenStream.check(TokenType::IDENTIFIER))
-        {
-            throw ParseException("Expected variable name in for-each loop", tokenStream.current().location);
-        }
-
-        std::string variableName = tokenStream.current().stringValue.getString();
-        SourceLocation location = tokenStream.current().location;
-        tokenStream.advance();
-
-        if (!tokenStream.check(TokenType::COLON))
-        {
-            throw ParseException("Expected ':' in for-each loop. Use ';' for regular for loops.",
-                                 tokenStream.current().location);
-        }
-        tokenStream.advance(); // consume ':'
-
-        auto collection = context.parseExpression();
-        expectToken(TokenType::RPAREN);
-
-        auto body = context.parseStatement();
-
-        return std::make_unique<ForEachNode>(variableName, variableTypeInfo,
-                                             std::move(collection), std::move(body), location);
-    }
-
-    std::unique_ptr<ASTNode> LoopParser::tryParseForEach()
-    {
-        // Try to parse for-each pattern without consuming too many tokens
-        // Returns nullptr if this is not a for-each loop
-
-        TypeInfo variableTypeInfo = TypeParser::parseTypeInfo(tokenStream);
-
-        if (!tokenStream.check(TokenType::IDENTIFIER))
-        {
-            // Not a for-each pattern
-            return nullptr;
-        }
-
-        std::string variableName = tokenStream.current().stringValue.getString();
-        SourceLocation location = tokenStream.current().location;
-        tokenStream.advance();
-
-        // This is the key check - if we see colon, it's for-each
-        if (!tokenStream.check(TokenType::COLON))
-        {
-            // Not a for-each loop - this should be regular for loop
-            return nullptr;
-        }
-
-        // We found a colon - this is definitely for-each
-        tokenStream.advance(); // consume ':'
-
-        auto collection = context.parseExpression();
-        expectToken(TokenType::RPAREN);
-
-        auto body = context.parseStatement();
-
-        return std::make_unique<ForEachNode>(variableName, variableTypeInfo,
-                                             std::move(collection), std::move(body), location);
+        // For-each logic is integrated into parseForStatement()
+        // This is a wrapper for backward compatibility
+        return parseForStatement();
     }
 
     bool LoopParser::isLoopToken(TokenType type) const noexcept

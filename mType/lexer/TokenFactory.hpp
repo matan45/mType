@@ -16,27 +16,24 @@ namespace lexer
     class TokenFactory
     {
     public:
-        // Basic token creation
-        static Token createToken(TokenType type, const errors::SourceLocation& location);
-        static Token createToken(TokenType type, std::string_view symbol, const errors::SourceLocation& location);
-        
         // Type-specific token creation
         static Token createIntegerToken(int value, const errors::SourceLocation& location);
         static Token createFloatToken(float value, const errors::SourceLocation& location);
-        static Token createStringToken(const std::string& value, const errors::SourceLocation& location);
+        static Token createStringToken(std::string_view value, const errors::SourceLocation& location);
         static Token createIdentifierToken(std::string_view identifier, const errors::SourceLocation& location);
-        static Token createKeywordToken(TokenType keywordType, std::string_view keyword, const errors::SourceLocation& location);
-        
+        static Token createKeywordToken(TokenType keywordType, std::string_view keyword,
+                                        const errors::SourceLocation& location);
+
         // Operator tokens
-        static Token createOperatorToken(TokenType operatorType, std::string_view symbol, const errors::SourceLocation& location);
-        
+        static Token createOperatorToken(TokenType operatorType, std::string_view symbol,
+                                         const errors::SourceLocation& location);
+
         // Special tokens
         static Token createEndToken(const errors::SourceLocation& location);
-        static Token createBooleanToken(bool value, const errors::SourceLocation& location);
-        static Token createNullToken(const errors::SourceLocation& location);
 
     private:
-        // Internal helpers
-        static std::string symbolToString(std::string_view symbol);
+        // Internal helpers for string pool access
+        static value::InternedString internString(std::string_view str);
+        static value::InternedString emptyString();
     };
 }

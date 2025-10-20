@@ -132,7 +132,7 @@ namespace evaluator
                 std::shared_ptr<MethodDefinition> methodDef;
 
                 // Convert MethodNode parameters to ParameterType for interface support
-                auto convertToParameterTypes = [env, methodNode]() -> std::vector<std::pair<std::string, ParameterType>>
+                auto convertToParameterTypes = [this, env, methodNode]() -> std::vector<std::pair<std::string, ParameterType>>
                 {
                     std::vector<std::pair<std::string, ParameterType>> newParams;
 
@@ -145,54 +145,11 @@ namespace evaluator
                         const std::string& paramName = legacyParams[i].first;
                         ValueType baseType = legacyParams[i].second;
 
-                        ParameterType paramType(baseType); // Initialize with base type
+                        // Single construction using helper function for efficiency and clarity
+                        std::shared_ptr<ast::GenericType> genericType =
+                            (i < genericParams.size()) ? genericParams[i].second : nullptr;
 
-                        // If we have generic parameter information, extract interface name
-                        if (i < genericParams.size() && genericParams[i].second)
-                        {
-                            auto genericType = genericParams[i].second;
-                            if (genericType->isGenericParameter())
-                            {
-                                // This might be a generic parameter OR an interface/class name
-                                std::string typeName = genericType->getGenericName();
-
-                                // Check if it's a known interface or class first
-                                if (env->findInterface(typeName) != nullptr)
-                                {
-                                    paramType = ParameterType::forInterface(typeName);
-                                }
-                                else if (env->findClass(typeName) != nullptr)
-                                {
-                                    paramType = ParameterType::forClass(typeName);
-                                }
-                                else
-                                {
-                                    // This is actually a generic parameter like T, E, etc.
-                                    paramType = ParameterType(baseType);
-                                }
-                            }
-                            else if (baseType == ValueType::OBJECT)
-                            {
-                                // This might be an interface or class - check environment to determine
-                                std::string typeName = genericType->getBaseTypeName();
-
-                                // Check if it's a registered interface
-                                if (env->findInterface(typeName) != nullptr)
-                                {
-                                    paramType = ParameterType::forInterface(typeName);
-                                }
-                                // Check if it's a registered class
-                                else if (env->findClass(typeName) != nullptr)
-                                {
-                                    paramType = ParameterType::forClass(typeName);
-                                }
-                                else
-                                {
-                                    // Unknown type - default to basic object type
-                                    paramType = ParameterType(baseType);
-                                }
-                            }
-                        }
+                        const ParameterType paramType = createParameterType(baseType, genericType, env.get());
 
                         newParams.emplace_back(paramName, paramType);
                     }
@@ -355,6 +312,50 @@ namespace evaluator
         {
             auto env = context->getEnvironment();
             env->registerClass(classDef->getName(), classDef);
+        }
+
+        ParameterType ClassRegistrationHandler::createParameterType(
+            ValueType baseType,
+            std::shared_ptr<ast::GenericType> genericType,
+            environment::Environment* env) const
+        {
+            // If no generic information available, use basic type
+            if (!genericType) {
+                return ParameterType(baseType);
+            }
+
+            // Case 1: Generic parameter (might be interface/class or generic type variable)
+            if (genericType->isGenericParameter()) {
+                std::string typeName = genericType->getGenericName();
+
+                // Check if it's a known interface first
+                if (env->findInterface(typeName) != nullptr) {
+                    return ParameterType::forInterface(typeName);
+                }
+                // Check if it's a known class
+                if (env->findClass(typeName) != nullptr) {
+                    return ParameterType::forClass(typeName);
+                }
+                // Otherwise, it's a generic type variable (T, E, etc.)
+                return ParameterType(baseType);
+            }
+
+            // Case 2: Object type with explicit type name
+            if (baseType == ValueType::OBJECT) {
+                std::string typeName = genericType->getBaseTypeName();
+
+                // Check if it's a registered interface
+                if (env->findInterface(typeName) != nullptr) {
+                    return ParameterType::forInterface(typeName);
+                }
+                // Check if it's a registered class
+                if (env->findClass(typeName) != nullptr) {
+                    return ParameterType::forClass(typeName);
+                }
+            }
+
+            // Default: use basic type
+            return ParameterType(baseType);
         }
 
         void ClassRegistrationHandler::validateInterfaceImplementations(std::shared_ptr<ClassDefinition> classDef)

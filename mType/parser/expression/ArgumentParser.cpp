@@ -39,6 +39,14 @@ namespace parser::expression
         return arguments;
     }
 
+    std::vector<std::unique_ptr<ASTNode>> ArgumentParser::parseArgumentsWithParentheses()
+    {
+        expectToken(TokenType::LPAREN);
+        auto arguments = parseArguments();
+        expectToken(TokenType::RPAREN);
+        return arguments;
+    }
+
     std::vector<std::string> ArgumentParser::parseGenericTypeArguments()
     {
         std::vector<std::string> typeArgs;

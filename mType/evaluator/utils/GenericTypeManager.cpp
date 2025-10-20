@@ -241,9 +241,22 @@ namespace evaluator::utils
         }
 
         // Check that none of the type arguments are primitive types
+        // EXCEPTION: Promise<void> is allowed for async functions
         auto& registry = types::getGlobalTypeRegistry();
+        std::string className = genericClass->getName();
+
         for (const auto& typeArg : typeArguments) {
-            if (typeArg.empty() || registry.isPrimitiveType(typeArg)) {
+            if (typeArg.empty()) {
+                return false;
+            }
+
+            // Allow void only for Promise type (used in async functions)
+            if (typeArg == "void" && className == "Promise") {
+                continue;
+            }
+
+            // Reject other primitive types
+            if (registry.isPrimitiveType(typeArg)) {
                 return false;
             }
         }

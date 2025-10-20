@@ -54,8 +54,8 @@ namespace parser::statement
         if (context.isInsideFunctionBody())
         {
             throw ParseException("Function declarations inside function bodies are not allowed. "
-                               "Functions must be declared at the top level or inside classes.",
-                               tokenStream.current().location);
+                                 "Functions must be declared at the top level or inside classes.",
+                                 tokenStream.current().location);
         }
 
         // Parse optional visibility modifier (public/private)
@@ -138,8 +138,8 @@ namespace parser::statement
         else
         {
             // Set function and async context when parsing function body
-            ParseContext::FunctionContextGuard functionGuard(context);
-            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
+            ParseContext::FunctionContextGuard functionGuard(context.getContextState());
+            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
             body = context.parseStatement(); // Should be a block
         }
 

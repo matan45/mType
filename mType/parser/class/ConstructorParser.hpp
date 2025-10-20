@@ -8,7 +8,6 @@ namespace parser
 {
     class ConstructorParser : public core::BaseParser
     {
-    
     public:
         ConstructorParser(TokenStream& stream, ParseContext& ctx);
 

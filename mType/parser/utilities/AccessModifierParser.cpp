@@ -23,8 +23,8 @@ namespace parser::utilities
     bool AccessModifierParser::isAccessModifier(TokenType type)
     {
         return type == TokenType::PRIVATE ||
-               type == TokenType::PUBLIC ||
-               type == TokenType::PROTECTED;
+            type == TokenType::PUBLIC ||
+            type == TokenType::PROTECTED;
     }
 
     void AccessModifierParser::validateModifierForContext(

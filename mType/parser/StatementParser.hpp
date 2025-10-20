@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include <memory>
-#include <vector>
 #include "../ast/ASTNode.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
@@ -39,7 +38,7 @@ namespace parser
 
     public:
         explicit StatementParser(TokenStream& stream, ParseContext& ctx);
-       
+
 
         // Method to set ExpressionParser reference after construction
         void setExpressionParser(ExpressionParser& exprParser)
@@ -76,10 +75,5 @@ namespace parser
     private:
         void initializeHelperParsers();
         std::unique_ptr<ASTNode> delegateToSpecializedParser(StatementType type);
-
-        // Helper methods
-        std::vector<std::pair<std::string, ValueType>> parseParameterList();
-        std::unique_ptr<ASTNode> tryParseForEach(); // Returns nullptr if not for-each pattern
     };
 }
-

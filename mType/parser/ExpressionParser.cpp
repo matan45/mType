@@ -69,84 +69,29 @@ namespace parser
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
             auto indexAccessNode = dynamic_cast<IndexAccessNode*>(expr.get());
+
             if (!variableNode && !memberAccessNode && !indexAccessNode)
             {
                 throw ParseException("Invalid assignment target", tokenStream.current().location);
             }
 
             TokenType opType = tokenStream.current().type;
-            SourceLocation assignmentLocation = tokenStream.current().location; // Capture location before advancing
+            SourceLocation assignmentLocation = tokenStream.current().location;
             tokenStream.advance();
             auto rightExpr = parseAssignment(); // Right associative
 
-            // Create appropriate assignment node based on target type and operator
+            // Delegate to appropriate handler based on target type
             if (memberAccessNode)
             {
-                // Member assignment (e.g., car.year = 2023)
-                if (opType == TokenType::ASSIGN)
-                {
-                    return std::make_unique<MemberAssignmentNode>(
-                        memberAccessNode->transferObjectOwnership(),
-                        memberAccessNode->getMemberName(),
-                        std::move(rightExpr),
-                        assignmentLocation);
-                }
-                else
-                {
-                    // Compound member assignment - not fully implemented yet
-                    throw ParseException("Compound assignment to member not yet supported",
-                                         assignmentLocation);
-                }
+                return handleMemberAssignment(memberAccessNode, opType, std::move(rightExpr), assignmentLocation);
             }
             else if (indexAccessNode)
             {
-                // Index assignment (e.g., array[0] = "value")
-                if (opType == TokenType::ASSIGN)
-                {
-                    return std::make_unique<IndexAssignmentNode>(
-                        indexAccessNode->transferCollectionOwnership(),
-                        indexAccessNode->transferIndexOwnership(),
-                        std::move(rightExpr),
-                        assignmentLocation);
-                }
-                else
-                {
-                    // Compound index assignment - not fully implemented yet
-                    throw ParseException("Compound assignment to index not yet supported",
-                                         assignmentLocation);
-                }
+                return handleIndexAssignment(indexAccessNode, opType, std::move(rightExpr), assignmentLocation);
             }
             else if (variableNode)
             {
-                // Variable assignment
-                if (opType == TokenType::ASSIGN)
-                {
-                    // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
-                    return std::make_unique<AssignmentNode>(variableNode->getName(),
-                                                            std::move(rightExpr),
-                                                            ValueType::VOID, "",
-                                                            false, false,
-                                                            assignmentLocation);
-                }
-                else
-                {
-                    // Compound assignment - we need to expand this to: var = var op right
-                    std::unique_ptr<ASTNode> expandedRight;
-                    TokenType binaryOp;
-
-                    binaryOp = ParserUtils::compoundToBinaryOperator(opType);
-
-                    // Create: var op right
-                    auto leftVar = std::make_unique<VariableNode>(variableNode->getName(), assignmentLocation);
-                    expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr),
-                                                                    assignmentLocation);
-
-                    return std::make_unique<AssignmentNode>(variableNode->getName(),
-                                                            std::move(expandedRight),
-                                                            ValueType::VOID, "",
-                                                            false, false,
-                                                            assignmentLocation);
-                }
+                return handleVariableAssignment(variableNode, opType, std::move(rightExpr), assignmentLocation);
             }
         }
 
@@ -400,6 +345,81 @@ namespace parser
         catch (...)
         {
             return false;
+        }
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::handleMemberAssignment(
+        ast::nodes::classes::MemberAccessNode* memberAccessNode,
+        TokenType opType,
+        std::unique_ptr<ASTNode> rightExpr,
+        const SourceLocation& location)
+    {
+        if (opType == TokenType::ASSIGN)
+        {
+            return std::make_unique<MemberAssignmentNode>(
+                memberAccessNode->transferObjectOwnership(),
+                memberAccessNode->getMemberName(),
+                std::move(rightExpr),
+                location);
+        }
+        else
+        {
+            // Compound member assignment - not fully implemented yet
+            throw ParseException("Compound assignment to member not yet supported", location);
+        }
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::handleIndexAssignment(
+        ast::nodes::expressions::IndexAccessNode* indexAccessNode,
+        TokenType opType,
+        std::unique_ptr<ASTNode> rightExpr,
+        const SourceLocation& location)
+    {
+        if (opType == TokenType::ASSIGN)
+        {
+            return std::make_unique<IndexAssignmentNode>(
+                indexAccessNode->transferCollectionOwnership(),
+                indexAccessNode->transferIndexOwnership(),
+                std::move(rightExpr),
+                location);
+        }
+        else
+        {
+            // Compound index assignment - not fully implemented yet
+            throw ParseException("Compound assignment to index not yet supported", location);
+        }
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::handleVariableAssignment(
+        ast::nodes::expressions::VariableNode* variableNode,
+        TokenType opType,
+        std::unique_ptr<ASTNode> rightExpr,
+        const SourceLocation& location)
+    {
+        if (opType == TokenType::ASSIGN)
+        {
+            // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
+            return std::make_unique<AssignmentNode>(variableNode->getName(),
+                                                    std::move(rightExpr),
+                                                    ValueType::VOID, "",
+                                                    false, false,
+                                                    location);
+        }
+        else
+        {
+            // Compound assignment - we need to expand this to: var = var op right
+            TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
+
+            // Create: var op right
+            auto leftVar = std::make_unique<VariableNode>(variableNode->getName(), location);
+            auto expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr),
+                                                                 location);
+
+            return std::make_unique<AssignmentNode>(variableNode->getName(),
+                                                    std::move(expandedRight),
+                                                    ValueType::VOID, "",
+                                                    false, false,
+                                                    location);
         }
     }
 }

@@ -195,16 +195,4 @@ namespace parser
     {
         return exceptionParser->parseThrowStatement();
     }
-
-    // Helper methods that delegate to ParserUtils
-    std::vector<std::pair<std::string, ValueType>> StatementParser::parseParameterList()
-    {
-        return ParserUtils::parseParameterList(tokenStream, true);
-    }
-
-    std::unique_ptr<ASTNode> StatementParser::tryParseForEach()
-    {
-        // This is handled by the LoopParser now
-        return loopParser->parseForEachStatement();
-    }
 }

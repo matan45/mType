@@ -70,5 +70,22 @@ namespace parser
         // Lambda detection helpers
         bool isLambdaStart() const;
         bool isLikelyLambdaParameterList() const;
+
+        // Assignment handling helpers
+        std::unique_ptr<ASTNode> handleMemberAssignment(
+            ast::nodes::classes::MemberAccessNode* memberAccessNode,
+            TokenType opType,
+            std::unique_ptr<ASTNode> rightExpr,
+            const SourceLocation& location);
+        std::unique_ptr<ASTNode> handleIndexAssignment(
+            ast::nodes::expressions::IndexAccessNode* indexAccessNode,
+            TokenType opType,
+            std::unique_ptr<ASTNode> rightExpr,
+            const SourceLocation& location);
+        std::unique_ptr<ASTNode> handleVariableAssignment(
+            ast::nodes::expressions::VariableNode* variableNode,
+            TokenType opType,
+            std::unique_ptr<ASTNode> rightExpr,
+            const SourceLocation& location);
     };
 }

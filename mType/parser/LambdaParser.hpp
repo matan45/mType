@@ -35,7 +35,6 @@ namespace parser
         std::pair<std::unique_ptr<ASTNode>, BodyType> parseLambdaBody();
 
         // Helper methods
-        bool isLambdaParameterPattern() const;
         bool hasArrowAhead() const;
     };
 }

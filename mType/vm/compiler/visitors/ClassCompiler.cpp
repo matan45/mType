@@ -226,35 +226,13 @@ namespace vm::compiler::visitors
         auto* previousClass = ctx.currentClassNode;
         ctx.currentClassNode = node;
 
-        // Register class metadata (for runtime type checking and instanceof)
-        size_t classNameIndex = ctx.program.getConstantPool().addString(className);
+        // Class metadata is registered through environment at runtime
 
-        // Handle generics - store generic parameter names
-        if (node->isGeneric())
-        {
-            const auto& genericParams = node->getGenericParameters();
-            for (const auto& param : genericParams)
-            {
-                size_t paramNameIndex = ctx.program.getConstantPool().addString(param.name);
-                // Generic parameters are stored in constant pool for type resolution
-            }
-        }
+        // Generic parameters are handled at runtime through the type system
 
-        // Handle inheritance - store parent class name if present
-        if (node->hasParentClass())
-        {
-            std::string parentClassName = node->getParentClassName();
-            size_t parentNameIndex = ctx.program.getConstantPool().addString(parentClassName);
-            // The parent class relationship is handled at runtime by the environment
-        }
+        // Parent class relationship is handled at runtime by the environment
 
-        // Handle interfaces - store interface names
-        const auto& interfaces = node->getImplementedInterfaces();
-        for (const auto& interfaceName : interfaces)
-        {
-            size_t interfaceNameIndex = ctx.program.getConstantPool().addString(interfaceName);
-            // Interfaces are also handled at runtime
-        }
+        // Interface relationships are handled at runtime by the environment
 
         // Compile static fields initialization
         for (const auto& field : node->getFields())
@@ -801,12 +779,20 @@ namespace vm::compiler::visitors
                 }
 
                 // Validate that type arguments are not primitive types
+                // EXCEPTION: Promise<void> is allowed for async functions
                 static const std::unordered_set<std::string> primitiveTypes = {
                     "int", "float", "bool", "string", "void"
                 };
 
                 for (const auto& typeArg : typeArguments)
                 {
+                    // Allow void only for Promise type (used in async functions)
+                    if (typeArg == "void" && baseClassName == "Promise")
+                    {
+                        continue;
+                    }
+
+                    // Reject primitive types
                     if (primitiveTypes.find(typeArg) != primitiveTypes.end())
                     {
                         throw errors::TypeException(

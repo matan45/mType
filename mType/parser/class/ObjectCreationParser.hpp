@@ -9,7 +9,6 @@ namespace parser
 {
     class ObjectCreationParser : public core::BaseParser
     {
-    
     public:
         explicit ObjectCreationParser(TokenStream& stream, ParseContext& ctx);
 

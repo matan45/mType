@@ -31,13 +31,17 @@ namespace parser::expression
 
     bool CastParser::canParse(const TokenStream& stream) const
     {
-        if (!stream.check(TokenType::LPAREN)) {
+        if (!stream.check(TokenType::LPAREN))
+        {
             return false;
         }
 
-        try {
+        try
+        {
             return isCastExpression();
-        } catch (...) {
+        }
+        catch (...)
+        {
             // If any exception occurs during lookahead (e.g., bracket balancer errors),
             // assume it's not a cast expression
             return false;
@@ -106,7 +110,7 @@ namespace parser::expression
         if (!expressionParser)
         {
             throw ParseException("ExpressionParser not initialized in CastParser",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
 
         // Parse the highest precedence expression (unary or higher)
@@ -127,7 +131,7 @@ namespace parser::expression
         if (!tokenStream.check(TokenType::ISCLASSOF))
         {
             throw ParseException("Expected 'isClassOf'",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
         tokenStream.advance();
 

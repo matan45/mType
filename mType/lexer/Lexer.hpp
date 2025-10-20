@@ -26,6 +26,15 @@ namespace lexer
         std::unique_ptr<SourceLocationTracker> locationTracker;
         std::unique_ptr<BracketBalancer> bracketBalancer;
 
+        // Helper struct for state save/restore during peeking operations
+        struct LexerState
+        {
+            size_t pos;
+            int line;
+            int column;
+            std::stack<char> balanceStack;
+        };
+
         // Note: Deep lookahead implemented via position save/restore
         // More complex buffering could be added later for performance
 
@@ -46,51 +55,8 @@ namespace lexer
         static const std::array<OperatorInfo, 15> TWO_CHAR_OPERATORS;
         static const std::array<OperatorInfo, 20> SINGLE_CHAR_OPERATORS;
 
-        // List of keywords and their corresponding TokenType
-        std::unordered_map<std::string, TokenType> keywords = {
-            {"function", TokenType::FUNCTION},
-            {"return", TokenType::RETURN},
-            {"if", TokenType::IF},
-            {"else", TokenType::ELSE},
-            {"while", TokenType::WHILE},
-            {"do", TokenType::DO},
-            {"for", TokenType::FOR},
-            {"final", TokenType::FINAL},
-            {"break", TokenType::BREAK},
-            {"continue", TokenType::CONTINUE},
-            {"int", TokenType::INT},
-            {"float", TokenType::FLOAT},
-            {"bool", TokenType::BOOL},
-            {"string", TokenType::STRING_TYPE},
-            {"void", TokenType::VOID},
-            {"class", TokenType::CLASS},
-            {"new", TokenType::NEW},
-            {"static", TokenType::STATIC},
-            {"private", TokenType::PRIVATE},
-            {"public", TokenType::PUBLIC},
-            {"protected", TokenType::PROTECTED},
-            {"constructor", TokenType::CONSTRUCTOR},
-            {"null", TokenType::NULL_LITERAL},
-            {"true", TokenType::TRUE},
-            {"native", TokenType::NATIVE},
-            {"import", TokenType::IMPORT},
-            {"from", TokenType::FROM},
-            {"false", TokenType::FALSE},
-            {"switch", TokenType::SWITCH},
-            {"case", TokenType::CASE},
-            {"interface", TokenType::INTERFACE},
-            {"implements", TokenType::IMPLEMENTS},
-            {"extends", TokenType::EXTENDS},
-            {"super", TokenType::SUPER},
-            {"default", TokenType::DEFAULT},
-            {"isClassOf", TokenType::ISCLASSOF},
-            {"async", TokenType::ASYNC},
-            {"await", TokenType::AWAIT},
-            {"try", TokenType::TRY},
-            {"catch", TokenType::CATCH},
-            {"throw", TokenType::THROW},
-            {"finally", TokenType::FINALLY}
-        };
+        // Static keyword lookup table
+        static const std::unordered_map<std::string, TokenType> keywords;
 
     public:
         explicit Lexer(const std::string& filePath = "<unknown>",
@@ -111,20 +77,30 @@ namespace lexer
 
     private:
         // Core parsing methods
+        Token parseNumber();
         float parseFloat();
         int parseInteger();
         std::string_view parseIdentifier();
         std::string parseStringLiteral();
+        std::string processEscapeSequences(size_t start, size_t end);
         void skipWhitespaceAndComments();
 
         // Movement and positioning
         void advance();
         void advanceMultiple(size_t count);
 
+        // Boundary checking helpers
+        bool canPeekAhead(size_t offset = 1) const;
+        char peekChar(size_t offset = 0) const;
+
         // Token creation helpers
         Token tryParseOperator();
         Token tryParseSpacedOperator();
         TokenType findKeywordType(std::string_view identifier) const;
+
+        // State management for peeking
+        LexerState captureState() const;
+        void restoreState(const LexerState& state);
 
         // Error handling
         [[noreturn]] void throwError(const std::string& message);

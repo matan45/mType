@@ -30,6 +30,6 @@ namespace parser::core
         void recoverToBlock();
 
         bool isAtEnd() const;
-        const Token& currentToken() const; 
+        const Token& currentToken() const;
     };
 }

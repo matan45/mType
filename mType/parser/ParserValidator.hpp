@@ -16,4 +16,3 @@ namespace parser
         static bool isValidParentClassName(std::string_view name);
     };
 }
-
