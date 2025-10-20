@@ -24,6 +24,14 @@ namespace evaluator
 
         Value BinaryOperationEvaluator::evaluateArithmetic(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "BinaryOperationEvaluator::evaluateArithmetic: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Handle string concatenation for PLUS operator
             if (op == TokenType::PLUS &&
                 (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
@@ -31,12 +39,8 @@ namespace evaluator
                         InternedString>(right)))
             {
                 // Use ExpressionEvaluator's toString which calls object's toString() method
-                std::string leftStr = exprEvaluator
-                                          ? exprEvaluator->toString(left)
-                                          : ValueConverter::toString(left);
-                std::string rightStr = exprEvaluator
-                                           ? exprEvaluator->toString(right)
-                                           : ValueConverter::toString(right);
+                std::string leftStr = exprEvaluator->toString(left);
+                std::string rightStr = exprEvaluator->toString(right);
                 std::string result = leftStr + rightStr;
 
                 auto& pool = StringPool::getInstance();
@@ -155,15 +159,19 @@ namespace evaluator
 
         Value BinaryOperationEvaluator::evaluateStringOperation(const Value& left, const Value& right, TokenType op, const errors::SourceLocation& location)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "BinaryOperationEvaluator::evaluateStringOperation: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             if (op == TokenType::PLUS)
             {
                 // Use ExpressionEvaluator's toString which calls object's toString() method
-                std::string leftStr = exprEvaluator
-                                          ? exprEvaluator->toString(left)
-                                          : ValueConverter::toString(left);
-                std::string rightStr = exprEvaluator
-                                           ? exprEvaluator->toString(right)
-                                           : ValueConverter::toString(right);
+                std::string leftStr = exprEvaluator->toString(left);
+                std::string rightStr = exprEvaluator->toString(right);
 
                 auto& pool = StringPool::getInstance();
                 return pool.intern(leftStr + rightStr);

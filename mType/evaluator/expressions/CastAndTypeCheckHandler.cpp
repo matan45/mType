@@ -28,6 +28,14 @@ namespace evaluator
 
         Value CastAndTypeCheckHandler::evaluateCast(CastExpression* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "CastAndTypeCheckHandler::evaluateCast: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Evaluate the expression to cast
             Value sourceValue = exprEvaluator->evaluate(node->getExpression());
             auto targetType = node->getTargetType();
@@ -104,6 +112,14 @@ namespace evaluator
 
         Value CastAndTypeCheckHandler::evaluateInstanceOf(InstanceOfExpression* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "CastAndTypeCheckHandler::evaluateInstanceOf: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Evaluate the expression to check
             Value value = exprEvaluator->evaluate(node->getExpression());
             auto targetType = node->getTargetType();

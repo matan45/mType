@@ -48,6 +48,14 @@ namespace evaluator
 
         Value ArrayHandler::evaluateArrayCreation(ArrayCreationNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateArrayCreation: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Get all size expressions for multidimensional support
             const auto& sizeExpressions = node->getSizeExpressions();
 
@@ -111,6 +119,14 @@ namespace evaluator
 
         Value ArrayHandler::evaluateArrayLiteral(ArrayLiteralNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateArrayLiteral: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             const auto& elements = node->getElements();
 
             if (elements.empty())
@@ -201,6 +217,14 @@ namespace evaluator
 
         Value ArrayHandler::evaluateIndexAccess(IndexAccessNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateIndexAccess: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Check if this is a multi-dimensional access pattern (e.g., arr[i][j])
             std::vector<size_t> indices;
             auto baseArray = extractMultiDimensionalAccess(node, indices);

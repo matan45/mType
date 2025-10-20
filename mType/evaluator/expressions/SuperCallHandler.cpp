@@ -1,6 +1,7 @@
 #include "SuperCallHandler.hpp"
 #include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../utils/ParameterBinder.hpp"
+#include "../utils/ScopeGuard.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
@@ -39,6 +40,14 @@ namespace evaluator
 
         Value SuperCallHandler::evaluateSuperConstructorCall(SuperConstructorCallNode* node)
         {
+            // Defensive check - evaluators should be set by EvaluatorCoordinator
+            if (!exprEvaluator || !stmtEvaluator || !objEvaluator) {
+                throw std::runtime_error(
+                    "SuperCallHandler::evaluateSuperConstructorCall: "
+                    "Required evaluators not initialized. "
+                    "Check EvaluatorCoordinator::setupEvaluatorDependencies()");
+            }
+
             // Get current instance - super() can only be called in a constructor
             auto currentInstance = context->getCurrentInstance();
             if (!currentInstance) {
@@ -85,8 +94,10 @@ namespace evaluator
 
             // Execute parent constructor in the context of current instance
             if (objEvaluator) {
-                // Create new scope for parent constructor execution
-                context->getEnvironment()->enterScope();
+                // Create new scope for parent constructor execution (RAII-based exception safety)
+                utils::ScopeGuard scopeGuard(context->getEnvironment(),
+                                            "super_constructor",
+                                            environment::manager::ScopeType::FUNCTION);
 
                 // Get generic type bindings from context
                 auto genericBindings = context->getGenericTypeBindings();
@@ -140,7 +151,7 @@ namespace evaluator
                     context->setCurrentConstructorClass(prevConstructorClass);
                 }
 
-                context->getEnvironment()->exitScope();
+                // ScopeGuard automatically exits scope via RAII
                 return result;
             }
 
@@ -151,6 +162,14 @@ namespace evaluator
 
         Value SuperCallHandler::evaluateSuperMethodCall(SuperMethodCallNode* node)
         {
+            // Defensive check - evaluators should be set by EvaluatorCoordinator
+            if (!exprEvaluator || !stmtEvaluator || !objEvaluator) {
+                throw std::runtime_error(
+                    "SuperCallHandler::evaluateSuperMethodCall: "
+                    "Required evaluators not initialized. "
+                    "Check EvaluatorCoordinator::setupEvaluatorDependencies()");
+            }
+
             // Get current instance - super.method() can only be called in instance methods
             auto currentInstance = context->getCurrentInstance();
             if (!currentInstance) {
@@ -233,8 +252,10 @@ namespace evaluator
 
             // Call parent method using object evaluator
             if (objEvaluator) {
-                // Create new scope for method execution
-                context->getEnvironment()->enterScope();
+                // Create new scope for method execution (RAII-based exception safety)
+                utils::ScopeGuard scopeGuard(context->getEnvironment(),
+                                            "super_method",
+                                            environment::manager::ScopeType::FUNCTION);
 
                 // Bind 'this' to current instance
                 auto thisVarDef = std::make_shared<VariableDefinition>(
@@ -281,7 +302,7 @@ namespace evaluator
 
                 // Pop calling class stack
                 context->popCallingClass();
-                context->getEnvironment()->exitScope();
+                // ScopeGuard automatically exits scope via RAII
 
                 // Wrap in Promise if parent method is async
                 if (parentMethod->getIsAsync()) {

@@ -33,6 +33,14 @@ namespace evaluator
 
         Value UnaryOperationHandler::evaluateUnaryOperation(UnaryExpNode* node)
         {
+            // Defensive check - evaluators should be set by ExpressionEvaluator
+            if (!exprEvaluator || !objEvaluator) {
+                throw std::runtime_error(
+                    "UnaryOperationHandler::evaluateUnaryOperation: "
+                    "Required evaluators not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             TokenType op = node->getOperator();
 
             // Handle increment and decrement operators (support variables and member access)
