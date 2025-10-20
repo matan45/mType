@@ -801,12 +801,20 @@ namespace vm::compiler::visitors
                 }
 
                 // Validate that type arguments are not primitive types
+                // EXCEPTION: Promise<void> is allowed for async functions
                 static const std::unordered_set<std::string> primitiveTypes = {
                     "int", "float", "bool", "string", "void"
                 };
 
                 for (const auto& typeArg : typeArguments)
                 {
+                    // Allow void only for Promise type (used in async functions)
+                    if (typeArg == "void" && baseClassName == "Promise")
+                    {
+                        continue;
+                    }
+
+                    // Reject primitive types
                     if (primitiveTypes.find(typeArg) != primitiveTypes.end())
                     {
                         throw errors::TypeException(

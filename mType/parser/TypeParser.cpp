@@ -45,107 +45,10 @@ namespace parser
 
     TypeInfo TypeParser::parseTypeInfo(TokenStream& stream)
     {
-        TokenType currentType = stream.current().type;
-
-        // Parse base type first
-        TypeInfo baseTypeInfo(ValueType::VOID); // Initialize with dummy value
-
-        // Handle dedicated type tokens with O(1) lookup
-        auto tokenIt = tokenTypeMap.find(currentType);
-        if (tokenIt != tokenTypeMap.end())
-        {
-            ValueType collectionType = tokenIt->second;
-            stream.advance();
-
-            // Simple type (int, float, bool, string, void)
-            baseTypeInfo = TypeInfo(tokenIt->second);
-        }
-
-        // Handle identifier-based types
-        else if (currentType == TokenType::IDENTIFIER)
-        {
-            std::string typeName = parseQualifiedName(stream);
-
-            // Check if it's a string-based primitive type with O(1) lookup
-            auto stringIt = stringTypeMap.find(typeName);
-            if (stringIt != stringTypeMap.end())
-            {
-                ValueType collectionType = stringIt->second;
-
-                // Simple primitive type
-                baseTypeInfo = TypeInfo(stringIt->second);
-            }
-            else
-            {
-                // Check if this might be a generic type parameter (single letter, capitalized)
-                if (typeName.length() == 1 && std::isupper(typeName[0])) {
-                    // This looks like a generic type parameter (T, K, V, etc.)
-                    // For TypeInfo, we'll treat it as OBJECT with the parameter name
-                    baseTypeInfo = TypeInfo(ValueType::OBJECT, typeName);
-                }
-                else if (stream.check(TokenType::LESS))
-                {
-                    // This is a generic custom class like Box<int>, Person<T>, etc.
-                    // For now, we'll parse the generics but store them as a string
-                    // (TypeInfo doesn't have full generic support yet)
-                    std::string fullTypeName = typeName + "<";
-                    stream.advance(); // consume '<'
-
-                    // Parse type arguments
-                    do {
-                        TypeInfo argTypeInfo = parseTypeInfo(stream); // Parse type argument
-                        fullTypeName += argTypeInfo.toString();
-
-                        if (stream.check(TokenType::COMMA)) {
-                            fullTypeName += ", ";
-                            stream.advance(); // consume ','
-                        } else {
-                            break;
-                        }
-                    } while (true);
-
-                    stream.expect(TokenType::GREATER); // consume '>'
-                    fullTypeName += ">";
-
-                    baseTypeInfo = TypeInfo(ValueType::OBJECT, fullTypeName);
-                }
-                else
-                {
-                    // Treat unknown identifier types as custom class types (OBJECT)
-                    baseTypeInfo = TypeInfo(ValueType::OBJECT, typeName);
-                }
-            }
-        }
-        else
-        {
-            throw ParseException("Expected type", stream.location());
-        }
-
-        // Now check for array brackets: int[], string[][], T[], etc.
-        int arrayDimensions = 0;
-        while (stream.check(TokenType::LBRACKET))
-        {
-            stream.advance(); // consume '['
-            stream.expect(TokenType::RBRACKET); // consume ']'
-            arrayDimensions++;
-        }
-
-        // Handle array type declarations (T[], int[], etc.)
-        if (arrayDimensions > 0)
-        {
-            // For native arrays, we create a special type that represents native array
-            // Arrays are handled as OBJECT type with a special naming convention
-            std::string arrayTypeName = baseTypeInfo.toString();
-            for (int i = 0; i < arrayDimensions; i++)
-            {
-                arrayTypeName += "[]";
-            }
-
-            // Return as OBJECT type with native array class name
-            return TypeInfo(ValueType::OBJECT, arrayTypeName);
-        }
-
-        return baseTypeInfo;
+        // Delegate to parseGenericType and convert the result
+        // This eliminates ~100 lines of duplicate parsing logic
+        auto genericType = parseGenericType(stream);
+        return convertGenericTypeToTypeInfo(genericType);
     }
 
     std::shared_ptr<ast::GenericType> TypeParser::parseGenericType(TokenStream& stream)
@@ -412,5 +315,91 @@ namespace parser
                 return std::make_shared<ast::GenericType>(ValueType::OBJECT);
             }
         }
+    }
+
+    TypeInfo TypeParser::convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType)
+    {
+        // Handle generic type parameters (T, K, V, etc.)
+        if (genericType->isGenericParameter())
+        {
+            std::string typeName = genericType->getGenericName();
+
+            // Check if this is an array type (Array<T>)
+            if (typeName == "Array" && genericType->isParameterized())
+            {
+                // Get the element type and convert recursively
+                const auto& typeArgs = genericType->getTypeArguments();
+                if (!typeArgs.empty())
+                {
+                    auto elementType = typeArgs[0];
+                    TypeInfo elementTypeInfo = convertGenericTypeToTypeInfo(elementType);
+
+                    // Build array type name with brackets
+                    std::string arrayTypeName = elementTypeInfo.toString() + "[]";
+
+                    // Handle multi-dimensional arrays
+                    auto currentElement = elementType;
+                    while (currentElement->isGenericParameter() &&
+                           currentElement->getGenericName() == "Array" &&
+                           currentElement->isParameterized())
+                    {
+                        arrayTypeName += "[]";
+                        currentElement = currentElement->getTypeArguments()[0];
+                    }
+
+                    return TypeInfo(ValueType::OBJECT, arrayTypeName);
+                }
+            }
+
+            // Handle generic classes with type arguments (Box<T>, Map<K, V>, etc.)
+            if (genericType->isParameterized())
+            {
+                std::string fullTypeName = typeName + "<";
+
+                const auto& typeArgs = genericType->getTypeArguments();
+                for (size_t i = 0; i < typeArgs.size(); ++i)
+                {
+                    if (i > 0) fullTypeName += ", ";
+                    TypeInfo argTypeInfo = convertGenericTypeToTypeInfo(typeArgs[i]);
+                    fullTypeName += argTypeInfo.toString();
+                }
+
+                fullTypeName += ">";
+                return TypeInfo(ValueType::OBJECT, fullTypeName);
+            }
+
+            // Simple generic parameter or class type
+            return TypeInfo(ValueType::OBJECT, typeName);
+        }
+
+        // Handle concrete types
+        ValueType baseType = genericType->getConcreteType();
+
+        // Handle non-object types (int, float, bool, string, void)
+        if (baseType != ValueType::OBJECT)
+        {
+            return TypeInfo(baseType);
+        }
+
+        // Handle object types with type arguments (shouldn't happen for OBJECT base type, but handle for completeness)
+        if (genericType->isParameterized())
+        {
+            std::string className = genericType->getBaseTypeName();
+            std::string fullTypeName = className + "<";
+
+            const auto& typeArgs = genericType->getTypeArguments();
+            for (size_t i = 0; i < typeArgs.size(); ++i)
+            {
+                if (i > 0) fullTypeName += ", ";
+                TypeInfo argTypeInfo = convertGenericTypeToTypeInfo(typeArgs[i]);
+                fullTypeName += argTypeInfo.toString();
+            }
+
+            fullTypeName += ">";
+            return TypeInfo(ValueType::OBJECT, fullTypeName);
+        }
+
+        // Simple object type without generic parameters
+        return TypeInfo(ValueType::OBJECT, genericType->getBaseTypeName());
     }
 }

@@ -184,6 +184,27 @@ namespace parser
             {
                 result += "::";
             }
+            // Handle primitive type keywords (needed for validation to work)
+            else if (stream.current().type == TokenType::VOID)
+            {
+                result += "void";
+            }
+            else if (stream.current().type == TokenType::INT)
+            {
+                result += "int";
+            }
+            else if (stream.current().type == TokenType::FLOAT)
+            {
+                result += "float";
+            }
+            else if (stream.current().type == TokenType::BOOL)
+            {
+                result += "bool";
+            }
+            else if (stream.current().type == TokenType::STRING_TYPE)
+            {
+                result += "string";
+            }
             stream.advance();
         }
 

@@ -79,6 +79,9 @@ namespace parser
         /// @brief Convert TypeInfo to GenericType (for new generic system)
         [[nodiscard]] static std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
 
+        /// @brief Convert GenericType to TypeInfo (eliminates parseTypeInfo duplication)
+        [[nodiscard]] static TypeInfo convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType);
+
     private:
         // Helper for qualified name parsing (Class::member)
         static std::string parseQualifiedName(TokenStream& stream);

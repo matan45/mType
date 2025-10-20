@@ -74,7 +74,7 @@ function testGenericPairs():void {
     print("Name: " + nameAge.getKey());
     print("Age: " + nameAge.getValue().toString());
 
-    Pair<Int, string> idName = new Pair<Int, String>(new Int(101), new String("Bob"));
+    Pair<Int, String> idName = new Pair<Int, String>(new Int(101), new String("Bob"));
     print("ID-Name pair: " + idName.toString());
     print("ID: " + idName.getKey().toString());
     print("Name: " + idName.getValue());
