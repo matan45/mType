@@ -57,7 +57,8 @@ namespace evaluator::utils
                     return returnValue;
                 }
                 // Otherwise wrap in Promise
-                return std::make_shared<value::AsyncPromiseValue>(returnValue);
+                auto promise = std::make_shared<value::AsyncPromiseValue>(returnValue);
+                return promise;
             }
             return returnValue;
         }

@@ -2,6 +2,8 @@
 
 #include "../base/EvaluationContext.hpp"
 #include "../managers/ControlFlowManager.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>
 
@@ -13,11 +15,6 @@ namespace statements {
     class SwitchNode;
 }
 }
-}
-
-namespace evaluator {
-    class ExpressionEvaluator;
-    class StatementEvaluator;
 }
 
 namespace evaluator {
@@ -38,26 +35,25 @@ namespace statements {
      *
      * Design Principles:
      * - Single Responsibility: Only control flow statements
-     * - Delegates expression evaluation to ExpressionEvaluator
-     * - Delegates statement execution to StatementEvaluator
+     * - Dependency Inversion: Depends on interfaces
      */
     class ControlFlowHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
         ControlFlowManager* flowManager;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-        evaluator::StatementEvaluator* stmtEvaluator;
+        interfaces::IExpressionEvaluator* exprEvaluator;
+        interfaces::IStatementEvaluator* stmtEvaluator;
 
     public:
         explicit ControlFlowHandler(std::shared_ptr<EvaluationContext> ctx,
                                    ControlFlowManager* flowMgr)
             : context(ctx), flowManager(flowMgr), exprEvaluator(nullptr), stmtEvaluator(nullptr) {}
 
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
+        void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator) {
             exprEvaluator = evaluator;
         }
 
-        void setStatementEvaluator(evaluator::StatementEvaluator* evaluator) {
+        void setStatementEvaluator(interfaces::IStatementEvaluator* evaluator) {
             stmtEvaluator = evaluator;
         }
 

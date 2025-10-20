@@ -1,6 +1,4 @@
 #include "ExceptionHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../StatementEvaluator.hpp"
 #include "../../ast/nodes/statements/TryNode.hpp"
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"

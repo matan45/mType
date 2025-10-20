@@ -322,6 +322,49 @@ namespace value
         }
 
         /**
+         * @brief Get element at single-dimension index (convenience method)
+         * @param index Index in the first dimension
+         * @return Value at the specified index
+         */
+        Value get(size_t index) const
+        {
+            // For 1D arrays or first dimension access
+            if (dimensions_.size() == 1)
+            {
+                return get(std::vector<size_t>{index});
+            }
+
+            // For multi-dimensional arrays, get returns the element at [index]
+            // which requires constructing a vector with just the first index
+            size_t linearIndex = index * strides_[0];
+            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+            StorageMode effectiveMode = getEffectiveMode();
+
+            switch (effectiveMode)
+            {
+            case StorageMode::DENSE:
+                {
+                    const auto& denseStorage = getDenseDataStorage();
+                    if (effectiveIndex >= denseStorage.size())
+                    {
+                        return std::monostate{};
+                    }
+                    return denseStorage[effectiveIndex];
+                }
+
+            case StorageMode::SPARSE:
+                {
+                    const auto& sparseStorage = getSparseDataStorage();
+                    auto it = sparseStorage.find(effectiveIndex);
+                    return (it != sparseStorage.end()) ? it->second : defaultValue_;
+                }
+
+            default:
+                return defaultValue_;
+            }
+        }
+
+        /**
          * @brief Set element at multi-dimensional index
          */
         void set(const std::vector<size_t>& indices, const Value& value)
@@ -520,6 +563,17 @@ namespace value
             return std::shared_ptr<SparseMultiArray>(
                 new SparseMultiArray(rootParent, subArrayOffset, subDims, defaultValue_)
             );
+        }
+
+        // IMultiDimensionalArray interface implementation
+        const char* getTypeName() const override {
+            return "SparseMultiArray";
+        }
+
+        std::shared_ptr<IMultiDimensionalArray> getSubArray(size_t index) const override {
+            // Cast away const for view creation (view modifications are tracked separately)
+            auto* self = const_cast<SparseMultiArray*>(this);
+            return std::static_pointer_cast<IMultiDimensionalArray>(self->getSubArray(index));
         }
     };
 }

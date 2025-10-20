@@ -1,7 +1,4 @@
 #include "CallHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../StatementEvaluator.hpp"
-#include "../ObjectEvaluator.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/AsyncReturnGuard.hpp"
@@ -32,206 +29,38 @@ namespace evaluator
         {
         }
 
-        void CallHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void CallHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }
 
-        void CallHandler::setStatementEvaluator(StatementEvaluator* evaluator)
+        void CallHandler::setStatementEvaluator(interfaces::IStatementEvaluator* evaluator)
         {
             stmtEvaluator = evaluator;
         }
 
-        void CallHandler::setObjectEvaluator(ObjectEvaluator* evaluator)
+        void CallHandler::setObjectEvaluator(interfaces::IObjectEvaluator* evaluator)
         {
             objEvaluator = evaluator;
         }
 
         Value CallHandler::evaluateFunctionCall(FunctionCallNode* node)
         {
+            // Try different call types in order of precedence
+            if (auto result = tryNativeFunctionCall(node))
+                return *result;
+
+            if (auto result = tryQualifiedMethodCall(node))
+                return *result;
+
+            if (auto result = tryInstanceMethodCall(node))
+                return *result;
+
+            if (auto result = tryStaticMethodCall(node))
+                return *result;
+
+            // If none of the above, handle as user-defined function call
             auto env = context->getEnvironment();
-
-            // First check if it's a native function
-            auto nativeRegistry = env->getNativeRegistry();
-            if (nativeRegistry->hasNativeFunction(node->getFunctionName()))
-            {
-                auto nativeFunc = nativeRegistry->findNativeFunction(node->getFunctionName());
-
-                // Evaluate arguments
-                std::vector<Value> args;
-                for (auto& argNode : node->getArguments())
-                {
-                    args.push_back(exprEvaluator->evaluate(argNode.get()));
-                }
-
-                // Call native function
-                return nativeFunc(args);
-            }
-
-            // Check if this is a qualified call (contains ::)
-            std::string functionName = node->getFunctionName();
-            if (functionName.find("::") != std::string::npos)
-            {
-                // Parse the qualified name into parts
-                std::vector<std::string> parts;
-                size_t start = 0;
-                size_t pos = 0;
-                while ((pos = functionName.find("::", start)) != std::string::npos)
-                {
-                    parts.push_back(functionName.substr(start, pos - start));
-                    start = pos + 2;
-                }
-                parts.push_back(functionName.substr(start));
-
-                // Treat qualified calls as static method calls: ClassName::methodName
-                if (parts.size() == 2)
-                {
-                    std::string className = parts[0];
-                    std::string methodName = parts[1];
-
-                    // Handle 'this::methodName' syntax
-                    if (className == "this")
-                    {
-                        auto currentInstance = context->getCurrentInstance();
-                        if (currentInstance)
-                        {
-                            className = currentInstance->getClassDefinition()->getClassName();
-                        }
-                        else
-                        {
-                            auto currentClassVar = env->findVariable("__current_class_name__");
-                            if (currentClassVar)
-                            {
-                                auto currentClassValue = currentClassVar->getValue();
-                                if (std::holds_alternative<std::string>(currentClassValue))
-                                {
-                                    className = std::get<std::string>(currentClassValue);
-                                }
-                                else
-                                {
-                                    throw UndefinedException("Cannot determine class context for 'this' qualifier",
-                                                             node->getLocation());
-                                }
-                            }
-                            else
-                            {
-                                throw UndefinedException("'this' qualifier can only be used within class methods",
-                                                         node->getLocation());
-                            }
-                        }
-                    }
-
-                    auto classRegistry = env->getClassRegistry();
-                    auto classDef = classRegistry->findItem(className);
-
-                    if (classDef)
-                    {
-                        // Found a class - try to call static method
-                        std::vector<Value> args;
-                        for (auto& argNode : node->getArguments())
-                        {
-                            args.push_back(exprEvaluator->evaluate(argNode.get()));
-                        }
-
-                        // Look for static method (use getStaticMethod to only search static methods)
-                        auto method = classDef->getStaticMethod(methodName);
-                        if (method)
-                        {
-                            if (objEvaluator)
-                            {
-                                return objEvaluator->callStaticMethod(className, methodName, args, node->getLocation());
-                            }
-                            else
-                            {
-                                throw UndefinedException("Object evaluator not available for static method call",
-                                                         node->getLocation());
-                            }
-                        }
-                        else
-                        {
-                            throw UndefinedException(
-                                "Static method '" + methodName + "' not found in class '" + className + "'",
-                                node->getLocation());
-                        }
-                    }
-                    else
-                    {
-                        throw UndefinedException(
-                            "Class '" + className + "' not found for qualified call '" + functionName + "'",
-                            node->getLocation());
-                    }
-                }
-                else
-                {
-                    throw UndefinedException("Complex qualified function calls not supported: '" + functionName + "'",
-                                             node->getLocation());
-                }
-            }
-
-            // Check if we're in a method context and this could be a method call
-            auto currentInstance = context->getCurrentInstance();
-            if (currentInstance)
-            {
-                auto method = currentInstance->getClassDefinition()->getInstanceMethod(node->getFunctionName());
-                if (method)
-                {
-                    // This is a method call on the current instance
-                    std::vector<Value> args;
-                    for (auto& argNode : node->getArguments())
-                    {
-                        args.push_back(exprEvaluator->evaluate(argNode.get()));
-                    }
-
-                    if (objEvaluator)
-                    {
-                        return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args,
-                                                        node->getLocation());
-                    }
-                    else
-                    {
-                        throw UndefinedException("Object evaluator not available for method call", node->getLocation());
-                    }
-                }
-            }
-
-            // Check if we're in a static method context and this could be a static method call
-            auto currentClassVar = env->findVariable("__current_class_name__");
-            if (currentClassVar)
-            {
-                auto currentClassValue = currentClassVar->getValue();
-                if (std::holds_alternative<std::string>(currentClassValue))
-                {
-                    std::string className = std::get<std::string>(currentClassValue);
-
-                    auto classDef = env->findClass(className);
-                    if (classDef)
-                    {
-                        auto method = classDef->getStaticMethod(node->getFunctionName());
-                        if (method)
-                        {
-                            // This is a static method call on the current class
-                            std::vector<Value> args;
-                            for (auto& argNode : node->getArguments())
-                            {
-                                args.push_back(exprEvaluator->evaluate(argNode.get()));
-                            }
-
-                            if (objEvaluator)
-                            {
-                                return objEvaluator->callStaticMethod(className, node->getFunctionName(), args,
-                                                                      node->getLocation());
-                            }
-                            else
-                            {
-                                throw UndefinedException("Object evaluator not available for static method call",
-                                                         node->getLocation());
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Check for user-defined function
             auto funcDef = env->findFunction(node->getFunctionName());
 
             if (!funcDef)
@@ -386,6 +215,7 @@ namespace evaluator
 
                     // Check for lambda-to-interface conversion
                     Value returnValue = e.returnValue;
+
                     if (std::holds_alternative<std::shared_ptr<LambdaValue>>(returnValue) &&
                         funcDef->getReturnType() == ValueType::OBJECT)
                     {
@@ -419,7 +249,8 @@ namespace evaluator
                     }
 
                     // Wrap in Promise if async function (exception-safe via RAII)
-                    return asyncGuard.wrapIfNeeded(returnValue);
+                    Value wrappedResult = asyncGuard.wrapIfNeeded(returnValue);
+                    return wrappedResult;
                 }
                 catch (...)
                 {
@@ -439,7 +270,8 @@ namespace evaluator
 
                 // Wrap in Promise if async function (exception-safe via RAII)
                 utils::AsyncReturnGuard asyncGuard(funcDef->getIsAsync());
-                return asyncGuard.wrapIfNeeded(result);
+                Value wrappedResult = asyncGuard.wrapIfNeeded(result);
+                return wrappedResult;
             }
         }
 
@@ -486,6 +318,181 @@ namespace evaluator
             {
                 throw TypeException("Lambda interface invocation requires lambda wrapper object", node->getLocation());
             }
+        }
+
+        // ========== Helper Methods for evaluateFunctionCall Refactoring ==========
+
+        std::vector<Value> CallHandler::evaluateArguments(const std::vector<std::unique_ptr<ASTNode>>& args)
+        {
+            std::vector<Value> evaluatedArgs;
+            evaluatedArgs.reserve(args.size());
+            for (auto& argNode : args)
+            {
+                evaluatedArgs.push_back(exprEvaluator->evaluate(argNode.get()));
+            }
+            return evaluatedArgs;
+        }
+
+        std::string CallHandler::resolveClassNameFromThis(const std::string& className, const errors::SourceLocation& location)
+        {
+            if (className != "this")
+            {
+                return className;
+            }
+
+            auto env = context->getEnvironment();
+            auto currentInstance = context->getCurrentInstance();
+
+            if (currentInstance)
+            {
+                return currentInstance->getClassDefinition()->getClassName();
+            }
+
+            auto currentClassVar = env->findVariable("__current_class_name__");
+            if (currentClassVar)
+            {
+                auto currentClassValue = currentClassVar->getValue();
+                if (std::holds_alternative<std::string>(currentClassValue))
+                {
+                    return std::get<std::string>(currentClassValue);
+                }
+                throw UndefinedException("Cannot determine class context for 'this' qualifier", location);
+            }
+
+            throw UndefinedException("'this' qualifier can only be used within class methods", location);
+        }
+
+        std::optional<Value> CallHandler::tryNativeFunctionCall(FunctionCallNode* node)
+        {
+            auto env = context->getEnvironment();
+            auto nativeRegistry = env->getNativeRegistry();
+
+            if (!nativeRegistry->hasNativeFunction(node->getFunctionName()))
+            {
+                return std::nullopt;
+            }
+
+            auto nativeFunc = nativeRegistry->findNativeFunction(node->getFunctionName());
+            auto args = evaluateArguments(node->getArguments());
+            return nativeFunc(args);
+        }
+
+        std::optional<Value> CallHandler::tryQualifiedMethodCall(FunctionCallNode* node)
+        {
+            std::string functionName = node->getFunctionName();
+
+            if (functionName.find("::") == std::string::npos)
+            {
+                return std::nullopt;
+            }
+
+            // Parse the qualified name into parts
+            std::vector<std::string> parts;
+            size_t start = 0;
+            size_t pos = 0;
+            while ((pos = functionName.find("::", start)) != std::string::npos)
+            {
+                parts.push_back(functionName.substr(start, pos - start));
+                start = pos + 2;
+            }
+            parts.push_back(functionName.substr(start));
+
+            // Only support ClassName::methodName format
+            if (parts.size() != 2)
+            {
+                throw UndefinedException("Complex qualified function calls not supported: '" + functionName + "'",
+                                         node->getLocation());
+            }
+
+            std::string className = resolveClassNameFromThis(parts[0], node->getLocation());
+            std::string methodName = parts[1];
+
+            auto env = context->getEnvironment();
+            auto classRegistry = env->getClassRegistry();
+            auto classDef = classRegistry->findItem(className);
+
+            if (!classDef)
+            {
+                throw UndefinedException("Class '" + className + "' not found for qualified call '" + functionName + "'",
+                                         node->getLocation());
+            }
+
+            auto method = classDef->getStaticMethod(methodName);
+            if (!method)
+            {
+                throw UndefinedException("Static method '" + methodName + "' not found in class '" + className + "'",
+                                         node->getLocation());
+            }
+
+            if (!objEvaluator)
+            {
+                throw UndefinedException("Object evaluator not available for static method call", node->getLocation());
+            }
+
+            auto args = evaluateArguments(node->getArguments());
+            return objEvaluator->callStaticMethod(className, methodName, args, node->getLocation());
+        }
+
+        std::optional<Value> CallHandler::tryInstanceMethodCall(FunctionCallNode* node)
+        {
+            auto currentInstance = context->getCurrentInstance();
+            if (!currentInstance)
+            {
+                return std::nullopt;
+            }
+
+            auto method = currentInstance->getClassDefinition()->getInstanceMethod(node->getFunctionName());
+            if (!method)
+            {
+                return std::nullopt;
+            }
+
+            if (!objEvaluator)
+            {
+                throw UndefinedException("Object evaluator not available for method call", node->getLocation());
+            }
+
+            auto args = evaluateArguments(node->getArguments());
+            return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args, node->getLocation());
+        }
+
+        std::optional<Value> CallHandler::tryStaticMethodCall(FunctionCallNode* node)
+        {
+            auto env = context->getEnvironment();
+            auto currentClassVar = env->findVariable("__current_class_name__");
+
+            if (!currentClassVar)
+            {
+                return std::nullopt;
+            }
+
+            auto currentClassValue = currentClassVar->getValue();
+            if (!std::holds_alternative<std::string>(currentClassValue))
+            {
+                return std::nullopt;
+            }
+
+            std::string className = std::get<std::string>(currentClassValue);
+            auto classDef = env->findClass(className);
+
+            if (!classDef)
+            {
+                return std::nullopt;
+            }
+
+            auto method = classDef->getStaticMethod(node->getFunctionName());
+            if (!method)
+            {
+                return std::nullopt;
+            }
+
+            if (!objEvaluator)
+            {
+                throw UndefinedException("Object evaluator not available for static method call", node->getLocation());
+            }
+
+            auto args = evaluateArguments(node->getArguments());
+            return objEvaluator->callStaticMethod(className, node->getFunctionName(), args, node->getLocation());
         }
     }
 }

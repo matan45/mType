@@ -6,6 +6,7 @@
 #include "statements/ExceptionHandler.hpp"
 #include "validation/TypeValidator.hpp"
 #include "utils/NodeTypeRegistry.hpp"
+#include "utils/LambdaConversionUtils.hpp"
 #include "../services/ImportManager.hpp"
 #include <filesystem>
 #include <typeinfo>
@@ -452,7 +453,7 @@ namespace evaluator
     Value StatementEvaluator::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
                                                        const SourceLocation& location)
     {
-        return importAndFunctionHandler->convertLambdaToInterface(lambdaValue, interfaceName, location);
+        return utils::LambdaConversionUtils::convertLambdaToInterface(lambdaValue, interfaceName, context, location);
     }
 
     Value StatementEvaluator::evaluateTryNode(TryNode* node)

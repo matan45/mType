@@ -25,7 +25,9 @@ namespace ast
 
 namespace evaluator
 {
-    class ExpressionEvaluator;
+namespace interfaces {
+    class IExpressionEvaluator;
+}
 }
 
 namespace evaluator
@@ -50,17 +52,18 @@ namespace evaluator
          * - Single Responsibility: Only class/interface registration
          * - Validates interface implementations
          * - Handles generic types and type substitutions
+         * - Dependency Inversion: Depends on IExpressionEvaluator interface
          */
         class ClassRegistrationHandler
         {
         private:
             std::shared_ptr<EvaluationContext> context;
-            ExpressionEvaluator* exprEvaluator;
+            interfaces::IExpressionEvaluator* exprEvaluator;
 
         public:
             explicit ClassRegistrationHandler(std::shared_ptr<EvaluationContext> ctx);
-            
-            void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+
+            void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator);
            
             
             Value evaluateClass(ClassNode* node);

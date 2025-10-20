@@ -1,8 +1,7 @@
 #include "DeclarationHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../ObjectEvaluator.hpp"
 #include "../validation/TypeValidator.hpp"
 #include "../utils/GenericTypeManager.hpp"
+#include "../utils/LambdaConversionUtils.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
@@ -28,7 +27,7 @@ namespace evaluator
                 node->getVariableType() == ValueType::OBJECT &&
                 !node->getClassName().empty())
             {
-                return convertLambdaToInterface(value, node->getClassName(), node->getLocation());
+                return utils::LambdaConversionUtils::convertLambdaToInterface(value, node->getClassName(), context, node->getLocation());
             }
             return value;
         }
@@ -453,50 +452,5 @@ namespace evaluator
             validation::TypeValidator::validateAssignment(expectedType, value, variableName, location,
                                                           expectedClassName, context);
         }
-
-        Value DeclarationHandler::convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
-                                                           const SourceLocation& location)
-        {
-            // Extract the lambda value
-            auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
-            auto* lambdaNode = lambdaPtr->getLambda();
-
-            // Get the interface definition from the environment
-            auto env = context->getEnvironment();
-            auto interfaceDef = env->findInterface(interfaceName);
-
-            if (!interfaceDef)
-            {
-                return lambdaValue;
-            }
-
-            // Check if the interface is functional (has exactly one method)
-            if (!interfaceDef->isFunctionalInterface())
-            {
-                auto methodSignatures = interfaceDef->getMethodSignatures();
-                throw TypeException(
-                    "Cannot assign lambda to non-functional interface '" + interfaceName + "'. " +
-                    "Lambdas can only be assigned to interfaces with exactly one method. " +
-                    "Interface '" + interfaceName + "' has " + std::to_string(methodSignatures.size()) + " methods. " +
-                    "Consider using a functional interface (single method) or implement the interface explicitly.",
-                    location
-                );
-            }
-
-            // Create the lambda implementation class
-            auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
-            if (!implClass)
-            {
-                return lambdaValue;
-            }
-
-            // Create an instance of the implementation class
-            auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
-
-            // Store the lambda in a special field that the implementation can access
-            instance->setField(constants::lambda::LAMBDA_FIELD_NAME, lambdaValue);
-
-            return instance;
-        }
-    } 
-} 
+    }
+}

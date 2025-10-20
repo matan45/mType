@@ -3,6 +3,7 @@
 #include "managers/ControlFlowManager.hpp"
 #include "utils/ValueConverter.hpp"
 #include "utils/NodeDispatcher.hpp"
+#include "interfaces/IStatementEvaluator.hpp"
 #include "../ast/NodeClassesDeclaration.hpp"
 #include "../ast/nodes/statements/BreakNode.hpp"
 #include "../errors/SourceLocation.hpp"
@@ -35,8 +36,11 @@ namespace evaluator
      * - Liskov Substitution: Implements IStatementEvaluator interface
      * - Interface Segregation: Uses specialized interfaces
      * - Dependency Inversion: Depends on abstractions
+     *
+     * Implements IStatementEvaluator to provide statement evaluation functionality.
+     * Clients can depend on the interface for loose coupling and testability.
      */
-    class StatementEvaluator
+    class StatementEvaluator : public interfaces::IStatementEvaluator
     {
     private:
         std::shared_ptr<EvaluationContext> context;
@@ -61,13 +65,15 @@ namespace evaluator
 
     public:
         explicit StatementEvaluator(std::shared_ptr<EvaluationContext> ctx);
-        ~StatementEvaluator();
-
-        // IEvaluator interface implementation
-        Value evaluate(ASTNode* node);
-        bool canHandle(ASTNode* node) const;
+        ~StatementEvaluator() override;
 
         // IStatementEvaluator interface implementation
+        Value evaluate(ASTNode* node) override;
+        bool canHandle(ASTNode* node) const override;
+        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName,
+                                       const errors::SourceLocation& location = errors::SourceLocation()) override;
+
+        // Control flow management methods (not part of interface)
         bool shouldBreakOrContinue() const;
         void handleBreak();
         void handleContinue();
@@ -128,9 +134,5 @@ namespace evaluator
         void validateObjectTypeCompatibility(const Value& value, const std::string& variableName,
                                              const SourceLocation& location,
                                              const std::string& expectedClassName);
-
-    public:
-        // Lambda-to-interface conversion (moved to public for ObjectEvaluator access)
-        Value convertLambdaToInterface(const Value& lambdaValue, const std::string& interfaceName, const SourceLocation& location = SourceLocation());
     };
 }

@@ -1,5 +1,5 @@
 #include "ClassRegistrationHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/classes/InterfaceNode.hpp"
 #include "../../ast/nodes/classes/FieldNode.hpp"
@@ -19,6 +19,7 @@
 #include <sstream>
 
 using namespace errors;
+using evaluator::utils::ValueConverter;
 
 namespace evaluator
 {
@@ -29,7 +30,7 @@ namespace evaluator
         {
         }
 
-        void ClassRegistrationHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void ClassRegistrationHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }

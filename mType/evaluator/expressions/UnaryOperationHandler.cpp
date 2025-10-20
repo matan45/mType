@@ -1,6 +1,4 @@
 #include "UnaryOperationHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
-#include "../ObjectEvaluator.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
@@ -23,18 +21,26 @@ namespace evaluator
         {
         }
 
-        void UnaryOperationHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void UnaryOperationHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }
 
-        void UnaryOperationHandler::setObjectEvaluator(ObjectEvaluator* evaluator)
+        void UnaryOperationHandler::setObjectEvaluator(interfaces::IObjectEvaluator* evaluator)
         {
             objEvaluator = evaluator;
         }
 
         Value UnaryOperationHandler::evaluateUnaryOperation(UnaryExpNode* node)
         {
+            // Defensive check - evaluators should be set by ExpressionEvaluator
+            if (!exprEvaluator || !objEvaluator) {
+                throw std::runtime_error(
+                    "UnaryOperationHandler::evaluateUnaryOperation: "
+                    "Required evaluators not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             TokenType op = node->getOperator();
 
             // Handle increment and decrement operators (support variables and member access)

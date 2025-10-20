@@ -1,5 +1,5 @@
 #include "ArrayAssignmentHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/FlatMultiArray.hpp"
@@ -16,7 +16,7 @@ namespace evaluator
         {
         }
 
-        void ArrayAssignmentHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void ArrayAssignmentHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }

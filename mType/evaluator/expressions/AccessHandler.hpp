@@ -1,6 +1,9 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IObjectEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
 #include "../../ast/NodeClassesDeclaration.hpp"
 #include "../../value/ValueType.hpp"
 #include <memory>
@@ -30,13 +33,6 @@ namespace ast
 
 namespace evaluator
 {
-    class ExpressionEvaluator;
-    class ObjectEvaluator;
-    class StatementEvaluator;
-}
-
-namespace evaluator
-{
     namespace expressions
     {
         using namespace base;
@@ -59,14 +55,15 @@ namespace evaluator
          * - Single Responsibility: Only access operations
          * - Handles complex variable resolution logic
          * - Supports qualified static access (ClassName::fieldName)
+         * - Dependency Inversion: Depends on interfaces
          */
         class AccessHandler
         {
         private:
             std::shared_ptr<EvaluationContext> context;
-            ExpressionEvaluator* exprEvaluator;
-            ObjectEvaluator* objEvaluator;
-            StatementEvaluator* stmtEvaluator;
+            interfaces::IExpressionEvaluator* exprEvaluator;
+            interfaces::IObjectEvaluator* objEvaluator;
+            interfaces::IStatementEvaluator* stmtEvaluator;
 
             // Helper methods for variable access
             Value handleThisKeyword(VariableNode* node);
@@ -78,11 +75,11 @@ namespace evaluator
         public:
             explicit AccessHandler(std::shared_ptr<EvaluationContext> ctx);
 
-            void setExpressionEvaluator(ExpressionEvaluator* evaluator);
+            void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator);
 
-            void setObjectEvaluator(ObjectEvaluator* evaluator);
+            void setObjectEvaluator(interfaces::IObjectEvaluator* evaluator);
 
-            void setStatementEvaluator(StatementEvaluator* evaluator);
+            void setStatementEvaluator(interfaces::IStatementEvaluator* evaluator);
 
 
             Value evaluateVariableAccess(VariableNode* node);

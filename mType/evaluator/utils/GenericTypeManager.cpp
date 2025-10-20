@@ -537,12 +537,26 @@ namespace evaluator::utils
         }
 
         // Create new constructor definition with substituted parameter types
-        return std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+        auto newConstructor = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
             newParams,
             originalConstructor->getBodyPtr(),
             newGenericParams,
             originalConstructor->getAccessModifier() // Preserve access modifier
         );
+
+        // IMPORTANT: Copy super initializer from original constructor
+        // This was missing and caused parent constructors not to be called in generic subclasses
+        if (originalConstructor->hasSuperInitializer())
+        {
+            newConstructor->setSuperInitializer(
+                std::shared_ptr<::ast::nodes::classes::SuperConstructorCallNode>(
+                    originalConstructor->getSuperInitializer(),
+                    [](::ast::nodes::classes::SuperConstructorCallNode*){} // No-op deleter since we don't own it
+                )
+            );
+        }
+
+        return newConstructor;
     }
 
     std::shared_ptr<runtimeTypes::klass::MethodDefinition> GenericTypeManager::instantiateStaticGenericMethod(

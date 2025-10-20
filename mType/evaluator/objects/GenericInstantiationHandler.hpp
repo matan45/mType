@@ -1,6 +1,9 @@
 #pragma once
 
 #include "../base/EvaluationContext.hpp"
+#include "../interfaces/IExpressionEvaluator.hpp"
+#include "../interfaces/IStatementEvaluator.hpp"
+#include "../interfaces/IObjectEvaluator.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include <memory>
@@ -13,12 +16,6 @@ namespace runtimeTypes {
 namespace klass {
     class ObjectInstance;
 }
-}
-
-namespace evaluator {
-    class ExpressionEvaluator;
-    class StatementEvaluator;
-    class ObjectEvaluator;
 }
 
 namespace evaluator {
@@ -39,29 +36,29 @@ namespace objects {
      *
      * Design Principles:
      * - Single Responsibility: Only handles new/instantiation logic
-     * - Delegates instance creation to InstanceOperationHandler
+     * - Dependency Inversion: Depends on interfaces
      * - Manages complex generic type resolution
      */
     class GenericInstantiationHandler {
     private:
         std::shared_ptr<EvaluationContext> context;
-        evaluator::ExpressionEvaluator* exprEvaluator;
-        evaluator::StatementEvaluator* stmtEvaluator;
-        evaluator::ObjectEvaluator* objEvaluator;
+        interfaces::IExpressionEvaluator* exprEvaluator;
+        interfaces::IStatementEvaluator* stmtEvaluator;
+        interfaces::IObjectEvaluator* objEvaluator;
 
     public:
         explicit GenericInstantiationHandler(std::shared_ptr<EvaluationContext> ctx)
             : context(ctx), exprEvaluator(nullptr), stmtEvaluator(nullptr), objEvaluator(nullptr) {}
 
-        void setExpressionEvaluator(evaluator::ExpressionEvaluator* evaluator) {
+        void setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator) {
             exprEvaluator = evaluator;
         }
 
-        void setStatementEvaluator(evaluator::StatementEvaluator* evaluator) {
+        void setStatementEvaluator(interfaces::IStatementEvaluator* evaluator) {
             stmtEvaluator = evaluator;
         }
 
-        void setObjectEvaluator(evaluator::ObjectEvaluator* evaluator) {
+        void setObjectEvaluator(interfaces::IObjectEvaluator* evaluator) {
             objEvaluator = evaluator;
         }
 
@@ -80,6 +77,13 @@ namespace objects {
          * Resolve type parameter from current context
          */
         std::string resolveTypeParameterFromContext(const std::string& typeParam);
+
+        // Helper methods for evaluateNew refactoring
+        std::string resolveClassName(const std::string& className);
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> findOrInstantiateClass(
+            const std::string& className, const ast::nodes::classes::NewNode* node);
+        std::unordered_map<std::string, std::string> extractGenericTypeBindings(
+            const std::string& classNameForInstance);
     };
 
 } // namespace objects

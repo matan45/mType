@@ -27,11 +27,12 @@ namespace evaluator
         // Expression evaluator dependencies
         exprEvaluator->setStatementEvaluator(stmtEvaluator.get());
         exprEvaluator->setObjectEvaluator(objEvaluator.get());
-        
+        exprEvaluator->setCoordinator(this);  // For delegating nodes like AwaitExpression
+
         // Statement evaluator dependencies
         stmtEvaluator->setExpressionEvaluator(exprEvaluator.get());
         stmtEvaluator->setObjectEvaluator(objEvaluator.get());
-        
+
         // Object evaluator dependencies
         objEvaluator->setExpressionEvaluator(exprEvaluator.get());
         objEvaluator->setStatementEvaluator(stmtEvaluator.get());

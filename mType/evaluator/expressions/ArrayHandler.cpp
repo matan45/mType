@@ -1,5 +1,4 @@
 #include "ArrayHandler.hpp"
-#include "../ExpressionEvaluator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../validation/TypeValidator.hpp"
 #include "../../errors/TypeException.hpp"
@@ -42,13 +41,21 @@ namespace evaluator
         {
         }
 
-        void ArrayHandler::setExpressionEvaluator(ExpressionEvaluator* evaluator)
+        void ArrayHandler::setExpressionEvaluator(interfaces::IExpressionEvaluator* evaluator)
         {
             exprEvaluator = evaluator;
         }
 
         Value ArrayHandler::evaluateArrayCreation(ArrayCreationNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateArrayCreation: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Get all size expressions for multidimensional support
             const auto& sizeExpressions = node->getSizeExpressions();
 
@@ -89,185 +96,37 @@ namespace evaluator
 
             // Determine default value based on element type
             Value defaultValue = getDefaultValueForType(node->getElementTypeInfo());
+            auto elementTypeInfo = node->getElementTypeInfo();
 
             // Handle different array creation scenarios
             if (dimensions.size() == 1)
             {
-                // Use ArrayFactory for optimized 1D array creation
-                auto elementTypeInfo = node->getElementTypeInfo();
-                auto classRegistry = context->getEnvironment()->getClassRegistry().get();
-
-                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
-                std::string resolvedClassName = elementTypeInfo.className;
-                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
-                {
-                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
-                        elementTypeInfo.className, context);
-                }
-
-                auto nativeArray = mType::value::arrays::ArrayFactory::create1DArray(
-                    dimensions[0],
-                    elementTypeInfo.baseType,
-                    resolvedClassName,
-                    nullptr, // ClassDefinition will be resolved by ArrayFactory
-                    classRegistry
-                );
-
-                // Initialize with default values
-                for (size_t i = 0; i < dimensions[0]; ++i)
-                {
-                    nativeArray->set(i, defaultValue);
-                }
-                return nativeArray;
+                // Use helper for optimized 1D array creation
+                return create1DArrayWithDefaults(dimensions[0], elementTypeInfo, defaultValue, node->getLocation());
             }
             else if (hasJaggedDimensions)
             {
                 // Handle jagged arrays (e.g., new int[2][] or new int[2][][])
-                // Find the first specified dimension
-                size_t firstDimension = 0;
-                bool foundSpecifiedDimension = false;
-
-                for (size_t dim : dimensions)
-                {
-                    if (dim != 0)
-                    {
-                        firstDimension = dim;
-                        foundSpecifiedDimension = true;
-                        break;
-                    }
-                }
-
-                if (!foundSpecifiedDimension)
-                {
-                    throw TypeException("Jagged arrays must have at least one specified dimension",
-                                        node->getLocation());
-                }
-
-                // Create an array with the first specified dimension using ArrayFactory
-                auto elementTypeInfo = node->getElementTypeInfo();
-                auto classRegistry = context->getEnvironment()->getClassRegistry().get();
-
-                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
-                std::string resolvedClassName = elementTypeInfo.className;
-                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
-                {
-                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
-                        elementTypeInfo.className, context);
-                }
-
-                auto jaggedArray = mType::value::arrays::ArrayFactory::create1DArray(
-                    firstDimension,
-                    elementTypeInfo.baseType,
-                    resolvedClassName,
-                    nullptr,
-                    classRegistry
-                );
-
-                // Initialize each element to null (will be assigned later)
-                for (size_t i = 0; i < firstDimension; ++i)
-                {
-                    jaggedArray->set(i, std::monostate{}); // null until assigned
-                }
-
-                return jaggedArray;
+                return createJaggedArrayWithNulls(dimensions, elementTypeInfo, node->getLocation());
             }
             else
             {
                 // Multi-dimensional array creation
-                auto elementTypeInfo = node->getElementTypeInfo();
-                auto classRegistry = context->getEnvironment()->getClassRegistry().get();
-
-                // Resolve generic type parameters (e.g., "T" -> "Int") for object arrays
-                std::string resolvedClassName = elementTypeInfo.className;
-                if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
-                {
-                    resolvedClassName = validation::TypeValidator::resolveGenericClassName(
-                        elementTypeInfo.className, context);
-                }
-
-                // Try ArrayFactory for multi-dimensional arrays (supports FlatMultiObjectArray for objects)
-                Value adaptiveArray = mType::value::arrays::ArrayFactory::createMultiDimensionalArray(
-                    dimensions,
-                    elementTypeInfo.baseType,
-                    resolvedClassName,
-                    nullptr, // ClassDefinition resolved by ArrayFactory
-                    classRegistry
-                );
-
-                // If it's not a FlatMultiObjectArray, use the existing ArrayPool adaptive logic
-                if (!std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(adaptiveArray))
-                {
-                    // Fallback to ArrayPool for non-object multi-dimensional arrays
-                    auto& pool = ArrayPool::getInstance();
-                    adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
-                }
-
-                // Verify the array is valid (works for FlatMultiArray, SparseMultiArray, and FlatMultiObjectArray)
-                if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
-                {
-                    auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(adaptiveArray);
-                    if (!flatArray)
-                    {
-                        throw TypeException("Failed to create FlatMultiArray", node->getLocation());
-                    }
-
-                    // Verify size for dense arrays
-                    size_t expectedSize = 1;
-                    for (size_t dim : dimensions)
-                    {
-                        expectedSize *= dim;
-                    }
-                    if (flatArray->totalSize() != expectedSize)
-                    {
-                        throw TypeException("FlatMultiArray size mismatch", node->getLocation());
-                    }
-                }
-                else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(adaptiveArray))
-                {
-                    auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(adaptiveArray);
-                    if (!sparseArray)
-                    {
-                        throw TypeException("Failed to create SparseMultiArray", node->getLocation());
-                    }
-
-                    // Verify dimensions for sparse arrays
-                    if (!sparseArray->hasDimensions(dimensions))
-                    {
-                        throw TypeException("SparseMultiArray dimension mismatch", node->getLocation());
-                    }
-                }
-                else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(
-                    adaptiveArray))
-                {
-                    auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(
-                        adaptiveArray);
-                    if (!flatMultiObjectArray)
-                    {
-                        throw TypeException("Failed to create FlatMultiObjectArray", node->getLocation());
-                    }
-
-                    // Verify size for multi-dimensional object arrays
-                    size_t expectedSize = 1;
-                    for (size_t dim : dimensions)
-                    {
-                        expectedSize *= dim;
-                    }
-                    if (flatMultiObjectArray->totalSize() != expectedSize)
-                    {
-                        throw TypeException("FlatMultiObjectArray size mismatch", node->getLocation());
-                    }
-                }
-                else
-                {
-                    throw TypeException("Unknown array type returned from adaptive pool", node->getLocation());
-                }
-
-                return adaptiveArray;
+                return createAndValidateMultiDimensionalArray(dimensions, elementTypeInfo, defaultValue,
+                                                              node->getLocation());
             }
         }
 
         Value ArrayHandler::evaluateArrayLiteral(ArrayLiteralNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateArrayLiteral: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             const auto& elements = node->getElements();
 
             if (elements.empty())
@@ -358,6 +217,14 @@ namespace evaluator
 
         Value ArrayHandler::evaluateIndexAccess(IndexAccessNode* node)
         {
+            // Defensive check - exprEvaluator should be set by ExpressionEvaluator
+            if (!exprEvaluator) {
+                throw std::runtime_error(
+                    "ArrayHandler::evaluateIndexAccess: "
+                    "ExpressionEvaluator not initialized. "
+                    "Check ExpressionEvaluator constructor.");
+            }
+
             // Check if this is a multi-dimensional access pattern (e.g., arr[i][j])
             std::vector<size_t> indices;
             auto baseArray = extractMultiDimensionalAccess(node, indices);
@@ -382,173 +249,30 @@ namespace evaluator
 
             int index = std::get<int>(indexValue);
 
-            // Check if array is a NativeArray
+            // Delegate to specialized handlers based on array type
             if (std::holds_alternative<std::shared_ptr<NativeArray>>(arrayValue))
             {
-                auto nativeArray = std::get<std::shared_ptr<NativeArray>>(arrayValue);
-
-                // Check bounds with descriptive error message
-                if (index < 0)
-                {
-                    throw TypeException("Array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                                        std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
-                }
-                if (static_cast<size_t>(index) >= nativeArray->size())
-                {
-                    throw TypeException("Array index " + std::to_string(index) + " exceeds array size of " +
-                                        std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
-                                        std::to_string(nativeArray->size() - 1) + ")", node->getLocation());
-                }
-
-                // Use unchecked access (bounds already verified)
-                // PERFORMANCE: Eliminates redundant bounds check in nativeArray->get()
-                return nativeArray->getUnchecked(static_cast<size_t>(index));
+                return handleNativeArrayAccess(std::get<std::shared_ptr<NativeArray>>(arrayValue), index,
+                                                node->getLocation());
             }
 
-            // Check if array is a FlatMultiArray (for multi-dimensional arrays)
             if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(arrayValue))
             {
-                auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(arrayValue);
-
-                // Check bounds with descriptive error message
-                if (index < 0)
-                {
-                    throw TypeException(
-                        "Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                        std::to_string(flatArray->size() - 1) + ")", node->getLocation());
-                }
-                if (static_cast<size_t>(index) >= flatArray->size())
-                {
-                    throw TypeException(
-                        "Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
-                        std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
-                        std::to_string(flatArray->size() - 1) + ")", node->getLocation());
-                }
-
-                // For multi-dimensional arrays, return a sub-array view
-                if (flatArray->getRank() > 1)
-                {
-                    auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
-                    if (subArray)
-                    {
-                        return subArray;
-                    }
-                    else
-                    {
-                        throw TypeException("Cannot access sub-array", node->getLocation());
-                    }
-                }
-                else
-                {
-                    // Single dimension, return the value directly
-                    try
-                    {
-                        return flatArray->get(static_cast<size_t>(index));
-                    }
-                    catch (const std::out_of_range& e)
-                    {
-                        throw TypeException("Array access failed: " + std::string(e.what()), node->getLocation());
-                    }
-                }
+                return handleFlatMultiArrayAccess(std::get<std::shared_ptr<FlatMultiArray>>(arrayValue), index,
+                                                   node->getLocation());
             }
 
-            // Check if array is a SparseMultiArray (for adaptive sparse arrays)
             if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(arrayValue))
             {
-                auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(arrayValue);
-
-                // Check bounds with descriptive error message
-                if (index < 0)
-                {
-                    throw TypeException(
-                        "Sparse array index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                        std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
-                }
-                if (static_cast<size_t>(index) >= sparseArray->size())
-                {
-                    throw TypeException(
-                        "Sparse array index " + std::to_string(index) + " exceeds array size of " +
-                        std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
-                        std::to_string(sparseArray->size() - 1) + ")", node->getLocation());
-                }
-
-                // For sparse multi-dimensional arrays, return a sub-array view
-                if (sparseArray->getRank() > 1)
-                {
-                    auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
-                    if (subArray)
-                    {
-                        return subArray;
-                    }
-                    else
-                    {
-                        throw TypeException("Cannot access sub-array in sparse array", node->getLocation());
-                    }
-                }
-                else
-                {
-                    // Single dimension sparse array
-                    std::vector<size_t> indices = {static_cast<size_t>(index)};
-                    try
-                    {
-                        return sparseArray->get(indices);
-                    }
-                    catch (const std::out_of_range& e)
-                    {
-                        throw TypeException("Sparse array access failed: " + std::string(e.what()),
-                                            node->getLocation());
-                    }
-                }
+                return handleSparseMultiArrayAccess(std::get<std::shared_ptr<SparseMultiArray>>(arrayValue), index,
+                                                     node->getLocation());
             }
 
-            // Check if array is a FlatMultiObjectArray (for multi-dimensional object arrays with SoA)
             if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(arrayValue))
             {
-                auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(
-                    arrayValue);
-
-                // Check bounds with descriptive error message
-                if (index < 0)
-                {
-                    throw TypeException(
-                        "FlatMultiObjectArray index " + std::to_string(index) + " is negative (valid range: 0 to " +
-                        std::to_string(flatMultiObjectArray->size() - 1) + ")", node->getLocation());
-                }
-                if (static_cast<size_t>(index) >= flatMultiObjectArray->size())
-                {
-                    throw TypeException(
-                        "FlatMultiObjectArray index " + std::to_string(index) + " exceeds array size of " +
-                        std::to_string(flatMultiObjectArray->size()) + " elements (valid range: 0 to " +
-                        std::to_string(flatMultiObjectArray->size() - 1) + ")", node->getLocation());
-                }
-
-                // For multi-dimensional object arrays, return a sub-array view
-                if (flatMultiObjectArray->getRank() > 1)
-                {
-                    auto subArray = flatMultiObjectArray->getSubArray(static_cast<size_t>(index));
-                    if (subArray)
-                    {
-                        return subArray;
-                    }
-                    else
-                    {
-                        throw TypeException("Cannot access sub-array in FlatMultiObjectArray", node->getLocation());
-                    }
-                }
-                else
-                {
-                    // Single dimension object array
-                    std::vector<size_t> indices = {static_cast<size_t>(index)};
-                    try
-                    {
-                        return flatMultiObjectArray->get(indices);
-                    }
-                    catch (const std::out_of_range& e)
-                    {
-                        throw TypeException("FlatMultiObjectArray access failed: " + std::string(e.what()),
-                                            node->getLocation());
-                    }
-                }
+                return handleFlatMultiObjectArrayAccess(
+                    std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(arrayValue), index,
+                    node->getLocation());
             }
 
             throw TypeException("Cannot index non-array value", node->getLocation());
@@ -688,6 +412,369 @@ namespace evaluator
             }
 
             throw TypeException("Unsupported array type for direct multi-dimensional access", location);
+        }
+
+        // ========== Helper Methods for evaluateArrayCreation Refactoring ==========
+
+        std::string ArrayHandler::resolveElementClassName(const ::parser::TypeInfo& elementTypeInfo)
+        {
+            std::string resolvedClassName = elementTypeInfo.className;
+            if (elementTypeInfo.baseType == ValueType::OBJECT && !elementTypeInfo.className.empty())
+            {
+                resolvedClassName = validation::TypeValidator::resolveGenericClassName(
+                    elementTypeInfo.className, context);
+            }
+            return resolvedClassName;
+        }
+
+        Value ArrayHandler::create1DArrayWithDefaults(
+            size_t size,
+            const ::parser::TypeInfo& elementTypeInfo,
+            const Value& defaultValue,
+            const SourceLocation& location)
+        {
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+            std::string resolvedClassName = resolveElementClassName(elementTypeInfo);
+
+            auto nativeArray = mType::value::arrays::ArrayFactory::create1DArray(
+                size,
+                elementTypeInfo.baseType,
+                resolvedClassName,
+                nullptr, // ClassDefinition will be resolved by ArrayFactory
+                classRegistry
+            );
+
+            // Initialize with default values
+            for (size_t i = 0; i < size; ++i)
+            {
+                nativeArray->set(i, defaultValue);
+            }
+            return nativeArray;
+        }
+
+        Value ArrayHandler::createJaggedArrayWithNulls(
+            const std::vector<size_t>& dimensions,
+            const ::parser::TypeInfo& elementTypeInfo,
+            const SourceLocation& location)
+        {
+            // Find the first specified dimension
+            size_t firstDimension = 0;
+            bool foundSpecifiedDimension = false;
+
+            for (size_t dim : dimensions)
+            {
+                if (dim != 0)
+                {
+                    firstDimension = dim;
+                    foundSpecifiedDimension = true;
+                    break;
+                }
+            }
+
+            if (!foundSpecifiedDimension)
+            {
+                throw TypeException("Jagged arrays must have at least one specified dimension", location);
+            }
+
+            // Create an array with the first specified dimension using ArrayFactory
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+            std::string resolvedClassName = resolveElementClassName(elementTypeInfo);
+
+            auto jaggedArray = mType::value::arrays::ArrayFactory::create1DArray(
+                firstDimension,
+                elementTypeInfo.baseType,
+                resolvedClassName,
+                nullptr,
+                classRegistry
+            );
+
+            // Initialize each element to null (will be assigned later)
+            for (size_t i = 0; i < firstDimension; ++i)
+            {
+                jaggedArray->set(i, std::monostate{}); // null until assigned
+            }
+
+            return jaggedArray;
+        }
+
+        Value ArrayHandler::createAndValidateMultiDimensionalArray(
+            const std::vector<size_t>& dimensions,
+            const ::parser::TypeInfo& elementTypeInfo,
+            const Value& defaultValue,
+            const SourceLocation& location)
+        {
+            auto classRegistry = context->getEnvironment()->getClassRegistry().get();
+            std::string resolvedClassName = resolveElementClassName(elementTypeInfo);
+
+            // Try ArrayFactory for multi-dimensional arrays (supports FlatMultiObjectArray for objects)
+            Value adaptiveArray = mType::value::arrays::ArrayFactory::createMultiDimensionalArray(
+                dimensions,
+                elementTypeInfo.baseType,
+                resolvedClassName,
+                nullptr, // ClassDefinition resolved by ArrayFactory
+                classRegistry
+            );
+
+            // If it's not a FlatMultiObjectArray, use the existing ArrayPool adaptive logic
+            if (!std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(adaptiveArray))
+            {
+                // Fallback to ArrayPool for non-object multi-dimensional arrays
+                auto& pool = ArrayPool::getInstance();
+                adaptiveArray = pool.acquireAdaptive(dimensions, defaultValue);
+            }
+
+            // Validate the array based on its type
+            if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(adaptiveArray))
+            {
+                auto flatArray = std::get<std::shared_ptr<FlatMultiArray>>(adaptiveArray);
+                validateFlatMultiArray(flatArray, dimensions, location);
+            }
+            else if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(adaptiveArray))
+            {
+                auto sparseArray = std::get<std::shared_ptr<SparseMultiArray>>(adaptiveArray);
+                validateSparseMultiArray(sparseArray, dimensions, location);
+            }
+            else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(adaptiveArray))
+            {
+                auto flatMultiObjectArray = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(
+                    adaptiveArray);
+                validateFlatMultiObjectArray(flatMultiObjectArray, dimensions, location);
+            }
+            else
+            {
+                throw TypeException("Unknown array type returned from adaptive pool", location);
+            }
+
+            return adaptiveArray;
+        }
+
+        void ArrayHandler::validateFlatMultiArray(
+            const std::shared_ptr<FlatMultiArray>& flatArray,
+            const std::vector<size_t>& dimensions,
+            const SourceLocation& location)
+        {
+            if (!flatArray)
+            {
+                throw TypeException("Failed to create FlatMultiArray", location);
+            }
+
+            // Verify size for dense arrays
+            size_t expectedSize = 1;
+            for (size_t dim : dimensions)
+            {
+                expectedSize *= dim;
+            }
+            if (flatArray->totalSize() != expectedSize)
+            {
+                throw TypeException("FlatMultiArray size mismatch", location);
+            }
+        }
+
+        void ArrayHandler::validateSparseMultiArray(
+            const std::shared_ptr<SparseMultiArray>& sparseArray,
+            const std::vector<size_t>& dimensions,
+            const SourceLocation& location)
+        {
+            if (!sparseArray)
+            {
+                throw TypeException("Failed to create SparseMultiArray", location);
+            }
+
+            // Verify dimensions for sparse arrays
+            if (!sparseArray->hasDimensions(dimensions))
+            {
+                throw TypeException("SparseMultiArray dimension mismatch", location);
+            }
+        }
+
+        void ArrayHandler::validateFlatMultiObjectArray(
+            const std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>& flatMultiObjectArray,
+            const std::vector<size_t>& dimensions,
+            const SourceLocation& location)
+        {
+            if (!flatMultiObjectArray)
+            {
+                throw TypeException("Failed to create FlatMultiObjectArray", location);
+            }
+
+            // Verify size for multi-dimensional object arrays
+            size_t expectedSize = 1;
+            for (size_t dim : dimensions)
+            {
+                expectedSize *= dim;
+            }
+            if (flatMultiObjectArray->totalSize() != expectedSize)
+            {
+                throw TypeException("FlatMultiObjectArray size mismatch", location);
+            }
+        }
+
+        // ========== Helper Methods for evaluateIndexAccess Refactoring ==========
+
+        Value ArrayHandler::handleNativeArrayAccess(
+            const std::shared_ptr<value::NativeArray>& nativeArray,
+            int index,
+            const SourceLocation& location)
+        {
+            // Check bounds with descriptive error message
+            if (index < 0)
+            {
+                throw TypeException("Array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                                    std::to_string(nativeArray->size() - 1) + ")", location);
+            }
+            if (static_cast<size_t>(index) >= nativeArray->size())
+            {
+                throw TypeException("Array index " + std::to_string(index) + " exceeds array size of " +
+                                    std::to_string(nativeArray->size()) + " elements (valid range: 0 to " +
+                                    std::to_string(nativeArray->size() - 1) + ")", location);
+            }
+
+            // Use unchecked access (bounds already verified)
+            // PERFORMANCE: Eliminates redundant bounds check in nativeArray->get()
+            return nativeArray->getUnchecked(static_cast<size_t>(index));
+        }
+
+        Value ArrayHandler::handleFlatMultiArrayAccess(
+            const std::shared_ptr<value::FlatMultiArray>& flatArray,
+            int index,
+            const SourceLocation& location)
+        {
+            // Check bounds with descriptive error message
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Multi-dimensional array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", location);
+            }
+            if (static_cast<size_t>(index) >= flatArray->size())
+            {
+                throw TypeException(
+                    "Multi-dimensional array index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(flatArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(flatArray->size() - 1) + ")", location);
+            }
+
+            // For multi-dimensional arrays, return a sub-array view
+            if (flatArray->getRank() > 1)
+            {
+                auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
+                if (subArray)
+                {
+                    return subArray;
+                }
+                else
+                {
+                    throw TypeException("Cannot access sub-array", location);
+                }
+            }
+            else
+            {
+                // Single dimension, return the value directly
+                try
+                {
+                    return flatArray->get(static_cast<size_t>(index));
+                }
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("Array access failed: " + std::string(e.what()), location);
+                }
+            }
+        }
+
+        Value ArrayHandler::handleSparseMultiArrayAccess(
+            const std::shared_ptr<value::SparseMultiArray>& sparseArray,
+            int index,
+            const SourceLocation& location)
+        {
+            // Check bounds with descriptive error message
+            if (index < 0)
+            {
+                throw TypeException(
+                    "Sparse array index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", location);
+            }
+            if (static_cast<size_t>(index) >= sparseArray->size())
+            {
+                throw TypeException(
+                    "Sparse array index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(sparseArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(sparseArray->size() - 1) + ")", location);
+            }
+
+            // For sparse multi-dimensional arrays, return a sub-array view
+            if (sparseArray->getRank() > 1)
+            {
+                auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
+                if (subArray)
+                {
+                    return subArray;
+                }
+                else
+                {
+                    throw TypeException("Cannot access sub-array in sparse array", location);
+                }
+            }
+            else
+            {
+                // Single dimension sparse array
+                std::vector<size_t> indices = {static_cast<size_t>(index)};
+                try
+                {
+                    return sparseArray->get(indices);
+                }
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("Sparse array access failed: " + std::string(e.what()), location);
+                }
+            }
+        }
+
+        Value ArrayHandler::handleFlatMultiObjectArrayAccess(
+            const std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>& flatMultiObjectArray,
+            int index,
+            const SourceLocation& location)
+        {
+            // Check bounds with descriptive error message
+            if (index < 0)
+            {
+                throw TypeException(
+                    "FlatMultiObjectArray index " + std::to_string(index) + " is negative (valid range: 0 to " +
+                    std::to_string(flatMultiObjectArray->size() - 1) + ")", location);
+            }
+            if (static_cast<size_t>(index) >= flatMultiObjectArray->size())
+            {
+                throw TypeException(
+                    "FlatMultiObjectArray index " + std::to_string(index) + " exceeds array size of " +
+                    std::to_string(flatMultiObjectArray->size()) + " elements (valid range: 0 to " +
+                    std::to_string(flatMultiObjectArray->size() - 1) + ")", location);
+            }
+
+            // For multi-dimensional object arrays, return a sub-array view
+            if (flatMultiObjectArray->getRank() > 1)
+            {
+                auto subArray = flatMultiObjectArray->getSubArray(static_cast<size_t>(index));
+                if (subArray)
+                {
+                    return subArray;
+                }
+                else
+                {
+                    throw TypeException("Cannot access sub-array in FlatMultiObjectArray", location);
+                }
+            }
+            else
+            {
+                // Single dimension object array
+                std::vector<size_t> indices = {static_cast<size_t>(index)};
+                try
+                {
+                    return flatMultiObjectArray->get(indices);
+                }
+                catch (const std::out_of_range& e)
+                {
+                    throw TypeException("FlatMultiObjectArray access failed: " + std::string(e.what()), location);
+                }
+            }
         }
     }
 }
