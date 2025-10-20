@@ -31,10 +31,5 @@ namespace lexer
         
         // Line management
         void splitIntoLines(const std::string& input);
-        const std::vector<std::string>& getLines() const { return lines; }
-        std::string getLineContent(int lineNumber) const;
-
-        // Reset for reuse
-        void reset();
     };
 }

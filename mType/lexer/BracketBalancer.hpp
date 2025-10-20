@@ -30,7 +30,6 @@ namespace lexer
         bool isOpeningBracket(char c) const;
         bool isClosingBracket(char c) const;
         char getMatchingClosing(char opening) const;
-        char getMatchingOpening(char closing) const;
         
         // State management
         void clear();
