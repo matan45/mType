@@ -20,8 +20,37 @@ namespace vm::compiler::visitors
 
     value::Value ClassCompiler::compileClass(ast::ClassNode* node)
     {
-        // Classes are registered during the registration phase, not during bytecode generation
-        // This method is called during AST traversal but doesn't generate bytecode
+        // Store current class context
+        auto previousClassNode = ctx.currentClassNode;
+        ctx.currentClassNode = node;
+
+        // Compile all methods (generates bytecode for each method)
+        for (const auto& method : node->getMethods())
+        {
+            method->accept(ctx.visitor);
+        }
+
+        // Compile all constructors (generates bytecode for each constructor)
+        for (const auto& constructor : node->getConstructors())
+        {
+            constructor->accept(ctx.visitor);
+        }
+
+        // If no explicit constructors, compile default constructor
+        if (node->getConstructors().empty())
+        {
+            methodHelper->compileDefaultConstructor(node);
+        }
+
+        // Compile static field initializers if any
+        for (const auto& field : node->getFields())
+        {
+            field->accept(ctx.visitor);
+        }
+
+        // Restore previous class context
+        ctx.currentClassNode = previousClassNode;
+
         return std::monostate{};
     }
 
@@ -37,8 +66,21 @@ namespace vm::compiler::visitors
 
     value::Value ClassCompiler::compileField(ast::FieldNode* node)
     {
-        // Fields are registered during the registration phase, not during bytecode generation
-        // Field initialization happens in constructors
+        // Static field initialization happens here
+        // Instance fields are initialized in constructors
+        if (node->getIsStatic() && node->hasInitialValue())
+        {
+            // Compile the initialization value
+            node->getInitialValue()->accept(ctx.visitor);
+
+            // Store in static field using qualified name (ClassName::fieldName)
+            std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+            std::string qualifiedName = className + "::" + node->getName();
+            size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+
+            ctx.program.emit(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex));
+        }
+
         return std::monostate{};
     }
 
