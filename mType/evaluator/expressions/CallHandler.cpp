@@ -215,6 +215,7 @@ namespace evaluator
 
                     // Check for lambda-to-interface conversion
                     Value returnValue = e.returnValue;
+
                     if (std::holds_alternative<std::shared_ptr<LambdaValue>>(returnValue) &&
                         funcDef->getReturnType() == ValueType::OBJECT)
                     {
@@ -248,7 +249,8 @@ namespace evaluator
                     }
 
                     // Wrap in Promise if async function (exception-safe via RAII)
-                    return asyncGuard.wrapIfNeeded(returnValue);
+                    Value wrappedResult = asyncGuard.wrapIfNeeded(returnValue);
+                    return wrappedResult;
                 }
                 catch (...)
                 {
@@ -268,7 +270,8 @@ namespace evaluator
 
                 // Wrap in Promise if async function (exception-safe via RAII)
                 utils::AsyncReturnGuard asyncGuard(funcDef->getIsAsync());
-                return asyncGuard.wrapIfNeeded(result);
+                Value wrappedResult = asyncGuard.wrapIfNeeded(result);
+                return wrappedResult;
             }
         }
 

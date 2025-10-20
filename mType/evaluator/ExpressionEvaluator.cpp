@@ -44,6 +44,7 @@
 #include "../ast/nodes/classes/NewNode.hpp"
 #include "ObjectEvaluator.hpp"
 #include "StatementEvaluator.hpp"
+#include "EvaluatorCoordinator.hpp"
 #include "../errors/ReturnException.hpp"
 
 namespace evaluator
@@ -66,6 +67,7 @@ namespace evaluator
           , castAndTypeCheckHandler(std::make_unique<expressions::CastAndTypeCheckHandler>(ctx))
           , stmtEvaluator(nullptr)
           , objEvaluator(nullptr)
+          , coordinator(nullptr)
     {
         // Set back-references
         binaryOpEvaluator->setExpressionEvaluator(this);
@@ -85,12 +87,34 @@ namespace evaluator
 
     Value ExpressionEvaluator::evaluate(ASTNode* node)
     {
-        if (!node || !canHandle(node))
+        if (!node)
         {
             return std::monostate{};
         }
 
-        // Use dispatcher for O(1) lookup instead of O(n) dynamic_cast chain
+        // Check if this is an expression node type
+        if (!canHandle(node))
+        {
+            // Not an expression node at all, delegate to coordinator
+            if (coordinator)
+            {
+                return coordinator->evaluate(node);
+            }
+            return std::monostate{};
+        }
+
+        // It's an expression node, but check if we have a handler for it
+        if (!dispatcher.hasHandler(node))
+        {
+            // Expression node without a handler (like AwaitExpression) - delegate to coordinator
+            if (coordinator)
+            {
+                return coordinator->evaluate(node);
+            }
+            return std::monostate{};
+        }
+
+        // We have a handler, use dispatcher for O(1) lookup
         return dispatcher.dispatch(this, node);
     }
 
@@ -215,6 +239,11 @@ namespace evaluator
         unaryOpHandler->setObjectEvaluator(evaluator);
         accessHandler->setObjectEvaluator(evaluator);
         superCallHandler->setObjectEvaluator(evaluator);
+    }
+
+    void ExpressionEvaluator::setCoordinator(EvaluatorCoordinator* coord)
+    {
+        coordinator = coord;
     }
 
     bool ExpressionEvaluator::isExpressionNode(ASTNode* node) const

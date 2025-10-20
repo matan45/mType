@@ -79,6 +79,7 @@ namespace evaluator
         // Forward declarations for circular dependency resolution
         class StatementEvaluator* stmtEvaluator;
         class ObjectEvaluator* objEvaluator;
+        class EvaluatorCoordinator* coordinator;  // For delegating nodes we can't handle (like AwaitExpression)
 
     public:
         explicit ExpressionEvaluator(std::shared_ptr<EvaluationContext> ctx);
@@ -128,6 +129,7 @@ namespace evaluator
         // Dependency injection for cross-evaluator communication
         void setStatementEvaluator(StatementEvaluator* evaluator);
         void setObjectEvaluator(ObjectEvaluator* evaluator);
+        void setCoordinator(EvaluatorCoordinator* coord);
 
     private:
         // Initialize dispatcher with all handler registrations
