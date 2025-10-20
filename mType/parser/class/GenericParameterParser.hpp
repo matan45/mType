@@ -24,7 +24,6 @@ namespace parser
         GenericTypeParameter parseGenericTypeParameter();
 
     private:
-        std::string parseNestedGenericType();
         std::string parseNestedGenericConstraint();
         void validateGenericParameterName(const std::string& paramName);
     };

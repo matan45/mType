@@ -1,5 +1,7 @@
 #include "ObjectCreationParser.hpp"
 #include "../ParserValidator.hpp"
+#include "../utilities/ParserUtils.hpp"
+#include "../expression/ArgumentParser.hpp"
 #include "../../ast/nodes/classes/NewNode.hpp"
 #include "../../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../../errors/ParseException.hpp"
@@ -115,48 +117,7 @@ namespace parser
         // Handle generic parameters with proper nested bracket matching
         if (tokenStream.check(TokenType::LESS))
         {
-            std::string genericsString = "<";
-            tokenStream.advance(); // consume '<'
-
-            int depth = 1; // Track nesting depth of < and >
-            while (depth > 0 && !tokenStream.isAtEnd())
-            {
-                if (tokenStream.current().type == TokenType::LESS)
-                {
-                    depth++;
-                    genericsString += "<";
-                }
-                else if (tokenStream.current().type == TokenType::GREATER)
-                {
-                    depth--;
-                    genericsString += ">";
-                }
-                else if (tokenStream.current().type == TokenType::IDENTIFIER ||
-                    tokenStream.current().type == TokenType::INT ||
-                    tokenStream.current().type == TokenType::FLOAT ||
-                    tokenStream.current().type == TokenType::BOOL ||
-                    tokenStream.current().type == TokenType::STRING_TYPE)
-                {
-                    genericsString += tokenStream.current().stringValue.getString();
-                }
-                else if (tokenStream.current().type == TokenType::COMMA)
-                {
-                    genericsString += ", ";
-                }
-                else
-                {
-                    // Include other tokens that might appear in generic types
-                    genericsString += tokenStream.current().stringValue.getString();
-                }
-
-                tokenStream.advance();
-            }
-
-            if (depth > 0)
-            {
-                throw ParseException("Unmatched '<' in generic type arguments", tokenStream.current().location);
-            }
-
+            std::string genericsString = ParserUtils::parseNestedGenericExpression(tokenStream);
             className += genericsString;
         }
 
@@ -165,20 +126,8 @@ namespace parser
 
     std::vector<std::unique_ptr<ASTNode>> ObjectCreationParser::parseConstructorArguments()
     {
-        tokenStream.expect(TokenType::LPAREN);
-        std::vector<std::unique_ptr<ASTNode>> arguments;
-
-        if (!tokenStream.check(TokenType::RPAREN))
-        {
-            arguments.push_back(context.parseExpression());
-            while (tokenStream.match(TokenType::COMMA))
-            {
-                arguments.push_back(context.parseExpression());
-            }
-        }
-
-        tokenStream.expect(TokenType::RPAREN);
-        return arguments;
+        expression::ArgumentParser argParser(tokenStream, context);
+        return argParser.parseArgumentsWithParentheses();
     }
 
     std::vector<std::unique_ptr<ASTNode>> ObjectCreationParser::parseArrayDimensions()

@@ -50,11 +50,27 @@ namespace parser
     private:
         void initializeHelperParsers();
 
-        // Delegation methods for backward compatibility
-        std::string parseGenericParameters();
-        std::string parseGenericParameter();
-        std::vector<GenericTypeParameter> parseGenericTypeParameters();
-        GenericTypeParameter parseGenericTypeParameter();
+        // Helper methods for parseClass refactoring
+        void validateClassDeclarationContext();
+        ast::nodes::classes::ClassNode* parseAndValidateClassHeader(std::unique_ptr<ASTNode>& classNode);
+        void parseClassMembers(
+            ast::nodes::classes::ClassNode* classNodePtr,
+            const std::string& className,
+            std::unordered_set<std::string>& declaredStaticMethodSignatures,
+            std::unordered_set<std::string>& declaredInstanceMethodSignatures);
+
+        // Helper methods for method signature validation
+        void validateAndRegisterMethodSignature(
+            ast::nodes::classes::MethodNode* methodNode,
+            const std::string& className,
+            std::unordered_set<std::string>& declaredStaticMethodSignatures,
+            std::unordered_set<std::string>& declaredInstanceMethodSignatures);
+
+        [[nodiscard]] std::string buildMethodSignature(const ast::nodes::classes::MethodNode* methodNode) const;
+
+        // Helper method for method declaration detection
+        bool isMethodDeclaration(token::TokenType currentToken) const;
+
     };
 }
 

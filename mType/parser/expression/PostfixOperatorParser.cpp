@@ -1,4 +1,5 @@
 #include "PostfixOperatorParser.hpp"
+#include "ArgumentParser.hpp"
 #include "../ExpressionParser.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/expressions/UnaryExpNode.hpp"
@@ -121,22 +122,8 @@ namespace parser::expression
                 expectToken(TokenType::GREATER);
             }
 
-            expectToken(TokenType::LPAREN);
-            std::vector<std::unique_ptr<ASTNode>> arguments;
-
-            // Parse arguments: arg1, arg2, arg3, ...
-            if (!tokenStream.check(TokenType::RPAREN))
-            {
-                arguments.push_back(context.parseExpression());
-
-                while (tokenStream.check(TokenType::COMMA))
-                {
-                    tokenStream.advance(); // consume ','
-                    arguments.push_back(context.parseExpression());
-                }
-            }
-
-            expectToken(TokenType::RPAREN);
+            ArgumentParser argParser(tokenStream, context);
+            std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
             return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), genericTypeArguments, tokenStream.current().location);
         }
 
@@ -232,22 +219,8 @@ namespace parser::expression
                 {
                     // Regular function call
                     std::string fullName = ParserUtils::buildQualifiedName(parts);
-                    tokenStream.advance(); // consume '('
-                    std::vector<std::unique_ptr<ASTNode>> arguments;
-
-                    // Parse arguments: arg1, arg2, arg3, ...
-                    if (!tokenStream.check(TokenType::RPAREN))
-                    {
-                        arguments.push_back(context.parseExpression());
-
-                        while (tokenStream.check(TokenType::COMMA))
-                        {
-                            tokenStream.advance(); // consume ','
-                            arguments.push_back(context.parseExpression());
-                        }
-                    }
-
-                    expectToken(TokenType::RPAREN);
+                    ArgumentParser argParser(tokenStream, context);
+                    std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
                     return std::make_unique<FunctionCallNode>(fullName, std::move(arguments), tokenStream.current().location);
                 }
             }

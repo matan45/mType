@@ -19,6 +19,7 @@ namespace parser::expression
         bool canParse(const TokenStream& stream) const override;
 
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
+        std::vector<std::unique_ptr<ASTNode>> parseArgumentsWithParentheses();
         std::vector<std::string> parseGenericTypeArguments();
 
     private:

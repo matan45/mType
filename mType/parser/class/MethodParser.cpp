@@ -109,7 +109,7 @@ namespace parser
         // NEW: Set async context when parsing method body
         std::unique_ptr<ASTNode> body;
         {
-            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
+            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
             body = context.parseStatement();
         }
 

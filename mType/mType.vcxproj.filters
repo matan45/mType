@@ -91,6 +91,9 @@
     <Filter Include="parser\expression">
       <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="parser\interface">
+      <UniqueIdentifier>{72AC3D8F-5EA5-5CE1-87D7-4166732F3CED}</UniqueIdentifier>
+    </Filter>
     <Filter Include="parser\statement">
       <UniqueIdentifier>{769D2811-6296-4763-8BC8-2CE87720276F}</UniqueIdentifier>
     </Filter>
@@ -855,6 +858,12 @@
     <ClInclude Include="parser\Parser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
+    <ClInclude Include="parser\ParserConstants.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserContextState.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ParserValidator.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -865,6 +874,9 @@
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\TypeParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TypeRegistry.hpp">
       <Filter>parser</Filter>
     </ClInclude>
     <ClInclude Include="parser\class\ClassDeclarationParser.hpp">
@@ -909,6 +921,9 @@
     <ClInclude Include="parser\expression\UnaryOperatorParser.hpp">
       <Filter>parser\expression</Filter>
     </ClInclude>
+    <ClInclude Include="parser\interface\InterfaceMethodSignatureParser.hpp">
+      <Filter>parser\interface</Filter>
+    </ClInclude>
     <ClInclude Include="parser\statement\AssignmentStatementParser.hpp">
       <Filter>parser\statement</Filter>
     </ClInclude>
@@ -936,10 +951,16 @@
     <ClInclude Include="parser\utilities\AsyncValidator.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
-    <ClInclude Include="parser\utilities\ParsePatterns.hpp">
+    <ClInclude Include="parser\utilities\NameValidator.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParameterParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\ParserUtils.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\QualifiedNameParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
@@ -1649,6 +1670,9 @@
     <ClCompile Include="parser\TypeParser.cpp">
       <Filter>parser</Filter>
     </ClCompile>
+    <ClCompile Include="parser\TypeRegistry.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
     <ClCompile Include="parser\class\ClassDeclarationParser.cpp">
       <Filter>parser\class</Filter>
     </ClCompile>
@@ -1688,6 +1712,9 @@
     <ClCompile Include="parser\expression\UnaryOperatorParser.cpp">
       <Filter>parser\expression</Filter>
     </ClCompile>
+    <ClCompile Include="parser\interface\InterfaceMethodSignatureParser.cpp">
+      <Filter>parser\interface</Filter>
+    </ClCompile>
     <ClCompile Include="parser\statement\AssignmentStatementParser.cpp">
       <Filter>parser\statement</Filter>
     </ClCompile>
@@ -1715,10 +1742,16 @@
     <ClCompile Include="parser\utilities\AsyncValidator.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
-    <ClCompile Include="parser\utilities\ParsePatterns.cpp">
+    <ClCompile Include="parser\utilities\NameValidator.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParameterParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\ParserUtils.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\QualifiedNameParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">

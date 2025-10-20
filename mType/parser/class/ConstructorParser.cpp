@@ -88,7 +88,7 @@ namespace parser
         }
 
         // Set constructor context when parsing constructor body
-        ParseContext::ConstructorContextGuard constructorGuard(context);
+        ParseContext::ConstructorContextGuard constructorGuard(context.getContextState());
         auto body = context.parseStatement();
 
         // Create constructor node with parsed access modifier

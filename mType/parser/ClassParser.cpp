@@ -1,4 +1,5 @@
 ﻿#include "ClassParser.hpp"
+#include "ParserContextState.hpp"
 #include "class/ClassDeclarationParser.hpp"
 #include "class/ConstructorParser.hpp"
 #include "class/MethodParser.hpp"
@@ -40,180 +41,26 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
-        // Validate: classes cannot be declared inside other classes or interfaces
-        if (context.isInsideClassBody())
-        {
-            throw ParseException("Class declarations inside class bodies are not allowed. "
-                               "Nested classes are not supported.",
-                               tokenStream.current().location);
-        }
-        if (context.isInsideInterfaceBody())
-        {
-            throw ParseException("Class declarations inside interface bodies are not allowed.",
-                               tokenStream.current().location);
-        }
+        // Step 1: Validate declaration context
+        validateClassDeclarationContext();
 
-        // Delegate to ClassDeclarationParser for class header parsing
-        auto classNode = classDeclarationParser->parseClassDeclaration();
-        auto* classNodePtr = dynamic_cast<ClassNode*>(classNode.get());
-
-        if (!classNodePtr)
-        {
-            throw ParseException("Failed to create class node", tokenStream.current().location);
-        }
-
-        // Check for duplicate class/interface name
+        // Step 2: Parse and validate class header
+        std::unique_ptr<ASTNode> classNode;
+        auto* classNodePtr = parseAndValidateClassHeader(classNode);
         const std::string& className = classNodePtr->getClassName();
-        if (context.isTypeDeclared(className))
-        {
-            throw ParseException(
-                "Duplicate type declaration: '" + className + "' has already been declared as a class or interface",
-                classNodePtr->getLocation()
-            );
-        }
 
-        // Register the class name with final modifier
-        context.registerClass(className, classNodePtr->isFinal());
-
-        // Track method signatures for this class (local to this function)
+        // Step 3: Track method signatures for duplicate detection
         std::unordered_set<std::string> declaredStaticMethodSignatures;
         std::unordered_set<std::string> declaredInstanceMethodSignatures;
 
-        // Set class context when parsing class body
-        ParseContext::ClassContextGuard classGuard(context);
+        // Step 4: Set class context when parsing class body
+        ParserContextState::ClassContextGuard classGuard(context.getContextState());
 
-        // Parse class body members
-        while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
-        {
-            TokenType currentToken = tokenStream.current().type;
+        // Step 5: Parse class body members
+        parseClassMembers(classNodePtr, className,
+            declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
 
-            // Check for constructor (with or without access modifier)
-            if (currentToken == TokenType::CONSTRUCTOR ||
-                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
-                 tokenStream.peekAhead(1).type == TokenType::CONSTRUCTOR))
-            {
-                auto constructor = constructorParser->parseConstructor();
-                if (constructor)
-                {
-                    classNodePtr->addConstructor(std::move(constructor));
-                }
-            }
-            // Check for method (with access modifiers, static, or just function)
-            else if (currentToken == TokenType::FUNCTION ||
-                (currentToken == TokenType::STATIC && tokenStream.peekAhead(1).type == TokenType::FUNCTION) ||
-                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
-                 tokenStream.peekAhead(1).type == TokenType::FUNCTION) ||
-                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
-                 tokenStream.peekAhead(1).type == TokenType::STATIC && tokenStream.peekAhead(2).type == TokenType::FUNCTION))
-            {
-                auto method = methodParser->parseMethod();
-                if (method)
-                {
-                    // Check for duplicate method signatures (static and instance tracked separately)
-                    auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
-                    if (methodNode)
-                    {
-                        const std::string& methodName = methodNode->getName();
-                        bool isStatic = methodNode->getIsStatic();
-
-                        // Build signature: "methodName(type1,type2,...)"
-                        std::string signature = methodName + "(";
-                        const auto& params = methodNode->getGenericParameters();
-                        for (size_t i = 0; i < params.size(); ++i) {
-                            if (i > 0) signature += ",";
-                            // Use GenericType's toString() method for full type representation
-                            signature += params[i].second->toString();
-                        }
-                        signature += ")";
-
-                        if (isStatic)
-                        {
-                            // Check for duplicate static method signature
-                            if (declaredStaticMethodSignatures.count(signature) > 0)
-                            {
-                                throw ParseException(
-                                    "Duplicate static method declaration: '" + signature + "' has already been declared in class '" + className + "'",
-                                    methodNode->getLocation()
-                                );
-                            }
-                            declaredStaticMethodSignatures.insert(signature);
-                        }
-                        else
-                        {
-                            // Check for duplicate instance method signature
-                            if (declaredInstanceMethodSignatures.count(signature) > 0)
-                            {
-                                throw ParseException(
-                                    "Duplicate instance method declaration: '" + signature + "' has already been declared in class '" + className + "'",
-                                    methodNode->getLocation()
-                                );
-                            }
-                            declaredInstanceMethodSignatures.insert(signature);
-                        }
-                    }
-
-                    classNodePtr->addMethod(std::move(method));
-                }
-            }
-            else
-            {
-                // Default case - parse as field (handles static/final modifiers and static methods)
-                auto field = fieldParser->parseField();
-                if (field)
-                {
-                    // Check if the parsed field is actually a method (static function)
-                    auto* methodNode = dynamic_cast<MethodNode*>(field.get());
-                    if (methodNode)
-                    {
-                        // Check for duplicate method signatures
-                        const std::string& methodName = methodNode->getName();
-                        bool isStatic = methodNode->getIsStatic();
-
-                        // Build signature: "methodName(type1,type2,...)"
-                        std::string signature = methodName + "(";
-                        const auto& params = methodNode->getGenericParameters();
-                        for (size_t i = 0; i < params.size(); ++i) {
-                            if (i > 0) signature += ",";
-                            // Use GenericType's toString() method for full type representation
-                            signature += params[i].second->toString();
-                        }
-                        signature += ")";
-
-                        if (isStatic)
-                        {
-                            // Check for duplicate static method signature
-                            if (declaredStaticMethodSignatures.count(signature) > 0)
-                            {
-                                throw ParseException(
-                                    "Duplicate static method declaration: '" + signature + "' has already been declared in class '" + className + "'",
-                                    methodNode->getLocation()
-                                );
-                            }
-                            declaredStaticMethodSignatures.insert(signature);
-                        }
-                        else
-                        {
-                            // Check for duplicate instance method signature
-                            if (declaredInstanceMethodSignatures.count(signature) > 0)
-                            {
-                                throw ParseException(
-                                    "Duplicate instance method declaration: '" + signature + "' has already been declared in class '" + className + "'",
-                                    methodNode->getLocation()
-                                );
-                            }
-                            declaredInstanceMethodSignatures.insert(signature);
-                        }
-
-                        classNodePtr->addMethod(std::move(field));
-                    }
-                    else
-                    {
-                        classNodePtr->addField(std::move(field));
-                    }
-                }
-            }
-        }
-
+        // Step 6: Expect closing brace
         tokenStream.expect(TokenType::RBRACE);
         return classNode;
     }
@@ -238,23 +85,236 @@ namespace parser
         return objectCreationParser->parseNewExpression();
     }
 
-    std::string ClassParser::parseGenericParameters()
+    void ClassParser::validateClassDeclarationContext()
     {
-        return genericParameterParser->parseGenericParameters();
+        // Validate: classes cannot be declared inside other classes or interfaces
+        if (context.isInsideClassBody())
+        {
+            throw ParseException("Class declarations inside class bodies are not allowed. "
+                               "Nested classes are not supported.",
+                               tokenStream.current().location);
+        }
+        if (context.isInsideInterfaceBody())
+        {
+            throw ParseException("Class declarations inside interface bodies are not allowed.",
+                               tokenStream.current().location);
+        }
     }
 
-    std::string ClassParser::parseGenericParameter()
+    ast::nodes::classes::ClassNode* ClassParser::parseAndValidateClassHeader(std::unique_ptr<ASTNode>& classNode)
     {
-        return genericParameterParser->parseGenericParameter();
+        // Delegate to ClassDeclarationParser for class header parsing
+        classNode = classDeclarationParser->parseClassDeclaration();
+        auto* classNodePtr = dynamic_cast<ClassNode*>(classNode.get());
+
+        if (!classNodePtr)
+        {
+            throw ParseException("Failed to create class node", tokenStream.current().location);
+        }
+
+        // Check for duplicate class/interface name
+        const std::string& className = classNodePtr->getClassName();
+        if (context.isTypeDeclared(className))
+        {
+            throw ParseException(
+                "Duplicate type declaration: '" + className + "' has already been declared as a class or interface",
+                classNodePtr->getLocation()
+            );
+        }
+
+        // Register the class name with final modifier
+        context.registerClass(className, classNodePtr->isFinal());
+
+        return classNodePtr;
     }
 
-    std::vector<GenericTypeParameter> ClassParser::parseGenericTypeParameters()
+    void ClassParser::parseClassMembers(
+        ast::nodes::classes::ClassNode* classNodePtr,
+        const std::string& className,
+        std::unordered_set<std::string>& declaredStaticMethodSignatures,
+        std::unordered_set<std::string>& declaredInstanceMethodSignatures)
     {
-        return genericParameterParser->parseGenericTypeParameters();
+        // Parse class body members
+        while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
+        {
+            TokenType currentToken = tokenStream.current().type;
+
+            // Check for constructor (with or without access modifier)
+            if (currentToken == TokenType::CONSTRUCTOR ||
+                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
+                 tokenStream.peekAhead(1).type == TokenType::CONSTRUCTOR))
+            {
+                auto constructor = constructorParser->parseConstructor();
+                if (constructor)
+                {
+                    classNodePtr->addConstructor(std::move(constructor));
+                }
+            }
+            // Check for method (with access modifiers, static, final, or just function)
+            // Covers all patterns: function, static function, access function, access static function,
+            // final function, static final function, access final function, access static final function
+            else if (isMethodDeclaration(currentToken))
+            {
+                auto method = methodParser->parseMethod();
+                if (method)
+                {
+                    // Check for duplicate method signatures (static and instance tracked separately)
+                    auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
+                    if (methodNode)
+                    {
+                        validateAndRegisterMethodSignature(methodNode, className,
+                            declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
+                    }
+
+                    classNodePtr->addMethod(std::move(method));
+                }
+            }
+            else
+            {
+                // Default case - parse as field (handles static/final modifiers)
+                auto field = fieldParser->parseField();
+                if (field)
+                {
+                    classNodePtr->addField(std::move(field));
+                }
+            }
+        }
     }
 
-    GenericTypeParameter ClassParser::parseGenericTypeParameter()
+    std::string ClassParser::buildMethodSignature(const ast::nodes::classes::MethodNode* methodNode) const
     {
-        return genericParameterParser->parseGenericTypeParameter();
+        const std::string& methodName = methodNode->getName();
+
+        // Build signature: "methodName(type1,type2,...)"
+        std::string signature = methodName + "(";
+        const auto& params = methodNode->getGenericParameters();
+        for (size_t i = 0; i < params.size(); ++i)
+        {
+            if (i > 0) signature += ",";
+            // Use GenericType's toString() method for full type representation
+            signature += params[i].second->toString();
+        }
+        signature += ")";
+
+        return signature;
     }
+
+    void ClassParser::validateAndRegisterMethodSignature(
+        ast::nodes::classes::MethodNode* methodNode,
+        const std::string& className,
+        std::unordered_set<std::string>& declaredStaticMethodSignatures,
+        std::unordered_set<std::string>& declaredInstanceMethodSignatures)
+    {
+        bool isStatic = methodNode->getIsStatic();
+        std::string signature = buildMethodSignature(methodNode);
+
+        if (isStatic)
+        {
+            // Check for duplicate static method signature
+            if (declaredStaticMethodSignatures.count(signature) > 0)
+            {
+                throw ParseException(
+                    "Duplicate static method declaration: '" + signature +
+                    "' has already been declared in class '" + className + "'",
+                    methodNode->getLocation()
+                );
+            }
+            declaredStaticMethodSignatures.insert(signature);
+        }
+        else
+        {
+            // Check for duplicate instance method signature
+            if (declaredInstanceMethodSignatures.count(signature) > 0)
+            {
+                throw ParseException(
+                    "Duplicate instance method declaration: '" + signature +
+                    "' has already been declared in class '" + className + "'",
+                    methodNode->getLocation()
+                );
+            }
+            declaredInstanceMethodSignatures.insert(signature);
+        }
+    }
+
+    bool ClassParser::isMethodDeclaration(token::TokenType currentToken) const
+    {
+        using namespace token;
+
+        // Direct function keyword
+        if (currentToken == TokenType::FUNCTION)
+        {
+            return true;
+        }
+
+        // static [final] function
+        if (currentToken == TokenType::STATIC)
+        {
+            TokenType next = tokenStream.peekAhead(1).type;
+            if (next == TokenType::FUNCTION)
+            {
+                return true;
+            }
+            if (next == TokenType::FINAL && tokenStream.peekAhead(2).type == TokenType::FUNCTION)
+            {
+                return true;
+            }
+        }
+
+        // final [static] function
+        if (currentToken == TokenType::FINAL)
+        {
+            TokenType next = tokenStream.peekAhead(1).type;
+            if (next == TokenType::FUNCTION)
+            {
+                return true;
+            }
+            if (next == TokenType::STATIC && tokenStream.peekAhead(2).type == TokenType::FUNCTION)
+            {
+                return true;
+            }
+        }
+
+        // access_modifier [static] [final] function
+        if (currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED)
+        {
+            TokenType next1 = tokenStream.peekAhead(1).type;
+
+            // access function
+            if (next1 == TokenType::FUNCTION)
+            {
+                return true;
+            }
+
+            // access static [final] function
+            if (next1 == TokenType::STATIC)
+            {
+                TokenType next2 = tokenStream.peekAhead(2).type;
+                if (next2 == TokenType::FUNCTION)
+                {
+                    return true;
+                }
+                if (next2 == TokenType::FINAL && tokenStream.peekAhead(3).type == TokenType::FUNCTION)
+                {
+                    return true;
+                }
+            }
+
+            // access final [static] function
+            if (next1 == TokenType::FINAL)
+            {
+                TokenType next2 = tokenStream.peekAhead(2).type;
+                if (next2 == TokenType::FUNCTION)
+                {
+                    return true;
+                }
+                if (next2 == TokenType::STATIC && tokenStream.peekAhead(3).type == TokenType::FUNCTION)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
 }

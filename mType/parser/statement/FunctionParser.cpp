@@ -138,8 +138,8 @@ namespace parser::statement
         else
         {
             // Set function and async context when parsing function body
-            ParseContext::FunctionContextGuard functionGuard(context);
-            ParseContext::AsyncContextGuard asyncGuard(context, isAsync);
+            ParseContext::FunctionContextGuard functionGuard(context.getContextState());
+            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
             body = context.parseStatement(); // Should be a block
         }
 

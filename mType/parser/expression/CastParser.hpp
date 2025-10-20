@@ -49,6 +49,5 @@ namespace parser::expression
 
     private:
         // Helper to distinguish cast from parenthesized expression
-        bool isTypeName() const;
     };
 }

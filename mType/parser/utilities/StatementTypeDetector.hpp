@@ -37,7 +37,10 @@ namespace parser::utilities
         static bool isExceptionKeyword(TokenType type) noexcept;
 
         static StatementType analyzeIdentifierStatement(const TokenStream& stream);
-        static bool looksLikeDeclaration(const TokenStream& stream);
-        static bool looksLikeAssignment(const TokenStream& stream);
+
+        // Helper methods for detectStatementType refactoring
+        static StatementType analyzeAccessModifier(const TokenStream& stream);
+        static StatementType analyzeFinalKeyword(const TokenStream& stream);
+        static StatementType analyzeByKeywordCategory(TokenType currentType);
     };
 }

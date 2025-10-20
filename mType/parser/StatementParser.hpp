@@ -76,10 +76,6 @@ namespace parser
     private:
         void initializeHelperParsers();
         std::unique_ptr<ASTNode> delegateToSpecializedParser(StatementType type);
-
-        // Helper methods
-        std::vector<std::pair<std::string, ValueType>> parseParameterList();
-        std::unique_ptr<ASTNode> tryParseForEach(); // Returns nullptr if not for-each pattern
     };
 }
 

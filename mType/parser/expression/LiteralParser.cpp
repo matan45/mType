@@ -1,4 +1,5 @@
 #include "LiteralParser.hpp"
+#include "ArgumentParser.hpp"
 #include "../../ast/nodes/expressions/IntegerNode.hpp"
 #include "../../ast/nodes/expressions/FloatNode.hpp"
 #include "../../ast/nodes/expressions/StringNode.hpp"
@@ -168,21 +169,8 @@ namespace parser::expression
                     superLocation);
             }
 
-            tokenStream.advance(); // consume '('
-
-            std::vector<std::unique_ptr<ASTNode>> arguments;
-
-            // Parse arguments if not empty
-            if (!tokenStream.check(TokenType::RPAREN))
-            {
-                arguments.push_back(context.parseExpression());
-                while (tryConsumeToken(TokenType::COMMA))
-                {
-                    arguments.push_back(context.parseExpression());
-                }
-            }
-
-            expectToken(TokenType::RPAREN);
+            ArgumentParser argParser(tokenStream, context);
+            std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
 
             return std::make_unique<SuperConstructorCallNode>(
                 std::move(arguments), superLocation);
@@ -202,20 +190,8 @@ namespace parser::expression
             tokenStream.advance();
 
             // Expect method call with parentheses
-            expectToken(TokenType::LPAREN);
-
-            std::vector<std::unique_ptr<ASTNode>> arguments;
-
-            if (!tokenStream.check(TokenType::RPAREN))
-            {
-                arguments.push_back(context.parseExpression());
-                while (tryConsumeToken(TokenType::COMMA))
-                {
-                    arguments.push_back(context.parseExpression());
-                }
-            }
-
-            expectToken(TokenType::RPAREN);
+            ArgumentParser argParser(tokenStream, context);
+            std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
 
             return std::make_unique<SuperMethodCallNode>(
                 methodName, std::move(arguments), superLocation);

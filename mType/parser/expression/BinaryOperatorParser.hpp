@@ -42,8 +42,5 @@ namespace parser::expression
         std::unique_ptr<ASTNode> parseBinaryLevel(
             std::function<std::unique_ptr<ASTNode>()> parseNext,
             const std::vector<TokenType>& operators);
-
-        bool isBinaryOperator(TokenType type) const noexcept;
-        int getOperatorPrecedence(TokenType type) const noexcept;
     };
 }

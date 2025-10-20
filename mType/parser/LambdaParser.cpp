@@ -174,26 +174,4 @@ namespace parser
         return false;
     }
 
-    bool LambdaParser::isLambdaParameterPattern() const
-    {
-        // Check for valid lambda parameter patterns
-        TokenType current = tokenStream.current().type;
-
-        // Empty parameter list: ()
-        if (current == TokenType::LPAREN)
-        {
-            if (!tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::RPAREN)
-            {
-                return true;
-            }
-        }
-
-        // Identifier (could be single parameter or start of parameter list)
-        if (current == TokenType::IDENTIFIER)
-        {
-            return true;
-        }
-
-        return false;
-    }
 }

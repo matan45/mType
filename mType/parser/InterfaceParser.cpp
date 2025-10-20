@@ -1,30 +1,96 @@
 ﻿#include "InterfaceParser.hpp"
+#include "ParserConstants.hpp"
+#include "ParserContextState.hpp"
 #include "class/GenericParameterParser.hpp"
+#include "interface/InterfaceMethodSignatureParser.hpp"
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
+#include "utilities/NameValidator.hpp"
 #include "utilities/AccessModifierParser.hpp"
 #include "utilities/VisibilityParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
-#include "../ast/nodes/functions/FunctionNode.hpp"
-#include "../ast/nodes/statements/BlockNode.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::classes;
-    using namespace ast::nodes::functions;
-    using namespace ast::nodes::statements;
     using namespace token;
     using namespace errors;
     using namespace parser::utilities;
 
     InterfaceParser::InterfaceParser(TokenStream& stream, ParseContext& ctx)
-        : tokenStream(stream), context(ctx)
+        : BaseParser(stream, ctx)
     {
+        initializeHelperParsers();
+    }
+
+    InterfaceParser::~InterfaceParser() = default;
+
+    void InterfaceParser::initializeHelperParsers()
+    {
+        methodSignatureParser = std::make_unique<InterfaceMethodSignatureParser>(tokenStream, context);
+    }
+
+    std::unique_ptr<ASTNode> InterfaceParser::parse()
+    {
+        return parseInterface();
+    }
+
+    bool InterfaceParser::canParse(const TokenStream& stream) const
+    {
+        TokenType current = stream.current().type;
+        // Check for optional visibility modifiers followed by optional 'final' and 'interface'
+        return current == TokenType::INTERFACE ||
+               current == TokenType::PUBLIC ||
+               current == TokenType::PRIVATE ||
+               current == TokenType::FINAL;
     }
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
+    {
+        // Step 1: Validate declaration context
+        validateInterfaceDeclarationContext();
+
+        // Step 2: Parse interface header
+        std::string interfaceName;
+        SourceLocation location;
+        VisibilityModifier visibility;
+        bool isFinal = false;
+        std::vector<GenericTypeParameter> genericParams;
+
+        parseInterfaceHeader(interfaceName, location, visibility, isFinal, genericParams);
+
+        // Step 3: Create interface node and register it
+        auto interfaceNode = std::make_unique<InterfaceNode>(
+            interfaceName, genericParams, tokenStream.current().location
+        );
+
+        // Check for duplicate class/interface name
+        if (context.isTypeDeclared(interfaceName))
+        {
+            throw ParseException(
+                "Duplicate type declaration: '" + interfaceName + "' has already been declared as a class or interface",
+                location
+            );
+        }
+
+        // Register the interface name with final modifier
+        context.registerInterface(interfaceName, isFinal);
+
+        // Step 4: Parse and validate extends clause
+        parseAndValidateExtendsClause(interfaceNode.get(), interfaceName);
+
+        // Step 5: Parse interface body
+        parseInterfaceBody(interfaceNode.get());
+
+        // Step 6: Set final attributes and return
+        interfaceNode->setFinal(isFinal);
+        interfaceNode->setVisibility(visibility);
+        return interfaceNode;
+    }
+
+    void InterfaceParser::validateInterfaceDeclarationContext()
     {
         // Validate: interfaces cannot be declared inside classes or other interfaces
         if (context.isInsideClassBody())
@@ -38,13 +104,20 @@ namespace parser
                                "Nested interfaces are not supported.",
                                tokenStream.current().location);
         }
+    }
 
+    void InterfaceParser::parseInterfaceHeader(
+        std::string& interfaceName,
+        SourceLocation& location,
+        VisibilityModifier& visibility,
+        bool& isFinal,
+        std::vector<GenericTypeParameter>& genericParams)
+    {
         // Parse optional visibility modifier (public/private)
-        // Default is PUBLIC if not specified
-        VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
+        visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
 
         // Check for optional 'final' keyword
-        bool isFinal = false;
+        isFinal = false;
         if (tokenStream.check(TokenType::FINAL))
         {
             isFinal = true;
@@ -64,16 +137,15 @@ namespace parser
             throw ParseException("Expected interface name", tokenStream.current().location);
         }
 
-        std::string interfaceName = tokenStream.current().stringValue.getString();
-        auto location = tokenStream.current().location;
+        interfaceName = tokenStream.current().stringValue.getString();
+        location = tokenStream.current().location;
 
-        // Validate interface name using ParserUtils
-        ParserUtils::validateCapitalizedName(interfaceName, "Interface", location);
+        // Validate interface name using NameValidator
+        NameValidator::validateCapitalizedName(interfaceName, "Interface", location);
 
         tokenStream.advance();
 
         // Parse optional generic type parameters
-        std::vector<GenericTypeParameter> genericParams;
         if (tokenStream.current().type == TokenType::LESS)
         {
             tokenStream.advance(); // consume '<'
@@ -81,91 +153,83 @@ namespace parser
             tokenStream.expect(TokenType::GREATER); // consume '>'
 
             // Validate generic parameter count limit
-            constexpr size_t MAX_GENERIC_PARAMETERS = 20;
-            if (genericParams.size() > MAX_GENERIC_PARAMETERS)
+            if (genericParams.size() > constants::MAX_GENERIC_PARAMETERS)
             {
                 throw ParseException(
                     "Interface '" + interfaceName + "' has too many generic parameters (" +
                     std::to_string(genericParams.size()) + "). Maximum allowed: " +
-                    std::to_string(MAX_GENERIC_PARAMETERS),
+                    std::to_string(constants::MAX_GENERIC_PARAMETERS),
                     location);
             }
         }
+    }
 
-        // Create interface node
-        auto interfaceNode = std::make_unique<InterfaceNode>(
-            interfaceName, genericParams, tokenStream.current().location
-        );
-
-        // NEW: Check for duplicate class/interface name
-        if (context.isTypeDeclared(interfaceName))
+    void InterfaceParser::parseAndValidateExtendsClause(
+        nodes::classes::InterfaceNode* interfaceNode,
+        const std::string& interfaceName)
+    {
+        if (tokenStream.current().type != TokenType::EXTENDS)
         {
-            throw ParseException(
-                "Duplicate type declaration: '" + interfaceName + "' has already been declared as a class or interface",
-                location
-            );
+            return; // No extends clause
         }
 
-        // Register the interface name with final modifier
-        context.registerInterface(interfaceName, isFinal);
+        tokenStream.advance(); // consume 'extends'
 
-        // Parse optional extends clause
-        if (tokenStream.current().type == TokenType::EXTENDS)
+        // Use ParserUtils to parse the interface list
+        auto extendedInterfaces = ParserUtils::parseInterfaceList(tokenStream, "extends");
+
+        // Validate each parent interface
+        for (const auto& parentInterfaceName : extendedInterfaces)
         {
-            tokenStream.advance(); // consume 'extends'
-
-            // Use ParserUtils to parse the interface list
-            auto extendedInterfaces = ParserUtils::parseInterfaceList(tokenStream, "extends");
-
-            // Validate each parent interface
-            for (const auto& parentInterfaceName : extendedInterfaces)
+            // Extract base name without generic parameters for validation
+            std::string baseParentName = parentInterfaceName;
+            size_t genericStart = parentInterfaceName.find('<');
+            if (genericStart != std::string::npos)
             {
-                // Extract base name without generic parameters for validation
-                std::string baseParentName = parentInterfaceName;
-                size_t genericStart = parentInterfaceName.find('<');
-                if (genericStart != std::string::npos)
-                {
-                    baseParentName = parentInterfaceName.substr(0, genericStart);
-                }
-
-                // Check if parent is a declared class
-                if (context.isClassDeclared(baseParentName))
-                {
-                    throw ParseException(
-                        "Interface '" + interfaceName + "' cannot extend class '" + baseParentName + "'. "
-                        "Interfaces can only extend other interfaces.",
-                        tokenStream.current().location);
-                }
-
-                // Check if parent interface is marked as final
-                if (context.isInterfaceFinal(baseParentName))
-                {
-                    throw ParseException(
-                        "Interface '" + interfaceName + "' cannot extend final interface '" + baseParentName + "'.",
-                        tokenStream.current().location);
-                }
-
-                interfaceNode->addExtendedInterface(parentInterfaceName);
+                baseParentName = parentInterfaceName.substr(0, genericStart);
             }
 
-            // Check for circular inheritance after validating all parents
-            if (!context.registerInterfaceInheritance(interfaceName, extendedInterfaces))
+            // Check if parent is a declared class
+            if (context.isClassDeclared(baseParentName))
             {
-                // Build a simple error message
-                std::string parentsStr;
-                for (size_t i = 0; i < extendedInterfaces.size(); ++i) {
-                    if (i > 0) parentsStr += ", ";
-                    parentsStr += extendedInterfaces[i];
-                }
-
                 throw ParseException(
-                    "Circular inheritance detected: Interface '" + interfaceName +
-                    "' creates a cycle when extending [" + parentsStr + "]",
+                    "Interface '" + interfaceName + "' cannot extend class '" + baseParentName + "'. "
+                    "Interfaces can only extend other interfaces.",
                     tokenStream.current().location);
             }
+
+            // Check if parent interface is marked as final
+            if (context.isInterfaceFinal(baseParentName))
+            {
+                throw ParseException(
+                    "Interface '" + interfaceName + "' cannot extend final interface '" + baseParentName + "'.",
+                    tokenStream.current().location);
+            }
+
+            interfaceNode->addExtendedInterface(parentInterfaceName);
         }
 
-        // Parse interface body
+        // Check for circular inheritance after validating all parents
+        if (!context.registerInterfaceInheritance(interfaceName, extendedInterfaces))
+        {
+            // Build a simple error message
+            std::string parentsStr;
+            for (size_t i = 0; i < extendedInterfaces.size(); ++i)
+            {
+                if (i > 0) parentsStr += ", ";
+                parentsStr += extendedInterfaces[i];
+            }
+
+            throw ParseException(
+                "Circular inheritance detected: Interface '" + interfaceName +
+                "' creates a cycle when extending [" + parentsStr + "]",
+                tokenStream.current().location);
+        }
+    }
+
+    void InterfaceParser::parseInterfaceBody(nodes::classes::InterfaceNode* interfaceNode)
+    {
+        // Expect opening brace
         if (tokenStream.current().type != TokenType::LBRACE)
         {
             throw ParseException("Expected '{' to start interface body",
@@ -174,7 +238,7 @@ namespace parser
         tokenStream.advance();
 
         // Set interface context when parsing interface body
-        ParseContext::InterfaceContextGuard interfaceGuard(context);
+        ParserContextState::InterfaceContextGuard interfaceGuard(context.getContextState());
 
         // Parse method signatures
         while (tokenStream.current().type != TokenType::RBRACE && !tokenStream.isAtEnd())
@@ -193,7 +257,7 @@ namespace parser
 
             if (tokenStream.current().type == TokenType::FUNCTION)
             {
-                auto methodSignature = parseMethodSignature();
+                auto methodSignature = methodSignatureParser->parseMethodSignature();
                 if (methodSignature)
                 {
                     interfaceNode->addMethod(std::move(methodSignature));
@@ -206,87 +270,13 @@ namespace parser
             }
         }
 
+        // Expect closing brace
         if (tokenStream.current().type != TokenType::RBRACE)
         {
             throw ParseException("Expected '}' to end interface body",
                                  tokenStream.current().location);
         }
         tokenStream.advance();
-
-        interfaceNode->setFinal(isFinal);
-        interfaceNode->setVisibility(visibility);
-        return interfaceNode;
-    }
-
-    std::unique_ptr<ASTNode> InterfaceParser::parseMethodSignature()
-    {
-        // Check for 'static' keyword - not allowed in interfaces
-        if (tokenStream.current().type == TokenType::STATIC)
-        {
-            throw ParseException("Static methods are not allowed in interfaces", tokenStream.current().location);
-        }
-
-        // Consume 'function' keyword
-        if (tokenStream.current().type != TokenType::FUNCTION)
-        {
-            throw ParseException("Expected 'function' keyword", tokenStream.current().location);
-        }
-        tokenStream.advance();
-
-        // Check for async keyword AFTER function keyword
-        bool isAsync = false;
-        if (tokenStream.current().type == TokenType::ASYNC)
-        {
-            isAsync = true;
-            tokenStream.advance();
-        }
-
-        // Parse function name
-        if (tokenStream.current().type != TokenType::IDENTIFIER)
-        {
-            throw ParseException("Expected method name", tokenStream.current().location);
-        }
-
-        std::string methodName = tokenStream.current().stringValue.getString();
-        tokenStream.advance();
-
-        // Parse parameter list using ParserUtils
-        auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
-
-        // Parse return type
-        std::shared_ptr<GenericType> returnType;
-        if (tokenStream.current().type == TokenType::COLON)
-        {
-            tokenStream.advance();
-
-            // Parse return type using TypeParser (supports generic types and arrays)
-            returnType = TypeParser::parseGenericType(tokenStream);
-        }
-        else
-        {
-            // Default to void if no return type specified
-            returnType = std::make_shared<GenericType>(ValueType::VOID);
-        }
-
-        // Expect semicolon to end method signature
-        if (tokenStream.current().type != TokenType::SEMICOLON)
-        {
-            throw ParseException("Expected ';' after method signature", tokenStream.current().location);
-        }
-        tokenStream.advance();
-
-        // Create a dummy empty body for the method signature (interfaces don't have implementations)
-        auto dummyBody = std::make_shared<BlockNode>(tokenStream.current().location);
-
-        // Create a method signature node using FunctionNode
-        auto methodNode = std::make_unique<FunctionNode>(
-            methodName, returnType, parameters, dummyBody
-        );
-
-        // Set async flag if this is an async method
-        methodNode->setIsAsync(isAsync);
-
-        return std::move(methodNode);
     }
 
     std::vector<GenericTypeParameter> InterfaceParser::parseGenericTypeParameters()

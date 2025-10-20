@@ -43,42 +43,5 @@ namespace parser::utilities
          */
         static bool isPromiseType(const std::shared_ptr<GenericType>& type);
 
-        /**
-         * @brief Extract the wrapped type from a Promise<T>
-         *
-         * For example, if type is Promise<Int>, returns Int.
-         * If type is not a Promise, returns nullptr.
-         *
-         * @param promiseType The Promise<T> type to unwrap
-         * @return The wrapped type T, or nullptr if not a Promise
-         */
-        static std::shared_ptr<GenericType> unwrapPromiseType(
-            const std::shared_ptr<GenericType>& promiseType);
-
-        /**
-         * @brief Wrap a type in Promise<T>
-         *
-         * Creates a Promise<T> type from a given type T.
-         * For example, Int -> Promise<Int>
-         *
-         * @param innerType The type to wrap
-         * @return A new GenericType representing Promise<innerType>
-         */
-        static std::shared_ptr<GenericType> wrapInPromise(
-            const std::shared_ptr<GenericType>& innerType);
-
-        /**
-         * @brief Validate that await is used in an async context
-         *
-         * This validation is performed during parsing via ParseContext.
-         * This method provides additional semantic validation if needed.
-         *
-         * @param isAsyncContext true if currently in an async function
-         * @param location Source location for error reporting
-         * @throws ParseException if await used outside async context
-         */
-        static void validateAwaitContext(
-            bool isAsyncContext,
-            const SourceLocation& location);
     };
 }
