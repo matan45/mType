@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "core/BaseParser.hpp"
 #include "TokenStream.hpp"
@@ -12,11 +12,13 @@ namespace parser
     class InterfaceMethodSignatureParser;
 }
 
-namespace parser {
+namespace parser
+{
     /// @brief Parser for interface declarations
     /// Now inherits from BaseParser for consistency with ClassParser and FieldParser
     /// Delegates method signature parsing to InterfaceMethodSignatureParser
-    class InterfaceParser : public core::BaseParser {
+    class InterfaceParser : public core::BaseParser
+    {
     private:
         // Helper parser
         std::unique_ptr<InterfaceMethodSignatureParser> methodSignatureParser;

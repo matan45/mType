@@ -2,7 +2,6 @@
 
 #include "../../ast/VisibilityModifier.hpp"
 #include "../../token/TokenType.hpp"
-#include "../../token/Token.hpp"
 #include "../TokenStream.hpp"
 #include "../../errors/SourceLocation.hpp"
 

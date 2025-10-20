@@ -21,10 +21,10 @@ namespace parser::expression
         ExpressionParser* expressionParser; // Reference to ExpressionParser to break circular dependency
     public:
         explicit BinaryOperatorParser(TokenStream& stream, ParseContext& ctx);
-        
+
         // Method to set ExpressionParser reference after construction
         void setExpressionParser(ExpressionParser& exprParser);
-        
+
         std::unique_ptr<ASTNode> parse() override;
         bool canParse(const TokenStream& stream) const override;
 

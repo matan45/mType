@@ -22,13 +22,21 @@ namespace lexer
 
         // Position tracking
         void advance(char current);
+
+        /**
+         * Sets the current source position
+         * @param line Line number (must be >= 1, 1-based indexing)
+         * @param column Column number (must be >= 1, 1-based indexing)
+         * @pre line >= 1 && column >= 1
+         * @note Violating preconditions will trigger assertion failure in debug builds
+         */
         void setPosition(int line, int column);
-        
+
         // Location queries
         errors::SourceLocation getCurrentLocation() const;
         int getCurrentLine() const { return currentLine; }
         int getCurrentColumn() const { return currentColumn; }
-        
+
         // Line management
         void splitIntoLines(const std::string& input);
     };

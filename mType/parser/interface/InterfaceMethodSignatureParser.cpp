@@ -1,7 +1,6 @@
 #include "InterfaceMethodSignatureParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
-#include "../utilities/NameValidator.hpp"
 #include "../utilities/ParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"

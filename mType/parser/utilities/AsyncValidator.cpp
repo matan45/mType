@@ -48,5 +48,4 @@ namespace parser::utilities
         // Check if it's named "Promise"
         return baseTypeName == "Promise";
     }
-
 }

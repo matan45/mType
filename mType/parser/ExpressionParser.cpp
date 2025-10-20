@@ -413,7 +413,7 @@ namespace parser
             // Create: var op right
             auto leftVar = std::make_unique<VariableNode>(variableNode->getName(), location);
             auto expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr),
-                                                                location);
+                                                                 location);
 
             return std::make_unique<AssignmentNode>(variableNode->getName(),
                                                     std::move(expandedRight),

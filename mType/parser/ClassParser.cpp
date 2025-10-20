@@ -58,7 +58,7 @@ namespace parser
 
         // Step 5: Parse class body members
         parseClassMembers(classNodePtr, className,
-            declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
+                          declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
 
         // Step 6: Expect closing brace
         tokenStream.expect(TokenType::RBRACE);
@@ -91,13 +91,13 @@ namespace parser
         if (context.isInsideClassBody())
         {
             throw ParseException("Class declarations inside class bodies are not allowed. "
-                               "Nested classes are not supported.",
-                               tokenStream.current().location);
+                                 "Nested classes are not supported.",
+                                 tokenStream.current().location);
         }
         if (context.isInsideInterfaceBody())
         {
             throw ParseException("Class declarations inside interface bodies are not allowed.",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
     }
 
@@ -141,8 +141,9 @@ namespace parser
 
             // Check for constructor (with or without access modifier)
             if (currentToken == TokenType::CONSTRUCTOR ||
-                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED) &&
-                 tokenStream.peekAhead(1).type == TokenType::CONSTRUCTOR))
+                ((currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken ==
+                        TokenType::PROTECTED) &&
+                    tokenStream.peekAhead(1).type == TokenType::CONSTRUCTOR))
             {
                 auto constructor = constructorParser->parseConstructor();
                 if (constructor)
@@ -163,7 +164,8 @@ namespace parser
                     if (methodNode)
                     {
                         validateAndRegisterMethodSignature(methodNode, className,
-                            declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
+                                                           declaredStaticMethodSignatures,
+                                                           declaredInstanceMethodSignatures);
                     }
 
                     classNodePtr->addMethod(std::move(method));
@@ -275,7 +277,8 @@ namespace parser
         }
 
         // access_modifier [static] [final] function
-        if (currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken == TokenType::PROTECTED)
+        if (currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken ==
+            TokenType::PROTECTED)
         {
             TokenType next1 = tokenStream.peekAhead(1).type;
 
@@ -316,5 +319,4 @@ namespace parser
 
         return false;
     }
-
 }

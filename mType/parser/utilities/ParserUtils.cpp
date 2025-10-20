@@ -2,7 +2,6 @@
 #include "ParameterParser.hpp"
 #include "NameValidator.hpp"
 #include "QualifiedNameParser.hpp"
-#include "../TypeParser.hpp"
 #include "../TokenStream.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericType.hpp"
@@ -34,36 +33,40 @@ namespace parser
         NameValidator::validateFunctionNamingConvention(name, isStatic, context, location);
     }
 
-    std::vector<std::pair<std::string, value::ValueType>> ParserUtils::parseParameterList(TokenStream& stream, bool expectParentheses)
+    std::vector<std::pair<std::string, value::ValueType>> ParserUtils::parseParameterList(
+        TokenStream& stream, bool expectParentheses)
     {
         return ParameterParser::parseParameterList(stream, expectParentheses);
     }
 
-    std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> ParserUtils::parseGenericParameterList(TokenStream& stream, bool expectParentheses)
+    std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> ParserUtils::parseGenericParameterList(
+        TokenStream& stream, bool expectParentheses)
     {
         return ParameterParser::parseGenericParameterList(stream, expectParentheses);
     }
 
-    std::vector<std::pair<std::string, value::ParameterType>> ParserUtils::parseParameterListWithTypes(TokenStream& stream, bool expectParentheses)
+    std::vector<std::pair<std::string, value::ParameterType>> ParserUtils::parseParameterListWithTypes(
+        TokenStream& stream, bool expectParentheses)
     {
         return ParameterParser::parseParameterListWithTypes(stream, expectParentheses);
     }
 
-    std::vector<std::string> ParserUtils::parseQualifiedIdentifierChain(TokenStream& stream, std::string_view initialName)
+    std::vector<std::string> ParserUtils::parseQualifiedIdentifierChain(
+        TokenStream& stream, std::string_view initialName)
     {
         return QualifiedNameParser::parseQualifiedIdentifierChain(stream, initialName);
     }
 
     void ParserUtils::validateCapitalizedName(std::string_view name,
-                                             std::string_view context,
-                                             const errors::SourceLocation& location)
+                                              std::string_view context,
+                                              const errors::SourceLocation& location)
     {
         NameValidator::validateCapitalizedName(name, context, location);
     }
 
     void ParserUtils::validateIdentifierName(std::string_view name,
-                                            std::string_view context,
-                                            const errors::SourceLocation& location)
+                                             std::string_view context,
+                                             const errors::SourceLocation& location)
     {
         NameValidator::validateIdentifierName(name, context, location);
     }
@@ -87,7 +90,8 @@ namespace parser
             errors::SourceLocation opLocation = stream.current().location; // Capture location before advancing
             stream.advance();
             auto right = parseNext();
-            left = std::make_unique<ast::nodes::expressions::BinaryExpNode>(std::move(left), op, std::move(right), opLocation);
+            left = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
+                std::move(left), op, std::move(right), opLocation);
         }
 
         return left;

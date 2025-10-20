@@ -42,9 +42,9 @@ namespace parser
         TokenType current = stream.current().type;
         // Check for optional visibility modifiers followed by optional 'final' and 'interface'
         return current == TokenType::INTERFACE ||
-               current == TokenType::PUBLIC ||
-               current == TokenType::PRIVATE ||
-               current == TokenType::FINAL;
+            current == TokenType::PUBLIC ||
+            current == TokenType::PRIVATE ||
+            current == TokenType::FINAL;
     }
 
     std::unique_ptr<InterfaceNode> InterfaceParser::parseInterface()
@@ -96,13 +96,13 @@ namespace parser
         if (context.isInsideClassBody())
         {
             throw ParseException("Interface declarations inside class bodies are not allowed.",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
         if (context.isInsideInterfaceBody())
         {
             throw ParseException("Interface declarations inside interface bodies are not allowed. "
-                               "Nested interfaces are not supported.",
-                               tokenStream.current().location);
+                                 "Nested interfaces are not supported.",
+                                 tokenStream.current().location);
         }
     }
 
@@ -247,7 +247,8 @@ namespace parser
             if (utilities::AccessModifierParser::isAccessModifier(tokenStream.current().type))
             {
                 auto location = tokenStream.current().location;
-                ast::AccessModifier modifier = utilities::AccessModifierParser::tokenTypeToAccessModifier(tokenStream.current().type);
+                ast::AccessModifier modifier = utilities::AccessModifierParser::tokenTypeToAccessModifier(
+                    tokenStream.current().type);
 
                 // Validate that interface methods can only be public
                 utilities::AccessModifierParser::validateModifierForContext(modifier, true, location);

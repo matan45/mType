@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 #include <string_view>
 #include "../../errors/SourceLocation.hpp"
 
@@ -30,8 +29,8 @@ namespace parser
         /// @param location Source location for error reporting
         /// @throws ParseException if name doesn't start with capital letter
         static void validateCapitalizedName(std::string_view name,
-                                           std::string_view context,
-                                           const errors::SourceLocation& location);
+                                            std::string_view context,
+                                            const errors::SourceLocation& location);
 
         /// @brief Validate that a name is a valid identifier (for variables/fields/parameters)
         /// @param name Name to validate
@@ -39,8 +38,8 @@ namespace parser
         /// @param location Source location for error reporting
         /// @throws ParseException if name is not a valid identifier
         static void validateIdentifierName(std::string_view name,
-                                          std::string_view context,
-                                          const errors::SourceLocation& location);
+                                           std::string_view context,
+                                           const errors::SourceLocation& location);
 
     private:
         // Utility class - no instances allowed

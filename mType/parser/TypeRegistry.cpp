@@ -1,7 +1,93 @@
 #include "TypeRegistry.hpp"
+#include "../circularDependency/TrueCyclicException.hpp"
+#include "../circularDependency/DepthLimitException.hpp"
 
 namespace parser
 {
+    TypeRegistry::TypeRegistry()
+        : dependencyDetector(std::make_unique<circularDependency::CircularDependencyDetector>())
+    {
+    }
+
+    std::string TypeRegistry::extractBaseName(const std::string& typeName) const noexcept
+    {
+        size_t genericStart = typeName.find('<');
+        if (genericStart != std::string::npos)
+        {
+            return typeName.substr(0, genericStart);
+        }
+        return typeName;
+    }
+
+    std::vector<std::string> TypeRegistry::buildClassInheritanceChain(
+        const std::string& childClass,
+        const std::string& parentClass) const
+    {
+        std::vector<std::string> chain;
+        chain.push_back(childClass);
+
+        // Walk up the parent chain
+        std::string current = parentClass;
+        while (!current.empty())
+        {
+            chain.push_back(current);
+
+            auto it = classParents.find(current);
+            if (it != classParents.end())
+            {
+                current = it->second;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return chain;
+    }
+
+    std::vector<std::string> TypeRegistry::buildInterfaceInheritanceChain(
+        const std::string& childInterface,
+        const std::vector<std::string>& parentInterfaces) const
+    {
+        std::vector<std::string> chain;
+        chain.push_back(childInterface);
+
+        // Use BFS to build full chain including all parent paths
+        std::vector<std::string> toVisit = parentInterfaces;
+        std::unordered_set<std::string> visited;
+        visited.insert(childInterface);
+
+        while (!toVisit.empty())
+        {
+            std::string current = toVisit.back();
+            toVisit.pop_back();
+
+            if (visited.count(current) > 0)
+            {
+                continue; // Skip already visited
+            }
+
+            visited.insert(current);
+            chain.push_back(current);
+
+            // Add parents of current interface
+            auto it = interfaceParents.find(current);
+            if (it != interfaceParents.end())
+            {
+                for (const auto& parent : it->second)
+                {
+                    if (visited.count(parent) == 0)
+                    {
+                        toVisit.push_back(parent);
+                    }
+                }
+            }
+        }
+
+        return chain;
+    }
+
     bool TypeRegistry::isTypeDeclared(const std::string& typeName) const noexcept
     {
         return declaredTypeNames.count(typeName) > 0;
@@ -21,6 +107,12 @@ namespace parser
         finalInterfaces.clear();
         classParents.clear();
         interfaceParents.clear();
+
+        // Reset dependency detector for fresh validation
+        if (dependencyDetector)
+        {
+            dependencyDetector->resetAll();
+        }
     }
 
     bool TypeRegistry::isClassDeclared(const std::string& className) const noexcept
@@ -65,13 +157,8 @@ namespace parser
 
     bool TypeRegistry::registerClassInheritance(const std::string& childClass, const std::string& parentClass) noexcept
     {
-        // Extract base names without generic parameters
-        std::string baseParent = parentClass;
-        size_t genericStart = parentClass.find('<');
-        if (genericStart != std::string::npos)
-        {
-            baseParent = parentClass.substr(0, genericStart);
-        }
+        // Extract base name without generic parameters
+        std::string baseParent = extractBaseName(parentClass);
 
         // Check for immediate self-inheritance
         if (childClass == baseParent)
@@ -79,32 +166,32 @@ namespace parser
             return false;
         }
 
-        // Check for circular inheritance by traversing parent chain
-        std::string current = baseParent;
-        std::unordered_set<std::string> visited;
-        visited.insert(childClass);
+        // Build the full inheritance chain for validation
+        std::vector<std::string> chain = buildClassInheritanceChain(childClass, baseParent);
 
-        while (classParents.count(current) > 0)
+        // Use CircularDependencyDetector to validate the chain
+        try
         {
-            if (visited.count(current) > 0)
-            {
-                // Cycle detected
-                return false;
-            }
-            visited.insert(current);
-            current = classParents[current];
+            dependencyDetector->validateChain(
+                circularDependency::DependencyType::CLASS_INHERITANCE,
+                chain,
+                "Class: " + childClass
+            );
 
-            // Extract base name from parent
-            genericStart = current.find('<');
-            if (genericStart != std::string::npos)
-            {
-                current = current.substr(0, genericStart);
-            }
+            // No cycle found, register the relationship
+            classParents[childClass] = baseParent;
+            return true;
         }
-
-        // No cycle found, register the relationship
-        classParents[childClass] = baseParent;
-        return true;
+        catch (const circularDependency::TrueCyclicException&)
+        {
+            // Cycle detected
+            return false;
+        }
+        catch (const circularDependency::DepthLimitException&)
+        {
+            // Depth limit exceeded (also considered invalid)
+            return false;
+        }
     }
 
     bool TypeRegistry::registerInterfaceInheritance(const std::string& childInterface,
@@ -114,12 +201,7 @@ namespace parser
         std::vector<std::string> baseParents;
         for (const auto& parent : parentInterfaces)
         {
-            std::string baseParent = parent;
-            size_t genericStart = parent.find('<');
-            if (genericStart != std::string::npos)
-            {
-                baseParent = parent.substr(0, genericStart);
-            }
+            std::string baseParent = extractBaseName(parent);
 
             // Check for immediate self-inheritance
             if (childInterface == baseParent)
@@ -130,59 +212,32 @@ namespace parser
             baseParents.push_back(baseParent);
         }
 
-        // Check for circular inheritance using DFS
-        std::unordered_set<std::string> visited;
-        std::unordered_set<std::string> recursionStack;
+        // Build the full inheritance chain for validation
+        std::vector<std::string> chain = buildInterfaceInheritanceChain(childInterface, baseParents);
 
-        auto hasCycle = [this, &visited, &recursionStack](const std::string& interface, auto& hasCycleRef) -> bool
+        // Use CircularDependencyDetector to validate the chain
+        try
         {
-            if (recursionStack.count(interface) > 0)
-            {
-                // Found cycle
-                return true;
-            }
+            dependencyDetector->validateChain(
+                circularDependency::DependencyType::INTERFACE_INHERITANCE,
+                chain,
+                "Interface: " + childInterface
+            );
 
-            if (visited.count(interface) > 0)
-            {
-                // Already visited this path, no cycle
-                return false;
-            }
-
-            visited.insert(interface);
-            recursionStack.insert(interface);
-
-            // Check all parents of this interface
-            if (interfaceParents.count(interface) > 0)
-            {
-                for (const auto& parent : interfaceParents.at(interface))
-                {
-                    if (hasCycleRef(parent, hasCycleRef))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            recursionStack.erase(interface);
-            return false;
-        };
-
-        // Check if adding these parents would create a cycle
-        for (const auto& baseParent : baseParents)
-        {
-            visited.clear();
-            recursionStack.clear();
-            recursionStack.insert(childInterface);
-
-            if (hasCycle(baseParent, hasCycle))
-            {
-                return false;
-            }
+            // No cycle found, register the relationships
+            interfaceParents[childInterface] = baseParents;
+            return true;
         }
-
-        // No cycle found, register the relationships
-        interfaceParents[childInterface] = baseParents;
-        return true;
+        catch (const circularDependency::TrueCyclicException&)
+        {
+            // Cycle detected
+            return false;
+        }
+        catch (const circularDependency::DepthLimitException&)
+        {
+            // Depth limit exceeded (also considered invalid)
+            return false;
+        }
     }
 
     std::vector<std::string> TypeRegistry::getClassInheritanceChain(const std::string& className) const noexcept
@@ -195,7 +250,7 @@ namespace parser
             chain.push_back(current);
             current = classParents.at(current);
         }
-        chain.push_back(current);  // Add final parent
+        chain.push_back(current); // Add final parent
 
         return chain;
     }

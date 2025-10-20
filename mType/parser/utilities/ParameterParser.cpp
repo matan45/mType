@@ -146,13 +146,11 @@ namespace parser
             // Parse parameter type using TypeParser::parseTypeInfo to get interface information
             TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
 
-            // Convert TypeInfo to ParameterType
-            ParameterType paramType(typeInfo.baseType);  // Initialize with base type
-            if (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty()) {
-                // For object types, use forClass instead of forInterface
-                // This properly handles both classes and interfaces
-                paramType = ParameterType::forClass(typeInfo.className);
-            }
+            // Convert TypeInfo to ParameterType - single construction for efficiency
+            const ParameterType paramType =
+                (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty())
+                    ? ParameterType::forClass(typeInfo.className)
+                    : ParameterType(typeInfo.baseType);
 
             // Expect parameter name
             if (stream.current().type != TokenType::IDENTIFIER) {

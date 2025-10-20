@@ -3,7 +3,6 @@
 #include "../../ast/GenericType.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include <memory>
-#include <string>
 
 namespace parser::utilities
 {
@@ -42,6 +41,5 @@ namespace parser::utilities
          * @return true if type is Promise<T>, false otherwise
          */
         static bool isPromiseType(const std::shared_ptr<GenericType>& type);
-
     };
 }

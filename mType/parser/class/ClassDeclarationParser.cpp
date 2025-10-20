@@ -111,8 +111,10 @@ namespace parser
                 // Build inheritance chain for error message
                 auto chain = context.getClassInheritanceChain(className);
                 std::string chainStr = className;
-                for (const auto& ancestor : chain) {
-                    if (ancestor != className) {
+                for (const auto& ancestor : chain)
+                {
+                    if (ancestor != className)
+                    {
                         chainStr += " -> " + ancestor;
                     }
                 }
@@ -129,7 +131,8 @@ namespace parser
 
         tokenStream.expect(TokenType::LBRACE);
 
-        auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName, implementedInterfaces);
+        auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName,
+                                                     implementedInterfaces);
         classNode->setFinal(isFinal);
         classNode->setVisibility(visibility);
         return classNode;
@@ -147,15 +150,15 @@ namespace parser
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
             throw ParseException("Expected parent class name after 'extends'",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
 
         std::string parentClass = parseGenericInterfaceName(); // Reuse for generic parent support
 
         // Validate parent class name
         ParserUtils::validateCapitalizedName(parentClass.substr(0, parentClass.find('<')),
-                                            "Parent class",
-                                            tokenStream.current().location);
+                                             "Parent class",
+                                             tokenStream.current().location);
 
         return parentClass;
     }

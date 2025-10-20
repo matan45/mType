@@ -21,10 +21,12 @@ namespace lexer
         static Token createFloatToken(float value, const errors::SourceLocation& location);
         static Token createStringToken(std::string_view value, const errors::SourceLocation& location);
         static Token createIdentifierToken(std::string_view identifier, const errors::SourceLocation& location);
-        static Token createKeywordToken(TokenType keywordType, std::string_view keyword, const errors::SourceLocation& location);
+        static Token createKeywordToken(TokenType keywordType, std::string_view keyword,
+                                        const errors::SourceLocation& location);
 
         // Operator tokens
-        static Token createOperatorToken(TokenType operatorType, std::string_view symbol, const errors::SourceLocation& location);
+        static Token createOperatorToken(TokenType operatorType, std::string_view symbol,
+                                         const errors::SourceLocation& location);
 
         // Special tokens
         static Token createEndToken(const errors::SourceLocation& location);

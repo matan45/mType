@@ -12,7 +12,8 @@ namespace parser
         if (!std::isalpha(name[0]) && name[0] != '_') return false;
 
         // Remaining characters must be alphanumeric or underscore
-        for (size_t i = 1; i < name.size(); ++i) {
+        for (size_t i = 1; i < name.size(); ++i)
+        {
             if (!std::isalnum(name[i]) && name[i] != '_') return false;
         }
 
@@ -20,32 +21,37 @@ namespace parser
     }
 
     void NameValidator::validateFunctionNamingConvention(std::string_view name, bool isStatic,
-                                                         std::string_view context, const errors::SourceLocation& location)
+                                                         std::string_view context,
+                                                         const errors::SourceLocation& location)
     {
         using namespace errors;
 
-        if (name.empty()) {
+        if (name.empty())
+        {
             throw ParseException(std::string(context) + " name cannot be empty", location);
         }
 
         // Check if first character is lowercase letter
-        if (!std::islower(name[0]) && name[0] != '_') {
+        if (!std::islower(name[0]) && name[0] != '_')
+        {
             std::string message = std::string(context) + " '" + std::string(name) +
-                                "' must start with a lowercase letter. " +
-                                (isStatic ? "Static methods" : "Functions and methods") +
-                                " should follow camelCase convention.";
+                "' must start with a lowercase letter. " +
+                (isStatic ? "Static methods" : "Functions and methods") +
+                " should follow camelCase convention.";
             throw ParseException(message, location);
         }
 
         // Additional validation: ensure it's a valid identifier
-        if (!isValidIdentifier(name)) {
-            throw ParseException(std::string(context) + " '" + std::string(name) + "' is not a valid identifier", location);
+        if (!isValidIdentifier(name))
+        {
+            throw ParseException(std::string(context) + " '" + std::string(name) + "' is not a valid identifier",
+                                 location);
         }
     }
 
     void NameValidator::validateCapitalizedName(std::string_view name,
-                                               std::string_view context,
-                                               const errors::SourceLocation& location)
+                                                std::string_view context,
+                                                const errors::SourceLocation& location)
     {
         using namespace errors;
 
@@ -58,7 +64,7 @@ namespace parser
         if (!std::isupper(name[0]))
         {
             std::string message = std::string(context) + " name '" + std::string(name) +
-                                "' must start with a capital letter";
+                "' must start with a capital letter";
             throw ParseException(message, location);
         }
 
@@ -66,7 +72,7 @@ namespace parser
         if (!isValidIdentifier(name))
         {
             std::string message = std::string(context) + " name '" + std::string(name) +
-                                "' is not a valid identifier. Names can only contain letters, digits, and underscores.";
+                "' is not a valid identifier. Names can only contain letters, digits, and underscores.";
             throw ParseException(message, location);
         }
     }
@@ -87,8 +93,8 @@ namespace parser
         if (!isValidIdentifier(name))
         {
             std::string message = std::string(context) + " name '" + std::string(name) +
-                                "' is not a valid identifier. Names can only contain letters, digits, and underscores, "
-                                "and must start with a letter or underscore.";
+                "' is not a valid identifier. Names can only contain letters, digits, and underscores, "
+                "and must start with a letter or underscore.";
             throw ParseException(message, location);
         }
     }

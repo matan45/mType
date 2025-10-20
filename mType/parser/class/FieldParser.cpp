@@ -46,8 +46,8 @@ namespace parser
         if (tokenStream.current().type == TokenType::FUNCTION)
         {
             throw ParseException("Unexpected 'function' keyword in field declaration context. "
-                               "This should have been handled by MethodParser.",
-                               tokenStream.current().location);
+                                 "This should have been handled by MethodParser.",
+                                 tokenStream.current().location);
         }
 
         return parseFieldDeclaration(accessModifier, isStatic, isFinal);
@@ -77,7 +77,8 @@ namespace parser
         return {accessModifier, isStatic, isFinal};
     }
 
-    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic, bool isFinal)
+    std::unique_ptr<ASTNode> FieldParser::parseFieldDeclaration(ast::AccessModifier accessModifier, bool isStatic,
+                                                                bool isFinal)
     {
         // Parse the complete type information using TypeParser
         auto fieldGenericType = TypeParser::parseGenericType(tokenStream);

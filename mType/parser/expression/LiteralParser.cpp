@@ -183,7 +183,7 @@ namespace parser::expression
             if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
                 throw ParseException("Expected method name after 'super.'",
-                                   tokenStream.current().location);
+                                     tokenStream.current().location);
             }
 
             std::string methodName = tokenStream.current().stringValue.getString();
@@ -199,7 +199,7 @@ namespace parser::expression
         else
         {
             throw ParseException("Expected '(' or '.' after 'super'",
-                               tokenStream.current().location);
+                                 tokenStream.current().location);
         }
     }
 

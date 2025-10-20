@@ -8,46 +8,50 @@
 namespace lexer
 {
     // Static operator lookup table definitions
-    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {{
-        {"++", TokenType::INCREMENT, 2},
-        {"--", TokenType::DECREMENT, 2},
-        {"==", TokenType::EQUALS, 2},
-        {"!=", TokenType::NOT_EQUALS, 2},
-        {"<=", TokenType::LESS_EQUALS, 2},
-        {">=", TokenType::GREATER_EQUALS, 2},
-        {"&&", TokenType::AND, 2},
-        {"||", TokenType::OR, 2},
-        {"+=", TokenType::PLUS_ASSIGN, 2},
-        {"-=", TokenType::MINUS_ASSIGN, 2},
-        {"*=", TokenType::MULTIPLY_ASSIGN, 2},
-        {"/=", TokenType::DIVIDE_ASSIGN, 2},
-        {"%=", TokenType::MODULO_ASSIGN, 2},
-        {"::", TokenType::SCOPE, 2},
-        {"->", TokenType::ARROW, 2}
-    }};
+    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {
+        {
+            {"++", TokenType::INCREMENT, 2},
+            {"--", TokenType::DECREMENT, 2},
+            {"==", TokenType::EQUALS, 2},
+            {"!=", TokenType::NOT_EQUALS, 2},
+            {"<=", TokenType::LESS_EQUALS, 2},
+            {">=", TokenType::GREATER_EQUALS, 2},
+            {"&&", TokenType::AND, 2},
+            {"||", TokenType::OR, 2},
+            {"+=", TokenType::PLUS_ASSIGN, 2},
+            {"-=", TokenType::MINUS_ASSIGN, 2},
+            {"*=", TokenType::MULTIPLY_ASSIGN, 2},
+            {"/=", TokenType::DIVIDE_ASSIGN, 2},
+            {"%=", TokenType::MODULO_ASSIGN, 2},
+            {"::", TokenType::SCOPE, 2},
+            {"->", TokenType::ARROW, 2}
+        }
+    };
 
-    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {{
-        {"+", TokenType::PLUS, 1},
-        {"-", TokenType::MINUS, 1},
-        {"*", TokenType::MULTIPLY, 1},
-        {"/", TokenType::DIVIDE, 1},
-        {"%", TokenType::MODULO, 1},
-        {"=", TokenType::ASSIGN, 1},
-        {"(", TokenType::LPAREN, 1},
-        {")", TokenType::RPAREN, 1},
-        {"{", TokenType::LBRACE, 1},
-        {"}", TokenType::RBRACE, 1},
-        {"[", TokenType::LBRACKET, 1},
-        {"]", TokenType::RBRACKET, 1},
-        {",", TokenType::COMMA, 1},
-        {";", TokenType::SEMICOLON, 1},
-        {":", TokenType::COLON, 1},
-        {"?", TokenType::QUESTION, 1},
-        {"!", TokenType::NOT, 1},
-        {"<", TokenType::LESS, 1},
-        {">", TokenType::GREATER, 1},
-        {".", TokenType::DOT, 1}
-    }};
+    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {
+        {
+            {"+", TokenType::PLUS, 1},
+            {"-", TokenType::MINUS, 1},
+            {"*", TokenType::MULTIPLY, 1},
+            {"/", TokenType::DIVIDE, 1},
+            {"%", TokenType::MODULO, 1},
+            {"=", TokenType::ASSIGN, 1},
+            {"(", TokenType::LPAREN, 1},
+            {")", TokenType::RPAREN, 1},
+            {"{", TokenType::LBRACE, 1},
+            {"}", TokenType::RBRACE, 1},
+            {"[", TokenType::LBRACKET, 1},
+            {"]", TokenType::RBRACKET, 1},
+            {",", TokenType::COMMA, 1},
+            {";", TokenType::SEMICOLON, 1},
+            {":", TokenType::COLON, 1},
+            {"?", TokenType::QUESTION, 1},
+            {"!", TokenType::NOT, 1},
+            {"<", TokenType::LESS, 1},
+            {">", TokenType::GREATER, 1},
+            {".", TokenType::DOT, 1}
+        }
+    };
 
     const std::unordered_map<std::string, TokenType> Lexer::keywords = {
         {"function", TokenType::FUNCTION},
@@ -234,7 +238,8 @@ namespace lexer
         try
         {
             return std::stof(std::string(floatView)); // std::stof requires std::string
-        }catch (const std::out_of_range&)
+        }
+        catch (const std::out_of_range&)
         {
             // Handle float overflow - clamp to float limits
             std::string floatStr(floatView); // Convert to string for error handling
@@ -256,9 +261,9 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw errors::ParseException("Invalid float format: " + std::string(floatView), locationTracker->getCurrentLocation());
+            throw errors::ParseException("Invalid float format: " + std::string(floatView),
+                                         locationTracker->getCurrentLocation());
         }
-        
     }
 
     int Lexer::parseInteger()
@@ -296,7 +301,8 @@ namespace lexer
         }
         catch (const std::invalid_argument&)
         {
-            throw errors::ParseException("Invalid integer format: " + std::string(intView), locationTracker->getCurrentLocation());
+            throw errors::ParseException("Invalid integer format: " + std::string(intView),
+                                         locationTracker->getCurrentLocation());
         }
     }
 
@@ -322,11 +328,16 @@ namespace lexer
                 advance(); // Skip backslash
                 switch (input[pos])
                 {
-                case 'n': result += '\n'; break;
-                case 't': result += '\t'; break;
-                case 'r': result += '\r'; break;
-                case '\\': result += '\\'; break;
-                case '"': result += '"'; break;
+                case 'n': result += '\n';
+                    break;
+                case 't': result += '\t';
+                    break;
+                case 'r': result += '\r';
+                    break;
+                case '\\': result += '\\';
+                    break;
+                case '"': result += '"';
+                    break;
                 default:
                     result += '\\';
                     result += input[pos];
@@ -524,15 +535,16 @@ namespace lexer
             return TokenFactory::createEndToken(location);
         }
 
-        // Build two-character operator string and lookup in existing table
         char secondChar = input[tempPos];
-        std::array<char, 3> buffer = {firstChar, secondChar, '\0'};
-        std::string_view twoCharOp(buffer.data(), 2);
 
-        // Check against all two-character operators
+        // Compare characters directly against operator table
+        // SAFETY: Direct character comparison avoids temporary buffer allocation
+        // and eliminates any potential string_view lifetime issues
         for (const auto& op : TWO_CHAR_OPERATORS)
         {
-            if (twoCharOp == op.symbol)
+            if (op.symbol.length() == 2 &&
+                op.symbol[0] == firstChar &&
+                op.symbol[1] == secondChar)
             {
                 // Found a valid spaced operator - advance past both characters
                 pos = tempPos + 1;
@@ -572,11 +584,11 @@ namespace lexer
         // Use map lookup for all keywords to ensure correctness
         // The optimization can be added later if needed, but correctness first
         auto keywordIt = keywords.find(std::string(identifier));
-        if (keywordIt != keywords.end()) 
+        if (keywordIt != keywords.end())
         {
             return keywordIt->second;
         }
-        
+
         return TokenType::IDENTIFIER; // Not a keyword
     }
 
@@ -627,5 +639,4 @@ namespace lexer
         restoreState(savedState);
         return tokens;
     }
-
 }

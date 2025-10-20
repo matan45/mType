@@ -39,9 +39,11 @@ namespace parser
             {
                 context.insideAsyncFunction = previousState;
             }
-            // Prevent copying
+            // Prevent copying and moving (RAII guard should not be transferred)
             AsyncContextGuard(const AsyncContextGuard&) = delete;
             AsyncContextGuard& operator=(const AsyncContextGuard&) = delete;
+            AsyncContextGuard(AsyncContextGuard&&) = delete;
+            AsyncContextGuard& operator=(AsyncContextGuard&&) = delete;
         };
 
         // Function context management
@@ -64,9 +66,11 @@ namespace parser
             {
                 context.insideFunctionBody = previousState;
             }
-            // Prevent copying
+            // Prevent copying and moving (RAII guard should not be transferred)
             FunctionContextGuard(const FunctionContextGuard&) = delete;
             FunctionContextGuard& operator=(const FunctionContextGuard&) = delete;
+            FunctionContextGuard(FunctionContextGuard&&) = delete;
+            FunctionContextGuard& operator=(FunctionContextGuard&&) = delete;
         };
 
         // Class context management
@@ -89,9 +93,11 @@ namespace parser
             {
                 context.insideClassBody = previousState;
             }
-            // Prevent copying
+            // Prevent copying and moving (RAII guard should not be transferred)
             ClassContextGuard(const ClassContextGuard&) = delete;
             ClassContextGuard& operator=(const ClassContextGuard&) = delete;
+            ClassContextGuard(ClassContextGuard&&) = delete;
+            ClassContextGuard& operator=(ClassContextGuard&&) = delete;
         };
 
         // Interface context management
@@ -114,9 +120,11 @@ namespace parser
             {
                 context.insideInterfaceBody = previousState;
             }
-            // Prevent copying
+            // Prevent copying and moving (RAII guard should not be transferred)
             InterfaceContextGuard(const InterfaceContextGuard&) = delete;
             InterfaceContextGuard& operator=(const InterfaceContextGuard&) = delete;
+            InterfaceContextGuard(InterfaceContextGuard&&) = delete;
+            InterfaceContextGuard& operator=(InterfaceContextGuard&&) = delete;
         };
 
         // Constructor context management
@@ -139,9 +147,11 @@ namespace parser
             {
                 context.insideConstructorBody = previousState;
             }
-            // Prevent copying
+            // Prevent copying and moving (RAII guard should not be transferred)
             ConstructorContextGuard(const ConstructorContextGuard&) = delete;
             ConstructorContextGuard& operator=(const ConstructorContextGuard&) = delete;
+            ConstructorContextGuard(ConstructorContextGuard&&) = delete;
+            ConstructorContextGuard& operator=(ConstructorContextGuard&&) = delete;
         };
     };
 }

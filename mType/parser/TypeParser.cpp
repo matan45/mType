@@ -86,25 +86,30 @@ namespace parser
             else
             {
                 // Check if this might be a generic type parameter (single letter, capitalized)
-                if (typeName.length() == 1 && std::isupper(typeName[0])) {
+                if (typeName.length() == 1 && std::isupper(typeName[0]))
+                {
                     // This is a generic type parameter (T, K, V, etc.)
                     baseType = std::make_shared<ast::GenericType>(typeName);
                 }
-                else if (stream.check(TokenType::LESS)) {
+                else if (stream.check(TokenType::LESS))
+                {
                     stream.advance(); // consume '<'
                     std::vector<std::shared_ptr<ast::GenericType>> typeArgs;
 
                     // Parse type arguments
-                    do {
+                    do
+                    {
                         auto typeArg = parseGenericType(stream);
 
                         // Validate: Generic type arguments cannot be primitive types
                         // Only object types (classes/interfaces), void, or generic parameters (T, K, V) are allowed
-                        if (!typeArg->isGenericParameter()) {
+                        if (!typeArg->isGenericParameter())
+                        {
                             // This is a concrete type, check if it's a primitive
                             ValueType concreteType = typeArg->getConcreteType();
                             // Allow OBJECT and VOID, reject other primitives (int, float, string, bool)
-                            if (concreteType != ValueType::OBJECT && concreteType != ValueType::VOID) {
+                            if (concreteType != ValueType::OBJECT && concreteType != ValueType::VOID)
+                            {
                                 throw ParseException(
                                     "Generic type arguments must be object types (classes/interfaces), void, or generic parameters. "
                                     "Primitive types (int, float, string, bool) are not allowed as generic arguments.",
@@ -115,12 +120,16 @@ namespace parser
 
                         typeArgs.push_back(typeArg);
 
-                        if (stream.check(TokenType::COMMA)) {
+                        if (stream.check(TokenType::COMMA))
+                        {
                             stream.advance(); // consume ','
-                        } else {
+                        }
+                        else
+                        {
                             break;
                         }
-                    } while (true);
+                    }
+                    while (true);
 
                     stream.expect(TokenType::GREATER); // consume '>'
 
@@ -183,7 +192,7 @@ namespace parser
         if (currentType == TokenType::IDENTIFIER)
         {
             std::string typeName = parseQualifiedName(stream);
-            
+
             // Check if it's a string-based primitive type
             auto stringIt = stringTypeMap.find(typeName);
             if (stringIt != stringTypeMap.end())
@@ -215,15 +224,19 @@ namespace parser
     {
         // First check the static map for primitive types (fast path)
         auto it = stringTypeMap.find(typeName);
-        if (it != stringTypeMap.end()) {
+        if (it != stringTypeMap.end())
+        {
             return it->second;
         }
 
         // Use the global registry for comprehensive type resolution
-        try {
+        try
+        {
             auto& registry = types::getGlobalTypeRegistry();
             return registry.getValueType(std::string(typeName));
-        } catch (...) {
+        }
+        catch (...)
+        {
             // If registry fails, fallback to OBJECT (maintains backward compatibility)
             return ValueType::OBJECT;
         }
@@ -248,22 +261,29 @@ namespace parser
 
         return typeName;
     }
-    
+
     std::string TypeInfo::toString() const
     {
         // Convert ValueType to string
         std::string result;
 
-        switch (baseType) {
-            case ValueType::INT: result = "int"; break;
-            case ValueType::FLOAT: result = "float"; break;
-            case ValueType::BOOL: result = "bool"; break;
-            case ValueType::STRING: result = "string"; break;
-            case ValueType::VOID: result = "void"; break;
-            case ValueType::OBJECT:
-                result = className.empty() ? "object" : className;
-                break;
-            default: result = "unknown"; break;
+        switch (baseType)
+        {
+        case ValueType::INT: result = "int";
+            break;
+        case ValueType::FLOAT: result = "float";
+            break;
+        case ValueType::BOOL: result = "bool";
+            break;
+        case ValueType::STRING: result = "string";
+            break;
+        case ValueType::VOID: result = "void";
+            break;
+        case ValueType::OBJECT:
+            result = className.empty() ? "object" : className;
+            break;
+        default: result = "unknown";
+            break;
         }
 
         // No collection generic parameters needed anymore
@@ -340,8 +360,8 @@ namespace parser
                     // Handle multi-dimensional arrays
                     auto currentElement = elementType;
                     while (currentElement->isGenericParameter() &&
-                           currentElement->getGenericName() == "Array" &&
-                           currentElement->isParameterized())
+                        currentElement->getGenericName() == "Array" &&
+                        currentElement->isParameterized())
                     {
                         arrayTypeName += "[]";
                         currentElement = currentElement->getTypeArguments()[0];

@@ -15,11 +15,14 @@ namespace parser
         if (!isLambdaStart())
         {
             // Debug: log current token info
-            std::string tokenInfo = "Current token: type=" + std::to_string(static_cast<int>(tokenStream.current().type));
-            if (tokenStream.current().type == TokenType::IDENTIFIER) {
+            std::string tokenInfo = "Current token: type=" + std::to_string(
+                static_cast<int>(tokenStream.current().type));
+            if (tokenStream.current().type == TokenType::IDENTIFIER)
+            {
                 tokenInfo += ", value=" + tokenStream.current().stringValue.getString();
             }
-            if (!tokenStream.isAtEnd()) {
+            if (!tokenStream.isAtEnd())
+            {
                 tokenInfo += ", next type=" + std::to_string(static_cast<int>(tokenStream.peek().type));
             }
             throw ParseException("Expected lambda expression. " + tokenInfo, tokenStream.current().location);
@@ -173,5 +176,4 @@ namespace parser
 
         return false;
     }
-
 }

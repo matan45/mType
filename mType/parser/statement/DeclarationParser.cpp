@@ -115,7 +115,7 @@ namespace parser::statement
         expectToken(TokenType::SEMICOLON);
 
         auto assignmentNode = std::make_unique<AssignmentNode>(varName, std::move(value), type, className,
-                                                modifiers.isFinal, modifiers.isStatic, varLocation);
+                                                               modifiers.isFinal, modifiers.isStatic, varLocation);
         assignmentNode->setVisibility(visibility);
         return assignmentNode;
     }

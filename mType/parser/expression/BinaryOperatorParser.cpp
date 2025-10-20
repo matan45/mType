@@ -96,7 +96,7 @@ namespace parser::expression
             else
             {
                 throw ParseException("ExpressionParser not initialized in BinaryOperatorParser",
-                                   tokenStream.current().location);
+                                     tokenStream.current().location);
             }
         }
 
@@ -142,8 +142,8 @@ namespace parser::expression
         }
         catch (const std::exception& e)
         {
-            throw ParseException("Binary operator parsing failed: " + std::string(e.what()), tokenStream.current().location);
+            throw ParseException("Binary operator parsing failed: " + std::string(e.what()),
+                                 tokenStream.current().location);
         }
     }
-
 }

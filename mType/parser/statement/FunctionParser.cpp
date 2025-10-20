@@ -54,8 +54,8 @@ namespace parser::statement
         if (context.isInsideFunctionBody())
         {
             throw ParseException("Function declarations inside function bodies are not allowed. "
-                               "Functions must be declared at the top level or inside classes.",
-                               tokenStream.current().location);
+                                 "Functions must be declared at the top level or inside classes.",
+                                 tokenStream.current().location);
         }
 
         // Parse optional visibility modifier (public/private)

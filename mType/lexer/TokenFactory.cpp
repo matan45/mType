@@ -34,12 +34,14 @@ namespace lexer
         return Token{TokenType::IDENTIFIER, 0.0f, 0, internString(identifier), location};
     }
 
-    Token TokenFactory::createKeywordToken(TokenType keywordType, std::string_view keyword, const errors::SourceLocation& location)
+    Token TokenFactory::createKeywordToken(TokenType keywordType, std::string_view keyword,
+                                           const errors::SourceLocation& location)
     {
         return Token{keywordType, 0.0f, 0, internString(keyword), location};
     }
 
-    Token TokenFactory::createOperatorToken(TokenType operatorType, std::string_view symbol, const errors::SourceLocation& location)
+    Token TokenFactory::createOperatorToken(TokenType operatorType, std::string_view symbol,
+                                            const errors::SourceLocation& location)
     {
         return Token{operatorType, 0.0f, 0, internString(symbol), location};
     }

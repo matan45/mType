@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <memory>
 #include "../ast/ASTNode.hpp"
-#include "../ast/GenericTypeParameter.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
 
@@ -19,7 +18,7 @@ namespace parser
 namespace parser
 {
     class ParseContext;
-    struct TypeInfo;  // Forward declaration
+    struct TypeInfo; // Forward declaration
     using namespace ast;
 
     class ClassParser
@@ -70,7 +69,5 @@ namespace parser
 
         // Helper method for method declaration detection
         bool isMethodDeclaration(token::TokenType currentToken) const;
-
     };
 }
-

@@ -250,5 +250,4 @@ namespace parser::utilities
         // Default to expression statement
         return StatementType::EXPRESSION;
     }
-
 }

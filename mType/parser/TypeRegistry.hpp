@@ -3,6 +3,8 @@
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
+#include <memory>
+#include "../circularDependency/CircularDependencyDetector.hpp"
 
 namespace parser
 {
@@ -23,14 +25,18 @@ namespace parser
         std::unordered_set<std::string> finalInterfaces;
 
         // Track inheritance relationships for circular detection
-        std::unordered_map<std::string, std::string> classParents;  // childClass -> parentClass
-        std::unordered_map<std::string, std::vector<std::string>> interfaceParents;  // childInterface -> [parentInterfaces]
+        std::unordered_map<std::string, std::string> classParents; // childClass -> parentClass
+        std::unordered_map<std::string, std::vector<std::string>> interfaceParents;
+        // childInterface -> [parentInterfaces]
 
         // Track declared global function names to prevent duplicates
         std::unordered_set<std::string> declaredFunctionNames;
 
+        // Circular dependency detection for inheritance validation
+        std::unique_ptr<circularDependency::CircularDependencyDetector> dependencyDetector;
+
     public:
-        TypeRegistry() = default;
+        TypeRegistry();
         ~TypeRegistry() = default;
 
         // Type name tracking for duplicate detection
@@ -49,14 +55,25 @@ namespace parser
         [[nodiscard]] bool isInterfaceFinal(const std::string& interfaceName) const noexcept;
 
         // Circular inheritance detection
-        [[nodiscard]] bool registerClassInheritance(const std::string& childClass, const std::string& parentClass) noexcept;
+        [[nodiscard]] bool registerClassInheritance(const std::string& childClass,
+                                                    const std::string& parentClass) noexcept;
         [[nodiscard]] bool registerInterfaceInheritance(const std::string& childInterface,
-                                         const std::vector<std::string>& parentInterfaces) noexcept;
+                                                        const std::vector<std::string>& parentInterfaces) noexcept;
         [[nodiscard]] std::vector<std::string> getClassInheritanceChain(const std::string& className) const noexcept;
 
         // Global function name tracking for duplicate detection
         [[nodiscard]] bool isFunctionDeclared(const std::string& functionName) const noexcept;
         void registerFunctionName(const std::string& functionName) noexcept;
         void clearDeclaredFunctions() noexcept;
+
+    private:
+        // Helper methods for inheritance validation
+        [[nodiscard]] std::string extractBaseName(const std::string& typeName) const noexcept;
+        [[nodiscard]] std::vector<std::string> buildClassInheritanceChain(
+            const std::string& childClass,
+            const std::string& parentClass) const;
+        [[nodiscard]] std::vector<std::string> buildInterfaceInheritanceChain(
+            const std::string& childInterface,
+            const std::vector<std::string>& parentInterfaces) const;
     };
 }

@@ -12,7 +12,8 @@ namespace parser
 
         // Pre-calculate total size to avoid reallocations
         size_t totalSize = parts[0].size();
-        for (size_t i = 1; i < parts.size(); ++i) {
+        for (size_t i = 1; i < parts.size(); ++i)
+        {
             totalSize += 2 + parts[i].size(); // "::" + part
         }
 
@@ -22,7 +23,8 @@ namespace parser
         result = parts[0];
 
         // Efficient appending without temporary strings
-        for (size_t i = 1; i < parts.size(); ++i) {
+        for (size_t i = 1; i < parts.size(); ++i)
+        {
             result.append("::");
             result.append(parts[i]);
         }

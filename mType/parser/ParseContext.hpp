@@ -39,7 +39,7 @@ namespace parser
 
         /// @brief Constructor with immediate initialization
         explicit ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
-                     TokenStream& stream);
+                              TokenStream& stream);
 
         ~ParseContext() = default;
 
@@ -92,54 +92,79 @@ namespace parser
         [[nodiscard]] ParserContextState& getContextState() { return contextState; }
 
         // Type registry delegation (delegates to TypeRegistry)
-        [[nodiscard]] bool isTypeDeclared(const std::string& typeName) const {
+        [[nodiscard]] bool isTypeDeclared(const std::string& typeName) const
+        {
             return typeRegistry.isTypeDeclared(typeName);
         }
-        void registerTypeName(const std::string& typeName) {
+
+        void registerTypeName(const std::string& typeName)
+        {
             typeRegistry.registerTypeName(typeName);
         }
-        void clearDeclaredTypes() {
+
+        void clearDeclaredTypes()
+        {
             typeRegistry.clearDeclaredTypes();
         }
 
-        [[nodiscard]] bool isClassDeclared(const std::string& className) const {
+        [[nodiscard]] bool isClassDeclared(const std::string& className) const
+        {
             return typeRegistry.isClassDeclared(className);
         }
-        [[nodiscard]] bool isInterfaceDeclared(const std::string& interfaceName) const {
+
+        [[nodiscard]] bool isInterfaceDeclared(const std::string& interfaceName) const
+        {
             return typeRegistry.isInterfaceDeclared(interfaceName);
         }
-        void registerClass(const std::string& className, bool isFinal = false) {
+
+        void registerClass(const std::string& className, bool isFinal = false)
+        {
             typeRegistry.registerClass(className, isFinal);
         }
-        void registerInterface(const std::string& interfaceName, bool isFinal = false) {
+
+        void registerInterface(const std::string& interfaceName, bool isFinal = false)
+        {
             typeRegistry.registerInterface(interfaceName, isFinal);
         }
 
-        [[nodiscard]] bool isClassFinal(const std::string& className) const {
+        [[nodiscard]] bool isClassFinal(const std::string& className) const
+        {
             return typeRegistry.isClassFinal(className);
         }
-        [[nodiscard]] bool isInterfaceFinal(const std::string& interfaceName) const {
+
+        [[nodiscard]] bool isInterfaceFinal(const std::string& interfaceName) const
+        {
             return typeRegistry.isInterfaceFinal(interfaceName);
         }
 
-        bool registerClassInheritance(const std::string& childClass, const std::string& parentClass) {
+        bool registerClassInheritance(const std::string& childClass, const std::string& parentClass)
+        {
             return typeRegistry.registerClassInheritance(childClass, parentClass);
         }
+
         bool registerInterfaceInheritance(const std::string& childInterface,
-                                         const std::vector<std::string>& parentInterfaces) {
+                                          const std::vector<std::string>& parentInterfaces)
+        {
             return typeRegistry.registerInterfaceInheritance(childInterface, parentInterfaces);
         }
-        [[nodiscard]] std::vector<std::string> getClassInheritanceChain(const std::string& className) const {
+
+        [[nodiscard]] std::vector<std::string> getClassInheritanceChain(const std::string& className) const
+        {
             return typeRegistry.getClassInheritanceChain(className);
         }
 
-        [[nodiscard]] bool isFunctionDeclared(const std::string& functionName) const {
+        [[nodiscard]] bool isFunctionDeclared(const std::string& functionName) const
+        {
             return typeRegistry.isFunctionDeclared(functionName);
         }
-        void registerFunctionName(const std::string& functionName) {
+
+        void registerFunctionName(const std::string& functionName)
+        {
             typeRegistry.registerFunctionName(functionName);
         }
-        void clearDeclaredFunctions() {
+
+        void clearDeclaredFunctions()
+        {
             typeRegistry.clearDeclaredFunctions();
         }
     };

@@ -71,14 +71,14 @@ namespace parser
         /// @brief Validate that a name starts with capital letter (forwards to NameValidator)
         /// @deprecated Use NameValidator::validateCapitalizedName directly
         static void validateCapitalizedName(std::string_view name,
-                                           std::string_view context,
-                                           const errors::SourceLocation& location);
+                                            std::string_view context,
+                                            const errors::SourceLocation& location);
 
         /// @brief Validate that a name is a valid identifier (forwards to NameValidator)
         /// @deprecated Use NameValidator::validateIdentifierName directly
         static void validateIdentifierName(std::string_view name,
-                                          std::string_view context,
-                                          const errors::SourceLocation& location);
+                                           std::string_view context,
+                                           const errors::SourceLocation& location);
 
         // ============================================================================
         // CORE PARSER UTILITIES - Remain in ParserUtils

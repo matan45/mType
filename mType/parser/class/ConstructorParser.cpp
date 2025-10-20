@@ -26,9 +26,9 @@ namespace parser
     {
         // Check for access modifiers or constructor keyword
         return stream.check(TokenType::PRIVATE) ||
-               stream.check(TokenType::PUBLIC) ||
-               stream.check(TokenType::PROTECTED) ||
-               stream.check(TokenType::CONSTRUCTOR);
+            stream.check(TokenType::PUBLIC) ||
+            stream.check(TokenType::PROTECTED) ||
+            stream.check(TokenType::CONSTRUCTOR);
     }
 
     std::unique_ptr<ASTNode> ConstructorParser::parseConstructor()

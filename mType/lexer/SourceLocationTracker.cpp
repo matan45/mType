@@ -1,5 +1,6 @@
 #include "SourceLocationTracker.hpp"
 #include <sstream>
+#include <cassert>
 
 namespace lexer
 {
@@ -23,11 +24,11 @@ namespace lexer
 
     void SourceLocationTracker::setPosition(int line, int column)
     {
-        // Validate inputs - line and column should be positive
-        if (line < 1 || column < 1)
-        {
-            return; // Silently ignore invalid positions
-        }
+        // Precondition: Source positions use 1-based indexing
+        // Invalid values indicate a programming error in the caller
+        assert(line >= 1 && "Line number must be >= 1 (1-based indexing)");
+        assert(column >= 1 && "Column number must be >= 1 (1-based indexing)");
+
         currentLine = line;
         currentColumn = column;
     }

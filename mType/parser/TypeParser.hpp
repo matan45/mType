@@ -15,28 +15,34 @@ namespace parser
 
     // Forward declaration for recursive TypeInfo
     struct TypeInfo;
-    
+
     /// @brief Holds complete type information including generic parameters with recursive support
     struct TypeInfo
     {
         ValueType baseType;
-        std::string className;  // For custom classes
-        
+        std::string className; // For custom classes
+
         // No collection-specific fields needed anymore
 
         // Default constructor
-        TypeInfo() : baseType(ValueType::VOID) {}
+        TypeInfo() : baseType(ValueType::VOID)
+        {
+        }
 
         // Constructor for simple types
-        TypeInfo(ValueType type) : baseType(type) {}
+        TypeInfo(ValueType type) : baseType(type)
+        {
+        }
 
         // Constructor for object types
-        TypeInfo(ValueType type, const std::string& className) : baseType(type), className(className) {}
-        
+        TypeInfo(ValueType type, const std::string& className) : baseType(type), className(className)
+        {
+        }
+
         // No collection-specific constructors needed anymore
-        
+
         // No collection-specific helper methods needed anymore
-        
+
         // Convert TypeInfo to string representation (for backward compatibility)
         std::string toString() const;
     };
@@ -80,7 +86,8 @@ namespace parser
         [[nodiscard]] static std::shared_ptr<ast::GenericType> convertTypeInfoToGenericType(const TypeInfo& typeInfo);
 
         /// @brief Convert GenericType to TypeInfo (eliminates parseTypeInfo duplication)
-        [[nodiscard]] static TypeInfo convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType);
+        [[nodiscard]] static TypeInfo
+        convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType);
 
     private:
         // Helper for qualified name parsing (Class::member)

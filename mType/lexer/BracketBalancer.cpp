@@ -1,6 +1,7 @@
 #include "BracketBalancer.hpp"
 #include "../errors/ParseException.hpp"
 #include <sstream>
+#include <cassert>
 
 namespace lexer
 {
@@ -43,10 +44,11 @@ namespace lexer
 
     char BracketBalancer::getTopOpening() const
     {
-        if (balanceStack.empty())
-        {
-            return '\0';
-        }
+        // Precondition: stack must not be empty
+        // Callers must check isEmpty() before calling this method
+        assert(!balanceStack.empty() &&
+            "Precondition violated: cannot get top of empty bracket stack");
+
         return balanceStack.top();
     }
 
@@ -62,12 +64,20 @@ namespace lexer
 
     char BracketBalancer::getMatchingClosing(char opening) const
     {
+        // Precondition: opening must be a valid opening bracket
+        // This is guaranteed by pushOpening() which filters invalid characters
+        assert(isOpeningBracket(opening) &&
+            "Precondition violated: opening must be a valid bracket ('(', '{', or '[')");
+
         switch (opening)
         {
-            case '(': return ')';
-            case '{': return '}';
-            case '[': return ']';
-            default: return '\0';
+        case '(': return ')';
+        case '{': return '}';
+        case '[': return ']';
+        default:
+            // Should be unreachable due to assertion and input validation
+            assert(false && "Unreachable: all valid opening brackets are handled above");
+            return '\0'; // Satisfy compiler warning
         }
     }
 

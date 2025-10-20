@@ -22,7 +22,8 @@ namespace parser
         std::unique_ptr<ASTNode> parseStaticMethod();
 
     private:
-        std::unique_ptr<ASTNode> parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic, bool isAsync = false);
+        std::unique_ptr<ASTNode> parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic,
+                                                          bool isAsync = false);
         std::vector<GenericTypeParameter> parseMethodGenericParameters();
         void validateMethodName(const std::string& methodName, bool isStatic);
     };
