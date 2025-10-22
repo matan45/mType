@@ -36,18 +36,18 @@ namespace ast::nodes::expressions {
                    BodyType type = BodyType::EXPRESSION,
                    bool async = false);
         
-        const std::vector<Parameter>& getParameters() const;
-        ASTNode* getBody() const;
-        BodyType getBodyType() const;
-        
+        [[nodiscard]] const std::vector<Parameter>& getParameters() const;
+        [[nodiscard]] ASTNode* getBody() const;
+        [[nodiscard]] BodyType getBodyType() const;
+
         void setTargetInterface(const std::string& interface);
         void setTargetMethod(const std::string& method);
-        
-        bool isExpressionLambda() const;
-        bool isBlockLambda() const;
+
+        [[nodiscard]] bool isExpressionLambda() const;
+        [[nodiscard]] bool isBlockLambda() const;
 
         // NEW: Async-related methods
-        bool getIsAsync() const { return isAsync; }
+        [[nodiscard]] bool getIsAsync() const { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
 
         Value accept(ASTVisitor<Value>& visitor) override;

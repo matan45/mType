@@ -84,6 +84,26 @@ namespace ast::nodes::expressions
     bool LambdaInterfaceInvocationNode::validateParameterTypes(const std::vector<value::Value>& actualArgs,
                                                               std::string* errorMessage) const
     {
+        if (!validateLambdaNodeForParameters(errorMessage)) {
+            return false;
+        }
+
+        auto lambda = lambdaNode.lock();
+        const auto& lambdaParams = lambda->getParameters();
+
+        if (!validateParameterCount(actualArgs, lambdaParams, errorMessage)) {
+            return false;
+        }
+
+        if (!validateParameterTypeCompatibility(actualArgs, lambdaParams, errorMessage)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool LambdaInterfaceInvocationNode::validateLambdaNodeForParameters(std::string* errorMessage) const
+    {
         auto lambda = lambdaNode.lock();
         if (!lambda) {
             if (errorMessage) {
@@ -92,10 +112,13 @@ namespace ast::nodes::expressions
             }
             return false;
         }
+        return true;
+    }
 
-        const auto& lambdaParams = lambda->getParameters();
-
-        // Check parameter count mismatch
+    bool LambdaInterfaceInvocationNode::validateParameterCount(const std::vector<value::Value>& actualArgs,
+                                                               const std::vector<Parameter>& lambdaParams,
+                                                               std::string* errorMessage) const
+    {
         if (actualArgs.size() != lambdaParams.size()) {
             if (errorMessage) {
                 *errorMessage = "Parameter count mismatch for interface method '" + methodName +
@@ -115,12 +138,17 @@ namespace ast::nodes::expressions
             return false;
         }
 
-        // Check type compatibility for each parameter
+        return true;
+    }
+
+    bool LambdaInterfaceInvocationNode::validateParameterTypeCompatibility(const std::vector<value::Value>& actualArgs,
+                                                                          const std::vector<Parameter>& lambdaParams,
+                                                                          std::string* errorMessage) const
+    {
         for (size_t i = 0; i < actualArgs.size(); ++i) {
             value::ValueType actualType = value::ValueTypeUtils::getValueType(actualArgs[i]);
             value::ValueType interfaceType = interfaceParameterTypes[i];
 
-            // Use the enhanced type conversion utils for compatibility checking
             if (!types::TypeConversionUtils::areTypesCompatible(actualType, interfaceType)) {
                 if (errorMessage) {
                     *errorMessage = "Parameter type mismatch at position " + std::to_string(i) +

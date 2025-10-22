@@ -24,16 +24,6 @@ namespace ast::nodes::expressions
         return position;
     }
 
-    void UnaryExpNode::setOperand(std::unique_ptr<ASTNode> operand_)
-    {
-        operand = std::move(operand_);
-    }
-
-    void UnaryExpNode::setPosition(UnaryPosition pos)
-    {
-        position = pos;
-    }
-
     bool UnaryExpNode::isPrefix() const
     {
         return position == UnaryPosition::PREFIX;

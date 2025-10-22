@@ -33,18 +33,7 @@ namespace ast
      * @param modifier The visibility modifier to convert
      * @return String representation ("public", "private")
      */
-    inline const char* visibilityModifierToString(VisibilityModifier modifier)
-    {
-        switch (modifier)
-        {
-        case VisibilityModifier::PUBLIC:
-            return "public";
-        case VisibilityModifier::PRIVATE:
-            return "private";
-        default:
-            return "unknown";
-        }
-    }
+    const char* visibilityModifierToString(VisibilityModifier modifier);
 
     /**
      * @brief Parse VisibilityModifier from string
@@ -52,19 +41,11 @@ namespace ast
      * @return Corresponding VisibilityModifier
      * @throws std::invalid_argument if string is not a valid modifier
      */
-    inline VisibilityModifier stringToVisibilityModifier(const std::string& str)
-    {
-        if (str == "public") return VisibilityModifier::PUBLIC;
-        if (str == "private") return VisibilityModifier::PRIVATE;
-        throw std::invalid_argument("Invalid visibility modifier: " + str);
-    }
+    VisibilityModifier stringToVisibilityModifier(const std::string& str);
 
     /**
      * @brief Get default visibility modifier for top-level declarations
      * @return PUBLIC (default behavior)
      */
-    inline VisibilityModifier getDefaultVisibilityModifier()
-    {
-        return VisibilityModifier::PUBLIC;
-    }
+    VisibilityModifier getDefaultVisibilityModifier();
 }

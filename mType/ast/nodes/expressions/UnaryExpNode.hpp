@@ -28,10 +28,6 @@ namespace ast::nodes::expressions
         ASTNode* getOperand() const;
         UnaryPosition getPosition() const;
 
-        void setOperand(std::unique_ptr<ASTNode> operand_); 
-
-        void setPosition(UnaryPosition pos); 
-
         bool isPrefix() const;
         bool isPostfix() const;
 

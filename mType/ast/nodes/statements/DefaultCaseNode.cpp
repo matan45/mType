@@ -1,4 +1,5 @@
 ﻿#include "DefaultCaseNode.hpp"
+#include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements
 {
@@ -31,10 +32,8 @@ namespace ast::nodes::statements
     {
         auto clonedDefault = std::make_unique<DefaultCaseNode>(location);
 
-        for (const auto& stmt : statements) {
-            if (stmt) {
-                clonedDefault->addStatement(stmt->clone());
-            }
+        for (auto& stmt : ast::utils::cloneNodeVector(statements)) {
+            clonedDefault->addStatement(std::move(stmt));
         }
 
         return clonedDefault;

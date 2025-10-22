@@ -21,10 +21,6 @@ namespace ast::nodes::classes
         std::unique_ptr<SuperConstructorCallNode> superInitializer;
         AccessModifier accessModifier;
 
-        // Cached computed property - lazily computed from parametersWithTypes
-        mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
-        mutable bool parametersCacheValid = false;
-
     public:
         // Constructor with ParameterType (preserves class/interface information)
         explicit ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
@@ -33,7 +29,9 @@ namespace ast::nodes::classes
                                  const SourceLocation& loc = SourceLocation());
 
         // Computed property - derives from parametersWithTypes
-        const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
+        // Returns by value for thread-safety (removed cache)
+        [[deprecated("Use getParametersWithTypes() instead")]]
+        std::vector<std::pair<std::string, ValueType>> getParameters() const;
 
         // NEW: Get parameters with full type information
         const std::vector<std::pair<std::string, ParameterType>>& getParametersWithTypes() const;

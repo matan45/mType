@@ -22,7 +22,6 @@ namespace ast::nodes::classes
         void setMethodName(const std::string& method);
 
         const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
-        std::vector<std::unique_ptr<ASTNode>>& getArguments();
         size_t getArgumentCount() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;

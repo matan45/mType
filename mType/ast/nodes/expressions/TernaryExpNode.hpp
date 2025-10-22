@@ -19,10 +19,6 @@ namespace ast::nodes::expressions
         ASTNode* getTrueExpression() const;
         ASTNode* getFalseExpression() const;
 
-        void setCondition(std::unique_ptr<ASTNode> cond);
-        void setTrueExpression(std::unique_ptr<ASTNode> trueExpr);
-        void setFalseExpression(std::unique_ptr<ASTNode> falseExpr);
-
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;
     };

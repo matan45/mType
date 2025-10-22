@@ -285,7 +285,7 @@ namespace optimizer::passes
 
         if (auto* classNode = dynamic_cast<ClassNode*>(node))
         {
-            bool isPublic = classNode->isPublic();
+            bool isPublic = classNode->getVisibility() == VisibilityModifier::PUBLIC;
             std::string className = classNode->getClassName();
             analyzer.analyzeDeclaredClass(className, isPublic);
 
@@ -318,7 +318,7 @@ namespace optimizer::passes
 
         if (auto* ifaceNode = dynamic_cast<InterfaceNode*>(node))
         {
-            bool isPublic = ifaceNode->isPublic();
+            bool isPublic = ifaceNode->getVisibility() == VisibilityModifier::PUBLIC;
             analyzer.analyzeDeclaredInterface(ifaceNode->getName(), isPublic);
             return;
         }

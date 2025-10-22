@@ -303,7 +303,7 @@ namespace vm::compiler::visitors
 
     value::Value MethodCompilerHelper::compileConstructor(ast::ConstructorNode* node)
     {
-        auto params = node->getParameters();
+        const auto& params = node->getParametersWithTypes();
 
         // Set instance method context (constructors are like instance methods)
         bool wasInInstanceMethod = ctx.inInstanceMethod;

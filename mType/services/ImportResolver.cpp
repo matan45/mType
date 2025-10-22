@@ -196,11 +196,71 @@ namespace services
                             auto funcRegistry = environment->getFunctionRegistry();
                             if (funcRegistry)
                             {
+                                // Convert generic parameters to ParameterType format
+                                std::vector<std::pair<std::string, value::ParameterType>> parameterTypes;
+                                const auto& genericParams = methodNode->getGenericParameters();
+
+                                for (const auto& [paramName, genericType] : genericParams)
+                                {
+                                    if (genericType)
+                                    {
+                                        // Extract ValueType from GenericType
+                                        value::ValueType baseType = value::ValueType::VOID;
+                                        if (genericType->isGenericParameter())
+                                        {
+                                            // For generic parameters (T, E, etc.), use OBJECT as the base type
+                                            baseType = value::ValueType::OBJECT;
+                                        }
+                                        else
+                                        {
+                                            baseType = genericType->getConcreteType();
+                                        }
+
+                                        std::string typeName = genericType->getBaseTypeName();
+
+                                        // Check if it's an interface or class type
+                                        if (baseType == value::ValueType::OBJECT)
+                                        {
+                                            if (environment->findInterface(typeName) != nullptr)
+                                            {
+                                                parameterTypes.emplace_back(paramName, value::ParameterType::forInterface(typeName));
+                                            }
+                                            else if (environment->findClass(typeName) != nullptr)
+                                            {
+                                                parameterTypes.emplace_back(paramName, value::ParameterType::forClass(typeName));
+                                            }
+                                            else
+                                            {
+                                                parameterTypes.emplace_back(paramName, value::ParameterType(baseType));
+                                            }
+                                        }
+                                        else
+                                        {
+                                            parameterTypes.emplace_back(paramName, value::ParameterType(baseType));
+                                        }
+                                    }
+                                }
+
+                                // Get return type from generic return type
+                                value::ValueType returnType = value::ValueType::VOID;
+                                if (auto genericReturnType = methodNode->getGenericReturnType())
+                                {
+                                    if (genericReturnType->isGenericParameter())
+                                    {
+                                        // For generic return types (T, E, etc.), use OBJECT as the base type
+                                        returnType = value::ValueType::OBJECT;
+                                    }
+                                    else
+                                    {
+                                        returnType = genericReturnType->getConcreteType();
+                                    }
+                                }
+
                                 // Register the method definition directly as a callable function
                                 auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
                                     qualifiedName,
-                                    methodNode->getReturnType(),
-                                    methodNode->getParameters()
+                                    returnType,
+                                    parameterTypes
                                 );
 
                                 // Copy the body from the static method definition

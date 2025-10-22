@@ -29,9 +29,6 @@ namespace ast::nodes::classes
         // Safe getter - returns shared_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> getObjectShared() const;
 
-        // Safe transfer of ownership - returns shared_ptr that gets converted to unique_ptr
-        [[nodiscard]] std::shared_ptr<ASTNode> transferObjectOwnership() const;
-
         void setObject(std::shared_ptr<ASTNode> obj);
         void setMemberName(const std::string& member);
         void setIsStaticAccess(bool isStatic);

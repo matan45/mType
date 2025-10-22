@@ -14,18 +14,15 @@ namespace ast::nodes::classes
         // No dual storage - parametersWithTypes is the single source of truth
     }
 
-    const std::vector<std::pair<std::string, ValueType>>& ConstructorNode::getParameters() const
+    std::vector<std::pair<std::string, ValueType>> ConstructorNode::getParameters() const
     {
-        // Lazy computation - only compute when needed
-        if (!parametersCacheValid) {
-            cachedParameters.clear();
-            cachedParameters.reserve(parametersWithTypes.size());
-            for (const auto& [name, paramType] : parametersWithTypes) {
-                cachedParameters.emplace_back(name, paramType.basicType);
-            }
-            parametersCacheValid = true;
+        // Compute on-demand for thread-safety (removed unsafe cache)
+        std::vector<std::pair<std::string, ValueType>> parameters;
+        parameters.reserve(parametersWithTypes.size());
+        for (const auto& [name, paramType] : parametersWithTypes) {
+            parameters.emplace_back(name, paramType.basicType);
         }
-        return cachedParameters;
+        return parameters;
     }
 
     const std::vector<std::pair<std::string, ParameterType>>& ConstructorNode::getParametersWithTypes() const

@@ -105,10 +105,10 @@ namespace parser::statement
                 expectToken(TokenType::SEMICOLON);
 
                 // Extract the object and member name for the assignment
-                auto object = memberAccess->transferObjectOwnership();
+                auto object = memberAccess->getObjectShared();
                 std::string memberName = memberAccess->getMemberName();
 
-                return std::make_unique<MemberAssignmentNode>(std::move(object), memberName, std::move(value));
+                return std::make_unique<MemberAssignmentNode>(object, memberName, std::move(value));
             }
         }
 

@@ -76,8 +76,6 @@ namespace ast::nodes::classes
         // NEW: Visibility modifier methods (for import/export system)
         VisibilityModifier getVisibility() const;
         void setVisibility(VisibilityModifier vis);
-        bool isPublic() const;
-        bool isPrivate() const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

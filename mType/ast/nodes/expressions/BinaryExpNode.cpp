@@ -23,21 +23,6 @@ namespace ast::nodes::expressions
         return operator_;
     }
 
-    void BinaryExpNode::setLeft(std::unique_ptr<ASTNode> leftNode)
-    {
-        left = std::move(leftNode);
-    }
-
-    void BinaryExpNode::setRight(std::unique_ptr<ASTNode> rightNode)
-    {
-        right = std::move(rightNode);
-    }
-
-    void BinaryExpNode::setOperator(TokenType op)
-    {
-        operator_ = op;
-    }
-
     Value BinaryExpNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitBinaryOpNode(this);
