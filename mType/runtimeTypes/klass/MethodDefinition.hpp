@@ -56,6 +56,12 @@ namespace runtimeTypes::klass
         ValueType resolveGenericParameter(size_t paramIndex, ValueType storedType) const;
         ValueType resolveFallbackMapping(size_t paramIndex) const;
 
+        // Validation helper methods
+        void validateGenericInvariants() const;
+        void validateParameterCounts(size_t paramCount, size_t genParamCount) const;
+        void validateSubstitutionMap() const;
+        void validateGenericTypeRecursive(const std::shared_ptr<ast::GenericType>& type, const std::string& context) const;
+
     public:
         // Legacy constructor for backward compatibility with ValueType
         explicit MethodDefinition(const std::string& n, ValueType rt,
@@ -95,6 +101,8 @@ namespace runtimeTypes::klass
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false)
         {
+            validateParameterCounts(params.size(), genParams.size());
+            validateGenericInvariants();
         }
 
         // NEW: Constructor with generic type information (ParameterType)
@@ -112,6 +120,8 @@ namespace runtimeTypes::klass
               genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
               isAsync(false)
         {
+            validateParameterCounts(params.size(), genParams.size());
+            validateGenericInvariants();
         }
 
         const ValueType& getReturnType() const { return returnType; }

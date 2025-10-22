@@ -1,4 +1,5 @@
 #include "TypeRegistry.hpp"
+#include "StringUtils.hpp"
 #include <regex>
 #include <sstream>
 #include <algorithm>
@@ -63,7 +64,7 @@ namespace types {
                 currentArg += c;
             } else if (c == ',' && depth == 0) {
                 // Top-level comma - this separates type arguments
-                std::string trimmed = TypeRegistry::trimWhitespace(currentArg);
+                std::string trimmed = StringUtils::trimWhitespace(currentArg);
                 if (!trimmed.empty()) {
                     typeArgs.push_back(trimmed);
                 }
@@ -74,7 +75,7 @@ namespace types {
         }
 
         // Add the last argument
-        std::string trimmed = TypeRegistry::trimWhitespace(currentArg);
+        std::string trimmed = StringUtils::trimWhitespace(currentArg);
         if (!trimmed.empty()) {
             typeArgs.push_back(trimmed);
         }
@@ -263,23 +264,6 @@ namespace types {
             // For backward compatibility, return OBJECT for unknown types
             return value::ValueType::OBJECT;
         }
-    }
-
-    std::string TypeRegistry::trimWhitespace(const std::string& str) {
-        if (str.empty()) {
-            return str;
-        }
-
-        // Find first non-whitespace character
-        size_t start = str.find_first_not_of(" \t\n\r");
-        if (start == std::string::npos) {
-            return ""; // String is all whitespace
-        }
-
-        // Find last non-whitespace character
-        size_t end = str.find_last_not_of(" \t\n\r");
-
-        return str.substr(start, end - start + 1);
     }
 
     ExtendedTypeInfo TypeRegistry::parseComplexType(const std::string& typeString) const {

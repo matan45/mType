@@ -1140,6 +1140,9 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="types\StringUtils.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
     <ClInclude Include="types\TypeConversionUtils.hpp">
       <Filter>types</Filter>
     </ClInclude>
@@ -2002,6 +2005,9 @@
     </ClCompile>
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="types\StringUtils.cpp">
+      <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="types\TypeConversionUtils.cpp">
       <Filter>types</Filter>

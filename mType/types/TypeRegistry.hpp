@@ -193,12 +193,6 @@ namespace types {
         static bool isGenericParameter(const std::string& typeName);
 
         /**
-         * Trim leading and trailing whitespace from a string
-         * Made public for use by helper classes
-         */
-        static std::string trimWhitespace(const std::string& str);
-
-        /**
          * Get all registered type names
          */
         std::vector<std::string> getAllTypeNames() const;

@@ -32,7 +32,10 @@ namespace circularDependency
     std::vector<std::string> CircularDependencyDetector::buildChainWithIdentifier(
         DependencyType type, const std::string& identifier) const
     {
-        auto chain = dependencyChains_.at(type);
+        const auto& existingChain = dependencyChains_.at(type);
+        std::vector<std::string> chain;
+        chain.reserve(existingChain.size() + 1);  // Pre-allocate to avoid reallocation
+        chain = existingChain;
         chain.push_back(identifier);
         return chain;
     }
@@ -60,11 +63,13 @@ namespace circularDependency
     {
         try
         {
+            // Build chain once for all checks (optimization)
+            auto chainWithIdentifier = buildChainWithIdentifier(type, identifier);
+
             // Check cache first
             if (config_.enableCaching)
             {
-                auto chain = buildChainWithIdentifier(type, identifier);
-                std::string cacheKey = createCacheKey(type, chain);
+                std::string cacheKey = createCacheKey(type, chainWithIdentifier);
 
                 auto cacheIt = validationCache_.find(cacheKey);
                 if (cacheIt != validationCache_.end())
@@ -73,7 +78,7 @@ namespace circularDependency
                     if (!cacheIt->second.isValid)
                     {
                         // Previously detected as problematic
-                        throw TrueCyclicException(type, identifier, chain, location);
+                        throw TrueCyclicException(type, identifier, chainWithIdentifier, location);
                     }
                     // Cache says it's safe, but still need to update current state
                 }
@@ -82,29 +87,25 @@ namespace circularDependency
             // Check for true circular dependency first
             if (checkTrueCycle(type, identifier))
             {
-                auto chain = buildChainWithIdentifier(type, identifier);
-                cacheNegativeResult(type, chain);
-                throw TrueCyclicException(type, identifier, chain, location);
+                cacheNegativeResult(type, chainWithIdentifier);
+                throw TrueCyclicException(type, identifier, chainWithIdentifier, location);
             }
 
             // Check depth limit
             if (currentDepths_[type] >= config_.getMaxDepth(type))
             {
-                auto chain = buildChainWithIdentifier(type, identifier);
-                cacheNegativeResult(type, chain);
-                throw DepthLimitException(type, currentDepths_[type], config_.getMaxDepth(type), chain, location);
+                cacheNegativeResult(type, chainWithIdentifier);
+                throw DepthLimitException(type, currentDepths_[type], config_.getMaxDepth(type), chainWithIdentifier, location);
             }
 
             // Early pattern detection
             if (config_.enableEarlyDetection)
             {
-                auto currentChain = buildChainWithIdentifier(type, identifier);
-
-                if (patternAnalyzer_->detectAnyPattern(currentChain))
+                if (patternAnalyzer_->detectAnyPattern(chainWithIdentifier))
                 {
-                    cacheNegativeResult(type, currentChain);
-                    std::string suggestion = patternAnalyzer_->suggestSimplification(currentChain);
-                    throw TrueCyclicException(type, identifier, currentChain,
+                    cacheNegativeResult(type, chainWithIdentifier);
+                    std::string suggestion = patternAnalyzer_->suggestSimplification(chainWithIdentifier);
+                    throw TrueCyclicException(type, identifier, chainWithIdentifier,
                                               location + (suggestion.empty() ? "" : "\nSuggestion: " + suggestion));
                 }
             }
