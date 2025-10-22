@@ -399,7 +399,7 @@ namespace evaluator::utils
             // Get the concrete type
             return substitutedType->getConcreteType();
 
-        } catch (const types::TypeConversionException&) {
+        } catch (const errors::TypeConversionException&) {
             // Fallback to OBJECT for conversion errors
             return value::ValueType::OBJECT;
         } catch (...) {

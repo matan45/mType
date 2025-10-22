@@ -7,6 +7,128 @@
 
 namespace types {
 
+    // ArrayTypeParser implementation
+    std::string ArrayTypeParser::createArrayTypeName(const std::string& elementType, int dimensions) {
+        std::string result = elementType;
+        for (int i = 0; i < dimensions; ++i) {
+            result += "[]";
+        }
+        return result;
+    }
+
+    std::pair<std::string, int> ArrayTypeParser::parseArrayTypeName(const std::string& arrayTypeName) {
+        std::string elementType = arrayTypeName;
+        int dimensions = 0;
+
+        // Count and remove array brackets
+        size_t pos = arrayTypeName.length();
+        while (pos >= 2 && arrayTypeName.substr(pos - 2, 2) == "[]") {
+            dimensions++;
+            pos -= 2;
+        }
+
+        if (dimensions > 0) {
+            elementType = arrayTypeName.substr(0, pos);
+        }
+
+        return {elementType, dimensions};
+    }
+
+    // GenericInstantiationParser implementation
+    std::pair<std::string, std::vector<std::string>> GenericInstantiationParser::parse(const std::string& typeName) {
+        size_t anglePos = typeName.find('<');
+        if (anglePos == std::string::npos) {
+            return {typeName, {}};
+        }
+
+        size_t endPos = typeName.rfind('>');
+        if (endPos == std::string::npos || endPos <= anglePos) {
+            return {typeName, {}};
+        }
+
+        std::string baseName = typeName.substr(0, anglePos);
+        std::string typeArgsString = typeName.substr(anglePos + 1, endPos - anglePos - 1);
+
+        // Parse type arguments with nested generic support
+        std::vector<std::string> typeArgs;
+        std::string currentArg;
+        int depth = 0;
+
+        for (char c : typeArgsString) {
+            if (c == '<') {
+                depth++;
+                currentArg += c;
+            } else if (c == '>') {
+                depth--;
+                currentArg += c;
+            } else if (c == ',' && depth == 0) {
+                // Top-level comma - this separates type arguments
+                std::string trimmed = TypeRegistry::trimWhitespace(currentArg);
+                if (!trimmed.empty()) {
+                    typeArgs.push_back(trimmed);
+                }
+                currentArg.clear();
+            } else {
+                currentArg += c;
+            }
+        }
+
+        // Add the last argument
+        std::string trimmed = TypeRegistry::trimWhitespace(currentArg);
+        if (!trimmed.empty()) {
+            typeArgs.push_back(trimmed);
+        }
+
+        return {baseName, typeArgs};
+    }
+
+    // InheritanceChainTraverser implementation
+    InheritanceChainTraverser::InheritanceChainTraverser(const std::unordered_map<std::string, std::string>& inheritance)
+        : classInheritance(inheritance) {}
+
+    bool InheritanceChainTraverser::traverse(const std::string& childType, const std::string& targetParent) const {
+        std::string current = childType;
+        std::unordered_set<std::string> visited;
+        int depth = 0;
+
+        while (depth < MAX_DEPTH) {
+            auto inheritanceIt = classInheritance.find(current);
+            if (inheritanceIt == classInheritance.end()) {
+                return false; // No parent found
+            }
+
+            const std::string& parent = inheritanceIt->second;
+
+            // Cycle detection
+            if (visited.find(parent) != visited.end()) {
+                return false;
+            }
+            visited.insert(parent);
+
+            // Check if we've found the target parent
+            if (parent == targetParent) {
+                return true;
+            }
+
+            // Continue up the inheritance chain
+            current = parent;
+            depth++;
+        }
+
+        return false; // Depth limit reached
+    }
+
+    // ExtendedTypeInfo constructors
+    ExtendedTypeInfo::ExtendedTypeInfo()
+        : baseType(value::ValueType::VOID), isArray(false), arrayDimensions(0), isGeneric(false) {}
+
+    ExtendedTypeInfo::ExtendedTypeInfo(value::ValueType type, const std::string& name)
+        : baseType(type), typeName(name), isArray(false), arrayDimensions(0), isGeneric(false) {}
+
+    ExtendedTypeInfo::ExtendedTypeInfo(value::ValueType type, const std::string& name, int dimensions)
+        : baseType(type), typeName(name), isArray(dimensions > 0), arrayDimensions(dimensions), isGeneric(false) {}
+
+    // TypeRegistry implementation
     TypeRegistry::TypeRegistry() {
         initializePrimitiveTypes();
     }
@@ -40,7 +162,7 @@ namespace types {
     void TypeRegistry::registerArrayType(const std::string& elementType, int dimensions) {
         if (dimensions <= 0) return;
 
-        std::string arrayTypeName = createArrayTypeName(elementType, dimensions);
+        std::string arrayTypeName = ArrayTypeParser::createArrayTypeName(elementType, dimensions);
 
         ExtendedTypeInfo info(value::ValueType::ARRAY, arrayTypeName, dimensions);
         info.fullyQualifiedName = arrayTypeName;
@@ -61,7 +183,7 @@ namespace types {
         }
 
         // Check if it's a generic instantiation
-        auto [baseName, typeArgs] = parseGenericInstantiation(typeName);
+        auto [baseName, typeArgs] = GenericInstantiationParser::parse(typeName);
         if (knownGenericTypes.find(baseName) != knownGenericTypes.end()) {
             return validateTypeArguments(baseName, typeArgs);
         }
@@ -79,12 +201,12 @@ namespace types {
     }
 
     bool TypeRegistry::isGenericType(const std::string& typeName) const {
-        auto [baseName, typeArgs] = parseGenericInstantiation(typeName);
+        auto [baseName, typeArgs] = GenericInstantiationParser::parse(typeName);
         return knownGenericTypes.find(baseName) != knownGenericTypes.end();
     }
 
     bool TypeRegistry::isCollectionType(const std::string& typeName) const {
-        auto [baseName, typeArgs] = parseGenericInstantiation(typeName);
+        auto [baseName, typeArgs] = GenericInstantiationParser::parse(typeName);
         return collectionTypes.find(baseName) != collectionTypes.end();
     }
 
@@ -97,11 +219,11 @@ namespace types {
 
         // Array type handling
         if (isArrayType(typeName)) {
-            auto [elementType, dimensions] = parseArrayTypeName(typeName);
+            auto [elementType, dimensions] = ArrayTypeParser::parseArrayTypeName(typeName);
 
             // Ensure element type exists
             if (!hasType(elementType)) {
-                throw TypeResolutionException("Unknown array element type: " + elementType);
+                throw errors::TypeResolutionException("Unknown array element type: " + elementType);
             }
 
             ExtendedTypeInfo info(value::ValueType::ARRAY, typeName, dimensions);
@@ -110,10 +232,10 @@ namespace types {
         }
 
         // Generic type instantiation
-        auto [baseName, typeArgs] = parseGenericInstantiation(typeName);
+        auto [baseName, typeArgs] = GenericInstantiationParser::parse(typeName);
         if (knownGenericTypes.find(baseName) != knownGenericTypes.end()) {
             if (!validateTypeArguments(baseName, typeArgs)) {
-                throw TypeResolutionException("Invalid type arguments for generic type: " + typeName);
+                throw errors::TypeResolutionException("Invalid type arguments for generic type: " + typeName);
             }
 
             ExtendedTypeInfo info(value::ValueType::OBJECT, typeName);
@@ -130,24 +252,40 @@ namespace types {
             return info;
         }
 
-        throw TypeResolutionException("Unknown type: " + typeName);
+        throw errors::TypeResolutionException("Unknown type: " + typeName);
     }
 
     value::ValueType TypeRegistry::getValueType(const std::string& typeName) const {
         try {
             ExtendedTypeInfo info = resolveType(typeName);
             return info.baseType;
-        } catch (const TypeResolutionException&) {
+        } catch (const errors::TypeResolutionException&) {
             // For backward compatibility, return OBJECT for unknown types
             return value::ValueType::OBJECT;
         }
     }
 
+    std::string TypeRegistry::trimWhitespace(const std::string& str) {
+        if (str.empty()) {
+            return str;
+        }
+
+        // Find first non-whitespace character
+        size_t start = str.find_first_not_of(" \t\n\r");
+        if (start == std::string::npos) {
+            return ""; // String is all whitespace
+        }
+
+        // Find last non-whitespace character
+        size_t end = str.find_last_not_of(" \t\n\r");
+
+        return str.substr(start, end - start + 1);
+    }
+
     ExtendedTypeInfo TypeRegistry::parseComplexType(const std::string& typeString) const {
         // Handle nested generics like Array<List<String>>
+        // Remove all whitespace for parsing
         std::string trimmed = typeString;
-
-        // Remove whitespace
         trimmed.erase(std::remove_if(trimmed.begin(), trimmed.end(), ::isspace), trimmed.end());
 
         return resolveType(trimmed);
@@ -162,29 +300,11 @@ namespace types {
     }
 
     std::string TypeRegistry::createArrayTypeName(const std::string& elementType, int dimensions) {
-        std::string result = elementType;
-        for (int i = 0; i < dimensions; ++i) {
-            result += "[]";
-        }
-        return result;
+        return ArrayTypeParser::createArrayTypeName(elementType, dimensions);
     }
 
     std::pair<std::string, int> TypeRegistry::parseArrayTypeName(const std::string& arrayTypeName) {
-        std::string elementType = arrayTypeName;
-        int dimensions = 0;
-
-        // Count and remove array brackets
-        size_t pos = arrayTypeName.length();
-        while (pos >= 2 && arrayTypeName.substr(pos - 2, 2) == "[]") {
-            dimensions++;
-            pos -= 2;
-        }
-
-        if (dimensions > 0) {
-            elementType = arrayTypeName.substr(0, pos);
-        }
-
-        return {elementType, dimensions};
+        return ArrayTypeParser::parseArrayTypeName(arrayTypeName);
     }
 
     bool TypeRegistry::isGenericParameter(const std::string& typeName) {
@@ -213,7 +333,6 @@ namespace types {
         genericTypeParameters.clear();
         knownGenericTypes.clear();
         collectionTypes.clear();
-        typeFactories.clear();
     }
 
     void TypeRegistry::initializePrimitiveTypes() {
@@ -224,56 +343,6 @@ namespace types {
         registerPrimitiveType("void", value::ValueType::VOID);
         registerPrimitiveType("null", value::ValueType::NULL_TYPE);
         registerPrimitiveType("lambda", value::ValueType::LAMBDA);
-    }
-
-
-    std::pair<std::string, std::vector<std::string>> TypeRegistry::parseGenericInstantiation(const std::string& typeName) const {
-        size_t anglePos = typeName.find('<');
-        if (anglePos == std::string::npos) {
-            return {typeName, {}};
-        }
-
-        size_t endPos = typeName.rfind('>');
-        if (endPos == std::string::npos || endPos <= anglePos) {
-            return {typeName, {}};
-        }
-
-        std::string baseName = typeName.substr(0, anglePos);
-        std::string typeArgsString = typeName.substr(anglePos + 1, endPos - anglePos - 1);
-
-        // Parse type arguments with nested generic support
-        std::vector<std::string> typeArgs;
-        std::string currentArg;
-        int depth = 0;
-
-        for (char c : typeArgsString) {
-            if (c == '<') {
-                depth++;
-                currentArg += c;
-            } else if (c == '>') {
-                depth--;
-                currentArg += c;
-            } else if (c == ',' && depth == 0) {
-                // Top-level comma - this separates type arguments
-                currentArg.erase(0, currentArg.find_first_not_of(" \t"));
-                currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-                if (!currentArg.empty()) {
-                    typeArgs.push_back(currentArg);
-                }
-                currentArg.clear();
-            } else {
-                currentArg += c;
-            }
-        }
-
-        // Add the last argument
-        currentArg.erase(0, currentArg.find_first_not_of(" \t"));
-        currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-        if (!currentArg.empty()) {
-            typeArgs.push_back(currentArg);
-        }
-
-        return {baseName, typeArgs};
     }
 
     bool TypeRegistry::isPrimitiveType(const std::string& typeName) const {
@@ -328,44 +397,13 @@ namespace types {
             return it->second;
         }
 
-        // Traverse inheritance chain
-        std::string current = childType;
-        std::unordered_set<std::string> visited; // Prevent cycles
-        int depth = 0;
-        const int MAX_DEPTH = 20;
+        // Traverse inheritance chain using helper
+        InheritanceChainTraverser traverser(classInheritance);
+        bool result = traverser.traverse(childType, parentType);
 
-        while (depth < MAX_DEPTH) {
-            // Check if we've found the parent
-            auto inheritanceIt = classInheritance.find(current);
-            if (inheritanceIt == classInheritance.end()) {
-                // No parent found, not a subtype
-                subtypeCache[cacheKey] = false;
-                return false;
-            }
-
-            std::string parent = inheritanceIt->second;
-
-            // Cycle detection
-            if (visited.find(parent) != visited.end()) {
-                subtypeCache[cacheKey] = false;
-                return false;
-            }
-            visited.insert(parent);
-
-            // Check if we've found the target parent
-            if (parent == parentType) {
-                subtypeCache[cacheKey] = true;
-                return true;
-            }
-
-            // Continue up the inheritance chain
-            current = parent;
-            depth++;
-        }
-
-        // Depth limit reached or cycle detected
-        subtypeCache[cacheKey] = false;
-        return false;
+        // Cache the result
+        subtypeCache[cacheKey] = result;
+        return result;
     }
 
     // Global registry instance
