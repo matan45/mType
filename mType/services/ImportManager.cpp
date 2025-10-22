@@ -29,6 +29,16 @@ namespace services
         baseDirectory = dir;
     }
 
+    std::string ImportManager::getCurrentFilePath() const
+    {
+        return currentFilePath;
+    }
+
+    void ImportManager::setCurrentFilePath(const std::string& path)
+    {
+        currentFilePath = path;
+    }
+
     std::string ImportManager::resolvePath(const std::string& path)
     {
         fs::path filePath(path);
@@ -51,32 +61,7 @@ namespace services
         }
 
         // Normalize the path (resolve . and .. components)
-        filePath = fs::canonical(filePath);
-
-        return filePath.string();
-    }
-
-    std::string ImportManager::resolvePathRelativeToFile(const std::string& path, const std::string& relativeToFile)
-    {
-        fs::path filePath(path);
-
-        // If path is relative, resolve it relative to the specified file's directory
-        if (filePath.is_relative())
-        {
-            fs::path referenceFileDir = fs::path(relativeToFile).parent_path();
-            filePath = referenceFileDir / filePath;
-        }
-
-        // Normalize the path (resolve . and .. components)
-        try
-        {
-            filePath = fs::canonical(filePath);
-        }
-        catch (const std::filesystem::filesystem_error&)
-        {
-            // If canonical fails, at least get the absolute path
-            filePath = fs::absolute(filePath);
-        }
+        filePath = normalizeFilePath(filePath, false);
 
         return filePath.string();
     }
@@ -120,15 +105,7 @@ namespace services
         }
 
         // Normalize the path (resolve . and .. components)
-        try
-        {
-            filePath = fs::canonical(filePath);
-        }
-        catch (const std::filesystem::filesystem_error&)
-        {
-            // If canonical fails, at least get the absolute path
-            filePath = fs::absolute(filePath);
-        }
+        filePath = normalizeFilePath(filePath, true);
 
         return filePath.string();
     }
@@ -144,28 +121,12 @@ namespace services
 
     bool ImportManager::isImported(const std::string& rawPath)
     {
-        try
-        {
-            std::string resolvedPath = resolvePath(rawPath);
-            return importedFiles.find(resolvedPath) != importedFiles.end();
-        }
-        catch (...)
-        {
-            return false;
-        }
+        return safeCheckInSet(rawPath, importedFiles, false);
     }
 
     bool ImportManager::isEvaluated(const std::string& rawPath)
     {
-        try
-        {
-            std::string resolvedPath = resolvePathConsistently(rawPath);
-            return evaluatedFiles.find(resolvedPath) != evaluatedFiles.end();
-        }
-        catch (...)
-        {
-            return false;
-        }
+        return safeCheckInSet(rawPath, evaluatedFiles, true);
     }
 
     void ImportManager::markAsEvaluated(const std::string& rawPath)
@@ -183,15 +144,7 @@ namespace services
 
     bool ImportManager::isBeingEvaluated(const std::string& rawPath)
     {
-        try
-        {
-            std::string resolvedPath = resolvePathConsistently(rawPath);
-            return beingEvaluated.find(resolvedPath) != beingEvaluated.end();
-        }
-        catch (...)
-        {
-            return false;
-        }
+        return safeCheckInSet(rawPath, beingEvaluated, true);
     }
 
     void ImportManager::markAsBeingEvaluated(const std::string& rawPath)
@@ -234,72 +187,137 @@ namespace services
         if (!node) return;
 
         // Handle ImportNode
-        if (auto importNode = dynamic_cast<ast::ImportNode*>(node)) {
+        if (auto importNode = dynamic_cast<ast::ImportNode*>(node))
+        {
             std::string filePath = importNode->getFilePath();
 
             // If already resolved, just recurse into imported AST
-            if (importNode->isResolved() && importNode->getImportedAST()) {
-                // Save current file path and restore after recursion
-                std::string savedCurrentFile = currentFilePath;
-                // Need to know the resolved path of the imported file to set as current
-                // Use the cached resolved path
-                for (const auto& [path, ast] : astCache) {
-                    if (ast.get() == importNode->getImportedAST()) {
-                        currentFilePath = path;
-                        break;
-                    }
-                }
-                resolveAllImports(importNode->getImportedAST());
-                currentFilePath = savedCurrentFile;
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                handleResolvedImport(importNode);
                 return;
             }
 
-            // Save current file path
-            std::string savedCurrentFile = currentFilePath;
-
-            // Resolve the import path (relative to current file)
-            std::string resolvedPath = resolvePath(filePath);
-            markAsBeingEvaluated(resolvedPath);
-
-            try {
-                // Set current file to the resolved path BEFORE parsing
-                // This ensures that if the imported file has its own imports,
-                // they will be resolved relative to the imported file's directory
-                currentFilePath = resolvedPath;
-
-                // Parse and cache the imported file
-                ASTNode* importedAST = parseAndCacheAST(filePath);
-                importNode->setImportedAST(importedAST);
-
-                // Recursively resolve imports in the imported file
-                resolveAllImports(importedAST);
-
-                markAsEvaluated(resolvedPath);
-
-                // Restore previous current file
-                currentFilePath = savedCurrentFile;
-            }
-            catch (...) {
-                // Restore current file on error
-                currentFilePath = savedCurrentFile;
-                unmarkAsBeingEvaluated(resolvedPath);
-                throw;
-            }
-
-            unmarkAsBeingEvaluated(resolvedPath);
+            // Handle unresolved import
+            handleUnresolvedImport(importNode, filePath);
             return;
         }
 
         // Recursively process children based on node type
-        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node)) {
-            for (const auto& statement : programNode->getStatements()) {
+        resolveImportsInChildren(node);
+    }
+
+    void ImportManager::handleResolvedImport(ast::ImportNode* importNode)
+    {
+        // Save current file path and restore after recursion
+        std::string savedCurrentFile = currentFilePath;
+
+        // Need to know the resolved path of the imported file to set as current
+        // Use the cached resolved path
+        for (const auto& [path, ast] : astCache)
+        {
+            if (ast.get() == importNode->getImportedAST())
+            {
+                currentFilePath = path;
+                break;
+            }
+        }
+
+        resolveAllImports(importNode->getImportedAST());
+        currentFilePath = savedCurrentFile;
+    }
+
+    void ImportManager::handleUnresolvedImport(ast::ImportNode* importNode, const std::string& filePath)
+    {
+        // Save current file path
+        std::string savedCurrentFile = currentFilePath;
+
+        // Resolve the import path (relative to current file)
+        std::string resolvedPath = resolvePath(filePath);
+        markAsBeingEvaluated(resolvedPath);
+
+        try
+        {
+            // Set current file to the resolved path BEFORE parsing
+            // This ensures that if the imported file has its own imports,
+            // they will be resolved relative to the imported file's directory
+            currentFilePath = resolvedPath;
+
+            // Parse and cache the imported file
+            ASTNode* importedAST = parseAndCacheAST(filePath);
+            importNode->setImportedAST(importedAST);
+
+            // Recursively resolve imports in the imported file
+            resolveAllImports(importedAST);
+
+            markAsEvaluated(resolvedPath);
+
+            // Restore previous current file
+            currentFilePath = savedCurrentFile;
+        }
+        catch (...)
+        {
+            // Restore current file on error
+            currentFilePath = savedCurrentFile;
+            unmarkAsBeingEvaluated(resolvedPath);
+            throw;
+        }
+
+        unmarkAsBeingEvaluated(resolvedPath);
+    }
+
+    void ImportManager::resolveImportsInChildren(ast::ASTNode* node)
+    {
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
                 resolveAllImports(statement.get());
             }
         }
-        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node)) {
-            for (const auto& statement : blockNode->getStatements()) {
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
                 resolveAllImports(statement.get());
             }
+        }
+    }
+
+    bool ImportManager::safeCheckInSet(const std::string& rawPath,
+                                       const std::unordered_set<std::string>& set,
+                                       bool useConsistentResolve)
+    {
+        try
+        {
+            std::string resolvedPath = useConsistentResolve ?
+                resolvePathConsistently(rawPath) : resolvePath(rawPath);
+            return set.find(resolvedPath) != set.end();
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    std::filesystem::path ImportManager::normalizeFilePath(const std::filesystem::path& filePath,
+                                                          bool allowFallback)
+    {
+        if (allowFallback)
+        {
+            try
+            {
+                return fs::canonical(filePath);
+            }
+            catch (const std::filesystem::filesystem_error&)
+            {
+                // If canonical fails, at least get the absolute path
+                return fs::absolute(filePath);
+            }
+        }
+        else
+        {
+            return fs::canonical(filePath);
         }
     }
 }

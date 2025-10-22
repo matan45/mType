@@ -31,43 +31,36 @@ namespace lexer
         return readLargeFileBuffered(filePath, bufferSize);
     }
 
-    void FileReader::streamFile(const std::string& filePath, 
+    void FileReader::streamFile(const std::string& filePath,
                                std::function<void(std::string_view)> chunkProcessor,
                                size_t bufferSize)
     {
         validateFile(filePath);
-        
-        std::ifstream file(filePath, std::ios::binary);
-        if (!file.is_open())
-        {
-            throw errors::FileException("Cannot open file: " + filePath);
-        }
+
+        std::ifstream file = openFileForReading(filePath);
 
         // Handle UTF-8 BOM for streaming
         const bool hadBom = checkAndSkipUtf8Bom(file);
-        
+
         // Create buffer for streaming
         std::vector<char> buffer(bufferSize);
         bool isFirstChunk = true;
-        
+
         while (file.good() && !file.eof())
         {
             file.read(buffer.data(), static_cast<std::streamsize>(bufferSize));
             const std::streamsize bytesRead = file.gcount();
-            
+
             if (bytesRead > 0)
             {
                 std::string_view chunk(buffer.data(), static_cast<size_t>(bytesRead));
-                
+
                 // Handle BOM removal for first chunk if we had one
-                if (isFirstChunk && hadBom && chunk.size() >= UTF8_BOM.length())
+                if (isFirstChunk)
                 {
-                    if (chunk.substr(0, UTF8_BOM.length()) == UTF8_BOM)
-                    {
-                        chunk = chunk.substr(UTF8_BOM.length());
-                    }
+                    chunk = removeBomFromChunk(chunk, hadBom);
                 }
-                
+
                 if (!chunk.empty())
                 {
                     chunkProcessor(chunk);
@@ -75,17 +68,13 @@ namespace lexer
                 isFirstChunk = false;
             }
         }
-        
+
         file.close();
     }
 
     std::string FileReader::readSmallFile(const std::string& filePath)
     {
-        std::ifstream file(filePath, std::ios::binary);
-        if (!file.is_open())
-        {
-            throw errors::FileException("Cannot open file: " + filePath);
-        }
+        std::ifstream file = openFileForReading(filePath);
 
         // For small files, use the original efficient approach
         file.seekg(0, std::ios::end);
@@ -98,7 +87,7 @@ namespace lexer
         std::stringstream buffer;
         buffer << file.rdbuf();
         content = buffer.str();
-        
+
         file.close();
 
         return removeUtf8BomIfPresent(content);
@@ -106,11 +95,7 @@ namespace lexer
 
     std::string FileReader::readLargeFileBuffered(const std::string& filePath, size_t bufferSize)
     {
-        std::ifstream file(filePath, std::ios::binary);
-        if (!file.is_open())
-        {
-            throw errors::FileException("Cannot open file: " + filePath);
-        }
+        std::ifstream file = openFileForReading(filePath);
 
         const size_t fileSize = getFileSize(filePath);
         std::string content;
@@ -118,34 +103,31 @@ namespace lexer
 
         // Handle UTF-8 BOM
         const bool hadBom = checkAndSkipUtf8Bom(file);
-        
+
         // Use buffered reading for large files
         std::vector<char> buffer(bufferSize);
         bool isFirstChunk = true;
-        
+
         while (file.good() && !file.eof())
         {
             file.read(buffer.data(), static_cast<std::streamsize>(bufferSize));
             const std::streamsize bytesRead = file.gcount();
-            
+
             if (bytesRead > 0)
             {
                 std::string_view chunk(buffer.data(), static_cast<size_t>(bytesRead));
-                
+
                 // Handle BOM removal for first chunk
-                if (isFirstChunk && hadBom && chunk.size() >= UTF8_BOM.length())
+                if (isFirstChunk)
                 {
-                    if (chunk.substr(0, UTF8_BOM.length()) == UTF8_BOM)
-                    {
-                        chunk = chunk.substr(UTF8_BOM.length());
-                    }
+                    chunk = removeBomFromChunk(chunk, hadBom);
                 }
-                
+
                 content.append(chunk);
                 isFirstChunk = false;
             }
         }
-        
+
         file.close();
         return content;
     }
@@ -194,14 +176,14 @@ namespace lexer
     {
         // Save current position
         const auto originalPos = file.tellg();
-        
+
         // Read potential BOM
         std::array<char, 3> bomBuffer{};
         file.read(bomBuffer.data(), 3);
         const std::streamsize bytesRead = file.gcount();
-        
+
         // Check if we have a UTF-8 BOM
-        if (bytesRead == 3 && 
+        if (bytesRead == 3 &&
             std::string_view(bomBuffer.data(), static_cast<size_t>(bytesRead)) == UTF8_BOM)
         {
             // BOM found, leave position after BOM
@@ -215,10 +197,25 @@ namespace lexer
         }
     }
 
-    std::string FileReader::createOptimalBuffer(size_t size) const
+    std::string_view FileReader::removeBomFromChunk(std::string_view chunk, bool hadBom) const
     {
-        std::string buffer;
-        buffer.reserve(size);
-        return buffer;
+        if (hadBom && chunk.size() >= UTF8_BOM.length())
+        {
+            if (chunk.substr(0, UTF8_BOM.length()) == UTF8_BOM)
+            {
+                return chunk.substr(UTF8_BOM.length());
+            }
+        }
+        return chunk;
+    }
+
+    std::ifstream FileReader::openFileForReading(const std::string& filePath) const
+    {
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open())
+        {
+            throw errors::FileException("Cannot open file: " + filePath);
+        }
+        return file;
     }
 }
