@@ -232,6 +232,16 @@ namespace vm::compiler::visitors
                         ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
                         return;
                     }
+
+                    // Check if it's a static field of the current class
+                    const auto& staticFields = classDef->getStaticFields();
+                    if (staticFields.find(name) != staticFields.end()) {
+                        // It's a static field - use fully qualified name: ClassName::fieldName
+                        std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + name;
+                        size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                        return;
+                    }
                 }
             }
         }

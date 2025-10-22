@@ -157,15 +157,6 @@ namespace environment
         return interfaceRegistry->findInterface(name);
     }
 
-    void Environment::clearInterfaces()
-    {
-        if (interfaceRegistry)
-        {
-            interfaceRegistry->clearValidationCache();
-            interfaceRegistry->clear();
-        }
-    }
-
     bool Environment::removeInterface(const std::string& name)
     {
         if (!interfaceRegistry) return false;
@@ -331,36 +322,5 @@ namespace environment
     circularDependency::CircularDependencyConfig Environment::getImportDependencyConfig() const
     {
         return importDependencyDetector->getConfig();
-    }
-
-    void Environment::pushEvaluationImport(const std::string& filePath)
-    {
-        evaluationImportStack.push(filePath);
-    }
-
-    void Environment::popEvaluationImport()
-    {
-        if (!evaluationImportStack.empty())
-        {
-            evaluationImportStack.pop();
-        }
-    }
-
-    std::string Environment::getCircularImportChain(const std::string& filePath)
-    {
-        std::string chain = filePath;
-        std::stack<std::string> tempStack = evaluationImportStack;
-
-        while (!tempStack.empty())
-        {
-            chain = tempStack.top() + " -> " + chain;
-            if (tempStack.top() == filePath)
-            {
-                break; // Found the cycle
-            }
-            tempStack.pop();
-        }
-
-        return chain;
     }
 }

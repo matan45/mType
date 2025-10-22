@@ -23,7 +23,7 @@ function <T> getBoxValue(Box<T> box): T {
 
 // Test functions
 Box<Int> intBox = createBox<Int>(new Int(100));
-print(getBoxValue<Int>(intBox));
+print(getBoxValue<Int>(intBox).toString());
 
 Box<String> strBox = createBox<String>(new String("boxed"));
-print(getBoxValue<String>(strBox));
+print(getBoxValue<String>(strBox).toString());

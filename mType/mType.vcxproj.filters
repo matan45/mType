@@ -34,6 +34,9 @@
     <Filter Include="environment\registry">
       <UniqueIdentifier>{E2D8D606-CE67-60D0-7786-74CB63F47076}</UniqueIdentifier>
     </Filter>
+    <Filter Include="environment\registry\builtin">
+      <UniqueIdentifier>{E8C48042-D47F-70EE-7D37-E93869D1BA7E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="errors">
       <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
     </Filter>
@@ -600,8 +603,35 @@
     <ClInclude Include="environment\registry\FunctionRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\InheritanceTracker.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\NativeRegistry.hpp">
       <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\Registry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\BuiltinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\HashCodeFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ParsePrimitiveFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\PrintFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SqrtFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\StrLengthFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ValuePrinter.hpp">
+      <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="errors\AccessViolationException.hpp">
       <Filter>errors</Filter>
@@ -1559,8 +1589,29 @@
     <ClCompile Include="environment\registry\FunctionRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\InheritanceTracker.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
       <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\HashCodeFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ParsePrimitiveFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\PrintFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SqrtFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\StrLengthFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ValuePrinter.cpp">
+      <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="errors\AccessViolationException.cpp">
       <Filter>errors</Filter>

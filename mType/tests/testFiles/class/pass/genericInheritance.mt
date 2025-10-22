@@ -37,16 +37,16 @@ class Box<T> extends Container<T> {
 
 // Test with String type
 Box<String> stringBox = new Box<String>(new String("Hello World"), new String("Messages"));
-print(stringBox.describe());
-print("Value: " + stringBox.getValue());
-print("Label: " + stringBox.getLabel());
+print(stringBox.describe().toString());
+print("Value: " + stringBox.getValue().toString());
+print("Label: " + stringBox.getLabel().toString());
 
 // Test with int type
 Box<Int> intBox = new Box<Int>(new Int(42), new String("Numbers"));
-print(intBox.describe());
-print("Value: " + intBox.getValue());
-print("Label: " + intBox.getLabel());
+print(intBox.describe().toString());
+print("Value: " + intBox.getValue().toString());
+print("Label: " + intBox.getLabel().toString());
 
 // Test setValue from parent
 stringBox.setValue(new String("New Message"));
-print("Updated: " + stringBox.getValue());
+print("Updated: " + stringBox.getValue().toString());

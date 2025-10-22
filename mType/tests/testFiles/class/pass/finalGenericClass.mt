@@ -20,10 +20,10 @@ final class FinalBox<T> {
 
 // Can create instances of final generic class
 FinalBox<Int> intBox = new FinalBox<Int>(new Int(42));
-print(intBox.getValue());
+print(intBox.getValue().toString());
 
 FinalBox<String> strBox = new FinalBox<String>(new String("Hello"));
-print(strBox.getValue());
+print(strBox.getValue().toString());
 
 strBox.setValue(new String("World"));
-print(strBox.getValue());
+print(strBox.getValue().toString());
