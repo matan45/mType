@@ -14,6 +14,9 @@ namespace environment::manager
         std::shared_ptr<Scope> currentScope;
         std::stack<std::shared_ptr<Scope>> scopeStack;
 
+        // Helper method to check if currently in a specific scope type
+        bool isInScopeType(ScopeType targetType) const;
+
     public:
        explicit  ScopeManager();
         ~ScopeManager() = default;
@@ -44,9 +47,6 @@ namespace environment::manager
         bool isInFunction() const;
         bool isInLoop() const;
         std::string getFunctionScopeName() const;
-        
-        void pushScope(std::shared_ptr<Scope> scope);
-        std::shared_ptr<Scope> popScope();
     };
 }
 

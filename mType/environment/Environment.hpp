@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <stack>
 
 // Forward declaration for clean architecture
 namespace services
@@ -48,9 +47,6 @@ namespace environment
 
         // Enhanced circular dependency detection for imports
         std::shared_ptr<circularDependency::CircularDependencyDetector> importDependencyDetector;
-
-        // Legacy import stack for backward compatibility (can be removed after migration)
-        std::stack<std::string> evaluationImportStack;
 
     public:
         explicit Environment(
@@ -88,11 +84,6 @@ namespace environment
         void setImportDependencyConfig(const circularDependency::CircularDependencyConfig& config);
         circularDependency::CircularDependencyConfig getImportDependencyConfig() const;
 
-        // Legacy methods for backward compatibility (deprecated)
-        void pushEvaluationImport(const std::string& filePath);
-        void popEvaluationImport();
-        std::string getCircularImportChain(const std::string& filePath);
-
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);
         void declareVariable(const std::string& varName, std::shared_ptr<VariableDefinition> variable);
@@ -104,7 +95,6 @@ namespace environment
         std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> findInterface(const std::string& name) const;
 
         // Interface registry cleanup methods
-        void clearInterfaces();
         bool removeInterface(const std::string& name);
         size_t cleanupUnusedInterfaces();
         std::vector<std::string> findUnusedInterfaces() const;

@@ -50,13 +50,35 @@ namespace vm::compiler::visitors
         if (op == token::TokenType::INCREMENT || op == token::TokenType::DECREMENT) {
             if (auto* varNode = dynamic_cast<ast::VariableNode*>(node->getOperand())) {
                 std::string varName = varNode->getName();
-                size_t localSlot = ctx.variableTracker.resolveLocal(varName,
+
+                // Check if it's a qualified static field (ClassName::fieldName)
+                bool isQualifiedStatic = (varName.find("::") != std::string::npos);
+
+                // Check if it's a static field of current class
+                bool isStaticField = false;
+                if (!isQualifiedStatic && ctx.currentClassNode) {
+                    for (const auto& field : ctx.currentClassNode->getFields()) {
+                        if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
+                            if (fieldNode->getName() == varName && fieldNode->getIsStatic()) {
+                                isStaticField = true;
+                                varName = ctx.currentClassNode->getClassName() + "::" + varName;
+                                isQualifiedStatic = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                size_t localSlot = ctx.variableTracker.resolveLocal(varNode->getName(),
                     ctx.functionFrameManager.isInFunction() ?
                     ctx.functionFrameManager.currentFrame().localStartSlot : 0);
                 bool isLocal = (localSlot != SIZE_MAX);
 
                 // Load current value
-                if (isLocal) {
+                if (isQualifiedStatic) {
+                    size_t nameIndex = ctx.program.getConstantPool().addString(varName);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                } else if (isLocal) {
                     ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
                 } else {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
@@ -68,11 +90,14 @@ namespace vm::compiler::visitors
                 ctx.program.emit(opcode);
 
                 // Store back
-                if (isLocal) {
+                if (isQualifiedStatic) {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                } else if (isLocal) {
+                    size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
                     ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), static_cast<uint32_t>(nameIndex));
                 } else {
-                    size_t nameIndex = ctx.program.getConstantPool().addString(varName);
+                    size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
                     ctx.program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
                 }
 

@@ -3,11 +3,17 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <memory>
 #include "../../value/ValueType.hpp"
 
 namespace runtimeTypes::klass
 {
     class ObjectInstance;
+}
+
+namespace environment::registry::builtin
+{
+    class BuiltinFunction;
 }
 
 namespace environment::registry
@@ -21,11 +27,12 @@ namespace environment::registry
     {
     private:
         std::unordered_map<std::string, NativeFunction> nativeFunctions;
+        std::vector<std::unique_ptr<builtin::BuiltinFunction>> builtinFunctions;
         MethodCallHandler methodCallHandler;
 
     public:
-        explicit NativeRegistry() = default;
-        ~NativeRegistry() = default;
+        explicit NativeRegistry();
+        ~NativeRegistry();
 
         void initialize();
         void cleanup();
@@ -41,6 +48,7 @@ namespace environment::registry
 
     private:
         void registerBuiltinFunctions();
+        void registerBuiltinFunction(std::unique_ptr<builtin::BuiltinFunction> function);
     };
 }
 

@@ -12,7 +12,7 @@ class Box<T> extends Container<T> {
 
 Box<Int> intBox = new Box<Int>(new Int(42));
 Container<Int> container = (Container<Int>)intBox;  // Upcast generic class
-print(container.getValue());
+print(container.getValue().toString());
 
 // Expected output:
 // 42

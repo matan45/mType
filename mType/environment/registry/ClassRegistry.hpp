@@ -1,6 +1,7 @@
 ﻿#pragma once
+#include "Registry.hpp"
+#include "InheritanceTracker.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
-#include <unordered_map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -9,47 +10,35 @@ namespace environment::registry
 {
     using namespace runtimeTypes::klass;
 
-    class ClassRegistry
+    /**
+     * @brief Registry for class definitions with inheritance tracking
+     *
+     * Manages class definitions and delegates inheritance relationship
+     * management to InheritanceTracker for better separation of concerns.
+     */
+    class ClassRegistry : public Registry<ClassDefinition>
     {
     private:
-        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classes;
-
-        // NEW: Inheritance relationship tracking
-        std::unordered_map<std::string, std::vector<std::string>> parentToChildren; // Parent -> List of children
-        std::unordered_map<std::string, std::string> childToParent; // Child -> Parent
-
-        // Memoization cache for inheritance chains
-        mutable std::unordered_map<std::string, std::vector<std::shared_ptr<ClassDefinition>>> inheritanceChainCache;
+        std::unique_ptr<InheritanceTracker> inheritanceTracker;
 
     public:
-        explicit ClassRegistry() = default;
+        ClassRegistry();
         ~ClassRegistry() = default;
 
-        void registerItem(const std::string& name, std::shared_ptr<ClassDefinition> item);
-        std::shared_ptr<ClassDefinition> findItem(const std::string& name) const;
-        bool hasItem(const std::string& name) const;
-        void removeItem(const std::string& name);
-        std::vector<std::string> getAllItemNames() const;
-        size_t getItemCount() const;
-        
-        std::string getComponentName() const;
-        
+        // Override removeItem to handle cache invalidation
+        void removeItem(const std::string& name) override;
+
+        std::string getComponentName() const override;
+
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         std::shared_ptr<ClassDefinition> findClass(const std::string& name) const;
         bool hasClass(const std::string& name) const;
 
-        // NEW: Inheritance relationship management
+        // Inheritance relationship management (delegated to InheritanceTracker)
         void registerInheritance(const std::string& childName, const std::string& parentName);
         [[nodiscard]] bool wouldCreateCycle(const std::string& childName, const std::string& parentName) const;
         [[nodiscard]] std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain(const std::string& className) const;
         [[nodiscard]] std::vector<std::string> getChildClasses(const std::string& parentName) const;
         [[nodiscard]] std::string getParentClass(const std::string& childName) const;
-
-    private:
-        // Helper method for cycle detection
-        bool wouldCreateCycleHelper(const std::string& current, const std::string& target,
-                                    std::unordered_set<std::string>& visited, int depth) const;
-
-        static constexpr int MAX_INHERITANCE_DEPTH = 20;
     };
 }

@@ -129,49 +129,38 @@ namespace environment::manager
         return globalScope ? globalScope->findScope(scopeName) : nullptr;
     }
 
-    bool ScopeManager::isInClass() const
+    bool ScopeManager::isInScopeType(ScopeType targetType) const
     {
         if (!currentScope) return false;
-        
+
         auto scope = currentScope;
         while (scope)
         {
-            if (scope->getType() == ScopeType::CLASS) return true;
+            if (scope->getType() == targetType) return true;
             scope = scope->getParent();
         }
         return false;
+    }
+
+    bool ScopeManager::isInClass() const
+    {
+        return isInScopeType(ScopeType::CLASS);
     }
 
     bool ScopeManager::isInFunction() const
     {
-        if (!currentScope) return false;
-        
-        auto scope = currentScope;
-        while (scope)
-        {
-            if (scope->getType() == ScopeType::FUNCTION) return true;
-            scope = scope->getParent();
-        }
-        return false;
+        return isInScopeType(ScopeType::FUNCTION);
     }
 
     bool ScopeManager::isInLoop() const
     {
-        if (!currentScope) return false;
-        
-        auto scope = currentScope;
-        while (scope)
-        {
-            if (scope->getType() == ScopeType::LOOP) return true;
-            scope = scope->getParent();
-        }
-        return false;
+        return isInScopeType(ScopeType::LOOP);
     }
 
     std::string ScopeManager::getFunctionScopeName() const
     {
         if (!currentScope) return "";
-        
+
         auto scope = currentScope;
         while (scope)
         {
@@ -179,31 +168,5 @@ namespace environment::manager
             scope = scope->getParent();
         }
         return "";
-    }
-
-    void ScopeManager::pushScope(std::shared_ptr<Scope> scope)
-    {
-        if (scope)
-        {
-            scopeStack.push(currentScope);
-            currentScope = scope;
-        }
-    }
-
-    std::shared_ptr<Scope> ScopeManager::popScope()
-    {
-        auto previousScope = currentScope;
-        
-        if (!scopeStack.empty())
-        {
-            currentScope = scopeStack.top();
-            scopeStack.pop();
-        }
-        else
-        {
-            currentScope = globalScope;
-        }
-        
-        return previousScope;
     }
 }
