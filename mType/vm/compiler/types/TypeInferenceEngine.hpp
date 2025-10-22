@@ -44,5 +44,20 @@ namespace vm::compiler::types
 
         // Helper to resolve generic types
         std::string resolveGenericType(const std::string& typeName) const;
+
+        // Helper methods for inferExpressionType
+        value::ValueType inferLiteralType(ast::ASTNode* node) const;
+        value::ValueType inferVariableType(ast::VariableNode* varNode) const;
+        value::ValueType inferFunctionCallType(ast::FunctionCallNode* funcCall) const;
+        value::ValueType inferUnaryOperationType(ast::UnaryOpNode* unaryOp) const;
+        value::ValueType inferCastType(ast::CastExpression* castExpr) const;
+        value::ValueType inferMemberAccessType(ast::MemberAccessNode* memberAccess) const;
+        value::ValueType inferMethodCallType(ast::MethodCallNode* methodCall) const;
+        value::ValueType inferBinaryOperationType(ast::BinaryOpNode* binOp) const;
+
+        // Helper methods for inferExpressionClassName
+        std::string inferCastClassName(ast::CastExpression* castExpr) const;
+        std::string inferVariableClassName(ast::VariableNode* varNode) const;
+        std::string inferFunctionCallClassName(ast::FunctionCallNode* funcCall) const;
     };
 }

@@ -1,0 +1,416 @@
+#include "ObjectInstanceHelper.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
+#include "../../../errors/RuntimeException.hpp"
+#include "../../../errors/TypeException.hpp"
+#include "../../../types/TypeRegistry.hpp"
+#include <algorithm>
+
+namespace vm::runtime
+{
+    ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx)
+        : context(ctx)
+    {
+    }
+
+    std::string ObjectInstanceHelper::parseGenericTypeArguments(const std::string& fullClassName,
+                                                               std::unordered_map<std::string, std::string>& genericTypeBindings)
+    {
+        std::string baseClassName = fullClassName;
+        size_t genericStart = fullClassName.find('<');
+
+        if (genericStart == std::string::npos) {
+            return baseClassName;
+        }
+
+        baseClassName = fullClassName.substr(0, genericStart);
+        size_t genericEnd = fullClassName.rfind('>');
+        if (genericEnd == std::string::npos || genericEnd <= genericStart) {
+            return baseClassName;
+        }
+
+        std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
+
+        // Parse type arguments
+        std::vector<std::string> typeArgs;
+        size_t start = 0;
+        size_t commaPos;
+        while ((commaPos = typeArgsStr.find(',', start)) != std::string::npos) {
+            std::string typeArg = typeArgsStr.substr(start, commaPos - start);
+            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+            typeArgs.push_back(typeArg);
+            start = commaPos + 1;
+        }
+
+        if (start < typeArgsStr.length()) {
+            std::string typeArg = typeArgsStr.substr(start);
+            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+            typeArgs.push_back(typeArg);
+        }
+
+        // Validate type arguments
+        auto& typeRegistry = types::getGlobalTypeRegistry();
+        for (const auto& typeArg : typeArgs) {
+            if (typeArg.empty()) {
+                throw errors::TypeException("Invalid empty type argument for generic class '" + baseClassName + "'");
+            }
+
+            if (typeArg == "void" && baseClassName == "Promise") {
+                continue;
+            }
+
+            if (typeRegistry.isPrimitiveType(typeArg)) {
+                throw errors::TypeException(
+                    "Generic type arguments must be object types (classes/interfaces) or generic parameters. "
+                    "Primitive type '" + typeArg + "' is not allowed as a generic argument for class '" + baseClassName + "'.");
+            }
+        }
+
+        return baseClassName;
+    }
+
+    std::vector<value::Value> ObjectInstanceHelper::prepareConstructorArguments(size_t argCount)
+    {
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+        return args;
+    }
+
+    std::shared_ptr<runtimeTypes::klass::ObjectInstance> ObjectInstanceHelper::createObjectInstance(
+        const std::string& baseClassName,
+        const std::unordered_map<std::string, std::string>& genericTypeBindings)
+    {
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available");
+        }
+
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class not found: " + baseClassName);
+        }
+
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
+        initializeObjectFields(instance, classDef);
+
+        return instance;
+    }
+
+    void ObjectInstanceHelper::initializeObjectFields(
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
+    {
+        std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
+        auto current = classDef;
+        int depth = 0;
+        while (current) {
+            if (depth++ > 100) {
+                throw errors::RuntimeException("Circular inheritance detected in class hierarchy");
+            }
+            hierarchy.insert(hierarchy.begin(), current);
+            current = current->getParentClass();
+        }
+
+        for (const auto& classInHierarchy : hierarchy) {
+            for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
+                value::Value initialValue = fieldDef->getValue();
+                if (std::holds_alternative<std::monostate>(initialValue)) {
+                    switch (fieldDef->getType()) {
+                        case value::ValueType::INT:
+                            initialValue = 0;
+                            break;
+                        case value::ValueType::FLOAT:
+                            initialValue = 0.0f;
+                            break;
+                        case value::ValueType::BOOL:
+                            initialValue = false;
+                            break;
+                        case value::ValueType::STRING:
+                            initialValue = std::string("");
+                            break;
+                        default:
+                            initialValue = std::monostate{};
+                            break;
+                    }
+                }
+                instance->setField(fieldName, initialValue);
+            }
+        }
+    }
+
+    void ObjectInstanceHelper::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Operand[0] is classNameIndex, Operand[1] is argCount
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
+        }
+
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_CONSTRUCTOR can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // IMPORTANT: Use the current class name from the operand, NOT the instance's class!
+        // The instance might be a subclass (e.g., Dog), but we're in the Mammal constructor
+        // and need to call Mammal's parent (Animal), not Dog's parent (Mammal).
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        std::string parentClassName = classDef->getParentClassName();
+        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+        if (!parentClass) {
+            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+        }
+
+        auto parentConstructor = parentClass->findConstructor(argCount);
+        if (!parentConstructor) {
+            throw errors::RuntimeException("No constructor found in parent class " + parentClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
+        auto funcMetadata = context.program->getFunction(constructorName);
+        if (funcMetadata) {
+            size_t frameBase = context.stackManager->size();
+
+            context.stackManager->push(instance);
+
+            for (size_t i = 0; i < argCount; ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            CallFrame frame;
+            frame.returnAddress = context.instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = "<init>";
+            frame.thisInstance = instance;
+
+            context.callStack.push_back(frame);
+            context.stats.functionCalls++;
+
+            context.instructionPointer = funcMetadata->startOffset - 1;
+        } else {
+            throw errors::RuntimeException("Parent constructor '" + constructorName + "' has no bytecode.");
+        }
+    }
+
+    void ObjectInstanceHelper::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Compiler emits: (classNameIndex, methodNameIndex, argCount)
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = method name
+        // operand[2] = argument count
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& methodName = context.program->getConstantPool().getString(instr.operands[1]);
+        size_t argCount = instr.operands[2];
+
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_INVOKE can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // IMPORTANT: Use currentClassName from operand, NOT instance->getClassDefinition()
+        // This prevents infinite recursion in multi-level inheritance
+        // (e.g., AdvancedService -> DerivedService -> BaseService)
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        std::string parentClassName = classDef->getParentClassName();
+        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+        if (!parentClass) {
+            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+        }
+
+        auto method = parentClass->findMethod(methodName, argCount);
+        if (!method) {
+            throw errors::RuntimeException("Method not found in parent class " + parentClassName + ": " + methodName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        std::string qualifiedName = parentClassName + "::" + methodName;
+        auto funcMetadata = context.program->getFunction(qualifiedName);
+        if (funcMetadata) {
+            size_t frameBase = context.stackManager->size();
+
+            context.stackManager->push(instance);
+
+            for (size_t i = 0; i < argCount; ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            CallFrame frame;
+            frame.returnAddress = context.instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = qualifiedName;
+            frame.thisInstance = instance;
+
+            context.callStack.push_back(frame);
+            context.stats.functionCalls++;
+
+            context.instructionPointer = funcMetadata->startOffset - 1;
+        } else {
+            throw errors::RuntimeException("Parent method '" + qualifiedName + "' has no bytecode.");
+        }
+    }
+
+    void ObjectInstanceHelper::invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                                const std::string& baseClassName,
+                                                const std::vector<value::Value>& args)
+    {
+        size_t argCount = args.size();
+        auto classRegistry = context.environment->getClassRegistry();
+        auto classDef = classRegistry->findClass(baseClassName);
+
+        auto constructor = classDef->findConstructor(argCount);
+        if (!constructor) {
+            bool hasAnyConstructor = !classDef->getConstructors().empty();
+
+            if (argCount == 0 && !hasAnyConstructor) {
+                context.stackManager->push(instance);
+                return;
+            }
+
+            throw errors::RuntimeException("No constructor found for " + baseClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        auto accessContext = createAccessContext(baseClassName, false);
+        validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
+
+        std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
+        auto funcMetadata = context.program->getFunction(constructorName);
+        if (!funcMetadata) {
+            throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName +
+                                         "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
+        }
+
+        CallFrame frame;
+        frame.returnAddress = context.instructionPointer;
+        frame.frameBase = context.stackManager->size();
+        frame.localBase = context.stackManager->size();
+        frame.functionName = "<init>";
+        frame.thisInstance = instance;
+
+        context.callStack.push_back(frame);
+        context.stats.functionCalls++;
+
+        context.stackManager->push(instance);
+        for (size_t i = 0; i < argCount; ++i) {
+            context.stackManager->push(args[i]);
+        }
+
+        context.instructionPointer = funcMetadata->startOffset - 1;
+    }
+
+    void ObjectInstanceHelper::handleNewObject(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("NEW_OBJECT requires 2 operands: class name index and arg count");
+        }
+
+        const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        // Parse generic type arguments and extract base class name
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = parseGenericTypeArguments(fullClassName, genericTypeBindings);
+
+        // Prepare constructor arguments from stack
+        std::vector<value::Value> args = prepareConstructorArguments(argCount);
+
+        // Create object instance and initialize fields
+        auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+
+        // Invoke constructor
+        invokeConstructor(instance, baseClassName, args);
+    }
+
+    std::string ObjectInstanceHelper::getCurrentClassName() {
+        if (!context.callStack.empty()) {
+            if (context.callStack.back().thisInstance) {
+                return context.callStack.back().thisInstance->getClassDefinition()->getName();
+            } else {
+                const std::string& funcName = context.callStack.back().functionName;
+                size_t colonPos = funcName.find("::");
+                if (colonPos != std::string::npos) {
+                    std::string className = funcName.substr(0, colonPos);
+                    return className;
+                }
+            }
+        }
+        return "";
+    }
+
+    bool ObjectInstanceHelper::isSubclass(const std::string& derivedClass, const std::string& baseClass) {
+        if (derivedClass.empty()) return false;
+        auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
+        while (currentClass && currentClass->hasParentClass()) {
+            if (currentClass->getParentClassName() == baseClass) {
+                return true;
+            }
+            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+            currentClass = parentClass;
+        }
+        return false;
+    }
+
+    validation::AccessContext ObjectInstanceHelper::createAccessContext(
+        const std::string& targetClassName,
+        bool isSetter)
+    {
+        std::string currentClassName = getCurrentClassName();
+        bool isSameClass = (currentClassName == targetClassName);
+        bool isSubclassCheck = isSubclass(currentClassName, targetClassName);
+
+        // Special case: Static field initialization (SET operations) happens in global scope
+        // Allow SET during static initialization
+        if (currentClassName.empty() && context.callStack.empty() && isSetter) {
+            // Allow initialization by treating it as same class access
+            isSameClass = true;
+        }
+
+        return validation::AccessContext(
+            currentClassName,
+            targetClassName,
+            isSameClass,
+            isSubclassCheck,
+            isSetter,
+            errors::SourceLocation()
+        );
+    }
+}

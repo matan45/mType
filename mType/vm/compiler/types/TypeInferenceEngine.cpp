@@ -30,11 +30,8 @@ namespace vm::compiler::types
     {
     }
 
-    value::ValueType TypeInferenceEngine::inferExpressionType(ast::ASTNode* node) const
+    value::ValueType TypeInferenceEngine::inferLiteralType(ast::ASTNode* node) const
     {
-        if (!node) return value::ValueType::VOID;
-
-        // Literal types
         if (dynamic_cast<ast::IntegerNode*>(node)) return value::ValueType::INT;
         if (dynamic_cast<ast::FloatNode*>(node)) return value::ValueType::FLOAT;
         if (dynamic_cast<ast::StringNode*>(node)) return value::ValueType::STRING;
@@ -42,157 +39,282 @@ namespace vm::compiler::types
         if (dynamic_cast<ast::NullNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::NewNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::LambdaNode*>(node)) return value::ValueType::OBJECT;
+        return value::ValueType::VOID;
+    }
 
-        // Variable references
-        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node)) {
-            std::string varName = varNode->getName();
+    value::ValueType TypeInferenceEngine::inferVariableType(ast::VariableNode* varNode) const
+    {
+        std::string varName = varNode->getName();
 
-            // Check locals
-            const auto& locals = variableTracker.getLocals();
-            for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
-                if (it->name == varName) {
-                    return it->type;
-                }
+        // Check locals
+        const auto& locals = variableTracker.getLocals();
+        for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+            if (it->name == varName) {
+                return it->type;
             }
-
-            // Check globals
-            if (globalRegistry.exists(varName)) {
-                return globalRegistry.getType(varName);
-            }
-
-            return value::ValueType::VOID;
         }
 
-        // Function calls
-        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
-            const auto* funcMetadata = program.getFunction(funcCall->getFunctionName());
+        // Check globals
+        if (globalRegistry.exists(varName)) {
+            return globalRegistry.getType(varName);
+        }
+
+        return value::ValueType::VOID;
+    }
+
+    value::ValueType TypeInferenceEngine::inferFunctionCallType(ast::FunctionCallNode* funcCall) const
+    {
+        const auto* funcMetadata = program.getFunction(funcCall->getFunctionName());
+        if (funcMetadata && !funcMetadata->returnType.empty()) {
+            if (funcMetadata->returnType == "int") return value::ValueType::INT;
+            if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
+            if (funcMetadata->returnType == "string") return value::ValueType::STRING;
+            if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+            return value::ValueType::OBJECT;
+        }
+        return value::ValueType::VOID;
+    }
+
+    value::ValueType TypeInferenceEngine::inferUnaryOperationType(ast::UnaryOpNode* unaryOp) const
+    {
+        auto operandType = inferExpressionType(unaryOp->getOperand());
+        auto op = unaryOp->getOperator();
+
+        // Unary minus and plus preserve numeric type
+        if (op == token::TokenType::MINUS || op == token::TokenType::PLUS) {
+            if (operandType == value::ValueType::INT || operandType == value::ValueType::FLOAT) {
+                return operandType;
+            }
+        }
+
+        // Logical NOT returns bool
+        if (op == token::TokenType::NOT) {
+            return value::ValueType::BOOL;
+        }
+
+        return operandType;
+    }
+
+    value::ValueType TypeInferenceEngine::inferCastType(ast::CastExpression* castExpr) const
+    {
+        const auto* targetType = castExpr->getTargetType();
+        if (targetType) {
+            std::string targetTypeName = targetType->toString();
+            if (targetTypeName == "int") return value::ValueType::INT;
+            if (targetTypeName == "float") return value::ValueType::FLOAT;
+            if (targetTypeName == "string") return value::ValueType::STRING;
+            if (targetTypeName == "bool") return value::ValueType::BOOL;
+            return value::ValueType::OBJECT;
+        }
+        return value::ValueType::VOID;
+    }
+
+    value::ValueType TypeInferenceEngine::inferMemberAccessType(ast::MemberAccessNode* memberAccess) const
+    {
+        // Get the object's class name
+        std::string className = inferExpressionClassName(memberAccess->getObject());
+        if (!className.empty()) {
+            // Look up the class definition
+            auto classDef = environment->findClass(className);
+            if (classDef) {
+                std::string memberName = memberAccess->getMemberName();
+
+                // Check if it's a field
+                auto field = classDef->getField(memberName);
+                if (field) {
+                    return field->getType();
+                }
+
+                // Check if it's a method
+                auto method = classDef->getMethod(memberName);
+                if (method) {
+                    return method->getReturnType();
+                }
+            }
+        }
+        return value::ValueType::VOID;
+    }
+
+    value::ValueType TypeInferenceEngine::inferMethodCallType(ast::MethodCallNode* methodCall) const
+    {
+        // Get the object's class name
+        std::string className = inferExpressionClassName(methodCall->getObject());
+        if (!className.empty()) {
+            // Construct the fully qualified method name (ClassName::methodName)
+            std::string methodName = className + "::" + methodCall->getMethodName();
+
+            // Look up the method in the bytecode program's function registry
+            const auto* funcMetadata = program.getFunction(methodName);
             if (funcMetadata && !funcMetadata->returnType.empty()) {
                 if (funcMetadata->returnType == "int") return value::ValueType::INT;
                 if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
                 if (funcMetadata->returnType == "string") return value::ValueType::STRING;
                 if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+                if (funcMetadata->returnType == "void") return value::ValueType::VOID;
                 return value::ValueType::OBJECT;
             }
         }
+        return value::ValueType::VOID;
+    }
 
-        // Unary operations
-        if (auto* unaryOp = dynamic_cast<ast::UnaryOpNode*>(node)) {
-            auto operandType = inferExpressionType(unaryOp->getOperand());
-            auto op = unaryOp->getOperator();
+    value::ValueType TypeInferenceEngine::inferBinaryOperationType(ast::BinaryOpNode* binOp) const
+    {
+        auto leftType = inferExpressionType(binOp->getLeft());
+        auto rightType = inferExpressionType(binOp->getRight());
+        auto op = binOp->getOperator();
 
-            // Unary minus and plus preserve numeric type
-            if (op == token::TokenType::MINUS || op == token::TokenType::PLUS) {
-                if (operandType == value::ValueType::INT || operandType == value::ValueType::FLOAT) {
-                    return operandType;
-                }
-            }
-
-            // Logical NOT returns bool
-            if (op == token::TokenType::NOT) {
-                return value::ValueType::BOOL;
-            }
-
-            return operandType;
+        // String concatenation with + always results in string
+        if (op == token::TokenType::PLUS &&
+            (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
+            return value::ValueType::STRING;
         }
 
-        // Cast expressions
-        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node)) {
-            const auto* targetType = castExpr->getTargetType();
-            if (targetType) {
-                std::string targetTypeName = targetType->toString();
-                if (targetTypeName == "int") return value::ValueType::INT;
-                if (targetTypeName == "float") return value::ValueType::FLOAT;
-                if (targetTypeName == "string") return value::ValueType::STRING;
-                if (targetTypeName == "bool") return value::ValueType::BOOL;
-                return value::ValueType::OBJECT;
+        // Arithmetic operations on int/float
+        if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+            op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE) {
+            if (leftType == value::ValueType::FLOAT || rightType == value::ValueType::FLOAT) {
+                return value::ValueType::FLOAT;
+            }
+            if (leftType == value::ValueType::INT && rightType == value::ValueType::INT) {
+                return value::ValueType::INT;
             }
         }
 
-        // Member access (e.g., obj.field or obj.method())
-        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node)) {
-            // Get the object's class name
-            std::string className = inferExpressionClassName(memberAccess->getObject());
-            if (!className.empty()) {
-                // Look up the class definition
-                auto classDef = environment->findClass(className);
-                if (classDef) {
-                    std::string memberName = memberAccess->getMemberName();
-
-                    // Check if it's a field
-                    auto field = classDef->getField(memberName);
-                    if (field) {
-                        // Return the field's ValueType directly
-                        return field->getType();
-                    }
-
-                    // Check if it's a method (returns OBJECT for method references)
-                    auto method = classDef->getMethod(memberName);
-                    if (method) {
-                        // Return the method's return type directly
-                        return method->getReturnType();
-                    }
-                }
-            }
+        // Comparison operations return bool
+        if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
+            op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+            op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
+            return value::ValueType::BOOL;
         }
 
-        // Method calls (e.g., obj.method(args))
-        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node)) {
-            // Get the object's class name
-            std::string className = inferExpressionClassName(methodCall->getObject());
-            if (!className.empty()) {
-                // Construct the fully qualified method name (ClassName::methodName)
-                std::string methodName = className + "::" + methodCall->getMethodName();
-
-                // Look up the method in the bytecode program's function registry
-                const auto* funcMetadata = program.getFunction(methodName);
-                if (funcMetadata && !funcMetadata->returnType.empty()) {
-                    if (funcMetadata->returnType == "int") return value::ValueType::INT;
-                    if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
-                    if (funcMetadata->returnType == "string") return value::ValueType::STRING;
-                    if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
-                    if (funcMetadata->returnType == "void") return value::ValueType::VOID;
-                    return value::ValueType::OBJECT;
-                }
-            }
-        }
-
-        // Binary operations
-        if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
-            auto leftType = inferExpressionType(binOp->getLeft());
-            auto rightType = inferExpressionType(binOp->getRight());
-            auto op = binOp->getOperator();
-
-            // String concatenation with + always results in string
-            if (op == token::TokenType::PLUS &&
-                (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
-                return value::ValueType::STRING;
-            }
-
-            // Arithmetic operations on int/float
-            if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
-                op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE) {
-                if (leftType == value::ValueType::FLOAT || rightType == value::ValueType::FLOAT) {
-                    return value::ValueType::FLOAT;
-                }
-                if (leftType == value::ValueType::INT && rightType == value::ValueType::INT) {
-                    return value::ValueType::INT;
-                }
-            }
-
-            // Comparison operations return bool
-            if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
-                op == token::TokenType::LESS || op == token::TokenType::GREATER ||
-                op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
-                return value::ValueType::BOOL;
-            }
-
-            // Logical operations return bool
-            if (op == token::TokenType::AND || op == token::TokenType::OR) {
-                return value::ValueType::BOOL;
-            }
+        // Logical operations return bool
+        if (op == token::TokenType::AND || op == token::TokenType::OR) {
+            return value::ValueType::BOOL;
         }
 
         return value::ValueType::VOID;
+    }
+
+    value::ValueType TypeInferenceEngine::inferExpressionType(ast::ASTNode* node) const
+    {
+        if (!node) return value::ValueType::VOID;
+
+        // Try to infer literal types first (most common case)
+        value::ValueType literalType = inferLiteralType(node);
+        if (literalType != value::ValueType::VOID) {
+            return literalType;
+        }
+
+        // Delegate to specialized helpers based on node type
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node)) {
+            return inferVariableType(varNode);
+        }
+
+        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
+            return inferFunctionCallType(funcCall);
+        }
+
+        if (auto* unaryOp = dynamic_cast<ast::UnaryOpNode*>(node)) {
+            return inferUnaryOperationType(unaryOp);
+        }
+
+        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node)) {
+            return inferCastType(castExpr);
+        }
+
+        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node)) {
+            return inferMemberAccessType(memberAccess);
+        }
+
+        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node)) {
+            return inferMethodCallType(methodCall);
+        }
+
+        if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
+            return inferBinaryOperationType(binOp);
+        }
+
+        return value::ValueType::VOID;
+    }
+
+    std::string TypeInferenceEngine::inferCastClassName(ast::CastExpression* castExpr) const
+    {
+        const auto* targetType = castExpr->getTargetType();
+        if (targetType) {
+            std::string targetTypeName = targetType->toString();
+            // Only return class name if it's not a primitive type
+            if (targetTypeName != "int" && targetTypeName != "float" &&
+                targetTypeName != "string" && targetTypeName != "bool" &&
+                targetTypeName != "void") {
+                return targetTypeName;
+            }
+        }
+        return "";
+    }
+
+    std::string TypeInferenceEngine::inferVariableClassName(ast::VariableNode* varNode) const
+    {
+        std::string varName = varNode->getName();
+
+        // Check locals
+        const auto& locals = variableTracker.getLocals();
+        for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+            if (it->name == varName) {
+                return it->className;
+            }
+        }
+
+        // Check globals
+        if (globalRegistry.exists(varName)) {
+            return globalRegistry.getClassName(varName);
+        }
+
+        return "";
+    }
+
+    std::string TypeInferenceEngine::inferFunctionCallClassName(ast::FunctionCallNode* funcCall) const
+    {
+        std::string functionName = funcCall->getFunctionName();
+        const auto* funcMetadata = program.getFunction(functionName);
+
+        // If this is a generic function call, resolve the return type using the provided type arguments
+        if (funcCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
+        {
+            const auto& genericTypeArgs = funcCall->getGenericTypeArguments();
+            const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+            std::string returnType = funcMetadata->returnType;
+
+            // Build temporary bindings for this function call
+            for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+            {
+                if (returnType == genericTypeParams[i])
+                {
+                    // The return type is a generic parameter, substitute it
+                    return genericTypeArgs[i];
+                }
+            }
+        }
+
+        if (funcMetadata && !funcMetadata->returnType.empty()) {
+            // If return type is not a primitive, it's a class name
+            if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
+                funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
+                funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
+                // Resolve generic type if applicable (from context stack)
+                return resolveGenericType(funcMetadata->returnType);
+            }
+        }
+
+        // Also check in the environment for functions
+        auto funcDef = environment->findFunction(functionName);
+        if (funcDef) {
+            std::string returnClassName = funcDef->getReturnClassName();
+            if (!returnClassName.empty()) {
+                // Resolve generic type if applicable
+                return resolveGenericType(returnClassName);
+            }
+        }
+        return "";
     }
 
     std::string TypeInferenceEngine::inferExpressionClassName(ast::ASTNode* node) const
@@ -201,17 +323,7 @@ namespace vm::compiler::types
 
         // Cast expressions
         if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node)) {
-            const auto* targetType = castExpr->getTargetType();
-            if (targetType) {
-                std::string targetTypeName = targetType->toString();
-                // Only return class name if it's not a primitive type
-                if (targetTypeName != "int" && targetTypeName != "float" &&
-                    targetTypeName != "string" && targetTypeName != "bool" &&
-                    targetTypeName != "void") {
-                    return targetTypeName;
-                }
-            }
-            return "";
+            return inferCastClassName(castExpr);
         }
 
         // NewNode
@@ -221,67 +333,12 @@ namespace vm::compiler::types
 
         // Variable references
         if (auto* varNode = dynamic_cast<ast::VariableNode*>(node)) {
-            std::string varName = varNode->getName();
-
-            // Check locals
-            const auto& locals = variableTracker.getLocals();
-            for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
-                if (it->name == varName) {
-                    return it->className;
-                }
-            }
-
-            // Check globals
-            if (globalRegistry.exists(varName)) {
-                return globalRegistry.getClassName(varName);
-            }
-
-            return "";
+            return inferVariableClassName(varNode);
         }
 
         // Function calls
         if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
-            std::string functionName = funcCall->getFunctionName();
-            const auto* funcMetadata = program.getFunction(functionName);
-
-            // If this is a generic function call, resolve the return type using the provided type arguments
-            if (funcCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
-            {
-                const auto& genericTypeArgs = funcCall->getGenericTypeArguments();
-                const auto& genericTypeParams = funcMetadata->genericTypeParameters;
-                std::string returnType = funcMetadata->returnType;
-
-                // Build temporary bindings for this function call
-                for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
-                {
-                    if (returnType == genericTypeParams[i])
-                    {
-                        // The return type is a generic parameter, substitute it
-                        return genericTypeArgs[i];
-                    }
-                }
-            }
-
-            if (funcMetadata && !funcMetadata->returnType.empty()) {
-                // If return type is not a primitive, it's a class name
-                if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
-                    funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
-                    funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
-                    // Resolve generic type if applicable (from context stack)
-                    return resolveGenericType(funcMetadata->returnType);
-                }
-            }
-
-            // Also check in the environment for functions
-            auto funcDef = environment->findFunction(functionName);
-            if (funcDef) {
-                std::string returnClassName = funcDef->getReturnClassName();
-                if (!returnClassName.empty()) {
-                    // Resolve generic type if applicable
-                    return resolveGenericType(returnClassName);
-                }
-            }
-            return "";
+            return inferFunctionCallClassName(funcCall);
         }
 
         return "";

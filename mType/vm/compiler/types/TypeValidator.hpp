@@ -53,5 +53,23 @@ namespace vm::compiler::types
         ) const;
 
         std::string stripGenericParameters(const std::string& typeName) const;
+
+        // Helper methods for validateAssignment
+        std::string normalizeArrayType(const std::string& type) const;
+        bool validatePromiseTypeAssignment(const std::string& varClassName, const std::string& valueClassName) const;
+        void validateObjectTypeAssignment(const std::string& varClassName, const std::string& valueClassName,
+                                          const ast::SourceLocation& location) const;
+        void validatePrimitiveToObjectAssignment(value::ValueType varType, const std::string& varClassName,
+                                                 value::ValueType valueType, const ast::SourceLocation& location) const;
+        void validatePrimitiveTypeAssignment(value::ValueType varType, value::ValueType valueType,
+                                             const ast::SourceLocation& location) const;
+
+        // Helper methods for validateBinaryOperation
+        bool isArithmeticOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op) const;
+        bool isComparisonOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
+                                       bool leftIsNull, bool rightIsNull) const;
+        bool isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const;
+        void throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
+                                       const ast::SourceLocation& location) const;
     };
 }

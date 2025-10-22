@@ -24,6 +24,11 @@ namespace vm::runtime {
     class ExceptionExecutor;
 }
 
+// Forward declarations of utility helpers
+namespace vm::runtime::utils {
+    class ExceptionHandler;
+}
+
 // Forward declaration for event loop
 namespace runtime {
     class EventLoop;
@@ -84,6 +89,9 @@ namespace vm::runtime
         std::unique_ptr<ObjectExecutor> objectExecutor;
         std::unique_ptr<LambdaExecutor> lambdaExecutor;
         std::unique_ptr<ExceptionExecutor> exceptionExecutor;
+
+        // Utility helpers
+        std::unique_ptr<utils::ExceptionHandler> exceptionHandler;
 
     public:
         explicit VirtualMachine(std::shared_ptr<environment::Environment> env);

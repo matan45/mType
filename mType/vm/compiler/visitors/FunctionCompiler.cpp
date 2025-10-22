@@ -1,4 +1,5 @@
 #include "FunctionCompiler.hpp"
+#include "FunctionCallHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -13,6 +14,7 @@ namespace vm::compiler::visitors
 {
     FunctionCompiler::FunctionCompiler(CompilerContext& context)
         : ctx(context)
+        , callHelper(std::make_unique<FunctionCallHelper>(context))
     {
     }
 
@@ -159,483 +161,168 @@ namespace vm::compiler::visitors
 
     value::Value FunctionCompiler::compileFunctionCall(ast::FunctionCallNode* node)
     {
-        // Get function name
-        std::string functionName = node->getFunctionName();
-        const auto& arguments = node->getArguments();
+        return callHelper->compileFunctionCall(node);
+    }
 
-        // Handle generic function calls - set up type bindings
-        bool hasGenericBindings = false;
-        if (node->hasGenericTypeArguments())
-        {
-            const auto* funcMetadata = ctx.program.getFunction(functionName);
-            if (funcMetadata)
-            {
-                // Validate that the function is actually generic
-                if (funcMetadata->genericTypeParameters.empty())
-                {
-                    throw errors::TypeException(
-                        "Function '" + functionName + "' is not generic but generic type arguments were provided",
-                        node->getLocation());
-                }
-
-                const auto& genericTypeArgs = node->getGenericTypeArguments();
-                const auto& genericTypeParams = funcMetadata->genericTypeParameters;
-
-                // Validate that the number of type arguments matches the number of type parameters
-                if (genericTypeArgs.size() != genericTypeParams.size())
-                {
-                    throw errors::TypeException(
-                        "Function '" + functionName + "' expects " +
-                        std::to_string(genericTypeParams.size()) + " type argument(s) but got " +
-                        std::to_string(genericTypeArgs.size()),
-                        node->getLocation());
-                }
-
-                // Build type bindings map
-                std::unordered_map<std::string, std::string> typeBindings;
-                for (size_t i = 0; i < genericTypeParams.size(); ++i)
-                {
-                    typeBindings[genericTypeParams[i]] = genericTypeArgs[i];
-                }
-
-                // Push bindings onto stack
-                ctx.pushGenericTypeBindings(typeBindings);
-                hasGenericBindings = true;
-            }
+    void FunctionCompiler::validateReturnType(ast::ReturnNode* node, ast::ASTNode* returnValue)
+    {
+        if (!ctx.functionFrameManager.isInFunction()) {
+            return; // Not in a function context
         }
 
-        // Validate parameter count and types for non-method calls
-        if (functionName.find("::") == std::string::npos) {
-            // Check if function is registered
-            const auto* funcMetadata = ctx.program.getFunction(functionName);
-            if (funcMetadata) {
-                // Skip all validation for native functions (they handle their own parameter checking at runtime)
-                if (!funcMetadata->isNative) {
-                    if (funcMetadata->parameterCount != arguments.size()) {
-                        throw errors::EnvironmentException(
-                            "Function '" + functionName + "' expects " +
-                            std::to_string(funcMetadata->parameterCount) +
-                            " parameter(s) but got " + std::to_string(arguments.size()),
-                            node->getLocation()
-                        );
-                    }
+        std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
 
-                    // Validate parameter types
-                    if (!funcMetadata->parameterTypes.empty()) {
-                        for (size_t i = 0; i < arguments.size(); ++i) {
-                            std::string expectedType = funcMetadata->parameterTypes[i];
-
-                            // Resolve generic type parameters if present
-                            expectedType = ctx.resolveGenericType(expectedType);
-
-                            value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
-
-                            // Convert argType to string for comparison
-                            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
-
-                            // For object types, need to check class names
-                            if (expectedType != "int" && expectedType != "float" &&
-                                expectedType != "string" && expectedType != "bool" &&
-                                expectedType != "void") {
-                                // Expected type is an object/class
-                                if (argType != value::ValueType::OBJECT) {
-                                    // null can be passed to object types
-                                    if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                        throw errors::TypeException(
-                                            "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                                            " expects " + expectedType + " but got " + argTypeStr,
-                                            node->getLocation()
-                                        );
-                                    }
-                                }
-                                // For objects, check class name compatibility
-                                else if (expectedType != "object") {
-                                    std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-
-                                    // Normalize array types: convert "int[]" to "Array<int>", "int[][]" to "Array<Array<int>>", etc.
-                                    auto normalizeArrayType = [](const std::string& type) -> std::string {
-                                        std::string normalized = type;
-                                        size_t arrayDepth = 0;
-
-                                        // Count array brackets from the end
-                                        while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
-                                            arrayDepth++;
-                                            normalized = normalized.substr(0, normalized.length() - 2);
-                                        }
-
-                                        // Wrap in Array<> for each dimension
-                                        for (size_t i = 0; i < arrayDepth; ++i) {
-                                            normalized = "Array<" + normalized + ">";
-                                        }
-
-                                        return normalized;
-                                    };
-
-                                    std::string normalizedArgClassName = normalizeArrayType(argClassName);
-                                    std::string normalizedExpectedType = normalizeArrayType(expectedType);
-
-                                    if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType) {
-                                        // Check if both are generic types with the same base
-                                        bool isGenericMatch = false;
-                                        size_t expectedAngle = normalizedExpectedType.find('<');
-                                        size_t argAngle = normalizedArgClassName.find('<');
-
-                                        if (expectedAngle != std::string::npos && argAngle != std::string::npos) {
-                                            // Both are generic types - check if base types match
-                                            std::string expectedBase = normalizedExpectedType.substr(0, expectedAngle);
-                                            std::string argBase = normalizedArgClassName.substr(0, argAngle);
-                                            if (expectedBase == argBase) {
-                                                // Same generic base type (e.g., both are List, both are Array)
-                                                // Type argument compatibility will be validated at runtime
-                                                isGenericMatch = true;
-                                            }
-                                        }
-
-                                        if (!isGenericMatch) {
-                                            // null can be passed to any object type
-                                            if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                                throw errors::TypeException(
-                                                    "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                                                    " expects " + expectedType + " but got " + argClassName,
-                                                    node->getLocation()
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            // For primitive types, check exact match (with int->float exception)
-                            else if (expectedType != argTypeStr) {
-                                // Allow int to float conversion
-                                if (!(expectedType == "float" && argTypeStr == "int")) {
-                                    throw errors::TypeException(
-                                        "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                                        " expects " + expectedType + " but got " + argTypeStr,
-                                        node->getLocation()
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        // Skip validation for "auto" return type (type inference)
+        if (expectedReturnType == "auto") {
+            return;
         }
 
-        // Check if this is a static method call (ClassName::methodName)
-        if (functionName.find("::") != std::string::npos) {
-            // Replace "this::" with actual class name if inside a class
-            if (functionName.substr(0, 6) == "this::" && ctx.currentClassNode) {
-                std::string methodName = functionName.substr(6); // Remove "this::"
-                functionName = ctx.currentClassNode->getClassName() + "::" + methodName;
-            }
+        if (returnValue) {
+            // Function has a return value
+            value::ValueType actualType = ctx.typeInference.inferExpressionType(returnValue);
 
-            // Compile all arguments (left to right)
-            for (const auto& arg : arguments) {
-                arg->accept(ctx.visitor);  // Will need delegation
-            }
+            // Convert expected return type string to ValueType
+            value::ValueType expectedType = value::ValueType::VOID;
+            if (expectedReturnType == "int") expectedType = value::ValueType::INT;
+            else if (expectedReturnType == "float") expectedType = value::ValueType::FLOAT;
+            else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
+            else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
+            else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
+            else expectedType = value::ValueType::OBJECT; // Class/interface types
 
-            // Note: We don't append "$static" here because the CALL_STATIC opcode handler
-            // will append it when looking up the bytecode
-            size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Static method call - use CALL_STATIC with source location
-            ctx.program.emit(bytecode::OpCode::CALL_STATIC,
-                         static_cast<uint32_t>(nameIndex),
-                         static_cast<uint32_t>(arguments.size()));
-            // Add source location for the call instruction
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
-        } else if ((ctx.inInstanceMethod || ctx.inStaticMethod) && ctx.currentClassNode) {
-            // Unqualified call inside a method (instance or static) - could be either:
-            // 1. Method call on 'this' (for instance methods)
-            // 2. Static method call (for static methods)
-            // 3. Regular function call (global function)
-            //
-            // Check if a method with this name exists in the current class
-            // Important: static and instance methods can have the same name, so we need to:
-            // - In static context: only look for static methods
-            // - In instance context: look for instance methods first, then static methods
-            bool isMethodCall = false;
-            bool isStaticMethodCall = false;
-            const auto& methods = ctx.currentClassNode->getMethods();
-
-            for (const auto& method : methods) {
-                if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
-                    if (methodNode->getName() == functionName &&
-                        methodNode->getParameters().size() == arguments.size()) {
-                        // If we're in a static method, only match static methods
-                        // If we're in an instance method, prefer instance methods
-                        if (ctx.inStaticMethod) {
-                            if (methodNode->getIsStatic()) {
-                                isMethodCall = true;
-                                isStaticMethodCall = true;
-                                break;
-                            }
-                        } else if (ctx.inInstanceMethod) {
-                            if (!methodNode->getIsStatic()) {
-                                isMethodCall = true;
-                                isStaticMethodCall = false;
-                                break;
-                            }
+            // Check if types match (allow VOID for unknown types)
+            if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID) {
+                if (actualType != expectedType) {
+                    // Special case: null can be returned for object types
+                    if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
+                        // Special case: int can be returned for float
+                        if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT)) {
+                            std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
+                            throw errors::TypeException(
+                                "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
+                                node->getLocation()
+                            );
                         }
                     }
                 }
-            }
+                // For OBJECT types, validate class compatibility
+                else if (expectedType == value::ValueType::OBJECT && actualType == value::ValueType::OBJECT) {
+                    std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
 
-            // If we didn't find a matching method in the preferred namespace,
-            // check the other namespace (only in instance context, static can also call instance)
-            if (!isMethodCall && ctx.inInstanceMethod) {
-                for (const auto& method : methods) {
-                    if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
-                        if (methodNode->getName() == functionName &&
-                            methodNode->getParameters().size() == arguments.size() &&
-                            methodNode->getIsStatic()) {
-                            isMethodCall = true;
-                            isStaticMethodCall = true;
-                            break;
+                    // Skip validation for generic array types (like Array<T>, T[], etc.)
+                    bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") == 0);
+                    bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
+
+                    if (!(isGenericArrayReturn && isConcreteArrayReturn)) {
+                        // Use TypeValidator for detailed class compatibility checking
+                        if (!actualClassName.empty() && expectedReturnType != "object") {
+                            bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
+                            ctx.typeValidator.validateAssignment(
+                                expectedType, expectedReturnType,
+                                actualType, actualClassName,
+                                isNullValue, node->getLocation()
+                            );
                         }
                     }
                 }
-            }
-
-            if (isMethodCall) {
-                if (isStaticMethodCall) {
-                    // Static method call - use CALL_STATIC with fully qualified name
-                    std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
-
-                    // Compile all arguments
-                    for (const auto& arg : arguments) {
-                        arg->accept(ctx.visitor);  // Will need delegation
-                    }
-
-                    // Note: We don't append "$static" here because the CALL_STATIC opcode handler
-                    // will append it when looking up the bytecode
-                    size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                    ctx.program.emit(bytecode::OpCode::CALL_STATIC,
-                                 static_cast<uint32_t>(nameIndex),
-                                 static_cast<uint32_t>(arguments.size()));
-                    // Add source location for the call instruction
-                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                                 node->getLocation().getLine(),
-                                                 node->getLocation().getColumn(),
-                                                 node->getLocation().getFilename());
-                } else {
-                    // Instance method call - push 'this' onto stack BEFORE arguments
-                    ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
-
-                    // Now compile arguments
-                    for (const auto& arg : arguments) {
-                        arg->accept(ctx.visitor);  // Will need delegation
-                    }
-
-                    size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                    // Call method on 'this' with source location
-                    ctx.program.emit(bytecode::OpCode::CALL_METHOD,
-                                 static_cast<uint32_t>(nameIndex),
-                                 static_cast<uint32_t>(arguments.size()));
-                    // Add source location for the call instruction
-                    ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                                 node->getLocation().getLine(),
-                                                 node->getLocation().getColumn(),
-                                                 node->getLocation().getFilename());
-                }
-            } else {
-                // Regular function call
-                for (const auto& arg : arguments) {
-                    arg->accept(ctx.visitor);  // Will need delegation
-                }
-
-                size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-                ctx.program.emit(bytecode::OpCode::CALL,
-                             static_cast<uint32_t>(nameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-                // Add source location for the call instruction
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
             }
         } else {
-            // Compile all arguments (left to right)
-            for (const auto& arg : arguments) {
-                arg->accept(ctx.visitor);  // Will need delegation
+            // Function returns nothing (return;)
+            // For async functions, allow return; in Promise<void> functions
+            bool isAsyncVoidReturn = ctx.functionFrameManager.currentFrame().isAsync &&
+                                     expectedReturnType == "Promise<void>";
+
+            if (expectedReturnType != "void" && !isAsyncVoidReturn) {
+                throw errors::TypeException(
+                    "Return type mismatch: expected " + expectedReturnType + " but got void",
+                    node->getLocation()
+                );
+            }
+        }
+    }
+
+    void FunctionCompiler::emitReturnWithFinally(ast::ReturnNode* node, ast::ASTNode* returnValue)
+    {
+        // Check if we already have a return value slot for this try-finally block
+        // IMPORTANT: Reuse the same slot for all returns in the same try-finally to ensure
+        // the finally block loads the correct return value
+        size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+        if (returnValueSlot == SIZE_MAX) {
+            // First return in this try block - allocate a new slot
+            returnValueSlot = ctx.variableTracker.getNextLocalSlot();
+            ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
+
+            // Remember this slot so ControlFlowCompiler can load it back after finally
+            ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
+        }
+
+        if (returnValue) {
+            // Don't wrap in Promise yet - the RETURN_VALUE after finally will handle it
+            // The finally block will manipulate the stack, so we save the return value
+            // Store return value in the special slot
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+        } else {
+            // Push null for void return
+            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+            // For async functions, wrap in Promise before storing for finally
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
             }
 
-            size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-            // Regular function call - use CALL with source location
-            ctx.program.emit(bytecode::OpCode::CALL,
-                         static_cast<uint32_t>(nameIndex),
-                         static_cast<uint32_t>(arguments.size()));
-            // Add source location for the call instruction
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+            // Store return value
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
         }
 
-        // Pop generic type bindings if we pushed them
-        if (hasGenericBindings)
-        {
-            ctx.popGenericTypeBindings();
-        }
+        // Jump to finally
+        size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        ctx.exceptionManager.registerReturnJump(returnJump);
+    }
 
-        return std::monostate{};
+    void FunctionCompiler::emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue)
+    {
+        if (returnValue) {
+            // Wrap in Promise if needed and return immediately
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+        } else {
+            // For async functions, treat return; as return null; wrapped in Promise
+            // This allows Promise<void> functions to use return; like regular void functions
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            } else {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+            }
+        }
     }
 
     value::Value FunctionCompiler::compileReturn(ast::ReturnNode* node)
     {
         auto* returnValue = node->getReturnValue();
 
-        // Type validation: check return type matches function signature
+        // Validate return type matches function signature
+        validateReturnType(node, returnValue);
+
+        // Compile return value expression if present
+        if (returnValue) {
+            returnValue->accept(ctx.visitor);
+        }
+
+        // Check if in function context
         if (ctx.functionFrameManager.isInFunction()) {
-            std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
-
-            // Skip validation for "auto" return type (type inference)
-            if (expectedReturnType != "auto") {
-                if (returnValue) {
-                    // Function has a return value
-                    value::ValueType actualType = ctx.typeInference.inferExpressionType(returnValue);
-
-                    // Convert expected return type string to ValueType
-                    value::ValueType expectedType = value::ValueType::VOID;
-                    if (expectedReturnType == "int") expectedType = value::ValueType::INT;
-                    else if (expectedReturnType == "float") expectedType = value::ValueType::FLOAT;
-                    else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
-                    else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
-                    else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
-                    else expectedType = value::ValueType::OBJECT; // Class/interface types
-
-                    // Check if types match (allow VOID for unknown types)
-                    if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID) {
-                        if (actualType != expectedType) {
-                            // Special case: null can be returned for object types
-                            if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
-                                // Special case: int can be returned for float
-                                if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT)) {
-                                    std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
-                                    throw errors::TypeException(
-                                        "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
-                                        node->getLocation()
-                                    );
-                                }
-                            }
-                        }
-                        // For OBJECT types, validate class compatibility
-                        else if (expectedType == value::ValueType::OBJECT && actualType == value::ValueType::OBJECT) {
-                            std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
-
-                            // Skip validation for generic array types (like Array<T>, T[], etc.)
-                            bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") == 0);
-                            bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
-
-                            if (!(isGenericArrayReturn && isConcreteArrayReturn)) {
-                                // Use TypeValidator for detailed class compatibility checking
-                                if (!actualClassName.empty() && expectedReturnType != "object") {
-                                    bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
-                                    ctx.typeValidator.validateAssignment(
-                                        expectedType, expectedReturnType,
-                                        actualType, actualClassName,
-                                        isNullValue, node->getLocation()
-                                    );
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // Function returns nothing (return;)
-                    // For async functions, allow return; in Promise<void> functions
-                    bool isAsyncVoidReturn = ctx.functionFrameManager.currentFrame().isAsync &&
-                                             expectedReturnType == "Promise<void>";
-
-                    if (expectedReturnType != "void" && !isAsyncVoidReturn) {
-                        throw errors::TypeException(
-                            "Return type mismatch: expected " + expectedReturnType + " but got void",
-                            node->getLocation()
-                        );
-                    }
-                }
-            }
-
-            if (returnValue) {
-                returnValue->accept(ctx.visitor);  // Will need delegation
-
-                // Check if we're in a try block with a finally
-                if (ctx.exceptionManager.hasPendingFinally()) {
-                    // Don't wrap in Promise yet - the RETURN_VALUE after finally will handle it
-                    // The finally block will manipulate the stack (e.g., print statements), so we need
-                    // to save the return value in a local variable before jumping to finally.
-
-                    // Check if we already have a return value slot for this try-finally block
-                    // IMPORTANT: Reuse the same slot for all returns in the same try-finally to ensure
-                    // the finally block loads the correct return value
-                    size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
-                    if (returnValueSlot == SIZE_MAX) {
-                        // First return in this try block - allocate a new slot
-                        returnValueSlot = ctx.variableTracker.getNextLocalSlot();
-                        ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
-
-                        // Remember this slot so ControlFlowCompiler can load it back after finally
-                        ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
-                    }
-
-                    // Store return value in the special slot
-                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
-
-                    // Jump to finally
-                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-                    ctx.exceptionManager.registerReturnJump(returnJump);
-
-                    // After finally, we'll need to load the return value back
-                    // (This will be handled in ControlFlowCompiler when emitting code after finally)
-                } else {
-                    // No finally - wrap in Promise if needed and return immediately
-                    if (ctx.functionFrameManager.currentFrame().isAsync) {
-                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-                    }
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-                }
+            // Check if we're in a try block with a finally
+            if (ctx.exceptionManager.hasPendingFinally()) {
+                emitReturnWithFinally(node, returnValue);
             } else {
-                // return; (no value)
-                // Check if we're in a try block with a finally
-                if (ctx.exceptionManager.hasPendingFinally()) {
-                    // Push null for void return
-                    ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-
-                    // For async functions, wrap in Promise before storing for finally
-                    if (ctx.functionFrameManager.currentFrame().isAsync) {
-                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-                    }
-
-                    // Check if we already have a return value slot
-                    size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
-                    if (returnValueSlot == SIZE_MAX) {
-                        // Allocate slot for return value
-                        returnValueSlot = ctx.variableTracker.getNextLocalSlot();
-                        ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
-                        ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
-                    }
-
-                    // Store return value and jump to finally
-                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
-                    size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-                    ctx.exceptionManager.registerReturnJump(returnJump);
-                } else {
-                    // For async functions, treat return; as return null; wrapped in Promise
-                    // This allows Promise<void> functions to use return; like regular void functions
-                    if (ctx.functionFrameManager.currentFrame().isAsync) {
-                        ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-                        ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-                    } else {
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
-                    }
-                }
+                emitReturnValueBytecode(node, returnValue);
             }
         } else {
-            // Not in a function context - shouldn't happen but handle gracefully
+            // Not in a function context - fallback handling
             if (returnValue) {
-                returnValue->accept(ctx.visitor);  // Will need delegation
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             } else {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
@@ -645,26 +332,8 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 
-    value::Value FunctionCompiler::compileLambda(ast::LambdaNode* node)
+    std::vector<variables::VariableTracker::LocalVariable> FunctionCompiler::captureScopeVariables()
     {
-        // Generate unique lambda function name
-        static size_t lambdaCounter = 0;
-        std::string lambdaFuncName = "__lambda_" + std::to_string(lambdaCounter++);
-
-        // Store current position to jump over lambda body
-        ctx.program.emit(bytecode::OpCode::JUMP, 0); // Placeholder
-        size_t skipJump = ctx.program.getCurrentOffset() - 1;
-
-        // Lambda function starts here
-        size_t lambdaStart = ctx.program.getCurrentOffset();
-
-        // Get parameters
-        const auto& params = node->getParameters();
-
-        // Save current local slot state
-        size_t savedNextLocalSlot = ctx.variableTracker.getNextLocalSlot();
-
-        // Capture variables from outer scope for closure support
         std::vector<variables::VariableTracker::LocalVariable> capturedVars;
         const auto& currentLocals = ctx.variableTracker.getLocals();
 
@@ -682,8 +351,13 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Reset local slot counter for lambda's own scope
-        ctx.variableTracker.resetLocalSlot();
+        return capturedVars;
+    }
+
+    void FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
+                                           const std::vector<variables::VariableTracker::LocalVariable>& capturedVars)
+    {
+        const auto& params = node->getParameters();
 
         // Enter function frame for lambda
         ctx.functionFrameManager.enterFunctionFrame("auto",
@@ -705,45 +379,14 @@ namespace vm::compiler::visitors
 
         // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+    }
 
-        // Compile lambda body
-        auto* body = node->getBody();
-        if (node->isExpressionLambda()) {
-            // Expression lambda: () -> expr
-            // Compile expression and return its value
-            body->accept(ctx.visitor);  // Will need delegation
-
-            // Wrap in Promise if async lambda
-            if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-            }
-
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
-        }
-        else {
-            // Block lambda: () -> { ... }
-            // Compile block
-            body->accept(ctx.visitor);  // Will need delegation
-
-            // Implicit return null if no explicit return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-
-            // Wrap in Promise if async lambda
-            if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
-            }
-
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
-        }
-
-        ctx.variableTracker.endScope();
-        ctx.functionFrameManager.exitFunctionFrame();
-
-        // Lambda function ends here
-        size_t lambdaEnd = ctx.program.getCurrentOffset();
-
-        // Patch the skip jump to here
-        ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
+    void FunctionCompiler::emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
+                                                 const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
+                                                 size_t currentFrameStart,
+                                                 const std::vector<variables::VariableTracker::LocalVariable>& currentLocals)
+    {
+        const auto& params = node->getParameters();
 
         // Now emit instruction to create lambda value with captured environment
         std::vector<uint32_t> operands;
@@ -766,6 +409,75 @@ namespace vm::compiler::visitors
         }
 
         ctx.program.emit(bytecode::OpCode::LAMBDA, operands);
+    }
+
+    value::Value FunctionCompiler::compileLambda(ast::LambdaNode* node)
+    {
+        // Generate unique lambda function name
+        static size_t lambdaCounter = 0;
+        std::string lambdaFuncName = "__lambda_" + std::to_string(lambdaCounter++);
+
+        // Store current position to jump over lambda body
+        ctx.program.emit(bytecode::OpCode::JUMP, 0); // Placeholder
+        size_t skipJump = ctx.program.getCurrentOffset() - 1;
+
+        // Lambda function starts here
+        size_t lambdaStart = ctx.program.getCurrentOffset();
+
+        // Save current local slot state
+        size_t savedNextLocalSlot = ctx.variableTracker.getNextLocalSlot();
+
+        // Capture variables from outer scope for closure support
+        const auto& currentLocals = ctx.variableTracker.getLocals();
+        auto capturedVars = captureScopeVariables();
+        size_t currentFrameStart = ctx.functionFrameManager.isInFunction() ?
+            ctx.functionFrameManager.currentFrame().localStartSlot : 0;
+
+        // Reset local slot counter for lambda's own scope
+        ctx.variableTracker.resetLocalSlot();
+
+        // Setup lambda frame with parameters and captured variables
+        setupLambdaFrame(node, capturedVars);
+
+        // Compile lambda body
+        auto* body = node->getBody();
+        if (node->isExpressionLambda()) {
+            // Expression lambda: () -> expr
+            body->accept(ctx.visitor);
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
+            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+        else {
+            // Block lambda: () -> { ... }
+            body->accept(ctx.visitor);
+
+            // Implicit return null if no explicit return
+            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+            // Wrap in Promise if async lambda
+            if (node->getIsAsync()) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
+            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        }
+
+        ctx.variableTracker.endScope();
+        ctx.functionFrameManager.exitFunctionFrame();
+
+        // Lambda function ends here
+        size_t lambdaEnd = ctx.program.getCurrentOffset();
+
+        // Patch the skip jump to here
+        ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
+
+        // Emit lambda instruction with captured environment
+        emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals);
 
         // Restore previous nextLocalSlot
         ctx.variableTracker.setLocalSlot(savedNextLocalSlot);

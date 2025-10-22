@@ -54,5 +54,15 @@ namespace vm::runtime
             const std::vector<size_t>& dimensions,
             const std::string& elementTypeName
         );
+
+        // Helper methods for handleArrayGet
+        void getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index);
+        void getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index);
+        void getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index);
+
+        // Helper methods for handleArraySet
+        void setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index, const value::Value& valueToSet);
+        void setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index, const value::Value& valueToSet);
+        void setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index, const value::Value& valueToSet);
     };
 }

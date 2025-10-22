@@ -193,5 +193,17 @@ namespace vm::bytecode
         void readSourceLocations(std::istream& in);
         void writeClasses(std::ostream& out) const;
         void readClasses(std::istream& in);
+
+        // Helper methods for writeClasses
+        void writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const;
+        void writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const;
+        void writeConstructorMetadata(std::ostream& out, const ConstructorMetadata& ctor) const;
+        void writeClassMetadata(std::ostream& out, const ClassMetadata& classMeta) const;
+
+        // Helper methods for readClasses
+        void readFieldMetadata(std::istream& in, FieldMetadata& field);
+        void readMethodMetadata(std::istream& in, MethodMetadata& method);
+        void readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor);
+        void readClassMetadata(std::istream& in, ClassMetadata& classMeta);
     };
 }

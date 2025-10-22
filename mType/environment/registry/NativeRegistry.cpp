@@ -1,5 +1,6 @@
 ﻿#include "NativeRegistry.hpp"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <functional>
 #include <thread>
@@ -322,6 +323,31 @@ namespace environment::registry
                 else
                 {
                     return 0; // Default hash code for unknown types
+                }
+            }, args[0]);
+        });
+
+        // Add sqrt function for square root calculation
+        registerNativeFunction("sqrt", [](const std::vector<Value>& args) -> Value
+        {
+            if (args.size() != 1)
+            {
+                throw errors::ArgumentException("sqrt expects exactly 1 argument");
+            }
+
+            return std::visit([](const auto& value) -> Value
+            {
+                if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+                {
+                    return std::sqrt(value);
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+                {
+                    return std::sqrt(static_cast<float>(value));
+                }
+                else
+                {
+                    throw errors::TypeException("sqrt expects a numeric argument");
                 }
             }, args[0]);
         });

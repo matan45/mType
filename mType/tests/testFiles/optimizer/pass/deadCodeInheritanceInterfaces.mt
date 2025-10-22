@@ -1,6 +1,7 @@
 // Test file for O1/O2 optimization - Dead Code Elimination with Inheritance and Interfaces
 // Tests that extends and implements are preserved while dead code is removed from methods
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 // Base interface
 interface Drawable {
     function draw(): void;

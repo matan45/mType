@@ -54,6 +54,9 @@ namespace tests::testSuite
         addTestFromFile("Semantic Variable Redefinition Error",
                         errorPath + "semanticVariableRedefinition.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Undefined Variable Reassignment Error",
+                        errorPath + "undefinedVariableReassignment.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Semantic Wrong Parameter Count Error",
                         errorPath + "semanticWrongParameterCount.mt",
                         TestType::ERROR_EXPECTED);

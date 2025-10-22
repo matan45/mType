@@ -1,4 +1,5 @@
 #include "ClassRegistrar.hpp"
+#include "../validation/CompileTimeValidator.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
@@ -13,7 +14,6 @@
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include <stdexcept>
-#include <sstream>
 
 namespace vm::compiler::registration
 {
@@ -25,13 +25,13 @@ namespace vm::compiler::registration
         : environment(environment)
         , program(program)
         , interfaceRegistrar(interfaceRegistrar)
+        , inheritanceValidator(std::make_unique<ClassInheritanceValidator>(environment->getClassRegistry()))
     {
     }
 
     void ClassRegistrar::registerClassesForBytecode(ast::ASTNode* node)
     {
         if (!node) return;
-
         // Check if this node is a ClassNode
         if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
         {
@@ -100,7 +100,6 @@ namespace vm::compiler::registration
         for (const auto& interfaceName : interfaces) {
             classDef->addImplementedInterface(interfaceName);
         }
-
         // Register constructors
         if (!classNode->getConstructors().empty()) {
             for (const auto& constructor : classNode->getConstructors()) {
@@ -122,7 +121,6 @@ namespace vm::compiler::registration
             );
             classDef->addConstructor(defaultCtor);
         }
-
         // Register methods
         for (const auto& method : classNode->getMethods()) {
             if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
@@ -150,7 +148,6 @@ namespace vm::compiler::registration
                 }
             }
         }
-
         // Register fields (but don't initialize them - bytecode will do that)
         for (const auto& field : classNode->getFields()) {
             if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get())) {
@@ -170,7 +167,6 @@ namespace vm::compiler::registration
                 }
             }
         }
-
         // Register the class
         classRegistry->registerClass(className, classDef);
 
@@ -182,6 +178,45 @@ namespace vm::compiler::registration
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);
         program.registerClass(classMetadata);
+    }
+
+    void ClassRegistrar::validateAllClassesHaveBytecode(ast::ASTNode* node)
+    {
+        if (!node || !compileTimeValidator) return;
+
+        // Check if this node is a ClassNode
+        if (auto classNode = dynamic_cast<ast::ClassNode*>(node))
+        {
+            compileTimeValidator->validateAllMethodsHaveBytecode(
+                classNode->getClassName(),
+                classNode->getLocation()
+            );
+            return; // No need to traverse children of ClassNode
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                validateAllClassesHaveBytecode(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                validateAllClassesHaveBytecode(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process classes from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                validateAllClassesHaveBytecode(importNode->getImportedAST());
+            }
+        }
     }
 
     void ClassRegistrar::linkParentClasses(ast::ASTNode* node)
@@ -426,42 +461,7 @@ namespace vm::compiler::registration
         const ast::SourceLocation& location
     ) const
     {
-        auto classRegistry = environment->getClassRegistry();
-        if (!classRegistry) {
-            throw std::runtime_error("Class registry not available");
-        }
-
-        auto classDef = classRegistry->findClass(className);
-        if (!classDef) {
-            return;
-        }
-
-        // Count inheritance depth
-        size_t depth = 0;
-        auto currentClass = classDef->getParentClass();
-
-        while (currentClass) {
-            depth++;
-            if (depth >= MAX_INHERITANCE_DEPTH) {
-                // Build inheritance chain for error message
-                std::stringstream chainMsg;
-                chainMsg << "Inheritance chain exceeds maximum depth of "
-                         << MAX_INHERITANCE_DEPTH << ": " << className;
-
-                // Traverse again to build the chain string
-                auto tempClass = classDef->getParentClass();
-                while (tempClass && depth-- > 0) {
-                    chainMsg << " -> " << tempClass->getName();
-                    tempClass = tempClass->getParentClass();
-                }
-
-                throw errors::InheritanceException(
-                    chainMsg.str(),
-                    location
-                );
-            }
-            currentClass = currentClass->getParentClass();
-        }
+        inheritanceValidator->validateInheritanceDepth(className, location);
     }
 
     void ClassRegistrar::validateMethodOverrides(

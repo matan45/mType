@@ -83,6 +83,140 @@ namespace vm::compiler::types
         return false;
     }
 
+    std::string TypeValidator::normalizeArrayType(const std::string& type) const
+    {
+        std::string normalized = type;
+        size_t arrayDepth = 0;
+
+        // Count array brackets from the end
+        while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
+            arrayDepth++;
+            normalized = normalized.substr(0, normalized.length() - 2);
+        }
+
+        // Wrap in Array<> for each dimension
+        for (size_t i = 0; i < arrayDepth; ++i) {
+            normalized = "Array<" + normalized + ">";
+        }
+
+        return normalized;
+    }
+
+    bool TypeValidator::validatePromiseTypeAssignment(const std::string& varClassName, const std::string& valueClassName) const
+    {
+        // Special case: Promise<T> can accept T (async functions auto-wrap)
+        if (varClassName.find("Promise<") != 0) {
+            return false;
+        }
+
+        // Extract the inner type from Promise<T>
+        size_t start = varClassName.find('<') + 1;
+        size_t end = varClassName.rfind('>');
+        if (start == std::string::npos || end == std::string::npos || end <= start) {
+            return false;
+        }
+
+        std::string innerType = varClassName.substr(start, end - start);
+        // Trim whitespace from inner type
+        innerType.erase(0, innerType.find_first_not_of(" \t"));
+        innerType.erase(innerType.find_last_not_of(" \t") + 1);
+
+        // Direct match: int[] == int[]
+        if (valueClassName == innerType) {
+            return true;
+        }
+
+        // Match with generic parameters stripped: List<Int> matches List<T>
+        if (stripGenericParameters(valueClassName) == stripGenericParameters(innerType)) {
+            return true;
+        }
+
+        // Normalize array types for comparison: int[] -> Array<int>
+        std::string normalizedInnerType = normalizeArrayType(innerType);
+        std::string normalizedValueClass = normalizeArrayType(valueClassName);
+
+        return (normalizedValueClass == normalizedInnerType ||
+                stripGenericParameters(normalizedValueClass) == stripGenericParameters(normalizedInnerType));
+    }
+
+    void TypeValidator::validateObjectTypeAssignment(const std::string& varClassName, const std::string& valueClassName,
+                                                     const ast::SourceLocation& location) const
+    {
+        // Skip validation for generic array types
+        if ((varClassName == "Array" || varClassName.find("Array<") == 0) &&
+            valueClassName.find("[]") != std::string::npos) {
+            return;
+        }
+
+        // Check Promise type special handling
+        if (validatePromiseTypeAssignment(varClassName, valueClassName)) {
+            return;
+        }
+
+        // Normalize both types for array comparison
+        std::string normalizedVarClass = normalizeArrayType(varClassName);
+        std::string normalizedValueClass = normalizeArrayType(valueClassName);
+
+        // Extract base class names (remove generic parameters)
+        std::string baseVarClass = stripGenericParameters(normalizedVarClass);
+        std::string baseValueClass = stripGenericParameters(normalizedValueClass);
+
+        // Check class compatibility (including inheritance)
+        if (!isClassCompatible(baseValueClass, baseVarClass)) {
+            throw errors::TypeException(
+                "Type mismatch: cannot assign " + valueClassName + " to " + varClassName,
+                location
+            );
+        }
+    }
+
+    void TypeValidator::validatePrimitiveToObjectAssignment(value::ValueType varType, const std::string& varClassName,
+                                                            value::ValueType valueType, const ast::SourceLocation& location) const
+    {
+        if (varType != value::ValueType::OBJECT || valueType == value::ValueType::OBJECT || valueType == value::ValueType::VOID) {
+            return;
+        }
+
+        // Exception: Allow primitive string to be assigned to String class (auto-boxing)
+        if (valueType == value::ValueType::STRING && varClassName.empty()) {
+            return;
+        }
+
+        // Reject primitive values when OBJECT with specific class is expected
+        if (!varClassName.empty()) {
+            std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
+            throw errors::TypeException(
+                "Type mismatch: cannot assign primitive " + valueTypeStr + " to object type " + varClassName,
+                location
+            );
+        }
+    }
+
+    void TypeValidator::validatePrimitiveTypeAssignment(value::ValueType varType, value::ValueType valueType,
+                                                        const ast::SourceLocation& location) const
+    {
+        if (varType == value::ValueType::OBJECT || valueType == value::ValueType::VOID || valueType == varType) {
+            return;
+        }
+
+        // Special case: INT can be assigned to FLOAT (implicit conversion)
+        if (valueType == value::ValueType::INT && varType == value::ValueType::FLOAT) {
+            return;
+        }
+
+        // Special case: OBJECT can be assigned to STRING (String class to string primitive)
+        if (valueType == value::ValueType::OBJECT && varType == value::ValueType::STRING) {
+            return;
+        }
+
+        std::string varTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(varType);
+        std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
+        throw errors::TypeException(
+            "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
+            location
+        );
+    }
+
     void TypeValidator::validateAssignment(
         value::ValueType varType,
         const std::string& varClassName,
@@ -97,127 +231,95 @@ namespace vm::compiler::types
             return;
         }
 
-        // Normalize array types: convert "int[]" to "Array<int>", "int[][]" to "Array<Array<int>>", etc.
-        auto normalizeArrayType = [](const std::string& type) -> std::string {
-            std::string normalized = type;
-            size_t arrayDepth = 0;
-
-            // Count array brackets from the end
-            while (normalized.length() >= 2 && normalized.substr(normalized.length() - 2) == "[]") {
-                arrayDepth++;
-                normalized = normalized.substr(0, normalized.length() - 2);
-            }
-
-            // Wrap in Array<> for each dimension
-            for (size_t i = 0; i < arrayDepth; ++i) {
-                normalized = "Array<" + normalized + ">";
-            }
-
-            return normalized;
-        };
-
         // For OBJECT types, check class compatibility
         if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
             if (!varClassName.empty() && !valueClassName.empty()) {
-                // Skip validation for generic array types (like Array<T>, T[], etc.)
-                // When the expected type is a generic array, accept any concrete array type
-                if ((varClassName == "Array" || varClassName.find("Array<") == 0) &&
-                    valueClassName.find("[]") != std::string::npos) {
-                    return; // Any concrete array type is acceptable for generic array variable
-                }
-
-                // Special case: Promise<T> can accept T (async functions auto-wrap)
-                // This allows: return msg; in async function returning Promise<Message>
-                // Also handles arrays: Promise<int[]> can accept int[]
-                if (varClassName.find("Promise<") == 0) {
-                    // Extract the inner type from Promise<T>
-                    size_t start = varClassName.find('<') + 1;
-                    size_t end = varClassName.rfind('>');
-                    if (start != std::string::npos && end != std::string::npos && end > start) {
-                        std::string innerType = varClassName.substr(start, end - start);
-                        // Trim whitespace from inner type
-                        innerType.erase(0, innerType.find_first_not_of(" \t"));
-                        innerType.erase(innerType.find_last_not_of(" \t") + 1);
-
-                        // Direct match: int[] == int[]
-                        if (valueClassName == innerType) {
-                            return; // T is acceptable for Promise<T> (will be wrapped automatically)
-                        }
-
-                        // Match with generic parameters stripped: List<Int> matches List<T>
-                        if (stripGenericParameters(valueClassName) == stripGenericParameters(innerType)) {
-                            return; // T is acceptable for Promise<T> (will be wrapped automatically)
-                        }
-
-                        // Normalize array types for comparison: int[] -> Array<int>
-                        std::string normalizedInnerType = normalizeArrayType(innerType);
-                        std::string normalizedValueClass = normalizeArrayType(valueClassName);
-
-                        if (normalizedValueClass == normalizedInnerType ||
-                            stripGenericParameters(normalizedValueClass) == stripGenericParameters(normalizedInnerType)) {
-                            return; // Array type is acceptable for Promise<array> (will be wrapped automatically)
-                        }
-                    }
-                }
-
-                // Normalize both types for array comparison
-                std::string normalizedVarClass = normalizeArrayType(varClassName);
-                std::string normalizedValueClass = normalizeArrayType(valueClassName);
-
-                // Extract base class names (remove generic parameters)
-                std::string baseVarClass = stripGenericParameters(normalizedVarClass);
-                std::string baseValueClass = stripGenericParameters(normalizedValueClass);
-
-                // Check class compatibility (including inheritance)
-                if (!isClassCompatible(baseValueClass, baseVarClass)) {
-                    throw errors::TypeException(
-                        "Type mismatch: cannot assign " + valueClassName + " to " + varClassName,
-                        location
-                    );
-                }
+                validateObjectTypeAssignment(varClassName, valueClassName, location);
             }
             return;
         }
 
         // Check if trying to assign a primitive to an OBJECT type
-        // This catches cases like passing string literal "gold" to Box<String>.setContent(String item)
-        if (varType == value::ValueType::OBJECT && valueType != value::ValueType::OBJECT && valueType != value::ValueType::VOID) {
-            // Exception: Allow primitive string to be assigned to String class (auto-boxing)
-            // This is allowed only when varClassName is explicitly empty or "string" (not "String" class)
-            if (valueType == value::ValueType::STRING && varClassName.empty()) {
-                return; // Generic OBJECT can accept string primitives
-            }
-
-            // Reject primitive values when OBJECT with specific class is expected
-            if (!varClassName.empty()) {
-                std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
-                throw errors::TypeException(
-                    "Type mismatch: cannot assign primitive " + valueTypeStr + " to object type " + varClassName,
-                    location
-                );
-            }
-            return;
-        }
+        validatePrimitiveToObjectAssignment(varType, varClassName, valueType, location);
 
         // For non-OBJECT types, check primitive type compatibility
-        if (varType != value::ValueType::OBJECT && valueType != value::ValueType::VOID && valueType != varType) {
-            // Special case: INT can be assigned to FLOAT (implicit conversion)
-            if (valueType == value::ValueType::INT && varType == value::ValueType::FLOAT) {
-                return;
-            }
+        validatePrimitiveTypeAssignment(varType, valueType, location);
+    }
 
-            // Special case: OBJECT can be assigned to STRING (String class to string primitive)
-            if (valueType == value::ValueType::OBJECT && varType == value::ValueType::STRING) {
-                return;
-            }
-
-            std::string varTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(varType);
-            std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
-            throw errors::TypeException(
-                "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
-                location
-            );
+    bool TypeValidator::isArithmeticOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op) const
+    {
+        // String concatenation with +
+        if (op == token::TokenType::PLUS &&
+            (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
+            return true;
         }
+
+        // Numeric operations: both must be int or float
+        if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+            (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool TypeValidator::isComparisonOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
+                                                   bool leftIsNull, bool rightIsNull) const
+    {
+        // For == and !=, allow comparing any type with null
+        if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS) {
+            if (leftIsNull || rightIsNull) {
+                return true;
+            }
+            if (leftType == rightType) {
+                return true;
+            }
+            // Allow comparing numeric types
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+        } else {
+            // For <, >, <=, >=: only same types or numeric types
+            if (leftType == rightType) {
+                return true;
+            }
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool TypeValidator::isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const
+    {
+        return (leftType == value::ValueType::BOOL && rightType == value::ValueType::BOOL);
+    }
+
+    void TypeValidator::throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
+                                                  const ast::SourceLocation& location) const
+    {
+        std::string leftTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(leftType);
+        std::string rightTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(rightType);
+        std::string opStr;
+
+        switch (op) {
+            case token::TokenType::PLUS: opStr = "+"; break;
+            case token::TokenType::MINUS: opStr = "-"; break;
+            case token::TokenType::MULTIPLY: opStr = "*"; break;
+            case token::TokenType::DIVIDE: opStr = "/"; break;
+            case token::TokenType::MODULO: opStr = "%"; break;
+            case token::TokenType::AND: opStr = "&&"; break;
+            case token::TokenType::OR: opStr = "||"; break;
+            default: opStr = "operator"; break;
+        }
+
+        throw errors::TypeException(
+            "Invalid operation: cannot apply '" + opStr + "' to " + leftTypeStr + " and " + rightTypeStr,
+            location
+        );
     }
 
     void TypeValidator::validateBinaryOperation(
@@ -240,47 +342,17 @@ namespace vm::compiler::types
         if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
             op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE ||
             op == token::TokenType::MODULO) {
-
-            // String concatenation with +
-            if (op == token::TokenType::PLUS &&
-                (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
-                isValid = true;
-            }
-            // Numeric operations: both must be int or float
-            else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
-                     (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
-                isValid = true;
-            }
+            isValid = isArithmeticOperationValid(leftType, rightType, op);
         }
         // Comparison operations: ==, !=, <, >, <=, >=
         else if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
                  op == token::TokenType::LESS || op == token::TokenType::GREATER ||
                  op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
-            // For == and !=, allow comparing any type with null
-            if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS) {
-                if (leftIsNull || rightIsNull) {
-                    isValid = true;
-                } else if (leftType == rightType) {
-                    isValid = true;
-                } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
-                          (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
-                    isValid = true;
-                }
-            } else {
-                // For <, >, <=, >=: only same types or numeric types
-                if (leftType == rightType) {
-                    isValid = true;
-                } else if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
-                          (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
-                    isValid = true;
-                }
-            }
+            isValid = isComparisonOperationValid(leftType, rightType, op, leftIsNull, rightIsNull);
         }
         // Logical operations: &&, ||
         else if (op == token::TokenType::AND || op == token::TokenType::OR) {
-            if (leftType == value::ValueType::BOOL && rightType == value::ValueType::BOOL) {
-                isValid = true;
-            }
+            isValid = isLogicalOperationValid(leftType, rightType);
         }
         else {
             // Unknown operator, allow it
@@ -288,23 +360,7 @@ namespace vm::compiler::types
         }
 
         if (!isValid) {
-            std::string leftTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(leftType);
-            std::string rightTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(rightType);
-            std::string opStr;
-            switch (op) {
-                case token::TokenType::PLUS: opStr = "+"; break;
-                case token::TokenType::MINUS: opStr = "-"; break;
-                case token::TokenType::MULTIPLY: opStr = "*"; break;
-                case token::TokenType::DIVIDE: opStr = "/"; break;
-                case token::TokenType::MODULO: opStr = "%"; break;
-                case token::TokenType::AND: opStr = "&&"; break;
-                case token::TokenType::OR: opStr = "||"; break;
-                default: opStr = "operator"; break;
-            }
-            throw errors::TypeException(
-                "Invalid operation: cannot apply '" + opStr + "' to " + leftTypeStr + " and " + rightTypeStr,
-                location
-            );
+            throwBinaryOperationError(leftType, rightType, op, location);
         }
     }
 }

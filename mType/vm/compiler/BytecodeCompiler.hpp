@@ -16,6 +16,8 @@
 #include "types/GenericTypeResolver.hpp"
 #include "registration/ClassRegistrar.hpp"
 #include "registration/InterfaceRegistrar.hpp"
+#include "registration/FunctionRegistrar.hpp"
+#include "validation/CompileTimeValidator.hpp"
 #include "visitors/LiteralCompiler.hpp"
 #include "visitors/ArrayCompiler.hpp"
 #include "visitors/ExpressionCompiler.hpp"
@@ -23,6 +25,7 @@
 #include "visitors/ControlFlowCompiler.hpp"
 #include "visitors/FunctionCompiler.hpp"
 #include "visitors/ClassCompiler.hpp"
+#include "ImportHelper.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -37,7 +40,7 @@ namespace vm::compiler
     class BytecodeCompiler : public ast::ASTVisitor<value::Value>
     {
     public:
-        explicit BytecodeCompiler(std::shared_ptr<environment::Environment> env);
+        explicit BytecodeCompiler(std::shared_ptr<environment::Environment> env, bool skipStrictValidation = false);
         ~BytecodeCompiler() = default;
 
         // Main compilation entry point
@@ -137,6 +140,8 @@ namespace vm::compiler
         types::TypeValidator typeValidator;
         registration::InterfaceRegistrar interfaceRegistrar;
         registration::ClassRegistrar classRegistrar;
+        registration::FunctionRegistrar functionRegistrar;
+        std::unique_ptr<validation::CompileTimeValidator> compileTimeValidator;
 
         // Shared context for visitor compilers
         visitors::CompilerContext context;
@@ -150,23 +155,18 @@ namespace vm::compiler
         visitors::FunctionCompiler functionCompiler;
         visitors::ClassCompiler classCompiler;
 
+        // Import helper
+        ImportHelper importHelper;
+
         // Import tracking (to avoid recompiling the same file)
         std::unordered_set<std::string> compiledImports;
+
+        // Validation control
+        bool skipStrictValidation;
 
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
-
-        // Import processing helpers
-        void processNestedImports(ast::ASTNode* node);
-
-        // Import validation helpers
-        void collectExportedSymbols(ast::ASTNode* ast,
-                                     const std::string& filePath,
-                                     std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
-        void collectExportedSymbolsFromNode(ast::ASTNode* node,
-                                             const std::string& filePath,
-                                             std::shared_ptr<environment::registry::ExportRegistry> exportRegistry);
     };
 }
 

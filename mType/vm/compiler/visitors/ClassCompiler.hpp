@@ -1,5 +1,7 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include "MethodCompilerHelper.hpp"
+#include "ParameterValidator.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../ast/nodes/classes/ConstructorNode.hpp"
@@ -11,12 +13,14 @@
 #include "../../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../../../value/ValueType.hpp"
+#include <memory>
 
 namespace vm::compiler::visitors
 {
     /**
      * Compiles class-related nodes to bytecode
-     * Handles: classes, methods, constructors, fields, object creation, member access, method calls
+     * Handles: classes, fields, object creation, member access, method calls
+     * Delegates method/constructor compilation to MethodCompilerHelper
      */
     class ClassCompiler
     {
@@ -38,15 +42,12 @@ namespace vm::compiler::visitors
 
     private:
         CompilerContext& ctx;
+        std::unique_ptr<MethodCompilerHelper> methodHelper;
+        std::unique_ptr<ParameterValidator> paramValidator;
 
-        // Helper methods
-        void compileDefaultConstructor(ast::ClassNode* node);
-        void initializeInstanceFields(ast::ClassNode* node);
-        void validateMethodParameters(
-            const std::string& methodName,
-            const std::string& qualifiedName,
-            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
-            const ast::SourceLocation& location
-        );
+        // Helper methods for compileNew
+        std::vector<std::string> parseAndValidateGenericTypeArguments(const std::string& fullClassName,
+                                                                       const ast::SourceLocation& location);
+        void emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName);
     };
 }

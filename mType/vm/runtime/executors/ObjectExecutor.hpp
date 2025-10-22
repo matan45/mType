@@ -9,11 +9,13 @@
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../ast/AccessModifier.hpp"
 #include <unordered_map>
+#include <memory>
 
 namespace vm::runtime
 {
-    // Forward declaration
+    // Forward declarations
     class FunctionExecutor;
+    class ObjectInstanceHelper;
 
     /**
      * Executes object-related opcodes
@@ -24,7 +26,7 @@ namespace vm::runtime
     {
     public:
         explicit ObjectExecutor(ExecutionContext& ctx);
-        ~ObjectExecutor() = default;
+        ~ObjectExecutor();
 
         // Set FunctionExecutor reference for lambda-to-interface conversion
         void setFunctionExecutor(FunctionExecutor* funcExec) { functionExecutor = funcExec; }
@@ -46,14 +48,9 @@ namespace vm::runtime
     private:
         ExecutionContext& context;
         FunctionExecutor* functionExecutor = nullptr;
+        std::unique_ptr<ObjectInstanceHelper> instanceHelper;
 
-        // Helper methods
-        void initializeObjectFields(
-            std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
-        );
-
-        // Helper methods for access context creation
+        // Helper methods for access context creation (used by field access operations)
         validation::AccessContext createAccessContext(
             const std::string& targetClassName,
             bool isSetter = false
@@ -61,5 +58,15 @@ namespace vm::runtime
 
         std::string getCurrentClassName();
         bool isSubclass(const std::string& derivedClass, const std::string& baseClass);
+
+        // Helper methods for handleCallMethod
+        std::vector<value::Value> prepareMethodCallArguments(size_t argCount);
+        void invokeLambdaMethod(std::shared_ptr<BytecodeLambda> lambda,
+                               const std::vector<value::Value>& args,
+                               const std::string& methodName);
+        void invokeInstanceMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                 const std::string& methodName,
+                                 const std::vector<value::Value>& args,
+                                 size_t argCount);
     };
 }

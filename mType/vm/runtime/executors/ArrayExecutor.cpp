@@ -1,4 +1,6 @@
 #include "ArrayExecutor.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/ArrayBoundsChecker.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
 #include <algorithm>
 namespace vm::runtime
@@ -87,6 +89,45 @@ namespace vm::runtime
         context.stackManager->push(result);
     }
 
+    void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index) {
+        // Bounds check (VM does bounds check once)
+        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+
+        // Get element using unchecked access (bounds already verified)
+        // PERFORMANCE: Eliminates redundant bounds check in array->get()
+        value::Value element = array->getUnchecked(static_cast<size_t>(index));
+        context.stackManager->push(element);
+    }
+
+    void ArrayExecutor::getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index) {
+        // Bounds check
+        utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
+
+        // For multi-dimensional arrays, return sub-array; for 1D, return element
+        if (flatArray->getRank() > 1) {
+            auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
+            context.stackManager->push(subArray);
+        } else {
+            value::Value element = flatArray->get(static_cast<size_t>(index));
+            context.stackManager->push(element);
+        }
+    }
+
+    void ArrayExecutor::getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index) {
+        // Bounds check
+        utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
+
+        // For multi-dimensional arrays, return sub-array; for 1D, return element
+        if (sparseArray->getRank() > 1) {
+            auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
+            context.stackManager->push(subArray);
+        } else {
+            std::vector<size_t> indices = {static_cast<size_t>(index)};
+            value::Value element = sparseArray->get(indices);
+            context.stackManager->push(element);
+        }
+    }
+
     void ArrayExecutor::handleArrayGet() {
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
@@ -98,75 +139,59 @@ namespace vm::runtime
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
             auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-
-            // Bounds check (VM does bounds check once)
-            if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                if (loc) {
-                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                    throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                                 " for array of size " + std::to_string(array->size()), errorLoc);
-                } else {
-                    throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                                 " for array of size " + std::to_string(array->size()));
-                }
-            }
-
-            // Get element using unchecked access (bounds already verified)
-            // PERFORMANCE: Eliminates redundant bounds check in array->get()
-            value::Value element = array->getUnchecked(static_cast<size_t>(index));
-            context.stackManager->push(element);
+            getNativeArrayElement(array, index);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
-
-            // Bounds check
-            if (index < 0 || static_cast<size_t>(index) >= flatArray->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                throw errors::RuntimeException("FlatMultiArray index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(flatArray->size()),
-                                             loc ? errors::SourceLocation(loc->filename, loc->line, loc->column) : errors::SourceLocation());
-            }
-
-            // For multi-dimensional arrays, return sub-array; for 1D, return element
-            if (flatArray->getRank() > 1) {
-                auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
-                context.stackManager->push(subArray);
-            } else {
-                value::Value element = flatArray->get(static_cast<size_t>(index));
-                context.stackManager->push(element);
-            }
+            getFlatMultiArrayElement(flatArray, index);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
             auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
-
-            // Bounds check
-            if (index < 0 || static_cast<size_t>(index) >= sparseArray->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                throw errors::RuntimeException("SparseMultiArray index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(sparseArray->size()),
-                                             loc ? errors::SourceLocation(loc->filename, loc->line, loc->column) : errors::SourceLocation());
-            }
-
-            // For multi-dimensional arrays, return sub-array; for 1D, return element
-            if (sparseArray->getRank() > 1) {
-                auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
-                context.stackManager->push(subArray);
-            } else {
-                std::vector<size_t> indices = {static_cast<size_t>(index)};
-                value::Value element = sparseArray->get(indices);
-                context.stackManager->push(element);
-            }
+            getSparseMultiArrayElement(sparseArray, index);
             return;
         }
 
         throw errors::RuntimeException("ARRAY_GET: Invalid array type");
+    }
+
+    void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index, const value::Value& valueToSet) {
+        // Bounds check (VM does bounds check once)
+        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+
+        // Set element using unchecked access (bounds already verified)
+        // PERFORMANCE: Eliminates redundant bounds check in array->set()
+        array->setUnchecked(static_cast<size_t>(index), valueToSet);
+    }
+
+    void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index, const value::Value& valueToSet) {
+        // Bounds check
+        utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
+
+        // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
+        if (flatArray->getRank() == 1) {
+            flatArray->set(static_cast<size_t>(index), valueToSet);
+        } else {
+            throw errors::RuntimeException("Cannot set element in multi-dimensional FlatMultiArray with single index");
+        }
+    }
+
+    void ArrayExecutor::setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index, const value::Value& valueToSet) {
+        // Bounds check
+        utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
+
+        // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
+        if (sparseArray->getRank() == 1) {
+            std::vector<size_t> indices = {static_cast<size_t>(index)};
+            sparseArray->set(indices, valueToSet);
+        } else {
+            throw errors::RuntimeException("Cannot set element in multi-dimensional SparseMultiArray with single index");
+        }
     }
 
     void ArrayExecutor::handleArraySet() {
@@ -183,66 +208,21 @@ namespace vm::runtime
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
             auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-
-            // Bounds check (VM does bounds check once)
-            if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                if (loc) {
-                    errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                    throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                                 " for array of size " + std::to_string(array->size()), errorLoc);
-                } else {
-                    throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                                 " for array of size " + std::to_string(array->size()));
-                }
-            }
-
-            // Set element using unchecked access (bounds already verified)
-            // PERFORMANCE: Eliminates redundant bounds check in array->set()
-            array->setUnchecked(static_cast<size_t>(index), valueToSet);
+            setNativeArrayElement(array, index, valueToSet);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
-
-            // Bounds check
-            if (index < 0 || static_cast<size_t>(index) >= flatArray->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                throw errors::RuntimeException("FlatMultiArray index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(flatArray->size()),
-                                             loc ? errors::SourceLocation(loc->filename, loc->line, loc->column) : errors::SourceLocation());
-            }
-
-            // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
-            if (flatArray->getRank() == 1) {
-                flatArray->set(static_cast<size_t>(index), valueToSet);
-            } else {
-                throw errors::RuntimeException("Cannot set element in multi-dimensional FlatMultiArray with single index");
-            }
+            setFlatMultiArrayElement(flatArray, index, valueToSet);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
         if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
             auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
-
-            // Bounds check
-            if (index < 0 || static_cast<size_t>(index) >= sparseArray->size()) {
-                auto* loc = context.program->getSourceLocation(context.instructionPointer);
-                throw errors::RuntimeException("SparseMultiArray index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(sparseArray->size()),
-                                             loc ? errors::SourceLocation(loc->filename, loc->line, loc->column) : errors::SourceLocation());
-            }
-
-            // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
-            if (sparseArray->getRank() == 1) {
-                std::vector<size_t> indices = {static_cast<size_t>(index)};
-                sparseArray->set(indices, valueToSet);
-            } else {
-                throw errors::RuntimeException("Cannot set element in multi-dimensional SparseMultiArray with single index");
-            }
+            setSparseMultiArrayElement(sparseArray, index, valueToSet);
             return;
         }
 
@@ -398,17 +378,7 @@ namespace vm::runtime
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
         // Bounds check (VM does bounds check once)
-        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(array->size()), errorLoc);
-            } else {
-                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(array->size()));
-            }
-        }
+        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
 
         size_t arrayIndex = static_cast<size_t>(index);
 
@@ -455,17 +425,7 @@ namespace vm::runtime
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
         // Bounds check (VM does bounds check once)
-        if (index < 0 || static_cast<size_t>(index) >= array->size()) {
-            auto* loc = context.program->getSourceLocation(context.instructionPointer);
-            if (loc) {
-                errors::SourceLocation errorLoc(loc->filename, loc->line, loc->column);
-                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(array->size()), errorLoc);
-            } else {
-                throw errors::RuntimeException("Array index out of bounds: " + std::to_string(index) +
-                                             " for array of size " + std::to_string(array->size()));
-            }
-        }
+        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
 
         size_t arrayIndex = static_cast<size_t>(index);
 

@@ -12,7 +12,7 @@ class Point {
     }
 
     public function getCoordinates(): string {
-        return "(" + toString(x) + ", " + toString(y) + ")";
+        return "(" + x + ", " + y + ")";
     }
 
     public static function createOrigin(): Point {
@@ -25,15 +25,15 @@ class Shape {
     static final string category = "2D Shape";
     
     static function getShapeCount(): int {
-        return Shape::shapeCount;
+        return shapeCount;
     }
     
     static function incrementShapeCount(): void {
-        Shape::shapeCount = Shape::shapeCount + 1;
+        shapeCount++;
     }
     
     static function getCategory(): string {
-        return Shape::category;
+        return category;
     }
 }
 

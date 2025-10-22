@@ -340,6 +340,9 @@
     <Filter Include="vm\compiler\types">
       <UniqueIdentifier>{B65BF898-2272-F62E-6BE9-8150D73EC7B6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\compiler\validation">
+      <UniqueIdentifier>{EC975F65-D891-88B7-C1FE-1EC8AD97EE23}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\compiler\variables">
       <UniqueIdentifier>{9A2C9335-0699-4E30-CF8C-E68D3BB87098}</UniqueIdentifier>
     </Filter>
@@ -1203,6 +1206,9 @@
     <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
       <Filter>value\simd\detection</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\BytecodeIOHelper.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -1210,6 +1216,9 @@
       <Filter>vm\bytecode</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
+      <Filter>vm\compiler</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\ImportHelper.hpp">
       <Filter>vm\compiler</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\control\ExceptionContextManager.hpp">
@@ -1224,7 +1233,13 @@
     <ClInclude Include="vm\compiler\emission\BytecodeEmitter.hpp">
       <Filter>vm\compiler\emission</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\registration\ClassInheritanceValidator.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\registration\ClassRegistrar.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\registration\FunctionRegistrar.hpp">
       <Filter>vm\compiler\registration</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\registration\InterfaceRegistrar.hpp">
@@ -1238,6 +1253,9 @@
     </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeValidator.hpp">
       <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\validation\CompileTimeValidator.hpp">
+      <Filter>vm\compiler\validation</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\variables\FunctionFrameManager.hpp">
       <Filter>vm\compiler\variables</Filter>
@@ -1263,13 +1281,25 @@
     <ClInclude Include="vm\compiler\visitors\ExpressionCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\FunctionCallHelper.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\visitors\FunctionCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\visitors\LiteralCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\MethodCompilerHelper.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\ParameterValidator.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\visitors\StatementCompiler.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\TryStatementHelper.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\VirtualMachine.hpp">
@@ -1302,7 +1332,13 @@
     <ClInclude Include="vm\runtime\executors\LogicalExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\executors\MethodInvocationHelper.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\executors\ObjectExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\ObjectInstanceHelper.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\StackOperationsExecutor.hpp">
@@ -1319,6 +1355,15 @@
     </ClInclude>
     <ClInclude Include="vm\runtime\stack\StackManager.hpp">
       <Filter>vm\runtime\stack</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\utils\ArrayBoundsChecker.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\utils\ErrorLocationHelper.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\utils\ExceptionHandler.hpp">
+      <Filter>vm\runtime\utils</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\utils\TypeConverter.hpp">
       <Filter>vm\runtime\utils</Filter>
@@ -1949,10 +1994,16 @@
     <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
       <Filter>value\simd\detection</Filter>
     </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeIOHelper.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\ImportHelper.cpp">
       <Filter>vm\compiler</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\control\ExceptionContextManager.cpp">
@@ -1967,7 +2018,13 @@
     <ClCompile Include="vm\compiler\emission\BytecodeEmitter.cpp">
       <Filter>vm\compiler\emission</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassInheritanceValidator.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\registration\ClassRegistrar.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\FunctionRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\InterfaceRegistrar.cpp">
@@ -1981,6 +2038,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
       <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\variables\FunctionFrameManager.cpp">
       <Filter>vm\compiler\variables</Filter>
@@ -2003,13 +2063,25 @@
     <ClCompile Include="vm\compiler\visitors\ExpressionCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCallHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\LiteralCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\MethodCompilerHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ParameterValidator.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\StatementCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
@@ -2042,6 +2114,9 @@
     <ClCompile Include="vm\runtime\executors\ObjectExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\StackOperationsExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
@@ -2056,6 +2131,9 @@
     </ClCompile>
     <ClCompile Include="vm\runtime\stack\StackManager.cpp">
       <Filter>vm\runtime\stack</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\utils\ExceptionHandler.cpp">
+      <Filter>vm\runtime\utils</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\utils\TypeConverter.cpp">
       <Filter>vm\runtime\utils</Filter>
@@ -3398,6 +3476,9 @@
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\typeReturnTypeMismatch.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\undefinedVariableReassignment.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.expected">

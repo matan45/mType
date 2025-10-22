@@ -28,5 +28,17 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+
+        // Helper methods for handleLoadVar
+        bool tryLoadFromLambdaParentFrame(const std::string& varName);
+        bool tryLoadFromInstanceField(const std::string& varName);
+        bool tryLoadFromStaticField(const std::string& varName);
+
+        // Helper methods for handleStoreVar
+        bool tryStoreToInstanceField(const std::string& varName, const value::Value& val);
+        bool tryStoreToStaticField(const std::string& varName, const value::Value& val);
+        void validateAndStoreGlobalVariable(const std::string& varName,
+                                           const value::Value& val,
+                                           std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
     };
 }
