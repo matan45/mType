@@ -3478,6 +3478,9 @@
     <None Include="tests\testFiles\error\error\typeReturnTypeMismatch.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\undefinedVariableReassignment.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\allowStaticAndInstanceSameName.expected">
       <Filter>tests\testFiles\error\pass</Filter>
     </None>

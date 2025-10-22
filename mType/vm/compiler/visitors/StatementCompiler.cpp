@@ -236,7 +236,15 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Global variable assignment
+        // Global variable assignment - validate variable exists
+        if (!ctx.globalRegistry.exists(name)) {
+            throw errors::UndefinedException(
+                "Cannot assign to undeclared variable '" + name + "'. "
+                "Did you forget to declare it with a type?",
+                node->getLocation()
+            );
+        }
+
         size_t nameIndex = ctx.program.getConstantPool().addString(name);
         ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
     }
