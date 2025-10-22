@@ -246,7 +246,7 @@ namespace vm::compiler::visitors
         for (const auto& method : methods) {
             if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
                 if (methodNode->getName() == functionName &&
-                    methodNode->getParameters().size() == arguments.size()) {
+                    methodNode->getParameterCount() == arguments.size()) {
                     // If we're in a static method, only match static methods
                     // If we're in an instance method, prefer instance methods
                     if (ctx.inStaticMethod) {
@@ -272,7 +272,7 @@ namespace vm::compiler::visitors
             for (const auto& method : methods) {
                 if (auto* methodNode = dynamic_cast<ast::MethodNode*>(method.get())) {
                     if (methodNode->getName() == functionName &&
-                        methodNode->getParameters().size() == arguments.size() &&
+                        methodNode->getParameterCount() == arguments.size() &&
                         methodNode->getIsStatic()) {
                         isMethodCall = true;
                         isStaticMethodCall = true;

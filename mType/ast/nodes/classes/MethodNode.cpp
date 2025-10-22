@@ -68,10 +68,15 @@ namespace ast::nodes::classes
     }
 
     // Legacy getter for backward compatibility - converts GenericType back to ValueType
-    // Returns by value to ensure thread-safety (removed unsafe static variable)
+    // Uses lazy cache for O(1) performance after first call
     std::vector<std::pair<std::string, ValueType>> MethodNode::getParameters() const
     {
-        return utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
+        if (!paramCacheValid)
+        {
+            cachedLegacyParams = utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
+            paramCacheValid = true;
+        }
+        return *cachedLegacyParams;
     }
 
     std::shared_ptr<ASTNode> MethodNode::getBody() const noexcept
@@ -123,6 +128,7 @@ namespace ast::nodes::classes
         const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params)
     {
         parameters = params;
+        paramCacheValid = false;  // Invalidate cache when parameters change
     }
 
     // Legacy setter for backward compatibility
@@ -135,6 +141,7 @@ namespace ast::nodes::classes
     void MethodNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        paramCacheValid = false;  // Invalidate cache when parameters change
     }
 
     void MethodNode::setBody(std::shared_ptr<ASTNode> methodBody)

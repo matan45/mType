@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <optional>
 
 namespace ast::nodes::classes
 {
@@ -23,6 +24,10 @@ namespace ast::nodes::classes
         bool isStatic;
         bool isAsync;  // NEW: Flag to indicate async method
         AccessModifier accessModifier;
+
+        // Performance cache for legacy getParameters() - O(1) after first call
+        mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
+        mutable bool paramCacheValid = false;
 
     public:
         // NEW: Updated constructors with generic support

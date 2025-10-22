@@ -101,18 +101,14 @@ namespace vm::compiler::registration
                 }
 
                 // Handle parameters
-                const auto& params = functionNode->getParameters();
                 const auto& genericParamPairs = functionNode->getGenericParameters();
-                for (size_t i = 0; i < params.size(); ++i) {
-                    std::shared_ptr<ast::GenericType> paramType;
-                    if (i < genericParamPairs.size() && genericParamPairs[i].second) {
-                        paramType = genericParamPairs[i].second;
+                for (const auto& [paramName, paramType] : genericParamPairs) {
+                    if (paramType) {
+                        signature.parameters.emplace_back(paramName, paramType);
                     } else {
-                        paramType = std::make_shared<ast::GenericType>(
-                            vm::runtime::utils::TypeConverter::valueTypeToString(params[i].second)
-                        );
+                        // Fallback if paramType is null (shouldn't happen in well-formed code)
+                        signature.parameters.emplace_back(paramName, std::make_shared<ast::GenericType>(value::ValueType::VOID));
                     }
-                    signature.parameters.push_back({params[i].first, paramType});
                 }
 
                 // Add generic parameters if any

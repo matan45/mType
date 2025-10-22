@@ -24,8 +24,12 @@ namespace ast::utils
 
         /**
          * Converts a GenericType to ValueType.
-         * @param genericType The GenericType to convert
+         * @param genericType The GenericType to convert (must not be null)
          * @return The corresponding ValueType (OBJECT for generic parameters)
+         * @throws std::invalid_argument if genericType is null
+         *
+         * Note: Generic type parameters (T, E, K, V) return ValueType::OBJECT
+         *       since they represent any reference type at runtime.
          */
         static value::ValueType convertGenericTypeToValueType(const std::shared_ptr<GenericType>& genericType);
 
@@ -39,8 +43,9 @@ namespace ast::utils
 
         /**
          * Converts a parameter list from GenericType to ValueType.
-         * @param params Parameter list with shared_ptr<GenericType>
+         * @param params Parameter list with shared_ptr<GenericType> (none should be null)
          * @return Parameter list with ValueType
+         * @throws std::invalid_argument if any GenericType in params is null
          */
         static std::vector<std::pair<std::string, value::ValueType>>
             convertParametersToValueType(const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params);
@@ -54,8 +59,9 @@ namespace ast::utils
 
         /**
          * Clones a parameter list with GenericType.
-         * @param params The parameter list to clone
+         * @param params The parameter list to clone (none should be null)
          * @return A cloned parameter list with deep-copied GenericType instances
+         * @throws std::invalid_argument if any GenericType in params is null
          */
         static std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>
             cloneGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params);

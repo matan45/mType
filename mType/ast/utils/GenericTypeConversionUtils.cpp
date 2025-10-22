@@ -1,4 +1,5 @@
 #include "GenericTypeConversionUtils.hpp"
+#include <stdexcept>
 
 namespace ast::utils
 {
@@ -9,11 +10,18 @@ namespace ast::utils
 
     value::ValueType GenericTypeConversionUtils::convertGenericTypeToValueType(const std::shared_ptr<GenericType>& genericType)
     {
-        if (genericType && !genericType->isGenericParameter())
+        if (!genericType)
         {
-            return genericType->getConcreteType();
+            throw std::invalid_argument("GenericTypeConversionUtils::convertGenericTypeToValueType - null genericType pointer");
         }
-        return value::ValueType::OBJECT; // Default for generic parameters
+
+        if (genericType->isGenericParameter())
+        {
+            // Generic type parameters (T, E, K, V) represent any reference type at runtime
+            return value::ValueType::OBJECT;
+        }
+
+        return genericType->getConcreteType();
     }
 
     std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>
@@ -36,12 +44,17 @@ namespace ast::utils
         std::vector<std::pair<std::string, value::ValueType>> result;
         result.reserve(params.size());
 
-        for (const auto& param : params)
+        for (const auto& [paramName, genericType] : params)
         {
-            value::ValueType type = param.second->isGenericParameter()
+            if (!genericType)
+            {
+                throw std::invalid_argument("GenericTypeConversionUtils::convertParametersToValueType - null GenericType in parameter '" + paramName + "'");
+            }
+
+            value::ValueType type = genericType->isGenericParameter()
                 ? value::ValueType::OBJECT
-                : param.second->getConcreteType();
-            result.emplace_back(param.first, type);
+                : genericType->getConcreteType();
+            result.emplace_back(paramName, type);
         }
 
         return result;
@@ -58,10 +71,15 @@ namespace ast::utils
         std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> result;
         result.reserve(params.size());
 
-        for (const auto& param : params)
+        for (const auto& [paramName, genericType] : params)
         {
-            auto clonedGenericType = std::make_shared<GenericType>(*param.second);
-            result.emplace_back(param.first, clonedGenericType);
+            if (!genericType)
+            {
+                throw std::invalid_argument("GenericTypeConversionUtils::cloneGenericParameters - null GenericType in parameter '" + paramName + "'");
+            }
+
+            auto clonedGenericType = std::make_shared<GenericType>(*genericType);
+            result.emplace_back(paramName, clonedGenericType);
         }
 
         return result;

@@ -62,10 +62,15 @@ namespace ast::nodes::functions
     }
 
     // Legacy getter for backward compatibility - converts GenericType back to ValueType
-    // Returns by value to ensure thread-safety (removed unsafe static variable)
+    // Legacy getter with lazy cache for O(1) performance after first call
     std::vector<std::pair<std::string, ValueType>> FunctionNode::getParameters() const
     {
-        return utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
+        if (!paramCacheValid)
+        {
+            cachedLegacyParams = utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
+            paramCacheValid = true;
+        }
+        return *cachedLegacyParams;
     }
 
     std::vector<std::pair<std::string, ParameterType>> FunctionNode::getParameterTypes() const
@@ -146,6 +151,7 @@ namespace ast::nodes::functions
     void FunctionNode::setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params)
     {
         parameters = params;
+        paramCacheValid = false;  // Invalidate cache when parameters change
     }
 
     // Legacy setter for backward compatibility
@@ -158,6 +164,7 @@ namespace ast::nodes::functions
     void FunctionNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        paramCacheValid = false;  // Invalidate cache when parameters change
     }
 
     void FunctionNode::setBody(std::shared_ptr<ASTNode> funcBody)

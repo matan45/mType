@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <optional>
 
 namespace ast::nodes::functions
 {
@@ -23,6 +24,10 @@ namespace ast::nodes::functions
         std::shared_ptr<ASTNode> body;
         bool isAsync;  // NEW: Flag to indicate async function
         VisibilityModifier visibility;  // NEW: Top-level visibility for imports
+
+        // Performance cache for legacy getParameters() - O(1) after first call
+        mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
+        mutable bool paramCacheValid = false;
 
     public:
         // NEW: Primary constructor with generic support

@@ -124,10 +124,20 @@ namespace vm::compiler::registration
         // Register methods
         for (const auto& method : classNode->getMethods()) {
             if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
+                // Convert generic parameters to ValueType for constructor
+                std::vector<std::pair<std::string, value::ValueType>> legacyParams;
+                for (const auto& [name, genericType] : methodNode->getGenericParameters()) {
+                    value::ValueType vType = value::ValueType::VOID;
+                    if (genericType) {
+                        vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
+                    }
+                    legacyParams.emplace_back(name, vType);
+                }
+
                 auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),
-                    methodNode->getParameters(),
+                    legacyParams,
                     methodNode->getBody(),
                     methodNode->getIsStatic(),
                     methodNode->getAccessModifier()
@@ -400,10 +410,14 @@ namespace vm::compiler::registration
             methodMeta.startOffset = 0;  // Will be set during bytecode generation if needed
 
             // Extract parameter types and names
-            const auto& params = method->getParameters();
-            for (const auto& param : params) {
-                methodMeta.parameterTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(param.second));
-                methodMeta.parameterNames.push_back(param.first);
+            const auto& genericParams = method->getGenericParameters();
+            for (const auto& [paramName, genericType] : genericParams) {
+                value::ValueType vType = value::ValueType::VOID;
+                if (genericType) {
+                    vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
+                }
+                methodMeta.parameterTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(vType));
+                methodMeta.parameterNames.push_back(paramName);
             }
 
             if (method->getIsStatic()) {
