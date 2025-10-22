@@ -9,8 +9,8 @@ namespace environment::registry
 
     void InheritanceTracker::registerInheritance(const std::string& childName, const std::string& parentName)
     {
-        // Update parent->children mapping
-        parentToChildren[parentName].push_back(childName);
+        // Update parent->children mapping (set automatically prevents duplicates)
+        parentToChildren[parentName].insert(childName);
 
         // Update child->parent mapping
         childToParent[childName] = parentName;
@@ -96,7 +96,8 @@ namespace environment::registry
         auto it = parentToChildren.find(parentName);
         if (it != parentToChildren.end())
         {
-            return it->second;
+            // Convert unordered_set to vector
+            return std::vector<std::string>(it->second.begin(), it->second.end());
         }
         return {};
     }
@@ -113,14 +114,25 @@ namespace environment::registry
 
     void InheritanceTracker::invalidateCache(const std::string& className)
     {
-        // Invalidate the class itself
-        inheritanceChainCache.erase(className);
+        // Use iterative breadth-first traversal to avoid stack overflow
+        // with deep class hierarchies
+        std::queue<std::string> toInvalidate;
+        toInvalidate.push(className);
 
-        // Invalidate all descendants
-        auto descendants = getChildClasses(className);
-        for (const auto& descendant : descendants)
+        while (!toInvalidate.empty())
         {
-            invalidateCache(descendant); // Recursive invalidation
+            std::string current = toInvalidate.front();
+            toInvalidate.pop();
+
+            // Invalidate the current class's cache
+            inheritanceChainCache.erase(current);
+
+            // Add all direct children to the queue
+            auto children = getChildClasses(current);
+            for (const auto& child : children)
+            {
+                toInvalidate.push(child);
+            }
         }
     }
 

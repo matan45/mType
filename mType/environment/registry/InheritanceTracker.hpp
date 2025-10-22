@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <queue>
 #include <functional>
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -26,7 +27,7 @@ namespace environment::registry
     {
     private:
         // Relationship maps
-        std::unordered_map<std::string, std::vector<std::string>> parentToChildren;
+        std::unordered_map<std::string, std::unordered_set<std::string>> parentToChildren;
         std::unordered_map<std::string, std::string> childToParent;
 
         // Performance optimization cache
