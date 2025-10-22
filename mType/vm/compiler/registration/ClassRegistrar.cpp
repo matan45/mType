@@ -128,7 +128,6 @@ namespace vm::compiler::registration
                     methodNode->getName(),
                     methodNode->getReturnType(),
                     methodNode->getParameters(),
-                    std::vector<std::pair<std::string, value::Value>>{},
                     methodNode->getBody(),
                     methodNode->getIsStatic(),
                     methodNode->getAccessModifier()

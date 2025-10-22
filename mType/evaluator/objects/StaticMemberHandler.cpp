@@ -290,7 +290,7 @@ namespace evaluator
             if (!genericTypeArguments.empty())
             {
                 // Validate that the method is actually generic
-                if (!method->hasGenericInformation())
+                if (!method->isGeneric())
                 {
                     throw TypeException(
                         "Method '" + methodName + "' is not generic but generic type arguments were provided");
@@ -339,7 +339,7 @@ namespace evaluator
                 try
                 {
                     // Use ParameterBinder utility for consistent parameter validation and binding
-                    if (methodToCall->hasGenericInformation())
+                    if (methodToCall->isGeneric())
                     {
                         // Use generic-aware parameter binding for instantiated generic methods
                         utils::ParameterBinder::bindAndValidateParameters(
@@ -382,7 +382,7 @@ namespace evaluator
                     // Set generic type bindings for the method execution
                     // Map generic type parameters (T, U, V) to their concrete types (String, Int, etc.)
                     auto previousGenericBindings = context->getGenericTypeBindings();
-                    if (!genericTypeArguments.empty() && methodToCall->hasGenericInformation())
+                    if (!genericTypeArguments.empty() && methodToCall->isGeneric())
                     {
                         // Use getGenericTypeParameters() to get the <T, U, V> declarations, not function parameters
                         const auto& genericTypeParams = methodToCall->getGenericTypeParameters();

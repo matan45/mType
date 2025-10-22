@@ -478,7 +478,6 @@ namespace evaluator::utils
             originalMethod->getName(),
             newReturnType,
             newParams,
-            std::vector<std::pair<std::string, value::Value>>{}, // empty arguments
             originalMethod->getBodyPtr(),
             originalMethod->isStatic(),
             newGenericReturnType, // Substituted generic return type
@@ -563,7 +562,7 @@ namespace evaluator::utils
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
         const std::vector<std::string>& typeArguments)
     {
-        if (!genericMethod->hasGenericInformation())
+        if (!genericMethod->isGeneric())
         {
             // Method is not generic, return as-is
             return genericMethod;
@@ -607,7 +606,7 @@ namespace evaluator::utils
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> genericMethod,
         const std::vector<std::string>& typeArguments)
     {
-        if (!genericMethod->hasGenericInformation())
+        if (!genericMethod->isGeneric())
         {
             return typeArguments.empty();
         }

@@ -33,7 +33,6 @@ namespace runtimeTypes::klass
     private:
         ValueType returnType;
         std::vector<std::pair<std::string, ParameterType>> parameters;
-        std::vector<std::pair<std::string, Value>> arguments;
         std::shared_ptr<ASTNode> body;
         bool isStaticMethod;
         ast::AccessModifier accessModifier;
@@ -53,14 +52,17 @@ namespace runtimeTypes::klass
 
         bool isAsync;  // NEW: Flag to indicate async method
 
+        // Helper methods for resolveParameterType
+        ValueType resolveGenericParameter(size_t paramIndex, ValueType storedType) const;
+        ValueType resolveFallbackMapping(size_t paramIndex) const;
+
     public:
         // Legacy constructor for backward compatibility with ValueType
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ValueType>>& params,
-                                  const std::vector<std::pair<std::string, Value>>& args,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)), arguments(args),
+            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
               typeSubstitutionMap(), isAsync(false)
@@ -70,10 +72,9 @@ namespace runtimeTypes::klass
         // New constructor with ParameterType
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ParameterType>>& params,
-                                  const std::vector<std::pair<std::string, Value>>& args,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
+            : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
               genericParameters(), typeSubstitutionMap(), isAsync(false)
         {
@@ -82,7 +83,6 @@ namespace runtimeTypes::klass
         // NEW: Constructor with generic type information (ValueType legacy)
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ValueType>>& params,
-                                  const std::vector<std::pair<std::string, Value>>& args,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   std::shared_ptr<ast::GenericType> genRetType,
                                   const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
@@ -90,7 +90,7 @@ namespace runtimeTypes::klass
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)), arguments(args),
+            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false)
@@ -100,7 +100,6 @@ namespace runtimeTypes::klass
         // NEW: Constructor with generic type information (ParameterType)
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ParameterType>>& params,
-                                  const std::vector<std::pair<std::string, Value>>& args,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   std::shared_ptr<ast::GenericType> genRetType,
                                   const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
@@ -108,7 +107,7 @@ namespace runtimeTypes::klass
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(params), arguments(args), body(b), isStaticMethod(s),
+            : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
               genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
               isAsync(false)
@@ -208,7 +207,7 @@ namespace runtimeTypes::klass
         ValueType resolveParameterType(size_t paramIndex) const;
         ValueType resolveParameterType(const std::string& paramName) const;
         ValueType resolveReturnType() const;
-        bool hasGenericInformation() const { return genericReturnType != nullptr || !genericParameters.empty(); }
+        bool isGeneric() const { return genericReturnType != nullptr || !genericParameters.empty(); }
 
         // NEW: Async support
         bool getIsAsync() const { return isAsync; }

@@ -115,9 +115,6 @@
     <Filter Include="runtimeTypes">
       <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtimeTypes\collections">
-      <UniqueIdentifier>{2CCBD4D1-18F0-2352-413B-09E22DBF2270}</UniqueIdentifier>
-    </Filter>
     <Filter Include="runtimeTypes\global">
       <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
     </Filter>
@@ -1037,9 +1034,6 @@
     </ClInclude>
     <ClInclude Include="runtimeTypes\Definition.hpp">
       <Filter>runtimeTypes</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\collections\Collection.hpp">
-      <Filter>runtimeTypes\collections</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\global\ArrayOperationsNative.hpp">
       <Filter>runtimeTypes\global</Filter>

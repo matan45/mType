@@ -222,37 +222,6 @@ namespace runtimeTypes::klass
         }
     }
 
-    bool InterfaceRegistry::validateInterfaceHierarchyHelper(const std::string& interfaceName,
-                                                             std::unordered_set<std::string>& visited) const
-    {
-        // Check for cycles
-        if (visited.find(interfaceName) != visited.end())
-        {
-            return false; // Circular dependency detected
-        }
-
-        auto interface = findInterface(interfaceName);
-        if (!interface)
-        {
-            return true; // Interface not found, but that's okay for validation
-        }
-
-        visited.insert(interfaceName);
-
-        // Check all extended interfaces
-        for (const auto& extendedInterface : interface->getExtendedInterfaces())
-        {
-            if (!validateInterfaceHierarchyHelper(extendedInterface, visited))
-            {
-                return false;
-            }
-        }
-
-        visited.erase(interfaceName);
-        return true;
-    }
-
-
     void InterfaceRegistry::updateInterfaceAccess(const std::string& name) const
     {
         // Update access time

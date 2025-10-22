@@ -167,7 +167,6 @@ namespace evaluator
                         methodNode->getName(),
                         methodNode->getReturnType(), // Legacy ValueType for compatibility
                         parameterTypes, // NEW: Use ParameterType instead of ValueType
-                        std::vector<std::pair<std::string, Value>>{}, // empty arguments
                         bodyPtr,
                         methodNode->getIsStatic(),
                         methodNode->getGenericReturnType(), // NEW: Preserve generic return type
@@ -184,7 +183,6 @@ namespace evaluator
                         methodNode->getName(),
                         methodNode->getReturnType(), // Legacy ValueType for compatibility
                         parameterTypes, // NEW: Use ParameterType instead of ValueType
-                        std::vector<std::pair<std::string, Value>>{}, // empty arguments
                         bodyPtr,
                         methodNode->getIsStatic(),
                         methodNode->getGenericReturnType(), // NEW: Preserve return type for object types

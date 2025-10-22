@@ -308,7 +308,7 @@ namespace objects {
             try
             {
                 // Use enhanced ParameterBinder for generic-aware parameter binding
-                if (method->hasGenericInformation())
+                if (method->isGeneric())
                 {
                     // Use the new generic-aware parameter binding with object's generic type bindings
                     utils::ParameterBinder::bindAndValidateParameters(

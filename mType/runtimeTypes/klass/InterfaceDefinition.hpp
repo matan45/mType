@@ -13,6 +13,7 @@ namespace runtimeTypes::klass {
 
 namespace ast::nodes::expressions {
     class LambdaNode;
+    class LambdaInterfaceInvocationNode;
 }
 
 namespace runtimeTypes::klass {
@@ -128,5 +129,15 @@ namespace runtimeTypes::klass {
     private:
         // Helper method to convert GenericType to ValueType
         value::ValueType convertGenericTypeToValueType(std::shared_ptr<ast::GenericType> genericType) const;
+
+        // Helper methods for createLambdaImplementation
+        std::string createAnonymousClassName(ast::nodes::expressions::LambdaNode* lambda) const;
+        std::vector<std::pair<std::string, value::ValueType>> mapLambdaParameters(
+            ast::nodes::expressions::LambdaNode* lambda,
+            const MethodSignature* samMethod) const;
+        std::shared_ptr<ast::nodes::expressions::LambdaInterfaceInvocationNode> createLambdaInvocationNode(
+            std::shared_ptr<ast::nodes::expressions::LambdaNode> lambdaSharedPtr,
+            const MethodSignature* samMethod,
+            const std::vector<std::pair<std::string, value::ValueType>>& methodParams) const;
     };
 }

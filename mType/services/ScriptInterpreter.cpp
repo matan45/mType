@@ -1243,7 +1243,6 @@ namespace services
                     methodMeta.name,
                     returnType,
                     params,
-                    std::vector<std::pair<std::string, value::Value>>{}, // Empty arguments
                     nullptr, // No body for bytecode methods
                     false, // not static
                     accessMod
@@ -1271,7 +1270,6 @@ namespace services
                     methodMeta.name,
                     returnType,
                     params,
-                    std::vector<std::pair<std::string, value::Value>>{}, // Empty arguments
                     nullptr, // No body for bytecode methods
                     true, // static
                     accessMod

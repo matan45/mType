@@ -8,6 +8,39 @@ namespace runtimeTypes::global
     using namespace value;
     using namespace value::operations;
 
+    // Helper methods for argument validation
+    void ArrayOperationsNative::validateArgCount(const std::vector<Value>& args, size_t expected, const std::string& funcName)
+    {
+        if (args.size() != expected) {
+            throw errors::RuntimeException(funcName + " requires " + std::to_string(expected) + " argument" + (expected != 1 ? "s" : ""));
+        }
+    }
+
+    std::shared_ptr<value::NativeArray> ArrayOperationsNative::extractArray(const Value& arg, const std::string& funcName, const std::string& paramName)
+    {
+        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(arg)) {
+            throw errors::RuntimeException(funcName + " requires " + paramName + " to be an array");
+        }
+        return std::get<std::shared_ptr<NativeArray>>(arg);
+    }
+
+    void ArrayOperationsNative::validateTwoArrays(const std::vector<Value>& args, const std::string& funcName)
+    {
+        validateArgCount(args, 2, funcName);
+        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0]) ||
+            !std::holds_alternative<std::shared_ptr<NativeArray>>(args[1])) {
+            throw errors::RuntimeException(funcName + " requires two arrays");
+        }
+    }
+
+    void ArrayOperationsNative::validateSingleArray(const std::vector<Value>& args, const std::string& funcName)
+    {
+        validateArgCount(args, 1, funcName);
+        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
+            throw errors::RuntimeException(funcName + " requires an array");
+        }
+    }
+
     void ArrayOperationsNative::registerAll(std::shared_ptr<environment::Environment> env)
     {
         auto nativeRegistry = env->getNativeRegistry();
@@ -35,14 +68,7 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arrayAdd(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arrayAdd requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0]) ||
-            !std::holds_alternative<std::shared_ptr<NativeArray>>(args[1])) {
-            throw errors::RuntimeException("arrayAdd requires two arrays");
-        }
+        validateTwoArrays(args, "arrayAdd");
 
         auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
         auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
@@ -52,28 +78,14 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arrayAddScalar(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arrayAddScalar requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayAddScalar requires an array as first argument");
-        }
-
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        validateArgCount(args, 2, "arrayAddScalar");
+        auto array = extractArray(args[0], "arrayAddScalar", "first argument");
         return ArrayOperations::addScalar(array, args[1]);
     }
 
     Value ArrayOperationsNative::arraySubtract(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arraySubtract requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0]) ||
-            !std::holds_alternative<std::shared_ptr<NativeArray>>(args[1])) {
-            throw errors::RuntimeException("arraySubtract requires two arrays");
-        }
+        validateTwoArrays(args, "arraySubtract");
 
         auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
         auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
@@ -83,14 +95,7 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arrayMultiply(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arrayMultiply requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0]) ||
-            !std::holds_alternative<std::shared_ptr<NativeArray>>(args[1])) {
-            throw errors::RuntimeException("arrayMultiply requires two arrays");
-        }
+        validateTwoArrays(args, "arrayMultiply");
 
         auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
         auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
@@ -100,15 +105,8 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arrayMultiplyScalar(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arrayMultiplyScalar requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayMultiplyScalar requires an array as first argument");
-        }
-
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        validateArgCount(args, 2, "arrayMultiplyScalar");
+        auto array = extractArray(args[0], "arrayMultiplyScalar", "first argument");
         return ArrayOperations::multiplyScalar(array, args[1]);
     }
 
@@ -116,56 +114,28 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arraySum(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arraySum requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arraySum requires an array");
-        }
-
+        validateSingleArray(args, "arraySum");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         return ArrayOperations::sum(array);
     }
 
     Value ArrayOperationsNative::arrayMin(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arrayMin requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayMin requires an array");
-        }
-
+        validateSingleArray(args, "arrayMin");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         return ArrayOperations::min(array);
     }
 
     Value ArrayOperationsNative::arrayMax(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arrayMax requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayMax requires an array");
-        }
-
+        validateSingleArray(args, "arrayMax");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         return ArrayOperations::max(array);
     }
 
     Value ArrayOperationsNative::arrayAverage(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arrayAverage requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayAverage requires an array");
-        }
-
+        validateSingleArray(args, "arrayAverage");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         return ArrayOperations::average(array);
     }
@@ -174,43 +144,22 @@ namespace runtimeTypes::global
 
     Value ArrayOperationsNative::arrayFill(const std::vector<Value>& args)
     {
-        if (args.size() != 2) {
-            throw errors::RuntimeException("arrayFill requires 2 arguments");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayFill requires an array as first argument");
-        }
-
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        validateArgCount(args, 2, "arrayFill");
+        auto array = extractArray(args[0], "arrayFill", "first argument");
         ArrayOperations::fill(array, args[1]);
         return std::monostate{}; // void return
     }
 
     Value ArrayOperationsNative::arrayCopy(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arrayCopy requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayCopy requires an array");
-        }
-
+        validateSingleArray(args, "arrayCopy");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         return ArrayOperations::copy(array);
     }
 
     Value ArrayOperationsNative::arrayReverse(const std::vector<Value>& args)
     {
-        if (args.size() != 1) {
-            throw errors::RuntimeException("arrayReverse requires 1 argument");
-        }
-
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
-            throw errors::RuntimeException("arrayReverse requires an array");
-        }
-
+        validateSingleArray(args, "arrayReverse");
         auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
         ArrayOperations::reverse(array);
         return std::monostate{}; // void return

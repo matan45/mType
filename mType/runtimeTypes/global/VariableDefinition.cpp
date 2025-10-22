@@ -22,11 +22,6 @@ namespace runtimeTypes::global
         value = v;
     }
 
-    bool VariableDefinition::getIsFinal() const
-    {
-        return isFinalVariable;
-    }
-
     bool VariableDefinition::isFinal() const
     {
         return isFinalVariable;

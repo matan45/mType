@@ -7,6 +7,53 @@
 
 namespace runtimeTypes::klass
 {
+    std::string InterfaceDefinition::createAnonymousClassName(ast::nodes::expressions::LambdaNode* lambda) const
+    {
+        return "$Lambda$" + getName() + "$" + std::to_string(reinterpret_cast<uintptr_t>(lambda));
+    }
+
+    std::vector<std::pair<std::string, value::ValueType>> InterfaceDefinition::mapLambdaParameters(
+        ast::nodes::expressions::LambdaNode* lambda,
+        const MethodSignature* samMethod) const
+    {
+        std::vector<std::pair<std::string, value::ValueType>> methodParams;
+        const auto& lambdaParams = lambda->getParameters();
+        const auto& interfaceParams = samMethod->parameters;
+
+        for (size_t i = 0; i < lambdaParams.size() && i < interfaceParams.size(); ++i) {
+            const auto& lambdaParam = lambdaParams[i];
+            const auto& interfaceParam = interfaceParams[i];
+
+            // Convert GenericType to ValueType
+            value::ValueType paramType = convertGenericTypeToValueType(interfaceParam.second);
+            methodParams.emplace_back(lambdaParam.name, paramType);
+        }
+
+        return methodParams;
+    }
+
+    std::shared_ptr<ast::nodes::expressions::LambdaInterfaceInvocationNode> InterfaceDefinition::createLambdaInvocationNode(
+        std::shared_ptr<ast::nodes::expressions::LambdaNode> lambdaSharedPtr,
+        const MethodSignature* samMethod,
+        const std::vector<std::pair<std::string, value::ValueType>>& methodParams) const
+    {
+        value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
+
+        std::vector<value::ValueType> paramTypes;
+        for (const auto& [paramName, paramType] : methodParams) {
+            paramTypes.push_back(paramType);
+        }
+
+        return std::make_shared<ast::nodes::expressions::LambdaInterfaceInvocationNode>(
+            lambdaSharedPtr,
+            std::vector<std::shared_ptr<ast::ASTNode>>(), // Arguments will be provided at runtime
+            getName(),
+            samMethod->name,
+            paramTypes,
+            returnType
+        );
+    }
+
     std::shared_ptr<ClassDefinition> InterfaceDefinition::createLambdaImplementation(
         ast::nodes::expressions::LambdaNode* lambda) const
     {
@@ -20,65 +67,35 @@ namespace runtimeTypes::klass
         }
 
         // Create anonymous class name
-        std::string className = "$Lambda$" + getName() + "$" + std::to_string(reinterpret_cast<uintptr_t>(lambda));
+        std::string className = createAnonymousClassName(lambda);
 
         // Create class definition
         auto classDefinition = std::make_shared<ClassDefinition>(className);
 
-        // Convert lambda parameters to match interface method signature
-        std::vector<std::pair<std::string, ValueType>> methodParams;
-        std::vector<std::pair<std::string, Value>> methodArgs; // Empty for now
-        const auto& lambdaParams = lambda->getParameters();
-
         // Ensure parameter count matches
-        if (lambdaParams.size() != samMethod->parameters.size()) {
+        if (lambda->getParameters().size() != samMethod->parameters.size()) {
             return nullptr; // Parameter count mismatch
         }
 
-        // Map lambda parameters to interface method parameters using actual interface types
-        const auto& interfaceParams = samMethod->parameters;
-        for (size_t i = 0; i < lambdaParams.size() && i < interfaceParams.size(); ++i) {
-            const auto& lambdaParam = lambdaParams[i];
-            const auto& interfaceParam = interfaceParams[i];
-
-            // Convert GenericType to ValueType - need proper type mapping
-            value::ValueType paramType = convertGenericTypeToValueType(interfaceParam.second);
-            methodParams.emplace_back(lambdaParam.name, paramType);
-        }
-
-        // Create method definition that wraps the lambda
-        value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
-
-        // Create the specialized lambda interface invocation node
-        std::vector<value::ValueType> paramTypes;
-        for (const auto& [paramName, paramType] : methodParams) {
-            paramTypes.push_back(paramType);
-        }
+        // Map lambda parameters to interface method parameters
+        auto methodParams = mapLambdaParameters(lambda, samMethod);
 
         // Convert raw lambda pointer to shared_ptr for memory safety
-        // NOTE: Lambda lifetime is managed by AST, but we need to track when it becomes invalid
         auto lambdaSharedPtr = std::shared_ptr<ast::nodes::expressions::LambdaNode>(lambda, [](ast::nodes::expressions::LambdaNode* ptr){
             // Custom deleter that does nothing - lambda lifetime is managed by AST
-            // This prevents double deletion while allowing shared_ptr semantics
-            // However, we log when this happens for debugging purposes
             (void)ptr; // Silence unused parameter warning
         });
 
-        auto lambdaInvocationNode = std::make_shared<ast::nodes::expressions::LambdaInterfaceInvocationNode>(
-            lambdaSharedPtr,
-            std::vector<std::shared_ptr<ast::ASTNode>>(), // Arguments will be provided at runtime
-            getName(),
-            samMethod->name,
-            paramTypes,
-            returnType
-        );
+        // Create lambda invocation node
+        auto lambdaInvocationNode = createLambdaInvocationNode(lambdaSharedPtr, samMethod, methodParams);
 
+        // Create method definition that wraps the lambda
+        value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
         auto methodDef = std::make_shared<MethodDefinition>(
             samMethod->name,
             returnType,
             methodParams,
-            methodArgs,
-            lambdaInvocationNode, // Use our specialized node as the method body
+            lambdaInvocationNode,
             false
         );
 

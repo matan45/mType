@@ -170,5 +170,31 @@ namespace runtimeTypes::klass
                                          std::unordered_set<std::string>& visited,
                                          int depth,
                                          std::shared_ptr<InterfaceRegistry> registry) const;
+
+        // Helper methods for implementsInterfaceTransitive
+        static std::string extractBaseTypeName(const std::string& typeName);
+        bool checkDirectInterfaceMatch(const std::string& interfaceName,
+                                       const std::string& implementedInterface,
+                                       std::unordered_set<std::string>& visited,
+                                       std::shared_ptr<InterfaceRegistry> registry) const;
+
+        // Template helper for traversing parent class hierarchy
+        template<typename Func>
+        std::shared_ptr<MethodDefinition> traverseHierarchyForMethod(Func findFunc) const
+        {
+            auto current = parentClass.lock();
+            int depth = 0;
+
+            while (current && depth < MAX_INHERITANCE_DEPTH) {
+                auto method = findFunc(current.get());
+                if (method) {
+                    return method;
+                }
+                current = current->parentClass.lock();
+                depth++;
+            }
+
+            return nullptr;
+        }
     };
 }
