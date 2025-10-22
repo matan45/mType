@@ -9,6 +9,24 @@ namespace circularDependency
     {
     }
 
+    bool DependencyPatternAnalyzer::detectAnyPattern(const std::vector<std::string>& chain) const
+    {
+        return detectRepeatingPattern(chain) ||
+            detectAlternatingPattern(chain) ||
+            detectGrowingComplexity(chain);
+    }
+
+    size_t DependencyPatternAnalyzer::calculateComplexity(const std::string& item) const
+    {
+        // Complexity heuristic: length + number of template brackets + number of namespace separators
+        size_t complexity = item.length();
+        complexity += std::count(item.begin(), item.end(), '<');
+        complexity += std::count(item.begin(), item.end(), '>');
+        complexity += std::count(item.begin(), item.end(), ':');
+        complexity += std::count(item.begin(), item.end(), ',');
+        return complexity;
+    }
+
     bool DependencyPatternAnalyzer::detectRepeatingPattern(const std::vector<std::string>& chain) const
     {
         if (chain.size() < config_.repeatingPatternThreshold * 2)
@@ -86,13 +104,7 @@ namespace circularDependency
         std::vector<size_t> complexities;
         for (const auto& item : chain)
         {
-            // Complexity heuristic: length + number of template brackets + number of namespace separators
-            size_t complexity = item.length();
-            complexity += std::count(item.begin(), item.end(), '<');
-            complexity += std::count(item.begin(), item.end(), '>');
-            complexity += std::count(item.begin(), item.end(), ':');
-            complexity += std::count(item.begin(), item.end(), ',');
-            complexities.push_back(complexity);
+            complexities.push_back(calculateComplexity(item));
         }
 
         // Check if complexity is consistently growing
@@ -105,8 +117,60 @@ namespace circularDependency
             }
         }
 
-        // If more than 60% of transitions show growth, it's suspicious
-        return static_cast<double>(growthCount) / (complexities.size() - 1) > 0.6;
+        // If more than threshold of transitions show growth, it's suspicious
+        return static_cast<double>(growthCount) / (complexities.size() - 1) > GROWTH_THRESHOLD;
+    }
+
+    std::string DependencyPatternAnalyzer::analyzePatternSuggestions(const std::vector<std::string>& chain) const
+    {
+        std::string suggestion;
+
+        if (detectRepeatingPattern(chain))
+        {
+            suggestion +=
+                "Consider breaking the repeating dependency cycle by introducing an interface or base class. ";
+        }
+
+        if (detectAlternatingPattern(chain))
+        {
+            suggestion +=
+                "Alternating dependencies detected - consider merging related components or using dependency injection. ";
+        }
+
+        if (detectGrowingComplexity(chain))
+        {
+            suggestion +=
+                "Template complexity is growing - consider simplifying generic type parameters or using type aliases. ";
+        }
+
+        return suggestion;
+    }
+
+    std::string DependencyPatternAnalyzer::analyzeLengthSuggestions(const std::vector<std::string>& chain) const
+    {
+        if (chain.size() > LONG_CHAIN_THRESHOLD)
+        {
+            return "Very long dependency chain - consider architectural refactoring to reduce coupling. ";
+        }
+        return "";
+    }
+
+    std::string DependencyPatternAnalyzer::analyzeCycleSuggestions(const std::vector<std::string>& chain) const
+    {
+        if (chain.size() < 3)
+        {
+            return "";
+        }
+
+        for (size_t i = 0; i < chain.size() - 2; ++i)
+        {
+            if (chain[i] == chain.back())
+            {
+                return "Direct cycle detected with '" + chain[i] + "' - review interface design. ";
+            }
+        }
+
+        return "";
     }
 
     std::string DependencyPatternAnalyzer::suggestSimplification(const std::vector<std::string>& chain) const
@@ -116,48 +180,10 @@ namespace circularDependency
             return "";
         }
 
-        // Analyze the chain for common issues
         std::string suggestion;
-
-        // Check for repeating patterns
-        if (detectRepeatingPattern(chain))
-        {
-            suggestion +=
-                "Consider breaking the repeating dependency cycle by introducing an interface or base class. ";
-        }
-
-        // Check for alternating patterns
-        if (detectAlternatingPattern(chain))
-        {
-            suggestion +=
-                "Alternating dependencies detected - consider merging related components or using dependency injection. ";
-        }
-
-        // Check for growing complexity
-        if (detectGrowingComplexity(chain))
-        {
-            suggestion +=
-                "Template complexity is growing - consider simplifying generic type parameters or using type aliases. ";
-        }
-
-        // Generic suggestions based on chain length
-        if (chain.size() > 20)
-        {
-            suggestion += "Very long dependency chain - consider architectural refactoring to reduce coupling. ";
-        }
-
-        // Check for obvious cycles in recent elements
-        if (chain.size() >= 3)
-        {
-            for (size_t i = 0; i < chain.size() - 2; ++i)
-            {
-                if (chain[i] == chain.back())
-                {
-                    suggestion += "Direct cycle detected with '" + chain[i] + "' - review interface design. ";
-                    break;
-                }
-            }
-        }
+        suggestion += analyzePatternSuggestions(chain);
+        suggestion += analyzeLengthSuggestions(chain);
+        suggestion += analyzeCycleSuggestions(chain);
 
         return suggestion.empty() ? "No specific optimization suggestions available." : suggestion;
     }

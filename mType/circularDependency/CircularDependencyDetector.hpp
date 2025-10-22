@@ -81,18 +81,19 @@ namespace circularDependency
         void clearCache() const;
 
     private:
-      
+
         void initialize();
-        
+
         bool checkTrueCycle(DependencyType type, const std::string& identifier) const;
 
-        
-        static std::string getDependencyTypeName(DependencyType type);
+        // Helper functions for enterDependency
+        std::vector<std::string> buildChainWithIdentifier(DependencyType type, const std::string& identifier) const;
+        void cacheNegativeResult(DependencyType type, const std::vector<std::string>& chain) const;
+        void updateDependencyState(DependencyType type, const std::string& identifier);
 
         // LRU cache management helpers
         void updateCacheAccess(const std::string& key) const;
         void evictLRUEntries() const;
-        bool getCachedResult(const std::string& key) const;
         void setCachedResult(const std::string& key, bool result) const;
     };
 }

@@ -44,6 +44,13 @@ namespace runtimeTypes::global
         static value::Value arrayFill(const std::vector<value::Value>& args);
         static value::Value arrayCopy(const std::vector<value::Value>& args);
         static value::Value arrayReverse(const std::vector<value::Value>& args);
+
+    private:
+        // Helper methods for argument validation
+        static void validateArgCount(const std::vector<value::Value>& args, size_t expected, const std::string& funcName);
+        static std::shared_ptr<value::NativeArray> extractArray(const value::Value& arg, const std::string& funcName, const std::string& paramName);
+        static void validateTwoArrays(const std::vector<value::Value>& args, const std::string& funcName);
+        static void validateSingleArray(const std::vector<value::Value>& args, const std::string& funcName);
     };
 
 } // namespace runtimeTypes::global

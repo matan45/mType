@@ -14,6 +14,58 @@
 namespace types {
 
     /**
+     * Helper class to traverse inheritance chains with cycle detection
+     */
+    class InheritanceChainTraverser {
+    private:
+        const std::unordered_map<std::string, std::string>& classInheritance;
+        static const int MAX_DEPTH = 20;
+
+    public:
+        explicit InheritanceChainTraverser(const std::unordered_map<std::string, std::string>& inheritance);
+
+        /**
+         * Traverse inheritance chain to check if child extends target parent
+         * @return true if childType has targetParent in its inheritance chain
+         */
+        bool traverse(const std::string& childType, const std::string& targetParent) const;
+    };
+
+    /**
+     * Helper class to parse generic type instantiations (e.g., "List<String>")
+     */
+    class GenericInstantiationParser {
+    public:
+        /**
+         * Parse generic type instantiation into base name and type arguments
+         * @param typeName The generic type string (e.g., "List<String>")
+         * @return Pair of base name and vector of type arguments
+         */
+        static std::pair<std::string, std::vector<std::string>> parse(const std::string& typeName);
+    };
+
+    /**
+     * Helper class to handle array type name creation and parsing
+     */
+    class ArrayTypeParser {
+    public:
+        /**
+         * Create array type name from element type and dimensions
+         * @param elementType The base element type
+         * @param dimensions Number of array dimensions
+         * @return Array type name (e.g., "String[][]")
+         */
+        static std::string createArrayTypeName(const std::string& elementType, int dimensions);
+
+        /**
+         * Parse array type name to extract element type and dimensions
+         * @param arrayTypeName The array type name to parse
+         * @return Pair of element type and dimension count
+         */
+        static std::pair<std::string, int> parseArrayTypeName(const std::string& arrayTypeName);
+    };
+
+    /**
      * Enhanced type information supporting arrays, generics, and custom types
      */
     struct ExtendedTypeInfo {
@@ -25,24 +77,9 @@ namespace types {
         std::vector<std::string> genericParameters;
         std::string fullyQualifiedName;
 
-        ExtendedTypeInfo()
-            : baseType(value::ValueType::VOID), isArray(false), arrayDimensions(0), isGeneric(false) {}
-
-        ExtendedTypeInfo(value::ValueType type, const std::string& name = "")
-            : baseType(type), typeName(name), isArray(false), arrayDimensions(0), isGeneric(false) {}
-
-        ExtendedTypeInfo(value::ValueType type, const std::string& name, int dimensions)
-            : baseType(type), typeName(name), isArray(dimensions > 0), arrayDimensions(dimensions), isGeneric(false) {}
-    };
-
-    /**
-     * Exception thrown when type resolution fails
-     * @deprecated Use errors::TypeResolutionException instead
-     */
-    class TypeResolutionException : public errors::TypeResolutionException {
-    public:
-        explicit TypeResolutionException(const std::string& message)
-            : errors::TypeResolutionException(message) {}
+        ExtendedTypeInfo();
+        ExtendedTypeInfo(value::ValueType type, const std::string& name = "");
+        ExtendedTypeInfo(value::ValueType type, const std::string& name, int dimensions);
     };
 
     /**
@@ -65,10 +102,7 @@ namespace types {
         // Collection types
         std::unordered_set<std::string> collectionTypes;
 
-        // Custom type factories
-        std::unordered_map<std::string, std::function<ExtendedTypeInfo(const std::vector<std::string>&)>> typeFactories;
-
-        // NEW: Inheritance relationships
+        // Inheritance relationships
         std::unordered_map<std::string, std::string> classInheritance; // child -> parent
         mutable std::unordered_map<std::string, bool> subtypeCache; // For caching subtype relationships
 
@@ -189,11 +223,6 @@ namespace types {
          * Initialize built-in primitive types
          */
         void initializePrimitiveTypes();
-
-        /**
-         * Parse generic type instantiation (e.g., "List<String>" -> {"List", ["String"]})
-         */
-        std::pair<std::string, std::vector<std::string>> parseGenericInstantiation(const std::string& typeName) const;
 
         /**
          * Validate type arguments for a generic type

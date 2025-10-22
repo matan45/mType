@@ -73,7 +73,7 @@ namespace evaluator
             if (node->hasGenericTypeArguments())
             {
                 // Validate that the function is actually generic
-                if (!funcDef->hasGenericInformation())
+                if (!funcDef->isGeneric())
                 {
                     throw TypeException(
                         "Function '" + node->getFunctionName() + "' is not generic but generic type arguments were provided",
@@ -135,7 +135,7 @@ namespace evaluator
 
                 // Set up generic type bindings if this is a generic function call
                 auto previousGenericBindings = context->getGenericTypeBindings();
-                if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                if (node->hasGenericTypeArguments() && functionToCall->isGeneric())
                 {
                     const auto& genericTypeParams = functionToCall->getGenericTypeParameters();
                     const auto& genericTypeArgs = node->getGenericTypeArguments();
@@ -243,7 +243,7 @@ namespace evaluator
                         node->getLocation(), funcDef->getReturnClassName(), funcDef->getIsAsync());
 
                     // Restore previous generic type bindings before returning
-                    if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                    if (node->hasGenericTypeArguments() && functionToCall->isGeneric())
                     {
                         context->setGenericTypeBindings(previousGenericBindings);
                     }
@@ -255,7 +255,7 @@ namespace evaluator
                 catch (...)
                 {
                     // Restore previous generic type bindings on exception
-                    if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                    if (node->hasGenericTypeArguments() && functionToCall->isGeneric())
                     {
                         context->setGenericTypeBindings(previousGenericBindings);
                     }
@@ -263,7 +263,7 @@ namespace evaluator
                 }
 
                 // Restore previous generic type bindings
-                if (node->hasGenericTypeArguments() && functionToCall->hasGenericInformation())
+                if (node->hasGenericTypeArguments() && functionToCall->isGeneric())
                 {
                     context->setGenericTypeBindings(previousGenericBindings);
                 }

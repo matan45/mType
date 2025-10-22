@@ -25,31 +25,6 @@ namespace types {
     };
 
     /**
-     * Enhanced type conversion exception with detailed context
-     * @deprecated Use errors::TypeConversionException instead
-     */
-    class TypeConversionException : public errors::TypeConversionException {
-    private:
-        TypeConversionContext context_;
-        std::vector<std::string> suggestions_;
-
-    public:
-        TypeConversionException(const std::string& message,
-                              const std::string& sourceType,
-                              const std::string& targetType,
-                              const TypeConversionContext& context = TypeConversionContext())
-            : errors::TypeConversionException(message, sourceType, targetType)
-            , context_(context) {}
-
-        const TypeConversionContext& getContext() const { return context_; }
-        const std::vector<std::string>& getSuggestions() const { return suggestions_; }
-
-        void addSuggestion(const std::string& suggestion) {
-            suggestions_.push_back(suggestion);
-        }
-    };
-
-    /**
      * Utility class for improved type conversion with comprehensive error handling
      */
     class TypeConversionUtils {
@@ -103,14 +78,31 @@ namespace types {
 
     private:
         /**
+         * Handle conversion of generic type parameters
+         */
+        static value::ValueType handleGenericParameter(
+            std::shared_ptr<ast::GenericType> genericType,
+            const std::unordered_map<std::string, std::string>& substitutionMap,
+            TypeRegistry& registry);
+
+        /**
+         * Handle conversion of concrete types
+         */
+        static value::ValueType handleConcreteType(
+            std::shared_ptr<ast::GenericType> genericType,
+            TypeRegistry& registry);
+
+        /**
+         * Handle conversion of parameterized types
+         */
+        static value::ValueType handleParameterizedType(
+            std::shared_ptr<ast::GenericType> genericType,
+            TypeRegistry& registry);
+
+        /**
          * Calculate string similarity for type suggestions
          */
         static double calculateStringSimilarity(const std::string& str1, const std::string& str2);
-
-        /**
-         * Find similar type names in the registry
-         */
-        static std::vector<std::string> findSimilarTypes(const std::string& typeName);
     };
 
 } // namespace types

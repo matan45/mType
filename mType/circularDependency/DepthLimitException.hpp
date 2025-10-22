@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "DependencyType.hpp"
 #include "CircularDependencyException.hpp"
+#include "DependencyTypeUtils.hpp"
 
 namespace circularDependency
 {
@@ -16,7 +17,7 @@ namespace circularDependency
                                      const std::vector<std::string>& chain,
                                      const std::string& location = "")
             : CircularDependencyException(
-                  "Depth limit exceeded for " + dependencyTypeToString(type),
+                  "Depth limit exceeded for " + DependencyTypeUtils::toString(type),
                   chain, location)
               , type_(type), currentDepth_(current), maxDepth_(max)
         {
@@ -30,24 +31,10 @@ namespace circularDependency
 
         std::string getDetailedMessage() const override
         {
-            return "Depth limit exceeded: " + dependencyTypeToString(type_) +
+            return "Depth limit exceeded: " + DependencyTypeUtils::toString(type_) +
                 " depth " + std::to_string(currentDepth_) +
                 " exceeds maximum " + std::to_string(maxDepth_) +
                 (!location_.empty() ? " at " + location_ : "");
-        }
-
-    private:
-        static std::string dependencyTypeToString(DependencyType type)
-        {
-            switch (type)
-            {
-            case DependencyType::GENERIC_SUBSTITUTION: return "generic substitution";
-            case DependencyType::IMPORT_CHAIN: return "import chain";
-            case DependencyType::INTERFACE_INHERITANCE: return "interface inheritance";
-            case DependencyType::CLASS_INHERITANCE: return "class inheritance";
-            case DependencyType::METHOD_OVERLOAD: return "method overload";
-            default: return "unknown dependency";
-            }
         }
     };
 }

@@ -61,7 +61,6 @@ namespace runtimeTypes::global
         // Generic type support
         const std::vector<ast::GenericTypeParameter>& getGenericTypeParameters() const { return genericTypeParameters; }
         void setGenericTypeParameters(const std::vector<ast::GenericTypeParameter>& genTypeParams) { genericTypeParameters = genTypeParams; }
-        bool hasGenericInformation() const { return !genericTypeParameters.empty(); }
         bool isGeneric() const { return !genericTypeParameters.empty(); }
 
         // NEW: Async support

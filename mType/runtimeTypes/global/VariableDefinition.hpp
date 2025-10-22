@@ -32,10 +32,9 @@ namespace runtimeTypes::global
         const Value& getValue() const;
 
         void setValue(const Value& v);
-        
-        bool getIsFinal() const;
+
         bool isFinal() const;
-        
+
         void setIsFinal(bool f);
         
         const std::string& getClassName() const;

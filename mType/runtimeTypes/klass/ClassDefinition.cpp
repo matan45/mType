@@ -178,17 +178,11 @@ namespace runtimeTypes::klass
 
     std::shared_ptr<MethodDefinition> ClassDefinition::getMethod(const std::string& methodName) const
     {
-        auto it = instanceMethods.find(methodName);
-        if (it != instanceMethods.end()) {
-            return it->second;
+        auto method = getInstanceMethod(methodName);
+        if (method) {
+            return method;
         }
-        
-        auto staticIt = staticMethods.find(methodName);
-        if (staticIt != staticMethods.end()) {
-            return staticIt->second;
-        }
-        
-        return nullptr;
+        return getStaticMethod(methodName);
     }
 
     std::shared_ptr<ConstructorDefinition> ClassDefinition::getConstructor() const
@@ -272,12 +266,7 @@ namespace runtimeTypes::klass
     {
         // Direct interface checking only - for transitive checks, use the registry-based version
         for (const auto& implementedInterface : implementedInterfaces) {
-            // Extract base name from generic interface (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
-            std::string baseImplementedName = implementedInterface;
-            size_t anglePos = implementedInterface.find('<');
-            if (anglePos != std::string::npos) {
-                baseImplementedName = implementedInterface.substr(0, anglePos);
-            }
+            std::string baseImplementedName = extractBaseTypeName(implementedInterface);
 
             if (baseImplementedName == interfaceName) {
                 return true;
@@ -292,12 +281,7 @@ namespace runtimeTypes::klass
     {
         // Check direct interfaces first
         for (const auto& implementedInterface : implementedInterfaces) {
-            // Extract base name from generic interface (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
-            std::string baseImplementedName = implementedInterface;
-            size_t anglePos = implementedInterface.find('<');
-            if (anglePos != std::string::npos) {
-                baseImplementedName = implementedInterface.substr(0, anglePos);
-            }
+            std::string baseImplementedName = extractBaseTypeName(implementedInterface);
 
             if (baseImplementedName == interfaceName) {
                 return true;
@@ -307,6 +291,60 @@ namespace runtimeTypes::klass
         // Check transitive interface inheritance with depth protection and registry access
         std::unordered_set<std::string> visited;
         return implementsInterfaceTransitive(interfaceName, visited, 0, registry);
+    }
+
+    std::string ClassDefinition::extractBaseTypeName(const std::string& typeName)
+    {
+        size_t anglePos = typeName.find('<');
+        return (anglePos != std::string::npos) ? typeName.substr(0, anglePos) : typeName;
+    }
+
+    bool ClassDefinition::checkDirectInterfaceMatch(const std::string& interfaceName,
+                                                     const std::string& implementedInterface,
+                                                     std::unordered_set<std::string>& visited,
+                                                     std::shared_ptr<InterfaceRegistry> registry) const
+    {
+        std::string baseImplementedName = extractBaseTypeName(implementedInterface);
+
+        // Avoid infinite recursion (circular inheritance)
+        if (visited.find(baseImplementedName) != visited.end()) {
+            return false;
+        }
+
+        visited.insert(baseImplementedName);
+
+        // Look up the interface definition in the registry
+        auto interfaceDef = registry->findInterface(baseImplementedName);
+        if (interfaceDef) {
+            // Check what interfaces this interface extends
+            const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+            for (const auto& extendedInterface : extendedInterfaces) {
+                std::string baseExtendedName = extractBaseTypeName(extendedInterface);
+
+                // Check if this extended interface matches what we're looking for
+                if (baseExtendedName == interfaceName) {
+                    visited.erase(baseImplementedName);
+                    return true;
+                }
+
+                // Recursively check if the extended interface implements our target
+                auto extendedInterfaceDef = registry->findInterface(baseExtendedName);
+                if (extendedInterfaceDef) {
+                    const auto& furtherExtended = extendedInterfaceDef->getExtendedInterfaces();
+                    for (const auto& furtherInterface : furtherExtended) {
+                        std::string furtherBaseName = extractBaseTypeName(furtherInterface);
+
+                        if (furtherBaseName == interfaceName) {
+                            visited.erase(baseImplementedName);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        visited.erase(baseImplementedName);
+        return false;
     }
 
     bool ClassDefinition::implementsInterfaceTransitive(const std::string& interfaceName,
@@ -325,62 +363,9 @@ namespace runtimeTypes::klass
 
         // Check all directly implemented interfaces for transitive inheritance
         for (const auto& implementedInterface : implementedInterfaces) {
-            // Extract base interface name (e.g., "CacheStore<String, Int, String>" -> "CacheStore")
-            std::string baseImplementedName = implementedInterface;
-            size_t anglePos = implementedInterface.find('<');
-            if (anglePos != std::string::npos) {
-                baseImplementedName = implementedInterface.substr(0, anglePos);
+            if (checkDirectInterfaceMatch(interfaceName, implementedInterface, visited, registry)) {
+                return true;
             }
-
-            // Avoid infinite recursion (circular inheritance)
-            if (visited.find(baseImplementedName) != visited.end()) {
-                continue;
-            }
-
-            visited.insert(baseImplementedName);
-
-            // Look up the interface definition in the registry
-            auto interfaceDef = registry->findInterface(baseImplementedName);
-            if (interfaceDef) {
-                // Check what interfaces this interface extends
-                const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
-                for (const auto& extendedInterface : extendedInterfaces) {
-                    // Extract base name from extended interface
-                    std::string baseExtendedName = extendedInterface;
-                    size_t extAnglePos = extendedInterface.find('<');
-                    if (extAnglePos != std::string::npos) {
-                        baseExtendedName = extendedInterface.substr(0, extAnglePos);
-                    }
-
-                    // Check if this extended interface matches what we're looking for
-                    if (baseExtendedName == interfaceName) {
-                        visited.erase(baseImplementedName);
-                        return true;
-                    }
-
-                    // Recursively check if the extended interface implements our target
-                    // We need to check if the extended interface (e.g., "Repository") extends our target (e.g., "Hashable")
-                    auto extendedInterfaceDef = registry->findInterface(baseExtendedName);
-                    if (extendedInterfaceDef) {
-                        // Check if the extended interface directly or transitively extends our target
-                        const auto& furtherExtended = extendedInterfaceDef->getExtendedInterfaces();
-                        for (const auto& furtherInterface : furtherExtended) {
-                            std::string furtherBaseName = furtherInterface;
-                            size_t furtherAnglePos = furtherInterface.find('<');
-                            if (furtherAnglePos != std::string::npos) {
-                                furtherBaseName = furtherInterface.substr(0, furtherAnglePos);
-                            }
-
-                            if (furtherBaseName == interfaceName) {
-                                visited.erase(baseImplementedName);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            visited.erase(baseImplementedName);
         }
 
         return false;
@@ -417,19 +402,9 @@ namespace runtimeTypes::klass
         }
 
         // Then check in parent class hierarchy
-        auto current = parentClass.lock();
-        int depth = 0;
-
-        while (current && depth < MAX_INHERITANCE_DEPTH) {
-            method = current->findMethod(methodName, argCount);
-            if (method) {
-                return method;
-            }
-            current = current->parentClass.lock();
-            depth++;
-        }
-
-        return nullptr;
+        return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
+            return classDef->findMethod(methodName, argCount);
+        });
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodInHierarchy(const std::string& methodName, size_t argCount) const
@@ -441,19 +416,9 @@ namespace runtimeTypes::klass
         }
 
         // Then check in parent class hierarchy
-        auto current = parentClass.lock();
-        int depth = 0;
-
-        while (current && depth < MAX_INHERITANCE_DEPTH) {
-            method = current->findInstanceMethod(methodName, argCount);
-            if (method) {
-                return method;
-            }
-            current = current->parentClass.lock();
-            depth++;
-        }
-
-        return nullptr;
+        return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
+            return classDef->findInstanceMethod(methodName, argCount);
+        });
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const
@@ -465,19 +430,9 @@ namespace runtimeTypes::klass
         }
 
         // Then check in parent class hierarchy
-        auto current = parentClass.lock();
-        int depth = 0;
-
-        while (current && depth < MAX_INHERITANCE_DEPTH) {
-            method = current->findStaticMethod(methodName, argCount);
-            if (method) {
-                return method;
-            }
-            current = current->parentClass.lock();
-            depth++;
-        }
-
-        return nullptr;
+        return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
+            return classDef->findStaticMethod(methodName, argCount);
+        });
     }
 
     std::vector<std::shared_ptr<ClassDefinition>> ClassDefinition::getInheritanceChain() const

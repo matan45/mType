@@ -127,10 +127,6 @@ namespace runtimeTypes::klass
 
     private:
         void validateInterfaceHierarchyEnhanced(const std::string& interfaceName) const;
-        
-        // Legacy validation method for backward compatibility (deprecated)
-        bool validateInterfaceHierarchyHelper(const std::string& interfaceName,
-                                              std::unordered_set<std::string>& visited) const;
 
         // Memory management helper methods
         void updateInterfaceAccess(const std::string& name) const;

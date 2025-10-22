@@ -79,18 +79,6 @@ namespace runtimeTypes::klass
         return classDefinition ? classDefinition->getName() : "unknown";
     }
 
-    Value ObjectInstance::callMethod(const std::string& methodName, const std::vector<Value>& args)
-    {
-        auto method = classDefinition->getMethod(methodName);
-        if (!method) {
-            return std::monostate{};
-        }
-        
-        // Method execution would need evaluator context
-        // This is a simplified implementation
-        return std::monostate{};
-    }
-
     std::string ObjectInstance::getContentHash() const
     {
         std::string hash = classDefinition->getName() + ":";
@@ -139,6 +127,35 @@ namespace runtimeTypes::klass
         return hash;
     }
 
+    bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue)
+    {
+        return std::visit([](const auto& thisV, const auto& otherV) -> bool {
+            // Same types comparison
+            if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::decay_t<decltype(otherV)>>) {
+                if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
+                    // Recursive content comparison for nested objects
+                    if (!thisV && !otherV) return true;
+                    if (!thisV || !otherV) return false;
+                    return thisV->contentEquals(*otherV);
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int> ||
+                                   std::is_same_v<std::decay_t<decltype(thisV)>, float> ||
+                                   std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
+                                   std::is_same_v<std::decay_t<decltype(thisV)>, std::string>) {
+                    return thisV == otherV;
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, nullptr_t> ||
+                                   std::is_same_v<std::decay_t<decltype(thisV)>, std::monostate>) {
+                    return true;  // Both null or void
+                } else {
+                    // For collections and other complex types, use pointer comparison
+                    // This is acceptable since full deep comparison would be expensive
+                    return &thisV == &otherV;
+                }
+            }
+            // Different types are not equal
+            return false;
+        }, thisValue, otherValue);
+    }
+
     bool ObjectInstance::contentEquals(const ObjectInstance& other) const
     {
         // First check class compatibility
@@ -158,35 +175,8 @@ namespace runtimeTypes::klass
                 const std::string& fieldName = pair.first;
                 Value thisValue = getFieldValue(fieldName);
                 Value otherValue = other.getFieldValue(fieldName);
-                
-                // Deep comparison of field values
-                bool fieldsEqual = std::visit([](const auto& thisV, const auto& otherV) -> bool {
-                    // Same types comparison
-                    if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::decay_t<decltype(otherV)>>) {
-                        if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                            // Recursive content comparison for nested objects
-                            if (!thisV && !otherV) return true;
-                            if (!thisV || !otherV) return false;
-                            return thisV->contentEquals(*otherV);
-                        } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int> ||
-                                           std::is_same_v<std::decay_t<decltype(thisV)>, float> ||
-                                           std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
-                                           std::is_same_v<std::decay_t<decltype(thisV)>, std::string>) {
-                            return thisV == otherV;
-                        } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, nullptr_t> ||
-                                           std::is_same_v<std::decay_t<decltype(thisV)>, std::monostate>) {
-                            return true;  // Both null or void
-                        } else {
-                            // For collections and other complex types, use pointer comparison
-                            // This is acceptable since full deep comparison would be expensive
-                            return &thisV == &otherV;
-                        }
-                    }
-                    // Different types are not equal
-                    return false;
-                }, thisValue, otherValue);
-                
-                if (!fieldsEqual) {
+
+                if (!compareFieldValues(thisValue, otherValue)) {
                     return false;
                 }
             }

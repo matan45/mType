@@ -421,7 +421,7 @@ namespace evaluator
     {
         // First try to resolve from current method context (for static generic methods)
         auto currentMethod = context->getCurrentMethod();
-        if (currentMethod && currentMethod->hasGenericInformation())
+        if (currentMethod && currentMethod->isGeneric())
         {
             const auto& substitutionMap = currentMethod->getTypeSubstitutionMap();
             auto it = substitutionMap.find(typeParam);

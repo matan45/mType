@@ -14,13 +14,16 @@ namespace runtimeTypes::klass
     private:
         std::shared_ptr<ClassDefinition> classDefinition;
         std::unordered_map<std::string, Value> fieldValues;
-        std::weak_ptr<ObjectInstance> parent; // For nested objects
 
         // Generic type bindings: T -> String, K -> int, etc.
         std::unordered_map<std::string, std::string> genericTypeBindings;
 
         // NEW: Method dispatch cache for polymorphic method lookup performance
         mutable std::unordered_map<std::string, std::shared_ptr<MethodDefinition>> methodCache;
+
+        // Helper method for field value comparison
+        static bool compareFieldValues(const Value& thisValue, const Value& otherValue);
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
@@ -41,9 +44,6 @@ namespace runtimeTypes::klass
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
-        // Call method on this instance
-        Value callMethod(const std::string& methodName,
-                         const std::vector<Value>& args);
 
         // NEW: Polymorphic method lookup with inheritance support
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;

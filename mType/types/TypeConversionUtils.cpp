@@ -5,15 +5,99 @@
 
 namespace types {
 
-    // createDetailedMessage method removed - functionality moved to base class
+    // Private helper function implementations
+    value::ValueType TypeConversionUtils::handleGenericParameter(
+        std::shared_ptr<ast::GenericType> genericType,
+        const std::unordered_map<std::string, std::string>& substitutionMap,
+        TypeRegistry& registry) {
 
+        std::string typeName = genericType->getGenericName();
+
+        auto it = substitutionMap.find(typeName);
+        if (it != substitutionMap.end()) {
+            std::string substitutedType = it->second;
+
+            // Validate the substituted type
+            if (!registry.hasType(substitutedType)) {
+                auto suggestions = getTypeSuggestions(substitutedType);
+                std::string message = "Substituted type '" + substitutedType + "' is not registered";
+                if (!suggestions.empty()) {
+                    message += ". Did you mean: " + suggestions[0] + "?";
+                }
+                throw errors::TypeConversionException(message, substitutedType, "unknown");
+            }
+
+            if (registry.isArrayType(substitutedType)) {
+                return value::ValueType::ARRAY;
+            }
+
+            return registry.getValueType(substitutedType);
+        }
+
+        // Generic parameter without substitution - treat as OBJECT
+        return value::ValueType::OBJECT;
+    }
+
+    value::ValueType TypeConversionUtils::handleConcreteType(
+        std::shared_ptr<ast::GenericType> genericType,
+        TypeRegistry& registry) {
+
+        try {
+            return genericType->getConcreteType();
+        } catch (...) {
+            std::string typeName = genericType->getBaseTypeName();
+
+            if (!registry.hasType(typeName)) {
+                auto suggestions = getTypeSuggestions(typeName);
+                std::string message = "Type '" + typeName + "' is not registered";
+                if (!suggestions.empty()) {
+                    message += ". Did you mean: " + suggestions[0] + "?";
+                }
+                throw errors::TypeConversionException(message, typeName, "unknown");
+            }
+
+            return registry.getValueType(typeName);
+        }
+    }
+
+    value::ValueType TypeConversionUtils::handleParameterizedType(
+        std::shared_ptr<ast::GenericType> genericType,
+        TypeRegistry& registry) {
+
+        std::string baseTypeName = genericType->getBaseTypeName();
+
+        if (baseTypeName == "Array" || registry.isArrayType(baseTypeName)) {
+            return value::ValueType::ARRAY;
+        }
+
+        if (registry.isCollectionType(baseTypeName)) {
+            // Validate type arguments
+            auto typeArgs = genericType->getTypeArguments();
+            std::vector<std::string> typeArgStrings;
+            typeArgStrings.reserve(typeArgs.size());
+            for (const auto& arg : typeArgs) {
+                typeArgStrings.push_back(arg->toString());
+            }
+
+            std::string errorMessage;
+            if (!validateGenericInstantiation(baseTypeName, typeArgStrings, errorMessage)) {
+                throw errors::TypeConversionException(errorMessage, baseTypeName, "object");
+            }
+
+            return value::ValueType::OBJECT;
+        }
+
+        return value::ValueType::OBJECT;
+    }
+
+    // Public API implementation
     value::ValueType TypeConversionUtils::convertWithContext(
         std::shared_ptr<ast::GenericType> genericType,
         const std::unordered_map<std::string, std::string>& substitutionMap,
         const TypeConversionContext& context) {
 
         if (!genericType) {
-            throw TypeConversionException("Cannot convert null generic type", "null", "unknown", context);
+            throw errors::TypeConversionException("Cannot convert null generic type", "null", "unknown");
         }
 
         auto& registry = getGlobalTypeRegistry();
@@ -21,91 +105,26 @@ namespace types {
         try {
             // Handle generic parameters with substitution
             if (genericType->isGenericParameter()) {
-                std::string typeName = genericType->getGenericName();
-
-                auto it = substitutionMap.find(typeName);
-                if (it != substitutionMap.end()) {
-                    std::string substitutedType = it->second;
-
-                    // Validate the substituted type
-                    if (!registry.hasType(substitutedType)) {
-                        TypeConversionException ex("Substituted type is not registered",
-                            substitutedType, "unknown", context);
-
-                        auto suggestions = getTypeSuggestions(substitutedType);
-                        for (const auto& suggestion : suggestions) {
-                            ex.addSuggestion(suggestion);
-                        }
-                        throw ex;
-                    }
-
-                    if (registry.isArrayType(substitutedType)) {
-                        return value::ValueType::ARRAY;
-                    }
-
-                    return registry.getValueType(substitutedType);
-                }
-
-                // Generic parameter without substitution - treat as OBJECT
-                return value::ValueType::OBJECT;
+                return handleGenericParameter(genericType, substitutionMap, registry);
             }
 
             // Handle concrete types
             if (!genericType->isGenericParameter()) {
-                try {
-                    return genericType->getConcreteType();
-                } catch (...) {
-                    std::string typeName = genericType->getBaseTypeName();
-
-                    if (!registry.hasType(typeName)) {
-                        TypeConversionException ex("Type is not registered",
-                            typeName, "unknown", context);
-
-                        auto suggestions = getTypeSuggestions(typeName);
-                        for (const auto& suggestion : suggestions) {
-                            ex.addSuggestion(suggestion);
-                        }
-                        throw ex;
-                    }
-
-                    return registry.getValueType(typeName);
-                }
+                return handleConcreteType(genericType, registry);
             }
 
             // Handle parameterized types
             if (genericType->isParameterized()) {
-                std::string baseTypeName = genericType->getBaseTypeName();
-
-                if (baseTypeName == "Array" || registry.isArrayType(baseTypeName)) {
-                    return value::ValueType::ARRAY;
-                }
-
-                if (registry.isCollectionType(baseTypeName)) {
-                    // Validate type arguments
-                    auto typeArgs = genericType->getTypeArguments();
-                    std::vector<std::string> typeArgStrings;
-                    for (const auto& arg : typeArgs) {
-                        typeArgStrings.push_back(arg->toString());
-                    }
-
-                    std::string errorMessage;
-                    if (!validateGenericInstantiation(baseTypeName, typeArgStrings, errorMessage)) {
-                        throw TypeConversionException(errorMessage, baseTypeName, "object", context);
-                    }
-
-                    return value::ValueType::OBJECT;
-                }
-
-                return value::ValueType::OBJECT;
+                return handleParameterizedType(genericType, registry);
             }
 
             return value::ValueType::OBJECT;
 
-        } catch (const TypeConversionException&) {
+        } catch (const errors::TypeConversionException&) {
             throw; // Re-throw our detailed exceptions
         } catch (const std::exception& e) {
-            throw TypeConversionException(std::string("Unexpected error: ") + e.what(),
-                "unknown", "unknown", context);
+            throw errors::TypeConversionException(std::string("Unexpected error: ") + e.what(),
+                "unknown", "unknown");
         }
     }
 
@@ -145,14 +164,18 @@ namespace types {
     }
 
     std::vector<std::string> TypeConversionUtils::getTypeSuggestions(const std::string& unknownType) {
+        constexpr double SIMILARITY_THRESHOLD = 0.3;  // Minimum similarity to be considered relevant
+        constexpr size_t MAX_SUGGESTIONS = 5;         // Maximum number of suggestions to return
+
         auto& registry = getGlobalTypeRegistry();
         auto allTypes = registry.getAllTypeNames();
 
         std::vector<std::pair<std::string, double>> scoredSuggestions;
+        scoredSuggestions.reserve(allTypes.size() / 2);  // Reserve space for performance
 
         for (const auto& typeName : allTypes) {
             double similarity = calculateStringSimilarity(unknownType, typeName);
-            if (similarity > 0.3) { // Threshold for relevance
+            if (similarity > SIMILARITY_THRESHOLD) {
                 scoredSuggestions.emplace_back(typeName, similarity);
             }
         }
@@ -161,9 +184,12 @@ namespace types {
         std::sort(scoredSuggestions.begin(), scoredSuggestions.end(),
             [](const auto& a, const auto& b) { return a.second > b.second; });
 
-        // Return top 5 suggestions
+        // Return top suggestions
         std::vector<std::string> suggestions;
-        for (size_t i = 0; i < std::min(size_t(5), scoredSuggestions.size()); ++i) {
+        const size_t numSuggestions = std::min(MAX_SUGGESTIONS, scoredSuggestions.size());
+        suggestions.reserve(numSuggestions);
+
+        for (size_t i = 0; i < numSuggestions; ++i) {
             suggestions.push_back(scoredSuggestions[i].first);
         }
 
@@ -254,34 +280,49 @@ namespace types {
     }
 
     double TypeConversionUtils::calculateStringSimilarity(const std::string& str1, const std::string& str2) {
-        // Simple Levenshtein distance-based similarity
-        size_t len1 = str1.length();
-        size_t len2 = str2.length();
+        // Optimized Levenshtein distance using single row (O(min(n,m)) space instead of O(n*m))
+        const size_t len1 = str1.length();
+        const size_t len2 = str2.length();
 
+        // Handle edge cases
         if (len1 == 0) return len2 == 0 ? 1.0 : 0.0;
         if (len2 == 0) return 0.0;
 
-        std::vector<std::vector<size_t>> dp(len1 + 1, std::vector<size_t>(len2 + 1));
+        // Ensure we use the shorter string for the row to minimize space
+        const std::string& shorter = (len1 < len2) ? str1 : str2;
+        const std::string& longer = (len1 < len2) ? str2 : str1;
+        const size_t shorterLen = std::min(len1, len2);
+        const size_t longerLen = std::max(len1, len2);
 
-        for (size_t i = 0; i <= len1; ++i) dp[i][0] = i;
-        for (size_t j = 0; j <= len2; ++j) dp[0][j] = j;
+        // Use single row instead of full matrix for space optimization
+        std::vector<size_t> prevRow(shorterLen + 1);
+        std::vector<size_t> currRow(shorterLen + 1);
 
-        for (size_t i = 1; i <= len1; ++i) {
-            for (size_t j = 1; j <= len2; ++j) {
-                if (str1[i-1] == str2[j-1]) {
-                    dp[i][j] = dp[i-1][j-1];
-                } else {
-                    dp[i][j] = 1 + std::min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});
-                }
-            }
+        // Initialize first row
+        for (size_t j = 0; j <= shorterLen; ++j) {
+            prevRow[j] = j;
         }
 
-        size_t maxLen = std::max(len1, len2);
-        return 1.0 - (double)dp[len1][len2] / maxLen;
-    }
+        // Calculate edit distance row by row
+        for (size_t i = 1; i <= longerLen; ++i) {
+            currRow[0] = i;
+            for (size_t j = 1; j <= shorterLen; ++j) {
+                if (longer[i - 1] == shorter[j - 1]) {
+                    currRow[j] = prevRow[j - 1];
+                } else {
+                    currRow[j] = 1 + std::min({
+                        prevRow[j],      // deletion
+                        currRow[j - 1],  // insertion
+                        prevRow[j - 1]   // substitution
+                    });
+                }
+            }
+            std::swap(prevRow, currRow);
+        }
 
-    std::vector<std::string> TypeConversionUtils::findSimilarTypes(const std::string& typeName) {
-        return getTypeSuggestions(typeName);
+        // Calculate similarity as 1 - (distance / maxLength)
+        const size_t distance = prevRow[shorterLen];
+        return 1.0 - static_cast<double>(distance) / longerLen;
     }
 
 } // namespace types
