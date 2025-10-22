@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "DependencyType.hpp"
 #include "CircularDependencyException.hpp"
+#include "DependencyTypeUtils.hpp"
 
 namespace circularDependency
 {
@@ -15,7 +16,7 @@ namespace circularDependency
                             const std::vector<std::string>& chain,
                             const std::string& location = "")
             : CircularDependencyException(
-                  "True circular dependency detected in " + dependencyTypeToString(type),
+                  "True circular dependency detected in " + DependencyTypeUtils::toString(type),
                   chain, location)
               , type_(type), cycleStart_(cycleStart)
         {
@@ -29,7 +30,7 @@ namespace circularDependency
         std::string getDetailedMessage() const override
         {
             std::string detailed = "Circular dependency detected: " +
-                dependencyTypeToString(type_) +
+                DependencyTypeUtils::toString(type_) +
                 " cycle starting at '" + cycleStart_ + "'";
 
             if (!dependencyChain_.empty())
@@ -48,20 +49,6 @@ namespace circularDependency
             }
 
             return detailed;
-        }
-
-    private:
-        static std::string dependencyTypeToString(DependencyType type)
-        {
-            switch (type)
-            {
-            case DependencyType::GENERIC_SUBSTITUTION: return "generic substitution";
-            case DependencyType::IMPORT_CHAIN: return "import chain";
-            case DependencyType::INTERFACE_INHERITANCE: return "interface inheritance";
-            case DependencyType::CLASS_INHERITANCE: return "class inheritance";
-            case DependencyType::METHOD_OVERLOAD: return "method overload";
-            default: return "unknown dependency";
-            }
         }
     };
 }

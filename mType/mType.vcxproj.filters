@@ -561,6 +561,9 @@
     <ClInclude Include="circularDependency\DependencyType.hpp">
       <Filter>circularDependency</Filter>
     </ClInclude>
+    <ClInclude Include="circularDependency\DependencyTypeUtils.hpp">
+      <Filter>circularDependency</Filter>
+    </ClInclude>
     <ClInclude Include="circularDependency\DepthLimitException.hpp">
       <Filter>circularDependency</Filter>
     </ClInclude>
@@ -1554,6 +1557,9 @@
       <Filter>circularDependency</Filter>
     </ClCompile>
     <ClCompile Include="circularDependency\DependencyPatternAnalyzer.cpp">
+      <Filter>circularDependency</Filter>
+    </ClCompile>
+    <ClCompile Include="circularDependency\DependencyTypeUtils.cpp">
       <Filter>circularDependency</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">

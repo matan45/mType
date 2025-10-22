@@ -29,18 +29,41 @@ namespace circularDependency
         }
     }
 
+    std::vector<std::string> CircularDependencyDetector::buildChainWithIdentifier(
+        DependencyType type, const std::string& identifier) const
+    {
+        auto chain = dependencyChains_.at(type);
+        chain.push_back(identifier);
+        return chain;
+    }
+
+    void CircularDependencyDetector::cacheNegativeResult(
+        DependencyType type, const std::vector<std::string>& chain) const
+    {
+        if (config_.enableCaching)
+        {
+            std::string cacheKey = createCacheKey(type, chain);
+            setCachedResult(cacheKey, false);
+        }
+    }
+
+    void CircularDependencyDetector::updateDependencyState(
+        DependencyType type, const std::string& identifier)
+    {
+        dependencyChains_[type].push_back(identifier);
+        activeDependencies_[type].insert(identifier);
+        currentDepths_[type]++;
+    }
+
     bool CircularDependencyDetector::enterDependency(DependencyType type, const std::string& identifier,
                                                      const std::string& location)
     {
-        auto startTime = std::chrono::high_resolution_clock::now();
-
         try
         {
             // Check cache first
             if (config_.enableCaching)
             {
-                auto chain = dependencyChains_[type];
-                chain.push_back(identifier);
+                auto chain = buildChainWithIdentifier(type, identifier);
                 std::string cacheKey = createCacheKey(type, chain);
 
                 auto cacheIt = validationCache_.find(cacheKey);
@@ -59,50 +82,27 @@ namespace circularDependency
             // Check for true circular dependency first
             if (checkTrueCycle(type, identifier))
             {
-                auto chain = dependencyChains_[type];
-                chain.push_back(identifier);
-
-                // Cache negative result
-                if (config_.enableCaching)
-                {
-                    std::string cacheKey = createCacheKey(type, chain);
-                    setCachedResult(cacheKey, false);
-                }
-
+                auto chain = buildChainWithIdentifier(type, identifier);
+                cacheNegativeResult(type, chain);
                 throw TrueCyclicException(type, identifier, chain, location);
             }
 
             // Check depth limit
             if (currentDepths_[type] >= config_.getMaxDepth(type))
             {
-                auto chain = dependencyChains_[type];
-                chain.push_back(identifier);
-
-                // Cache negative result for depth limit violation
-                if (config_.enableCaching)
-                {
-                    std::string cacheKey = createCacheKey(type, chain);
-                    setCachedResult(cacheKey, false);
-                }
-
+                auto chain = buildChainWithIdentifier(type, identifier);
+                cacheNegativeResult(type, chain);
                 throw DepthLimitException(type, currentDepths_[type], config_.getMaxDepth(type), chain, location);
             }
 
             // Early pattern detection
             if (config_.enableEarlyDetection)
             {
-                auto currentChain = dependencyChains_[type];
-                currentChain.push_back(identifier);
+                auto currentChain = buildChainWithIdentifier(type, identifier);
 
                 if (patternAnalyzer_->detectAnyPattern(currentChain))
                 {
-                    // Cache negative result for pattern detection
-                    if (config_.enableCaching)
-                    {
-                        std::string cacheKey = createCacheKey(type, currentChain);
-                        setCachedResult(cacheKey, false);
-                    }
-
+                    cacheNegativeResult(type, currentChain);
                     std::string suggestion = patternAnalyzer_->suggestSimplification(currentChain);
                     throw TrueCyclicException(type, identifier, currentChain,
                                               location + (suggestion.empty() ? "" : "\nSuggestion: " + suggestion));
@@ -110,9 +110,7 @@ namespace circularDependency
             }
 
             // Safe to proceed - update tracking state
-            dependencyChains_[type].push_back(identifier);
-            activeDependencies_[type].insert(identifier);
-            currentDepths_[type]++;
+            updateDependencyState(type, identifier);
 
             // Update cache
             if (config_.enableCaching)
@@ -177,17 +175,9 @@ namespace circularDependency
 
     void CircularDependencyDetector::resetAll()
     {
-        for (auto& pair : currentDepths_)
+        for (int i = 0; i <= static_cast<int>(DependencyType::METHOD_OVERLOAD); ++i)
         {
-            pair.second = 0;
-        }
-        for (auto& pair : dependencyChains_)
-        {
-            pair.second.clear();
-        }
-        for (auto& pair : activeDependencies_)
-        {
-            pair.second.clear();
+            resetDependencyType(static_cast<DependencyType>(i));
         }
         clearCache();
     }
@@ -285,17 +275,6 @@ namespace circularDependency
         }
     }
 
-    bool CircularDependencyDetector::getCachedResult(const std::string& key) const
-    {
-        auto cacheIt = validationCache_.find(key);
-        if (cacheIt != validationCache_.end())
-        {
-            updateCacheAccess(key);
-            return cacheIt->second.isValid;
-        }
-        return false; // Not found - caller should check if key exists
-    }
-
     void CircularDependencyDetector::setCachedResult(const std::string& key, bool result) const
     {
         // Check if we need to evict entries first
@@ -318,19 +297,5 @@ namespace circularDependency
             return false;
         }
         return it->second.find(identifier) != it->second.end();
-    }
-
-
-    std::string CircularDependencyDetector::getDependencyTypeName(DependencyType type)
-    {
-        switch (type)
-        {
-        case DependencyType::GENERIC_SUBSTITUTION: return "generic_substitution";
-        case DependencyType::IMPORT_CHAIN: return "import_chain";
-        case DependencyType::INTERFACE_INHERITANCE: return "interface_inheritance";
-        case DependencyType::CLASS_INHERITANCE: return "class_inheritance";
-        case DependencyType::METHOD_OVERLOAD: return "method_overload";
-        default: return "unknown";
-        }
     }
 }
