@@ -41,14 +41,11 @@ namespace services
         void setBaseDirectory(const std::string& dir);
 
         // Get/Set current file path (for nested import resolution)
-        std::string getCurrentFilePath() const { return currentFilePath; }
-        void setCurrentFilePath(const std::string& path) { currentFilePath = path; }
+        std::string getCurrentFilePath() const;
+        void setCurrentFilePath(const std::string& path);
 
         // Resolve relative and absolute paths
         std::string resolvePath(const std::string& path);
-
-        // Resolve path relative to a specific file (for nested imports)
-        std::string resolvePathRelativeToFile(const std::string& path, const std::string& relativeToFile);
 
         // Resolve path consistently relative to base directory (for evaluation tracking)
         std::string resolvePathConsistently(const std::string& path);
@@ -83,5 +80,18 @@ namespace services
 
         // Recursively resolve all imports in an AST
         void resolveAllImports(ast::ASTNode* root);
+
+    private:
+        // Import resolution helpers
+        void handleResolvedImport(ast::ImportNode* importNode);
+        void handleUnresolvedImport(ast::ImportNode* importNode, const std::string& filePath);
+        void resolveImportsInChildren(ast::ASTNode* node);
+
+        // Path resolution and checking helpers
+        bool safeCheckInSet(const std::string& rawPath,
+                           const std::unordered_set<std::string>& set,
+                           bool useConsistentResolve);
+        std::filesystem::path normalizeFilePath(const std::filesystem::path& filePath,
+                                               bool allowFallback);
     };
 }

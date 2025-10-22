@@ -1068,10 +1068,37 @@
     <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
+    <ClInclude Include="services\ASTExecutionStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeExecutionStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\DualValidationStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ExecutionStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
     <ClInclude Include="services\FileReader.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\ImportManager.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ImportResolver.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\NativeFunctionRegistry.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\OptimizationService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ScriptAPI.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\ScriptInterpreter.hpp">
@@ -1943,10 +1970,34 @@
     <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
+    <ClCompile Include="services\ASTExecutionStrategy.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeExecutionStrategy.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeService.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\DualValidationStrategy.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\FileReader.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportResolver.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\NativeFunctionRegistry.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\OptimizationService.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptAPI.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ScriptInterpreter.cpp">

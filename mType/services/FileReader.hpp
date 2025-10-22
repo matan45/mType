@@ -33,18 +33,19 @@ namespace lexer
         // File validation and metadata
         void validateFile(const std::string& filePath) const;
         size_t getFileSize(const std::string& filePath) const;
-        
+
         // Reading strategies
         std::string readSmallFile(const std::string& filePath);
         std::string readLargeFileBuffered(const std::string& filePath, size_t bufferSize);
-        
+
         // UTF-8 BOM handling
         std::string removeUtf8BomIfPresent(const std::string& content) const;
         bool checkAndSkipUtf8Bom(std::ifstream& file) const;
-        
-        // Buffer management
-        std::string createOptimalBuffer(size_t size) const;
-        
+        std::string_view removeBomFromChunk(std::string_view chunk, bool hadBom) const;
+
+        // File I/O helpers
+        std::ifstream openFileForReading(const std::string& filePath) const;
+
         static constexpr std::string_view UTF8_BOM = "\xEF\xBB\xBF";
     };
 }

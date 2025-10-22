@@ -25,9 +25,14 @@ namespace vm::runtime
     class VirtualMachine;
 }
 
-namespace optimizer
+namespace services
 {
-    class Optimizer;
+    class OptimizationService;
+    class NativeFunctionRegistry;
+    class ImportResolver;
+    class BytecodeService;
+    class ScriptAPI;
+    class ExecutionStrategy;
 }
 
 namespace services
@@ -41,31 +46,22 @@ namespace services
         std::unique_ptr<evaluator::Evaluator> evaluator;
         std::unique_ptr<vm::compiler::BytecodeCompiler> compiler;
         std::shared_ptr<vm::runtime::VirtualMachine> vm;  // Changed to shared_ptr for enable_shared_from_this support
-        std::unique_ptr<optimizer::Optimizer> optimizer;  // AST optimizer
+        std::unique_ptr<OptimizationService> optimizationService;
+        std::unique_ptr<NativeFunctionRegistry> nativeRegistry;
+        std::unique_ptr<ImportResolver> importResolver;
+        std::unique_ptr<BytecodeService> bytecodeService;
+        std::unique_ptr<ScriptAPI> scriptAPI;
+        std::unique_ptr<ExecutionStrategy> executionStrategy;
 
         // Execution mode
         constants::ExecutionMode executionMode;
-        constants::OptimizationLevel optimizationLevel;
 
-        // Helper methods for internal use
-        value::Value invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef,
-                                    const std::vector<value::Value>& args);
-        value::Value invokeStaticMethod(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                        const std::string& methodName, const std::vector<value::Value>& args);
+        // Script parsing and setup helpers
+        std::pair<std::unique_ptr<ast::ASTNode>, std::unique_ptr<ImportManager>> parseScriptFile(const std::string& filename);
+        value::Value executeScriptAST(std::unique_ptr<ast::ASTNode> ast);
 
-        // Cached execution helpers
-        void preRegisterClassDefinitions(ast::ASTNode* node);
-
-        // Execution mode helpers
-        value::Value executeAST(ast::ASTNode* ast);
-        value::Value executeBytecode(ast::ASTNode* ast);
-        value::Value executeDualValidation(ast::ASTNode* ast);
-
-        // Import resolution helper for bytecode compilation
-        void resolveImports(ast::ASTNode* ast);
-
-        // Bytecode class registration helper
-        void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes);
+        // Constructor helper
+        void initializeServices(constants::OptimizationLevel optLevel);
 
     public:
         ScriptInterpreter();
@@ -80,8 +76,8 @@ namespace services
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);
         void setOptimizationLevel(constants::OptimizationLevel level);
-        constants::ExecutionMode getExecutionMode() const { return executionMode; }
-        constants::OptimizationLevel getOptimizationLevel() const { return optimizationLevel; }
+        constants::ExecutionMode getExecutionMode() const;
+        constants::OptimizationLevel getOptimizationLevel() const;
 
         // Memory management methods
         void cleanupRegistries();
@@ -126,17 +122,13 @@ namespace services
         // Object creation and manipulation
         value::Value createObject(const std::string& className, const std::vector<value::Value>& constructorArgs = {});
 
-        // Native function object creation helpers (for use inside native functions)
-        value::Value createObjectForReturn(const std::string& className,
-                                           const std::vector<value::Value>& constructorArgs = {});
-
         // Utility methods for native functions working with objects
         bool isObjectOfClass(const value::Value& object, const std::string& className);
         std::string getObjectClassName(const value::Value& object);
 
 
         // Access to environment and evaluator for advanced operations
-        std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
-        evaluator::Evaluator* getEvaluator() const { return evaluator.get(); }
+        std::shared_ptr<environment::Environment> getEnvironment() const;
+        evaluator::Evaluator* getEvaluator() const;
     };
 }
