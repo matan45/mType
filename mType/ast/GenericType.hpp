@@ -2,6 +2,7 @@
 
 #include "../value/ValueType.hpp"
 #include "../circularDependency/CircularDependencyDetector.hpp"
+#include "GenericTypeSubstitutionContext.hpp"
 #include <string>
 #include <vector>
 #include <variant>
@@ -203,53 +204,7 @@ namespace ast
         /**
          * @brief Enhanced context for tracking substitution chains with robust circular dependency detection
          */
-        struct SubstitutionContext
-        {
-            std::shared_ptr<circularDependency::CircularDependencyDetector> detector;
-            std::string currentLocation; // For error reporting
-
-            SubstitutionContext()
-                : detector(std::make_shared<circularDependency::CircularDependencyDetector>())
-            {
-            }
-
-            explicit SubstitutionContext(const circularDependency::CircularDependencyConfig& config)
-                : detector(std::make_shared<circularDependency::CircularDependencyDetector>(config))
-            {
-            }
-
-            /**
-             * @brief Enter a new substitution step with enhanced detection
-             * @param paramName Parameter being substituted
-             * @param location Optional source location for error reporting
-             * @return true if safe to proceed, throws exception if circular dependency detected
-             */
-            bool enterSubstitution(const std::string& paramName, const std::string& location = "");
-
-            /**
-             * @brief Exit current substitution step
-             * @param paramName Parameter being exited
-             */
-            void exitSubstitution(const std::string& paramName);
-
-            /**
-             * @brief Get current substitution chain
-             * @return Current dependency chain
-             */
-            std::vector<std::string> getCurrentChain() const;
-
-            /**
-             * @brief Get current substitution depth
-             * @return Current depth
-             */
-            int getCurrentDepth() const;
-
-            /**
-             * @brief Get current substitution path for error reporting
-             * @return String representation of substitution chain
-             */
-            std::string getChainString() const;
-        };
+        using SubstitutionContext = GenericTypeSubstitutionContext;
 
         /**
          * Internal substitute method with comprehensive cycle detection
@@ -260,45 +215,5 @@ namespace ast
         std::shared_ptr<GenericType> substituteInternal(
             const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions,
             SubstitutionContext& context) const;
-
-        /**
-         * Static factory methods for common types
-         */
-        static std::shared_ptr<GenericType> createInt()
-        {
-            return std::make_shared<GenericType>(value::ValueType::INT);
-        }
-
-        static std::shared_ptr<GenericType> createString()
-        {
-            return std::make_shared<GenericType>(value::ValueType::STRING);
-        }
-
-        static std::shared_ptr<GenericType> createBool()
-        {
-            return std::make_shared<GenericType>(value::ValueType::BOOL);
-        }
-
-        static std::shared_ptr<GenericType> createFloat()
-        {
-            return std::make_shared<GenericType>(value::ValueType::FLOAT);
-        }
-
-        static std::shared_ptr<GenericType> createVoid()
-        {
-            return std::make_shared<GenericType>(value::ValueType::VOID);
-        }
-
-        static std::shared_ptr<GenericType> createObject()
-        {
-            return std::make_shared<GenericType>(value::ValueType::OBJECT);
-        }
-
-        static std::shared_ptr<GenericType> createGenericParameter(const std::string& name)
-        {
-            return std::make_shared<GenericType>(name);
-        }
-
-        // Collection factory methods removed - collections now implemented in mType
     };
 }

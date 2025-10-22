@@ -15,12 +15,13 @@ namespace ast::nodes::statements
         std::unique_ptr<ASTNode> body;
 
     public:
-        explicit ForEachNode(const std::string& varName, const parser::TypeInfo& varTypeInfo, 
+        explicit ForEachNode(const std::string& varName, const parser::TypeInfo& varTypeInfo,
                            std::unique_ptr<ASTNode> collection, std::unique_ptr<ASTNode> body,
                            const SourceLocation& loc = SourceLocation());
 
         // Legacy constructor for backward compatibility
-        explicit ForEachNode(const std::string& varName, ValueType varType, 
+        [[deprecated("Use TypeInfo constructor instead")]]
+        explicit ForEachNode(const std::string& varName, ValueType varType,
                            std::unique_ptr<ASTNode> collection, std::unique_ptr<ASTNode> body,
                            const SourceLocation& loc = SourceLocation());
 

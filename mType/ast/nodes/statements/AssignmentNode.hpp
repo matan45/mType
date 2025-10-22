@@ -7,15 +7,12 @@
 
 namespace ast::nodes::statements
 {
-    using namespace value;
-    using namespace ast;
-
     class AssignmentNode : public ASTNode
     {
     private:
         std::string variableName;
         std::unique_ptr<ASTNode> value;
-        ValueType variableType;
+        value::ValueType variableType;
         std::string className;  // Store class name for OBJECT types
         bool isFinal;
         bool isStatic;
@@ -23,14 +20,14 @@ namespace ast::nodes::statements
 
     public:
         explicit AssignmentNode(const std::string& varName, std::unique_ptr<ASTNode> val,
-                                ValueType type = ValueType::VOID,
+                                value::ValueType type = value::ValueType::VOID,
                                 const std::string& clsName = "",
                                 bool isFinalVar = false, bool isStaticVar = false,
                                 const SourceLocation& loc = SourceLocation());
 
         const std::string& getVariableName() const;
         ASTNode* getValue() const;
-        ValueType getVariableType() const;
+        value::ValueType getVariableType() const;
         const std::string& getClassName() const;
         bool getIsFinal() const;
         bool getIsStatic() const;
@@ -38,13 +35,13 @@ namespace ast::nodes::statements
 
         void setVariableName(const std::string& varName);
         void setValue(std::unique_ptr<ASTNode> val);
-        void setVariableType(ValueType type);
+        void setVariableType(value::ValueType type);
         void setClassName(const std::string& clsName);
         void setIsFinal(bool isFinalVar);
         void setIsStatic(bool isStaticVar);
         void setVisibility(VisibilityModifier vis);
 
-        Value accept(ASTVisitor<Value>& visitor) override;
+        value::Value accept(ASTVisitor<value::Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;
     };
 }

@@ -1,4 +1,5 @@
 #include "TryNode.hpp"
+#include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements
 {
@@ -63,20 +64,9 @@ namespace ast::nodes::statements
 
     std::unique_ptr<ASTNode> TryNode::clone() const
     {
-        std::unique_ptr<ASTNode> clonedTryBlock = tryBlock ? tryBlock->clone() : nullptr;
-
-        std::vector<std::unique_ptr<CatchNode>> clonedCatchBlocks;
-        clonedCatchBlocks.reserve(catchBlocks.size());
-        for (const auto& catchBlock : catchBlocks) {
-            if (catchBlock) {
-                auto clonedCatch = std::unique_ptr<CatchNode>(
-                    static_cast<CatchNode*>(catchBlock->clone().release())
-                );
-                clonedCatchBlocks.push_back(std::move(clonedCatch));
-            }
-        }
-
-        std::unique_ptr<ASTNode> clonedFinallyBlock = finallyBlock ? finallyBlock->clone() : nullptr;
+        auto clonedTryBlock = ast::utils::cloneNodeSafe(tryBlock);
+        auto clonedCatchBlocks = ast::utils::cloneNodeVector<CatchNode>(catchBlocks);
+        auto clonedFinallyBlock = ast::utils::cloneNodeSafe(finallyBlock);
 
         return std::make_unique<TryNode>(std::move(clonedTryBlock), std::move(clonedCatchBlocks),
                                          std::move(clonedFinallyBlock), location);

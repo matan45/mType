@@ -34,11 +34,6 @@ namespace ast::nodes::classes
         return object;
     }
 
-    std::shared_ptr<ASTNode> MemberAccessNode::transferObjectOwnership() const
-    {
-        return object;
-    }
-
     void MemberAccessNode::setObject(std::shared_ptr<ASTNode> obj)
     {
         object = std::move(obj);

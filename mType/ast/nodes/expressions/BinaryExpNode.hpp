@@ -22,10 +22,6 @@ namespace ast::nodes::expressions
         ASTNode* getRight() const;
         TokenType getOperator() const;
 
-        void setLeft(std::unique_ptr<ASTNode> leftNode);
-        void setRight(std::unique_ptr<ASTNode> rightNode);
-        void setOperator(TokenType op);
-
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;
     };

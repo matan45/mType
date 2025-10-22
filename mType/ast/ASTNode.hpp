@@ -14,9 +14,7 @@ namespace ast
         SourceLocation location;
 
     public:
-        explicit ASTNode() = default;
-
-        explicit ASTNode(const SourceLocation& loc) : location(loc)
+        explicit ASTNode(const SourceLocation& loc = SourceLocation()) : location(loc)
         {
         }
 

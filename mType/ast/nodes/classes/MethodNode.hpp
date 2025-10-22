@@ -52,34 +52,35 @@ namespace ast::nodes::classes
                    bool async = false,
                    const SourceLocation& loc = SourceLocation());
 
-        const std::string& getName() const;
+        [[nodiscard]] const std::string& getName() const noexcept;
 
         // NEW: Generic-aware getters
-        std::shared_ptr<GenericType> getGenericReturnType() const;
-        const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& getGenericParameters() const;
+        [[nodiscard]] std::shared_ptr<GenericType> getGenericReturnType() const noexcept;
+        [[nodiscard]] const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& getGenericParameters() const noexcept;
 
         // Legacy getters for backward compatibility
-        ValueType getReturnType() const;
-        const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
+        [[nodiscard]] ValueType getReturnType() const noexcept;
+        [[deprecated("Use getGenericParameters() instead")]]
+        [[nodiscard]] std::vector<std::pair<std::string, ValueType>> getParameters() const;
 
         // Safe getter - returns shared_ptr
-        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
+        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const noexcept;
 
         // For code that just needs to read
-        [[nodiscard]] ASTNode* getBodyPtr() const;
+        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
 
-        bool getIsStatic() const;
+        [[nodiscard]] bool getIsStatic() const noexcept;
 
         // NEW: Async-related methods
-        bool getIsAsync() const { return isAsync; }
+        [[nodiscard]] bool getIsAsync() const noexcept { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
 
         // NEW: Generic-related methods
-        const std::vector<GenericTypeParameter>& getGenericTypeParameters() const;
+        [[nodiscard]] const std::vector<GenericTypeParameter>& getGenericTypeParameters() const noexcept;
         void setGenericTypeParameters(const std::vector<GenericTypeParameter>& generics);
         void addGenericTypeParameter(const GenericTypeParameter& param);
-        size_t getGenericTypeParameterCount() const;
-        bool isGeneric() const { return !genericParameters.empty(); }
+        [[nodiscard]] size_t getGenericTypeParameterCount() const noexcept;
+        [[nodiscard]] bool isGeneric() const noexcept { return !genericParameters.empty(); }
 
         void setName(const std::string& methodName);
         void setGenericReturnType(std::shared_ptr<GenericType> retType);
@@ -92,10 +93,10 @@ namespace ast::nodes::classes
         void setBody(std::shared_ptr<ASTNode> methodBody);
         void setIsStatic(bool isStaticMethod);
 
-        AccessModifier getAccessModifier() const;
+        [[nodiscard]] AccessModifier getAccessModifier() const noexcept;
         void setAccessModifier(AccessModifier modifier);
 
-        size_t getParameterCount() const;
+        [[nodiscard]] size_t getParameterCount() const noexcept;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

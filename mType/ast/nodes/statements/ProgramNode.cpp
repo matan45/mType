@@ -1,4 +1,5 @@
 ﻿#include "ProgramNode.hpp"
+#include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements
 {
@@ -39,15 +40,6 @@ namespace ast::nodes::statements
 
     std::unique_ptr<ASTNode> ProgramNode::clone() const
     {
-        std::vector<std::unique_ptr<ASTNode>> clonedStatements;
-        clonedStatements.reserve(statements.size());
-
-        for (const auto& stmt : statements) {
-            if (stmt) {
-                clonedStatements.push_back(stmt->clone());
-            }
-        }
-
-        return std::make_unique<ProgramNode>(std::move(clonedStatements), location);
+        return std::make_unique<ProgramNode>(ast::utils::cloneNodeVector(statements), location);
     }
 }

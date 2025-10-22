@@ -25,11 +25,6 @@ namespace ast::nodes::classes
         return arguments;
     }
 
-    std::vector<std::unique_ptr<ASTNode>>& SuperMethodCallNode::getArguments()
-    {
-        return arguments;
-    }
-
     size_t SuperMethodCallNode::getArgumentCount() const
     {
         return arguments.size();

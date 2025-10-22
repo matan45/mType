@@ -24,21 +24,6 @@ namespace ast::nodes::expressions
         return falseExpression.get();
     }
 
-    void TernaryExpNode::setCondition(std::unique_ptr<ASTNode> cond)
-    {
-        condition = std::move(cond);
-    }
-
-    void TernaryExpNode::setTrueExpression(std::unique_ptr<ASTNode> trueExpr)
-    {
-        trueExpression = std::move(trueExpr);
-    }
-
-    void TernaryExpNode::setFalseExpression(std::unique_ptr<ASTNode> falseExpr)
-    {
-        falseExpression = std::move(falseExpr);
-    }
-
     Value TernaryExpNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitTernaryOpNode(this);

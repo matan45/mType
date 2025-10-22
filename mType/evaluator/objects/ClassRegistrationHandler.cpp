@@ -138,18 +138,25 @@ namespace evaluator
                     std::vector<std::pair<std::string, ParameterType>> newParams;
 
                     // Get generic parameters which contain the actual type names (including interfaces)
-                    auto genericParams = methodNode->getGenericParameters();
-                    auto legacyParams = methodNode->getParameters();
-
-                    for (size_t i = 0; i < legacyParams.size(); ++i)
+                    const auto& genericParams = methodNode->getGenericParameters();
+                    for (const auto& [paramName, genericType] : genericParams)
                     {
-                        const std::string& paramName = legacyParams[i].first;
-                        ValueType baseType = legacyParams[i].second;
+                        // Extract ValueType from GenericType
+                        ValueType baseType = ValueType::VOID;
+                        if (genericType)
+                        {
+                            if (genericType->isGenericParameter())
+                            {
+                                // For generic parameters (T, E, etc.), use OBJECT as the base type
+                                baseType = ValueType::OBJECT;
+                            }
+                            else
+                            {
+                                baseType = genericType->getConcreteType();
+                            }
+                        }
 
-                        // Single construction using helper function for efficiency and clarity
-                        std::shared_ptr<ast::GenericType> genericType =
-                            (i < genericParams.size()) ? genericParams[i].second : nullptr;
-
+                        // Convert to ParameterType using helper function
                         const ParameterType paramType = createParameterType(baseType, genericType, env.get());
 
                         newParams.emplace_back(paramName, paramType);
@@ -160,12 +167,27 @@ namespace evaluator
 
                 auto parameterTypes = convertToParameterTypes();
 
+                // Extract ValueType from generic return type
+                ValueType returnType = ValueType::VOID;
+                if (auto genericReturnType = methodNode->getGenericReturnType())
+                {
+                    if (genericReturnType->isGenericParameter())
+                    {
+                        // For generic return types (T, E, etc.), use OBJECT as the base type
+                        returnType = ValueType::OBJECT;
+                    }
+                    else
+                    {
+                        returnType = genericReturnType->getConcreteType();
+                    }
+                }
+
                 if (methodNode->isGeneric())
                 {
                     // For generic methods, preserve the generic type information
                     methodDef = std::make_shared<MethodDefinition>(
                         methodNode->getName(),
-                        methodNode->getReturnType(), // Legacy ValueType for compatibility
+                        returnType, // Extracted from generic return type
                         parameterTypes, // NEW: Use ParameterType instead of ValueType
                         bodyPtr,
                         methodNode->getIsStatic(),
@@ -181,7 +203,7 @@ namespace evaluator
                     // For non-generic methods, also preserve type information for object parameters
                     methodDef = std::make_shared<MethodDefinition>(
                         methodNode->getName(),
-                        methodNode->getReturnType(), // Legacy ValueType for compatibility
+                        returnType, // Extracted from generic return type
                         parameterTypes, // NEW: Use ParameterType instead of ValueType
                         bodyPtr,
                         methodNode->getIsStatic(),

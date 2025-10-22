@@ -1,4 +1,5 @@
 #include "FunctionNode.hpp"
+#include "../../utils/GenericTypeConversionUtils.hpp"
 
 namespace ast::nodes::functions
 {
@@ -23,13 +24,8 @@ namespace ast::nodes::functions
                                const SourceLocation& loc)
         : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
     {
-        // Convert ValueType to GenericType
-        returnType = std::make_shared<GenericType>(retType);
-
-        // Convert parameters from ValueType to GenericType
-        for (const auto& param : params) {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
     // Backward compatibility constructor with ValueType (unique_ptr)
@@ -40,53 +36,36 @@ namespace ast::nodes::functions
                                const SourceLocation& loc)
         : ASTNode(loc), name(funcName), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
     {
-        // Convert ValueType to GenericType
-        returnType = std::make_shared<GenericType>(retType);
-
-        // Convert parameters from ValueType to GenericType
-        for (const auto& param : params) {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
-    const std::string& FunctionNode::getName() const
+    const std::string& FunctionNode::getName() const noexcept
     {
         return name;
     }
 
-    std::shared_ptr<GenericType> FunctionNode::getGenericReturnType() const
+    std::shared_ptr<GenericType> FunctionNode::getGenericReturnType() const noexcept
     {
         return returnType;
     }
 
-    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& FunctionNode::getGenericParameters() const
+    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& FunctionNode::getGenericParameters() const noexcept
     {
         return parameters;
     }
 
     // Legacy getter for backward compatibility
-    ValueType FunctionNode::getReturnType() const
+    ValueType FunctionNode::getReturnType() const noexcept
     {
-        if (returnType && !returnType->isGenericParameter()) {
-            return returnType->getConcreteType();
-        }
-        return ValueType::OBJECT; // Default for generic parameters
+        return utils::GenericTypeConversionUtils::convertGenericTypeToValueType(returnType);
     }
 
     // Legacy getter for backward compatibility - converts GenericType back to ValueType
-    const std::vector<std::pair<std::string, ValueType>>& FunctionNode::getParameters() const
+    // Returns by value to ensure thread-safety (removed unsafe static variable)
+    std::vector<std::pair<std::string, ValueType>> FunctionNode::getParameters() const
     {
-        // Similar to MethodNode, use static vector for compatibility
-        static std::vector<std::pair<std::string, ValueType>> legacyParams;
-        legacyParams.clear();
-
-        for (const auto& param : parameters) {
-            ValueType type = param.second->isGenericParameter() ?
-                ValueType::OBJECT : param.second->getConcreteType();
-            legacyParams.emplace_back(param.first, type);
-        }
-
-        return legacyParams;
+        return utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
     }
 
     std::vector<std::pair<std::string, ParameterType>> FunctionNode::getParameterTypes() const
@@ -94,42 +73,47 @@ namespace ast::nodes::functions
         std::vector<std::pair<std::string, ParameterType>> result;
 
         for (const auto& param : parameters) {
-            if (param.second->isGenericParameter()) {
-                // Check if it's a real generic parameter (single letter like T, K, V)
-                // or a class/interface name (like Vehicle, Animal, GenericContainer<Int>)
-                std::string typeName = param.second->getGenericName();
-                if (typeName.length() == 1 && std::isupper(typeName[0])) {
-                    // Real generic parameter - treat as plain object type
-                    result.emplace_back(param.first, ParameterType(ValueType::OBJECT));
-                } else {
-                    // Class or interface name - store as class type with full type info
-                    // Use toString() to preserve generic type arguments like GenericContainer<Int>
-                    result.emplace_back(param.first, ParameterType::forClass(param.second->toString()));
-                }
-            } else if (param.second->getConcreteType() == ValueType::OBJECT) {
-                // Object type (class or interface) - store as class type with full type info
-                // Use toString() to preserve generic type arguments
-                result.emplace_back(param.first, ParameterType::forClass(param.second->toString()));
-            } else {
-                // Basic type (int, string, bool, etc.)
-                result.emplace_back(param.first, ParameterType(param.second->getConcreteType()));
-            }
+            result.emplace_back(param.first, classifyParameterType(param.second));
         }
 
         return result;
     }
 
-    std::shared_ptr<ASTNode> FunctionNode::getBody() const
+    ParameterType FunctionNode::classifyParameterType(const std::shared_ptr<GenericType>& paramType) const
+    {
+        if (paramType->isGenericParameter()) {
+            // Check if it's a real generic parameter (single letter like T, K, V)
+            // or a class/interface name (like Vehicle, Animal, GenericContainer<Int>)
+            std::string typeName = paramType->getGenericName();
+            if (typeName.length() == 1 && std::isupper(typeName[0])) {
+                // Real generic parameter - treat as plain object type
+                return ParameterType(ValueType::OBJECT);
+            } else {
+                // Class or interface name - store as class type with full type info
+                // Use toString() to preserve generic type arguments like GenericContainer<Int>
+                return ParameterType::forClass(paramType->toString());
+            }
+        } else if (paramType->getConcreteType() == ValueType::OBJECT) {
+            // Object type (class or interface) - store as class type with full type info
+            // Use toString() to preserve generic type arguments
+            return ParameterType::forClass(paramType->toString());
+        } else {
+            // Basic type (int, string, bool, etc.)
+            return ParameterType(paramType->getConcreteType());
+        }
+    }
+
+    std::shared_ptr<ASTNode> FunctionNode::getBody() const noexcept
     {
         return body;
     }
 
-    ASTNode* FunctionNode::getBodyPtr() const
+    ASTNode* FunctionNode::getBodyPtr() const noexcept
     {
         return body.get();
     }
 
-    const std::vector<GenericTypeParameter>& FunctionNode::getGenericTypeParameters() const
+    const std::vector<GenericTypeParameter>& FunctionNode::getGenericTypeParameters() const noexcept
     {
         return genericParameters;
     }
@@ -144,7 +128,7 @@ namespace ast::nodes::functions
         genericParameters.push_back(param);
     }
 
-    size_t FunctionNode::getGenericTypeParameterCount() const
+    size_t FunctionNode::getGenericTypeParameterCount() const noexcept
     {
         return genericParameters.size();
     }
@@ -167,16 +151,13 @@ namespace ast::nodes::functions
     // Legacy setter for backward compatibility
     void FunctionNode::setReturnType(ValueType retType)
     {
-        returnType = std::make_shared<GenericType>(retType);
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
     }
 
     // Legacy setter for backward compatibility
     void FunctionNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
-        parameters.clear();
-        for (const auto& param : params) {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
     void FunctionNode::setBody(std::shared_ptr<ASTNode> funcBody)
@@ -184,12 +165,12 @@ namespace ast::nodes::functions
         body = std::move(funcBody);
     }
 
-    size_t FunctionNode::getParameterCount() const
+    size_t FunctionNode::getParameterCount() const noexcept
     {
         return parameters.size();
     }
 
-    VisibilityModifier FunctionNode::getVisibility() const
+    VisibilityModifier FunctionNode::getVisibility() const noexcept
     {
         return visibility;
     }
@@ -199,12 +180,12 @@ namespace ast::nodes::functions
         visibility = vis;
     }
 
-    bool FunctionNode::isPublic() const
+    bool FunctionNode::isPublic() const noexcept
     {
         return visibility == VisibilityModifier::PUBLIC;
     }
 
-    bool FunctionNode::isPrivate() const
+    bool FunctionNode::isPrivate() const noexcept
     {
         return visibility == VisibilityModifier::PRIVATE;
     }
@@ -222,18 +203,9 @@ namespace ast::nodes::functions
         // Clone generic parameters (copy constructor works for GenericTypeParameter)
         std::vector<GenericTypeParameter> clonedGenericParams = genericParameters;
 
-        // Clone parameters with GenericType (need deep copy of shared_ptrs)
-        std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> clonedParams;
-        clonedParams.reserve(parameters.size());
-        for (const auto& param : parameters) {
-            // Deep copy GenericType via copy constructor
-            auto clonedGenericType = std::make_shared<GenericType>(*param.second);
-            clonedParams.emplace_back(param.first, clonedGenericType);
-        }
-
-        // Clone return type
-        std::shared_ptr<GenericType> clonedReturnType =
-            returnType ? std::make_shared<GenericType>(*returnType) : nullptr;
+        // Clone parameters and return type using utility functions
+        auto clonedParams = utils::GenericTypeConversionUtils::cloneGenericParameters(parameters);
+        auto clonedReturnType = utils::GenericTypeConversionUtils::cloneGenericType(returnType);
 
         auto clonedFunction = std::make_unique<FunctionNode>(
             name, clonedReturnType, clonedParams, clonedBody, clonedGenericParams, isAsync, location

@@ -68,15 +68,7 @@ namespace ast::nodes::expressions
         /**
          * @brief Accept visitor for AST traversal
          */
-        Value accept(ASTVisitor<Value>& visitor) override
-        {
-            return visitor.visitAwaitExpression(this);
-        }
-
-        std::unique_ptr<ASTNode> clone() const override
-        {
-            std::unique_ptr<ASTNode> clonedExpr = expression ? expression->clone() : nullptr;
-            return std::make_unique<AwaitExpression>(std::move(clonedExpr), location);
-        }
+        value::Value accept(ASTVisitor<value::Value>& visitor) override;
+        std::unique_ptr<ASTNode> clone() const override;
     };
 }

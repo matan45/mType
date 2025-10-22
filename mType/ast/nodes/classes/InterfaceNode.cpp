@@ -92,16 +92,6 @@ namespace ast::nodes::classes
         visibility = vis;
     }
 
-    bool InterfaceNode::isPublic() const
-    {
-        return visibility == VisibilityModifier::PUBLIC;
-    }
-
-    bool InterfaceNode::isPrivate() const
-    {
-        return visibility == VisibilityModifier::PRIVATE;
-    }
-
     Value InterfaceNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitInterfaceNode(this);

@@ -50,46 +50,55 @@ namespace ast::nodes::expressions
         std::string toString() const;
 
         // Accessors
-        std::shared_ptr<LambdaNode> getLambdaNode() const { return lambdaNode.lock(); }
-        const std::vector<std::shared_ptr<ast::ASTNode>>& getArguments() const { return arguments; }
-        const std::string& getInterfaceName() const { return interfaceName; }
-        const std::string& getMethodName() const { return methodName; }
-        const std::vector<value::ValueType>& getInterfaceParameterTypes() const { return interfaceParameterTypes; }
-        value::ValueType getInterfaceReturnType() const { return interfaceReturnType; }
+        [[nodiscard]] std::shared_ptr<LambdaNode> getLambdaNode() const { return lambdaNode.lock(); }
+        [[nodiscard]] const std::vector<std::shared_ptr<ast::ASTNode>>& getArguments() const { return arguments; }
+        [[nodiscard]] const std::string& getInterfaceName() const { return interfaceName; }
+        [[nodiscard]] const std::string& getMethodName() const { return methodName; }
+        [[nodiscard]] const std::vector<value::ValueType>& getInterfaceParameterTypes() const { return interfaceParameterTypes; }
+        [[nodiscard]] value::ValueType getInterfaceReturnType() const { return interfaceReturnType; }
 
         // Type validation
-        bool validateParameterTypes(const std::vector<value::Value>& actualArgs) const;
-        bool validateParameterTypes(const std::vector<value::Value>& actualArgs, std::string* errorMessage) const;
-        bool isParameterTypeCompatible(value::ValueType interfaceType, value::ValueType lambdaType) const;
+        [[nodiscard]] bool validateParameterTypes(const std::vector<value::Value>& actualArgs) const;
+        [[nodiscard]] bool validateParameterTypes(const std::vector<value::Value>& actualArgs, std::string* errorMessage) const;
+        [[nodiscard]] bool isParameterTypeCompatible(value::ValueType interfaceType, value::ValueType lambdaType) const;
 
         // Return type validation
-        bool validateReturnType(const value::Value& returnValue) const;
-        bool validateReturnType(const value::Value& returnValue, std::string* errorMessage) const;
-        bool isReturnTypeCompatible(value::ValueType actualReturnType) const;
+        [[nodiscard]] bool validateReturnType(const value::Value& returnValue) const;
+        [[nodiscard]] bool validateReturnType(const value::Value& returnValue, std::string* errorMessage) const;
+        [[nodiscard]] bool isReturnTypeCompatible(value::ValueType actualReturnType) const;
 
         // Generic type support
         void setGenericTypeBinding(const std::string& typeParam, value::ValueType actualType);
-        value::ValueType resolveGenericType(const std::string& typeParam) const;
-        bool hasGenericTypeBindings() const { return !genericTypeBindings.empty(); }
-        const std::unordered_map<std::string, value::ValueType>& getGenericTypeBindings() const { return genericTypeBindings; }
+        [[nodiscard]] value::ValueType resolveGenericType(const std::string& typeParam) const;
+        [[nodiscard]] bool hasGenericTypeBindings() const { return !genericTypeBindings.empty(); }
+        [[nodiscard]] const std::unordered_map<std::string, value::ValueType>& getGenericTypeBindings() const { return genericTypeBindings; }
 
         // Memory safety and lifecycle management
-        bool isLambdaValid() const { return !lambdaNode.expired(); }
+        [[nodiscard]] bool isLambdaValid() const { return !lambdaNode.expired(); }
         void invalidateLambda() { lambdaNode.reset(); } // For cleanup scenarios
 
         // Enhanced lifecycle management
-        bool isLambdaAccessible() const;
+        [[nodiscard]] bool isLambdaAccessible() const;
         void markAsInvalid();
-        std::string getLambdaLifecycleStatus() const;
+        [[nodiscard]] std::string getLambdaLifecycleStatus() const;
 
         // Cleanup and resource management
         void cleanup();
-        bool needsCleanup() const;
+        [[nodiscard]] bool needsCleanup() const;
 
         std::unique_ptr<ASTNode> clone() const override;
 
     private:
         // Helper methods
         std::string getValueTypeName(value::ValueType type) const;
+
+        // Parameter validation helpers
+        bool validateLambdaNodeForParameters(std::string* errorMessage) const;
+        bool validateParameterCount(const std::vector<value::Value>& actualArgs,
+                                   const std::vector<Parameter>& lambdaParams,
+                                   std::string* errorMessage) const;
+        bool validateParameterTypeCompatibility(const std::vector<value::Value>& actualArgs,
+                                               const std::vector<Parameter>& lambdaParams,
+                                               std::string* errorMessage) const;
     };
 }

@@ -19,6 +19,9 @@
     <Filter Include="ast\nodes\statements">
       <UniqueIdentifier>{4C9D8437-382C-0E01-E14A-22FCCDB81EA7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ast\utils">
+      <UniqueIdentifier>{0D96628E-7900-1705-C23E-C8AA2EE8F459}</UniqueIdentifier>
+    </Filter>
     <Filter Include="circularDependency">
       <UniqueIdentifier>{B982208C-A566-E1E1-0EC7-DB34FAC9CB63}</UniqueIdentifier>
     </Filter>
@@ -387,6 +390,9 @@
     <ClInclude Include="ast\GenericTypeParameter.hpp">
       <Filter>ast</Filter>
     </ClInclude>
+    <ClInclude Include="ast\GenericTypeSubstitutionContext.hpp">
+      <Filter>ast</Filter>
+    </ClInclude>
     <ClInclude Include="ast\NodeClassesDeclaration.hpp">
       <Filter>ast</Filter>
     </ClInclude>
@@ -542,6 +548,12 @@
     </ClInclude>
     <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\utils\ASTNodeUtils.hpp">
+      <Filter>ast\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\utils\GenericTypeConversionUtils.hpp">
+      <Filter>ast\utils</Filter>
     </ClInclude>
     <ClInclude Include="circularDependency\CircularDependencyConfig.hpp">
       <Filter>circularDependency</Filter>
@@ -1445,6 +1457,12 @@
     <ClCompile Include="ast\GenericTypeParameter.cpp">
       <Filter>ast</Filter>
     </ClCompile>
+    <ClCompile Include="ast\GenericTypeSubstitutionContext.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\VisibilityModifier.cpp">
+      <Filter>ast</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
@@ -1481,10 +1499,16 @@
     <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\BoolNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\CastExpression.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
@@ -1494,6 +1518,9 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
+      <Filter>ast\nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\InstanceOfExpression.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
@@ -1585,6 +1612,9 @@
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
       <Filter>ast\nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\utils\GenericTypeConversionUtils.cpp">
+      <Filter>ast\utils</Filter>
     </ClCompile>
     <ClCompile Include="circularDependency\CircularDependencyDetector.cpp">
       <Filter>circularDependency</Filter>

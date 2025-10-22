@@ -48,41 +48,42 @@ namespace ast::nodes::functions
                      bool async = false,
                      const SourceLocation& loc = SourceLocation());
 
-        const std::string& getName() const;
+        [[nodiscard]] const std::string& getName() const noexcept;
 
         // NEW: Generic-aware getters
-        std::shared_ptr<GenericType> getGenericReturnType() const;
-        const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& getGenericParameters() const;
+        [[nodiscard]] std::shared_ptr<GenericType> getGenericReturnType() const noexcept;
+        [[nodiscard]] const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& getGenericParameters() const noexcept;
 
         // Legacy getters for backward compatibility
-        ValueType getReturnType() const;
-        const std::vector<std::pair<std::string, ValueType>>& getParameters() const;
+        [[nodiscard]] ValueType getReturnType() const noexcept;
+        [[deprecated("Use getGenericParameters() instead")]]
+        [[nodiscard]] std::vector<std::pair<std::string, ValueType>> getParameters() const;
 
         // NEW: Get parameters as ParameterType (preserves class/interface information)
-        std::vector<std::pair<std::string, ParameterType>> getParameterTypes() const;
+        [[nodiscard]] std::vector<std::pair<std::string, ParameterType>> getParameterTypes() const;
 
         // Safe getter - returns shared_ptr
-        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const;
+        [[nodiscard]] std::shared_ptr<ASTNode> getBody() const noexcept;
 
         // For code that just needs to read
-        [[nodiscard]] ASTNode* getBodyPtr() const;
+        [[nodiscard]] ASTNode* getBodyPtr() const noexcept;
 
         // NEW: Generic-related methods
-        const std::vector<GenericTypeParameter>& getGenericTypeParameters() const;
+        [[nodiscard]] const std::vector<GenericTypeParameter>& getGenericTypeParameters() const noexcept;
         void setGenericTypeParameters(const std::vector<GenericTypeParameter>& generics);
         void addGenericTypeParameter(const GenericTypeParameter& param);
-        size_t getGenericTypeParameterCount() const;
-        bool isGeneric() const { return !genericParameters.empty(); }
+        [[nodiscard]] size_t getGenericTypeParameterCount() const noexcept;
+        [[nodiscard]] bool isGeneric() const noexcept { return !genericParameters.empty(); }
 
         // NEW: Async-related methods
-        bool getIsAsync() const { return isAsync; }
+        [[nodiscard]] bool getIsAsync() const noexcept { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
 
         // NEW: Visibility modifier methods (for import/export system)
-        VisibilityModifier getVisibility() const;
+        [[nodiscard]] VisibilityModifier getVisibility() const noexcept;
         void setVisibility(VisibilityModifier vis);
-        bool isPublic() const;
-        bool isPrivate() const;
+        [[nodiscard]] bool isPublic() const noexcept;
+        [[nodiscard]] bool isPrivate() const noexcept;
 
         void setName(const std::string& funcName);
         void setGenericReturnType(std::shared_ptr<GenericType> retType);
@@ -94,9 +95,13 @@ namespace ast::nodes::functions
 
         void setBody(std::shared_ptr<ASTNode> funcBody);
 
-        size_t getParameterCount() const;
+        [[nodiscard]] size_t getParameterCount() const noexcept;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;
+
+    private:
+        // Helper method for classifying parameter types
+        ParameterType classifyParameterType(const std::shared_ptr<GenericType>& paramType) const;
     };
 }

@@ -98,52 +98,6 @@ namespace ast
         return substituteInternal(substitutions, context);
     }
 
-    bool GenericType::SubstitutionContext::enterSubstitution(const std::string& paramName, const std::string& location)
-    {
-        // Use enhanced circular dependency detection
-        std::string fullLocation = currentLocation;
-        if (!location.empty()) {
-            fullLocation += " at " + location;
-        }
-
-        return detector->enterDependency(
-            circularDependency::DependencyType::GENERIC_SUBSTITUTION,
-            paramName,
-            fullLocation
-        );
-    }
-
-    void GenericType::SubstitutionContext::exitSubstitution(const std::string& paramName)
-    {
-        detector->exitDependency(
-            circularDependency::DependencyType::GENERIC_SUBSTITUTION,
-            paramName
-        );
-    }
-
-    std::vector<std::string> GenericType::SubstitutionContext::getCurrentChain() const
-    {
-        return detector->getDependencyChain(circularDependency::DependencyType::GENERIC_SUBSTITUTION);
-    }
-
-    int GenericType::SubstitutionContext::getCurrentDepth() const
-    {
-        return detector->getCurrentDepth(circularDependency::DependencyType::GENERIC_SUBSTITUTION);
-    }
-
-    std::string GenericType::SubstitutionContext::getChainString() const
-    {
-        auto chain = getCurrentChain();
-        if (chain.empty()) {
-            return "(empty)";
-        }
-
-        std::string result = chain[0];
-        for (size_t i = 1; i < chain.size(); ++i) {
-            result += " -> " + chain[i];
-        }
-        return result;
-    }
 
     std::shared_ptr<GenericType> GenericType::substituteInternal(
         const std::unordered_map<std::string, std::shared_ptr<GenericType>>& substitutions,

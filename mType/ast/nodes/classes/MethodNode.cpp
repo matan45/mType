@@ -1,4 +1,5 @@
 #include "MethodNode.hpp"
+#include "../../utils/GenericTypeConversionUtils.hpp"
 
 namespace ast::nodes::classes
 {
@@ -27,14 +28,8 @@ namespace ast::nodes::classes
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
     {
-        // Convert ValueType to GenericType
-        returnType = std::make_shared<GenericType>(retType);
-
-        // Convert parameters from ValueType to GenericType
-        for (const auto& param : params)
-        {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
     // Backward compatibility constructor with ValueType (unique_ptr)
@@ -47,75 +42,54 @@ namespace ast::nodes::classes
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
     {
-        // Convert ValueType to GenericType
-        returnType = std::make_shared<GenericType>(retType);
-
-        // Convert parameters from ValueType to GenericType
-        for (const auto& param : params)
-        {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
-    const std::string& MethodNode::getName() const
+    const std::string& MethodNode::getName() const noexcept
     {
         return name;
     }
 
-    std::shared_ptr<GenericType> MethodNode::getGenericReturnType() const
+    std::shared_ptr<GenericType> MethodNode::getGenericReturnType() const noexcept
     {
         return returnType;
     }
 
-    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& MethodNode::getGenericParameters() const
+    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& MethodNode::getGenericParameters() const noexcept
     {
         return parameters;
     }
 
     // Legacy getter for backward compatibility
-    ValueType MethodNode::getReturnType() const
+    ValueType MethodNode::getReturnType() const noexcept
     {
-        if (returnType && !returnType->isGenericParameter())
-        {
-            return returnType->getConcreteType();
-        }
-        return ValueType::OBJECT; // Default for generic parameters
+        return utils::GenericTypeConversionUtils::convertGenericTypeToValueType(returnType);
     }
 
     // Legacy getter for backward compatibility - converts GenericType back to ValueType
-    const std::vector<std::pair<std::string, ValueType>>& MethodNode::getParameters() const
+    // Returns by value to ensure thread-safety (removed unsafe static variable)
+    std::vector<std::pair<std::string, ValueType>> MethodNode::getParameters() const
     {
-        // This is a bit tricky since we need to return a reference
-        // For now, we'll maintain a separate legacy parameters vector
-        // In practice, code should migrate to using getGenericParameters()
-        static std::vector<std::pair<std::string, ValueType>> legacyParams;
-        legacyParams.clear();
-
-        for (const auto& param : parameters)
-        {
-            ValueType type = param.second->isGenericParameter() ? ValueType::OBJECT : param.second->getConcreteType();
-            legacyParams.emplace_back(param.first, type);
-        }
-
-        return legacyParams;
+        return utils::GenericTypeConversionUtils::convertParametersToValueType(parameters);
     }
 
-    std::shared_ptr<ASTNode> MethodNode::getBody() const
+    std::shared_ptr<ASTNode> MethodNode::getBody() const noexcept
     {
         return body;
     }
 
-    ASTNode* MethodNode::getBodyPtr() const
+    ASTNode* MethodNode::getBodyPtr() const noexcept
     {
         return body.get();
     }
 
-    bool MethodNode::getIsStatic() const
+    bool MethodNode::getIsStatic() const noexcept
     {
         return isStatic;
     }
 
-    const std::vector<GenericTypeParameter>& MethodNode::getGenericTypeParameters() const
+    const std::vector<GenericTypeParameter>& MethodNode::getGenericTypeParameters() const noexcept
     {
         return genericParameters;
     }
@@ -130,7 +104,7 @@ namespace ast::nodes::classes
         genericParameters.push_back(param);
     }
 
-    size_t MethodNode::getGenericTypeParameterCount() const
+    size_t MethodNode::getGenericTypeParameterCount() const noexcept
     {
         return genericParameters.size();
     }
@@ -154,17 +128,13 @@ namespace ast::nodes::classes
     // Legacy setter for backward compatibility
     void MethodNode::setReturnType(ValueType retType)
     {
-        returnType = std::make_shared<GenericType>(retType);
+        returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
     }
 
     // Legacy setter for backward compatibility
     void MethodNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
-        parameters.clear();
-        for (const auto& param : params)
-        {
-            parameters.emplace_back(param.first, std::make_shared<GenericType>(param.second));
-        }
+        parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
     }
 
     void MethodNode::setBody(std::shared_ptr<ASTNode> methodBody)
@@ -177,7 +147,7 @@ namespace ast::nodes::classes
         isStatic = isStaticMethod;
     }
 
-    AccessModifier MethodNode::getAccessModifier() const
+    AccessModifier MethodNode::getAccessModifier() const noexcept
     {
         return accessModifier;
     }
@@ -187,7 +157,7 @@ namespace ast::nodes::classes
         accessModifier = modifier;
     }
 
-    size_t MethodNode::getParameterCount() const
+    size_t MethodNode::getParameterCount() const noexcept
     {
         return parameters.size();
     }
@@ -205,18 +175,9 @@ namespace ast::nodes::classes
         // Clone generic parameters (copy constructor works for GenericTypeParameter)
         std::vector<GenericTypeParameter> clonedGenericParams = genericParameters;
 
-        // Clone parameters with GenericType (need deep copy of shared_ptrs)
-        std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> clonedParams;
-        clonedParams.reserve(parameters.size());
-        for (const auto& param : parameters) {
-            // Deep copy GenericType via copy constructor
-            auto clonedGenericType = std::make_shared<GenericType>(*param.second);
-            clonedParams.emplace_back(param.first, clonedGenericType);
-        }
-
-        // Clone return type
-        std::shared_ptr<GenericType> clonedReturnType =
-            returnType ? std::make_shared<GenericType>(*returnType) : nullptr;
+        // Clone parameters and return type using utility functions
+        auto clonedParams = utils::GenericTypeConversionUtils::cloneGenericParameters(parameters);
+        auto clonedReturnType = utils::GenericTypeConversionUtils::cloneGenericType(returnType);
 
         return std::make_unique<MethodNode>(
             name, clonedReturnType, clonedParams, clonedBody, isStatic,

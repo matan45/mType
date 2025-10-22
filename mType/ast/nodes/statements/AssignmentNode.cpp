@@ -11,46 +11,74 @@ namespace ast::nodes::statements
     }
 
     const std::string& AssignmentNode::getVariableName() const
-    { return variableName; }
+    {
+        return variableName;
+    }
 
     ASTNode* AssignmentNode::getValue() const
-    { return value.get(); }
+    {
+        return value.get();
+    }
 
-    ValueType AssignmentNode::getVariableType() const
-    { return variableType; }
+    value::ValueType AssignmentNode::getVariableType() const
+    {
+        return variableType;
+    }
 
     const std::string& AssignmentNode::getClassName() const
-    { return className; }
+    {
+        return className;
+    }
 
     bool AssignmentNode::getIsFinal() const
-    { return isFinal; }
+    {
+        return isFinal;
+    }
 
     bool AssignmentNode::getIsStatic() const
-    { return isStatic; }
+    {
+        return isStatic;
+    }
 
     VisibilityModifier AssignmentNode::getVisibility() const
-    { return visibility; }
+    {
+        return visibility;
+    }
 
     void AssignmentNode::setVariableName(const std::string& varName)
-    { variableName = varName; }
+    {
+        variableName = varName;
+    }
 
     void AssignmentNode::setValue(std::unique_ptr<ASTNode> val)
-    { value = std::move(val); }
+    {
+        value = std::move(val);
+    }
 
-    void AssignmentNode::setVariableType(ValueType type)
-    { variableType = type; }
+    void AssignmentNode::setVariableType(value::ValueType type)
+    {
+        variableType = type;
+    }
 
     void AssignmentNode::setClassName(const std::string& clsName)
-    { className = clsName; }
+    {
+        className = clsName;
+    }
 
     void AssignmentNode::setIsFinal(bool isFinalVar)
-    { isFinal = isFinalVar; }
+    {
+        isFinal = isFinalVar;
+    }
 
     void AssignmentNode::setIsStatic(bool isStaticVar)
-    { isStatic = isStaticVar; }
+    {
+        isStatic = isStaticVar;
+    }
 
     void AssignmentNode::setVisibility(VisibilityModifier vis)
-    { visibility = vis; }
+    {
+        visibility = vis;
+    }
 
     Value AssignmentNode::accept(ASTVisitor<Value>& visitor)
     {

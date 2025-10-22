@@ -1,4 +1,5 @@
 ﻿#include "SwitchNode.hpp"
+#include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements
 {
@@ -39,14 +40,11 @@ namespace ast::nodes::statements
 
     std::unique_ptr<ASTNode> SwitchNode::clone() const
     {
-        std::unique_ptr<ASTNode> clonedExpression = expression ? expression->clone() : nullptr;
-
+        auto clonedExpression = ast::utils::cloneNodeSafe(expression);
         auto clonedSwitch = std::make_unique<SwitchNode>(std::move(clonedExpression), location);
 
-        for (const auto& caseNode : cases) {
-            if (caseNode) {
-                clonedSwitch->addCase(caseNode->clone());
-            }
+        for (auto& caseNode : ast::utils::cloneNodeVector(cases)) {
+            clonedSwitch->addCase(std::move(caseNode));
         }
 
         return clonedSwitch;
