@@ -1074,6 +1074,9 @@
     <ClInclude Include="services\BytecodeExecutionStrategy.hpp">
       <Filter>services</Filter>
     </ClInclude>
+    <ClInclude Include="services\BytecodeExecutor.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
     <ClInclude Include="services\BytecodeService.hpp">
       <Filter>services</Filter>
     </ClInclude>
@@ -1974,6 +1977,9 @@
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeExecutionStrategy.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeExecutor.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeService.cpp">

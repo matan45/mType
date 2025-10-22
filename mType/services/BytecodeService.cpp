@@ -1,11 +1,11 @@
 #include "BytecodeService.hpp"
+#include "BytecodeExecutor.hpp"
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
-#include "../runtime/EventLoop.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
@@ -113,38 +113,8 @@ namespace services
         // Register classes from metadata
         registerClassesFromMetadata(program.getClasses());
 
-        // Execute the bytecode using the same logic as executeBytecode
-        // JavaScript model: Only use EventLoop if program actually contains await
-        if (program.hasAwaitInstructions())
-        {
-            // Program uses await - need EventLoop for task suspension/resumption
-            auto* eventLoop = vm->ensureEventLoop();
-
-            // Schedule main program as a task
-            size_t mainTaskId = eventLoop->scheduleTask(
-                [this, program]() -> value::Value {
-                    return vm->execute(program);
-                }
-            );
-
-            // Set VM reference so it knows its task ID
-            eventLoop->setTaskVM(mainTaskId, vm);
-
-            // Run event loop until all tasks complete
-            eventLoop->run();
-
-            // Check if main task failed and re-throw error
-            auto mainTask = eventLoop->getTask(mainTaskId);
-            if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
-            {
-                throw std::runtime_error(mainTask->errorMessage);
-            }
-        }
-        else
-        {
-            // No await in program - execute directly without EventLoop overhead
-            vm->execute(program);
-        }
+        // Execute the bytecode using BytecodeExecutor utility
+        BytecodeExecutor::executeProgram(vm, program);
     }
 
     void BytecodeService::registerClassesFromMetadata(
