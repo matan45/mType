@@ -135,17 +135,19 @@ namespace evaluator
 
     std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstance(
         const std::string& className,
-        const std::vector<Value>& constructorArgs)
+        const std::vector<Value>& constructorArgs,
+        const errors::SourceLocation& location)
     {
-        return instanceOperationHandler->createInstance(className, constructorArgs);
+        return instanceOperationHandler->createInstance(className, constructorArgs, location);
     }
 
     std::shared_ptr<ObjectInstance> ObjectEvaluator::createInstanceWithTypeBindings(
         const std::string& className,
         const std::vector<Value>& constructorArgs,
-        const std::unordered_map<std::string, std::string>& typeBindings)
+        const std::unordered_map<std::string, std::string>& typeBindings,
+        const errors::SourceLocation& location)
     {
-        return instanceOperationHandler->createInstanceWithTypeBindings(className, constructorArgs, typeBindings);
+        return instanceOperationHandler->createInstanceWithTypeBindings(className, constructorArgs, typeBindings, location);
     }
 
     Value ObjectEvaluator::evaluateMemberAccessNode(MemberAccessNode* node)

@@ -62,7 +62,8 @@ namespace objects {
          * Create an object instance
          */
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
-                                                       const std::vector<Value>& constructorArgs);
+                                                       const std::vector<Value>& constructorArgs,
+                                                       const errors::SourceLocation& location = errors::SourceLocation{});
 
         /**
          * Create an object instance with generic type bindings
@@ -70,7 +71,8 @@ namespace objects {
         std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(
             const std::string& className,
             const std::vector<Value>& constructorArgs,
-            const std::unordered_map<std::string, std::string>& typeBindings);
+            const std::unordered_map<std::string, std::string>& typeBindings,
+            const errors::SourceLocation& location = errors::SourceLocation{});
 
         /**
          * Access an instance field value

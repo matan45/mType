@@ -81,10 +81,12 @@ namespace evaluator
                          const std::vector<Value>& args,
                          const errors::SourceLocation& location) override;
         std::shared_ptr<ObjectInstance> createInstance(const std::string& className,
-                                                       const std::vector<Value>& constructorArgs) override;
+                                                       const std::vector<Value>& constructorArgs,
+                                                       const errors::SourceLocation& location = errors::SourceLocation{}) override;
         std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(const std::string& className,
                                                        const std::vector<Value>& constructorArgs,
-                                                       const std::unordered_map<std::string, std::string>& typeBindings) override;
+                                                       const std::unordered_map<std::string, std::string>& typeBindings,
+                                                       const errors::SourceLocation& location = errors::SourceLocation{}) override;
 
         // Interface method implementations with override
         Value accessStaticMember(const std::string& className, const std::string& memberName) override;

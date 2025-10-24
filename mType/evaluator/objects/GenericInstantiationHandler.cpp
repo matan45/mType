@@ -43,7 +43,7 @@ namespace objects {
         auto genericTypeBindings = extractGenericTypeBindings(resolvedClassName);
 
         // Create instance using ObjectEvaluator's helper method
-        auto instance = objEvaluator->createInstanceWithTypeBindings(resolvedClassName, args, genericTypeBindings);
+        auto instance = objEvaluator->createInstanceWithTypeBindings(resolvedClassName, args, genericTypeBindings, node->getLocation());
 
         // Get environment for constructor execution
         auto env = context->getEnvironment();

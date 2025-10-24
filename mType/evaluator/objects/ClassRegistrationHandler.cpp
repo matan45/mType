@@ -274,18 +274,23 @@ namespace evaluator
                 }
             }
 
-            // NEW: Validate abstract class completeness
-            // Concrete classes must implement all abstract methods
+            // VALIDATION ORDER: Check fundamental design issues first
+
+            // STEP 1: Validate abstract methods only in abstract classes
+            // Catches: "You have abstract methods but class isn't marked abstract"
+            // This is the more fundamental issue and provides clearer error messages
+            validation::AbstractClassValidator::validateAbstractMethodsOnlyInAbstractClass(
+                classDef,
+                node->getLocation());
+
+            // STEP 2: Validate concrete class completeness
+            // Catches: "You're concrete but didn't implement inherited abstract methods"
+            // Only run this after confirming the class declaration is valid
             if (!classDef->isAbstract()) {
                 validation::AbstractClassValidator::validateConcreteClassIsComplete(
                     classDef,
                     node->getLocation());
             }
-
-            // Validate abstract methods only in abstract classes
-            validation::AbstractClassValidator::validateAbstractMethodsOnlyInAbstractClass(
-                classDef,
-                node->getLocation());
 
             // Register class
             registerClass(classDef);
