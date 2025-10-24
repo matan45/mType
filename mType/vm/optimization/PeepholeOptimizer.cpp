@@ -371,8 +371,15 @@ namespace vm::optimization
                     }
                     else
                     {
-                        std::cerr << "WARNING: Jump offset update resulted in invalid target: "
-                                 << newTarget << " (instruction count: " << program.getInstructionCount() << ")" << std::endl;
+                        // CRITICAL: Invalid offset detected - fail fast to prevent bytecode corruption
+                        throw std::runtime_error(
+                            "Peephole optimization error: Jump offset update resulted in invalid target. "
+                            "Opcode: " + std::string(getOpCodeName(instr.opcode)) +
+                            ", Instruction: " + std::to_string(i) +
+                            ", Old target: " + std::to_string(target) +
+                            ", New target: " + std::to_string(newTarget) +
+                            ", Instruction count: " + std::to_string(program.getInstructionCount()) +
+                            ". This indicates a bug in the optimizer.");
                     }
                 }
             }
@@ -394,8 +401,14 @@ namespace vm::optimization
                     }
                     else
                     {
-                        std::cerr << "WARNING: Lambda offset update resulted in invalid target: "
-                                 << newOffset << " (instruction count: " << program.getInstructionCount() << ")" << std::endl;
+                        // CRITICAL: Invalid lambda offset detected - fail fast to prevent bytecode corruption
+                        throw std::runtime_error(
+                            "Peephole optimization error: Lambda offset update resulted in invalid target. "
+                            "Instruction: " + std::to_string(i) +
+                            ", Old lambda offset: " + std::to_string(lambdaOffset) +
+                            ", New lambda offset: " + std::to_string(newOffset) +
+                            ", Instruction count: " + std::to_string(program.getInstructionCount()) +
+                            ". This indicates a bug in the optimizer.");
                     }
                 }
             }
@@ -505,7 +518,7 @@ namespace vm::optimization
                                                      size_t offset) const
     {
         std::ostringstream oss;
-        oss << opcodeToString(instr.opcode);
+        oss << getOpCodeName(instr.opcode);
 
         // Add operands if present
         if (!instr.operands.empty())
@@ -522,135 +535,4 @@ namespace vm::optimization
         return oss.str();
     }
 
-    std::string PeepholeOptimizer::opcodeToString(bytecode::OpCode opcode) const
-    {
-        using namespace bytecode;
-
-        switch (opcode)
-        {
-        // Constants
-        case OpCode::PUSH_INT: return "PUSH_INT";
-        case OpCode::PUSH_FLOAT: return "PUSH_FLOAT";
-        case OpCode::PUSH_STRING: return "PUSH_STRING";
-        case OpCode::PUSH_BOOL: return "PUSH_BOOL";
-        case OpCode::PUSH_NULL: return "PUSH_NULL";
-
-        // Arithmetic - Integer
-        case OpCode::ADD_INT: return "ADD_INT";
-        case OpCode::SUB_INT: return "SUB_INT";
-        case OpCode::MUL_INT: return "MUL_INT";
-        case OpCode::DIV_INT: return "DIV_INT";
-        case OpCode::MOD: return "MOD";
-
-        // Arithmetic - Float
-        case OpCode::ADD_FLOAT: return "ADD_FLOAT";
-        case OpCode::SUB_FLOAT: return "SUB_FLOAT";
-        case OpCode::MUL_FLOAT: return "MUL_FLOAT";
-        case OpCode::DIV_FLOAT: return "DIV_FLOAT";
-
-        // Arithmetic - Generic
-        case OpCode::ADD: return "ADD";
-        case OpCode::SUB: return "SUB";
-        case OpCode::MUL: return "MUL";
-        case OpCode::DIV: return "DIV";
-
-        // Unary
-        case OpCode::NEG: return "NEG";
-        case OpCode::NOT: return "NOT";
-        case OpCode::INC: return "INC";
-        case OpCode::DEC: return "DEC";
-
-        // Comparison - Integer
-        case OpCode::EQ_INT: return "EQ_INT";
-        case OpCode::NE_INT: return "NE_INT";
-        case OpCode::LT_INT: return "LT_INT";
-        case OpCode::GT_INT: return "GT_INT";
-
-        // Comparison - Generic
-        case OpCode::EQ: return "EQ";
-        case OpCode::NE: return "NE";
-        case OpCode::LT: return "LT";
-        case OpCode::GT: return "GT";
-        case OpCode::LE: return "LE";
-        case OpCode::GE: return "GE";
-
-        // Logical
-        case OpCode::AND: return "AND";
-        case OpCode::OR: return "OR";
-        case OpCode::XOR: return "XOR";
-
-        // Stack
-        case OpCode::POP: return "POP";
-        case OpCode::DUP: return "DUP";
-        case OpCode::DUP2: return "DUP2";
-        case OpCode::SWAP: return "SWAP";
-
-        // Variables
-        case OpCode::LOAD_VAR: return "LOAD_VAR";
-        case OpCode::STORE_VAR: return "STORE_VAR";
-        case OpCode::LOAD_LOCAL: return "LOAD_LOCAL";
-        case OpCode::STORE_LOCAL: return "STORE_LOCAL";
-        case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
-        case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
-        case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";
-        case OpCode::STORE_UPVALUE: return "STORE_UPVALUE";
-
-        // Control Flow
-        case OpCode::JUMP: return "JUMP";
-        case OpCode::JUMP_IF_FALSE: return "JUMP_IF_FALSE";
-        case OpCode::JUMP_IF_TRUE: return "JUMP_IF_TRUE";
-        case OpCode::JUMP_IF_NULL: return "JUMP_IF_NULL";
-        case OpCode::JUMP_BACK: return "JUMP_BACK";
-        case OpCode::JUMP_IF_FALSE_OR_POP: return "JUMP_IF_FALSE_OR_POP";
-        case OpCode::JUMP_IF_TRUE_OR_POP: return "JUMP_IF_TRUE_OR_POP";
-
-        // Functions
-        case OpCode::CALL: return "CALL";
-        case OpCode::CALL_NATIVE: return "CALL_NATIVE";
-        case OpCode::CALL_FAST: return "CALL_FAST";
-        case OpCode::CALL_METHOD: return "CALL_METHOD";
-        case OpCode::CALL_STATIC: return "CALL_STATIC";
-        case OpCode::TAIL_CALL: return "TAIL_CALL";
-        case OpCode::RETURN: return "RETURN";
-        case OpCode::RETURN_VALUE: return "RETURN_VALUE";
-
-        // Arrays
-        case OpCode::ARRAY_GET: return "ARRAY_GET";
-        case OpCode::ARRAY_GET_INT: return "ARRAY_GET_INT";
-        case OpCode::ARRAY_SET: return "ARRAY_SET";
-        case OpCode::ARRAY_SET_INT: return "ARRAY_SET_INT";
-        case OpCode::ARRAY_LENGTH: return "ARRAY_LENGTH";
-        case OpCode::ARRAY_SET_FIELD: return "ARRAY_SET_FIELD";
-        case OpCode::NEW_ARRAY: return "NEW_ARRAY";
-        case OpCode::NEW_ARRAY_MULTI: return "NEW_ARRAY_MULTI";
-
-        // Objects
-        case OpCode::NEW_OBJECT: return "NEW_OBJECT";
-        case OpCode::GET_FIELD: return "GET_FIELD";
-        case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
-        case OpCode::SET_FIELD: return "SET_FIELD";
-        case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
-        case OpCode::GET_STATIC: return "GET_STATIC";
-        case OpCode::SET_STATIC: return "SET_STATIC";
-        case OpCode::INVOKE: return "INVOKE";
-        case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";
-
-        // Type Operations
-        case OpCode::INSTANCEOF: return "INSTANCEOF";
-        case OpCode::CAST: return "CAST";
-        case OpCode::CHECK_TYPE: return "CHECK_TYPE";
-
-        // Exception Handling
-        case OpCode::THROW: return "THROW";
-
-        // Misc
-        case OpCode::NOP: return "NOP";
-        case OpCode::LINE: return "LINE";
-        case OpCode::SOURCE_FILE: return "SOURCE_FILE";
-        case OpCode::LOOP_START: return "LOOP_START";
-        case OpCode::LOOP_END: return "LOOP_END";
-
-        default: return "UNKNOWN(" + std::to_string(static_cast<int>(opcode)) + ")";
-        }
-    }
 } // namespace vm::optimization

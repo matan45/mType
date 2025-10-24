@@ -119,7 +119,6 @@ namespace vm::optimization
                             const bytecode::BytecodeProgram& program,
                             const OptimizationPattern::Replacement& replacement);
         std::string formatInstruction(const bytecode::BytecodeProgram::Instruction& instr, size_t offset) const;
-        std::string opcodeToString(bytecode::OpCode opcode) const;
 
         /**
          * Run a single optimization pass over the program

@@ -74,6 +74,14 @@ namespace vm::optimization::validation
          */
         bool areStructurallyEquivalent(const bytecode::BytecodeProgram& p1,
                                        const bytecode::BytecodeProgram& p2);
+
+        /**
+         * Get the stack effect of an instruction
+         * @param instr The instruction to analyze
+         * @param stackEffect Output: net stack effect (positive = push, negative = pop)
+         * @return true if stack effect is known, false if unknown opcode
+         */
+        bool getStackEffect(const bytecode::BytecodeProgram::Instruction& instr, int& stackEffect) const;
     };
 
 } // namespace vm::optimization::validation

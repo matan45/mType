@@ -190,6 +190,15 @@ namespace vm::bytecode
                 if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
                     metadata.startOffset = static_cast<size_t>(newOffset);
                 }
+                else {
+                    // CRITICAL: Invalid function offset - fail fast
+                    throw std::runtime_error(
+                        "Function offset update error: Invalid offset for function '" + name + "'. "
+                        "Old offset: " + std::to_string(metadata.startOffset) +
+                        ", New offset: " + std::to_string(newOffset) +
+                        ", Instruction count: " + std::to_string(instructions.size()) +
+                        ". This indicates bytecode corruption during optimization.");
+                }
             }
         }
 
@@ -202,6 +211,14 @@ namespace vm::bytecode
                     if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
                         method.startOffset = static_cast<size_t>(newOffset);
                     }
+                    else {
+                        throw std::runtime_error(
+                            "Method offset update error: Invalid offset for method '" +
+                            classMeta.name + "::" + method.name + "'. "
+                            "Old offset: " + std::to_string(method.startOffset) +
+                            ", New offset: " + std::to_string(newOffset) +
+                            ", Instruction count: " + std::to_string(instructions.size()));
+                    }
                 }
             }
 
@@ -212,6 +229,14 @@ namespace vm::bytecode
                     if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
                         method.startOffset = static_cast<size_t>(newOffset);
                     }
+                    else {
+                        throw std::runtime_error(
+                            "Static method offset update error: Invalid offset for method '" +
+                            classMeta.name + "::" + method.name + "'. "
+                            "Old offset: " + std::to_string(method.startOffset) +
+                            ", New offset: " + std::to_string(newOffset) +
+                            ", Instruction count: " + std::to_string(instructions.size()));
+                    }
                 }
             }
 
@@ -221,6 +246,14 @@ namespace vm::bytecode
                     int newOffset = static_cast<int>(ctor.startOffset) + delta;
                     if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
                         ctor.startOffset = static_cast<size_t>(newOffset);
+                    }
+                    else {
+                        throw std::runtime_error(
+                            "Constructor offset update error: Invalid offset for constructor of class '" +
+                            classMeta.name + "'. "
+                            "Old offset: " + std::to_string(ctor.startOffset) +
+                            ", New offset: " + std::to_string(newOffset) +
+                            ", Instruction count: " + std::to_string(instructions.size()));
                     }
                 }
             }
