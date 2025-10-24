@@ -385,15 +385,17 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitProgramNo
         transformedStatements.push_back(std::move(transformed));
     }
 
-    // Only create new node if expressions were folded in children
-    if (foldedExpressionsCount > foldedBefore) {
-        if (CF_DEBUG) {
-            std::cout << "[CF] visitProgramNode: Created new ProgramNode with transformed statements\n";
+    // Always return transformed tree to preserve cloned state
+    // Even if no constant folding occurred, cloning may have preserved important flags
+    if (CF_DEBUG) {
+        if (foldedExpressionsCount > foldedBefore) {
+            std::cout << "[CF] visitProgramNode: Created new ProgramNode with "
+                      << (foldedExpressionsCount - foldedBefore) << " folded expressions\n";
+        } else {
+            std::cout << "[CF] visitProgramNode: Created new ProgramNode (no folding, but preserving clones)\n";
         }
-        return std::make_unique<ProgramNode>(std::move(transformedStatements), node->getLocation());
     }
-
-    return nullptr; // No changes
+    return std::make_unique<ProgramNode>(std::move(transformedStatements), node->getLocation());
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitBlockNode(
@@ -415,15 +417,16 @@ std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitBlockNode
         transformedStatements.push_back(std::move(transformed));
     }
 
-    // Only create new node if expressions were folded in children
-    if (foldedExpressionsCount > foldedBefore) {
-        if (CF_DEBUG) {
-            std::cout << "[CF] visitBlockNode: Created new BlockNode with transformed statements\n";
+    // Always return transformed tree to preserve cloned state
+    if (CF_DEBUG) {
+        if (foldedExpressionsCount > foldedBefore) {
+            std::cout << "[CF] visitBlockNode: Created new BlockNode with "
+                      << (foldedExpressionsCount - foldedBefore) << " folded expressions\n";
+        } else {
+            std::cout << "[CF] visitBlockNode: Created new BlockNode (no folding, but preserving clones)\n";
         }
-        return std::make_unique<BlockNode>(std::move(transformedStatements), node->getLocation());
     }
-
-    return nullptr; // No changes
+    return std::make_unique<BlockNode>(std::move(transformedStatements), node->getLocation());
 }
 
 std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitFunctionNode(

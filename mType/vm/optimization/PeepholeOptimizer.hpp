@@ -48,8 +48,6 @@ namespace vm::optimization
         {
             bool enableAggressiveOptimizations = true;
             size_t maxPasses = 10;  // Maximum number of optimization passes
-            bool verboseOutput = true;
-            bool validateAfterEachPass = false;
             double timeoutMs = 5000.0;  // Timeout for all passes
 
             static Config forReleaseMode();
@@ -97,12 +95,6 @@ namespace vm::optimization
          * Register all default optimization patterns
          */
         void registerDefaultPatterns();
-
-        /**
-         * Set verbose logging
-         * @param verbose Enable/disable verbose output
-         */
-        void setVerbose(bool verbose) { config.verboseOutput = verbose; }
 
     private:
         Config config;

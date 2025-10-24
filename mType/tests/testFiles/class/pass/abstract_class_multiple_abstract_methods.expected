@@ -1,0 +1,5 @@
+Connecting to MySQL at localhost
+MySQL Result for: SELECT * FROM users
+Executing: INSERT INTO users VALUES (1, 'John')
+Rows affected: 1
+Disconnecting from MySQL

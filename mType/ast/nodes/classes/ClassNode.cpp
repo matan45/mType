@@ -1,10 +1,11 @@
 ﻿#include "ClassNode.hpp"
+#include <iostream>
 
 namespace ast::nodes::classes
 {
     // Backward compatibility constructor
     ClassNode::ClassNode(const std::string& name, const SourceLocation& loc)
-        : ASTNode(loc), className(name), finalClass(false), visibility(VisibilityModifier::PUBLIC)
+        : ASTNode(loc), className(name), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -12,7 +13,7 @@ namespace ast::nodes::classes
                          const std::vector<GenericTypeParameter>& generics,
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
-        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false), visibility(VisibilityModifier::PUBLIC)
+        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -22,7 +23,7 @@ namespace ast::nodes::classes
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics),
-          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), visibility(VisibilityModifier::PUBLIC)
+          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -148,6 +149,16 @@ namespace ast::nodes::classes
         finalClass = isFinal;
     }
 
+    bool ClassNode::isAbstract() const
+    {
+        return abstractClass;
+    }
+
+    void ClassNode::setAbstract(bool isAbstract)
+    {
+        abstractClass = isAbstract;
+    }
+
     VisibilityModifier ClassNode::getVisibility() const
     {
         return visibility;
@@ -197,6 +208,7 @@ namespace ast::nodes::classes
 
         // Set other attributes
         clonedClass->setFinal(finalClass);
+        clonedClass->setAbstract(abstractClass);
         clonedClass->setVisibility(visibility);
 
         return clonedClass;

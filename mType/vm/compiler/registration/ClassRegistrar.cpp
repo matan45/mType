@@ -8,6 +8,7 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
+#include "../../../errors/AbstractClassException.hpp"
 #include "../../runtime/utils/TypeConverter.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
@@ -85,6 +86,9 @@ namespace vm::compiler::registration
         // Set final modifier
         classDef->setFinal(classNode->isFinal());
 
+        // Set abstract modifier
+        classDef->setAbstract(classNode->isAbstract());
+
         // Handle parent class
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
@@ -150,6 +154,12 @@ namespace vm::compiler::registration
                 methodDef->setGenericParameters(methodNode->getGenericParameters());
                 methodDef->setGenericTypeParameters(methodNode->getGenericTypeParameters());
 
+                // Set abstract flag
+                methodDef->setAbstract(methodNode->isAbstract());
+                if (methodNode->isAbstract()) {
+                    classDef->addAbstractMethod(methodNode->getName());
+                }
+
                 if (methodNode->getIsStatic()) {
                     classDef->addStaticMethod(methodNode->getName(), methodDef);
                 } else {
@@ -183,6 +193,8 @@ namespace vm::compiler::registration
         if (interfaceRegistrar && !classDef->getImplementedInterfaces().empty()) {
             interfaceRegistrar->validateInterfaceImplementations(classDef, classNode->getLocation());
         }
+
+        // Note: Abstract method validation is done in linkSingleClass() after parent links are established
 
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);
@@ -266,17 +278,34 @@ namespace vm::compiler::registration
 
     void ClassRegistrar::linkSingleClass(ast::ClassNode* classNode)
     {
-        if (!classNode->hasParentClass()) {
-            return;
-        }
-
         std::string className = classNode->getClassName();
-        std::string parentClassName = classNode->getParentClassName();
-
         auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw std::runtime_error("Class registry not available");
         }
+
+        // Validate abstract method implementations for classes without parents
+        if (!classNode->hasParentClass()) {
+            auto classDef = classRegistry->findClass(className);
+            if (classDef && !classDef->isAbstract()) {
+                // Concrete classes must not have abstract methods
+                auto unimplemented = classDef->getUnimplementedAbstractMethods();
+                if (!unimplemented.empty()) {
+                    std::string methodList;
+                    for (size_t i = 0; i < unimplemented.size(); ++i) {
+                        if (i > 0) methodList += ", ";
+                        methodList += unimplemented[i];
+                    }
+                    throw errors::AbstractClassException(
+                        "Concrete class '" + className + "' cannot have abstract methods: " + methodList,
+                        classNode->getLocation()
+                    );
+                }
+            }
+            return;
+        }
+
+        std::string parentClassName = classNode->getParentClassName();
 
         // Strip generic type parameters from parent class name: "Container<T>" -> "Container"
         size_t genericStart = parentClassName.find('<');
@@ -308,6 +337,23 @@ namespace vm::compiler::registration
 
             // Validate method overrides
             validateMethodOverrides(classDef, parentDef, classNode->getLocation());
+
+            // Validate abstract method implementations (must be done after parent link is established)
+            if (!classDef->isAbstract()) {
+                // Concrete classes must implement all abstract methods from parent chain
+                auto unimplemented = classDef->getUnimplementedAbstractMethods();
+                if (!unimplemented.empty()) {
+                    std::string methodList;
+                    for (size_t i = 0; i < unimplemented.size(); ++i) {
+                        if (i > 0) methodList += ", ";
+                        methodList += unimplemented[i];
+                    }
+                    throw errors::AbstractClassException(
+                        "Concrete class '" + className + "' must implement all abstract methods: " + methodList,
+                        classNode->getLocation()
+                    );
+                }
+            }
         }
     }
 
@@ -354,6 +400,8 @@ namespace vm::compiler::registration
         // Extract basic class information
         metadata.name = classNode->getClassName();
         metadata.parentClassName = classNode->hasParentClass() ? classNode->getParentClassName() : "";
+        metadata.isAbstract = classNode->isAbstract();
+        metadata.isFinal = classNode->isFinal();
 
         // Extract implemented interfaces
         const auto& interfaces = classNode->getImplementedInterfaces();
@@ -407,6 +455,7 @@ namespace vm::compiler::registration
             auto accessMod = method->getAccessModifier();
             methodMeta.isPrivate = (accessMod == ast::AccessModifier::PRIVATE);
             methodMeta.isProtected = (accessMod == ast::AccessModifier::PROTECTED);
+            methodMeta.isAbstract = method->isAbstract();
             methodMeta.startOffset = 0;  // Will be set during bytecode generation if needed
 
             // Extract parameter types and names

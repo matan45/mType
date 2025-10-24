@@ -39,6 +39,24 @@ namespace parser::utilities
         return StatementType::UNKNOWN;
     }
 
+    StatementType StatementTypeDetector::analyzeAbstractKeyword(const TokenStream& stream)
+    {
+        Token next = stream.peek();
+        if (next.type == TokenType::CLASS)
+        {
+            return StatementType::CLASS;
+        }
+        else if (next.type == TokenType::INTERFACE)
+        {
+            return StatementType::INTERFACE;
+        }
+        else if (next.type == TokenType::FUNCTION)
+        {
+            return StatementType::FUNCTION;
+        }
+        return StatementType::UNKNOWN;
+    }
+
     StatementType StatementTypeDetector::analyzeByKeywordCategory(TokenType currentType)
     {
         if (isControlFlowKeyword(currentType))
@@ -99,6 +117,13 @@ namespace parser::utilities
         case TokenType::FINAL:
             {
                 StatementType result = analyzeFinalKeyword(stream);
+                if (result != StatementType::UNKNOWN)
+                    return result;
+            }
+            break;
+        case TokenType::ABSTRACT:
+            {
+                StatementType result = analyzeAbstractKeyword(stream);
                 if (result != StatementType::UNKNOWN)
                     return result;
             }

@@ -89,23 +89,27 @@ namespace evaluator
              * @brief Create an instance of a class
              * @param className The name of the class
              * @param constructorArgs Arguments for the constructor
+             * @param location Source location for error reporting
              * @return The created instance
              */
             virtual std::shared_ptr<ObjectInstance> createInstance(
                 const std::string& className,
-                const std::vector<Value>& constructorArgs) = 0;
+                const std::vector<Value>& constructorArgs,
+                const errors::SourceLocation& location = errors::SourceLocation{}) = 0;
 
             /**
              * @brief Create an instance with generic type bindings
              * @param className The name of the class (possibly generic)
              * @param constructorArgs Arguments for the constructor
              * @param typeBindings Generic type parameter bindings
+             * @param location Source location for error reporting
              * @return The created instance
              */
             virtual std::shared_ptr<ObjectInstance> createInstanceWithTypeBindings(
                 const std::string& className,
                 const std::vector<Value>& constructorArgs,
-                const std::unordered_map<std::string, std::string>& typeBindings) = 0;
+                const std::unordered_map<std::string, std::string>& typeBindings,
+                const errors::SourceLocation& location = errors::SourceLocation{}) = 0;
 
             /**
              * @brief Access a static member of a class

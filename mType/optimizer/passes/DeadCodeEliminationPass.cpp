@@ -834,6 +834,7 @@ namespace optimizer::passes {
 
 			// Preserve other attributes
 			newClass->setFinal(node->isFinal());
+			newClass->setAbstract(node->isAbstract());
 			newClass->setVisibility(node->getVisibility());
 
 			return newClass;

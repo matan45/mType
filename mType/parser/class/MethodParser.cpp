@@ -43,6 +43,14 @@ namespace parser
         ast::AccessModifier accessModifier =
             utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PRIVATE);
 
+        // Check for abstract modifier
+        bool isAbstract = false;
+        if (tokenStream.current().type == TokenType::ABSTRACT)
+        {
+            isAbstract = true;
+            tokenStream.advance();
+        }
+
         bool isStatic = false;
 
         // Handle static modifier
@@ -52,7 +60,15 @@ namespace parser
             tokenStream.advance();
         }
 
-        return parseMethodWithModifiers(accessModifier, isStatic);
+        // Validate that abstract and static are mutually exclusive
+        if (isAbstract && isStatic)
+        {
+            throw ParseException(
+                "Method cannot be both abstract and static. Only instance methods can be abstract.",
+                tokenStream.current().location);
+        }
+
+        return parseMethodWithModifiers(accessModifier, isStatic, false, isAbstract);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseStaticMethod()
@@ -61,7 +77,7 @@ namespace parser
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic,
-                                                                    bool isAsync)
+                                                                    bool isAsync, bool isAbstract)
     {
         // Handle function keyword (required for methods)
         if (tokenStream.current().type != TokenType::FUNCTION)
@@ -107,17 +123,34 @@ namespace parser
             utilities::AsyncValidator::validateAsyncReturnType(returnType, tokenStream.location());
         }
 
-        // NEW: Set async context when parsing method body
-        std::unique_ptr<ASTNode> body;
+        // Parse method body (abstract methods have no body)
+        std::unique_ptr<ASTNode> body = nullptr;
+
+        if (isAbstract)
         {
+            // Abstract methods must end with semicolon (no body)
+            if (tokenStream.current().type != TokenType::SEMICOLON)
+            {
+                throw ParseException(
+                    "Abstract method '" + methodName + "' must not have a body. "
+                    "Expected semicolon after method signature.",
+                    tokenStream.current().location);
+            }
+            tokenStream.advance(); // consume semicolon
+        }
+        else
+        {
+            // Non-abstract methods must have a body
             ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
             body = context.parseStatement();
         }
 
         // Create MethodNode with generic support, access modifier, and async flag
-        return std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
-                                            std::move(body), isStatic, methodGenericParameters, accessModifier,
-                                            isAsync);
+        auto methodNode = std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
+                                                       std::move(body), isStatic, methodGenericParameters,
+                                                       accessModifier, isAsync);
+        methodNode->setAbstract(isAbstract);
+        return methodNode;
     }
 
     std::vector<GenericTypeParameter> MethodParser::parseMethodGenericParameters()

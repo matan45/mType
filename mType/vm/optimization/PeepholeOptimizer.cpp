@@ -8,6 +8,7 @@
 #include "patterns/NullSequencePattern.hpp"
 #include "patterns/StackOptimizationPattern.hpp"
 #include "patterns/TypeSpecializationPattern.hpp"
+#include "patterns/AbstractClassPattern.hpp"
 #include <algorithm>
 #include <chrono>
 #include <sstream>
@@ -70,8 +71,6 @@ namespace vm::optimization
         Config config;
         config.enableAggressiveOptimizations = true;
         config.maxPasses = 10;
-        config.verboseOutput = false;
-        config.validateAfterEachPass = false;
         config.timeoutMs = 5000.0;
         return config;
     }
@@ -81,8 +80,6 @@ namespace vm::optimization
         Config config;
         config.enableAggressiveOptimizations = false;
         config.maxPasses = 3;
-        config.verboseOutput = true;
-        config.validateAfterEachPass = true;
         config.timeoutMs = 10000.0;
         return config;
     }
@@ -101,12 +98,7 @@ namespace vm::optimization
 
         size_t initialInstructionCount = program.getInstructionCount();
         bool anyOptimizationsApplied = false;
-
-        if (config.verboseOutput)
-        {
-            logOptimizationStart(program);
-        }
-
+        
         // Analyze the program once before optimization
         cfgAnalyzer.analyze(program);
         dataFlowAnalyzer.analyze(program);
@@ -119,10 +111,6 @@ namespace vm::optimization
             double elapsedMs = std::chrono::duration<double, std::milli>(currentTime - startTime).count();
             if (elapsedMs > config.timeoutMs)
             {
-                if (config.verboseOutput)
-                {
-                    std::cout << "Peephole optimization timeout after " << elapsedMs << " ms\n";
-                }
                 break;
             }
 
@@ -140,12 +128,6 @@ namespace vm::optimization
             // Re-analyze after modifications
             cfgAnalyzer.analyze(program);
             dataFlowAnalyzer.analyze(program);
-
-            if (config.verboseOutput)
-            {
-                std::cout << "\n--- Pass " << (passNum + 1) << " completed: "
-                    << optimizationsThisPass << " optimizations applied ---\n";
-            }
         }
 
         // Update jump offsets after all modifications
@@ -220,6 +202,9 @@ namespace vm::optimization
         // Priority 30: Type Specialization (minor perf gain)
         registerPattern(std::make_unique<patterns::TypeSpecializationPattern>());
 
+        // Priority 20: Abstract Class Validation (validation pattern)
+        registerPattern(std::make_unique<patterns::AbstractClassPattern>());
+
         // Patterns are automatically sorted by priority in registerPattern()
     }
 
@@ -247,14 +232,6 @@ namespace vm::optimization
                     appliedAtOffset = true;
                     optimizationsApplied++;
                     recordPatternApplication(pattern->getName());
-
-                    // Re-analyze after modification
-                    // For performance, we could make this optional
-                    if (config.validateAfterEachPass)
-                    {
-                        cfgAnalyzer.analyze(program);
-                        dataFlowAnalyzer.analyze(program);
-                    }
 
                     // Don't advance offset, re-check at same position
                     break;
@@ -289,12 +266,6 @@ namespace vm::optimization
         if (replacement.originalLength == 0)
         {
             return false;
-        }
-
-        // Log the optimization if verbose
-        if (config.verboseOutput)
-        {
-            logPatternMatch(pattern.getName(), offset, program, replacement);
         }
 
         // Calculate the change in instruction count

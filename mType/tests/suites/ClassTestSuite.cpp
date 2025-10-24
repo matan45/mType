@@ -98,6 +98,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Final Generic Class",
                         passPath + "finalGenericClass.mt");
 
+        // === ABSTRACT CLASS TESTS ===
+        // These tests verify abstract class and method functionality
+
+        addOutputVerificationTest("Abstract Class Basic",
+                        passPath + "abstract_class_basic.mt");
+        addOutputVerificationTest("Abstract Class Inheritance Chain",
+                        passPath + "abstract_class_inheritance_chain.mt");
+        addOutputVerificationTest("Abstract Class With Concrete Methods",
+                        passPath + "abstract_class_with_concrete_methods.mt");
+        addOutputVerificationTest("Abstract Class Multiple Abstract Methods",
+                        passPath + "abstract_class_multiple_abstract_methods.mt");
+        addOutputVerificationTest("Abstract Async Method",
+                        passPath + "abstract_async_method.mt");
+        addOutputVerificationTest("Abstract Method Correct Signature",
+                        passPath + "abstract_correct_signature.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -225,6 +241,28 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("duplicate catch test",
                         errorPath + "duplicate_catch_test.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === ABSTRACT CLASS ERROR TESTS ===
+        // These tests verify that abstract class errors are correctly detected
+
+        addTestFromFile("Abstract Class Cannot Instantiate Error",
+                        errorPath + "abstract_class_cannot_instantiate.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Method Not Implemented Error",
+                        errorPath + "abstract_method_not_implemented.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract And Final Conflict Error",
+                        errorPath + "abstract_and_final_conflict.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Static Method Error",
+                        errorPath + "abstract_static_method.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Method With Body Error",
+                        errorPath + "abstract_method_with_body.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Method Wrong Signature Error",
+                        errorPath + "abstract_wrong_signature.mt",
                         TestType::ERROR_EXPECTED);
 
         // === NESTED TYPE VALIDATION TESTS ===

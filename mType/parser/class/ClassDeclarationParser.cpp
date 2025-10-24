@@ -6,6 +6,7 @@
 #include "../utilities/VisibilityParser.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include <iostream>
 
 namespace parser
 {
@@ -36,12 +37,29 @@ namespace parser
         // Default is PUBLIC if not specified
         VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
 
+        // Check for optional 'abstract' keyword
+        bool isAbstract = false;
+        if (tokenStream.check(TokenType::ABSTRACT))
+        {
+            isAbstract = true;
+            tokenStream.advance(); // consume 'abstract'
+        }
+
         // Check for optional 'final' keyword
         bool isFinal = false;
         if (tokenStream.check(TokenType::FINAL))
         {
             isFinal = true;
             tokenStream.advance(); // consume 'final'
+        }
+
+        // Validate that abstract and final are mutually exclusive
+        if (isAbstract && isFinal)
+        {
+            throw ParseException(
+                "Class cannot be both abstract and final. Abstract classes are meant to be extended, "
+                "while final classes cannot be extended.",
+                tokenStream.current().location);
         }
 
         tokenStream.expect(TokenType::CLASS);
@@ -134,7 +152,9 @@ namespace parser
         auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName,
                                                      implementedInterfaces);
         classNode->setFinal(isFinal);
+        classNode->setAbstract(isAbstract);
         classNode->setVisibility(visibility);
+
         return classNode;
     }
 

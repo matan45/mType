@@ -11,6 +11,7 @@
 #include "../../errors/UndefinedException.hpp"
 #include "../../environment/manager/Scope.hpp"
 #include "../validation/AccessValidator.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 #include "../base/AccessContext.hpp"
 
 using namespace errors;
@@ -34,11 +35,15 @@ namespace objects {
             throw UndefinedException("Class '" + resolvedClassName + "' not found");
         }
 
+        // VALIDATION: Prevent instantiation of abstract classes
+        validation::AbstractClassValidator::validateAbstractClassNotInstantiated(
+            classDef, node->getLocation());
+
         // Extract generic type bindings for this instance
         auto genericTypeBindings = extractGenericTypeBindings(resolvedClassName);
 
         // Create instance using ObjectEvaluator's helper method
-        auto instance = objEvaluator->createInstanceWithTypeBindings(resolvedClassName, args, genericTypeBindings);
+        auto instance = objEvaluator->createInstanceWithTypeBindings(resolvedClassName, args, genericTypeBindings, node->getLocation());
 
         // Get environment for constructor execution
         auto env = context->getEnvironment();

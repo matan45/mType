@@ -13,6 +13,7 @@
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../validation/InheritanceValidator.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
@@ -46,6 +47,9 @@ namespace evaluator
 
             // Set final modifier
             classDef->setFinal(node->isFinal());
+
+            // Set abstract modifier
+            classDef->setAbstract(node->isAbstract());
 
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
@@ -218,6 +222,14 @@ namespace evaluator
                 // NEW: Copy async flag from AST to runtime definition
                 methodDef->setIsAsync(methodNode->getIsAsync());
 
+                // NEW: Copy abstract flag from AST to runtime definition
+                methodDef->setAbstract(methodNode->isAbstract());
+
+                // Track abstract methods in the class definition
+                if (methodNode->isAbstract()) {
+                    classDef->addAbstractMethod(methodNode->getName());
+                }
+
                 classDef->addMethod(methodDef);
             }
 
@@ -260,6 +272,24 @@ namespace evaluator
                         parentClass,
                         node->getLocation());
                 }
+            }
+
+            // VALIDATION ORDER: Check fundamental design issues first
+
+            // STEP 1: Validate abstract methods only in abstract classes
+            // Catches: "You have abstract methods but class isn't marked abstract"
+            // This is the more fundamental issue and provides clearer error messages
+            validation::AbstractClassValidator::validateAbstractMethodsOnlyInAbstractClass(
+                classDef,
+                node->getLocation());
+
+            // STEP 2: Validate concrete class completeness
+            // Catches: "You're concrete but didn't implement inherited abstract methods"
+            // Only run this after confirming the class declaration is valid
+            if (!classDef->isAbstract()) {
+                validation::AbstractClassValidator::validateConcreteClassIsComplete(
+                    classDef,
+                    node->getLocation());
             }
 
             // Register class

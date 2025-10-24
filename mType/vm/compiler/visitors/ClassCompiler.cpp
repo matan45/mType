@@ -3,6 +3,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
+#include "../../../errors/AbstractClassException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
@@ -186,6 +187,14 @@ namespace vm::compiler::visitors
         auto classDef = ctx.environment->findClass(baseClassName);
         if (classDef)
         {
+            // Validate: Cannot instantiate abstract classes
+            if (classDef->isAbstract()) {
+                throw errors::AbstractClassException(
+                    "Cannot instantiate abstract class '" + baseClassName + "'",
+                    node->getLocation()
+                );
+            }
+
             // Find matching constructor and validate parameter types
             const auto& constructors = classDef->getConstructors();
             for (const auto& constructor : constructors)

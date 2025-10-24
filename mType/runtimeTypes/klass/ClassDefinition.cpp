@@ -1,6 +1,7 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include <algorithm>
 
 namespace runtimeTypes::klass
 {
@@ -449,5 +450,77 @@ namespace runtimeTypes::klass
         }
 
         return chain;
+    }
+
+    std::vector<std::string> ClassDefinition::getUnimplementedAbstractMethods() const
+    {
+        std::vector<std::string> unimplemented;
+
+        // Collect abstract methods from this class
+        for (const auto& methodName : abstractMethods) {
+            unimplemented.push_back(methodName);
+        }
+
+        // Collect abstract methods from parent classes in the inheritance chain
+        auto chain = getInheritanceChain();
+        for (const auto& parentClass : chain) {
+            if (parentClass && parentClass->isAbstract()) {
+                for (const auto& abstractMethod : parentClass->getAbstractMethods()) {
+                    // Check if this abstract method is implemented anywhere in the class hierarchy
+                    // (from current class up to but not including the abstract class that declared it)
+                    bool isImplemented = false;
+
+                    // Get the abstract method definition to extract signature information
+                    auto abstractMethodDef = parentClass->getInstanceMethod(abstractMethod);
+                    if (!abstractMethodDef) {
+                        continue; // Skip if definition not found (shouldn't happen)
+                    }
+
+                    size_t requiredArgCount = abstractMethodDef->getParameters().size();
+
+                    // First check in current class with signature matching (name + parameter count)
+                    auto implementingMethod = findInstanceMethod(abstractMethod, requiredArgCount);
+                    if (implementingMethod && !implementingMethod->isAbstract()) {
+                        isImplemented = true;
+                    }
+
+                    // If not implemented in current class, check intermediate classes in the chain
+                    if (!isImplemented) {
+                        for (const auto& intermediateClass : chain) {
+                            // Stop when we reach the class that declared the abstract method
+                            if (intermediateClass == parentClass) {
+                                break;
+                            }
+
+                            // Use signature-aware lookup (name + parameter count)
+                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, requiredArgCount);
+                            if (intermediateMethod && !intermediateMethod->isAbstract()) {
+                                isImplemented = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // If not implemented, add to unimplemented list (avoid duplicates)
+                    if (!isImplemented && std::find(unimplemented.begin(), unimplemented.end(), abstractMethod) == unimplemented.end()) {
+                        unimplemented.push_back(abstractMethod);
+                    }
+                }
+            }
+        }
+
+        return unimplemented;
+    }
+
+    bool ClassDefinition::hasAllAbstractMethodsImplemented() const
+    {
+        // If this class is abstract, it doesn't need to implement all abstract methods
+        if (abstractClass) {
+            return true;
+        }
+
+        // Check if there are any unimplemented abstract methods
+        auto unimplemented = getUnimplementedAbstractMethods();
+        return unimplemented.empty();
     }
 }

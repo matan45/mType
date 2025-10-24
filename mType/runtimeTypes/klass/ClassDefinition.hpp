@@ -46,15 +46,19 @@ namespace runtimeTypes::klass
         // NEW: Final modifier to prevent inheritance
         bool finalClass;
 
+        // NEW: Abstract modifier for abstract classes
+        bool abstractClass;
+        std::unordered_set<std::string> abstractMethods; // Track which methods are abstract
+
     public:
         explicit ClassDefinition(const std::string& n)
-            : Definition(n), isGenericClass(false), finalClass(false)
+            : Definition(n), isGenericClass(false), finalClass(false), abstractClass(false)
         {
         }
 
         // NEW: Constructor with generic parameters
         explicit ClassDefinition(const std::string& n, const std::vector<ast::GenericTypeParameter>& generics)
-            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false)
+            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false), abstractClass(false)
         {
         }
 
@@ -158,6 +162,20 @@ namespace runtimeTypes::klass
         // NEW: Final modifier methods
         bool isFinal() const { return finalClass; }
         void setFinal(bool isFinal) { finalClass = isFinal; }
+
+        // NEW: Abstract modifier methods
+        bool isAbstract() const { return abstractClass; }
+        void setAbstract(bool isAbstract) { abstractClass = isAbstract; }
+
+        // Abstract method management
+        void addAbstractMethod(const std::string& methodName) { abstractMethods.insert(methodName); }
+        void removeAbstractMethod(const std::string& methodName) { abstractMethods.erase(methodName); }
+        bool isMethodAbstract(const std::string& methodName) const { return abstractMethods.count(methodName) > 0; }
+        const std::unordered_set<std::string>& getAbstractMethods() const { return abstractMethods; }
+
+        // Check if all abstract methods from parent are implemented
+        std::vector<std::string> getUnimplementedAbstractMethods() const;
+        bool hasAllAbstractMethodsImplemented() const;
 
     private:
         // Depth protection for interface and class inheritance chains

@@ -6,8 +6,6 @@ namespace optimizer
         : level(level)
           , maxPassIterations(50)
           , timeoutPerPass(std::chrono::milliseconds(5000))
-          , validateAfterEachPass(false)
-          , verboseOutput(false)
     {
         // Configure based on optimization level
         switch (level)
@@ -18,7 +16,6 @@ namespace optimizer
             enableUnusedDeclarationElimination = false;
             enableConstantFolding = false;
             enableUnreachableCodeRemoval = false;
-            verboseOutput = false; // No verbose output in debug mode
             break;
 
         case OptimizationLevel::Release:
@@ -27,7 +24,6 @@ namespace optimizer
             enableUnusedDeclarationElimination = true;
             enableConstantFolding = true;
             enableUnreachableCodeRemoval = true;
-            verboseOutput = false; // Disabled verbose output
             break;
 
         default:
@@ -36,7 +32,6 @@ namespace optimizer
             enableUnusedDeclarationElimination = false;
             enableConstantFolding = false;
             enableUnreachableCodeRemoval = false;
-            verboseOutput = false;
             break;
         }
     }
@@ -92,15 +87,5 @@ namespace optimizer
         return *this;
     }
 
-    OptimizationConfig& OptimizationConfig::setValidateAfterEachPass(bool validate)
-    {
-        validateAfterEachPass = validate;
-        return *this;
-    }
-
-    OptimizationConfig& OptimizationConfig::setVerboseOutput(bool verbose)
-    {
-        verboseOutput = verbose;
-        return *this;
-    }
+    
 } // namespace optimizer

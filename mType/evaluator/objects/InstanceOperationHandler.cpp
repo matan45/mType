@@ -14,6 +14,7 @@
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/ReturnException.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 
 using namespace errors;
 
@@ -22,16 +23,8 @@ namespace objects {
 
     std::shared_ptr<ObjectInstance> InstanceOperationHandler::createInstance(
         const std::string& className,
-        const std::vector<Value>& constructorArgs)
-    {
-        auto env = context->getEnvironment();
-        return instanceManager->createInstance(className, constructorArgs, env);
-    }
-
-    std::shared_ptr<ObjectInstance> InstanceOperationHandler::createInstanceWithTypeBindings(
-        const std::string& className,
         const std::vector<Value>& constructorArgs,
-        const std::unordered_map<std::string, std::string>& typeBindings)
+        const errors::SourceLocation& location)
     {
         auto env = context->getEnvironment();
 
@@ -45,6 +38,36 @@ namespace objects {
         {
             throw UndefinedException("Class '" + className + "' is not defined");
         }
+
+        // VALIDATION: Prevent instantiation of abstract classes
+        validation::AbstractClassValidator::validateAbstractClassNotInstantiated(
+            classDef, location);
+
+        return instanceManager->createInstance(className, constructorArgs, env);
+    }
+
+    std::shared_ptr<ObjectInstance> InstanceOperationHandler::createInstanceWithTypeBindings(
+        const std::string& className,
+        const std::vector<Value>& constructorArgs,
+        const std::unordered_map<std::string, std::string>& typeBindings,
+        const errors::SourceLocation& location)
+    {
+        auto env = context->getEnvironment();
+
+        if (!env)
+        {
+            throw TypeException("Environment is null during object creation");
+        }
+
+        auto classDef = env->getClassRegistry()->findItem(className);
+        if (!classDef)
+        {
+            throw UndefinedException("Class '" + className + "' is not defined");
+        }
+
+        // VALIDATION: Prevent instantiation of abstract classes
+        validation::AbstractClassValidator::validateAbstractClassNotInstantiated(
+            classDef, location);
 
         // Create instance with generic type bindings
         auto instance = std::make_shared<ObjectInstance>(classDef, typeBindings);
@@ -179,7 +202,7 @@ namespace objects {
         auto method = classDef->findInstanceMethodInHierarchy(methodName, args.size());
         if (!method)
         {
-            throw MethodNotFoundException(methodName, classDef->getName(), SourceLocation{});
+            throw MethodNotFoundException(methodName, classDef->getName(), location);
         }
 
         // ACCESS CONTROL: Validate method access permissions

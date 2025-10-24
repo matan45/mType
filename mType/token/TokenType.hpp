@@ -29,6 +29,7 @@ namespace token
         LESS, LESS_EQUALS, GREATER, GREATER_EQUALS, // <, <=, >, >=
         INCREMENT, DECREMENT, // ++, --
         FINAL, // Add this for final variables
+        ABSTRACT, // abstract keyword for abstract classes and methods
         FUNCTION, RETURN, IF, ELSE, WHILE, FOR, // Keywords
         BREAK, CONTINUE, // Loop control keywords
         INT, FLOAT, BOOL, STRING_TYPE, VOID, // Data types
