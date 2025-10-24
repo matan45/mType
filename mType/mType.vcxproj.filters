@@ -145,12 +145,6 @@
     <Filter Include="tests\testFiles\arrays\pass">
       <UniqueIdentifier>{C128FBA7-2D36-298E-B61C-25792229F544}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\async">
-      <UniqueIdentifier>{275095E4-93BC-50DF-5CB0-E83CC8DB7247}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tests\testFiles\async\pass">
-      <UniqueIdentifier>{8D16F204-7926-9ED5-E2DF-02F4CE0E8D6E}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\await">
       <UniqueIdentifier>{FF1A97E4-6B87-52DF-347B-EA3CA0A67447}</UniqueIdentifier>
     </Filter>
@@ -2569,9 +2563,6 @@
     <None Include="tests\testFiles\arrays\pass\soaObjectArrays.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
-    <None Include="tests\testFiles\async\pass\asyncControlFlowComprehensive.mt">
-      <Filter>tests\testFiles\async\pass</Filter>
-    </None>
     <None Include="tests\testFiles\await\error\asyncConstructor.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
@@ -2589,6 +2580,12 @@
     </None>
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>tests\testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncControlFlowComprehensive.expected">
+      <Filter>tests\testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncControlFlowComprehensive.mt">
+      <Filter>tests\testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.expected">
       <Filter>tests\testFiles\await\pass</Filter>

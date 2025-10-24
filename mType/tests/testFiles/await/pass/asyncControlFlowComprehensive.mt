@@ -1,8 +1,9 @@
 import * from "../../lib/primitives/Int.mt";
-
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 // Test async with all control flow types
 
-async function processWithLoop(int count): Promise<string> {
+function async processWithLoop(int count): Promise<String> {
     string result = "";
 
     for (int i = 0; i < count; i = i + 1) {
@@ -15,23 +16,23 @@ async function processWithLoop(int count): Promise<string> {
         result = result + i;
     }
 
-    return new Promise<string>(result);
+    return new String(result);
 }
 
-async function processWithTryCatch(int value): Promise<string> {
+function async processWithTryCatch(int value): Promise<String> {
     try {
         if (value < 0) {
             throw new Exception("Negative value");
         }
-        return new Promise<string>("Success: " + value);
+        return new String("Success: " + value);
     } catch (Exception e) {
-        return new Promise<string>("Error caught");
+        return new String("Error caught");
     } finally {
         print("Finally executed");
     }
 }
 
-async function processWithSwitch(int value): Promise<string> {
+function async processWithSwitch(int value): Promise<String> {
     string result = "";
 
     switch (value) {
@@ -46,26 +47,26 @@ async function processWithSwitch(int value): Promise<string> {
             break;
     }
 
-    return new Promise<string>(result);
+    return new String(result);
 }
 
-function main(): void {
+function async main(): Promise<void> {
     print("Testing async control flow");
 
     // Test loop
-    Promise<string> p1 = processWithLoop(10);
-    print("Loop result: " + await p1);
+    String p1 = await processWithLoop(10);
+    print("Loop result: " + p1.toString());
 
     // Test try-catch
-    Promise<string> p2 = processWithTryCatch(5);
-    print("Try-catch result: " + await p2);
+    String p2 = await processWithTryCatch(5);
+    print("Try-catch result: " + p2.toString());
 
-    Promise<string> p3 = processWithTryCatch(-5);
-    print("Try-catch error: " + await p3);
+    String p3 = await processWithTryCatch(-5);
+    print("Try-catch error: " + p3.toString());
 
     // Test switch
-    Promise<string> p4 = processWithSwitch(1);
-    print("Switch result: " + await p4);
+    String p4 = await processWithSwitch(1);
+    print("Switch result: " + p4.toString());
 
     print("Async control flow test completed");
 }
