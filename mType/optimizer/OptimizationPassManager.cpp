@@ -2,9 +2,6 @@
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/UnusedDeclarationEliminationPass.hpp"
-#include "passes/AbstractClassValidationPass.hpp"
-#include <stdexcept>
-#include <iostream>
 
 namespace optimizer
 {
@@ -55,14 +52,6 @@ namespace optimizer
         {
             registerPass(std::make_unique<passes::UnusedDeclarationEliminationPass>());
         }
-
-        // Abstract class validation pass (always enabled for correctness)
-        registerPass(std::make_unique<passes::AbstractClassValidationPass>());
-
-        // Future passes:
-        // if (config.isUnreachableCodeRemovalEnabled()) {
-        //     registerPass(std::make_unique<passes::UnreachableCodePass>());
-        // }
     }
 
     std::unique_ptr<ast::ASTNode> OptimizationPassManager::runPasses(
@@ -71,17 +60,13 @@ namespace optimizer
     {
         lastResult = OptimizationResult();
 
-        if (config.isVerboseOutputEnabled())
-        {
-            // TODO: Add verbose logging
-        }
-
         // Fixed-point iteration: run passes until no modifications occur
         size_t iteration = 0;
         const size_t maxIterations = config.getMaxPassIterations();
         bool anyPassModified = false;
 
-        do {
+        do
+        {
             anyPassModified = false;
             iteration++;
 
@@ -130,12 +115,6 @@ namespace optimizer
                     {
                         anyPassModified = true;
                     }
-
-                    // Optionally validate after each pass
-                    if (config.shouldValidateAfterEachPass())
-                    {
-                        // TODO: Implement validation
-                    }
                 }
                 catch (const std::exception& e)
                 {
@@ -146,52 +125,8 @@ namespace optimizer
                     return ast; // Exit on error
                 }
             }
-
-            // Log iteration details if verbose
-            if (config.isVerboseOutputEnabled())
-            {
-                std::cout << "\n[Optimization] Iteration " << iteration << ":\n";
-                for (const auto& metrics : iterationMetrics)
-                {
-                    std::cout << "  - " << metrics.passName << ": "
-                             << metrics.transformationsApplied << " transformation"
-                             << (metrics.transformationsApplied != 1 ? "s" : "");
-
-                    if (metrics.modified)
-                    {
-                        std::cout << " (AST modified)";
-                    }
-
-                    if (metrics.executionTime.count() > 0)
-                    {
-                        std::cout << ", " << metrics.executionTime.count() << " ms";
-                    }
-
-                    std::cout << "\n";
-                }
-
-                if (!anyPassModified)
-                {
-                    std::cout << "  (No modifications - converged)\n";
-                }
-            }
-
-        } while (anyPassModified && iteration < maxIterations);
-
-        // Log final summary if verbose
-        if (config.isVerboseOutputEnabled())
-        {
-            if (iteration >= maxIterations && anyPassModified)
-            {
-                std::cout << "\n[Optimization] WARNING: Reached maximum iteration limit ("
-                         << maxIterations << ") - may not be fully optimized\n";
-            }
-            else
-            {
-                std::cout << "\n[Optimization] Converged after " << iteration
-                         << " iteration" << (iteration != 1 ? "s" : "") << "\n";
-            }
         }
+        while (anyPassModified && iteration < maxIterations);
 
         // Warn if we hit max iterations (potential infinite loop)
         if (iteration >= maxIterations && anyPassModified)

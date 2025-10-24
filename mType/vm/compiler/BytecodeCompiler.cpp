@@ -91,8 +91,6 @@ namespace vm::compiler
         // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
         if (optimizationLevel == constants::OptimizationLevel::Release) {
             auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
-            config.verboseOutput = false;  // Disable verbose output by default
-            config.validateAfterEachPass = true;
 
             optimization::PeepholeOptimizer peepholeOptimizer(config);
             peepholeOptimizer.registerDefaultPatterns();

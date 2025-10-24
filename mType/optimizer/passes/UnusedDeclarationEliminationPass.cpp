@@ -992,6 +992,7 @@ namespace optimizer::passes
                             );
                             newClass->setVisibility(optClassNode->getVisibility());
                             newClass->setFinal(optClassNode->isFinal());
+                            newClass->setAbstract(optClassNode->isAbstract());
 
                             // Copy all fields
                             for (const auto& field : optClassNode->getFields())
@@ -1200,6 +1201,7 @@ namespace optimizer::passes
                         );
                         newClass->setVisibility(optClassNode->getVisibility());
                         newClass->setFinal(optClassNode->isFinal());
+                        newClass->setAbstract(optClassNode->isAbstract());
 
                         // Copy all fields
                         for (const auto& field : optClassNode->getFields())

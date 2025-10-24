@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <chrono>
 #include "../constants/ExecutionMode.hpp"
 
@@ -23,10 +22,6 @@ namespace optimizer {
 		// Performance limits
 		size_t maxPassIterations;
 		std::chrono::milliseconds timeoutPerPass;
-
-		// Debugging options
-		bool validateAfterEachPass;
-		bool verboseOutput;
 
 	public:
 		explicit OptimizationConfig(OptimizationLevel level = OptimizationLevel::Debug);
@@ -55,13 +50,6 @@ namespace optimizer {
 
 		size_t getMaxPassIterations() const { return maxPassIterations; }
 		std::chrono::milliseconds getTimeoutPerPass() const { return timeoutPerPass; }
-
-		// Debugging
-		OptimizationConfig& setValidateAfterEachPass(bool validate);
-		OptimizationConfig& setVerboseOutput(bool verbose);
-
-		bool shouldValidateAfterEachPass() const { return validateAfterEachPass; }
-		bool isVerboseOutputEnabled() const { return verboseOutput; }
 	};
 
 } // namespace optimizer

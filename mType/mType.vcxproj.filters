@@ -5089,6 +5089,18 @@
     <None Include="tests\testFiles\optimizer\pass\MathLibrary.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
+    <None Include="tests\testFiles\optimizer\pass\abstractAsyncMethodOptimization.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\abstractClassWithDeadCode.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\abstractMethodInheritanceChain.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\abstractWithConstantFolding.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
     <None Include="tests\testFiles\optimizer\pass\arithmetic_folding.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>

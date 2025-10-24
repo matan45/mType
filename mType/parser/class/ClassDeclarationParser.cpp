@@ -6,6 +6,7 @@
 #include "../utilities/VisibilityParser.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include <iostream>
 
 namespace parser
 {
@@ -153,6 +154,7 @@ namespace parser
         classNode->setFinal(isFinal);
         classNode->setAbstract(isAbstract);
         classNode->setVisibility(visibility);
+
         return classNode;
     }
 
