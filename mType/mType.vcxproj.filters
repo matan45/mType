@@ -918,9 +918,6 @@
     <ClInclude Include="optimizer\base\OptimizationPass.hpp">
       <Filter>optimizer\base</Filter>
     </ClInclude>
-    <ClInclude Include="optimizer\passes\AbstractClassValidationPass.hpp">
-      <Filter>optimizer\passes</Filter>
-    </ClInclude>
     <ClInclude Include="optimizer\passes\ConstantFoldingPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
@@ -1903,9 +1900,6 @@
     </ClCompile>
     <ClCompile Include="optimizer\base\OptimizationPass.cpp">
       <Filter>optimizer\base</Filter>
-    </ClCompile>
-    <ClCompile Include="optimizer\passes\AbstractClassValidationPass.cpp">
-      <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\ConstantFoldingPass.cpp">
       <Filter>optimizer\passes</Filter>
@@ -3079,6 +3073,9 @@
     <None Include="tests\testFiles\class\error\abstract_static_method.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\abstract_wrong_signature.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -3203,6 +3200,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\abstract_class_with_concrete_methods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_correct_signature.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_correct_signature.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\basicClassDefinition.expected">

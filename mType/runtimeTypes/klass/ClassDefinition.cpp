@@ -470,13 +470,18 @@ namespace runtimeTypes::klass
                     // (from current class up to but not including the abstract class that declared it)
                     bool isImplemented = false;
 
-                    // First check in current class
-                    if (instanceMethods.find(abstractMethod) != instanceMethods.end()) {
-                        auto method = instanceMethods.at(abstractMethod);
-                        // If method exists and is not abstract in this class, it's implemented
-                        if (method && !method->isAbstract()) {
-                            isImplemented = true;
-                        }
+                    // Get the abstract method definition to extract signature information
+                    auto abstractMethodDef = parentClass->getInstanceMethod(abstractMethod);
+                    if (!abstractMethodDef) {
+                        continue; // Skip if definition not found (shouldn't happen)
+                    }
+
+                    size_t requiredArgCount = abstractMethodDef->getParameters().size();
+
+                    // First check in current class with signature matching (name + parameter count)
+                    auto implementingMethod = findInstanceMethod(abstractMethod, requiredArgCount);
+                    if (implementingMethod && !implementingMethod->isAbstract()) {
+                        isImplemented = true;
                     }
 
                     // If not implemented in current class, check intermediate classes in the chain
@@ -487,7 +492,8 @@ namespace runtimeTypes::klass
                                 break;
                             }
 
-                            auto intermediateMethod = intermediateClass->getInstanceMethod(abstractMethod);
+                            // Use signature-aware lookup (name + parameter count)
+                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, requiredArgCount);
                             if (intermediateMethod && !intermediateMethod->isAbstract()) {
                                 isImplemented = true;
                                 break;

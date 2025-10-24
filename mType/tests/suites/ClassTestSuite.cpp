@@ -111,6 +111,8 @@ namespace tests::testSuite
                         passPath + "abstract_class_multiple_abstract_methods.mt");
         addOutputVerificationTest("Abstract Async Method",
                         passPath + "abstract_async_method.mt");
+        addOutputVerificationTest("Abstract Method Correct Signature",
+                        passPath + "abstract_correct_signature.mt");
 
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
@@ -258,6 +260,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Abstract Method With Body Error",
                         errorPath + "abstract_method_with_body.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Method Wrong Signature Error",
+                        errorPath + "abstract_wrong_signature.mt",
                         TestType::ERROR_EXPECTED);
 
         // === NESTED TYPE VALIDATION TESTS ===
