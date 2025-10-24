@@ -99,6 +99,7 @@ namespace vm::bytecode
             bool isFinal;
             bool isPrivate;
             bool isProtected;
+            bool isAbstract; // NEW: Abstract method flag
             size_t startOffset; // Where the method bytecode starts
         };
 
@@ -115,6 +116,8 @@ namespace vm::bytecode
             std::string parentClassName;
             std::vector<std::string> implementedInterfaces;
             std::vector<std::string> genericParameters;
+            bool isAbstract; // NEW: Abstract class flag
+            bool isFinal; // Final class flag
             std::vector<FieldMetadata> instanceFields;
             std::vector<FieldMetadata> staticFields;
             std::vector<MethodMetadata> instanceMethods;

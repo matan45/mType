@@ -51,6 +51,7 @@ namespace runtimeTypes::klass
         std::unordered_map<std::string, std::string> typeSubstitutionMap; // For instantiated generic methods
 
         bool isAsync;  // NEW: Flag to indicate async method
+        bool abstractMethod;  // NEW: Flag to indicate abstract method
 
         // Helper methods for resolveParameterType
         ValueType resolveGenericParameter(size_t paramIndex, ValueType storedType) const;
@@ -71,7 +72,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
-              typeSubstitutionMap(), isAsync(false)
+              typeSubstitutionMap(), isAsync(false), abstractMethod(false)
         {
         }
 
@@ -82,7 +83,7 @@ namespace runtimeTypes::klass
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
-              genericParameters(), typeSubstitutionMap(), isAsync(false)
+              genericParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false)
         {
         }
 
@@ -99,7 +100,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
-              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false)
+              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false), abstractMethod(false)
         {
             validateParameterCounts(params.size(), genParams.size());
             validateGenericInvariants();
@@ -118,7 +119,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
               genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
-              isAsync(false)
+              isAsync(false), abstractMethod(false)
         {
             validateParameterCounts(params.size(), genParams.size());
             validateGenericInvariants();
@@ -222,5 +223,9 @@ namespace runtimeTypes::klass
         // NEW: Async support
         bool getIsAsync() const { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
+
+        // NEW: Abstract support
+        bool isAbstract() const { return abstractMethod; }
+        void setAbstract(bool isAbstract) { abstractMethod = isAbstract; }
     };
 }

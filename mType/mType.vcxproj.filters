@@ -657,6 +657,9 @@
     <ClInclude Include="environment\registry\builtin\ValuePrinter.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
+    <ClInclude Include="errors\AbstractClassException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\AccessViolationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
@@ -867,6 +870,9 @@
     <ClInclude Include="evaluator\utils\ValueConverter.hpp">
       <Filter>evaluator\utils</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\validation\AbstractClassValidator.hpp">
+      <Filter>evaluator\validation</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\validation\AccessValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
@@ -911,6 +917,9 @@
     </ClInclude>
     <ClInclude Include="optimizer\base\OptimizationPass.hpp">
       <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\AbstractClassValidationPass.hpp">
+      <Filter>optimizer\passes</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\ConstantFoldingPass.hpp">
       <Filter>optimizer\passes</Filter>
@@ -1401,6 +1410,9 @@
     <ClInclude Include="vm\optimization\analysis\JumpTargetTracker.hpp">
       <Filter>vm\optimization\analysis</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\AbstractClassPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
     <ClInclude Include="vm\optimization\patterns\AlgebraicSimplificationPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
@@ -1847,6 +1859,9 @@
     <ClCompile Include="evaluator\utils\ValueConverter.cpp">
       <Filter>evaluator\utils</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\validation\AbstractClassValidator.cpp">
+      <Filter>evaluator\validation</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\validation\AccessValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
@@ -1888,6 +1903,9 @@
     </ClCompile>
     <ClCompile Include="optimizer\base\OptimizationPass.cpp">
       <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\AbstractClassValidationPass.cpp">
+      <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\ConstantFoldingPass.cpp">
       <Filter>optimizer\passes</Filter>
@@ -2302,6 +2320,9 @@
     </ClCompile>
     <ClCompile Include="vm\optimization\analysis\JumpTargetTracker.cpp">
       <Filter>vm\optimization\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\AbstractClassPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\AlgebraicSimplificationPattern.cpp">
       <Filter>vm\optimization\patterns</Filter>
@@ -3043,6 +3064,21 @@
     <None Include="tests\testFiles\cast\pass\upcastToParent.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\abstract_and_final_conflict.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\abstract_class_cannot_instantiate.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\abstract_method_not_implemented.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\abstract_method_with_body.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\abstract_static_method.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\accessNonExistentMember.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -3138,6 +3174,36 @@
     </None>
     <None Include="tests\testFiles\class\error\undefinedClass.mt">
       <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_async_method.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_async_method.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_basic.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_basic.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_inheritance_chain.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_inheritance_chain.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_multiple_abstract_methods.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_multiple_abstract_methods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_with_concrete_methods.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\abstract_class_with_concrete_methods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\basicClassDefinition.expected">
       <Filter>tests\testFiles\class\pass</Filter>

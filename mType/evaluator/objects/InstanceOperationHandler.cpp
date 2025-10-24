@@ -14,6 +14,7 @@
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/ReturnException.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 
 using namespace errors;
 
@@ -45,6 +46,10 @@ namespace objects {
         {
             throw UndefinedException("Class '" + className + "' is not defined");
         }
+
+        // VALIDATION: Prevent instantiation of abstract classes
+        validation::AbstractClassValidator::validateAbstractClassNotInstantiated(
+            classDef, errors::SourceLocation());
 
         // Create instance with generic type bindings
         auto instance = std::make_shared<ObjectInstance>(classDef, typeBindings);

@@ -11,6 +11,7 @@
 #include "../../errors/UndefinedException.hpp"
 #include "../../environment/manager/Scope.hpp"
 #include "../validation/AccessValidator.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 #include "../base/AccessContext.hpp"
 
 using namespace errors;
@@ -33,6 +34,10 @@ namespace objects {
         {
             throw UndefinedException("Class '" + resolvedClassName + "' not found");
         }
+
+        // VALIDATION: Prevent instantiation of abstract classes
+        validation::AbstractClassValidator::validateAbstractClassNotInstantiated(
+            classDef, node->getLocation());
 
         // Extract generic type bindings for this instance
         auto genericTypeBindings = extractGenericTypeBindings(resolvedClassName);

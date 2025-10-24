@@ -276,7 +276,17 @@ namespace parser
             }
         }
 
-        // access_modifier [static] [final] function
+        // abstract function
+        if (currentToken == TokenType::ABSTRACT)
+        {
+            TokenType next = tokenStream.peekAhead(1).type;
+            if (next == TokenType::FUNCTION)
+            {
+                return true;
+            }
+        }
+
+        // access_modifier [static] [final] [abstract] function
         if (currentToken == TokenType::PUBLIC || currentToken == TokenType::PRIVATE || currentToken ==
             TokenType::PROTECTED)
         {
@@ -311,6 +321,16 @@ namespace parser
                     return true;
                 }
                 if (next2 == TokenType::STATIC && tokenStream.peekAhead(3).type == TokenType::FUNCTION)
+                {
+                    return true;
+                }
+            }
+
+            // access abstract function
+            if (next1 == TokenType::ABSTRACT)
+            {
+                TokenType next2 = tokenStream.peekAhead(2).type;
+                if (next2 == TokenType::FUNCTION)
                 {
                     return true;
                 }

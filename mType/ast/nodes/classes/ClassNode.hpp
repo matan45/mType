@@ -19,6 +19,7 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> methods;
         std::vector<std::string> implementedInterfaces; // NEW
         bool finalClass; // NEW: Final modifier to prevent inheritance
+        bool abstractClass; // NEW: Abstract modifier for abstract classes
         VisibilityModifier visibility; // NEW: Top-level visibility for imports
     public:
         // Backward compatibility constructor (most common usage)
@@ -72,6 +73,10 @@ namespace ast::nodes::classes
         // NEW: Final modifier methods
         bool isFinal() const;
         void setFinal(bool isFinal);
+
+        // NEW: Abstract modifier methods
+        bool isAbstract() const;
+        void setAbstract(bool isAbstract);
 
         // NEW: Visibility modifier methods (for import/export system)
         VisibilityModifier getVisibility() const;

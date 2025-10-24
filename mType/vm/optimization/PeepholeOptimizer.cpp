@@ -8,6 +8,7 @@
 #include "patterns/NullSequencePattern.hpp"
 #include "patterns/StackOptimizationPattern.hpp"
 #include "patterns/TypeSpecializationPattern.hpp"
+#include "patterns/AbstractClassPattern.hpp"
 #include <algorithm>
 #include <chrono>
 #include <sstream>
@@ -219,6 +220,9 @@ namespace vm::optimization
 
         // Priority 30: Type Specialization (minor perf gain)
         registerPattern(std::make_unique<patterns::TypeSpecializationPattern>());
+
+        // Priority 20: Abstract Class Validation (validation pattern)
+        registerPattern(std::make_unique<patterns::AbstractClassPattern>());
 
         // Patterns are automatically sorted by priority in registerPattern()
     }

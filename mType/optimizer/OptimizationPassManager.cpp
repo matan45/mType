@@ -2,6 +2,7 @@
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/UnusedDeclarationEliminationPass.hpp"
+#include "passes/AbstractClassValidationPass.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -54,6 +55,9 @@ namespace optimizer
         {
             registerPass(std::make_unique<passes::UnusedDeclarationEliminationPass>());
         }
+
+        // Abstract class validation pass (always enabled for correctness)
+        registerPass(std::make_unique<passes::AbstractClassValidationPass>());
 
         // Future passes:
         // if (config.isUnreachableCodeRemovalEnabled()) {

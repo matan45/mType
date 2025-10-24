@@ -62,6 +62,7 @@ namespace lexer
         {"do", TokenType::DO},
         {"for", TokenType::FOR},
         {"final", TokenType::FINAL},
+        {"abstract", TokenType::ABSTRACT},
         {"break", TokenType::BREAK},
         {"continue", TokenType::CONTINUE},
         {"int", TokenType::INT},

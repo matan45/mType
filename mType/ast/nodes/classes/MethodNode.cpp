@@ -14,7 +14,7 @@ namespace ast::nodes::classes
                            bool async,
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async), accessModifier(modifier)
+          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), accessModifier(modifier)
     {
     }
 
@@ -26,7 +26,7 @@ namespace ast::nodes::classes
                            AccessModifier modifier,
                            bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), body(std::move(methodBody)), accessModifier(modifier)
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
@@ -40,7 +40,7 @@ namespace ast::nodes::classes
                            AccessModifier modifier,
                            bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), body(std::move(methodBody)), accessModifier(modifier)
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
@@ -186,9 +186,11 @@ namespace ast::nodes::classes
         auto clonedParams = utils::GenericTypeConversionUtils::cloneGenericParameters(parameters);
         auto clonedReturnType = utils::GenericTypeConversionUtils::cloneGenericType(returnType);
 
-        return std::make_unique<MethodNode>(
+        auto cloned = std::make_unique<MethodNode>(
             name, clonedReturnType, clonedParams, clonedBody, isStatic,
             clonedGenericParams, accessModifier, isAsync, location
         );
+        cloned->setAbstract(abstractMethod);
+        return cloned;
     }
 }

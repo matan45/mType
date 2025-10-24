@@ -23,6 +23,7 @@ namespace ast::nodes::classes
         std::shared_ptr<ASTNode> body;
         bool isStatic;
         bool isAsync;  // NEW: Flag to indicate async method
+        bool abstractMethod;  // NEW: Flag to indicate abstract method
         AccessModifier accessModifier;
 
         // Performance cache for legacy getParameters() - O(1) after first call
@@ -79,6 +80,10 @@ namespace ast::nodes::classes
         // NEW: Async-related methods
         [[nodiscard]] bool getIsAsync() const noexcept { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
+
+        // NEW: Abstract-related methods
+        [[nodiscard]] bool isAbstract() const noexcept { return abstractMethod; }
+        void setAbstract(bool isAbstract) { abstractMethod = isAbstract; }
 
         // NEW: Generic-related methods
         [[nodiscard]] const std::vector<GenericTypeParameter>& getGenericTypeParameters() const noexcept;

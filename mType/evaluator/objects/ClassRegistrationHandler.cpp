@@ -13,6 +13,7 @@
 #include "../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../validation/InheritanceValidator.hpp"
+#include "../validation/AbstractClassValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
@@ -46,6 +47,9 @@ namespace evaluator
 
             // Set final modifier
             classDef->setFinal(node->isFinal());
+
+            // Set abstract modifier
+            classDef->setAbstract(node->isAbstract());
 
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
@@ -218,6 +222,14 @@ namespace evaluator
                 // NEW: Copy async flag from AST to runtime definition
                 methodDef->setIsAsync(methodNode->getIsAsync());
 
+                // NEW: Copy abstract flag from AST to runtime definition
+                methodDef->setAbstract(methodNode->isAbstract());
+
+                // Track abstract methods in the class definition
+                if (methodNode->isAbstract()) {
+                    classDef->addAbstractMethod(methodNode->getName());
+                }
+
                 classDef->addMethod(methodDef);
             }
 
@@ -261,6 +273,19 @@ namespace evaluator
                         node->getLocation());
                 }
             }
+
+            // NEW: Validate abstract class completeness
+            // Concrete classes must implement all abstract methods
+            if (!classDef->isAbstract()) {
+                validation::AbstractClassValidator::validateConcreteClassIsComplete(
+                    classDef,
+                    node->getLocation());
+            }
+
+            // Validate abstract methods only in abstract classes
+            validation::AbstractClassValidator::validateAbstractMethodsOnlyInAbstractClass(
+                classDef,
+                node->getLocation());
 
             // Register class
             registerClass(classDef);
