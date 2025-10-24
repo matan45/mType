@@ -1,0 +1,5 @@
+Testing nullable chain operations
+Person1 has no address
+Person2 city: New York
+Person3 is null
+Nullable chain safe test completed

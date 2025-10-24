@@ -114,6 +114,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Abstract Method Correct Signature",
                         passPath + "abstract_correct_signature.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced OOP scenarios and edge cases
+
+        addOutputVerificationTest("Covariant Return Types",
+                        passPath + "covariantReturnTypes.mt");
+        addOutputVerificationTest("Deep Inheritance 8 Levels",
+                        passPath + "deepInheritance8Levels.mt");
+        addOutputVerificationTest("Protected Access in Subclass",
+                        passPath + "protectedAccessInSubclass.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -263,6 +273,37 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Abstract Method Wrong Signature Error",
                         errorPath + "abstract_wrong_signature.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced OOP error scenarios
+
+        addTestFromFile("Access Modifier Narrowing Error",
+                        errorPath + "accessModifierNarrowing.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Calls Instance Error",
+                        errorPath + "staticCallsInstanceError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Private Field Child Access Error",
+                        errorPath + "privateFieldChildAccess.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Method In Concrete Class Error",
+                        errorPath + "abstractMethodInConcrete.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Abstract Generic Method Error",
+                        errorPath + "abstractGenericMethod.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Hiding Error",
+                        errorPath + "staticMethodHiding.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Final Method Override Error",
+                        errorPath + "finalMethodOverrideError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Protected Interface Method Error",
+                        errorPath + "protectedInterfaceMethod.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Constructor Wrong Args Error",
+                        errorPath + "superConstructorWrongArgs.mt",
                         TestType::ERROR_EXPECTED);
 
         // === NESTED TYPE VALIDATION TESTS ===

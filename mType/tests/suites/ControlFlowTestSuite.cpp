@@ -80,6 +80,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Mutual Recursion",
                         passPath + "mutualRecursion.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced control flow scenarios
+
+        addOutputVerificationTest("Nested Lambda Return",
+                        passPath + "nestedLambdaReturn.mt");
+        addOutputVerificationTest("Finally Overrides Return",
+                        passPath + "finallyOverridesReturn.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Final Variable Reassignment Error",
                         errorPath + "finalVariableReassignment.mt",

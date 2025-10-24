@@ -60,6 +60,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Null Propagation Complex Expressions",
                         passPath + "nullPropagationComplexExpressions.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced type system scenarios
+
+        addOutputVerificationTest("Nullable Chain Safe",
+                        passPath + "nullableChainSafe.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Different Type Assignment Error",
                         errorPath + "differentTypeAssignmentError.mt",
@@ -161,6 +167,37 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Mixed Naming Convention Errors",
                         errorPath + "mixedNamingConventionErrors.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced type system error scenarios
+
+        addTestFromFile("Float To Int Conversion Error",
+                        errorPath + "floatToIntConversion.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Array Covariance Error",
+                        errorPath + "arrayCovariance.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Contravariance Error",
+                        errorPath + "lambdaContravariance.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Type Inference Ambiguity Error",
+                        errorPath + "typeInferenceAmbiguity.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Boolean To Numeric Conversion Error",
+                        errorPath + "booleanToNumericError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Numeric Overflow Error",
+                        errorPath + "numericOverflowError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("String To Numeric Conversion Error",
+                        errorPath + "stringToNumericError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Mixed Type Comparison Error",
+                        errorPath + "mixedTypeComparisonError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Jagged Array Mismatch Error",
+                        errorPath + "jaggedArrayMismatch.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

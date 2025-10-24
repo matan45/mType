@@ -13,13 +13,11 @@
 #include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
-#include "../tests/suites/NativeTest.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
-#include "../runtime/EventLoop.hpp"
 
 #include <vector>
 #include <memory>
@@ -121,15 +119,6 @@ void printAvailableTestSuites()
 void runSpecificTestSuite(const std::string& suiteName,
                           constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
-    // Handle native test separately since it doesn't inherit from TestSuite
-    if (suiteName == "native")
-    {
-        std::cout << "Running Native C++ Integration Test Suite...\n\n";
-        auto nativeTest = std::make_unique<NativeTest>();
-        nativeTest->setupTests();
-        nativeTest->runCustomTests();
-        return;
-    }
 
     auto suite = createTestSuite(suiteName);
     if (!suite)
@@ -192,12 +181,6 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
         suite->setExecutionModeForAll(execMode); // Set execution mode
         suite->run(); // Run tests and generate reports
     }
-
-    // Run native tests separately
-    std::cout << "\nRunning Native C++ Integration Test Suite...\n";
-    auto nativeTest = std::make_unique<NativeTest>();
-    nativeTest->setupTests();
-    nativeTest->runCustomTests();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;

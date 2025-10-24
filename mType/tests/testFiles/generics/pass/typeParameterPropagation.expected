@@ -1,0 +1,11 @@
+Testing type parameter propagation
+intContainer first value: 10
+intContainer second value: 20
+After swap - first value: 20
+After swap - second value: 10
+stringContainer first value: Hello
+stringContainer second value: World
+Specialized container value: 42
+Incrementing value
+Polymorphic access to base value: 20
+Type parameter propagation test completed

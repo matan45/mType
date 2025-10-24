@@ -69,6 +69,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Lambda Lifecycle Expired",
                         passPath + "lambdaLifecycleExpired.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced lambda and control flow scenarios
+
+        addOutputVerificationTest("Lambda With Break",
+                        passPath + "lambdaWithBreak.mt");
+        addOutputVerificationTest("Lambda Try Catch Finally",
+                        passPath + "lambdaTryCatchFinally.mt");
+        addOutputVerificationTest("Lambda With Throw",
+                        passPath + "lambdaWithThrow.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Lambda Parameter Type Mismatch",
                         errorPath + "lambdaParameterTypeMismatch.mt",
@@ -90,6 +100,16 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Reassignment Not Allowed",
                         errorPath + "lambdaReassignmentNotAllowed.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced lambda error scenarios
+
+        addTestFromFile("Break In Lambda Error",
+                        errorPath + "breakInLambdaError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Continue In Lambda Error",
+                        errorPath + "continueInLambdaError.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

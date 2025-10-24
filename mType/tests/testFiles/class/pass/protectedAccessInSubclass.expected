@@ -1,0 +1,5 @@
+Testing protected access in subclasses
+Protected field: 20, Child protected method
+After modification: Protected field: 99, Child protected method
+GrandChild accessing: 99, Child protected method
+Protected access test completed

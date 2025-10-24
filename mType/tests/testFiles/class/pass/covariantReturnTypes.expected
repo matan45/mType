@@ -1,0 +1,9 @@
+Testing covariant return types
+animal.create().getName(): Generic Animal
+dog.create().getName(): New Dog
+dog.create().getBreed(): Mixed
+cat.create().getName(): New Cat
+cat.create().isIndoor(): true
+Polymorphic dog creation: New Dog
+Polymorphic cat creation: New Cat
+Covariant return types test completed

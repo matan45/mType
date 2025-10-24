@@ -47,6 +47,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Async Nested Try-Catch",
                         passPath + "asyncNestedTryCatch.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced async control flow scenarios
+
+        addOutputVerificationTest("Async Control Flow Comprehensive",
+                        passPath + "asyncControlFlowComprehensive.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Async Without Promise Return",
                         errorPath + "asyncWithoutPromiseReturn.mt",
