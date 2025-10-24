@@ -1,4 +1,5 @@
 #include "ConstantFoldingPattern.hpp"
+#include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 
@@ -126,8 +127,8 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        int val1 = pool.getInteger(i1.operands[0]);
-        int val2 = pool.getInteger(i2.operands[0]);
+        int val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
+        int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
 
         int result = performIntOp(i3.opcode, val1, val2);
 
@@ -181,8 +182,8 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        double val1 = pool.getFloat(i1.operands[0]);
-        double val2 = pool.getFloat(i2.operands[0]);
+        double val1 = PatternSafetyHelper::safeGetFloat(pool, i1, 0, offset);
+        double val2 = PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1);
 
         double result = performFloatOp(i3.opcode, val1, val2);
 
@@ -238,7 +239,7 @@ namespace vm::optimization::patterns
 
         if (i2.opcode == OpCode::NEG)
         {
-            int val = pool.getInteger(i1.operands[0]);
+            int val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
             int result = -val;
 
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
@@ -247,7 +248,7 @@ namespace vm::optimization::patterns
         }
         else if (i2.opcode == OpCode::NOT)
         {
-            int val = pool.getInteger(i1.operands[0]);  // Boolean stored as int
+            int val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);  // Boolean stored as int
             int result = !val;
 
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
@@ -309,8 +310,8 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        int val1 = pool.getInteger(i1.operands[0]);
-        int val2 = pool.getInteger(i2.operands[0]);
+        int val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
+        int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
 
         bool result = performComparison(i3.opcode, val1, val2);
 
@@ -359,8 +360,8 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        bool val1 = pool.getInteger(i1.operands[0]) != 0;
-        bool val2 = pool.getInteger(i2.operands[0]) != 0;
+        bool val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset) != 0;
+        bool val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) != 0;
 
         bool result;
         if (i3.opcode == OpCode::AND)

@@ -1,4 +1,5 @@
 #include "AlgebraicSimplificationPattern.hpp"
+#include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 
@@ -25,34 +26,34 @@ namespace vm::optimization::patterns
         const auto& pool = program.getConstantPool();
 
         // Helper to check if instruction pushes zero
-        auto isZero = [&](const BytecodeProgram::Instruction& instr) -> bool {
+        auto isZero = [&](const BytecodeProgram::Instruction& instr, size_t instrOffset) -> bool {
             if (instr.opcode == OpCode::PUSH_INT)
             {
-                return pool.getInteger(instr.operands[0]) == 0;
+                return PatternSafetyHelper::safeGetInteger(pool, instr, 0, instrOffset) == 0;
             }
             if (instr.opcode == OpCode::PUSH_FLOAT)
             {
-                return pool.getFloat(instr.operands[0]) == 0.0;
+                return PatternSafetyHelper::safeGetFloat(pool, instr, 0, instrOffset) == 0.0;
             }
             return false;
         };
 
         // Helper to check if instruction pushes one
-        auto isOne = [&](const BytecodeProgram::Instruction& instr) -> bool {
+        auto isOne = [&](const BytecodeProgram::Instruction& instr, size_t instrOffset) -> bool {
             if (instr.opcode == OpCode::PUSH_INT)
             {
-                return pool.getInteger(instr.operands[0]) == 1;
+                return PatternSafetyHelper::safeGetInteger(pool, instr, 0, instrOffset) == 1;
             }
             if (instr.opcode == OpCode::PUSH_FLOAT)
             {
-                return pool.getFloat(instr.operands[0]) == 1.0;
+                return PatternSafetyHelper::safeGetFloat(pool, instr, 0, instrOffset) == 1.0;
             }
             return false;
         };
 
         // X + 0 or 0 + X -> X (remove PUSH_INT 0 and ADD)
         if ((i3.opcode == OpCode::ADD_INT || i3.opcode == OpCode::ADD_FLOAT) &&
-            (isZero(i2)))
+            (isZero(i2, offset + 1)))
         {
             // Keep only first PUSH (X), remove second PUSH and ADD
             Replacement rep(3);
@@ -61,7 +62,7 @@ namespace vm::optimization::patterns
         }
 
         if ((i3.opcode == OpCode::ADD_INT || i3.opcode == OpCode::ADD_FLOAT) &&
-            (isZero(i1)))
+            (isZero(i1, offset)))
         {
             // Keep only second PUSH (X), remove first PUSH and ADD
             Replacement rep(3);
@@ -71,7 +72,7 @@ namespace vm::optimization::patterns
 
         // X * 1 or 1 * X -> X
         if ((i3.opcode == OpCode::MUL_INT || i3.opcode == OpCode::MUL_FLOAT) &&
-            (isOne(i2)))
+            (isOne(i2, offset + 1)))
         {
             Replacement rep(3);
             rep.instructions.push_back(i1);
@@ -79,7 +80,7 @@ namespace vm::optimization::patterns
         }
 
         if ((i3.opcode == OpCode::MUL_INT || i3.opcode == OpCode::MUL_FLOAT) &&
-            (isOne(i1)))
+            (isOne(i1, offset)))
         {
             Replacement rep(3);
             rep.instructions.push_back(i2);
@@ -88,7 +89,7 @@ namespace vm::optimization::patterns
 
         // X * 0 or 0 * X -> 0
         if ((i3.opcode == OpCode::MUL_INT || i3.opcode == OpCode::MUL_FLOAT) &&
-            (isZero(i2) || isZero(i1)))
+            (isZero(i2, offset + 1) || isZero(i1, offset)))
         {
             // Push 0
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
@@ -112,7 +113,7 @@ namespace vm::optimization::patterns
 
         // X - 0 -> X
         if ((i3.opcode == OpCode::SUB_INT || i3.opcode == OpCode::SUB_FLOAT) &&
-            (isZero(i2)))
+            (isZero(i2, offset + 1)))
         {
             Replacement rep(3);
             rep.instructions.push_back(i1);
@@ -150,20 +151,20 @@ namespace vm::optimization::patterns
 
         if (i1.opcode == OpCode::PUSH_INT)
         {
-            firstIsZero = (pool.getInteger(i1.operands[0]) == 0);
+            firstIsZero = (PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset) == 0);
         }
         else if (i1.opcode == OpCode::PUSH_FLOAT)
         {
-            firstIsZero = (pool.getFloat(i1.operands[0]) == 0.0);
+            firstIsZero = (PatternSafetyHelper::safeGetFloat(pool, i1, 0, offset) == 0.0);
         }
 
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            secondIsZero = (pool.getInteger(i2.operands[0]) == 0);
+            secondIsZero = (PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) == 0);
         }
         else if (i2.opcode == OpCode::PUSH_FLOAT)
         {
-            secondIsZero = (pool.getFloat(i2.operands[0]) == 0.0);
+            secondIsZero = (PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1) == 0.0);
         }
 
         return (firstIsZero || secondIsZero) && cfg.canOptimizeRange(offset, offset + 3);
@@ -196,20 +197,20 @@ namespace vm::optimization::patterns
 
         if (i1.opcode == OpCode::PUSH_INT)
         {
-            firstIsOne = (pool.getInteger(i1.operands[0]) == 1);
+            firstIsOne = (PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset) == 1);
         }
         else if (i1.opcode == OpCode::PUSH_FLOAT)
         {
-            firstIsOne = (pool.getFloat(i1.operands[0]) == 1.0);
+            firstIsOne = (PatternSafetyHelper::safeGetFloat(pool, i1, 0, offset) == 1.0);
         }
 
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            secondIsOne = (pool.getInteger(i2.operands[0]) == 1);
+            secondIsOne = (PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) == 1);
         }
         else if (i2.opcode == OpCode::PUSH_FLOAT)
         {
-            secondIsOne = (pool.getFloat(i2.operands[0]) == 1.0);
+            secondIsOne = (PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1) == 1.0);
         }
 
         return (firstIsOne || secondIsOne) && cfg.canOptimizeRange(offset, offset + 3);
@@ -242,20 +243,20 @@ namespace vm::optimization::patterns
 
         if (i1.opcode == OpCode::PUSH_INT)
         {
-            firstIsZero = (pool.getInteger(i1.operands[0]) == 0);
+            firstIsZero = (PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset) == 0);
         }
         else if (i1.opcode == OpCode::PUSH_FLOAT)
         {
-            firstIsZero = (pool.getFloat(i1.operands[0]) == 0.0);
+            firstIsZero = (PatternSafetyHelper::safeGetFloat(pool, i1, 0, offset) == 0.0);
         }
 
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            secondIsZero = (pool.getInteger(i2.operands[0]) == 0);
+            secondIsZero = (PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) == 0);
         }
         else if (i2.opcode == OpCode::PUSH_FLOAT)
         {
-            secondIsZero = (pool.getFloat(i2.operands[0]) == 0.0);
+            secondIsZero = (PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1) == 0.0);
         }
 
         return (firstIsZero || secondIsZero) && cfg.canOptimizeRange(offset, offset + 3);
@@ -287,11 +288,11 @@ namespace vm::optimization::patterns
 
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            secondIsZero = (pool.getInteger(i2.operands[0]) == 0);
+            secondIsZero = (PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) == 0);
         }
         else if (i2.opcode == OpCode::PUSH_FLOAT)
         {
-            secondIsZero = (pool.getFloat(i2.operands[0]) == 0.0);
+            secondIsZero = (PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1) == 0.0);
         }
 
         return secondIsZero && cfg.canOptimizeRange(offset, offset + 3);

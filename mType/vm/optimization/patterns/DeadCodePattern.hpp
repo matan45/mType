@@ -5,12 +5,16 @@ namespace vm::optimization::patterns
 {
     /**
      * Dead Code Elimination Pattern
-     * Removes unreachable code and useless operations
+     * Removes useless operations and explicitly unused values
      *
-     * Examples:
-     * - PUSH_INT 5, POP -> (removed)
-     * - Unreachable code after RETURN -> (removed)
-     * - NOP -> (removed)
+     * Currently handles:
+     * - NOP instructions
+     * - PUSH immediately followed by POP (unused values)
+     *
+     * Note: Unreachable code detection (after unconditional jumps/returns) is not
+     * implemented as it requires tracking CALL targets and function boundaries
+     * to avoid incorrectly removing function bodies that appear unreachable but
+     * are called via CALL instructions.
      *
      * Priority: High (90)
      */
@@ -36,11 +40,6 @@ namespace vm::optimization::patterns
         // Match: NOP instruction
         bool matchesNOP(const bytecode::BytecodeProgram& program,
                        size_t offset) const;
-
-        // Match: Unreachable instruction
-        bool matchesUnreachable(const bytecode::BytecodeProgram& program,
-                               size_t offset,
-                               const analysis::ControlFlowAnalyzer& cfg) const;
     };
 
 } // namespace vm::optimization::patterns

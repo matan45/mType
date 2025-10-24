@@ -1419,6 +1419,9 @@
     <ClInclude Include="vm\optimization\patterns\NullSequencePattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\PatternSafetyHelper.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
     <ClInclude Include="vm\optimization\patterns\StackOptimizationPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
@@ -2316,6 +2319,9 @@
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\NullSequencePattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\PatternSafetyHelper.cpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\StackOptimizationPattern.cpp">
@@ -5080,6 +5086,15 @@
     <None Include="tests\testFiles\optimizer\pass\noDeadCode.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_algebraic.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_constant_folding.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_dead_code.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
     <None Include="tests\testFiles\optimizer\pass\switchOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
@@ -5087,6 +5102,15 @@
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\testImportOptimization.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_bytecode_patterns.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_optimizer.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_simple_optimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\unusedClassDependencies.mt">

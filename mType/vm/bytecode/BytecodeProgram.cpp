@@ -105,19 +105,40 @@ namespace vm::bytecode
             throw std::out_of_range("replaceInstructions: offset + count out of range");
         }
 
-        // Erase the old instructions
-        instructions.erase(instructions.begin() + offset, instructions.begin() + offset + count);
-
-        // Insert the new instructions
-        instructions.insert(instructions.begin() + offset, newInstructions.begin(), newInstructions.end());
-
-        // Preserve source locations for the first new instruction if available
+        // STEP 1: Capture source location BEFORE erasing (for the first instruction being replaced)
+        SourceLocation firstInstrLocation;
+        bool hasSourceLocation = false;
         if (!newInstructions.empty()) {
             auto srcLoc = getSourceLocation(offset);
             if (srcLoc != nullptr) {
-                // Keep the source location for the first replacement instruction
-                addSourceLocation(offset, srcLoc->line, srcLoc->column, srcLoc->filename);
+                firstInstrLocation = *srcLoc;
+                hasSourceLocation = true;
             }
+        }
+
+        // STEP 2: Clean up source locations for the range being removed [offset, offset+count)
+        for (size_t i = offset; i < offset + count; ++i) {
+            sourceLocations.erase(i);
+        }
+
+        // STEP 3: Calculate the delta for offset updates
+        int delta = static_cast<int>(newInstructions.size()) - static_cast<int>(count);
+
+        // STEP 4: Update all source locations after the replacement point BEFORE modifying instructions
+        // This must happen before erase/insert to avoid confusion about which offsets to update
+        if (delta != 0) {
+            updateSourceLocationsAfterOffset(offset + count, delta);
+        }
+
+        // STEP 5: Erase the old instructions
+        instructions.erase(instructions.begin() + offset, instructions.begin() + offset + count);
+
+        // STEP 6: Insert the new instructions
+        instructions.insert(instructions.begin() + offset, newInstructions.begin(), newInstructions.end());
+
+        // STEP 7: Restore source location for the first new instruction if it existed
+        if (hasSourceLocation) {
+            addSourceLocation(offset, firstInstrLocation.line, firstInstrLocation.column, firstInstrLocation.filename);
         }
     }
 
@@ -126,6 +147,17 @@ namespace vm::bytecode
             throw std::out_of_range("removeInstructions: offset + count out of range");
         }
 
+        // STEP 1: Clean up source locations for the range being removed [offset, offset+count)
+        for (size_t i = offset; i < offset + count; ++i) {
+            sourceLocations.erase(i);
+        }
+
+        // STEP 2: Update all source locations after the removal point
+        // Delta is negative since we're removing instructions
+        int delta = -static_cast<int>(count);
+        updateSourceLocationsAfterOffset(offset + count, delta);
+
+        // STEP 3: Remove the instructions
         instructions.erase(instructions.begin() + offset, instructions.begin() + offset + count);
     }
 
@@ -138,12 +170,9 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::updateAllJumpOffsets() {
-        // Build a mapping of old offsets to new offsets
-        // This is needed after instruction removal/replacement
-
-        // For now, we'll rebuild jump targets by scanning all jump instructions
-        // and ensuring they point to valid offsets
-        // A more sophisticated implementation could track changes and update incrementally
+        // Validate all jump targets are within bounds
+        // This is called after optimization to ensure bytecode correctness
+        // Any invalid jump target indicates a bug in the optimizer
 
         for (size_t i = 0; i < instructions.size(); ++i) {
             const auto& instr = instructions[i];
@@ -162,10 +191,23 @@ namespace vm::bytecode
                     if (!instr.operands.empty()) {
                         uint32_t target = instr.operands[0];
                         if (target >= instructions.size()) {
-                            // Target is out of bounds - this shouldn't happen after valid optimization
-                            // But we'll clamp it to prevent crashes
-                            // The validator should catch this
+                            // CRITICAL: Invalid jump target detected - fail fast
+                            throw std::runtime_error(
+                                "Invalid jump target detected in updateAllJumpOffsets(). "
+                                "Opcode: " + std::string(getOpCodeName(instr.opcode)) +
+                                ", Instruction offset: " + std::to_string(i) +
+                                ", Jump target: " + std::to_string(target) +
+                                ", Instruction count: " + std::to_string(instructions.size()) +
+                                ". This indicates bytecode corruption during optimization.");
                         }
+                    }
+                    else {
+                        // Jump instruction with no operands - this is also an error
+                        throw std::runtime_error(
+                            "Jump instruction has no operands. "
+                            "Opcode: " + std::string(getOpCodeName(instr.opcode)) +
+                            ", Instruction offset: " + std::to_string(i) +
+                            ". This indicates malformed bytecode.");
                     }
                     break;
 
@@ -173,10 +215,6 @@ namespace vm::bytecode
                     break;
             }
         }
-
-        // Update function metadata offsets if needed
-        // For now, we'll assume function boundaries are preserved by optimizations
-        // A more complete implementation would track and update function start offsets
     }
 
     void BytecodeProgram::updateFunctionOffsets(size_t removalOffset, int delta) {
@@ -288,6 +326,33 @@ namespace vm::bytecode
     const BytecodeProgram::SourceLocation* BytecodeProgram::getSourceLocation(size_t instructionOffset) const {
         auto it = sourceLocations.find(instructionOffset);
         return it != sourceLocations.end() ? &it->second : nullptr;
+    }
+
+    void BytecodeProgram::updateSourceLocationsAfterOffset(size_t afterOffset, int delta) {
+        if (delta == 0) {
+            return;
+        }
+
+        // Collect all source locations that need to be updated
+        // We need to do this in two passes to avoid iterator invalidation
+        std::vector<std::pair<size_t, SourceLocation>> locationsToUpdate;
+
+        for (const auto& [offset, location] : sourceLocations) {
+            if (offset >= afterOffset) {
+                locationsToUpdate.emplace_back(offset, location);
+            }
+        }
+
+        // Remove old entries
+        for (const auto& [oldOffset, _] : locationsToUpdate) {
+            sourceLocations.erase(oldOffset);
+        }
+
+        // Add with updated offsets
+        for (const auto& [oldOffset, location] : locationsToUpdate) {
+            size_t newOffset = static_cast<size_t>(static_cast<int>(oldOffset) + delta);
+            sourceLocations[newOffset] = location;
+        }
     }
 
     void BytecodeProgram::setEntryPoint(size_t offset) {

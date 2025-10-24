@@ -163,12 +163,10 @@ namespace vm::optimization
 
         auto endTime = std::chrono::high_resolution_clock::now();
         statistics.totalTimeMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-
-
+        
         logOptimizationEnd(program);
         std::cout << "\n" << statistics.toString() << "\n";
-
-
+        
         return anyOptimizationsApplied;
     }
 
@@ -314,10 +312,12 @@ namespace vm::optimization
             // This ensures function entry points remain correct after instruction removal
             program.updateFunctionOffsets(offset + replacement.originalLength, delta);
 
-            // Re-analyze CFG immediately after updating jumps and function offsets
-            // This ensures subsequent patterns see the updated jump targets and function boundaries
-            cfgAnalyzer.analyze(program);
-            dataFlowAnalyzer.analyze(program);
+            // NOTE: CFG/dataflow re-analysis is NOT done here for performance reasons.
+            // Most peephole patterns are local and don't require global CFG updates.
+            // Re-analysis happens:
+            // - After each pattern if config.validateAfterEachPass (runSinglePass:257-258)
+            // - At the end of each pass unconditionally (optimize:141-142)
+            // This avoids O(K×N) redundant analysis where K = patterns applied per pass
         }
 
         return true;
@@ -329,8 +329,8 @@ namespace vm::optimization
     }
 
     void PeepholeOptimizer::updateJumpOffsetsAfterReplacement(bytecode::BytecodeProgram& program,
-                                                               size_t replacementEndOffset,
-                                                               int delta)
+                                                              size_t replacementEndOffset,
+                                                              int delta)
     {
         // Iterate through all instructions and update jump targets and lambda offsets
         for (size_t i = 0; i < program.getInstructionCount(); ++i)
@@ -341,17 +341,17 @@ namespace vm::optimization
             bool isJump = false;
             switch (instr.opcode)
             {
-                case bytecode::OpCode::JUMP:
-                case bytecode::OpCode::JUMP_IF_FALSE:
-                case bytecode::OpCode::JUMP_IF_TRUE:
-                case bytecode::OpCode::JUMP_IF_NULL:
-                case bytecode::OpCode::JUMP_BACK:
-                case bytecode::OpCode::JUMP_IF_FALSE_OR_POP:
-                case bytecode::OpCode::JUMP_IF_TRUE_OR_POP:
-                    isJump = true;
-                    break;
-                default:
-                    break;
+            case bytecode::OpCode::JUMP:
+            case bytecode::OpCode::JUMP_IF_FALSE:
+            case bytecode::OpCode::JUMP_IF_TRUE:
+            case bytecode::OpCode::JUMP_IF_NULL:
+            case bytecode::OpCode::JUMP_BACK:
+            case bytecode::OpCode::JUMP_IF_FALSE_OR_POP:
+            case bytecode::OpCode::JUMP_IF_TRUE_OR_POP:
+                isJump = true;
+                break;
+            default:
+                break;
             }
 
             if (isJump && !instr.operands.empty())
@@ -534,5 +534,4 @@ namespace vm::optimization
 
         return oss.str();
     }
-
 } // namespace vm::optimization

@@ -1,4 +1,5 @@
 #include "StrengthReductionPattern.hpp"
+#include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 
@@ -35,7 +36,7 @@ namespace vm::optimization::patterns
             // Check if second operand is 1
             if (i2.opcode == OpCode::PUSH_INT)
             {
-                int val2 = pool.getInteger(i2.operands[0]);
+                int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
                 if (val2 == 1 && i3.opcode == OpCode::DIV_INT)
                 {
                     // Keep only first operand
@@ -56,7 +57,7 @@ namespace vm::optimization::patterns
             }
             else if (i2.opcode == OpCode::PUSH_FLOAT)
             {
-                double fval2 = pool.getFloat(i2.operands[0]);
+                double fval2 = PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1);
                 if (fval2 == 1.0 && i3.opcode == OpCode::DIV_FLOAT)
                 {
                     // Keep only first operand
@@ -100,7 +101,7 @@ namespace vm::optimization::patterns
         // Check if second operand is 1
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            int val = pool.getInteger(i2.operands[0]);
+            int val = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
             if (val == 1)
             {
                 return cfg.canOptimizeRange(offset, offset + 3);
@@ -108,7 +109,7 @@ namespace vm::optimization::patterns
         }
         else if (i2.opcode == OpCode::PUSH_FLOAT)
         {
-            double val = pool.getFloat(i2.operands[0]);
+            double val = PatternSafetyHelper::safeGetFloat(pool, i2, 0, offset + 1);
             if (val == 1.0)
             {
                 return cfg.canOptimizeRange(offset, offset + 3);
@@ -143,7 +144,7 @@ namespace vm::optimization::patterns
         }
 
         const auto& pool = program.getConstantPool();
-        int val = pool.getInteger(i2.operands[0]);
+        int val = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
 
         if (val == -1)
         {

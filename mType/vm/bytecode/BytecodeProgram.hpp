@@ -201,6 +201,9 @@ namespace vm::bytecode
         void writeClasses(std::ostream& out) const;
         void readClasses(std::istream& in);
 
+        // Source location update helper
+        void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);
+
         // Helper methods for writeClasses
         void writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const;
         void writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const;

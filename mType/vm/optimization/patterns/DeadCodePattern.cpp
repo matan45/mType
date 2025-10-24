@@ -11,12 +11,8 @@ namespace vm::optimization::patterns
                                   size_t offset,
                                   const analysis::ControlFlowAnalyzer& cfg) const
     {
-        // TEMPORARILY DISABLE unreachable code removal
-        // TODO: Implement proper function boundary tracking in CFG analyzer
-        // Functions are "jumped over" but should remain because they're called via CALL
         return matchesPushPop(program, offset, cfg) ||
                matchesNOP(program, offset);
-               // || matchesUnreachable(program, offset, cfg);  // DISABLED
     }
 
     OptimizationPattern::Replacement DeadCodePattern::apply(const BytecodeProgram& program,
@@ -45,9 +41,8 @@ namespace vm::optimization::patterns
             }
         }
 
-        // Otherwise, it must be unreachable code (since matches() returned true)
-        // Remove single unreachable instruction
-        return Replacement(1);
+        // Should not reach here - matches() should have validated the pattern
+        return Replacement(0);
     }
 
     bool DeadCodePattern::matchesPushPop(const BytecodeProgram& program,
@@ -87,19 +82,6 @@ namespace vm::optimization::patterns
 
         const auto& instr = program.getInstruction(offset);
         return instr.opcode == OpCode::NOP;
-    }
-
-    bool DeadCodePattern::matchesUnreachable(const BytecodeProgram& program,
-                                             size_t offset,
-                                             const analysis::ControlFlowAnalyzer& cfg) const
-    {
-        if (offset >= program.getInstructionCount())
-        {
-            return false;
-        }
-
-        // Check if this offset is unreachable
-        return cfg.isUnreachable(offset);
     }
 
 } // namespace vm::optimization::patterns
