@@ -124,6 +124,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Protected Access in Subclass",
                         passPath + "protectedAccessInSubclass.mt");
 
+        // === SUPER FIELD ACCESS TESTS ===
+        // These tests verify super.field read and write operations
+
+        addOutputVerificationTest("Super Field Read and Write",
+                        passPath + "superFieldReadWrite.mt");
+        addOutputVerificationTest("Super Field Inheritance Chain",
+                        passPath + "superFieldInheritanceChain.mt");
+        addOutputVerificationTest("Super Field With Polymorphism",
+                        passPath + "superFieldWithPolymorphism.mt");
+        addOutputVerificationTest("Super Field Comprehensive",
+                        passPath + "superFieldComprehensive.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -304,6 +316,15 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Super Constructor Wrong Args Error",
                         errorPath + "superConstructorWrongArgs.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Field No Parent Error",
+                        errorPath + "superFieldNoParent.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Field Private Access Error",
+                        errorPath + "superFieldPrivate.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Field Assign No Parent Error",
+                        errorPath + "superFieldAssignNoParent.mt",
                         TestType::ERROR_EXPECTED);
 
         // === NESTED TYPE VALIDATION TESTS ===

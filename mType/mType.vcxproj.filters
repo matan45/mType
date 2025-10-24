@@ -3202,6 +3202,15 @@
     <None Include="tests\testFiles\class\error\superConstructorWrongArgs.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\superFieldAssignNoParent.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\superFieldNoParent.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\superFieldPrivate.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\superSyntax.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -3500,6 +3509,30 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\staticScopingPass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldComprehensive.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldComprehensive.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldInheritanceChain.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldInheritanceChain.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldReadWrite.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldReadWrite.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldWithPolymorphism.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldWithPolymorphism.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">

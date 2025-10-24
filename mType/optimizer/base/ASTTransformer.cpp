@@ -319,4 +319,12 @@ namespace optimizer::base {
 		return nullptr;
 	}
 
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitSuperMemberAccessNode(ast::SuperMemberAccessNode* node) {
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitSuperMemberAssignmentNode(ast::SuperMemberAssignmentNode* node) {
+		return nullptr;
+	}
+
 } // namespace optimizer::base

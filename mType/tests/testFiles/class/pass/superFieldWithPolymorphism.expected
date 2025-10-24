@@ -1,0 +1,7 @@
+Testing super fields with polymorphism
+Circle at (10, 20) with radius 5, color: black
+Rectangle at (30, 40) with size 15x25, color: black
+After modifications:
+Circle at (15, 30) with radius 5, color: red
+Rectangle at (25, 30) with size 15x25, color: blue
+Polymorphism with super fields test completed

@@ -1,0 +1,12 @@
+Testing super field access through inheritance chain
+Initial values:
+L1: 100, L2: 200
+L3: 300
+After modifying parent field:
+L1: 100, L2: 250
+After modifying grandparent field from child:
+L1: 175, L2: 250
+After modifying all fields:
+L1: 111, L2: 222
+L3: 333
+Inheritance chain test completed

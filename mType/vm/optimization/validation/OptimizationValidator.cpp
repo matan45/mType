@@ -502,6 +502,14 @@ namespace vm::optimization::validation
                 stackEffect = +1;
                 return true;
 
+            case OpCode::SUPER_GET_FIELD:   // [] -> [field_value]
+                stackEffect = +1;
+                return true;
+
+            case OpCode::SUPER_SET_FIELD:   // [value] -> []
+                stackEffect = -1;
+                return true;
+
             // === Type Operations ===
             case OpCode::INSTANCEOF:        // [object] -> [bool]
             case OpCode::CHECK_TYPE:
