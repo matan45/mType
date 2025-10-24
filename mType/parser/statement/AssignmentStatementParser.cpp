@@ -7,6 +7,8 @@
 #include "../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -109,6 +111,35 @@ namespace parser::statement
                 std::string memberName = memberAccess->getMemberName();
 
                 return std::make_unique<MemberAssignmentNode>(object, memberName, std::move(value));
+            }
+        }
+
+        // Check if this is a super member assignment (super.field = value)
+        if (auto superMemberAccess = dynamic_cast<SuperMemberAccessNode*>(expr.get()))
+        {
+            TokenType opType = tokenStream.current().type;
+            if (isAssignmentOperator(opType))
+            {
+                errors::SourceLocation opLocation = tokenStream.current().location;
+                tokenStream.advance(); // consume assignment operator
+                auto value = expressionParser->parseExpression();
+
+                // For compound assignments, create a binary expression
+                if (opType != TokenType::ASSIGN)
+                {
+                    TokenType binaryOp = getCorrespondingBinaryOperator(opType);
+                    value = std::make_unique<BinaryExpNode>(std::move(expr), binaryOp, std::move(value), opLocation);
+
+                    expectToken(TokenType::SEMICOLON);
+                    return value;
+                }
+
+                expectToken(TokenType::SEMICOLON);
+
+                // Extract the member name for the super assignment
+                std::string memberName = superMemberAccess->getMemberName();
+
+                return std::make_unique<SuperMemberAssignmentNode>(memberName, std::move(value), opLocation);
             }
         }
 

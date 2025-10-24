@@ -26,7 +26,7 @@ class Child extends Parent {
 
     public function accessProtected(): string {
         // Can access protected field from parent
-        string result = "Protected field: " + protectedField;
+        string result = "Protected field: " + super.protectedField;
 
         // Can call protected method from parent
         result = result + ", " + protectedMethod();
@@ -35,7 +35,7 @@ class Child extends Parent {
     }
 
     public function modifyProtected(): void {
-        protectedField = 99;
+        super.protectedField = 99;  // Modify inherited field directly
     }
 
     protected function protectedMethod(): string {
@@ -63,6 +63,7 @@ function main(): void {
     print("After modification: " + child.accessProtected());
 
     GrandChild grandChild = new GrandChild();
+    grandChild.modifyProtected();  // Also modify grandChild's protected field
     print(grandChild.accessFromGrandChild());
 
     print("Protected access test completed");

@@ -335,6 +335,10 @@ namespace vm::runtime
             break;
         case OpCode::SUPER_INVOKE: objectExecutor->handleSuperInvoke(instr);
             break;
+        case OpCode::SUPER_GET_FIELD: objectExecutor->handleSuperGetField(instr);
+            break;
+        case OpCode::SUPER_SET_FIELD: objectExecutor->handleSuperSetField(instr);
+            break;
 
         // Arrays - delegated to ArrayExecutor
         case OpCode::NEW_ARRAY: arrayExecutor->handleNewArray(instr);

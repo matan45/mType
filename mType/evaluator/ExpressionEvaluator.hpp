@@ -119,6 +119,8 @@ namespace evaluator
         // NEW: Super expressions for inheritance
         Value evaluateSuperConstructorCallNode(SuperConstructorCallNode* node);
         Value evaluateSuperMethodCallNode(SuperMethodCallNode* node);
+        Value evaluateSuperMemberAccessNode(SuperMemberAccessNode* node);
+        Value evaluateSuperMemberAssignmentNode(SuperMemberAssignmentNode* node);
 
         // NEW: Cast and type checking expressions
         Value evaluateCastExpression(CastExpression* node);

@@ -289,6 +289,71 @@ namespace vm::runtime
         }
     }
 
+    void ObjectInstanceHelper::handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Compiler emits: (classNameIndex, memberNameIndex)
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = member/field name
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_GET_FIELD can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Get the current class definition
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        // Get field value from the instance (fields are stored on the instance, not the class)
+        value::Value fieldValue = instance->getFieldValue(memberName);
+
+        // Check if field exists
+        if (std::holds_alternative<std::monostate>(fieldValue)) {
+            throw errors::RuntimeException("Field '" + memberName + "' not found in parent class");
+        }
+
+        // Push the field value onto the stack
+        context.stackManager->push(fieldValue);
+    }
+
+    void ObjectInstanceHelper::handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Compiler emits: (classNameIndex, memberNameIndex)
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = member/field name
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_SET_FIELD can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Get the current class definition
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        // Pop the value to assign from the stack
+        value::Value assignValue = context.stackManager->pop();
+
+        // Set field value on the instance (fields are stored on the instance, not the class)
+        instance->setField(memberName, assignValue);
+    }
+
     void ObjectInstanceHelper::invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                                 const std::string& baseClassName,
                                                 const std::vector<value::Value>& args)

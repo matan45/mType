@@ -16,6 +16,7 @@
 #include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "../ast/nodes/expressions/CastExpression.hpp"
 #include "../ast/nodes/expressions/InstanceOfExpression.hpp"
+#include "../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/UndefinedException.hpp"
 #include "../errors/TypeConversionException.hpp"
@@ -39,6 +40,7 @@
 #include "../ast/nodes/classes/MethodCallNode.hpp"
 #include "../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
 #include "../ast/nodes/classes/NewNode.hpp"
@@ -144,6 +146,8 @@ namespace evaluator
         dispatcher.registerMethod<NewNode>(&ExpressionEvaluator::evaluateNewNode);
         dispatcher.registerMethod<SuperConstructorCallNode>(&ExpressionEvaluator::evaluateSuperConstructorCallNode);
         dispatcher.registerMethod<SuperMethodCallNode>(&ExpressionEvaluator::evaluateSuperMethodCallNode);
+        dispatcher.registerMethod<SuperMemberAccessNode>(&ExpressionEvaluator::evaluateSuperMemberAccessNode);
+        dispatcher.registerMethod<SuperMemberAssignmentNode>(&ExpressionEvaluator::evaluateSuperMemberAssignmentNode);
 
         // Cast and type checking expressions
         dispatcher.registerMethod<CastExpression>(&ExpressionEvaluator::evaluateCastExpression);
@@ -444,6 +448,16 @@ namespace evaluator
     Value ExpressionEvaluator::evaluateSuperMethodCallNode(SuperMethodCallNode* node)
     {
         return superCallHandler->evaluateSuperMethodCall(node);
+    }
+
+    Value ExpressionEvaluator::evaluateSuperMemberAccessNode(SuperMemberAccessNode* node)
+    {
+        return superCallHandler->evaluateSuperMemberAccess(node);
+    }
+
+    Value ExpressionEvaluator::evaluateSuperMemberAssignmentNode(SuperMemberAssignmentNode* node)
+    {
+        return superCallHandler->evaluateSuperMemberAssignment(node);
     }
 
     Value ExpressionEvaluator::evaluateCastExpression(CastExpression* node)

@@ -332,6 +332,14 @@ namespace vm::runtime
         instanceHelper->handleSuperInvoke(instr);
     }
 
+    void ObjectExecutor::handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleSuperGetField(instr);
+    }
+
+    void ObjectExecutor::handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleSuperSetField(instr);
+    }
+
     std::string ObjectExecutor::getCurrentClassName() {
         if (!context.callStack.empty()) {
             if (context.callStack.back().thisInstance) {

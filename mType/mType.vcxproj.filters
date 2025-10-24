@@ -435,6 +435,12 @@
     <ClInclude Include="ast\nodes\classes\SuperConstructorCallNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMemberAccessNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMemberAssignmentNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\classes\SuperMethodCallNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
@@ -1551,6 +1557,12 @@
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\SuperConstructorCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMemberAccessNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMemberAssignmentNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\SuperMethodCallNode.cpp">

@@ -49,6 +49,8 @@ namespace evaluator
 
             Value evaluateSuperConstructorCall(SuperConstructorCallNode* node);
             Value evaluateSuperMethodCall(SuperMethodCallNode* node);
+            Value evaluateSuperMemberAccess(SuperMemberAccessNode* node);
+            Value evaluateSuperMemberAssignment(SuperMemberAssignmentNode* node);
         };
     }
 }

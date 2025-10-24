@@ -301,6 +301,16 @@ namespace vm::compiler
         return classCompiler.compileSuperMethodCall(node);
     }
 
+    value::Value BytecodeCompiler::visitSuperMemberAccessNode(ast::SuperMemberAccessNode* node)
+    {
+        return classCompiler.compileSuperMemberAccess(node);
+    }
+
+    value::Value BytecodeCompiler::visitSuperMemberAssignmentNode(ast::SuperMemberAssignmentNode* node)
+    {
+        return classCompiler.compileSuperMemberAssignment(node);
+    }
+
     value::Value BytecodeCompiler::visitInterfaceNode(ast::InterfaceNode* node)
     {
         // Interfaces are registered during registerClassesForBytecode phase

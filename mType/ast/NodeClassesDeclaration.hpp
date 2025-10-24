@@ -69,9 +69,11 @@ namespace ast
             class InterfaceNode;
             class SuperConstructorCallNode;
             class SuperMethodCallNode;
+            class SuperMemberAccessNode;
+            class SuperMemberAssignmentNode;
         }
     }
-    
+
     // Type aliases for backward compatibility - these map to the refactored namespaced types
     using ProgramNode = nodes::statements::ProgramNode;
     using BlockNode = nodes::statements::BlockNode;
@@ -117,6 +119,8 @@ namespace ast
     using ForEachNode = nodes::statements::ForEachNode;
     using SuperConstructorCallNode = nodes::classes::SuperConstructorCallNode;
     using SuperMethodCallNode = nodes::classes::SuperMethodCallNode;
+    using SuperMemberAccessNode = nodes::classes::SuperMemberAccessNode;
+    using SuperMemberAssignmentNode = nodes::classes::SuperMemberAssignmentNode;
     using CastExpression = nodes::expressions::CastExpression;
     using InstanceOfExpression = nodes::expressions::InstanceOfExpression;
     using AwaitExpression = nodes::expressions::AwaitExpression;

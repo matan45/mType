@@ -1,5 +1,7 @@
 #include "SuperCallHandler.hpp"
 #include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/ScopeGuard.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
@@ -316,6 +318,115 @@ namespace evaluator
             throw UndefinedException(
                 "Object evaluator not available for super." + node->getMethodName() + "() call",
                 node->getLocation());
+        }
+
+        Value SuperCallHandler::evaluateSuperMemberAccess(SuperMemberAccessNode* node)
+        {
+            // Get current instance - super.field can only be accessed in instance methods
+            auto currentInstance = context->getCurrentInstance();
+            if (!currentInstance) {
+                throw UndefinedException(
+                    "super." + node->getMemberName() + " can only be accessed within an instance method",
+                    node->getLocation());
+            }
+
+            // Use calling class stack to determine which class's context we're executing in
+            std::string currentClassName = context->getCurrentCallingClass();
+            if (currentClassName.empty()) {
+                throw UndefinedException(
+                    "super." + node->getMemberName() + " accessed without proper method context. "
+                    "Calling class stack is empty.",
+                    node->getLocation());
+            }
+
+            auto env = context->getEnvironment();
+            auto currentClass = env->findClass(currentClassName);
+            if (!currentClass) {
+                throw UndefinedException(
+                    "Current class '" + currentClassName + "' not found for super." + node->getMemberName() + " access",
+                    node->getLocation());
+            }
+
+            if (!currentClass->hasParentClass()) {
+                throw UndefinedException(
+                    "Class '" + currentClass->getName() +
+                    "' has no parent class, cannot access super." + node->getMemberName(),
+                    node->getLocation());
+            }
+
+            auto parentClass = currentClass->getParentClass();
+            if (!parentClass) {
+                throw UndefinedException(
+                    "Parent class not found for super." + node->getMemberName() + " access",
+                    node->getLocation());
+            }
+
+            // Access field value from current instance
+            // Fields are stored on the instance, not the class
+            // The field is defined in the parent class but the value is on the instance
+            Value fieldValue = currentInstance->getFieldValue(node->getMemberName());
+
+            // Check if field exists (getFieldValue returns monostate if not found)
+            if (std::holds_alternative<std::monostate>(fieldValue)) {
+                throw UndefinedException(
+                    "Field '" + node->getMemberName() + "' not found in parent class '" +
+                    parentClass->getName() + "'",
+                    node->getLocation());
+            }
+
+            return fieldValue;
+        }
+
+        Value SuperCallHandler::evaluateSuperMemberAssignment(SuperMemberAssignmentNode* node)
+        {
+            // Get current instance - super.field = value can only be used in instance methods
+            auto currentInstance = context->getCurrentInstance();
+            if (!currentInstance) {
+                throw UndefinedException(
+                    "super." + node->getMemberName() + " assignment can only be used within an instance method",
+                    node->getLocation());
+            }
+
+            // Use calling class stack to determine which class's context we're executing in
+            std::string currentClassName = context->getCurrentCallingClass();
+            if (currentClassName.empty()) {
+                throw UndefinedException(
+                    "super." + node->getMemberName() + " assignment without proper method context. "
+                    "Calling class stack is empty.",
+                    node->getLocation());
+            }
+
+            auto env = context->getEnvironment();
+            auto currentClass = env->findClass(currentClassName);
+            if (!currentClass) {
+                throw UndefinedException(
+                    "Current class '" + currentClassName + "' not found for super." + node->getMemberName() + " assignment",
+                    node->getLocation());
+            }
+
+            if (!currentClass->hasParentClass()) {
+                throw UndefinedException(
+                    "Class '" + currentClass->getName() +
+                    "' has no parent class, cannot assign to super." + node->getMemberName(),
+                    node->getLocation());
+            }
+
+            auto parentClass = currentClass->getParentClass();
+            if (!parentClass) {
+                throw UndefinedException(
+                    "Parent class not found for super." + node->getMemberName() + " assignment",
+                    node->getLocation());
+            }
+
+            // Evaluate the value to assign
+            Value assignValue = exprEvaluator->evaluate(node->getValue());
+
+            // Set field value on current instance
+            // Fields are stored on the instance, not the class
+            // The field is defined in the parent class but the value is on the instance
+            currentInstance->setField(node->getMemberName(), assignValue);
+
+            return assignValue;
         }
     }
 }

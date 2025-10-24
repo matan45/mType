@@ -331,6 +331,16 @@ namespace evaluator
         return exprEvaluator->evaluateSuperMethodCallNode(node);
     }
 
+    Value EvaluatorCoordinator::visitSuperMemberAccessNode(SuperMemberAccessNode* node)
+    {
+        return exprEvaluator->evaluateSuperMemberAccessNode(node);
+    }
+
+    Value EvaluatorCoordinator::visitSuperMemberAssignmentNode(SuperMemberAssignmentNode* node)
+    {
+        return exprEvaluator->evaluateSuperMemberAssignmentNode(node);
+    }
+
     Value EvaluatorCoordinator::visitCastExpression(CastExpression* node)
     {
         return exprEvaluator->evaluateCastExpression(node);

@@ -70,6 +70,8 @@ namespace evaluator
         Value visitLambdaNode(LambdaNode* node) override;
         Value visitSuperConstructorCallNode(SuperConstructorCallNode* node) override;
         Value visitSuperMethodCallNode(SuperMethodCallNode* node) override;
+        Value visitSuperMemberAccessNode(SuperMemberAccessNode* node) override;
+        Value visitSuperMemberAssignmentNode(SuperMemberAssignmentNode* node) override;
         Value visitCastExpression(CastExpression* node) override;
         Value visitInstanceOfExpression(InstanceOfExpression* node) override;
         Value visitAwaitExpression(AwaitExpression* node) override;

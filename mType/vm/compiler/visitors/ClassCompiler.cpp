@@ -7,6 +7,8 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../../runtime/utils/TypeConverter.hpp"
 #include <unordered_set>
 
@@ -510,6 +512,46 @@ namespace vm::compiler::visitors
                              static_cast<uint32_t>(classNameIndex),
                              static_cast<uint32_t>(methodNameIndex),
                              static_cast<uint32_t>(arguments.size())
+                         });
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileSuperMemberAccess(ast::SuperMemberAccessNode* node)
+    {
+        std::string memberName = node->getMemberName();
+
+        // Emit SUPER_GET_FIELD instruction to load field from parent class
+        // This is similar to SUPER_INVOKE but for field access instead of method calls
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
+
+        ctx.program.emit(bytecode::OpCode::SUPER_GET_FIELD,
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(classNameIndex),
+                             static_cast<uint32_t>(memberNameIndex)
+                         });
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileSuperMemberAssignment(ast::SuperMemberAssignmentNode* node)
+    {
+        std::string memberName = node->getMemberName();
+
+        // Evaluate the value to assign and push it onto stack
+        node->getValue()->accept(ctx.visitor);
+
+        // Emit SUPER_SET_FIELD instruction to store field value to parent class field
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
+
+        ctx.program.emit(bytecode::OpCode::SUPER_SET_FIELD,
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(classNameIndex),
+                             static_cast<uint32_t>(memberNameIndex)
                          });
 
         return std::monostate{};
