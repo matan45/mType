@@ -1,5 +1,5 @@
 Testing async control flow
-Loop result: 0124567
+Loop result: 012456
 Finally executed
 Try-catch result: Success: 5
 Finally executed

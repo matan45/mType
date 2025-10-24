@@ -4,6 +4,10 @@ class Parent {
     public static function process(): string {
         return "Parent static";
     }
+	
+	public static function process(): string {
+        return "Parent";
+    }
 }
 
 class Child extends Parent {

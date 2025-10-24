@@ -4,7 +4,7 @@
 class Animal {
     string name;
 
-    public function Animal(string n) {
+    constructor(string n) {
         name = n;
     }
 
@@ -20,8 +20,7 @@ class Animal {
 class Dog extends Animal {
     string breed;
 
-    public function Dog(string n, string b) {
-        super(n);
+    constructor(string n, string b):super(n) {
         breed = b;
     }
 
@@ -38,8 +37,7 @@ class Dog extends Animal {
 class Cat extends Animal {
     bool indoor;
 
-    public function Cat(string n, bool ind) {
-        super(n);
+    constructor(string n, bool ind):super(n) {
         indoor = ind;
     }
 

@@ -4,7 +4,7 @@
 class Level1 {
     int level;
 
-    public function Level1() {
+    constructor() {
         level = 1;
     }
 
@@ -18,8 +18,7 @@ class Level1 {
 }
 
 class Level2 extends Level1 {
-    public function Level2() {
-        super();
+    constructor(): super() {
         level = 2;
     }
 
@@ -29,8 +28,7 @@ class Level2 extends Level1 {
 }
 
 class Level3 extends Level2 {
-    public function Level3() {
-        super();
+    constructor(): super() {
         level = 3;
     }
 
@@ -40,8 +38,8 @@ class Level3 extends Level2 {
 }
 
 class Level4 extends Level3 {
-    public function Level4() {
-        super();
+    constructor(): super() {
+        
         level = 4;
     }
 
@@ -51,8 +49,8 @@ class Level4 extends Level3 {
 }
 
 class Level5 extends Level4 {
-    public function Level5() {
-        super();
+    constructor(): super() {
+        
         level = 5;
     }
 
@@ -62,8 +60,8 @@ class Level5 extends Level4 {
 }
 
 class Level6 extends Level5 {
-    public function Level6() {
-        super();
+    constructor(): super() {
+        
         level = 6;
     }
 
@@ -73,8 +71,8 @@ class Level6 extends Level5 {
 }
 
 class Level7 extends Level6 {
-    public function Level7() {
-        super();
+    constructor(): super() {
+        
         level = 7;
     }
 
@@ -84,8 +82,8 @@ class Level7 extends Level6 {
 }
 
 class Level8 extends Level7 {
-    public function Level8() {
-        super();
+    constructor(): super() {
+        
         level = 8;
     }
 

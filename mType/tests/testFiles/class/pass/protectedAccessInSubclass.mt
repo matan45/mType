@@ -5,7 +5,7 @@ class Parent {
     protected int protectedField;
     public int publicField;
 
-    public function Parent() {
+    constructor() {
         privateField = 10;
         protectedField = 20;
         publicField = 30;
@@ -21,8 +21,7 @@ class Parent {
 }
 
 class Child extends Parent {
-    public function Child() {
-        super();
+    constructor():super() {
     }
 
     public function accessProtected(): string {
@@ -45,13 +44,12 @@ class Child extends Parent {
 }
 
 class GrandChild extends Child {
-    public function GrandChild() {
-        super();
+    constructor():super() {
     }
 
     public function accessFromGrandChild(): string {
         // Can access protected members through inheritance chain
-        return "GrandChild accessing: " + protectedField + ", " + protectedMethod();
+        return "GrandChild accessing: " + protectedField + ", " + super.protectedMethod();
     }
 }
 
