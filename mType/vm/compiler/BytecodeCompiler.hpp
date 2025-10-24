@@ -4,6 +4,7 @@
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../token/TokenType.hpp"
+#include "../../constants/ExecutionMode.hpp"
 #include "emission/BytecodeEmitter.hpp"
 #include "variables/VariableTracker.hpp"
 #include "variables/GlobalVariableRegistry.hpp"
@@ -40,7 +41,9 @@ namespace vm::compiler
     class BytecodeCompiler : public ast::ASTVisitor<value::Value>
     {
     public:
-        explicit BytecodeCompiler(std::shared_ptr<environment::Environment> env, bool skipStrictValidation = false);
+        explicit BytecodeCompiler(std::shared_ptr<environment::Environment> env,
+                                 bool skipStrictValidation = false,
+                                 constants::OptimizationLevel optimizationLevel = constants::OptimizationLevel::Debug);
         ~BytecodeCompiler() = default;
 
         // Main compilation entry point
@@ -163,6 +166,9 @@ namespace vm::compiler
 
         // Validation control
         bool skipStrictValidation;
+
+        // Optimization level
+        constants::OptimizationLevel optimizationLevel;
 
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);

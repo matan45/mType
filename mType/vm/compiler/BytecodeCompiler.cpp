@@ -9,11 +9,14 @@
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../runtime/optimization/LoopOptimizer.hpp"
+#include "../optimization/PeepholeOptimizer.hpp"
 #include <stdexcept>
 
 namespace vm::compiler
 {
-    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env, bool skipStrictValidation)
+    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,
+                                       bool skipStrictValidation,
+                                       constants::OptimizationLevel optimizationLevel)
         : environment(env)
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
@@ -33,6 +36,7 @@ namespace vm::compiler
         , functionCompiler(context)
         , classCompiler(context)
         , skipStrictValidation(skipStrictValidation)
+        , optimizationLevel(optimizationLevel)
     {
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
@@ -85,6 +89,15 @@ namespace vm::compiler
         // This analyzes LOOP_START/LOOP_END markers and applies optimizations
         runtime::optimization::LoopOptimizer loopOptimizer(program);
         loopOptimizer.optimize();
+
+        // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
+        if (optimizationLevel == constants::OptimizationLevel::Release) {
+            optimization::PeepholeOptimizer peepholeOptimizer(
+                optimization::PeepholeOptimizer::Config::forReleaseMode()
+            );
+            peepholeOptimizer.registerDefaultPatterns();
+            peepholeOptimizer.optimize(program);
+        }
 
         return std::move(program);
     }
