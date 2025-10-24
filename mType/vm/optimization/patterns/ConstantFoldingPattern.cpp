@@ -225,7 +225,7 @@ namespace vm::optimization::patterns
     {
         const auto& pool = program.getConstantPool();
         const auto& i1 = program.getInstruction(offset);
-        const auto& i2 = program.getInstruction(offset + 2);
+        const auto& i2 = program.getInstruction(offset + 1);  // Fixed: was offset + 2, should be offset + 1
 
         Replacement rep(2);
 

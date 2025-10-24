@@ -102,6 +102,11 @@ namespace vm::optimization
         size_t initialInstructionCount = program.getInstructionCount();
         bool anyOptimizationsApplied = false;
 
+        if (config.verboseOutput)
+        {
+            logOptimizationStart(program);
+        }
+
         // Analyze the program once before optimization
         cfgAnalyzer.analyze(program);
         dataFlowAnalyzer.analyze(program);
@@ -138,7 +143,8 @@ namespace vm::optimization
 
             if (config.verboseOutput)
             {
-                std::cout << "Pass " << passNum + 1 << ": Applied " << optimizationsThisPass << " optimizations\n";
+                std::cout << "\n--- Pass " << (passNum + 1) << " completed: "
+                    << optimizationsThisPass << " optimizations applied ---\n";
             }
         }
 
@@ -158,10 +164,10 @@ namespace vm::optimization
         auto endTime = std::chrono::high_resolution_clock::now();
         statistics.totalTimeMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
 
-        if (config.verboseOutput)
-        {
-            std::cout << statistics.toString();
-        }
+
+        logOptimizationEnd(program);
+        std::cout << "\n" << statistics.toString() << "\n";
+
 
         return anyOptimizationsApplied;
     }
@@ -169,7 +175,7 @@ namespace vm::optimization
     void PeepholeOptimizer::registerPattern(std::unique_ptr<OptimizationPattern> pattern)
     {
         std::string name = pattern->getName();
-        enabledPatterns[name] = true;  // Enable by default
+        enabledPatterns[name] = true; // Enable by default
         patterns.push_back(std::move(pattern));
         sortPatternsByPriority();
     }
@@ -235,7 +241,7 @@ namespace vm::optimization
                 auto it = enabledPatterns.find(pattern->getName());
                 if (it != enabledPatterns.end() && !it->second)
                 {
-                    continue;  // Pattern disabled
+                    continue; // Pattern disabled
                 }
 
                 if (tryApplyPattern(*pattern, program, offset))
@@ -280,6 +286,19 @@ namespace vm::optimization
         // Apply the pattern
         auto replacement = pattern.apply(program, offset);
 
+        // If no optimization was actually applied (originalLength == 0), return false
+        // This prevents infinite loops where a pattern matches but doesn't change anything
+        if (replacement.originalLength == 0)
+        {
+            return false;
+        }
+
+        // Log the optimization if verbose
+        if (config.verboseOutput)
+        {
+            logPatternMatch(pattern.getName(), offset, program, replacement);
+        }
+
         // Replace instructions in the program
         program.replaceInstructions(offset, replacement.originalLength, replacement.instructions);
 
@@ -294,11 +313,11 @@ namespace vm::optimization
     void PeepholeOptimizer::sortPatternsByPriority()
     {
         std::sort(patterns.begin(), patterns.end(),
-                 [](const std::unique_ptr<OptimizationPattern>& a,
-                    const std::unique_ptr<OptimizationPattern>& b)
-                 {
-                     return a->getPriority() > b->getPriority();
-                 });
+                  [](const std::unique_ptr<OptimizationPattern>& a,
+                     const std::unique_ptr<OptimizationPattern>& b)
+                  {
+                      return a->getPriority() > b->getPriority();
+                  });
     }
 
     void PeepholeOptimizer::recordPatternApplication(const std::string& patternName)
@@ -306,4 +325,240 @@ namespace vm::optimization
         statistics.patternApplications[patternName]++;
     }
 
+    // === Logging Methods ===
+
+    void PeepholeOptimizer::logOptimizationStart(const bytecode::BytecodeProgram& program)
+    {
+        std::cout << "\n";
+        std::cout << "========================================\n";
+        std::cout << "  PEEPHOLE OPTIMIZATION STARTED\n";
+        std::cout << "========================================\n";
+        std::cout << "Initial instruction count: " << program.getInstructionCount() << "\n";
+        std::cout << "Optimization level: Release\n";
+        std::cout << "Max passes: " << config.maxPasses << "\n";
+        std::cout << "Registered patterns: " << patterns.size() << "\n";
+        std::cout << "========================================\n\n";
+    }
+
+    void PeepholeOptimizer::logOptimizationEnd(const bytecode::BytecodeProgram& program)
+    {
+        std::cout << "\n========================================\n";
+        std::cout << "  PEEPHOLE OPTIMIZATION COMPLETED\n";
+        std::cout << "========================================\n";
+        std::cout << "Final instruction count: " << program.getInstructionCount() << "\n";
+        std::cout << "Instructions eliminated: " << statistics.instructionsEliminated << "\n";
+        std::cout << "Time elapsed: " << statistics.totalTimeMs << " ms\n";
+        std::cout << "========================================\n";
+    }
+
+    void PeepholeOptimizer::logPatternMatch(const std::string& patternName,
+                                            size_t offset,
+                                            const bytecode::BytecodeProgram& program,
+                                            const OptimizationPattern::Replacement& replacement)
+    {
+        // Skip logging if originalLength is 0 (no actual optimization)
+        if (replacement.originalLength == 0)
+        {
+            return;
+        }
+
+        std::cout << "[" << patternName << "] at offset " << offset << ":\n";
+
+        // Show original instructions
+        std::cout << "  BEFORE: ";
+        for (size_t i = 0; i < replacement.originalLength && (offset + i) < program.getInstructionCount(); ++i)
+        {
+            if (i > 0) std::cout << " | ";
+            const auto& instr = program.getInstruction(offset + i);
+            std::cout << formatInstruction(instr, offset + i);
+        }
+        std::cout << "\n";
+
+        // Show replacement instructions
+        std::cout << "  AFTER:  ";
+        if (replacement.instructions.empty())
+        {
+            std::cout << "(removed)";
+        }
+        else
+        {
+            for (size_t i = 0; i < replacement.instructions.size(); ++i)
+            {
+                if (i > 0) std::cout << " | ";
+                std::cout << formatInstruction(replacement.instructions[i], offset + i);
+            }
+        }
+        std::cout << "\n";
+
+        // Show the optimization benefit
+        int instructionDiff = static_cast<int>(replacement.instructions.size()) - static_cast<int>(replacement.
+            originalLength);
+        if (instructionDiff < 0)
+        {
+            std::cout << "  SAVED:  " << (-instructionDiff) << " instruction(s)\n";
+        }
+        else if (instructionDiff == 0)
+        {
+            std::cout << "  TRANSFORM: Same size, improved efficiency\n";
+        }
+        else
+        {
+            std::cout << "  EXPANDED: +" << instructionDiff << " instruction(s) (specialized)\n";
+        }
+
+        std::cout << "\n";
+    }
+
+    std::string PeepholeOptimizer::formatInstruction(const bytecode::BytecodeProgram::Instruction& instr,
+                                                     size_t offset) const
+    {
+        std::ostringstream oss;
+        oss << opcodeToString(instr.opcode);
+
+        // Add operands if present
+        if (!instr.operands.empty())
+        {
+            oss << "(";
+            for (size_t i = 0; i < instr.operands.size(); ++i)
+            {
+                if (i > 0) oss << ", ";
+                oss << instr.operands[i];
+            }
+            oss << ")";
+        }
+
+        return oss.str();
+    }
+
+    std::string PeepholeOptimizer::opcodeToString(bytecode::OpCode opcode) const
+    {
+        using namespace bytecode;
+
+        switch (opcode)
+        {
+        // Constants
+        case OpCode::PUSH_INT: return "PUSH_INT";
+        case OpCode::PUSH_FLOAT: return "PUSH_FLOAT";
+        case OpCode::PUSH_STRING: return "PUSH_STRING";
+        case OpCode::PUSH_BOOL: return "PUSH_BOOL";
+        case OpCode::PUSH_NULL: return "PUSH_NULL";
+
+        // Arithmetic - Integer
+        case OpCode::ADD_INT: return "ADD_INT";
+        case OpCode::SUB_INT: return "SUB_INT";
+        case OpCode::MUL_INT: return "MUL_INT";
+        case OpCode::DIV_INT: return "DIV_INT";
+        case OpCode::MOD: return "MOD";
+
+        // Arithmetic - Float
+        case OpCode::ADD_FLOAT: return "ADD_FLOAT";
+        case OpCode::SUB_FLOAT: return "SUB_FLOAT";
+        case OpCode::MUL_FLOAT: return "MUL_FLOAT";
+        case OpCode::DIV_FLOAT: return "DIV_FLOAT";
+
+        // Arithmetic - Generic
+        case OpCode::ADD: return "ADD";
+        case OpCode::SUB: return "SUB";
+        case OpCode::MUL: return "MUL";
+        case OpCode::DIV: return "DIV";
+
+        // Unary
+        case OpCode::NEG: return "NEG";
+        case OpCode::NOT: return "NOT";
+        case OpCode::INC: return "INC";
+        case OpCode::DEC: return "DEC";
+
+        // Comparison - Integer
+        case OpCode::EQ_INT: return "EQ_INT";
+        case OpCode::NE_INT: return "NE_INT";
+        case OpCode::LT_INT: return "LT_INT";
+        case OpCode::GT_INT: return "GT_INT";
+
+        // Comparison - Generic
+        case OpCode::EQ: return "EQ";
+        case OpCode::NE: return "NE";
+        case OpCode::LT: return "LT";
+        case OpCode::GT: return "GT";
+        case OpCode::LE: return "LE";
+        case OpCode::GE: return "GE";
+
+        // Logical
+        case OpCode::AND: return "AND";
+        case OpCode::OR: return "OR";
+        case OpCode::XOR: return "XOR";
+
+        // Stack
+        case OpCode::POP: return "POP";
+        case OpCode::DUP: return "DUP";
+        case OpCode::DUP2: return "DUP2";
+        case OpCode::SWAP: return "SWAP";
+
+        // Variables
+        case OpCode::LOAD_VAR: return "LOAD_VAR";
+        case OpCode::STORE_VAR: return "STORE_VAR";
+        case OpCode::LOAD_LOCAL: return "LOAD_LOCAL";
+        case OpCode::STORE_LOCAL: return "STORE_LOCAL";
+        case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
+        case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
+        case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";
+        case OpCode::STORE_UPVALUE: return "STORE_UPVALUE";
+
+        // Control Flow
+        case OpCode::JUMP: return "JUMP";
+        case OpCode::JUMP_IF_FALSE: return "JUMP_IF_FALSE";
+        case OpCode::JUMP_IF_TRUE: return "JUMP_IF_TRUE";
+        case OpCode::JUMP_IF_NULL: return "JUMP_IF_NULL";
+        case OpCode::JUMP_BACK: return "JUMP_BACK";
+        case OpCode::JUMP_IF_FALSE_OR_POP: return "JUMP_IF_FALSE_OR_POP";
+        case OpCode::JUMP_IF_TRUE_OR_POP: return "JUMP_IF_TRUE_OR_POP";
+
+        // Functions
+        case OpCode::CALL: return "CALL";
+        case OpCode::CALL_NATIVE: return "CALL_NATIVE";
+        case OpCode::CALL_FAST: return "CALL_FAST";
+        case OpCode::CALL_METHOD: return "CALL_METHOD";
+        case OpCode::CALL_STATIC: return "CALL_STATIC";
+        case OpCode::TAIL_CALL: return "TAIL_CALL";
+        case OpCode::RETURN: return "RETURN";
+        case OpCode::RETURN_VALUE: return "RETURN_VALUE";
+
+        // Arrays
+        case OpCode::ARRAY_GET: return "ARRAY_GET";
+        case OpCode::ARRAY_GET_INT: return "ARRAY_GET_INT";
+        case OpCode::ARRAY_SET: return "ARRAY_SET";
+        case OpCode::ARRAY_SET_INT: return "ARRAY_SET_INT";
+        case OpCode::ARRAY_LENGTH: return "ARRAY_LENGTH";
+        case OpCode::ARRAY_SET_FIELD: return "ARRAY_SET_FIELD";
+        case OpCode::NEW_ARRAY: return "NEW_ARRAY";
+        case OpCode::NEW_ARRAY_MULTI: return "NEW_ARRAY_MULTI";
+
+        // Objects
+        case OpCode::NEW_OBJECT: return "NEW_OBJECT";
+        case OpCode::GET_FIELD: return "GET_FIELD";
+        case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
+        case OpCode::SET_FIELD: return "SET_FIELD";
+        case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
+        case OpCode::GET_STATIC: return "GET_STATIC";
+        case OpCode::SET_STATIC: return "SET_STATIC";
+        case OpCode::INVOKE: return "INVOKE";
+        case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";
+
+        // Type Operations
+        case OpCode::INSTANCEOF: return "INSTANCEOF";
+        case OpCode::CAST: return "CAST";
+        case OpCode::CHECK_TYPE: return "CHECK_TYPE";
+
+        // Exception Handling
+        case OpCode::THROW: return "THROW";
+
+        // Misc
+        case OpCode::NOP: return "NOP";
+        case OpCode::LINE: return "LINE";
+        case OpCode::SOURCE_FILE: return "SOURCE_FILE";
+        case OpCode::LOOP_START: return "LOOP_START";
+        case OpCode::LOOP_END: return "LOOP_END";
+
+        default: return "UNKNOWN(" + std::to_string(static_cast<int>(opcode)) + ")";
+        }
+    }
 } // namespace vm::optimization

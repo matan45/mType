@@ -48,7 +48,7 @@ namespace vm::optimization
         {
             bool enableAggressiveOptimizations = true;
             size_t maxPasses = 10;  // Maximum number of optimization passes
-            bool verboseOutput = false;
+            bool verboseOutput = true;
             bool validateAfterEachPass = false;
             double timeoutMs = 5000.0;  // Timeout for all passes
 
@@ -98,6 +98,12 @@ namespace vm::optimization
          */
         void registerDefaultPatterns();
 
+        /**
+         * Set verbose logging
+         * @param verbose Enable/disable verbose output
+         */
+        void setVerbose(bool verbose) { config.verboseOutput = verbose; }
+
     private:
         Config config;
         std::vector<std::unique_ptr<OptimizationPattern>> patterns;
@@ -105,6 +111,15 @@ namespace vm::optimization
         analysis::ControlFlowAnalyzer cfgAnalyzer;
         analysis::DataFlowAnalyzer dataFlowAnalyzer;
         Statistics statistics;
+
+        // Logging helpers
+        void logOptimizationStart(const bytecode::BytecodeProgram& program);
+        void logOptimizationEnd(const bytecode::BytecodeProgram& program);
+        void logPatternMatch(const std::string& patternName, size_t offset,
+                            const bytecode::BytecodeProgram& program,
+                            const OptimizationPattern::Replacement& replacement);
+        std::string formatInstruction(const bytecode::BytecodeProgram::Instruction& instr, size_t offset) const;
+        std::string opcodeToString(bytecode::OpCode opcode) const;
 
         /**
          * Run a single optimization pass over the program

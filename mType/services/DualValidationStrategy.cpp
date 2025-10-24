@@ -89,8 +89,9 @@ namespace services
             vmEnvironment->setImportManager(environment->getImportManager());
 
             // Create fresh VM and compiler with new environment
-            bool skipStrictValidation = (optimizationService->getOptimizationLevel() == constants::OptimizationLevel::Release);
-            auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment, skipStrictValidation);
+            constants::OptimizationLevel optLevel = optimizationService->getOptimizationLevel();
+            bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
+            auto vmCompiler = std::make_unique<vm::compiler::BytecodeCompiler>(vmEnvironment, skipStrictValidation, optLevel);
             auto vmMachine = std::make_shared<vm::runtime::VirtualMachine>(vmEnvironment);
 
             // The imports are already resolved in the AST (from AST execution)

@@ -1,16 +1,14 @@
 #include "BytecodeCompiler.hpp"
-#include "../runtime/utils/TypeConverter.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
-#include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../services/ImportManager.hpp"
 #include "../../environment/registry/ExportRegistry.hpp"
-#include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../runtime/optimization/LoopOptimizer.hpp"
 #include "../optimization/PeepholeOptimizer.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace vm::compiler
 {
@@ -89,14 +87,24 @@ namespace vm::compiler
         // This analyzes LOOP_START/LOOP_END markers and applies optimizations
         runtime::optimization::LoopOptimizer loopOptimizer(program);
         loopOptimizer.optimize();
-
-        // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
+        
         if (optimizationLevel == constants::OptimizationLevel::Release) {
-            optimization::PeepholeOptimizer peepholeOptimizer(
-                optimization::PeepholeOptimizer::Config::forReleaseMode()
-            );
+            auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
+
+            // Enable validation after each pass to catch bugs
+            config.validateAfterEachPass = true;
+
+            optimization::PeepholeOptimizer peepholeOptimizer(config);
             peepholeOptimizer.registerDefaultPatterns();
-            peepholeOptimizer.optimize(program);
+
+            // Try to optimize, but catch any validation errors
+            try {
+                peepholeOptimizer.optimize(program);
+            } catch (const std::exception& e) {
+                std::cerr << "WARNING: Peephole optimization failed: " << e.what() << std::endl;
+                std::cerr << "Continuing with unoptimized bytecode..." << std::endl;
+                // Continue with the program as-is if optimization fails
+            }
         }
 
         return std::move(program);

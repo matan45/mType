@@ -26,7 +26,7 @@ namespace optimizer {
 			enableUnusedDeclarationElimination = true;
 			enableConstantFolding = true;
 			enableUnreachableCodeRemoval = true;
-			verboseOutput = false;  // Disabled verbose output
+			verboseOutput = true;  // Disabled verbose output
 			break;
 
 		default:

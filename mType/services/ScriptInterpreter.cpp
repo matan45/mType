@@ -72,8 +72,8 @@ namespace services
         optimizationService = std::make_unique<OptimizationService>(optLevel);
         nativeRegistry = std::make_unique<NativeFunctionRegistry>(environment);
         importResolver = std::make_unique<ImportResolver>(environment);
-        bool skipStrictValidation = (optimizationService->getOptimizationLevel() == constants::OptimizationLevel::Release);
-        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation);
+        bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
         bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm);
         scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get());
