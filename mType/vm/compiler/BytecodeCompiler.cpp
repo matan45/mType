@@ -1,19 +1,20 @@
 #include "BytecodeCompiler.hpp"
-#include "../runtime/utils/TypeConverter.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
 #include "../../ast/nodes/statements/ImportNode.hpp"
-#include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../services/ImportManager.hpp"
 #include "../../environment/registry/ExportRegistry.hpp"
-#include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../runtime/optimization/LoopOptimizer.hpp"
+#include "../optimization/PeepholeOptimizer.hpp"
 #include <stdexcept>
+#include <iostream>
 
 namespace vm::compiler
 {
-    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env, bool skipStrictValidation)
+    BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,
+                                       bool skipStrictValidation,
+                                       constants::OptimizationLevel optimizationLevel)
         : environment(env)
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
@@ -33,6 +34,7 @@ namespace vm::compiler
         , functionCompiler(context)
         , classCompiler(context)
         , skipStrictValidation(skipStrictValidation)
+        , optimizationLevel(optimizationLevel)
     {
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
@@ -85,6 +87,23 @@ namespace vm::compiler
         // This analyzes LOOP_START/LOOP_END markers and applies optimizations
         runtime::optimization::LoopOptimizer loopOptimizer(program);
         loopOptimizer.optimize();
+
+        // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
+        if (optimizationLevel == constants::OptimizationLevel::Release) {
+            auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
+            config.verboseOutput = false;  // Disable verbose output by default
+            config.validateAfterEachPass = true;
+
+            optimization::PeepholeOptimizer peepholeOptimizer(config);
+            peepholeOptimizer.registerDefaultPatterns();
+
+            try {
+                peepholeOptimizer.optimize(program);
+            } catch (const std::exception& e) {
+                std::cerr << "WARNING: Peephole optimization failed: " << e.what() << std::endl;
+                std::cerr << "Continuing with unoptimized bytecode..." << std::endl;
+            }
+        }
 
         return std::move(program);
     }

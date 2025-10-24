@@ -476,6 +476,19 @@ namespace vm::compiler::visitors
         // Patch the skip jump to here
         ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
 
+        // Register lambda metadata for peephole optimizer
+        // This ensures lambda offsets are updated when instructions are removed
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = lambdaFuncName;
+        metadata.startOffset = lambdaStart;
+        metadata.instructionCount = lambdaEnd - lambdaStart;
+        metadata.localCount = node->getParameters().size() + capturedVars.size();
+        metadata.parameterCount = node->getParameters().size();
+        metadata.returnType = "auto";  // Lambda return type is inferred
+        metadata.isNative = false;
+        metadata.isAsync = node->getIsAsync();
+        ctx.program.registerFunction(lambdaFuncName, metadata);
+
         // Emit lambda instruction with captured environment
         emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals);
 

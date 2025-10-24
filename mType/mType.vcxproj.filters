@@ -352,6 +352,18 @@
     <Filter Include="vm\compiler\visitors">
       <UniqueIdentifier>{44756CD8-3004-F6A1-D922-0A9DC5900648}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\optimization">
+      <UniqueIdentifier>{5E952225-CA20-90E9-D331-13DE3F3CECE9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\optimization\analysis">
+      <UniqueIdentifier>{F10E3793-DD33-8613-067F-6BA3F2028531}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\optimization\patterns">
+      <UniqueIdentifier>{1E3F35AF-0A64-842F-33AF-69BF1F33834D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\optimization\validation">
+      <UniqueIdentifier>{58076CB5-4417-1886-ADD0-7CA499FF061F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\runtime">
       <UniqueIdentifier>{3B87016C-273F-43B9-9046-1C157C1DDEA9}</UniqueIdentifier>
     </Filter>
@@ -1374,6 +1386,54 @@
     <ClInclude Include="vm\compiler\visitors\TryStatementHelper.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\OptimizationPattern.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\PeepholeOptimizer.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\analysis\ControlFlowAnalyzer.hpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\analysis\DataFlowAnalyzer.hpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\analysis\JumpTargetTracker.hpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\AlgebraicSimplificationPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\ConstantFoldingPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\DeadCodePattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\JumpThreadingPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\LoadStoreOptimizationPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\NullSequencePattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\PatternSafetyHelper.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\StackOptimizationPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\StrengthReductionPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\TypeSpecializationPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\validation\OptimizationValidator.hpp">
+      <Filter>vm\optimization\validation</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\VirtualMachine.hpp">
       <Filter>vm\runtime</Filter>
     </ClInclude>
@@ -2227,6 +2287,54 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\OptimizationPattern.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\PeepholeOptimizer.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\analysis\ControlFlowAnalyzer.cpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\analysis\DataFlowAnalyzer.cpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\analysis\JumpTargetTracker.cpp">
+      <Filter>vm\optimization\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\AlgebraicSimplificationPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\ConstantFoldingPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\DeadCodePattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\JumpThreadingPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\LoadStoreOptimizationPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\NullSequencePattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\PatternSafetyHelper.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\StackOptimizationPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\StrengthReductionPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\TypeSpecializationPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\validation\OptimizationValidator.cpp">
+      <Filter>vm\optimization\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
       <Filter>vm\runtime</Filter>
@@ -4978,6 +5086,15 @@
     <None Include="tests\testFiles\optimizer\pass\noDeadCode.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_algebraic.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_constant_folding.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\peephole_dead_code.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
     <None Include="tests\testFiles\optimizer\pass\switchOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
@@ -4985,6 +5102,15 @@
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\testImportOptimization.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_bytecode_patterns.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_optimizer.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\test_simple_optimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\unusedClassDependencies.mt">

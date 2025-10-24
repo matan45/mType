@@ -147,6 +147,13 @@ namespace vm::bytecode
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
 
+        // Optimization Support (for peephole optimizer)
+        void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);
+        void removeInstructions(size_t offset, size_t count);
+        std::vector<Instruction> getInstructionRange(size_t start, size_t end) const;
+        void updateAllJumpOffsets();  // Call after modifying instructions
+        void updateFunctionOffsets(size_t removalOffset, int delta);  // Update function metadata after optimization
+
         // Constant Pool Management
         ConstantPool& getConstantPool();
         const ConstantPool& getConstantPool() const;
@@ -193,6 +200,9 @@ namespace vm::bytecode
         void readSourceLocations(std::istream& in);
         void writeClasses(std::ostream& out) const;
         void readClasses(std::istream& in);
+
+        // Source location update helper
+        void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);
 
         // Helper methods for writeClasses
         void writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const;

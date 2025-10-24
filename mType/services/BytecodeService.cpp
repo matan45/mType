@@ -71,8 +71,9 @@ namespace services
 
         // Compile to bytecode
         // Skip strict validation in Release mode as AST optimizer may have removed unused methods
-        bool skipStrictValidation = (optimizationService->getOptimizationLevel() == constants::OptimizationLevel::Release);
-        BytecodeCompiler bytecodeCompiler(environment, skipStrictValidation);
+        constants::OptimizationLevel optLevel = optimizationService->getOptimizationLevel();
+        bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
+        BytecodeCompiler bytecodeCompiler(environment, skipStrictValidation, optLevel);
         auto program = bytecodeCompiler.compile(ast.get());
 
         // Store source file path for class registration when loading
