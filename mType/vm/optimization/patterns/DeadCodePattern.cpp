@@ -1,6 +1,7 @@
 #include "DeadCodePattern.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
+#include <iostream>
 
 namespace vm::optimization::patterns
 {
@@ -10,27 +11,43 @@ namespace vm::optimization::patterns
                                   size_t offset,
                                   const analysis::ControlFlowAnalyzer& cfg) const
     {
+        // TEMPORARILY DISABLE unreachable code removal
+        // TODO: Implement proper function boundary tracking in CFG analyzer
+        // Functions are "jumped over" but should remain because they're called via CALL
         return matchesPushPop(program, offset, cfg) ||
-               matchesNOP(program, offset) ||
-               matchesUnreachable(program, offset, cfg);
+               matchesNOP(program, offset);
+               // || matchesUnreachable(program, offset, cfg);  // DISABLED
     }
 
     OptimizationPattern::Replacement DeadCodePattern::apply(const BytecodeProgram& program,
                                                             size_t offset) const
     {
-        if (matchesPushPop(program, offset, analysis::ControlFlowAnalyzer()))
+        // Check NOP first (doesn't need CFG)
+        if (matchesNOP(program, offset))
         {
-            // Remove both push and pop
-            return Replacement(2);
-        }
-
-        if (matchesNOP(program, offset) || matchesUnreachable(program, offset, analysis::ControlFlowAnalyzer()))
-        {
-            // Remove single instruction
             return Replacement(1);
         }
 
-        return Replacement(0);
+        // Check PUSH+POP (doesn't need CFG for detection, just pattern matching)
+        if (offset + 1 < program.getInstructionCount())
+        {
+            const auto& i1 = program.getInstruction(offset);
+            const auto& i2 = program.getInstruction(offset + 1);
+
+            bool isPush = isConstantPush(i1.opcode) ||
+                         i1.opcode == OpCode::LOAD_VAR ||
+                         i1.opcode == OpCode::LOAD_LOCAL ||
+                         i1.opcode == OpCode::LOAD_GLOBAL;
+
+            if (isPush && i2.opcode == OpCode::POP)
+            {
+                return Replacement(2);
+            }
+        }
+
+        // Otherwise, it must be unreachable code (since matches() returned true)
+        // Remove single unreachable instruction
+        return Replacement(1);
     }
 
     bool DeadCodePattern::matchesPushPop(const BytecodeProgram& program,

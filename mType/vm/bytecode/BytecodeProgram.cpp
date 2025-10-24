@@ -179,6 +179,54 @@ namespace vm::bytecode
         // A more complete implementation would track and update function start offsets
     }
 
+    void BytecodeProgram::updateFunctionOffsets(size_t removalOffset, int delta) {
+        // Update all function startOffset values that are after the removal point
+        for (auto& [name, metadata] : functions) {
+            if (metadata.startOffset >= removalOffset) {
+                // Apply the delta (can be negative if instructions were removed)
+                int newOffset = static_cast<int>(metadata.startOffset) + delta;
+
+                // Ensure the new offset is valid
+                if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
+                    metadata.startOffset = static_cast<size_t>(newOffset);
+                }
+            }
+        }
+
+        // Also update class method and constructor offsets
+        for (auto& classMeta : classes) {
+            // Update instance method offsets
+            for (auto& method : classMeta.instanceMethods) {
+                if (method.startOffset >= removalOffset) {
+                    int newOffset = static_cast<int>(method.startOffset) + delta;
+                    if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
+                        method.startOffset = static_cast<size_t>(newOffset);
+                    }
+                }
+            }
+
+            // Update static method offsets
+            for (auto& method : classMeta.staticMethods) {
+                if (method.startOffset >= removalOffset) {
+                    int newOffset = static_cast<int>(method.startOffset) + delta;
+                    if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
+                        method.startOffset = static_cast<size_t>(newOffset);
+                    }
+                }
+            }
+
+            // Update constructor offsets
+            for (auto& ctor : classMeta.constructors) {
+                if (ctor.startOffset >= removalOffset) {
+                    int newOffset = static_cast<int>(ctor.startOffset) + delta;
+                    if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
+                        ctor.startOffset = static_cast<size_t>(newOffset);
+                    }
+                }
+            }
+        }
+    }
+
     BytecodeProgram::ConstantPool& BytecodeProgram::getConstantPool() {
         return constantPool;
     }

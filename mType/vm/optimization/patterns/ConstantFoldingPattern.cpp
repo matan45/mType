@@ -48,12 +48,19 @@ namespace vm::optimization::patterns
             return applyBinaryFloat(program, offset);
         }
 
-        // Comparison
-        if (i1.opcode == OpCode::PUSH_INT && i2.opcode == OpCode::PUSH_INT &&
-            (i3.opcode == OpCode::EQ_INT || i3.opcode == OpCode::NE_INT ||
-             i3.opcode == OpCode::LT_INT || i3.opcode == OpCode::GT_INT))
+        // Comparison (both specialized and generic)
+        if (i1.opcode == OpCode::PUSH_INT && i2.opcode == OpCode::PUSH_INT)
         {
-            return applyComparison(program, offset);
+            bool isComparisonOp = (i3.opcode == OpCode::EQ_INT || i3.opcode == OpCode::NE_INT ||
+                                  i3.opcode == OpCode::LT_INT || i3.opcode == OpCode::GT_INT ||
+                                  i3.opcode == OpCode::EQ || i3.opcode == OpCode::NE ||
+                                  i3.opcode == OpCode::LT || i3.opcode == OpCode::GT ||
+                                  i3.opcode == OpCode::LE || i3.opcode == OpCode::GE);
+
+            if (isComparisonOp)
+            {
+                return applyComparison(program, offset);
+            }
         }
 
         // Logical
@@ -271,14 +278,26 @@ namespace vm::optimization::patterns
             return false;
         }
 
-        if (i3.opcode != OpCode::EQ_INT &&
-            i3.opcode != OpCode::NE_INT &&
-            i3.opcode != OpCode::LT_INT &&
-            i3.opcode != OpCode::GT_INT)
+        // Support both specialized (LT_INT, GT_INT) and generic (LT, GT, LE, GE) comparisons
+        bool isSpecialized = (i3.opcode == OpCode::EQ_INT ||
+                             i3.opcode == OpCode::NE_INT ||
+                             i3.opcode == OpCode::LT_INT ||
+                             i3.opcode == OpCode::GT_INT);
+
+        bool isGeneric = (i3.opcode == OpCode::EQ ||
+                         i3.opcode == OpCode::NE ||
+                         i3.opcode == OpCode::LT ||
+                         i3.opcode == OpCode::GT ||
+                         i3.opcode == OpCode::LE ||
+                         i3.opcode == OpCode::GE);
+
+        if (!isSpecialized && !isGeneric)
         {
             return false;
         }
 
+        // Check that we can safely optimize this range
+        // This prevents optimizing across basic block boundaries (jump targets, etc.)
         return cfg.canOptimizeRange(offset, offset + 3);
     }
 
@@ -393,10 +412,20 @@ namespace vm::optimization::patterns
     {
         switch (op)
         {
+            // Specialized comparison opcodes
             case OpCode::EQ_INT: return a == b;
             case OpCode::NE_INT: return a != b;
             case OpCode::LT_INT: return a < b;
             case OpCode::GT_INT: return a > b;
+
+            // Generic comparison opcodes
+            case OpCode::EQ: return a == b;
+            case OpCode::NE: return a != b;
+            case OpCode::LT: return a < b;
+            case OpCode::GT: return a > b;
+            case OpCode::LE: return a <= b;
+            case OpCode::GE: return a >= b;
+
             default: return false;
         }
     }

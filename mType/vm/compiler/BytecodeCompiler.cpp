@@ -87,23 +87,21 @@ namespace vm::compiler
         // This analyzes LOOP_START/LOOP_END markers and applies optimizations
         runtime::optimization::LoopOptimizer loopOptimizer(program);
         loopOptimizer.optimize();
-        
+
+        // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
         if (optimizationLevel == constants::OptimizationLevel::Release) {
             auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
-
-            // Enable validation after each pass to catch bugs
+            config.verboseOutput = false;  // Disable verbose output by default
             config.validateAfterEachPass = true;
 
             optimization::PeepholeOptimizer peepholeOptimizer(config);
             peepholeOptimizer.registerDefaultPatterns();
 
-            // Try to optimize, but catch any validation errors
             try {
                 peepholeOptimizer.optimize(program);
             } catch (const std::exception& e) {
                 std::cerr << "WARNING: Peephole optimization failed: " << e.what() << std::endl;
                 std::cerr << "Continuing with unoptimized bytecode..." << std::endl;
-                // Continue with the program as-is if optimization fails
             }
         }
 

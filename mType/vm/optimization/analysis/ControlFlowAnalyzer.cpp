@@ -2,6 +2,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include <queue>
 #include <algorithm>
+#include <iostream>
 
 namespace vm::optimization::analysis
 {
@@ -247,7 +248,9 @@ namespace vm::optimization::analysis
         }
 
         // Also add all function entry points
-        for (size_t entry : jumpTracker.getFunctionEntryPoints())
+        const auto& functionEntries = jumpTracker.getFunctionEntryPoints();
+
+        for (size_t entry : functionEntries)
         {
             size_t blockIdx = findBlockIndex(entry);
             if (blockIdx != static_cast<size_t>(-1) && visited.find(blockIdx) == visited.end())

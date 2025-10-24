@@ -146,6 +146,14 @@ namespace vm::optimization
         void updateJumpOffsets(bytecode::BytecodeProgram& program);
 
         /**
+         * Update jump offsets after a specific replacement
+         * @param program The bytecode program
+         * @param replacementEndOffset The offset where the replacement ended
+         * @param delta The change in instruction count (negative if instructions were removed)
+         */
+        void updateJumpOffsetsAfterReplacement(bytecode::BytecodeProgram& program, size_t replacementEndOffset, int delta);
+
+        /**
          * Sort patterns by priority
          */
         void sortPatternsByPriority();

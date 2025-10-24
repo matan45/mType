@@ -299,8 +299,26 @@ namespace vm::optimization
             logPatternMatch(pattern.getName(), offset, program, replacement);
         }
 
+        // Calculate the change in instruction count
+        int delta = static_cast<int>(replacement.instructions.size()) - static_cast<int>(replacement.originalLength);
+
         // Replace instructions in the program
         program.replaceInstructions(offset, replacement.originalLength, replacement.instructions);
+
+        // CRITICAL: Update all jump offsets if instruction count changed
+        if (delta != 0)
+        {
+            updateJumpOffsetsAfterReplacement(program, offset + replacement.originalLength, delta);
+
+            // Update function metadata offsets
+            // This ensures function entry points remain correct after instruction removal
+            program.updateFunctionOffsets(offset + replacement.originalLength, delta);
+
+            // Re-analyze CFG immediately after updating jumps and function offsets
+            // This ensures subsequent patterns see the updated jump targets and function boundaries
+            cfgAnalyzer.analyze(program);
+            dataFlowAnalyzer.analyze(program);
+        }
 
         return true;
     }
@@ -308,6 +326,80 @@ namespace vm::optimization
     void PeepholeOptimizer::updateJumpOffsets(bytecode::BytecodeProgram& program)
     {
         program.updateAllJumpOffsets();
+    }
+
+    void PeepholeOptimizer::updateJumpOffsetsAfterReplacement(bytecode::BytecodeProgram& program,
+                                                               size_t replacementEndOffset,
+                                                               int delta)
+    {
+        // Iterate through all instructions and update jump targets and lambda offsets
+        for (size_t i = 0; i < program.getInstructionCount(); ++i)
+        {
+            auto& instr = const_cast<bytecode::BytecodeProgram::Instruction&>(program.getInstruction(i));
+
+            // Check if this is a jump instruction
+            bool isJump = false;
+            switch (instr.opcode)
+            {
+                case bytecode::OpCode::JUMP:
+                case bytecode::OpCode::JUMP_IF_FALSE:
+                case bytecode::OpCode::JUMP_IF_TRUE:
+                case bytecode::OpCode::JUMP_IF_NULL:
+                case bytecode::OpCode::JUMP_BACK:
+                case bytecode::OpCode::JUMP_IF_FALSE_OR_POP:
+                case bytecode::OpCode::JUMP_IF_TRUE_OR_POP:
+                    isJump = true;
+                    break;
+                default:
+                    break;
+            }
+
+            if (isJump && !instr.operands.empty())
+            {
+                uint32_t target = instr.operands[0];
+
+                // If the jump target is after the replacement point, adjust it
+                if (target >= replacementEndOffset)
+                {
+                    // Apply the delta (can be negative if instructions were removed)
+                    int newTarget = static_cast<int>(target) + delta;
+
+                    // Ensure the new target is valid
+                    if (newTarget >= 0 && newTarget < static_cast<int>(program.getInstructionCount()))
+                    {
+                        instr.operands[0] = static_cast<uint32_t>(newTarget);
+                    }
+                    else
+                    {
+                        std::cerr << "WARNING: Jump offset update resulted in invalid target: "
+                                 << newTarget << " (instruction count: " << program.getInstructionCount() << ")" << std::endl;
+                    }
+                }
+            }
+
+            // CRITICAL: Also update LAMBDA instruction offsets
+            // LAMBDA instruction format: operands[0] = lambda start offset
+            if (instr.opcode == bytecode::OpCode::LAMBDA && !instr.operands.empty())
+            {
+                uint32_t lambdaOffset = instr.operands[0];
+
+                // If the lambda start is after the replacement point, adjust it
+                if (lambdaOffset >= replacementEndOffset)
+                {
+                    int newOffset = static_cast<int>(lambdaOffset) + delta;
+
+                    if (newOffset >= 0 && newOffset < static_cast<int>(program.getInstructionCount()))
+                    {
+                        instr.operands[0] = static_cast<uint32_t>(newOffset);
+                    }
+                    else
+                    {
+                        std::cerr << "WARNING: Lambda offset update resulted in invalid target: "
+                                 << newOffset << " (instruction count: " << program.getInstructionCount() << ")" << std::endl;
+                    }
+                }
+            }
+        }
     }
 
     void PeepholeOptimizer::sortPatternsByPriority()

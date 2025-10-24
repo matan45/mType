@@ -1,6 +1,7 @@
 #include "TypeSpecializationPattern.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
+#include <iostream>
 
 namespace vm::optimization::patterns
 {
@@ -29,12 +30,16 @@ namespace vm::optimization::patterns
         }
 
         // Check if operation is generic (can be specialized)
-        if (!isGenericArithmetic(i3.opcode) && !isGenericComparison(i3.opcode))
+        // NOTE: Comparison specialization is disabled because VM doesn't implement specialized comparison opcodes yet
+        // Only arithmetic operations (ADD, SUB, MUL, DIV) are specialized
+        if (!isGenericArithmetic(i3.opcode))
         {
             return false;
         }
 
-        return cfg.canOptimizeRange(offset, offset + 3);
+        // Type specialization with constant operands is always safe
+        // Even at basic block boundaries, because constants have no control flow dependencies
+        return true;
     }
 
     OptimizationPattern::Replacement TypeSpecializationPattern::apply(const BytecodeProgram& program,
