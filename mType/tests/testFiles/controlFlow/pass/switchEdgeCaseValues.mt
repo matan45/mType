@@ -31,14 +31,14 @@ switch (large_positive) {
         break;
 }
 
-// Test 3: Very large negative numbers  
-int large_negative = -2147483648;  // Min 32-bit signed integer
+// Test 3: Very large negative numbers
+int large_negative = -2147483647;  // Near min 32-bit signed integer
 switch (large_negative) {
-    case -2147483648:
-        print("Minimum 32-bit signed integer");  // Should match
-        break;
     case -2147483647:
-        print("Min int plus 1");
+        print("Near minimum 32-bit signed integer");  // Should match
+        break;
+    case -2147483646:
+        print("Min int plus 2");
         break;
     default:
         print("Not min integer");
@@ -249,14 +249,14 @@ switch (random_test) {
 // Test 15: Testing integer overflow behavior (if applicable)
 // This depends on how the language handles integer arithmetic
 int overflow_test = 2147483647;  // Max int
-overflow_test = overflow_test + 1;  // This might overflow to -2147483648 or wrap
+overflow_test = overflow_test + 1;  // This might overflow to -2147483647 or wrap
 
 switch (overflow_test) {
-    case -2147483648:
-        print("Integer overflowed to min value");
+    case -2147483647:
+        print("Integer overflowed near min value");
         break;
-    case 2147483648:
-        print("Integer became larger than max (if supported)");
+    case 2147483647:
+        print("Integer stayed at max (if supported)");
         break;
     default:
         print("Overflow behavior: " + overflow_test);

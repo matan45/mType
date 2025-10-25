@@ -1,13 +1,13 @@
-import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/collections/List.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Generic library for testing imports with generics
 class GenericContainer<T> {
-    HashSet<T> items;
+    List<T> items;
 
     constructor() {
-        this.items = new HashSet<T>();
+        this.items = new List<T>();
     }
 
     public function add(T item): void {
@@ -19,14 +19,20 @@ class GenericContainer<T> {
     }
 
     public function contains(T item): bool {
-        return this.items.contains(item);
+        // Check if list contains the item
+        for (int i = 0; i < this.items.size(); i++) {
+            T current = this.items.get(i);
+            if (current != null && current.equals(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function getFirst(): T {
-        // Simple way to get first item from HashSet
-        T[] allItems = this.items.toArray();
-        if (allItems.length > 0) {
-            return allItems[0];
+        // Get first item from List (maintains insertion order)
+        if (this.items.size() > 0) {
+            return this.items.get(0);
         }
         return null;
     }

@@ -173,8 +173,8 @@ class HashMap<K,V> {
         }
 
         // Apply multiplicative hash with good distribution properties
-        // Using Knuth's multiplicative constant approximation
-        hash = hash * 2654435761; // Large prime-like constant for mixing
+        // Using a large prime for mixing
+        hash = hash * 1610612741; // Large prime constant for mixing (within int range)
 
         // Additional mixing to reduce clustering
         hash = hash + (hash / this.capacity); // Simple avalanche effect
