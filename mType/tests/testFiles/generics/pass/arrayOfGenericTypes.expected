@@ -1,0 +1,12 @@
+Testing arrays of generic types
+Box array created with 3 elements
+intBoxes[0] value: 10
+intBoxes[1] value: 20
+intBoxes[2] value: 30
+List array created with 2 elements
+stringLists[0] size: 2
+stringLists[1] size: 2
+stringLists[0][0]: Hello
+stringLists[1][0]: Foo
+Nested box value: 42
+Array of generic types test completed

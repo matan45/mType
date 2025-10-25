@@ -101,6 +101,8 @@ namespace vm::bytecode
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call
+        SUPER_GET_FIELD,    // Get field from parent class
+        SUPER_SET_FIELD,    // Set field in parent class
         GET_SUPER,          // Get super class
         SUPER_CONSTRUCTOR,  // Call super constructor
 
@@ -258,6 +260,8 @@ namespace vm::bytecode
             case OpCode::CALL_STATIC: return "CALL_STATIC";
             case OpCode::INVOKE: return "INVOKE";
             case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";
+            case OpCode::SUPER_GET_FIELD: return "SUPER_GET_FIELD";
+            case OpCode::SUPER_SET_FIELD: return "SUPER_SET_FIELD";
             case OpCode::GET_SUPER: return "GET_SUPER";
             case OpCode::SUPER_CONSTRUCTOR: return "SUPER_CONSTRUCTOR";
 

@@ -44,6 +44,7 @@ namespace runtimeTypes::klass
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
+        std::string getFullTypeName() const;  // Returns full generic type name (e.g., "Box<String>")
 
         // NEW: Polymorphic method lookup with inheritance support
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;

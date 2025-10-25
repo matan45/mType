@@ -207,6 +207,42 @@ namespace evaluator
                         node->getLocation());
                 }
 
+                // Type check for object arrays with generics (e.g., Box<Int>[] cannot accept Box<String>)
+                if (nativeArray->getElementType() == ValueType::OBJECT)
+                {
+                    std::string expectedTypeName = nativeArray->getElementTypeName();
+
+                    // Only enforce strict type checking for generic types with type arguments (contains '<' and '>')
+                    // This prevents Box<String> being assigned to Box<Int>[] while allowing:
+                    // - Generic type parameters like T[] to accept any type
+                    // - Normal polymorphism like Person to Object[]
+                    bool isGenericInstantiation = (expectedTypeName.find('<') != std::string::npos);
+
+                    // Check if value is an object instance
+                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
+                    {
+                        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
+
+                        // Get the full type name including generic type arguments
+                        std::string actualTypeName = objInstance->getFullTypeName();
+
+                        // For generic instantiations, we now compare the full type names
+                        if (isGenericInstantiation)
+                        {
+                            // Compare full generic type names (e.g., "Box<Int>" vs "Box<String>")
+                            if (expectedTypeName != actualTypeName)
+                            {
+                                throw TypeException(
+                                    "Array element type mismatch: cannot assign " + actualTypeName +
+                                    " to array of type " + expectedTypeName + "[]",
+                                    node->getLocation());
+                            }
+                        }
+                    }
+                    // Allow null assignment to object arrays
+                    // Note: Non-object values are handled by the array's internal type checking
+                }
+
                 // Use unchecked access (bounds already verified)
                 // PERFORMANCE: Eliminates redundant bounds check in nativeArray->set()
                 nativeArray->setUnchecked(arrayIndex, newValue);
@@ -413,6 +449,39 @@ namespace evaluator
                     {
                         throw TypeException("Final index " + std::to_string(finalIndex) + " out of bounds " +
                                             "(size: " + std::to_string(finalArray->size()) + ")", location);
+                    }
+
+                    // Type check for object arrays with generics (same validation as single-dimensional)
+                    if (finalArray->getElementType() == ValueType::OBJECT)
+                    {
+                        std::string expectedTypeName = finalArray->getElementTypeName();
+
+                        // Only enforce strict type checking for generic instantiations
+                        bool isGenericInstantiation = (expectedTypeName.find('<') != std::string::npos);
+
+                        // Check if value is an object instance
+                        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
+                        {
+                            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
+
+                            // Get the full type name including generic type arguments
+                            std::string actualTypeName = objInstance->getFullTypeName();
+
+                            // For generic instantiations, compare full type names
+                            if (isGenericInstantiation)
+                            {
+                                // Compare full generic type names (e.g., "Box<Int>" vs "Box<String>")
+                                if (expectedTypeName != actualTypeName)
+                                {
+                                    throw TypeException(
+                                        "Array element type mismatch: cannot assign " + actualTypeName +
+                                        " to array of type " + expectedTypeName + "[]",
+                                        location);
+                                }
+                            }
+                        }
+                        // Allow null assignment to object arrays
+                        // Note: Non-object values are handled by the array's internal type checking
                     }
 
                     // Use unchecked access (bounds already verified)

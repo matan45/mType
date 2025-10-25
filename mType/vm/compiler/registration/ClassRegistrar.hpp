@@ -73,7 +73,7 @@ namespace vm::compiler::registration
         void validateMethodOverrides(
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
-            const ast::SourceLocation& location
+            ast::ClassNode* classNode
         ) const;
     };
 }

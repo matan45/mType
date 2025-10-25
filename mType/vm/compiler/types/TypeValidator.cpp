@@ -153,6 +153,27 @@ namespace vm::compiler::types
             return;
         }
 
+        // Array covariance check: arrays must have EXACT element type match
+        // (cannot assign Dog[] to Animal[] even though Dog extends Animal)
+        bool varIsArray = (varClassName.find("[]") != std::string::npos);
+        bool valueIsArray = (valueClassName.find("[]") != std::string::npos);
+
+        if (varIsArray && valueIsArray) {
+            // Extract element types from both arrays (e.g., "Animal" from "Animal[]")
+            std::string varElementType = varClassName.substr(0, varClassName.find("[]"));
+            std::string valueElementType = valueClassName.substr(0, valueClassName.find("[]"));
+
+            // Require exact match for array element types (no inheritance/polymorphism)
+            if (varElementType != valueElementType) {
+                throw errors::TypeException(
+                    "Array covariance violation: cannot assign " + valueElementType + "[] to " +
+                    varElementType + "[] (arrays are invariant, not covariant)",
+                    location
+                );
+            }
+            return; // Arrays match, no further checking needed
+        }
+
         // Normalize both types for array comparison
         std::string normalizedVarClass = normalizeArrayType(varClassName);
         std::string normalizedValueClass = normalizeArrayType(valueClassName);

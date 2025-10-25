@@ -3,6 +3,7 @@
 #include "../utils/ArrayBoundsChecker.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
 #include <algorithm>
+
 namespace vm::runtime
 {
     ArrayExecutor::ArrayExecutor(ExecutionContext& ctx)
@@ -18,7 +19,10 @@ namespace vm::runtime
         int size = std::get<int>(sizeVal);
 
         if (size < 0) {
-            throw errors::RuntimeException("Array size cannot be negative: " + std::to_string(size));
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Array size cannot be negative: " + std::to_string(size)
+            );
         }
 
         value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
@@ -52,7 +56,10 @@ namespace vm::runtime
             value::Value sizeVal = context.stackManager->pop();
             int size = std::get<int>(sizeVal);
             if (size < 0) {
-                throw errors::RuntimeException("Array dimension size cannot be negative: " + std::to_string(size));
+                utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                    context,
+                    "Array dimension size cannot be negative: " + std::to_string(size)
+                );
             }
             dimensions.push_back(size);
         }
@@ -157,12 +164,48 @@ namespace vm::runtime
             return;
         }
 
-        throw errors::RuntimeException("ARRAY_GET: Invalid array type");
+        utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+            context,
+            "ARRAY_GET: Invalid array type"
+        );
     }
 
     void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index, const value::Value& valueToSet) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+
+        // Type check for object arrays with generics (e.g., Box<Int>[] cannot accept Box<String>)
+        if (array->getElementType() == value::ValueType::OBJECT) {
+            std::string expectedTypeName = array->getElementTypeName();
+
+            // Only enforce strict type checking for generic types with type arguments (contains '<' and '>')
+            // This prevents Box<String> being assigned to Box<Int>[] while allowing:
+            // - Generic type parameters like T[] to accept any type
+            // - Normal polymorphism like Person to Object[]
+            bool isGenericInstantiation = (expectedTypeName.find('<') != std::string::npos);
+
+            // Check if value is an object instance
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet)) {
+                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet);
+
+                // Get the full type name including generic type arguments
+                std::string actualTypeName = objInstance->getFullTypeName();
+
+                // For generic instantiations, we now compare the full type names
+                if (isGenericInstantiation) {
+                    // Compare full generic type names (e.g., "Box<Int>" vs "Box<String>")
+                    if (expectedTypeName != actualTypeName) {
+                        utils::ErrorLocationHelper::throwError<errors::TypeException>(
+                            context,
+                            "Array element type mismatch: cannot assign " + actualTypeName +
+                            " to array of type " + expectedTypeName + "[]"
+                        );
+                    }
+                }
+            }
+            // Allow null assignment to object arrays
+            // Note: Non-object values are handled by the array's internal type checking
+        }
 
         // Set element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->set()
@@ -177,7 +220,10 @@ namespace vm::runtime
         if (flatArray->getRank() == 1) {
             flatArray->set(static_cast<size_t>(index), valueToSet);
         } else {
-            throw errors::RuntimeException("Cannot set element in multi-dimensional FlatMultiArray with single index");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Cannot set element in multi-dimensional FlatMultiArray with single index"
+            );
         }
     }
 
@@ -190,7 +236,10 @@ namespace vm::runtime
             std::vector<size_t> indices = {static_cast<size_t>(index)};
             sparseArray->set(indices, valueToSet);
         } else {
-            throw errors::RuntimeException("Cannot set element in multi-dimensional SparseMultiArray with single index");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Cannot set element in multi-dimensional SparseMultiArray with single index"
+            );
         }
     }
 
@@ -226,7 +275,10 @@ namespace vm::runtime
             return;
         }
 
-        throw errors::RuntimeException("ARRAY_SET: Invalid array type");
+        utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+            context,
+            "ARRAY_SET: Invalid array type"
+        );
     }
 
     void ArrayExecutor::handleArrayLength() {
@@ -257,7 +309,10 @@ namespace vm::runtime
             return;
         }
 
-        throw errors::RuntimeException("ARRAY_LENGTH: Invalid array type");
+        utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+            context,
+            "ARRAY_LENGTH: Invalid array type"
+        );
     }
 
     std::shared_ptr<value::NativeArray> ArrayExecutor::createJaggedArray(
@@ -267,7 +322,10 @@ namespace vm::runtime
         size_t totalDimensions)
     {
         if (dimIndex >= dimensions.size()) {
-            throw errors::RuntimeException("Invalid dimension index in jagged array creation");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Invalid dimension index in jagged array creation"
+            );
         }
 
         int currentDimSize = dimensions[dimIndex];
@@ -328,7 +386,10 @@ namespace vm::runtime
         const std::string& elementTypeName)
     {
         if (dimIndex >= dimensions.size()) {
-            throw errors::RuntimeException("Invalid dimension index in multi-dimensional array creation");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Invalid dimension index in multi-dimensional array creation"
+            );
         }
 
         int currentDimSize = dimensions[dimIndex];
@@ -404,8 +465,10 @@ namespace vm::runtime
             value::Value fieldValue = objInstance->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
         } else {
-            throw errors::RuntimeException("Cannot access field '" + fieldName +
-                                         "' on non-object array element");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Cannot access field '" + fieldName + "' on non-object array element"
+            );
         }
     }
 
@@ -445,8 +508,10 @@ namespace vm::runtime
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
             objInstance->setField(fieldName, valueToSet);
         } else {
-            throw errors::RuntimeException("Cannot set field '" + fieldName +
-                                         "' on non-object array element");
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                "Cannot set field '" + fieldName + "' on non-object array element"
+            );
         }
     }
 

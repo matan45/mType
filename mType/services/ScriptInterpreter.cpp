@@ -1,20 +1,10 @@
 ﻿#include "ScriptInterpreter.hpp"
 #include "../errors/ParseException.hpp"
-#include "../errors/MethodNotFoundException.hpp"
-#include "../errors/ObjectException.hpp"
-#include "../errors/ClassNotFoundException.hpp"
-#include "../errors/ParameterMismatchException.hpp"
-#include "../errors/FieldNotFoundException.hpp"
-#include "../errors/FinalModificationException.hpp"
-#include "../errors/TypeConversionException.hpp"
 #include "../exception/SuspendException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <memory>
 #include <algorithm>
-#include <thread>
-#include <atomic>
-#include <iomanip>
 
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"

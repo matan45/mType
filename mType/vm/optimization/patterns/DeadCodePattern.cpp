@@ -1,7 +1,6 @@
 #include "DeadCodePattern.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
-#include <iostream>
 
 namespace vm::optimization::patterns
 {

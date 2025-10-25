@@ -1,0 +1,8 @@
+Testing lambda with try-catch-finally
+Success: 10
+Error caught: -5
+Finally executed for: 5
+Processing: 5
+Finally executed for: 0
+Zero value
+Lambda exception handling test completed

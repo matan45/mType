@@ -67,6 +67,29 @@ namespace vm::runtime
             }
         }
 
+        // Map generic parameters to concrete types
+        // Get the class definition to access generic parameters
+        if (!context.environment) {
+            throw errors::RuntimeException("Environment not available when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class definition not found when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        const auto& genericParams = classDef->getGenericParameters();
+
+        // Map each generic parameter to its corresponding type argument
+        for (size_t i = 0; i < genericParams.size() && i < typeArgs.size(); ++i) {
+            genericTypeBindings[genericParams[i].name] = typeArgs[i];
+        }
+
         return baseClassName;
     }
 
@@ -178,18 +201,27 @@ namespace vm::runtime
         }
 
         std::string parentClassName = classDef->getParentClassName();
-        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+
+        // Extract base parent class name (strip generic type arguments)
+        // e.g., "BaseContainer<T>" -> "BaseContainer"
+        std::string baseParentClassName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentClassName = parentClassName.substr(0, genericStart);
+        }
+
+        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+            throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
         auto parentConstructor = parentClass->findConstructor(argCount);
         if (!parentConstructor) {
-            throw errors::RuntimeException("No constructor found in parent class " + parentClassName +
+            throw errors::RuntimeException("No constructor found in parent class " + baseParentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
+        std::string constructorName = baseParentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -206,6 +238,7 @@ namespace vm::runtime
             frame.localBase = frameBase;
             frame.functionName = "<init>";
             frame.thisInstance = instance;
+            frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
 
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
@@ -251,18 +284,27 @@ namespace vm::runtime
         }
 
         std::string parentClassName = classDef->getParentClassName();
-        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+
+        // Extract base parent class name (strip generic type arguments)
+        // e.g., "BaseContainer<T>" -> "BaseContainer"
+        std::string baseParentClassName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentClassName = parentClassName.substr(0, genericStart);
+        }
+
+        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+            throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
         auto method = parentClass->findMethod(methodName, argCount);
         if (!method) {
-            throw errors::RuntimeException("Method not found in parent class " + parentClassName + ": " + methodName +
+            throw errors::RuntimeException("Method not found in parent class " + baseParentClassName + ": " + methodName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string qualifiedName = parentClassName + "::" + methodName;
+        std::string qualifiedName = baseParentClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -279,6 +321,7 @@ namespace vm::runtime
             frame.localBase = frameBase;
             frame.functionName = qualifiedName;
             frame.thisInstance = instance;
+            frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
 
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
@@ -287,6 +330,71 @@ namespace vm::runtime
         } else {
             throw errors::RuntimeException("Parent method '" + qualifiedName + "' has no bytecode.");
         }
+    }
+
+    void ObjectInstanceHelper::handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Compiler emits: (classNameIndex, memberNameIndex)
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = member/field name
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_GET_FIELD can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Get the current class definition
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        // Get field value from the instance (fields are stored on the instance, not the class)
+        value::Value fieldValue = instance->getFieldValue(memberName);
+
+        // Check if field exists
+        if (std::holds_alternative<std::monostate>(fieldValue)) {
+            throw errors::RuntimeException("Field '" + memberName + "' not found in parent class");
+        }
+
+        // Push the field value onto the stack
+        context.stackManager->push(fieldValue);
+    }
+
+    void ObjectInstanceHelper::handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Compiler emits: (classNameIndex, memberNameIndex)
+        // operand[0] = current class name (the class whose method we're executing)
+        // operand[1] = member/field name
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("SUPER_SET_FIELD can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Get the current class definition
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        if (!classDef->hasParentClass()) {
+            throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
+        }
+
+        // Pop the value to assign from the stack
+        value::Value assignValue = context.stackManager->pop();
+
+        // Set field value on the instance (fields are stored on the instance, not the class)
+        instance->setField(memberName, assignValue);
     }
 
     void ObjectInstanceHelper::invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
@@ -326,6 +434,7 @@ namespace vm::runtime
         frame.localBase = context.stackManager->size();
         frame.functionName = "<init>";
         frame.thisInstance = instance;
+        frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
 
         context.callStack.push_back(frame);
         context.stats.functionCalls++;
@@ -380,10 +489,19 @@ namespace vm::runtime
         if (derivedClass.empty()) return false;
         auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
-            if (currentClass->getParentClassName() == baseClass) {
+            std::string parentClassName = currentClass->getParentClassName();
+
+            // Extract base parent class name (strip generic type arguments)
+            std::string baseParentClassName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentClassName = parentClassName.substr(0, genericStart);
+            }
+
+            if (baseParentClassName == baseClass) {
                 return true;
             }
-            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
             currentClass = parentClass;
         }
         return false;

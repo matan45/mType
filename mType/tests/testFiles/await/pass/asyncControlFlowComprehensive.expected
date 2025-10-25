@@ -1,0 +1,8 @@
+Testing async control flow
+Loop result: 012456
+Finally executed
+Try-catch result: Success: 5
+Finally executed
+Try-catch error: Error caught
+Switch result: One
+Async control flow test completed

@@ -29,8 +29,7 @@ namespace services
         // Apply optimizations to AST and print report
         std::unique_ptr<ast::ASTNode> applyOptimizations(
             std::unique_ptr<ast::ASTNode> ast,
-            std::shared_ptr<environment::Environment> environment,
-            bool printReport = true);
+            std::shared_ptr<environment::Environment> environment);
 
         // Change optimization level
         void setOptimizationLevel(constants::OptimizationLevel level);

@@ -1,0 +1,12 @@
+Testing generic inheritance with super access
+Parent: Hello | Child: World
+Super value: Hello
+Super process: Test
+After modification: Parent: Modified | Child: World
+Parent: 42 | Child: Numbers
+Super value: 42
+Super process: 99
+Parent: Base | Child: Middle | GrandChild: 123
+GrandChild super value: Base
+GrandChild process: GrandTest
+Generic inheritance with super test passed!

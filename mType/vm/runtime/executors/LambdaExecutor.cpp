@@ -132,6 +132,7 @@ namespace vm::runtime
             "<lambda>" :
             lambda->creatingClassName + "::<lambda>";
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
+        frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
 
         context.callStack.push_back(frame);
 

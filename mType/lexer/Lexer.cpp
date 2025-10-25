@@ -242,23 +242,10 @@ namespace lexer
         }
         catch (const std::out_of_range&)
         {
-            // Handle float overflow - clamp to float limits
-            std::string floatStr(floatView); // Convert to string for error handling
-            long double value;
-            try
-            {
-                value = std::stold(floatStr);
-            }
-            catch (const std::out_of_range&)
-            {
-                // If even long double overflows, return max/min float
-                return (floatView[0] == '-') ? std::numeric_limits<float>::lowest() : std::numeric_limits<float>::max();
-            }
-
-            // Clamp to float range
-            if (value > std::numeric_limits<float>::max()) return std::numeric_limits<float>::max();
-            if (value < std::numeric_limits<float>::lowest()) return std::numeric_limits<float>::lowest();
-            return static_cast<float>(value);
+            // Float literal is too large to fit in a float
+            throw errors::ParseException(
+                "Float literal '" + std::string(floatView) + "' is out of range for type 'float'",
+                locationTracker->getCurrentLocation());
         }
         catch (const std::invalid_argument&)
         {
@@ -282,23 +269,11 @@ namespace lexer
         }
         catch (const std::out_of_range&)
         {
-            // Handle integer overflow - clamp to int limits
-            std::string intStr(intView); // Convert to string for error handling
-            long long value;
-            try
-            {
-                value = std::stoll(intStr);
-            }
-            catch (const std::out_of_range&)
-            {
-                // If even long overflows, return max/min int
-                return (intView[0] == '-') ? INT_MIN : INT_MAX;
-            }
-
-            // Clamp to int range
-            if (value > INT_MAX) return INT_MAX;
-            if (value < INT_MIN) return INT_MIN;
-            return static_cast<int>(value);
+            // Integer literal is too large to fit in an int
+            throw errors::ParseException(
+                "Integer literal '" + std::string(intView) + "' is out of range for type 'int' (must be between " +
+                std::to_string(INT_MIN) + " and " + std::to_string(INT_MAX) + ")",
+                locationTracker->getCurrentLocation());
         }
         catch (const std::invalid_argument&)
         {

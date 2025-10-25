@@ -199,6 +199,30 @@ namespace evaluator
             auto field = currentInstance->getField(varName);
             if (field)
             {
+                // ACCESS CONTROL: Validate field access for implicit this.field access
+                // Use the class that OWNS the field for proper private field validation
+                auto classDef = currentInstance->getClassDefinition();
+                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(varName, classDef);
+                auto targetClass = fieldOwnerClass ? fieldOwnerClass : classDef;
+
+                // IMPORTANT: Use the calling class from the stack (where the method is defined)
+                // not the runtime class of the instance
+                std::string callingClassName = context->getCurrentCallingClass();
+                auto callingClassDef = callingClassName.empty() ? nullptr : context->getEnvironment()->findClass(callingClassName);
+
+                // Create access context with proper calling class
+                base::AccessContext accessContext;
+                accessContext.targetClass = targetClass;
+                accessContext.targetClassName = targetClass->getName();
+                accessContext.callingClassName = callingClassName;
+                accessContext.callingClass = callingClassDef;
+                accessContext.location = node->getLocation();
+                accessContext.isSameClass = (callingClassName == targetClass->getName());
+                accessContext.isSubclass = callingClassDef && targetClass ?
+                    callingClassDef->isSubclassOf(targetClass->getName()) : false;
+
+                validation::AccessValidator::validateFieldAccess(accessContext, *field);
+
                 return currentInstance->getFieldValue(varName);
             }
 
@@ -317,13 +341,31 @@ namespace evaluator
                 }
 
                 // ACCESS CONTROL: Validate field access permissions
+                // IMPORTANT: Use the class that OWNS the field, not the runtime class of the object
+                // This is critical for private field access validation in inheritance
                 auto classDef = object->getClassDefinition();
-                auto callingInstance = context->getCurrentInstance();
-                auto accessContext = base::AccessContext::forInstanceAccess(
-                    callingInstance,
-                    classDef,
-                    node->getLocation()
-                );
+                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(node->getMemberName(), classDef);
+
+                // If we couldn't find the owner, fall back to the object's class
+                // (This shouldn't happen if the field exists, but defensive programming)
+                auto targetClass = fieldOwnerClass ? fieldOwnerClass : classDef;
+
+                // IMPORTANT: Use the calling class from the stack (where the method is defined)
+                // not the runtime class of the current instance
+                std::string callingClassName = context->getCurrentCallingClass();
+                auto callingClassDef = callingClassName.empty() ? nullptr : context->getEnvironment()->findClass(callingClassName);
+
+                // Create access context with proper calling class
+                base::AccessContext accessContext;
+                accessContext.targetClass = targetClass;
+                accessContext.targetClassName = targetClass->getName();
+                accessContext.callingClassName = callingClassName;
+                accessContext.callingClass = callingClassDef;
+                accessContext.location = node->getLocation();
+                accessContext.isSameClass = (callingClassName == targetClass->getName());
+                accessContext.isSubclass = callingClassDef && targetClass ?
+                    callingClassDef->isSubclassOf(targetClass->getName()) : false;
+
                 validation::AccessValidator::validateFieldAccess(accessContext, *field);
 
                 return object->getFieldValue(node->getMemberName());

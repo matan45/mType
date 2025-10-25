@@ -205,13 +205,35 @@ namespace objects {
             throw MethodNotFoundException(methodName, classDef->getName(), location);
         }
 
+        // Find which class actually defines this method (for proper access validation)
+        std::shared_ptr<ClassDefinition> definingClass = classDef;
+        auto currentClass = classDef;
+        while (currentClass) {
+            auto localMethod = currentClass->findInstanceMethod(methodName, args.size());
+            if (localMethod) {
+                definingClass = currentClass;
+                break;
+            }
+            currentClass = currentClass->getParentClass();
+        }
+
         // ACCESS CONTROL: Validate method access permissions
-        auto callingInstance = context->getCurrentInstance();
-        auto accessContext = base::AccessContext::forInstanceAccess(
-            callingInstance,
-            classDef,
-            location
-        );
+        // IMPORTANT: Use the calling class from the stack (where the code is executing)
+        // not the runtime class of the current instance
+        std::string callingClassName = context->getCurrentCallingClass();
+        auto callingClassDef = callingClassName.empty() ? nullptr : env->findClass(callingClassName);
+
+        // Create access context with proper calling and target classes
+        base::AccessContext accessContext;
+        accessContext.targetClass = definingClass;
+        accessContext.targetClassName = definingClass->getName();
+        accessContext.callingClassName = callingClassName;
+        accessContext.callingClass = callingClassDef;
+        accessContext.location = location;
+        accessContext.isSameClass = (callingClassName == definingClass->getName());
+        accessContext.isSubclass = callingClassDef && definingClass ?
+            callingClassDef->isSubclassOf(definingClass->getName()) : false;
+
         validation::AccessValidator::validateMethodAccess(accessContext, *method);
 
         // Convert lambda arguments to interface implementations if needed
@@ -317,7 +339,8 @@ namespace objects {
         }
 
         // Push calling class onto stack for access control
-        context->pushCallingClass(classDef->getName());
+        // IMPORTANT: Use the DEFINING class (where the method is declared), not the runtime class
+        context->pushCallingClass(definingClass->getName());
 
         // Temporarily clear static method context for instance method execution
         // Instance methods should run in instance context regardless of where they're called from

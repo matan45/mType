@@ -1,0 +1,6 @@
+Testing nested lambda return
+func1(5): Small
+func1(15): Large
+Nested result: Value is large: 20
+Factory result: Nested: 42
+Nested lambda return test completed

@@ -39,6 +39,9 @@ namespace parser
 
     std::unique_ptr<ASTNode> MethodParser::parseMethod()
     {
+        // Capture the method declaration start location
+        SourceLocation methodStartLocation = tokenStream.current().location;
+
         // Parse access modifier first (default to PRIVATE for class methods)
         ast::AccessModifier accessModifier =
             utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PRIVATE);
@@ -68,16 +71,20 @@ namespace parser
                 tokenStream.current().location);
         }
 
-        return parseMethodWithModifiers(accessModifier, isStatic, false, isAbstract);
+        return parseMethodWithModifiers(accessModifier, isStatic, false, isAbstract, methodStartLocation);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseStaticMethod()
     {
-        return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true);
+        // Capture the method declaration start location
+        SourceLocation methodStartLocation = tokenStream.current().location;
+
+        return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true, false, false, methodStartLocation);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic,
-                                                                    bool isAsync, bool isAbstract)
+                                                                    bool isAsync, bool isAbstract,
+                                                                    const SourceLocation& methodStartLocation)
     {
         // Handle function keyword (required for methods)
         if (tokenStream.current().type != TokenType::FUNCTION)
@@ -145,10 +152,11 @@ namespace parser
             body = context.parseStatement();
         }
 
-        // Create MethodNode with generic support, access modifier, and async flag
+        // Create MethodNode with generic support, access modifier, async flag, and location
+        // Use the location from the start of the method declaration (passed as parameter)
         auto methodNode = std::make_unique<MethodNode>(methodName, returnType, std::move(parameters),
                                                        std::move(body), isStatic, methodGenericParameters,
-                                                       accessModifier, isAsync);
+                                                       accessModifier, isAsync, methodStartLocation);
         methodNode->setAbstract(isAbstract);
         return methodNode;
     }

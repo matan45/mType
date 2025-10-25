@@ -68,6 +68,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Nested Constraints",
                         passPath + "constraintNested.mt");
 
+        // === EDGE CASE TESTS - NEW ===
+        // Advanced generic scenarios and edge cases
+
+        addOutputVerificationTest("Array of Generic Types",
+                        passPath + "arrayOfGenericTypes.mt");
+        addOutputVerificationTest("Self-Referencing Constraints",
+                        passPath + "selfReferencingConstraint.mt");
+        addOutputVerificationTest("Nested Generic Arrays",
+                        passPath + "nestedGenericArrays.mt");
+        addOutputVerificationTest("Generic Tree Structure",
+                        passPath + "genericTreeStructure.mt");
+        addOutputVerificationTest("Type Parameter Propagation",
+                        passPath + "typeParameterPropagation.mt");
+        addOutputVerificationTest("Generic Inheritance with Super Access",
+                        passPath + "genericInheritanceSuper.mt");
+
         // === PARAMETER TYPE VALIDATION TESTS ===
         // These tests verify correct handling of all parameter types
 
@@ -185,6 +201,31 @@ namespace tests::testSuite
                     errorPath + "unmatchedGenericBrackets.mt",
                     TestType::ERROR_EXPECTED);
 
+        // === MALFORMED GENERIC TYPE STRING ERROR TESTS ===
+        // These tests verify parser handles malformed generic syntax correctly
+
+        addTestFromFile("Malformed Generic - Missing Close Bracket",
+                    errorPath + "malformedGenericMissingClose.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Nested Mismatch",
+                    errorPath + "malformedGenericNestedMismatch.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Invalid Characters",
+                    errorPath + "malformedGenericInvalidChars.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Numeric Literal",
+                    errorPath + "malformedGenericNumeric.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Multiple Commas",
+                    errorPath + "malformedGenericMultipleCommas.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Trailing Comma",
+                    errorPath + "malformedGenericTrailingComma.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Malformed Generic - Leading Comma",
+                    errorPath + "malformedGenericLeadingComma.mt",
+                    TestType::ERROR_EXPECTED);
+
         // Inheritance validation error tests (compile-time errors)
         addTestFromFile("Class Cannot Extend Interface",
                     errorPath + "classExtendsInterface.mt",
@@ -231,6 +272,47 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Circular Interface Inheritance - Multiple Parents",
                     errorPath + "circularInterfaceInheritanceMultiple.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced generic error scenarios
+
+        addTestFromFile("Type Parameter Shadowing",
+                    errorPath + "typeParameterShadowing.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Recursive Type Bounds",
+                    errorPath + "recursiveTypeBounds.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Generic Array Type Mismatch",
+                    errorPath + "genericArrayTypeMismatch.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Incomplete Type Arguments",
+                    errorPath + "incompleteTypeArguments.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Circular Generic Dependency",
+                    errorPath + "circularGenericDependency.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Generic Cache Collision",
+                    errorPath + "genericCacheCollision.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Bounded Wildcards Error",
+                    errorPath + "boundedWildcardsError.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Unbounded Wildcard Error",
+                    errorPath + "unboundedWildcardError.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Contravariant Type Error",
+                    errorPath + "contravariantTypeError.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Multiple Constraints Error",
+                    errorPath + "multipleConstraintsError.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // === GENERIC INHERITANCE WITH SUPER ERROR TESTS ===
+        // These tests verify that generic type parameters are correctly enforced with super
+
+        addTestFromFile("Generic Inheritance Super Type Mismatch",
+                    errorPath + "genericInheritanceSuperTypeMismatch.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

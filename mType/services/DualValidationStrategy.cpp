@@ -6,9 +6,8 @@
 #include "../vm/compiler/BytecodeCompiler.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../constants/ExecutionMode.hpp"
-#include <iostream>
 #include <stdexcept>
-
+#include <iostream>
 namespace services
 {
     DualValidationStrategy::DualValidationStrategy(evaluator::Evaluator* eval,

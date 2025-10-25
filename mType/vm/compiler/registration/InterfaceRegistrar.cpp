@@ -3,6 +3,8 @@
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
+#include "../../../ast/nodes/classes/ClassNode.hpp"
+#include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
@@ -134,13 +136,16 @@ namespace vm::compiler::registration
 
     void InterfaceRegistrar::validateInterfaceImplementations(
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-        const ast::SourceLocation& location
+        ast::ClassNode* classNode
     )
     {
         auto interfaceRegistry = environment->getInterfaceRegistry();
         if (!interfaceRegistry) {
             return; // No interface registry, skip validation
         }
+
+        // Use class location as fallback if classNode is not available
+        const ast::SourceLocation classLocation = classNode ? classNode->getLocation() : ast::SourceLocation();
 
         for (const auto& interfaceName : classDef->getImplementedInterfaces())
         {
@@ -152,7 +157,7 @@ namespace vm::compiler::registration
             if (!interfaceDef) {
                 throw errors::TypeException(
                     "Interface '" + baseInterfaceName + "' not found",
-                    location
+                    classLocation
                 );
             }
 
@@ -166,7 +171,7 @@ namespace vm::compiler::registration
                     "Interface '" + baseInterfaceName + "' expects " +
                     std::to_string(interfaceGenericParams.size()) + " type arguments but got " +
                     std::to_string(typeArguments.size()),
-                    location
+                    classLocation
                 );
             }
 
@@ -179,12 +184,36 @@ namespace vm::compiler::registration
             const auto& methodSignatures = interfaceDef->getMethodSignatures();
             for (const auto& signature : methodSignatures) {
                 auto method = classDef->getMethod(signature.name);
+
+                // Find the method node to get its specific location
+                ast::SourceLocation methodLocation = classLocation;
+                if (classNode) {
+                    const auto& methods = classNode->getMethods();
+                    for (const auto& methodNodePtr : methods) {
+                        if (auto methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(methodNodePtr.get())) {
+                            if (methodNode->getName() == signature.name) {
+                                methodLocation = methodNode->getLocation();
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (!method) {
                     throw errors::TypeException(
                         "Class '" + classDef->getName() +
                         "' must implement method '" + signature.name +
                         "' from interface '" + interfaceName + "'",
-                        location
+                        methodLocation
+                    );
+                }
+
+                // Validate that interface methods are implemented as public
+                if (method->getAccessModifier() != ast::AccessModifier::PUBLIC) {
+                    throw errors::TypeException(
+                        "Method '" + signature.name + "' in class '" + classDef->getName() +
+                        "' must be public when implementing interface '" + interfaceName + "'",
+                        methodLocation
                     );
                 }
 
@@ -206,7 +235,7 @@ namespace vm::compiler::registration
                         "' has return type '" + methodReturnType +
                         "' but interface '" + interfaceName + "' requires '" +
                         resolvedReturnType + "'",
-                        location
+                        methodLocation
                     );
                 }
 
@@ -217,7 +246,7 @@ namespace vm::compiler::registration
                         "' has " + std::to_string(method->getParameters().size()) + " parameters" +
                         " but interface '" + interfaceName + "' requires " +
                         std::to_string(signature.parameters.size()) + " parameters",
-                        location
+                        methodLocation
                     );
                 }
 
@@ -244,7 +273,7 @@ namespace vm::compiler::registration
                             "' has type '" + methodParamType +
                             "' but interface '" + interfaceName + "' requires '" +
                             resolvedParamType + "'",
-                            location
+                            methodLocation
                         );
                     }
                 }

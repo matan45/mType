@@ -28,6 +28,7 @@ namespace vm::compiler::control
             bool hasFinally;                        // True if this try block has a finally block
             bool inFinally;                         // True if currently compiling the finally block
             size_t returnValueSlot;                 // Local slot used to save return value before finally (SIZE_MAX if none)
+            size_t hasReturnFlagSlot;               // Local slot for flag indicating if we're on return path (SIZE_MAX if none)
         };
 
         ExceptionContextManager() = default;
@@ -85,6 +86,10 @@ namespace vm::compiler::control
         // Set/get return value slot for the outer (parent) context
         void setReturnValueSlotForOuter(size_t slot);
         size_t getReturnValueSlotForOuter() const;
+
+        // Set/get has return flag slot
+        void setHasReturnFlagSlot(size_t slot);
+        size_t getHasReturnFlagSlot() const;
 
     private:
         std::vector<ExceptionContext> contextStack;

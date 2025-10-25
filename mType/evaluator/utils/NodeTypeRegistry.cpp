@@ -48,6 +48,8 @@
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 
 namespace evaluator::utils
 {
@@ -83,7 +85,9 @@ namespace evaluator::utils
             typeid(NewNode),                // Object creation is an expression (new ClassName())
             typeid(MemberAssignmentNode),   // Member assignment is an expression for chained assignments (obj.field = value)
             typeid(SuperConstructorCallNode), // Super constructor call is an expression (super(...))
-            typeid(SuperMethodCallNode)     // Super method call is an expression (super.method())
+            typeid(SuperMethodCallNode),    // Super method call is an expression (super.method())
+            typeid(SuperMemberAccessNode),  // Super member access is an expression (super.field)
+            typeid(SuperMemberAssignmentNode) // Super member assignment is an expression (super.field = value)
         };
     }
 

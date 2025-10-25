@@ -96,6 +96,30 @@ namespace validation {
                 location);
         }
 
+        // Validate access modifier - child cannot narrow parent's access
+        ast::AccessModifier childAccess = childMethod->getAccessModifier();
+        ast::AccessModifier parentAccess = parentMethod->getAccessModifier();
+
+        // Check for access modifier narrowing
+        bool isNarrowing = false;
+        if (parentAccess == ast::AccessModifier::PUBLIC && childAccess != ast::AccessModifier::PUBLIC) {
+            isNarrowing = true; // PUBLIC → PROTECTED or PRIVATE is narrowing
+        } else if (parentAccess == ast::AccessModifier::PROTECTED && childAccess == ast::AccessModifier::PRIVATE) {
+            isNarrowing = true; // PROTECTED → PRIVATE is narrowing
+        }
+
+        if (isNarrowing) {
+            throw InheritanceException(
+                "Method override access modifier narrowing in class '" + childClassName +
+                "': method '" + childMethod->getName() + "' cannot narrow access from '" +
+                ast::accessModifierToString(parentAccess) + "' to '" +
+                ast::accessModifierToString(childAccess) + "'",
+                childClassName,
+                parentClassName,
+                childMethod->getName(),
+                location);
+        }
+
         // Check return type compatibility
         if (childMethod->getReturnType() != parentMethod->getReturnType()) {
             throw InheritanceException(

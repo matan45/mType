@@ -335,6 +335,16 @@ namespace evaluator
         return coordinator->visitSuperMethodCallNode(node);
     }
 
+    Value Evaluator::visitSuperMemberAccessNode(SuperMemberAccessNode* node)
+    {
+        return coordinator->visitSuperMemberAccessNode(node);
+    }
+
+    Value Evaluator::visitSuperMemberAssignmentNode(SuperMemberAssignmentNode* node)
+    {
+        return coordinator->visitSuperMemberAssignmentNode(node);
+    }
+
     Value Evaluator::visitTryNode(TryNode* node)
     {
         return coordinator->visitTryNode(node);

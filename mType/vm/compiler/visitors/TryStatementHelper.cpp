@@ -103,20 +103,65 @@ namespace vm::compiler::visitors
             return;
         }
 
+        // Allocate a flag slot to track whether we're on return path (1) or exit path (0)
+        // IMPORTANT: Make sure it doesn't conflict with returnValueSlot
+        size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+        size_t hasReturnFlagSlot = ctx.variableTracker.getNextLocalSlot();
+
+        // If flag slot conflicts with return value slot, use the next slot
+        if (returnValueSlot != SIZE_MAX && hasReturnFlagSlot == returnValueSlot) {
+            hasReturnFlagSlot++;
+        }
+
+        ctx.functionFrameManager.updateMaxLocalSlot(hasReturnFlagSlot + 1);
+        ctx.exceptionManager.setHasReturnFlagSlot(hasReturnFlagSlot);
+
+        // Add flag values to constant pool
+        size_t falseIndex = ctx.program.getConstantPool().addInteger(0);
+        size_t trueIndex = ctx.program.getConstantPool().addInteger(1);
+
+        // Create trampolines for exit jumps that set flag = 0
+        std::vector<size_t> newExitJumps;
+        for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+            size_t trampolineOffset = ctx.program.getCurrentOffset();
+            ctx.program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(falseIndex));  // false - not returning
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+            size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+            // Patch original jump to trampoline
+            ctx.program.patchJump(exitJump, static_cast<uint32_t>(trampolineOffset));
+            newExitJumps.push_back(jumpToFinally);
+        }
+
+        // Create trampolines for return jumps that set flag = 1
+        std::vector<size_t> newReturnJumps;
+        for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
+            size_t trampolineOffset = ctx.program.getCurrentOffset();
+            ctx.program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(trueIndex));  // true - returning
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+            size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+            // Patch original jump to trampoline
+            ctx.program.patchJump(returnJump, static_cast<uint32_t>(trampolineOffset));
+            newReturnJumps.push_back(jumpToFinally);
+        }
+
+        // Finally block starts here
         size_t finallyOffset = ctx.program.getCurrentOffset();
         ctx.exceptionManager.setFinallyOffset(finallyOffset);
 
-        // Patch RETURN jumps to point to the finally block
-        // These are from return statements and will fall through to RETURN_VALUE
-        for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
-            ctx.emitter.patchJump(returnJump);
+        // Patch new jumps to finally
+        for (size_t jump : newExitJumps) {
+            ctx.emitter.patchJump(jump);
+        }
+        for (size_t jump : newReturnJumps) {
+            ctx.emitter.patchJump(jump);
         }
 
         // Emit FINALLY instruction
         ctx.program.emit(bytecode::OpCode::FINALLY);
 
         // Mark that we're now in the finally block
-        // This prevents return statements inside finally from trying to jump to finally again
         ctx.exceptionManager.enterFinally();
 
         // Compile finally body
@@ -125,46 +170,44 @@ namespace vm::compiler::visitors
         // Mark that we've exited the finally block
         ctx.exceptionManager.exitFinally();
 
-        // After finally, load the return value back from the special slot if it was saved
-        size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
+        // After finally, check flag to determine what to do
+        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+
+        // If flag is 0 (false), jump over return logic to continue execution
+        size_t skipReturnLogic = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+        // Handle return path (flag was 1)
+        // Note: returnValueSlot was already loaded at the beginning of this function
         if (returnValueSlot != SIZE_MAX) {
+            // Load the return value back from the special slot
+            // Note: For async functions, the value is already wrapped in a Promise
             ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(returnValueSlot));
-        }
 
-        // Check if we're inside another try block with a finally (nested try-finally)
-        bool hasOuterFinally = ctx.exceptionManager.hasOuterFinally();
+            // Check if we're inside another try block with a finally (nested try-finally)
+            bool hasOuterFinally = ctx.exceptionManager.hasOuterFinally();
 
-        if (hasOuterFinally) {
-            // There's an outer finally - we need to:
-            // 1. Store the return value in the outer context's slot (if not already set)
-            // 2. Jump to the outer finally
+            if (hasOuterFinally) {
+                // There's an outer finally - store return value and jump to it
+                size_t outerReturnValueSlot = ctx.exceptionManager.getReturnValueSlotForOuter();
+                if (outerReturnValueSlot == SIZE_MAX) {
+                    outerReturnValueSlot = ctx.variableTracker.getNextLocalSlot();
+                    ctx.functionFrameManager.updateMaxLocalSlot(outerReturnValueSlot + 1);
+                    ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
+                }
 
-            // Check if outer already has a return value slot allocated
-            size_t outerReturnValueSlot = ctx.exceptionManager.getReturnValueSlotForOuter();
-            if (outerReturnValueSlot == SIZE_MAX) {
-                // Outer doesn't have a slot yet - allocate one for it
-                outerReturnValueSlot = ctx.variableTracker.getNextLocalSlot();
-                ctx.functionFrameManager.updateMaxLocalSlot(outerReturnValueSlot + 1);
-                ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
+                ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+
+                size_t jumpToOuterFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                ctx.exceptionManager.registerReturnJumpWithOuter(jumpToOuterFinally);
+            } else {
+                // No outer finally - emit RETURN_VALUE to actually return
+                ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
             }
-
-            // Store return value in outer's slot (return value is on stack from LOAD_LOCAL above)
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
-
-            // Jump to the outer finally
-            size_t jumpToOuterFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-            // Register this jump with the OUTER context so it gets patched to the outer finally
-            ctx.exceptionManager.registerReturnJumpWithOuter(jumpToOuterFinally);
-        } else {
-            // No outer finally - emit RETURN_VALUE to actually return
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
         }
 
-        // Now patch normal EXIT jumps to jump PAST the RETURN_VALUE/JUMP
-        // These are from normal try/catch completion (no return)
-        size_t afterReturn = ctx.program.getCurrentOffset();
-        for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
-            ctx.program.patchJump(exitJump, static_cast<uint32_t>(afterReturn));
-        }
+        // Patch skip jump to land here (normal completion continues)
+        ctx.emitter.patchJump(skipReturnLogic);
+
+        // Normal completion path continues here to execute code after try-catch-finally
     }
 }

@@ -1,6 +1,5 @@
 #include "AbstractClassPattern.hpp"
 #include "../../bytecode/OpCode.hpp"
-#include <iostream>
 
 namespace vm::optimization::patterns
 {
@@ -118,11 +117,6 @@ namespace vm::optimization::patterns
         // We don't actually modify the bytecode, we just detect the issue
 
         std::string className = extractClassNameBeforeNew(program, offset);
-
-        // Log warning (in a real implementation, this would go to a proper logging system)
-        // For now, we can output to stderr during optimization
-        std::cerr << "Warning: Bytecode optimization detected attempt to instantiate "
-                  << "abstract class '" << className << "' at offset " << offset << std::endl;
 
         // Return empty replacement (no transformation)
         Replacement replacement;

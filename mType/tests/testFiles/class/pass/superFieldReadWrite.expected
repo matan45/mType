@@ -1,0 +1,8 @@
+Testing super field read and write
+Name: Buddy, Age: 3, Alive: true
+Buddy is now 4 years old!
+Name: Buddy, Age: 4, Alive: true
+Buddy (Golden Retriever), age 4
+Max (Golden Retriever), age 4
+Name: Max, Age: 4, Alive: false
+All super field operations completed successfully

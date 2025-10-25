@@ -12,6 +12,7 @@ namespace vm::compiler::control
         ctx.hasFinally = hasFinally;
         ctx.inFinally = false; // Not in finally yet
         ctx.returnValueSlot = SIZE_MAX; // Will be set if a return happens in try with finally
+        ctx.hasReturnFlagSlot = SIZE_MAX; // Will be set if finally needs to distinguish return vs exit paths
         contextStack.push_back(ctx);
     }
 
@@ -218,5 +219,21 @@ namespace vm::compiler::control
         }
         // Get from the second-to-last context (parent of current)
         return contextStack[contextStack.size() - 2].returnValueSlot;
+    }
+
+    void ExceptionContextManager::setHasReturnFlagSlot(size_t slot)
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Has return flag slot set outside of try context");
+        }
+        contextStack.back().hasReturnFlagSlot = slot;
+    }
+
+    size_t ExceptionContextManager::getHasReturnFlagSlot() const
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Not in an exception handling context");
+        }
+        return contextStack.back().hasReturnFlagSlot;
     }
 }

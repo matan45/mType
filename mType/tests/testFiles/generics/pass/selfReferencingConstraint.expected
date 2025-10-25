@@ -1,0 +1,11 @@
+Testing self-referencing generic constraints
+num1 value: 42
+num2 value: 17
+num3 value: 99
+num1.compareTo(num2): 1
+num2.compareTo(num3): -1
+max(num1, num2): 42
+max(num2, num3): 99
+min(num1, num2): 17
+min(num1, num3): 42
+Self-referencing constraint test completed

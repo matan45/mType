@@ -77,6 +77,11 @@ namespace parser
             TokenType opType,
             std::unique_ptr<ASTNode> rightExpr,
             const SourceLocation& location);
+        std::unique_ptr<ASTNode> handleSuperMemberAssignment(
+            ast::nodes::classes::SuperMemberAccessNode* superMemberAccessNode,
+            TokenType opType,
+            std::unique_ptr<ASTNode> rightExpr,
+            const SourceLocation& location);
         std::unique_ptr<ASTNode> handleIndexAssignment(
             ast::nodes::expressions::IndexAccessNode* indexAccessNode,
             TokenType opType,

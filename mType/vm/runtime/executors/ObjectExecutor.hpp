@@ -44,6 +44,8 @@ namespace vm::runtime
         void handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr);
 
     private:
         ExecutionContext& context;

@@ -59,6 +59,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Interface with Many Generic Parameters",
                         passPath + "manyGenericParameters.mt");
 
+        // === NEW EDGE CASE TESTS ===
+        // Advanced interface scenarios
+
+        addOutputVerificationTest("Multiple Diamond Implementation",
+                        passPath + "multipleDiamondImplementation.mt");
+        addOutputVerificationTest("Interface Multiple Casting",
+                        passPath + "interfaceMultipleCasting.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Invalid Interface Name Error",
                         errorPath + "invalidInterfaceName.mt",
@@ -140,6 +148,13 @@ namespace tests::testSuite
 
         addTestFromFile("Static Method Not Allowed Error",
                         errorPath + "staticMethodNotAllowed.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced interface error scenarios
+
+        addTestFromFile("Diamond Method Conflict Error",
+                        errorPath + "diamondMethodConflict.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

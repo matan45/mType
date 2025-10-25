@@ -177,6 +177,32 @@ namespace runtimeTypes::klass
         return nullptr;
     }
 
+    std::shared_ptr<ClassDefinition> ClassDefinition::getFieldOwnerInHierarchy(
+        const std::string& fieldName,
+        std::shared_ptr<ClassDefinition> self) const
+    {
+        // First, check if this class owns the field
+        auto field = getField(fieldName);
+        if (field) {
+            return self; // Return the shared_ptr to this class
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            field = current->getField(fieldName);
+            if (field) {
+                return current; // Return the parent class that owns the field
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return nullptr; // Field not found in hierarchy
+    }
+
     std::shared_ptr<MethodDefinition> ClassDefinition::getMethod(const std::string& methodName) const
     {
         auto method = getInstanceMethod(methodName);
@@ -280,11 +306,23 @@ namespace runtimeTypes::klass
 
     bool ClassDefinition::implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const
     {
+        // Normalize the expected interface name (remove spaces after commas in generics)
+        std::string normalizedExpected = normalizeGenericTypeName(interfaceName);
+
         // Check direct interfaces first
         for (const auto& implementedInterface : implementedInterfaces) {
-            std::string baseImplementedName = extractBaseTypeName(implementedInterface);
+            // Normalize the implemented interface name for comparison
+            std::string normalizedImplemented = normalizeGenericTypeName(implementedInterface);
 
-            if (baseImplementedName == interfaceName) {
+            // Compare full names (including generic type arguments)
+            if (normalizedImplemented == normalizedExpected) {
+                return true;
+            }
+
+            // Also check if base names match (for backwards compatibility with non-generic interfaces)
+            std::string baseImplementedName = extractBaseTypeName(implementedInterface);
+            std::string baseExpectedName = extractBaseTypeName(interfaceName);
+            if (baseImplementedName == baseExpectedName) {
                 return true;
             }
         }
@@ -298,6 +336,27 @@ namespace runtimeTypes::klass
     {
         size_t anglePos = typeName.find('<');
         return (anglePos != std::string::npos) ? typeName.substr(0, anglePos) : typeName;
+    }
+
+    std::string ClassDefinition::normalizeGenericTypeName(const std::string& typeName)
+    {
+        // Remove spaces after commas in generic type arguments
+        // E.g., "Function<Int, String>" -> "Function<Int,String>"
+        std::string normalized;
+        normalized.reserve(typeName.size());
+
+        for (size_t i = 0; i < typeName.size(); ++i) {
+            char c = typeName[i];
+
+            // Skip spaces that come after commas (when inside angle brackets)
+            if (c == ' ' && i > 0 && typeName[i - 1] == ',') {
+                continue;
+            }
+
+            normalized += c;
+        }
+
+        return normalized;
     }
 
     bool ClassDefinition::checkDirectInterfaceMatch(const std::string& interfaceName,

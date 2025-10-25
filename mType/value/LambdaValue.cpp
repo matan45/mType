@@ -387,6 +387,16 @@ namespace value
             return;
         }
 
+        // Handle nested lambdas - CRITICAL for proper variable capture
+        // When an outer lambda contains an inner lambda, we need to capture all variables
+        // that the inner lambda references, even if the outer lambda doesn't use them directly
+        if (auto nestedLambda = dynamic_cast<const ast::nodes::expressions::LambdaNode*>(node))
+        {
+            // Recursively traverse the nested lambda's body to find its variable references
+            traverseForVariables(nestedLambda->getBody(), variables);
+            return;
+        }
+
         // Handle binary operations
         if (auto binOpNode = dynamic_cast<const ast::nodes::expressions::BinaryExpNode*>(node))
         {

@@ -13,6 +13,8 @@
 #include "../ast/nodes/expressions/LambdaNode.hpp"
 #include "../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/MemberAssignmentNode.hpp"
 #include "../ast/nodes/statements/IndexAssignmentNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
@@ -65,12 +67,13 @@ namespace parser
             tokenStream.current().type == TokenType::DIVIDE_ASSIGN ||
             tokenStream.current().type == TokenType::MODULO_ASSIGN)
         {
-            // For assignment expressions, the left side should be a variable, member access, or index access
+            // For assignment expressions, the left side should be a variable, member access, super member access, or index access
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
+            auto superMemberAccessNode = dynamic_cast<SuperMemberAccessNode*>(expr.get());
             auto indexAccessNode = dynamic_cast<IndexAccessNode*>(expr.get());
 
-            if (!variableNode && !memberAccessNode && !indexAccessNode)
+            if (!variableNode && !memberAccessNode && !superMemberAccessNode && !indexAccessNode)
             {
                 throw ParseException("Invalid assignment target", tokenStream.current().location);
             }
@@ -81,7 +84,11 @@ namespace parser
             auto rightExpr = parseAssignment(); // Right associative
 
             // Delegate to appropriate handler based on target type
-            if (memberAccessNode)
+            if (superMemberAccessNode)
+            {
+                return handleSuperMemberAssignment(superMemberAccessNode, opType, std::move(rightExpr), assignmentLocation);
+            }
+            else if (memberAccessNode)
             {
                 return handleMemberAssignment(memberAccessNode, opType, std::move(rightExpr), assignmentLocation);
             }
@@ -366,6 +373,26 @@ namespace parser
         {
             // Compound member assignment - not fully implemented yet
             throw ParseException("Compound assignment to member not yet supported", location);
+        }
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::handleSuperMemberAssignment(
+        ast::nodes::classes::SuperMemberAccessNode* superMemberAccessNode,
+        TokenType opType,
+        std::unique_ptr<ASTNode> rightExpr,
+        const SourceLocation& location)
+    {
+        if (opType == TokenType::ASSIGN)
+        {
+            return std::make_unique<SuperMemberAssignmentNode>(
+                superMemberAccessNode->getMemberName(),
+                std::move(rightExpr),
+                location);
+        }
+        else
+        {
+            // Compound super member assignment - not fully implemented yet
+            throw ParseException("Compound assignment to super member not yet supported", location);
         }
     }
 

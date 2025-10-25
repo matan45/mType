@@ -4,9 +4,12 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
+#include "../../../errors/AccessViolationException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../../runtime/utils/TypeConverter.hpp"
 #include <unordered_set>
 
@@ -493,6 +496,35 @@ namespace vm::compiler::visitors
     {
         std::string methodName = node->getMethodName();
 
+        // Validate access modifiers for super method calls
+        if (ctx.currentClassNode) {
+            auto classRegistry = ctx.environment->getClassRegistry();
+            if (classRegistry) {
+                auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
+                if (classDef && classDef->hasParentClass()) {
+                    // Walk up parent class hierarchy to find the method
+                    auto parentClass = classDef->getParentClass();
+                    while (parentClass) {
+                        auto method = parentClass->getMethod(methodName);
+                        if (method) {
+                            // Found the method - check access modifier
+                            if (method->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                                throw errors::AccessViolationException(
+                                    "Cannot call private method '" + methodName + "' from parent class '" +
+                                    parentClass->getName() + "' in child class '" + classDef->getName() + "'",
+                                    node->getLocation()
+                                );
+                            }
+                            // Protected and public are allowed
+                            break;
+                        }
+                        // Continue searching up the hierarchy
+                        parentClass = parentClass->hasParentClass() ? parentClass->getParentClass() : nullptr;
+                    }
+                }
+            }
+        }
+
         // Push arguments onto stack
         const auto& arguments = node->getArguments();
         for (const auto& arg : arguments)
@@ -510,6 +542,104 @@ namespace vm::compiler::visitors
                              static_cast<uint32_t>(classNameIndex),
                              static_cast<uint32_t>(methodNameIndex),
                              static_cast<uint32_t>(arguments.size())
+                         });
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileSuperMemberAccess(ast::SuperMemberAccessNode* node)
+    {
+        std::string memberName = node->getMemberName();
+
+        // Validate access modifiers for super field access
+        if (ctx.currentClassNode) {
+            auto classRegistry = ctx.environment->getClassRegistry();
+            if (classRegistry) {
+                auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
+                if (classDef && classDef->hasParentClass()) {
+                    // Walk up parent class hierarchy to find the field
+                    auto parentClass = classDef->getParentClass();
+                    while (parentClass) {
+                        auto field = parentClass->getField(memberName);
+                        if (field) {
+                            // Found the field - check access modifier
+                            if (field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                                throw errors::AccessViolationException(
+                                    "Cannot access private field '" + memberName + "' from parent class '" +
+                                    parentClass->getName() + "' in child class '" + classDef->getName() + "'",
+                                    node->getLocation()
+                                );
+                            }
+                            // Protected and public are allowed
+                            break;
+                        }
+                        // Continue searching up the hierarchy
+                        parentClass = parentClass->hasParentClass() ? parentClass->getParentClass() : nullptr;
+                    }
+                }
+            }
+        }
+
+        // Emit SUPER_GET_FIELD instruction to load field from parent class
+        // This is similar to SUPER_INVOKE but for field access instead of method calls
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
+
+        ctx.program.emit(bytecode::OpCode::SUPER_GET_FIELD,
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(classNameIndex),
+                             static_cast<uint32_t>(memberNameIndex)
+                         });
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileSuperMemberAssignment(ast::SuperMemberAssignmentNode* node)
+    {
+        std::string memberName = node->getMemberName();
+
+        // Validate access modifiers for super field assignment
+        if (ctx.currentClassNode) {
+            auto classRegistry = ctx.environment->getClassRegistry();
+            if (classRegistry) {
+                auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
+                if (classDef && classDef->hasParentClass()) {
+                    // Walk up parent class hierarchy to find the field
+                    auto parentClass = classDef->getParentClass();
+                    while (parentClass) {
+                        auto field = parentClass->getField(memberName);
+                        if (field) {
+                            // Found the field - check access modifier
+                            if (field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                                throw errors::AccessViolationException(
+                                    "Cannot access private field '" + memberName + "' from parent class '" +
+                                    parentClass->getName() + "' in child class '" + classDef->getName() + "'",
+                                    node->getLocation()
+                                );
+                            }
+                            // Protected and public are allowed
+                            break;
+                        }
+                        // Continue searching up the hierarchy
+                        parentClass = parentClass->hasParentClass() ? parentClass->getParentClass() : nullptr;
+                    }
+                }
+            }
+        }
+
+        // Evaluate the value to assign and push it onto stack
+        node->getValue()->accept(ctx.visitor);
+
+        // Emit SUPER_SET_FIELD instruction to store field value to parent class field
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
+
+        ctx.program.emit(bytecode::OpCode::SUPER_SET_FIELD,
+                         std::vector<uint32_t>{
+                             static_cast<uint32_t>(classNameIndex),
+                             static_cast<uint32_t>(memberNameIndex)
                          });
 
         return std::monostate{};

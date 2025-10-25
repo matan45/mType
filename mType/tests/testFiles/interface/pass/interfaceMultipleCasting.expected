@@ -1,0 +1,8 @@
+Testing multiple interface casting
+Initial: Drawing at (0, 0) size 100x100
+As Drawable: Drawing at (0, 0) size 100x100
+As Moveable: Moved to (50, 75)
+As Resizable: Resized to 200x150
+After changes: Drawing at (50, 75) size 200x150
+Cast back: Drawing at (50, 75) size 200x150
+Multiple interface casting test completed

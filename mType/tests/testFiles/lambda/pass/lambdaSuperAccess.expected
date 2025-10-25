@@ -1,0 +1,7 @@
+Testing lambda with super access
+Parent: 15 (from lambda)
+Lambda field result: 35
+Lambda: Parent: 20, calc=20
+Parent: 85
+Parent: 30 | Child: 6
+Lambda with super access test completed!

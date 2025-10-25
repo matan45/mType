@@ -1,0 +1,10 @@
+Testing deep inheritance (8 levels)
+obj.getLevel(): 8
+obj.identify(): Level8
+ref1.getLevel(): 8
+ref4.getLevel(): 8
+ref7.getLevel(): 8
+ref1.identify(): Level8
+ref4.identify(): Level8
+ref7.identify(): Level8
+Deep inheritance test completed

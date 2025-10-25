@@ -9,7 +9,6 @@
 #include "../optimization/PeepholeOptimizer.hpp"
 #include <stdexcept>
 #include <iostream>
-
 namespace vm::compiler
 {
     BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,
@@ -299,6 +298,16 @@ namespace vm::compiler
     value::Value BytecodeCompiler::visitSuperMethodCallNode(ast::SuperMethodCallNode* node)
     {
         return classCompiler.compileSuperMethodCall(node);
+    }
+
+    value::Value BytecodeCompiler::visitSuperMemberAccessNode(ast::SuperMemberAccessNode* node)
+    {
+        return classCompiler.compileSuperMemberAccess(node);
+    }
+
+    value::Value BytecodeCompiler::visitSuperMemberAssignmentNode(ast::SuperMemberAssignmentNode* node)
+    {
+        return classCompiler.compileSuperMemberAssignment(node);
     }
 
     value::Value BytecodeCompiler::visitInterfaceNode(ast::InterfaceNode* node)

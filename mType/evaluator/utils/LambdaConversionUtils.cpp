@@ -16,9 +16,16 @@ namespace evaluator::utils
         auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(lambdaValue);
         auto* lambdaNode = lambdaPtr->getLambda();
 
-        // Get the interface definition from the environment
+        // Extract base interface name (e.g., "Function" from "Function<Int,String>")
+        std::string baseInterfaceName = interfaceName;
+        size_t anglePos = interfaceName.find('<');
+        if (anglePos != std::string::npos) {
+            baseInterfaceName = interfaceName.substr(0, anglePos);
+        }
+
+        // Get the interface definition from the environment using base name
         auto env = context->getEnvironment();
-        auto interfaceDef = env->findInterface(interfaceName);
+        auto interfaceDef = env->findInterface(baseInterfaceName);
 
         if (!interfaceDef)
         {
@@ -39,7 +46,8 @@ namespace evaluator::utils
         }
 
         // Create the lambda implementation class
-        auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
+        // Pass the full interface name (with generics) so it's stored correctly
+        auto implClass = interfaceDef->createLambdaImplementation(lambdaNode, interfaceName);
         if (!implClass)
         {
             return lambdaValue;

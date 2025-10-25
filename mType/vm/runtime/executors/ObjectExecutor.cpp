@@ -48,7 +48,12 @@ namespace vm::runtime
         }
 
         // Validate access control
-        std::string targetClassName = instance->getClassDefinition()->getName();
+        // IMPORTANT: Use the class that OWNS the field, not the runtime class of the instance
+        // This is critical for private field access validation in inheritance
+        auto classDef = instance->getClassDefinition();
+        auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+        std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+
         auto accessContext = createAccessContext(targetClassName, false);
         validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
@@ -90,7 +95,12 @@ namespace vm::runtime
         }
 
         // Validate access control
-        std::string targetClassName = instance->getClassDefinition()->getName();
+        // IMPORTANT: Use the class that OWNS the field, not the runtime class of the instance
+        // This is critical for private field access validation in inheritance
+        auto classDef = instance->getClassDefinition();
+        auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+        std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+
         auto accessContext = createAccessContext(targetClassName, true);
         validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
@@ -216,6 +226,7 @@ namespace vm::runtime
             lambda->creatingClassName + "::<lambda>";
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
+        frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
 
         context.callStack.push_back(frame);
 
@@ -247,10 +258,8 @@ namespace vm::runtime
                                          " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
-        auto accessContext = createAccessContext(classDef->getName(), false);
-        validation::AccessValidator::validateMethodAccess(methodName, method->getAccessModifier(), accessContext);
-
         // Find which class actually defines this method by walking up the hierarchy
+        // IMPORTANT: Do this BEFORE access validation so we use the correct defining class
         std::string definingClassName = classDef->getName();
         auto currentClass = classDef;
         while (currentClass) {
@@ -261,6 +270,10 @@ namespace vm::runtime
             }
             currentClass = currentClass->getParentClass();
         }
+
+        // Validate method access using the defining class, not the runtime instance class
+        auto accessContext = createAccessContext(definingClassName, false);
+        validation::AccessValidator::validateMethodAccess(methodName, method->getAccessModifier(), accessContext);
 
         std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
@@ -287,6 +300,7 @@ namespace vm::runtime
         frame.localBase = frameBase;
         frame.functionName = qualifiedName;
         frame.thisInstance = instance;
+        frame.definingClassName = definingClassName;  // Store the class that defines this method
 
         context.callStack.push_back(frame);
         context.stats.functionCalls++;
@@ -332,11 +346,26 @@ namespace vm::runtime
         instanceHelper->handleSuperInvoke(instr);
     }
 
+    void ObjectExecutor::handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleSuperGetField(instr);
+    }
+
+    void ObjectExecutor::handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleSuperSetField(instr);
+    }
+
     std::string ObjectExecutor::getCurrentClassName() {
         if (!context.callStack.empty()) {
+            // IMPORTANT: Use the defining class from the CallFrame, not the runtime class
+            // This is critical for private field access validation in inheritance
+            if (!context.callStack.back().definingClassName.empty()) {
+                return context.callStack.back().definingClassName;
+            }
+            // Fallback to instance class if defining class not set (e.g., for constructors)
             if (context.callStack.back().thisInstance) {
                 return context.callStack.back().thisInstance->getClassDefinition()->getName();
             } else {
+                // Fallback: extract class name from function name (static methods)
                 const std::string& funcName = context.callStack.back().functionName;
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {

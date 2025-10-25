@@ -9,6 +9,7 @@
 #include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression
@@ -177,24 +178,34 @@ namespace parser::expression
         }
         else if (tokenStream.check(TokenType::DOT))
         {
-            // super.method(...) - method call
+            // super.method(...) - method call OR super.field - field access
             tokenStream.advance(); // consume '.'
 
             if (tokenStream.current().type != TokenType::IDENTIFIER)
             {
-                throw ParseException("Expected method name after 'super.'",
+                throw ParseException("Expected member name after 'super.'",
                                      tokenStream.current().location);
             }
 
-            std::string methodName = tokenStream.current().stringValue.getString();
+            std::string memberName = tokenStream.current().stringValue.getString();
             tokenStream.advance();
 
-            // Expect method call with parentheses
-            ArgumentParser argParser(tokenStream, context);
-            std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
+            // Check if this is a method call (has parentheses) or field access (no parentheses)
+            if (tokenStream.check(TokenType::LPAREN))
+            {
+                // It's a method call: super.method(...)
+                ArgumentParser argParser(tokenStream, context);
+                std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
 
-            return std::make_unique<SuperMethodCallNode>(
-                methodName, std::move(arguments), superLocation);
+                return std::make_unique<SuperMethodCallNode>(
+                    memberName, std::move(arguments), superLocation);
+            }
+            else
+            {
+                // It's a field access: super.field
+                return std::make_unique<SuperMemberAccessNode>(
+                    memberName, superLocation);
+            }
         }
         else
         {

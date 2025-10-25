@@ -24,6 +24,48 @@ namespace vm::runtime::utils
             {
                 searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
             }
+            else if (functionName.find("<lambda>") != std::string::npos)
+            {
+                // Lambda function - search forward to find the actual end
+                // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
+                // Strategy: Find all RETURNs and take the last one at the lambda's scope level
+                size_t lastReturn = SIZE_MAX;
+                int callDepth = 0; // Track nested function calls
+
+                for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)
+                {
+                    const auto& instr = program->getInstruction(searchIP);
+
+                    // Track function call/return nesting
+                    if (instr.opcode == bytecode::OpCode::CALL ||
+                        instr.opcode == bytecode::OpCode::CALL_METHOD ||
+                        instr.opcode == bytecode::OpCode::CALL_STATIC ||
+                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE) {
+                        callDepth++;
+                    }
+
+                    if (instr.opcode == bytecode::OpCode::RETURN ||
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE) {
+                        if (callDepth == 0) {
+                            // This is a return at our lambda's scope level
+                            lastReturn = searchIP;
+                            // Don't break - keep searching for more RETURNs
+                        } else {
+                            // This return belongs to a nested function call
+                            callDepth--;
+                        }
+                    }
+
+                    // Stop if we hit another lambda or function definition
+                    if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP) {
+                        break;
+                    }
+                }
+
+                if (lastReturn != SIZE_MAX) {
+                    searchLimit = lastReturn + 1; // Include the RETURN instruction
+                }
+            }
         }
 
         return searchLimit;
@@ -67,6 +109,12 @@ namespace vm::runtime::utils
         {
             const CallFrame& frame = callStack.back();
 
+            // Safety check: if targetIP is beyond program bounds, stop unwinding
+            if (targetIP >= program->getInstructionCount())
+            {
+                break;
+            }
+
             // Check if the target IP is within the current function's range
             auto* funcMetadata = program->getFunction(frame.functionName);
             if (funcMetadata)
@@ -79,6 +127,13 @@ namespace vm::runtime::utils
                 {
                     break;
                 }
+            }
+            else if (frame.functionName.find("<lambda>") != std::string::npos)
+            {
+                // Lambda function - don't unwind if CATCH/FINALLY is inside the lambda
+                // This prevents incorrectly unwinding the lambda's call frame when
+                // the exception handler is within the lambda itself
+                break;
             }
 
             // Target is outside this function - unwind the call frame
@@ -96,6 +151,13 @@ namespace vm::runtime::utils
 
     void ExceptionHandler::cleanupStack(size_t targetFrameBase)
     {
+        // Safety check: don't try to pop more than what's on the stack
+        size_t currentSize = stackManager->size();
+        if (targetFrameBase >= currentSize)
+        {
+            return; // Nothing to clean up
+        }
+
         while (stackManager->size() > targetFrameBase)
         {
             stackManager->getStack().pop_back();
@@ -116,12 +178,26 @@ namespace vm::runtime::utils
         size_t searchLimit = determineSearchLimit(currentIP);
 
         // First search: Look for CATCH or FINALLY in current scope
-        while (searchIP < searchLimit)
+        // But only accept CATCH/FINALLY that belongs to the same try block
+        int tryDepth = 0; // Track nesting depth
+        while (searchIP < searchLimit && searchIP < program->getInstructionCount())
         {
             const auto& searchInstr = program->getInstruction(searchIP);
 
+            // Track try-catch nesting
+            if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN) {
+                tryDepth++;
+            }
+
             if (searchInstr.opcode == bytecode::OpCode::CATCH)
             {
+                // Only accept CATCH if it's at the same nesting level (tryDepth == 0)
+                // This ensures we don't catch with a CATCH from a different try-catch block
+                if (tryDepth > 0) {
+                    searchIP++;
+                    continue;
+                }
+
                 // Found a catch block - check if it matches the exception type
                 if (!searchInstr.operands.empty())
                 {
@@ -145,6 +221,12 @@ namespace vm::runtime::utils
             }
             else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
             {
+                // Only accept FINALLY if it's at the same nesting level
+                if (tryDepth > 0) {
+                    searchIP++;
+                    continue;
+                }
+
                 // Check if this is the currently executing finally block
                 if (isInFinallyBlock(searchIP, currentFinallyOffset))
                 {
@@ -157,6 +239,13 @@ namespace vm::runtime::utils
                 result.handled = true;
                 result.newInstructionPointer = searchIP;
                 return result;
+            }
+            else if (searchInstr.opcode == bytecode::OpCode::TRY_END) {
+                // TRY_END marks the end of a try block's body
+                // If we're at depth > 0, this ends the nested try we entered
+                if (tryDepth > 0) {
+                    tryDepth--;
+                }
             }
 
             searchIP++;
@@ -174,6 +263,13 @@ namespace vm::runtime::utils
 
             // Restore instruction pointer to the caller (right after the CALL)
             searchIP = frame.returnAddress;
+
+            // Safety check: ensure searchIP is within bounds
+            if (searchIP >= program->getInstructionCount())
+            {
+                result.handled = false;
+                return result;
+            }
 
             // Search again from caller's context
             while (searchIP < program->getInstructionCount())

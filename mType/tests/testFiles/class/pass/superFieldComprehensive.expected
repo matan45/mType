@@ -1,0 +1,20 @@
+=== Comprehensive Super Field Access Test ===
+
+--- EnhancedCounter Test ---
+Count: 0/10 (enabled)
+Count: 3/10 (enabled)
+Count: 8/10 (enabled)
+Count: 8/10 (disabled)
+After trying to increment while disabled: 8
+Count: 9/10 (enabled)
+After reset: Count: 0/10 (enabled)
+
+--- SmartCounter Test ---
+MyCounter: Count: 0/20 (enabled)
+MyCounter: Count: 2/20 (enabled)
+MyCounter: Count: 4/20 (enabled)
+MyCounter: Count: 6/20 (enabled)
+After doubling: MyCounter: Count: 12/20 (enabled)
+After adding 3: MyCounter: Count: 15/20 (enabled)
+
+=== All tests completed successfully ===

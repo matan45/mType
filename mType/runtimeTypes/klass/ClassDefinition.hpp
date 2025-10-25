@@ -143,7 +143,9 @@ namespace runtimeTypes::klass
         std::shared_ptr<ClassDefinition> getParentClass() const { return parentClass.lock(); }
         void setParentClass(std::shared_ptr<ClassDefinition> parent) {
             parentClass = parent;
-            if (parent) {
+            // Only set parentClassName if it hasn't been explicitly set already
+            // This preserves generic type arguments like "BaseContainer<T>"
+            if (parent && parentClassName.empty()) {
                 parentClassName = parent->getName();
             }
         }
@@ -155,6 +157,13 @@ namespace runtimeTypes::klass
 
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;
+
+        // NEW: Get field owner class in hierarchy
+        // Returns the ClassDefinition that owns the field (important for access control)
+        // Pass 'self' as the first parameter when calling from a shared_ptr
+        std::shared_ptr<ClassDefinition> getFieldOwnerInHierarchy(
+            const std::string& fieldName,
+            std::shared_ptr<ClassDefinition> self) const;
 
         // Inheritance chain traversal
         std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain() const;
@@ -191,6 +200,7 @@ namespace runtimeTypes::klass
 
         // Helper methods for implementsInterfaceTransitive
         static std::string extractBaseTypeName(const std::string& typeName);
+        static std::string normalizeGenericTypeName(const std::string& typeName);
         bool checkDirectInterfaceMatch(const std::string& interfaceName,
                                        const std::string& implementedInterface,
                                        std::unordered_set<std::string>& visited,

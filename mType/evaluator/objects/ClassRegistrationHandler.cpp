@@ -456,6 +456,13 @@ namespace evaluator
                             "' from interface '" + interfaceName + "'");
                     }
 
+                    // Validate that interface methods are implemented as public
+                    if (method->getAccessModifier() != ast::AccessModifier::PUBLIC)
+                    {
+                        throw TypeException("Method '" + signature.name + "' in class '" + classDef->getName() +
+                            "' must be public when implementing interface '" + interfaceName + "'");
+                    }
+
                     // Resolve return type with substitutions
                     std::string resolvedReturnType = resolveGenericType(signature.returnType->getBaseTypeName(),
                                                                         typeSubstitutions);

@@ -1,0 +1,8 @@
+Testing diamond implementation
+diamond.process(): Diamond process
+diamond.leftMethod(): Left method
+diamond.rightMethod(): Right method
+leftRef.leftMethod(): Left method
+rightRef.rightMethod(): Right method
+baseRef.process(): Diamond process
+Diamond implementation test completed

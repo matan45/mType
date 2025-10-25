@@ -441,7 +441,12 @@ namespace evaluator
                 return std::nullopt;
             }
 
-            auto method = currentInstance->getClassDefinition()->getInstanceMethod(node->getFunctionName());
+            // Evaluate arguments first to get the count for method lookup
+            auto args = evaluateArguments(node->getArguments());
+
+            // Use findInstanceMethodInHierarchy to search up the inheritance chain
+            // This allows calling inherited methods (including private methods from parent classes)
+            auto method = currentInstance->getClassDefinition()->findInstanceMethodInHierarchy(node->getFunctionName(), args.size());
             if (!method)
             {
                 return std::nullopt;
@@ -452,7 +457,6 @@ namespace evaluator
                 throw UndefinedException("Object evaluator not available for method call", node->getLocation());
             }
 
-            auto args = evaluateArguments(node->getArguments());
             return objEvaluator->callMethod(currentInstance, node->getFunctionName(), args, node->getLocation());
         }
 
@@ -480,7 +484,11 @@ namespace evaluator
                 return std::nullopt;
             }
 
-            auto method = classDef->getStaticMethod(node->getFunctionName());
+            // Evaluate arguments first to get the count for method lookup
+            auto args = evaluateArguments(node->getArguments());
+
+            // Use findStaticMethod with arg count to handle overloads
+            auto method = classDef->findStaticMethod(node->getFunctionName(), args.size());
             if (!method)
             {
                 return std::nullopt;
@@ -491,7 +499,6 @@ namespace evaluator
                 throw UndefinedException("Object evaluator not available for static method call", node->getLocation());
             }
 
-            auto args = evaluateArguments(node->getArguments());
             return objEvaluator->callStaticMethod(className, node->getFunctionName(), args, node->getLocation());
         }
     }

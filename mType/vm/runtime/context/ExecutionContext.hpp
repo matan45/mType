@@ -71,6 +71,7 @@ namespace vm::runtime
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> thisInstance;  // For method calls
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for lambda late-binding
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it
+        std::string definingClassName;           // NEW: Class that defines the method (for access control in inheritance)
     };
 
     /**

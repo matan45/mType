@@ -54,6 +54,8 @@ namespace tests::testSuite
                         passPath + "classMethodParameters.mt");
         addOutputVerificationTest("Lambda Complex Class Integration",
                         passPath + "classComplexIntegration.mt");
+        addOutputVerificationTest("Lambda Super Access",
+                        passPath + "lambdaSuperAccess.mt");
 
         // Memory management and advanced tests
         addOutputVerificationTest("Lambda Interface Memory Management",
@@ -68,6 +70,16 @@ namespace tests::testSuite
                         passPath + "lambdaLifecycleStress.mt");
         addOutputVerificationTest("Lambda Lifecycle Expired",
                         passPath + "lambdaLifecycleExpired.mt");
+
+        // === NEW EDGE CASE TESTS ===
+        // Advanced lambda and control flow scenarios
+
+        addOutputVerificationTest("Lambda With Break",
+                        passPath + "lambdaWithBreak.mt");
+        addOutputVerificationTest("Lambda Try Catch Finally",
+                        passPath + "lambdaTryCatchFinally.mt");
+        addOutputVerificationTest("Lambda With Throw",
+                        passPath + "lambdaWithThrow.mt");
 
         // Error tests (expected to fail)
         addTestFromFile("Lambda Parameter Type Mismatch",
@@ -90,6 +102,19 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Reassignment Not Allowed",
                         errorPath + "lambdaReassignmentNotAllowed.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NEW EDGE CASE ERROR TESTS ===
+        // Advanced lambda error scenarios
+
+        addTestFromFile("Break In Lambda Error",
+                        errorPath + "breakInLambdaError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Continue In Lambda Error",
+                        errorPath + "continueInLambdaError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Super In Static Context Error",
+                        errorPath + "lambdaSuperStaticContext.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

@@ -251,6 +251,11 @@ namespace evaluator::utils
             std::shared_ptr<ClassDefinition> genericClass,
             const std::vector<std::string>& typeArguments);
 
+        static std::string substituteTypeParametersInString(
+            const std::string& input,
+            const std::vector<ast::GenericTypeParameter>& genericParams,
+            const std::vector<std::string>& typeArguments);
+
         static void copyAndSubstituteFields(
             std::shared_ptr<ClassDefinition> source,
             std::shared_ptr<ClassDefinition> target,

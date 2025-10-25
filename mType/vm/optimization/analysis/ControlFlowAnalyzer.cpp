@@ -2,7 +2,6 @@
 #include "../../bytecode/OpCode.hpp"
 #include <queue>
 #include <algorithm>
-#include <iostream>
 
 namespace vm::optimization::analysis
 {

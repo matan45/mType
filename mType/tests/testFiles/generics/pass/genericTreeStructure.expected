@@ -1,0 +1,12 @@
+Testing generic tree structure
+Tree root value: 50
+Tree has left child: true
+Tree has right child: true
+Left child value: 25
+Right child value: 75
+Left-left grandchild value: 12
+Left-right grandchild value: 37
+String tree root: root
+String tree left: left
+String tree right: right
+Generic tree structure test completed

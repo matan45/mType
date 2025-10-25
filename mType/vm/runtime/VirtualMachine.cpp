@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
+
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -35,10 +36,10 @@ namespace vm::runtime
           , stackManager(std::make_shared<StackManager>())
           , instructionPointer(0)
           , environment(std::move(env))
-          , eventLoop(nullptr)  // Lazy initialization - only created when needed
+          , eventLoop(nullptr) // Lazy initialization - only created when needed
           , currentTaskId(0)
           , suspendedByAwait(false)
-          , currentFinallyOffset(SIZE_MAX)  // Not in finally initially
+          , currentFinallyOffset(SIZE_MAX) // Not in finally initially
     {
         callStack.reserve(64);
 
@@ -62,10 +63,13 @@ namespace vm::runtime
         program = &bytecodeProgram;
 
         // Check if we're resuming from a saved state
-        if (savedState.has_value()) {
+        if (savedState.has_value())
+        {
             restoreState(savedState.value());
-            savedState.reset();  // Clear saved state after restoring
-        } else {
+            savedState.reset(); // Clear saved state after restoring
+        }
+        else
+        {
             // Fresh execution - start from entry point
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
@@ -133,19 +137,11 @@ namespace vm::runtime
 
     value::Value VirtualMachine::interpretLoop()
     {
-        suspendedByAwait = false;  // Reset flag at start
-
-        // Debug flag
-        constexpr bool DEBUG_EXCEPTION = false;
+        suspendedByAwait = false; // Reset flag at start
 
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
-
-            if (DEBUG_EXCEPTION) {
-                std::cout << "[VM] IP=" << instructionPointer << " OpCode="
-                          << bytecode::getOpCodeName(instr.opcode) << "\n";
-            }
 
             try
             {
@@ -154,11 +150,6 @@ namespace vm::runtime
             }
             catch (errors::UserException& e)
             {
-                if (DEBUG_EXCEPTION) {
-                    std::cout << "[VM] Exception caught at IP=" << instructionPointer
-                              << " type=" << e.getExceptionTypeName() << "\n";
-                }
-
                 // Delegate exception handling to ExceptionHandler
                 auto result = exceptionHandler->handleUserException(e, instructionPointer, currentFinallyOffset);
 
@@ -168,17 +159,13 @@ namespace vm::runtime
                     throw;
                 }
 
-                if (DEBUG_EXCEPTION) {
-                    std::cout << "[VM] Exception handled, jumping to IP=" << result.newInstructionPointer << "\n";
-                }
-
                 // Jump to the catch/finally block
                 instructionPointer = result.newInstructionPointer;
 
                 // Continue execution from the catch/finally block
                 // Don't increment IP here - the normal loop will handle it
                 stats.instructionsExecuted++;
-                continue;  // Skip the rest of the loop iteration
+                continue; // Skip the rest of the loop iteration
             }
 
             stats.instructionsExecuted++;
@@ -186,8 +173,8 @@ namespace vm::runtime
             // Check if we suspended due to AWAIT - if so, break without incrementing IP
             if (suspendedByAwait)
             {
-                suspendedByAwait = false;  // Reset flag
-                break;  // Exit loop without incrementing IP (already done by AWAIT handler)
+                suspendedByAwait = false; // Reset flag
+                break; // Exit loop without incrementing IP (already done by AWAIT handler)
             }
 
             // Check for halt
@@ -334,6 +321,10 @@ namespace vm::runtime
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
         case OpCode::SUPER_INVOKE: objectExecutor->handleSuperInvoke(instr);
+            break;
+        case OpCode::SUPER_GET_FIELD: objectExecutor->handleSuperGetField(instr);
+            break;
+        case OpCode::SUPER_SET_FIELD: objectExecutor->handleSuperSetField(instr);
             break;
 
         // Arrays - delegated to ArrayExecutor
@@ -767,7 +758,7 @@ namespace vm::runtime
     {
         VMState state;
         state.instructionPointer = instructionPointer;
-        state.stack = stackManager->getStack();  // Get copy of entire stack
+        state.stack = stackManager->getStack(); // Get copy of entire stack
         state.callStack = callStack;
         return state;
     }
@@ -775,7 +766,7 @@ namespace vm::runtime
     void VirtualMachine::restoreState(const VMState& state)
     {
         instructionPointer = state.instructionPointer;
-        stackManager->setStack(state.stack);  // Restore entire stack
+        stackManager->setStack(state.stack); // Restore entire stack
         callStack = state.callStack;
     }
 

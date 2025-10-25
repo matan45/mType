@@ -1,0 +1,5 @@
+Testing lambda with throw
+Valid: 50
+Caught exception for negative
+Caught exception for large
+Lambda throw test completed

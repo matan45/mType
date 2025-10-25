@@ -3,7 +3,6 @@
 #include <vector>
 #include <functional>
 #include <mutex>
-#include <iostream>
 
 namespace value
 {

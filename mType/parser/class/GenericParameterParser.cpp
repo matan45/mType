@@ -101,6 +101,9 @@ namespace parser
             parameters.push_back(parseGenericTypeParameter());
         }
 
+        // Validate no circular dependencies in type bounds
+        validateNoCircularDependencies(parameters);
+
         return parameters;
     }
 
@@ -170,5 +173,138 @@ namespace parser
     std::string GenericParameterParser::parseNestedGenericConstraint()
     {
         return ParserUtils::parseNestedGenericExpression(tokenStream);
+    }
+
+    void GenericParameterParser::validateNoCircularDependencies(const std::vector<GenericTypeParameter>& parameters)
+    {
+        // Check each parameter for circular dependencies
+        for (const auto& param : parameters)
+        {
+            std::unordered_set<std::string> visited;
+            std::unordered_set<std::string> recursionStack;
+
+            if (hasCircularDependency(param.name, parameters, visited, recursionStack))
+            {
+                throw ParseException(
+                    "Circular dependency detected in generic type parameter '" + param.name + "'. "
+                    "Type parameters cannot have circular constraint relationships.",
+                    param.location);
+            }
+        }
+    }
+
+    bool GenericParameterParser::hasCircularDependency(
+        const std::string& paramName,
+        const std::vector<GenericTypeParameter>& parameters,
+        std::unordered_set<std::string>& visited,
+        std::unordered_set<std::string>& recursionStack)
+    {
+        // If already visited in current DFS path (recursion stack), we have a cycle
+        if (recursionStack.count(paramName))
+        {
+            return true;
+        }
+
+        // If already fully explored in previous DFS, no cycle from this node
+        if (visited.count(paramName))
+        {
+            return false;
+        }
+
+        // Mark as visited and add to recursion stack
+        visited.insert(paramName);
+        recursionStack.insert(paramName);
+
+        // Find the parameter definition
+        const GenericTypeParameter* currentParam = nullptr;
+        for (const auto& param : parameters)
+        {
+            if (param.name == paramName)
+            {
+                currentParam = &param;
+                break;
+            }
+        }
+
+        // If parameter not found, it's not a type parameter (could be a class name)
+        if (!currentParam)
+        {
+            recursionStack.erase(paramName);
+            return false;
+        }
+
+        // Check all constraints for this parameter
+        for (const auto& constraint : currentParam->constraints)
+        {
+            // Extract type parameter names from constraint
+            // e.g., "Box<U>" -> extract "U", "List<T, K>" -> extract "T" and "K"
+            std::vector<std::string> referencedParams = extractTypeParameters(constraint, parameters);
+
+            for (const auto& refParam : referencedParams)
+            {
+                // Allow self-references (e.g., T extends Comparable<T>)
+                // This is a common and valid pattern, not a circular dependency
+                if (refParam == paramName)
+                {
+                    continue;  // Skip self-references
+                }
+
+                if (hasCircularDependency(refParam, parameters, visited, recursionStack))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Remove from recursion stack (backtrack)
+        recursionStack.erase(paramName);
+        return false;
+    }
+
+    std::vector<std::string> GenericParameterParser::extractTypeParameters(
+        const std::string& constraint,
+        const std::vector<GenericTypeParameter>& parameters)
+    {
+        std::vector<std::string> result;
+
+        // Build set of known type parameter names for quick lookup
+        std::unordered_set<std::string> paramNames;
+        for (const auto& param : parameters)
+        {
+            paramNames.insert(param.name);
+        }
+
+        // Extract identifiers from constraint string
+        // e.g., "Box<U>" -> ["Box", "U"], "List<T, K>" -> ["List", "T", "K"]
+        std::string currentToken;
+        for (size_t i = 0; i < constraint.length(); ++i)
+        {
+            char c = constraint[i];
+
+            if (std::isalnum(c) || c == '_')
+            {
+                currentToken += c;
+            }
+            else
+            {
+                if (!currentToken.empty())
+                {
+                    // Check if this token is a type parameter
+                    if (paramNames.count(currentToken))
+                    {
+                        result.push_back(currentToken);
+                    }
+                    currentToken.clear();
+                }
+            }
+        }
+
+        // Don't forget the last token
+        if (!currentToken.empty() && paramNames.count(currentToken))
+        {
+            result.push_back(currentToken);
+        }
+
+        return result;
     }
 }
