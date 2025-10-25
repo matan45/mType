@@ -158,6 +158,13 @@ namespace runtimeTypes::klass
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;
 
+        // NEW: Get field owner class in hierarchy
+        // Returns the ClassDefinition that owns the field (important for access control)
+        // Pass 'self' as the first parameter when calling from a shared_ptr
+        std::shared_ptr<ClassDefinition> getFieldOwnerInHierarchy(
+            const std::string& fieldName,
+            std::shared_ptr<ClassDefinition> self) const;
+
         // Inheritance chain traversal
         std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain() const;
 

@@ -336,6 +336,32 @@ namespace tests::testSuite
                         errorPath + "superMethodPrivate.mt",
                         TestType::ERROR_EXPECTED);
 
+        // === SUPER IN STATIC CONTEXT ERROR TESTS ===
+        // These tests verify that super cannot be used in static contexts
+
+        addTestFromFile("Super In Static Method Error",
+                        errorPath + "superInStaticMethod.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super In Static Initializer Error",
+                        errorPath + "superInStaticInitializer.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Static Method Call Error",
+                        errorPath + "superStaticMethodCall.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === PRIVATE ACCESS VIA INHERITANCE ERROR TESTS ===
+        // These tests verify that private members cannot be accessed from child classes
+
+        addTestFromFile("Private Method Direct Access Error",
+                        errorPath + "privateMethodDirectAccess.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Private Field Direct Access Error",
+                        errorPath + "privateFieldDirectAccess.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Private Static Method Inheritance Error",
+                        errorPath + "privateStaticMethodInheritance.mt",
+                        TestType::ERROR_EXPECTED);
+
         // === NESTED TYPE VALIDATION TESTS ===
         // These tests verify that nested classes and interfaces are properly rejected
 

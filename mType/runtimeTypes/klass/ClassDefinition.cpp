@@ -177,6 +177,32 @@ namespace runtimeTypes::klass
         return nullptr;
     }
 
+    std::shared_ptr<ClassDefinition> ClassDefinition::getFieldOwnerInHierarchy(
+        const std::string& fieldName,
+        std::shared_ptr<ClassDefinition> self) const
+    {
+        // First, check if this class owns the field
+        auto field = getField(fieldName);
+        if (field) {
+            return self; // Return the shared_ptr to this class
+        }
+
+        // Then check in parent class hierarchy
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            field = current->getField(fieldName);
+            if (field) {
+                return current; // Return the parent class that owns the field
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return nullptr; // Field not found in hierarchy
+    }
+
     std::shared_ptr<MethodDefinition> ClassDefinition::getMethod(const std::string& methodName) const
     {
         auto method = getInstanceMethod(methodName);

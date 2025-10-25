@@ -54,6 +54,8 @@ namespace tests::testSuite
                         passPath + "classMethodParameters.mt");
         addOutputVerificationTest("Lambda Complex Class Integration",
                         passPath + "classComplexIntegration.mt");
+        addOutputVerificationTest("Lambda Super Access",
+                        passPath + "lambdaSuperAccess.mt");
 
         // Memory management and advanced tests
         addOutputVerificationTest("Lambda Interface Memory Management",
@@ -110,6 +112,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Continue In Lambda Error",
                         errorPath + "continueInLambdaError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Super In Static Context Error",
+                        errorPath + "lambdaSuperStaticContext.mt",
                         TestType::ERROR_EXPECTED);
     }
 }
