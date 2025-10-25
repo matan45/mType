@@ -290,13 +290,17 @@ namespace vm::compiler::visitors
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
                     if (!argClassName.empty() && argClassName != expectedClass && expectedClass != "object")
                     {
-                        if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                        // Check if argClassName is assignable to expectedClass (inheritance/polymorphism)
+                        if (!ctx.typeValidator.isClassCompatible(argClassName, expectedClass))
                         {
-                            throw errors::TypeException(
-                                "Constructor parameter " + std::to_string(i + 1) +
-                                " expects " + expectedClass + " but got " + argClassName,
-                                location
-                            );
+                            if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                            {
+                                throw errors::TypeException(
+                                    "Constructor parameter " + std::to_string(i + 1) +
+                                    " expects " + expectedClass + " but got " + argClassName,
+                                    location
+                                );
+                            }
                         }
                     }
                 }

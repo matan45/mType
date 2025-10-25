@@ -38,12 +38,10 @@ function main(): void {
 
     // Cast to Base through Left
     Left leftRef = diamond;
-    print("leftRef.process(): " + leftRef.process());
     print("leftRef.leftMethod(): " + leftRef.leftMethod());
 
     // Cast to Base through Right
     Right rightRef = diamond;
-    print("rightRef.process(): " + rightRef.process());
     print("rightRef.rightMethod(): " + rightRef.rightMethod());
 
     // Cast to Base directly

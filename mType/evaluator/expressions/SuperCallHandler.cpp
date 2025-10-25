@@ -9,6 +9,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/ReturnException.hpp"
+#include "../../errors/AccessViolationException.hpp"
 #include "../../value/PromiseValue.hpp"
 #include <unordered_set>
 
@@ -252,6 +253,15 @@ namespace evaluator
                     node->getLocation());
             }
 
+            // Validate access modifiers - cannot call private parent methods
+            if (parentMethod->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                throw errors::AccessViolationException(
+                    "Cannot call private method '" + node->getMethodName() + "' from parent class '" +
+                    parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
+                    node->getLocation()
+                );
+            }
+
             // Call parent method using object evaluator
             if (objEvaluator) {
                 // Create new scope for method execution (RAII-based exception safety)
@@ -361,6 +371,16 @@ namespace evaluator
                     node->getLocation());
             }
 
+            // Validate access modifiers - cannot access private parent fields
+            auto field = parentClass->getField(node->getMemberName());
+            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                throw errors::AccessViolationException(
+                    "Cannot access private field '" + node->getMemberName() + "' from parent class '" +
+                    parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
+                    node->getLocation()
+                );
+            }
+
             // Access field value from current instance
             // Fields are stored on the instance, not the class
             // The field is defined in the parent class but the value is on the instance
@@ -416,6 +436,16 @@ namespace evaluator
                 throw UndefinedException(
                     "Parent class not found for super." + node->getMemberName() + " assignment",
                     node->getLocation());
+            }
+
+            // Validate access modifiers - cannot access private parent fields
+            auto field = parentClass->getField(node->getMemberName());
+            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+                throw errors::AccessViolationException(
+                    "Cannot access private field '" + node->getMemberName() + "' from parent class '" +
+                    parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
+                    node->getLocation()
+                );
             }
 
             // Evaluate the value to assign

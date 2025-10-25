@@ -1,0 +1,5 @@
+Testing super method access with access modifiers
+Protected: Child: Protected from Parent
+Public: Child: Public from Parent
+Parent's private via public: Secret
+Super method access test completed

@@ -19,7 +19,7 @@ class Level1 {
 
 class Level2 extends Level1 {
     constructor(): super() {
-        level = 2;
+        super.level = 2;
     }
 
     public function identify(): string {
@@ -29,7 +29,7 @@ class Level2 extends Level1 {
 
 class Level3 extends Level2 {
     constructor(): super() {
-        level = 3;
+        super.level = 3;
     }
 
     public function identify(): string {
@@ -40,7 +40,7 @@ class Level3 extends Level2 {
 class Level4 extends Level3 {
     constructor(): super() {
         
-        level = 4;
+        super.level = 4;
     }
 
     public function identify(): string {
@@ -51,7 +51,7 @@ class Level4 extends Level3 {
 class Level5 extends Level4 {
     constructor(): super() {
         
-        level = 5;
+        super.level = 5;
     }
 
     public function identify(): string {
@@ -62,7 +62,7 @@ class Level5 extends Level4 {
 class Level6 extends Level5 {
     constructor(): super() {
         
-        level = 6;
+        super.level = 6;
     }
 
     public function identify(): string {
@@ -73,7 +73,7 @@ class Level6 extends Level5 {
 class Level7 extends Level6 {
     constructor(): super() {
         
-        level = 7;
+        super.level = 7;
     }
 
     public function identify(): string {
@@ -84,7 +84,7 @@ class Level7 extends Level6 {
 class Level8 extends Level7 {
     constructor(): super() {
         
-        level = 8;
+        super.level = 8;
     }
 
     public function identify(): string {

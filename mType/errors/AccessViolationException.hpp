@@ -23,6 +23,23 @@ namespace errors
 
     public:
         /**
+         * @brief Construct an access violation exception with a simple message
+         * @param msg The error message
+         * @param loc Source location of the violation
+         */
+        explicit AccessViolationException(
+            const std::string& msg,
+            const SourceLocation& loc = SourceLocation())
+            : TypeException(msg, loc),
+              memberName(""),
+              memberType(""),
+              accessLevel(ast::AccessModifier::PRIVATE),
+              targetClassName(""),
+              callingContext("")
+        {
+        }
+
+        /**
          * @brief Construct an access violation exception
          * @param member The name of the member being accessed
          * @param type The type of member ("field", "method", "constructor")

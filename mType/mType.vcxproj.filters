@@ -3211,6 +3211,9 @@
     <None Include="tests\testFiles\class\error\superFieldPrivate.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\superMethodPrivate.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\superSyntax.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -3533,6 +3536,12 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\superFieldWithPolymorphism.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superMethodAccess.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superMethodAccess.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">

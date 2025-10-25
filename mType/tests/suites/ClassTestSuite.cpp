@@ -136,6 +136,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Super Field Comprehensive",
                         passPath + "superFieldComprehensive.mt");
 
+        // === SUPER METHOD ACCESS TESTS ===
+        // These tests verify super.method() calls with access modifiers
+
+        addOutputVerificationTest("Super Method Access",
+                        passPath + "superMethodAccess.mt");
+
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
 
@@ -325,6 +331,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Super Field Assign No Parent Error",
                         errorPath + "superFieldAssignNoParent.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Super Method Private Access Error",
+                        errorPath + "superMethodPrivate.mt",
                         TestType::ERROR_EXPECTED);
 
         // === NESTED TYPE VALIDATION TESTS ===

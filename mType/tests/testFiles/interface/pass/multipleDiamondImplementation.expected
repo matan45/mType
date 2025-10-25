@@ -2,9 +2,7 @@ Testing diamond implementation
 diamond.process(): Diamond process
 diamond.leftMethod(): Left method
 diamond.rightMethod(): Right method
-leftRef.process(): Diamond process
 leftRef.leftMethod(): Left method
-rightRef.process(): Diamond process
 rightRef.rightMethod(): Right method
 baseRef.process(): Diamond process
 Diamond implementation test completed

@@ -163,13 +163,16 @@ namespace vm::compiler::visitors
                         }
 
                         if (!isGenericMatch) {
-                            // null can be passed to any object type
-                            if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
-                                throw errors::TypeException(
-                                    "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                                    " expects " + expectedType + " but got " + argClassName,
-                                    node->getLocation()
-                                );
+                            // Check if argClassName is assignable to expectedType (inheritance/polymorphism)
+                            if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType)) {
+                                // null can be passed to any object type
+                                if (!dynamic_cast<ast::NullNode*>(arguments[i].get())) {
+                                    throw errors::TypeException(
+                                        "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                        " expects " + expectedType + " but got " + argClassName,
+                                        node->getLocation()
+                                    );
+                                }
                             }
                         }
                     }

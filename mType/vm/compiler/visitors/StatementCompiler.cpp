@@ -223,17 +223,24 @@ namespace vm::compiler::visitors
             if (classRegistry) {
                 auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
                 if (classDef) {
-                    const auto& instanceFields = classDef->getInstanceFields();
-                    if (instanceFields.find(name) != instanceFields.end()) {
-                        // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
-                        size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
-                        return;
+                    // Check instance fields in current class and all parent classes
+                    auto currentClass = classDef;
+                    while (currentClass) {
+                        const auto& instanceFields = currentClass->getInstanceFields();
+                        if (instanceFields.find(name) != instanceFields.end()) {
+                            // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
+                            size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                            return;
+                        }
+
+                        // Move to parent class to check inherited fields
+                        currentClass = currentClass->hasParentClass() ? currentClass->getParentClass() : nullptr;
                     }
 
-                    // Check if it's a static field of the current class
+                    // Check if it's a static field of the current class (static fields are not inherited)
                     const auto& staticFields = classDef->getStaticFields();
                     if (staticFields.find(name) != staticFields.end()) {
                         // It's a static field - use fully qualified name: ClassName::fieldName
