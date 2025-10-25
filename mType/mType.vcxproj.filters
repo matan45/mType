@@ -5353,6 +5353,12 @@
     <None Include="tests\testFiles\optimizer\pass\integration_with_dce.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
+    <None Include="tests\testFiles\optimizer\pass\lambdaTryCatchFinally.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\lambdaWithThrow.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
     <None Include="tests\testFiles\optimizer\pass\logical_folding.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>

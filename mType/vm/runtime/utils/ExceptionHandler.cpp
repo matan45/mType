@@ -26,16 +26,44 @@ namespace vm::runtime::utils
             }
             else if (functionName.find("<lambda>") != std::string::npos)
             {
-                // Lambda function - search forward for RETURN or RETURN_VALUE to find end
+                // Lambda function - search forward to find the actual end
+                // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
+                // Strategy: Find all RETURNs and take the last one at the lambda's scope level
+                size_t lastReturn = SIZE_MAX;
+                int callDepth = 0; // Track nested function calls
+
                 for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)
                 {
                     const auto& instr = program->getInstruction(searchIP);
+
+                    // Track function call/return nesting
+                    if (instr.opcode == bytecode::OpCode::CALL ||
+                        instr.opcode == bytecode::OpCode::CALL_METHOD ||
+                        instr.opcode == bytecode::OpCode::CALL_STATIC ||
+                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE) {
+                        callDepth++;
+                    }
+
                     if (instr.opcode == bytecode::OpCode::RETURN ||
-                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
-                    {
-                        searchLimit = searchIP + 1; // Include the RETURN instruction
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE) {
+                        if (callDepth == 0) {
+                            // This is a return at our lambda's scope level
+                            lastReturn = searchIP;
+                            // Don't break - keep searching for more RETURNs
+                        } else {
+                            // This return belongs to a nested function call
+                            callDepth--;
+                        }
+                    }
+
+                    // Stop if we hit another lambda or function definition
+                    if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP) {
                         break;
                     }
+                }
+
+                if (lastReturn != SIZE_MAX) {
+                    searchLimit = lastReturn + 1; // Include the RETURN instruction
                 }
             }
         }
@@ -77,6 +105,7 @@ namespace vm::runtime::utils
 
     void ExceptionHandler::unwindCallFrames(size_t targetIP)
     {
+
         while (!callStack.empty())
         {
             const CallFrame& frame = callStack.back();
@@ -93,6 +122,13 @@ namespace vm::runtime::utils
                 {
                     break;
                 }
+            }
+            else if (frame.functionName.find("<lambda>") != std::string::npos)
+            {
+                // Lambda function - don't unwind if CATCH/FINALLY is inside the lambda
+                // This prevents incorrectly unwinding the lambda's call frame when
+                // the exception handler is within the lambda itself
+                break;
             }
 
             // Target is outside this function - unwind the call frame
@@ -121,6 +157,7 @@ namespace vm::runtime::utils
         size_t currentIP,
         size_t currentFinallyOffset)
     {
+
         HandlingResult result;
         result.handled = false;
         result.newInstructionPointer = currentIP;
