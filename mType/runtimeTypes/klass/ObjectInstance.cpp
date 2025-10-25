@@ -87,6 +87,13 @@ namespace runtimeTypes::klass
 
         std::string baseName = classDefinition->getName();
 
+        // Check if the class name already contains type arguments (e.g., "Pair<Int,String>")
+        // This happens when the class is an instantiated generic class
+        if (baseName.find('<') != std::string::npos && baseName.find('>') != std::string::npos) {
+            // Already a full generic type name, return as-is
+            return baseName;
+        }
+
         // If no generic type bindings, return just the base name
         if (genericTypeBindings.empty()) {
             return baseName;

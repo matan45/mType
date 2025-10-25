@@ -55,7 +55,8 @@ namespace runtimeTypes::klass
     }
 
     std::shared_ptr<ClassDefinition> InterfaceDefinition::createLambdaImplementation(
-        ast::nodes::expressions::LambdaNode* lambda) const
+        ast::nodes::expressions::LambdaNode* lambda,
+        const std::string& fullInterfaceName) const
     {
         if (!isFunctionalInterface()) {
             return nullptr; // Can only convert lambdas to functional interfaces
@@ -106,7 +107,9 @@ namespace runtimeTypes::klass
         classDefinition->addMethod(methodDef);
 
         // Mark class as implementing this interface
-        classDefinition->addImplementedInterface(getName());
+        // Use full interface name (with generics) if provided, otherwise use base name
+        std::string interfaceToImplement = fullInterfaceName.empty() ? getName() : fullInterfaceName;
+        classDefinition->addImplementedInterface(interfaceToImplement);
 
         return classDefinition;
     }

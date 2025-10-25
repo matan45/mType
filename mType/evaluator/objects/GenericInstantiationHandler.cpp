@@ -85,6 +85,9 @@ namespace objects {
                 bool wasInStaticMethod = context->isInStaticMethodContext();
                 context->setInStaticMethod(false);
 
+                // Push calling class onto stack for access control (needed for super.field access)
+                context->pushCallingClass(classDef->getName());
+
                 // Use ScopeGuard for automatic scope management
                 {
                     utils::ScopeGuard scope(env, "constructor", environment::manager::ScopeType::FUNCTION);
@@ -150,6 +153,7 @@ namespace objects {
                     }
                     catch (...)
                     {
+                        context->popCallingClass(); // Pop calling class from stack
                         context->setCurrentInstance(prevInstance);
                         context->setInStaticMethod(wasInStaticMethod);
                         context->setGenericTypeBindings(prevGenericBindings);
@@ -157,6 +161,8 @@ namespace objects {
                     }
                     // Scope automatically exits via RAII
                 }
+                // Pop calling class from stack after constructor execution
+                context->popCallingClass();
                 context->setCurrentInstance(prevInstance);
                 context->setInStaticMethod(wasInStaticMethod);
                 context->setGenericTypeBindings(prevGenericBindings);
@@ -199,7 +205,39 @@ namespace objects {
 
     std::string GenericInstantiationHandler::resolveTypeParameterFromContext(const std::string& typeParam)
     {
-        // Get current instance to check for generic type bindings
+        // Check if this is a nested generic type (e.g., "SortedList<T>")
+        if (utils::GenericTypeManager::isGenericInstantiation(typeParam))
+        {
+            // Parse and resolve nested type arguments recursively
+            auto [baseName, typeArguments] = utils::GenericTypeManager::parseGenericInstantiation(typeParam);
+            std::vector<std::string> resolvedArgs;
+            bool anyResolved = false;
+
+            for (const auto& arg : typeArguments)
+            {
+                std::string resolvedArg = resolveTypeParameterFromContext(arg);  // Recursive resolution
+                resolvedArgs.push_back(resolvedArg);
+                if (resolvedArg != arg) {
+                    anyResolved = true;
+                }
+            }
+
+            // If any argument was resolved, reconstruct the type
+            if (anyResolved)
+            {
+                std::string result = baseName + "<" + resolvedArgs[0];
+                for (size_t i = 1; i < resolvedArgs.size(); ++i)
+                {
+                    result += "," + resolvedArgs[i];
+                }
+                result += ">";
+                return result;
+            }
+
+            return typeParam;  // No resolution needed
+        }
+
+        // Simple type parameter - check bindings
         auto currentInstance = context->getCurrentInstance();
         if (currentInstance)
         {

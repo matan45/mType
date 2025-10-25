@@ -143,7 +143,9 @@ namespace runtimeTypes::klass
         std::shared_ptr<ClassDefinition> getParentClass() const { return parentClass.lock(); }
         void setParentClass(std::shared_ptr<ClassDefinition> parent) {
             parentClass = parent;
-            if (parent) {
+            // Only set parentClassName if it hasn't been explicitly set already
+            // This preserves generic type arguments like "BaseContainer<T>"
+            if (parent && parentClassName.empty()) {
                 parentClassName = parent->getName();
             }
         }
@@ -191,6 +193,7 @@ namespace runtimeTypes::klass
 
         // Helper methods for implementsInterfaceTransitive
         static std::string extractBaseTypeName(const std::string& typeName);
+        static std::string normalizeGenericTypeName(const std::string& typeName);
         bool checkDirectInterfaceMatch(const std::string& interfaceName,
                                        const std::string& implementedInterface,
                                        std::unordered_set<std::string>& visited,

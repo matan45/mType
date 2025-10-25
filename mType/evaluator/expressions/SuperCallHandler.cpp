@@ -12,7 +12,6 @@
 #include "../../errors/AccessViolationException.hpp"
 #include "../../value/PromiseValue.hpp"
 #include <unordered_set>
-
 using namespace errors;
 using namespace runtimeTypes::klass;
 using namespace runtimeTypes::global;
@@ -88,7 +87,17 @@ namespace evaluator
 
             // Find matching parent constructor
             auto parentConstructor = parentClass->findConstructor(argValues.size());
+
+            // If no constructor found, check if parent has any constructors at all
             if (!parentConstructor) {
+                // If parent has no constructors and super() is called with 0 args, that's valid (implicit default constructor)
+                if (parentClass->getConstructors().empty() && argValues.empty()) {
+                    // Implicit default constructor - no body to execute, just continue
+                    // Parent fields are already initialized with their default values
+                    return std::monostate{};
+                }
+
+                // Otherwise it's an error
                 throw UndefinedException(
                     "No matching constructor in parent class '" + parentClass->getName() +
                     "' with " + std::to_string(argValues.size()) + " parameter(s)",
@@ -102,8 +111,72 @@ namespace evaluator
                                             "super_constructor",
                                             environment::manager::ScopeType::FUNCTION);
 
-                // Get generic type bindings from context
-                auto genericBindings = context->getGenericTypeBindings();
+                // Get parent class's generic type bindings for parameter validation
+                // E.g., if child is "SpecializedIntContainer extends BaseContainer<Int>",
+                // we need to extract {T -> Int} from "BaseContainer<Int>"
+                // Or if child is "ExtendedContainer<T> extends BaseContainer<T>" and we're instantiating
+                // ExtendedContainer<Int>, we need to resolve T -> Int first
+                std::unordered_map<std::string, std::string> genericBindings;
+                std::string parentClassName = currentClass->getParentClassName();
+
+                // Check if parent class name has generic type arguments
+                if (parentClassName.find('<') != std::string::npos) {
+                    // Parse generic type arguments from parent class name
+                    size_t angleStart = parentClassName.find('<');
+                    size_t angleEnd = parentClassName.rfind('>');
+
+                    if (angleEnd != std::string::npos && angleEnd > angleStart) {
+                        std::string typeArgsStr = parentClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
+
+                        // Parse comma-separated type arguments
+                        std::vector<std::string> typeArgs;
+                        std::string currentArg;
+                        int depth = 0;
+
+                        for (char c : typeArgsStr) {
+                            if (c == '<') depth++;
+                            else if (c == '>') depth--;
+                            else if (c == ',' && depth == 0) {
+                                // Trim whitespace
+                                currentArg.erase(0, currentArg.find_first_not_of(" \t"));
+                                currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
+                                if (!currentArg.empty()) {
+                                    typeArgs.push_back(currentArg);
+                                }
+                                currentArg.clear();
+                                continue;
+                            }
+                            currentArg += c;
+                        }
+
+                        // Add last argument
+                        currentArg.erase(0, currentArg.find_first_not_of(" \t"));
+                        currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
+                        if (!currentArg.empty()) {
+                            typeArgs.push_back(currentArg);
+                        }
+
+                        // Resolve type arguments using current instance's generic bindings
+                        // E.g., if parent name is "BaseContainer<T>" and current instance has {T -> Int},
+                        // resolve T to Int
+                        const auto& currentInstanceBindings = currentInstance->getGenericTypeBindings();
+                        std::vector<std::string> resolvedTypeArgs;
+                        for (const auto& typeArg : typeArgs) {
+                            auto it = currentInstanceBindings.find(typeArg);
+                            if (it != currentInstanceBindings.end()) {
+                                resolvedTypeArgs.push_back(it->second);
+                            } else {
+                                resolvedTypeArgs.push_back(typeArg);
+                            }
+                        }
+
+                        // Map parent's generic parameters to the resolved type arguments
+                        const auto& parentGenericParams = parentClass->getGenericParameters();
+                        for (size_t i = 0; i < parentGenericParams.size() && i < resolvedTypeArgs.size(); ++i) {
+                            genericBindings[parentGenericParams[i].name] = resolvedTypeArgs[i];
+                        }
+                    }
+                }
 
                 // Use ParameterBinder with full type information if available
                 if (parentConstructor->hasParametersWithTypes()) {

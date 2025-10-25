@@ -78,7 +78,8 @@ namespace runtimeTypes::klass {
          * Create anonymous class from lambda for this interface
          */
         std::shared_ptr<ClassDefinition> createLambdaImplementation(
-            ast::nodes::expressions::LambdaNode* lambda) const;
+            ast::nodes::expressions::LambdaNode* lambda,
+            const std::string& fullInterfaceName = "") const;
 
         // Interface inheritance support
         void addExtendedInterface(const std::string& interfaceName) {

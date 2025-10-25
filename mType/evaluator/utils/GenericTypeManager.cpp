@@ -91,6 +91,10 @@ namespace evaluator::utils
         std::string instantiatedName = createInstantiatedClassName(genericClass, typeArguments);
         auto instantiatedClass = std::make_shared<ClassDefinition>(instantiatedName);
 
+        // IMPORTANT: Copy generic parameters from template class
+        // This allows getFullTypeName() to construct the full type name correctly
+        instantiatedClass->setGenericParameters(genericClass->getGenericParameters());
+
         // Create AST-based substitution map
         auto substitutionMap = createASTSubstitutionMap(
             genericClass->getGenericParameters(), typeArguments);
@@ -99,7 +103,16 @@ namespace evaluator::utils
         auto parentClass = genericClass->getParentClass();
         if (parentClass) {
             instantiatedClass->setParentClass(parentClass);
-            instantiatedClass->setParentClassName(genericClass->getParentClassName());
+
+            // Substitute type parameters in parent class name
+            // E.g., "BaseContainer<T>" with T->Int becomes "BaseContainer<Int>"
+            std::string parentClassName = genericClass->getParentClassName();
+            std::string substitutedParentClassName = substituteTypeParametersInString(
+                parentClassName,
+                genericClass->getGenericParameters(),
+                typeArguments
+            );
+            instantiatedClass->setParentClassName(substitutedParentClassName);
         }
 
         // Copy and substitute all members
@@ -135,11 +148,105 @@ namespace evaluator::utils
         std::string name = genericClass->getBaseName() + "<";
         for (size_t i = 0; i < typeArguments.size(); ++i)
         {
-            if (i > 0) name += ", ";
+            if (i > 0) name += ",";  // No space after comma to match bytecode format
             name += typeArguments[i];
         }
         name += ">";
         return name;
+    }
+
+    std::string GenericTypeManager::substituteTypeParametersInString(
+        const std::string& input,
+        const std::vector<ast::GenericTypeParameter>& genericParams,
+        const std::vector<std::string>& typeArguments)
+    {
+        // Build substitution map
+        std::unordered_map<std::string, std::string> substitutions;
+        for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+        {
+            substitutions[genericParams[i].name] = typeArguments[i];
+        }
+
+        // Parse and substitute type parameters in the string
+        // E.g., "BaseContainer<T>" with T->Int becomes "BaseContainer<Int>"
+        if (input.find('<') == std::string::npos) {
+            // No generic type arguments, just check if the whole string is a type parameter
+            auto it = substitutions.find(input);
+            if (it != substitutions.end()) {
+                return it->second;
+            }
+            return input;
+        }
+
+        // Parse the generic type string and substitute recursively
+        std::string result;
+        std::string currentToken;
+        int depth = 0;
+
+        for (size_t i = 0; i < input.size(); ++i) {
+            char c = input[i];
+
+            if (c == '<') {
+                // Check if current token is a type parameter to substitute
+                if (depth == 0 && !currentToken.empty()) {
+                    result += currentToken;
+                    currentToken.clear();
+                }
+                result += c;
+                depth++;
+            } else if (c == '>') {
+                // Substitute token if it's a type parameter
+                if (!currentToken.empty()) {
+                    auto it = substitutions.find(currentToken);
+                    if (it != substitutions.end()) {
+                        result += it->second;
+                    } else {
+                        result += currentToken;
+                    }
+                    currentToken.clear();
+                }
+                result += c;
+                depth--;
+            } else if (c == ',' && depth > 0) {
+                // Substitute token if it's a type parameter
+                if (!currentToken.empty()) {
+                    auto it = substitutions.find(currentToken);
+                    if (it != substitutions.end()) {
+                        result += it->second;
+                    } else {
+                        result += currentToken;
+                    }
+                    currentToken.clear();
+                }
+                result += c;
+            } else if (c == ' ' || c == '\t') {
+                // Handle whitespace - preserve it
+                if (!currentToken.empty()) {
+                    auto it = substitutions.find(currentToken);
+                    if (it != substitutions.end()) {
+                        result += it->second;
+                    } else {
+                        result += currentToken;
+                    }
+                    currentToken.clear();
+                }
+                result += c;
+            } else {
+                currentToken += c;
+            }
+        }
+
+        // Handle any remaining token
+        if (!currentToken.empty()) {
+            auto it = substitutions.find(currentToken);
+            if (it != substitutions.end()) {
+                result += it->second;
+            } else {
+                result += currentToken;
+            }
+        }
+
+        return result;
     }
 
     void GenericTypeManager::copyAndSubstituteFields(
