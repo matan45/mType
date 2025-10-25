@@ -4,6 +4,7 @@
 #include "../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../utils/ParameterBinder.hpp"
 #include "../utils/ScopeGuard.hpp"
+#include "../utils/GenericTypeManager.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
@@ -128,74 +129,36 @@ namespace evaluator
                 std::unordered_map<std::string, std::string> genericBindings;
                 std::string parentClassName = currentClass->getParentClassName();
 
-                // Check if parent class name has generic type arguments
-                if (parentClassName.find('<') != std::string::npos)
+                // Use GenericTypeManager for robust parsing of generic type arguments
+                // This properly handles nested generics like "Container<HashMap<String, List<Int>>>"
+                auto [baseName, typeArgs] = utils::GenericTypeManager::parseGenericInstantiation(parentClassName);
+
+                if (!typeArgs.empty())
                 {
-                    // Parse generic type arguments from parent class name
-                    size_t angleStart = parentClassName.find('<');
-                    size_t angleEnd = parentClassName.rfind('>');
-
-                    if (angleEnd != std::string::npos && angleEnd > angleStart)
+                    // Resolve type arguments using current instance's generic bindings
+                    // E.g., if parent name is "BaseContainer<T>" and current instance has {T -> Int},
+                    // resolve T to Int
+                    const auto& currentInstanceBindings = currentInstance->getGenericTypeBindings();
+                    std::vector<std::string> resolvedTypeArgs;
+                    for (const auto& typeArg : typeArgs)
                     {
-                        std::string typeArgsStr = parentClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
-
-                        // Parse comma-separated type arguments
-                        std::vector<std::string> typeArgs;
-                        std::string currentArg;
-                        int depth = 0;
-
-                        for (char c : typeArgsStr)
+                        auto it = currentInstanceBindings.find(typeArg);
+                        if (it != currentInstanceBindings.end())
                         {
-                            if (c == '<') depth++;
-                            else if (c == '>') depth--;
-                            else if (c == ',' && depth == 0)
-                            {
-                                // Trim whitespace
-                                currentArg.erase(0, currentArg.find_first_not_of(" \t"));
-                                currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-                                if (!currentArg.empty())
-                                {
-                                    typeArgs.push_back(currentArg);
-                                }
-                                currentArg.clear();
-                                continue;
-                            }
-                            currentArg += c;
+                            resolvedTypeArgs.push_back(it->second);
                         }
-
-                        // Add last argument
-                        currentArg.erase(0, currentArg.find_first_not_of(" \t"));
-                        currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-                        if (!currentArg.empty())
+                        else
                         {
-                            typeArgs.push_back(currentArg);
-                        }
-
-                        // Resolve type arguments using current instance's generic bindings
-                        // E.g., if parent name is "BaseContainer<T>" and current instance has {T -> Int},
-                        // resolve T to Int
-                        const auto& currentInstanceBindings = currentInstance->getGenericTypeBindings();
-                        std::vector<std::string> resolvedTypeArgs;
-                        for (const auto& typeArg : typeArgs)
-                        {
-                            auto it = currentInstanceBindings.find(typeArg);
-                            if (it != currentInstanceBindings.end())
-                            {
-                                resolvedTypeArgs.push_back(it->second);
-                            }
-                            else
-                            {
-                                resolvedTypeArgs.push_back(typeArg);
-                            }
-                        }
-
-                        // Map parent's generic parameters to the resolved type arguments
-                        const auto& parentGenericParams = parentClass->getGenericParameters();
-                        for (size_t i = 0; i < parentGenericParams.size() && i < resolvedTypeArgs.size(); ++i)
-                        {
-                            genericBindings[parentGenericParams[i].name] = resolvedTypeArgs[i];
+                            resolvedTypeArgs.push_back(typeArg);
                         }
                     }
+
+                    // Use GenericTypeManager to create the binding map
+                    // This ensures consistent handling with the rest of the generic type system
+                    genericBindings = utils::GenericTypeManager::createTypeSubstitutionMap(
+                        parentClass->getGenericParameters(),
+                        resolvedTypeArgs
+                    );
                 }
 
                 // Use ParameterBinder with full type information if available

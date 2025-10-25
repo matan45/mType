@@ -3,6 +3,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
+#include "../../../evaluator/utils/GenericTypeManager.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -30,24 +31,11 @@ namespace vm::runtime
 
         std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
-        // Parse type arguments
-        std::vector<std::string> typeArgs;
-        size_t start = 0;
-        size_t commaPos;
-        while ((commaPos = typeArgsStr.find(',', start)) != std::string::npos) {
-            std::string typeArg = typeArgsStr.substr(start, commaPos - start);
-            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
-            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
-            typeArgs.push_back(typeArg);
-            start = commaPos + 1;
-        }
-
-        if (start < typeArgsStr.length()) {
-            std::string typeArg = typeArgsStr.substr(start);
-            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
-            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
-            typeArgs.push_back(typeArg);
-        }
+        // Use GenericTypeManager for robust parsing with proper depth tracking
+        // CRITICAL FIX: Previous implementation failed on nested generics like "Container<HashMap<String, List<Int>>>"
+        // It would incorrectly split on inner commas, producing ["HashMap<String", "List<Int>>"]
+        // GenericTypeManager correctly handles bracket depth to produce ["HashMap<String, List<Int>>"]
+        std::vector<std::string> typeArgs = evaluator::utils::GenericTypeManager::parseTypeArguments(typeArgsStr);
 
         // Validate type arguments
         auto& typeRegistry = types::getGlobalTypeRegistry();

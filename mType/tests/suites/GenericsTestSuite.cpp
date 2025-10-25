@@ -83,6 +83,8 @@ namespace tests::testSuite
                         passPath + "typeParameterPropagation.mt");
         addOutputVerificationTest("Generic Inheritance with Super Access",
                         passPath + "genericInheritanceSuper.mt");
+        addOutputVerificationTest("Nested Generic Inheritance",
+                        passPath + "nestedGenericInheritance.mt");
 
         // === PARAMETER TYPE VALIDATION TESTS ===
         // These tests verify correct handling of all parameter types
