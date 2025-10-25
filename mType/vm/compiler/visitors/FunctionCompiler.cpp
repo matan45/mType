@@ -257,8 +257,12 @@ namespace vm::compiler::visitors
         }
 
         if (returnValue) {
-            // Don't wrap in Promise yet - the RETURN_VALUE after finally will handle it
-            // The finally block will manipulate the stack, so we save the return value
+            // For async functions, wrap in Promise before storing
+            // This ensures consistency - we always store a Promise for async functions
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
             // Store return value in the special slot
             ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
         } else {

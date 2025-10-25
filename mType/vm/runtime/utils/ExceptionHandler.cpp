@@ -105,10 +105,15 @@ namespace vm::runtime::utils
 
     void ExceptionHandler::unwindCallFrames(size_t targetIP)
     {
-
         while (!callStack.empty())
         {
             const CallFrame& frame = callStack.back();
+
+            // Safety check: if targetIP is beyond program bounds, stop unwinding
+            if (targetIP >= program->getInstructionCount())
+            {
+                break;
+            }
 
             // Check if the target IP is within the current function's range
             auto* funcMetadata = program->getFunction(frame.functionName);
@@ -146,6 +151,13 @@ namespace vm::runtime::utils
 
     void ExceptionHandler::cleanupStack(size_t targetFrameBase)
     {
+        // Safety check: don't try to pop more than what's on the stack
+        size_t currentSize = stackManager->size();
+        if (targetFrameBase >= currentSize)
+        {
+            return; // Nothing to clean up
+        }
+
         while (stackManager->size() > targetFrameBase)
         {
             stackManager->getStack().pop_back();
@@ -157,7 +169,6 @@ namespace vm::runtime::utils
         size_t currentIP,
         size_t currentFinallyOffset)
     {
-
         HandlingResult result;
         result.handled = false;
         result.newInstructionPointer = currentIP;
@@ -169,7 +180,7 @@ namespace vm::runtime::utils
         // First search: Look for CATCH or FINALLY in current scope
         // But only accept CATCH/FINALLY that belongs to the same try block
         int tryDepth = 0; // Track nesting depth
-        while (searchIP < searchLimit)
+        while (searchIP < searchLimit && searchIP < program->getInstructionCount())
         {
             const auto& searchInstr = program->getInstruction(searchIP);
 
@@ -252,6 +263,13 @@ namespace vm::runtime::utils
 
             // Restore instruction pointer to the caller (right after the CALL)
             searchIP = frame.returnAddress;
+
+            // Safety check: ensure searchIP is within bounds
+            if (searchIP >= program->getInstructionCount())
+            {
+                result.handled = false;
+                return result;
+            }
 
             // Search again from caller's context
             while (searchIP < program->getInstructionCount())
