@@ -43,7 +43,8 @@ namespace evaluator
         Value SuperCallHandler::evaluateSuperConstructorCall(SuperConstructorCallNode* node)
         {
             // Defensive check - evaluators should be set by EvaluatorCoordinator
-            if (!exprEvaluator || !stmtEvaluator || !objEvaluator) {
+            if (!exprEvaluator || !stmtEvaluator || !objEvaluator)
+            {
                 throw std::runtime_error(
                     "SuperCallHandler::evaluateSuperConstructorCall: "
                     "Required evaluators not initialized. "
@@ -52,7 +53,8 @@ namespace evaluator
 
             // Get current instance - super() can only be called in a constructor
             auto currentInstance = context->getCurrentInstance();
-            if (!currentInstance) {
+            if (!currentInstance)
+            {
                 throw UndefinedException(
                     "super() can only be called within a constructor",
                     node->getLocation());
@@ -61,11 +63,13 @@ namespace evaluator
             // Use currentConstructorClass to get the right parent
             // If currentConstructorClass is set, use it; otherwise fall back to instance's class
             auto currentClass = context->getCurrentConstructorClass();
-            if (!currentClass) {
+            if (!currentClass)
+            {
                 currentClass = currentInstance->getClassDefinition();
             }
 
-            if (!currentClass->hasParentClass()) {
+            if (!currentClass->hasParentClass())
+            {
                 throw UndefinedException(
                     "Class '" + currentClass->getName() +
                     "' has no parent class, cannot call super()",
@@ -73,7 +77,8 @@ namespace evaluator
             }
 
             auto parentClass = currentClass->getParentClass();
-            if (!parentClass) {
+            if (!parentClass)
+            {
                 throw UndefinedException(
                     "Parent class not found for super() call",
                     node->getLocation());
@@ -81,7 +86,8 @@ namespace evaluator
 
             // Evaluate constructor arguments
             std::vector<Value> argValues;
-            for (const auto& arg : node->getArguments()) {
+            for (const auto& arg : node->getArguments())
+            {
                 argValues.push_back(exprEvaluator->evaluate(arg.get()));
             }
 
@@ -89,9 +95,11 @@ namespace evaluator
             auto parentConstructor = parentClass->findConstructor(argValues.size());
 
             // If no constructor found, check if parent has any constructors at all
-            if (!parentConstructor) {
+            if (!parentConstructor)
+            {
                 // If parent has no constructors and super() is called with 0 args, that's valid (implicit default constructor)
-                if (parentClass->getConstructors().empty() && argValues.empty()) {
+                if (parentClass->getConstructors().empty() && argValues.empty())
+                {
                     // Implicit default constructor - no body to execute, just continue
                     // Parent fields are already initialized with their default values
                     return std::monostate{};
@@ -105,11 +113,12 @@ namespace evaluator
             }
 
             // Execute parent constructor in the context of current instance
-            if (objEvaluator) {
+            if (objEvaluator)
+            {
                 // Create new scope for parent constructor execution (RAII-based exception safety)
                 utils::ScopeGuard scopeGuard(context->getEnvironment(),
-                                            "super_constructor",
-                                            environment::manager::ScopeType::FUNCTION);
+                                             "super_constructor",
+                                             environment::manager::ScopeType::FUNCTION);
 
                 // Get parent class's generic type bindings for parameter validation
                 // E.g., if child is "SpecializedIntContainer extends BaseContainer<Int>",
@@ -120,12 +129,14 @@ namespace evaluator
                 std::string parentClassName = currentClass->getParentClassName();
 
                 // Check if parent class name has generic type arguments
-                if (parentClassName.find('<') != std::string::npos) {
+                if (parentClassName.find('<') != std::string::npos)
+                {
                     // Parse generic type arguments from parent class name
                     size_t angleStart = parentClassName.find('<');
                     size_t angleEnd = parentClassName.rfind('>');
 
-                    if (angleEnd != std::string::npos && angleEnd > angleStart) {
+                    if (angleEnd != std::string::npos && angleEnd > angleStart)
+                    {
                         std::string typeArgsStr = parentClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
 
                         // Parse comma-separated type arguments
@@ -133,14 +144,17 @@ namespace evaluator
                         std::string currentArg;
                         int depth = 0;
 
-                        for (char c : typeArgsStr) {
+                        for (char c : typeArgsStr)
+                        {
                             if (c == '<') depth++;
                             else if (c == '>') depth--;
-                            else if (c == ',' && depth == 0) {
+                            else if (c == ',' && depth == 0)
+                            {
                                 // Trim whitespace
                                 currentArg.erase(0, currentArg.find_first_not_of(" \t"));
                                 currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-                                if (!currentArg.empty()) {
+                                if (!currentArg.empty())
+                                {
                                     typeArgs.push_back(currentArg);
                                 }
                                 currentArg.clear();
@@ -152,7 +166,8 @@ namespace evaluator
                         // Add last argument
                         currentArg.erase(0, currentArg.find_first_not_of(" \t"));
                         currentArg.erase(currentArg.find_last_not_of(" \t") + 1);
-                        if (!currentArg.empty()) {
+                        if (!currentArg.empty())
+                        {
                             typeArgs.push_back(currentArg);
                         }
 
@@ -161,34 +176,42 @@ namespace evaluator
                         // resolve T to Int
                         const auto& currentInstanceBindings = currentInstance->getGenericTypeBindings();
                         std::vector<std::string> resolvedTypeArgs;
-                        for (const auto& typeArg : typeArgs) {
+                        for (const auto& typeArg : typeArgs)
+                        {
                             auto it = currentInstanceBindings.find(typeArg);
-                            if (it != currentInstanceBindings.end()) {
+                            if (it != currentInstanceBindings.end())
+                            {
                                 resolvedTypeArgs.push_back(it->second);
-                            } else {
+                            }
+                            else
+                            {
                                 resolvedTypeArgs.push_back(typeArg);
                             }
                         }
 
                         // Map parent's generic parameters to the resolved type arguments
                         const auto& parentGenericParams = parentClass->getGenericParameters();
-                        for (size_t i = 0; i < parentGenericParams.size() && i < resolvedTypeArgs.size(); ++i) {
+                        for (size_t i = 0; i < parentGenericParams.size() && i < resolvedTypeArgs.size(); ++i)
+                        {
                             genericBindings[parentGenericParams[i].name] = resolvedTypeArgs[i];
                         }
                     }
                 }
 
                 // Use ParameterBinder with full type information if available
-                if (parentConstructor->hasParametersWithTypes()) {
+                if (parentConstructor->hasParametersWithTypes())
+                {
                     utils::ParameterBinder::bindAndValidateParameters(
                         parentConstructor->getParametersWithTypes(),
                         argValues,
                         "constructor for parent class '" + parentClass->getName() + "'",
                         context->getEnvironment(),
-                        genericBindings,  // Pass generic bindings for type resolution
+                        genericBindings, // Pass generic bindings for type resolution
                         node->getLocation()
                     );
-                } else {
+                }
+                else
+                {
                     // Fallback to old format
                     utils::ParameterBinder::bindAndValidateParameters(
                         parentConstructor->getParameters(),
@@ -200,9 +223,11 @@ namespace evaluator
                 }
 
                 // Execute parent's super initializer first (if it has one)
-                if (parentConstructor->hasSuperInitializer()) {
+                if (parentConstructor->hasSuperInitializer())
+                {
                     auto parentSuperInit = parentConstructor->getSuperInitializer();
-                    if (parentSuperInit) {
+                    if (parentSuperInit)
+                    {
                         // Set currentConstructorClass to parent so super() knows which class's constructor is executing
                         auto prevConstructorClass = context->getCurrentConstructorClass();
                         context->setCurrentConstructorClass(parentClass);
@@ -216,7 +241,8 @@ namespace evaluator
 
                 // Execute parent constructor body
                 Value result = std::monostate{};
-                if (parentConstructor->getBody()) {
+                if (parentConstructor->getBody())
+                {
                     // Set currentConstructorClass to parent so nested super() calls work correctly
                     auto prevConstructorClass = context->getCurrentConstructorClass();
                     context->setCurrentConstructorClass(parentClass);
@@ -239,7 +265,8 @@ namespace evaluator
         Value SuperCallHandler::evaluateSuperMethodCall(SuperMethodCallNode* node)
         {
             // Defensive check - evaluators should be set by EvaluatorCoordinator
-            if (!exprEvaluator || !stmtEvaluator || !objEvaluator) {
+            if (!exprEvaluator || !stmtEvaluator || !objEvaluator)
+            {
                 throw std::runtime_error(
                     "SuperCallHandler::evaluateSuperMethodCall: "
                     "Required evaluators not initialized. "
@@ -248,7 +275,8 @@ namespace evaluator
 
             // Get current instance - super.method() can only be called in instance methods
             auto currentInstance = context->getCurrentInstance();
-            if (!currentInstance) {
+            if (!currentInstance)
+            {
                 throw UndefinedException(
                     "super." + node->getMethodName() + "() can only be called within an instance method",
                     node->getLocation());
@@ -259,7 +287,8 @@ namespace evaluator
             // Using currentInstance->getClassDefinition() would always give us the runtime class (AdvancedService),
             // causing DerivedService.method() to incorrectly call itself instead of BaseService.method()
             std::string currentClassName = context->getCurrentCallingClass();
-            if (currentClassName.empty()) {
+            if (currentClassName.empty())
+            {
                 // ERROR: Calling class stack is empty! This should never happen in normal method execution
                 // The fallback is unsafe because it gives us the runtime type, which can cause infinite recursion
                 throw UndefinedException(
@@ -270,7 +299,8 @@ namespace evaluator
 
             auto env = context->getEnvironment();
             auto currentClass = env->findClass(currentClassName);
-            if (!currentClass) {
+            if (!currentClass)
+            {
                 throw UndefinedException(
                     "Current class '" + currentClassName + "' not found for super." + node->getMethodName() + "() call",
                     node->getLocation());
@@ -280,8 +310,10 @@ namespace evaluator
             {
                 std::unordered_set<std::string> visitedClasses;
                 auto checkClass = currentClass;
-                while (checkClass) {
-                    if (visitedClasses.count(checkClass->getName())) {
+                while (checkClass)
+                {
+                    if (visitedClasses.count(checkClass->getName()))
+                    {
                         throw UndefinedException(
                             "Circular inheritance detected for class '" + currentClassName + "' - "
                             "cannot resolve super." + node->getMethodName() + "() call",
@@ -289,14 +321,16 @@ namespace evaluator
                     }
                     visitedClasses.insert(checkClass->getName());
 
-                    if (!checkClass->hasParentClass()) {
+                    if (!checkClass->hasParentClass())
+                    {
                         break;
                     }
                     checkClass = checkClass->getParentClass();
                 }
             }
 
-            if (!currentClass->hasParentClass()) {
+            if (!currentClass->hasParentClass())
+            {
                 throw UndefinedException(
                     "Class '" + currentClass->getName() +
                     "' has no parent class, cannot call super." + node->getMethodName() + "()",
@@ -304,7 +338,8 @@ namespace evaluator
             }
 
             auto parentClass = currentClass->getParentClass();
-            if (!parentClass) {
+            if (!parentClass)
+            {
                 throw UndefinedException(
                     "Parent class not found for super." + node->getMethodName() + "() call",
                     node->getLocation());
@@ -312,13 +347,15 @@ namespace evaluator
 
             // Evaluate method arguments
             std::vector<Value> argValues;
-            for (const auto& arg : node->getArguments()) {
+            for (const auto& arg : node->getArguments())
+            {
                 argValues.push_back(exprEvaluator->evaluate(arg.get()));
             }
 
             // Find method in parent class (not in current class - that's the override)
             auto parentMethod = parentClass->findMethod(node->getMethodName(), argValues.size());
-            if (!parentMethod) {
+            if (!parentMethod)
+            {
                 throw UndefinedException(
                     "Method '" + node->getMethodName() + "' with " +
                     std::to_string(argValues.size()) + " parameter(s) not found in parent class '" +
@@ -327,7 +364,8 @@ namespace evaluator
             }
 
             // Validate access modifiers - cannot call private parent methods
-            if (parentMethod->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+            if (parentMethod->getAccessModifier() == ast::AccessModifier::PRIVATE)
+            {
                 throw errors::AccessViolationException(
                     "Cannot call private method '" + node->getMethodName() + "' from parent class '" +
                     parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
@@ -336,29 +374,31 @@ namespace evaluator
             }
 
             // Call parent method using object evaluator
-            if (objEvaluator) {
+            if (objEvaluator)
+            {
                 // Create new scope for method execution (RAII-based exception safety)
                 utils::ScopeGuard scopeGuard(context->getEnvironment(),
-                                            "super_method",
-                                            environment::manager::ScopeType::FUNCTION);
+                                             "super_method",
+                                             environment::manager::ScopeType::FUNCTION);
 
                 // Bind 'this' to current instance
                 auto thisVarDef = std::make_shared<VariableDefinition>(
                     "this",
                     ValueType::OBJECT,
                     currentInstance,
-                    true  // 'this' is effectively final
+                    true // 'this' is effectively final
                 );
                 context->getEnvironment()->declareVariable("this", thisVarDef);
 
                 // Bind method parameters
                 const auto& params = parentMethod->getParameters();
-                for (size_t i = 0; i < params.size() && i < argValues.size(); ++i) {
+                for (size_t i = 0; i < params.size() && i < argValues.size(); ++i)
+                {
                     auto varDef = std::make_shared<VariableDefinition>(
                         params[i].first,
-                        params[i].second.basicType,  // Extract ValueType from ParameterType
+                        params[i].second.basicType, // Extract ValueType from ParameterType
                         argValues[i],
-                        false  // parameters are not final
+                        false // parameters are not final
                     );
                     context->getEnvironment()->declareVariable(params[i].first, varDef);
                 }
@@ -368,20 +408,25 @@ namespace evaluator
 
                 // Execute parent method body
                 Value result = std::monostate{};
-                if (parentMethod->getBody()) {
-                    try {
+                if (parentMethod->getBody())
+                {
+                    try
+                    {
                         result = stmtEvaluator->evaluate(parentMethod->getBody());
 
                         // Check if method returned a value
-                        if (context->shouldReturn()) {
+                        if (context->shouldReturn())
+                        {
                             result = context->getReturnValue();
-                            context->setReturned(false);  // Reset return flag
+                            context->setReturned(false); // Reset return flag
                         }
-                    } catch (const ReturnException& e) {
+                    }
+                    catch (const ReturnException& e)
+                    {
                         // Parent method returned - extract the return value
                         // DO NOT re-throw - super.method() calls should return normally
                         result = e.returnValue;
-                        context->setReturned(false);  // Reset return flag
+                        context->setReturned(false); // Reset return flag
                     }
                 }
 
@@ -390,7 +435,8 @@ namespace evaluator
                 // ScopeGuard automatically exits scope via RAII
 
                 // Wrap in Promise if parent method is async
-                if (parentMethod->getIsAsync()) {
+                if (parentMethod->getIsAsync())
+                {
                     auto promise = std::make_shared<value::PromiseValue>(result);
                     return promise;
                 }
@@ -407,7 +453,8 @@ namespace evaluator
         {
             // Get current instance - super.field can only be accessed in instance methods
             auto currentInstance = context->getCurrentInstance();
-            if (!currentInstance) {
+            if (!currentInstance)
+            {
                 throw UndefinedException(
                     "super." + node->getMemberName() + " can only be accessed within an instance method",
                     node->getLocation());
@@ -415,7 +462,8 @@ namespace evaluator
 
             // Use calling class stack to determine which class's context we're executing in
             std::string currentClassName = context->getCurrentCallingClass();
-            if (currentClassName.empty()) {
+            if (currentClassName.empty())
+            {
                 throw UndefinedException(
                     "super." + node->getMemberName() + " accessed without proper method context. "
                     "Calling class stack is empty.",
@@ -424,13 +472,15 @@ namespace evaluator
 
             auto env = context->getEnvironment();
             auto currentClass = env->findClass(currentClassName);
-            if (!currentClass) {
+            if (!currentClass)
+            {
                 throw UndefinedException(
                     "Current class '" + currentClassName + "' not found for super." + node->getMemberName() + " access",
                     node->getLocation());
             }
 
-            if (!currentClass->hasParentClass()) {
+            if (!currentClass->hasParentClass())
+            {
                 throw UndefinedException(
                     "Class '" + currentClass->getName() +
                     "' has no parent class, cannot access super." + node->getMemberName(),
@@ -438,7 +488,8 @@ namespace evaluator
             }
 
             auto parentClass = currentClass->getParentClass();
-            if (!parentClass) {
+            if (!parentClass)
+            {
                 throw UndefinedException(
                     "Parent class not found for super." + node->getMemberName() + " access",
                     node->getLocation());
@@ -446,7 +497,8 @@ namespace evaluator
 
             // Validate access modifiers - cannot access private parent fields
             auto field = parentClass->getField(node->getMemberName());
-            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE)
+            {
                 throw errors::AccessViolationException(
                     "Cannot access private field '" + node->getMemberName() + "' from parent class '" +
                     parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
@@ -460,7 +512,8 @@ namespace evaluator
             Value fieldValue = currentInstance->getFieldValue(node->getMemberName());
 
             // Check if field exists (getFieldValue returns monostate if not found)
-            if (std::holds_alternative<std::monostate>(fieldValue)) {
+            if (std::holds_alternative<std::monostate>(fieldValue))
+            {
                 throw UndefinedException(
                     "Field '" + node->getMemberName() + "' not found in parent class '" +
                     parentClass->getName() + "'",
@@ -474,7 +527,8 @@ namespace evaluator
         {
             // Get current instance - super.field = value can only be used in instance methods
             auto currentInstance = context->getCurrentInstance();
-            if (!currentInstance) {
+            if (!currentInstance)
+            {
                 throw UndefinedException(
                     "super." + node->getMemberName() + " assignment can only be used within an instance method",
                     node->getLocation());
@@ -482,7 +536,8 @@ namespace evaluator
 
             // Use calling class stack to determine which class's context we're executing in
             std::string currentClassName = context->getCurrentCallingClass();
-            if (currentClassName.empty()) {
+            if (currentClassName.empty())
+            {
                 throw UndefinedException(
                     "super." + node->getMemberName() + " assignment without proper method context. "
                     "Calling class stack is empty.",
@@ -491,13 +546,16 @@ namespace evaluator
 
             auto env = context->getEnvironment();
             auto currentClass = env->findClass(currentClassName);
-            if (!currentClass) {
+            if (!currentClass)
+            {
                 throw UndefinedException(
-                    "Current class '" + currentClassName + "' not found for super." + node->getMemberName() + " assignment",
+                    "Current class '" + currentClassName + "' not found for super." + node->getMemberName() +
+                    " assignment",
                     node->getLocation());
             }
 
-            if (!currentClass->hasParentClass()) {
+            if (!currentClass->hasParentClass())
+            {
                 throw UndefinedException(
                     "Class '" + currentClass->getName() +
                     "' has no parent class, cannot assign to super." + node->getMemberName(),
@@ -505,7 +563,8 @@ namespace evaluator
             }
 
             auto parentClass = currentClass->getParentClass();
-            if (!parentClass) {
+            if (!parentClass)
+            {
                 throw UndefinedException(
                     "Parent class not found for super." + node->getMemberName() + " assignment",
                     node->getLocation());
@@ -513,7 +572,8 @@ namespace evaluator
 
             // Validate access modifiers - cannot access private parent fields
             auto field = parentClass->getField(node->getMemberName());
-            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE) {
+            if (field && field->getAccessModifier() == ast::AccessModifier::PRIVATE)
+            {
                 throw errors::AccessViolationException(
                     "Cannot access private field '" + node->getMemberName() + "' from parent class '" +
                     parentClass->getName() + "' in child class '" + currentClass->getName() + "'",
