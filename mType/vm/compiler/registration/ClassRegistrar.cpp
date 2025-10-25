@@ -191,7 +191,7 @@ namespace vm::compiler::registration
 
         // Validate interface implementations
         if (interfaceRegistrar && !classDef->getImplementedInterfaces().empty()) {
-            interfaceRegistrar->validateInterfaceImplementations(classDef, classNode->getLocation());
+            interfaceRegistrar->validateInterfaceImplementations(classDef, classNode);
         }
 
         // Note: Abstract method validation is done in linkSingleClass() after parent links are established
@@ -336,7 +336,7 @@ namespace vm::compiler::registration
             validateInheritanceDepth(className, classNode->getLocation());
 
             // Validate method overrides
-            validateMethodOverrides(classDef, parentDef, classNode->getLocation());
+            validateMethodOverrides(classDef, parentDef, classNode);
 
             // Validate abstract method implementations (must be done after parent link is established)
             if (!classDef->isAbstract()) {
@@ -529,12 +529,15 @@ namespace vm::compiler::registration
     void ClassRegistrar::validateMethodOverrides(
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
-        const ast::SourceLocation& location
+        ast::ClassNode* classNode
     ) const
     {
         if (!childClass || !parentClass) {
             return;
         }
+
+        // Use class location as fallback
+        const ast::SourceLocation classLocation = classNode ? classNode->getLocation() : ast::SourceLocation();
 
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
@@ -545,6 +548,45 @@ namespace vm::compiler::registration
             if (parentIt != parentMethods.end()) {
                 // Method exists in parent - validate override
                 auto parentMethod = parentIt->second;
+
+                // Find the specific method node to get its location
+                ast::SourceLocation methodLocation = classLocation;
+                if (classNode) {
+                    const auto& methods = classNode->getMethods();
+                    for (const auto& methodNodePtr : methods) {
+                        if (auto methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(methodNodePtr.get())) {
+                            if (methodNode->getName() == methodName) {
+                                methodLocation = methodNode->getLocation();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Validate access modifier - child cannot narrow parent's access
+                ast::AccessModifier childAccess = childMethod->getAccessModifier();
+                ast::AccessModifier parentAccess = parentMethod->getAccessModifier();
+
+                // Check for access modifier narrowing
+                bool isNarrowing = false;
+                if (parentAccess == ast::AccessModifier::PUBLIC && childAccess != ast::AccessModifier::PUBLIC) {
+                    isNarrowing = true; // PUBLIC → PROTECTED or PRIVATE is narrowing
+                } else if (parentAccess == ast::AccessModifier::PROTECTED && childAccess == ast::AccessModifier::PRIVATE) {
+                    isNarrowing = true; // PROTECTED → PRIVATE is narrowing
+                }
+
+                if (isNarrowing) {
+                    throw errors::InheritanceException(
+                        "Method override access modifier narrowing in class '" + childClass->getName() +
+                        "': method '" + methodName + "' cannot narrow access from '" +
+                        ast::accessModifierToString(parentAccess) + "' to '" +
+                        ast::accessModifierToString(childAccess) + "'",
+                        childClass->getName(),
+                        parentClass->getName(),
+                        methodName,
+                        methodLocation
+                    );
+                }
 
                 // Validate parameter count matches
                 const auto& childParams = childMethod->getParameters();
@@ -558,7 +600,7 @@ namespace vm::compiler::registration
                         childClass->getName(),
                         parentClass->getName(),
                         methodName,
-                        location
+                        methodLocation
                     );
                 }
 
@@ -577,7 +619,7 @@ namespace vm::compiler::registration
                             childClass->getName(),
                             parentClass->getName(),
                             methodName,
-                            location
+                            methodLocation
                         );
                     }
                 }
@@ -593,7 +635,7 @@ namespace vm::compiler::registration
                         childClass->getName(),
                         parentClass->getName(),
                         methodName,
-                        location
+                        methodLocation
                     );
                 }
             }

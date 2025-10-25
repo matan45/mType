@@ -36,7 +36,7 @@ namespace vm::compiler::registration
         // Interface implementation validation
         void validateInterfaceImplementations(
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-            const ast::SourceLocation& location
+            ast::ClassNode* classNode
         );
 
     private:
