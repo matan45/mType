@@ -7,7 +7,7 @@ class TreeNode<T> {
     TreeNode<T> left;
     TreeNode<T> right;
 
-    public function TreeNode(T val) {
+    constructor(T val) {
         value = val;
         left = null;
         right = null;
@@ -57,11 +57,11 @@ function main(): void {
     root.setLeft(leftChild);
     root.setRight(rightChild);
 
-    print("Tree root value: " + root.getValue());
+    print("Tree root value: " + root.getValue().toString());
     print("Tree has left child: " + root.hasLeft());
     print("Tree has right child: " + root.hasRight());
-    print("Left child value: " + root.getLeft().getValue());
-    print("Right child value: " + root.getRight().getValue());
+    print("Left child value: " + root.getLeft().getValue().toString());
+    print("Right child value: " + root.getRight().getValue().toString());
 
     // Add grandchildren
     TreeNode<Int> leftLeft = new TreeNode<Int>(new Int(12));
@@ -69,8 +69,8 @@ function main(): void {
     leftChild.setLeft(leftLeft);
     leftChild.setRight(leftRight);
 
-    print("Left-left grandchild value: " + root.getLeft().getLeft().getValue());
-    print("Left-right grandchild value: " + root.getLeft().getRight().getValue());
+    print("Left-left grandchild value: " + root.getLeft().getLeft().getValue().toString());
+    print("Left-right grandchild value: " + root.getLeft().getRight().getValue().toString());
 
     // Create a tree of strings
     TreeNode<String> stringRoot = new TreeNode<String>(new String("root"));
@@ -80,9 +80,9 @@ function main(): void {
     stringRoot.setLeft(stringLeft);
     stringRoot.setRight(stringRight);
 
-    print("String tree root: " + stringRoot.getValue());
-    print("String tree left: " + stringRoot.getLeft().getValue());
-    print("String tree right: " + stringRoot.getRight().getValue());
+    print("String tree root: " + stringRoot.getValue().toString());
+    print("String tree left: " + stringRoot.getLeft().getValue().toString());
+    print("String tree right: " + stringRoot.getRight().getValue().toString());
 
     print("Generic tree structure test completed");
 }

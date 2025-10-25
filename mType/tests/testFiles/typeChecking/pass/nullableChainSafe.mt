@@ -3,7 +3,7 @@
 class Address {
     string city;
 
-    public function Address(string c) {
+    constructor(string c) {
         city = c;
     }
 
@@ -16,7 +16,7 @@ class Person {
     string name;
     Address address;
 
-    public function Person(string n) {
+    constructor(string n) {
         name = n;
         address = null;
     }

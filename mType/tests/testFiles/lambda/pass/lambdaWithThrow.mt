@@ -1,5 +1,5 @@
 // Test throw inside lambda body
-
+import * from "../../lib/exceptions/Exception.mt";
 interface Processor {
     function process(int value): string;
 }
@@ -7,7 +7,7 @@ interface Processor {
 function main(): void {
     print("Testing lambda with throw");
 
-    Processor riskyProcessor = (int x) -> {
+    Processor riskyProcessor = x -> {
         if (x < 0) {
             throw new Exception("Negative input");
         }

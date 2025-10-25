@@ -1,5 +1,5 @@
 // Test exception handling inside lambda
-
+import * from "../../lib/exceptions/Exception.mt";
 interface Processor {
     function process(int value): string;
 }
@@ -8,7 +8,7 @@ function main(): void {
     print("Testing lambda with try-catch-finally");
 
     // Lambda with try-catch
-    Processor processor1 = (int x) -> {
+    Processor processor1 = x -> {
         try {
             if (x < 0) {
                 throw new Exception("Negative value");
@@ -23,7 +23,7 @@ function main(): void {
     print(processor1.process(-5));
 
     // Lambda with try-finally
-    Processor processor2 = (int x) -> {
+    Processor processor2 = x -> {
         string result = "";
 
         try {

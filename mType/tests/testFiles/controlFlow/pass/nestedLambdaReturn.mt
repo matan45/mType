@@ -1,4 +1,6 @@
 // Test return through nested lambda calls
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input): R;
@@ -8,7 +10,7 @@ interface Supplier<T> {
     function get(): T;
 }
 
-function processWithLambda(int value, Function<int, string> func): string {
+function processWithLambda(Int value, Function<Int, String> func): String {
     return func.apply(value);
 }
 
@@ -16,35 +18,35 @@ function main(): void {
     print("Testing nested lambda return");
 
     // Simple lambda return
-    Function<int, string> func1 = (int x) -> {
-        if (x > 10) {
-            return "Large";
+    Function<Int, String> func1 = x -> {
+        if (x.value > 10) {
+            return new String("Large");
         }
-        return "Small";
+        return new String("Small");
     };
 
-    print("func1(5): " + func1.apply(5));
-    print("func1(15): " + func1.apply(15));
+    print("func1(5): " + func1.apply(new Int(5)).toString());
+    print("func1(15): " + func1.apply(new Int(15)).toString());
 
     // Nested lambda usage
-    string result = processWithLambda(20, (int x) -> {
-        if (x > 10) {
-            return "Value is large: " + x;
+    String result = processWithLambda(new Int(20), x -> {
+        if (x.value > 10) {
+            return new String("Value is large: " + x.value);
         }
-        return "Value is small: " + x;
+        return new String("Value is small: " + x.value);
     });
 
-    print("Nested result: " + result);
+    print("Nested result: " + result.toString());
 
     // Lambda returning lambda
-    Supplier<Function<int, string>> factory = () -> {
-        return (int x) -> {
-            return "Nested: " + x;
+    Supplier<Function<Int, String>> factory = () -> {
+        return x -> {
+            return new String("Nested: " + x.value);
         };
     };
 
-    Function<int, string> created = factory.get();
-    print("Factory result: " + created.apply(42));
+    Function<Int, String> created = factory.get();
+    print("Factory result: " + created.apply(new Int(42)).toString());
 
     print("Nested lambda return test completed");
 }

@@ -1,5 +1,5 @@
 // Test finally block with return statement overriding try/catch returns
-
+import * from "../../lib/exceptions/Exception.mt";
 function testFinallyReturn1(): int {
     try {
         print("In try block");

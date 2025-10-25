@@ -119,7 +119,6 @@ void printAvailableTestSuites()
 void runSpecificTestSuite(const std::string& suiteName,
                           constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
-
     auto suite = createTestSuite(suiteName);
     if (!suite)
     {
@@ -300,7 +299,9 @@ int main(int argc, char* argv[])
             try
             {
                 std::cout << "Compiling " << sourceFile << " to " << outputFile;
-                std::cout << " (Optimization: " << (compileOptLevel == constants::OptimizationLevel::Release ? "Release" : "Debug") << ")...\n";
+                std::cout << " (Optimization: " << (compileOptLevel == constants::OptimizationLevel::Release
+                                                        ? "Release"
+                                                        : "Debug") << ")...\n";
 
                 ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM, compileOptLevel);
                 interpreter.compileToFile(sourceFile, outputFile);

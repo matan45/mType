@@ -18,7 +18,7 @@ class GameObject implements Drawable, Moveable, Resizable {
     int width;
     int height;
 
-    public function GameObject() {
+    constructor() {
         x = 0;
         y = 0;
         width = 100;

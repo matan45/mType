@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class BaseContainer<T> {
     T value;
 
-    public function BaseContainer(T val) {
+    constructor(T val) {
         value = val;
     }
 
@@ -21,8 +21,7 @@ class BaseContainer<T> {
 class ExtendedContainer<T> extends BaseContainer<T> {
     T secondValue;
 
-    public function ExtendedContainer(T val1, T val2) {
-        super(val1);
+    constructor(T val1, T val2):super(val1) {
         secondValue = val2;
     }
 
@@ -35,15 +34,14 @@ class ExtendedContainer<T> extends BaseContainer<T> {
     }
 
     public function swap(): void {
-        T temp = value;
-        value = secondValue;
+        T temp = super.value;
+        super.value = secondValue;
         secondValue = temp;
     }
 }
 
 class SpecializedIntContainer extends BaseContainer<Int> {
-    public function SpecializedIntContainer(Int val) {
-        super(val);
+    constructor(Int val): super(val) {
     }
 
     public function increment(): void {
@@ -58,29 +56,29 @@ function main(): void {
 
     // Test 1: Extended generic container with Int
     ExtendedContainer<Int> intContainer = new ExtendedContainer<Int>(new Int(10), new Int(20));
-    print("intContainer first value: " + intContainer.getValue());
-    print("intContainer second value: " + intContainer.getSecondValue());
+    print("intContainer first value: " + intContainer.getValue().toString());
+    print("intContainer second value: " + intContainer.getSecondValue().toString());
 
     intContainer.swap();
-    print("After swap - first value: " + intContainer.getValue());
-    print("After swap - second value: " + intContainer.getSecondValue());
+    print("After swap - first value: " + intContainer.getValue().toString());
+    print("After swap - second value: " + intContainer.getSecondValue().toString());
 
     // Test 2: Extended generic container with String
     ExtendedContainer<String> stringContainer = new ExtendedContainer<String>(
         new String("Hello"),
         new String("World")
     );
-    print("stringContainer first value: " + stringContainer.getValue());
-    print("stringContainer second value: " + stringContainer.getSecondValue());
+    print("stringContainer first value: " + stringContainer.getValue().toString());
+    print("stringContainer second value: " + stringContainer.getSecondValue().toString());
 
     // Test 3: Specialized container (T is fixed to Int)
     SpecializedIntContainer specialized = new SpecializedIntContainer(new Int(42));
-    print("Specialized container value: " + specialized.getValue());
+    print("Specialized container value: " + specialized.getValue().toString());
     specialized.increment();
 
     // Test 4: Polymorphic assignment
     BaseContainer<Int> baseRef = intContainer;
-    print("Polymorphic access to base value: " + baseRef.getValue());
+    print("Polymorphic access to base value: " + baseRef.getValue().toString());
 
     print("Type parameter propagation test completed");
 }
