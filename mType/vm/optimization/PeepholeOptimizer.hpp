@@ -103,15 +103,8 @@ namespace vm::optimization
         analysis::ControlFlowAnalyzer cfgAnalyzer;
         analysis::DataFlowAnalyzer dataFlowAnalyzer;
         Statistics statistics;
-
-        // Logging helpers
-        void logOptimizationStart(const bytecode::BytecodeProgram& program);
+        
         void logOptimizationEnd(const bytecode::BytecodeProgram& program);
-        void logPatternMatch(const std::string& patternName, size_t offset,
-                            const bytecode::BytecodeProgram& program,
-                            const OptimizationPattern::Replacement& replacement);
-        std::string formatInstruction(const bytecode::BytecodeProgram::Instruction& instr, size_t offset) const;
-
         /**
          * Run a single optimization pass over the program
          * @param program The bytecode program

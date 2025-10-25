@@ -79,6 +79,49 @@ namespace runtimeTypes::klass
         return classDefinition ? classDefinition->getName() : "unknown";
     }
 
+    std::string ObjectInstance::getFullTypeName() const
+    {
+        if (!classDefinition) {
+            return "unknown";
+        }
+
+        std::string baseName = classDefinition->getName();
+
+        // If no generic type bindings, return just the base name
+        if (genericTypeBindings.empty()) {
+            return baseName;
+        }
+
+        // Construct full generic type name (e.g., "Box<String>")
+        // We need to get the generic parameters in the correct order
+        const auto& genericParams = classDefinition->getGenericParameters();
+
+        if (genericParams.empty()) {
+            return baseName;
+        }
+
+        std::string fullName = baseName + "<";
+        bool first = true;
+
+        for (const auto& param : genericParams) {
+            if (!first) {
+                fullName += ",";  // No space after comma to match bytecode format
+            }
+            first = false;
+
+            // Look up the concrete type for this parameter
+            auto it = genericTypeBindings.find(param.name);
+            if (it != genericTypeBindings.end()) {
+                fullName += it->second;
+            } else {
+                fullName += param.name;  // Fallback to parameter name if not bound
+            }
+        }
+
+        fullName += ">";
+        return fullName;
+    }
+
     std::string ObjectInstance::getContentHash() const
     {
         std::string hash = classDefinition->getName() + ":";

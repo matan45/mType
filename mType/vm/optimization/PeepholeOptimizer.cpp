@@ -13,7 +13,6 @@
 #include <chrono>
 #include <sstream>
 #include <iostream>
-
 namespace vm::optimization
 {
     // === Statistics Implementation ===
@@ -400,21 +399,7 @@ namespace vm::optimization
     {
         statistics.patternApplications[patternName]++;
     }
-
-    // === Logging Methods ===
-
-    void PeepholeOptimizer::logOptimizationStart(const bytecode::BytecodeProgram& program)
-    {
-        std::cout << "\n";
-        std::cout << "========================================\n";
-        std::cout << "  PEEPHOLE OPTIMIZATION STARTED\n";
-        std::cout << "========================================\n";
-        std::cout << "Initial instruction count: " << program.getInstructionCount() << "\n";
-        std::cout << "Optimization level: Release\n";
-        std::cout << "Max passes: " << config.maxPasses << "\n";
-        std::cout << "Registered patterns: " << patterns.size() << "\n";
-        std::cout << "========================================\n\n";
-    }
+    
 
     void PeepholeOptimizer::logOptimizationEnd(const bytecode::BytecodeProgram& program)
     {
@@ -426,83 +411,6 @@ namespace vm::optimization
         std::cout << "Time elapsed: " << statistics.totalTimeMs << " ms\n";
         std::cout << "========================================\n";
     }
-
-    void PeepholeOptimizer::logPatternMatch(const std::string& patternName,
-                                            size_t offset,
-                                            const bytecode::BytecodeProgram& program,
-                                            const OptimizationPattern::Replacement& replacement)
-    {
-        // Skip logging if originalLength is 0 (no actual optimization)
-        if (replacement.originalLength == 0)
-        {
-            return;
-        }
-
-        std::cout << "[" << patternName << "] at offset " << offset << ":\n";
-
-        // Show original instructions
-        std::cout << "  BEFORE: ";
-        for (size_t i = 0; i < replacement.originalLength && (offset + i) < program.getInstructionCount(); ++i)
-        {
-            if (i > 0) std::cout << " | ";
-            const auto& instr = program.getInstruction(offset + i);
-            std::cout << formatInstruction(instr, offset + i);
-        }
-        std::cout << "\n";
-
-        // Show replacement instructions
-        std::cout << "  AFTER:  ";
-        if (replacement.instructions.empty())
-        {
-            std::cout << "(removed)";
-        }
-        else
-        {
-            for (size_t i = 0; i < replacement.instructions.size(); ++i)
-            {
-                if (i > 0) std::cout << " | ";
-                std::cout << formatInstruction(replacement.instructions[i], offset + i);
-            }
-        }
-        std::cout << "\n";
-
-        // Show the optimization benefit
-        int instructionDiff = static_cast<int>(replacement.instructions.size()) - static_cast<int>(replacement.
-            originalLength);
-        if (instructionDiff < 0)
-        {
-            std::cout << "  SAVED:  " << (-instructionDiff) << " instruction(s)\n";
-        }
-        else if (instructionDiff == 0)
-        {
-            std::cout << "  TRANSFORM: Same size, improved efficiency\n";
-        }
-        else
-        {
-            std::cout << "  EXPANDED: +" << instructionDiff << " instruction(s) (specialized)\n";
-        }
-
-        std::cout << "\n";
-    }
-
-    std::string PeepholeOptimizer::formatInstruction(const bytecode::BytecodeProgram::Instruction& instr,
-                                                     size_t offset) const
-    {
-        std::ostringstream oss;
-        oss << getOpCodeName(instr.opcode);
-
-        // Add operands if present
-        if (!instr.operands.empty())
-        {
-            oss << "(";
-            for (size_t i = 0; i < instr.operands.size(); ++i)
-            {
-                if (i > 0) oss << ", ";
-                oss << instr.operands[i];
-            }
-            oss << ")";
-        }
-
-        return oss.str();
-    }
+    
+    
 } // namespace vm::optimization

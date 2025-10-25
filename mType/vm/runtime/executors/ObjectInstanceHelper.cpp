@@ -67,6 +67,29 @@ namespace vm::runtime
             }
         }
 
+        // Map generic parameters to concrete types
+        // Get the class definition to access generic parameters
+        if (!context.environment) {
+            throw errors::RuntimeException("Environment not available when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class definition not found when parsing generic type arguments for class: " + baseClassName);
+        }
+
+        const auto& genericParams = classDef->getGenericParameters();
+
+        // Map each generic parameter to its corresponding type argument
+        for (size_t i = 0; i < genericParams.size() && i < typeArgs.size(); ++i) {
+            genericTypeBindings[genericParams[i].name] = typeArgs[i];
+        }
+
         return baseClassName;
     }
 

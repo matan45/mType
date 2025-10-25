@@ -83,6 +83,9 @@ namespace vm::compiler::registration
         // Create a new class definition
         auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
 
+        // Set generic parameters (e.g., T in class Container<T>)
+        classDef->setGenericParameters(classNode->getGenericParameters());
+
         // Set final modifier
         classDef->setFinal(classNode->isFinal());
 

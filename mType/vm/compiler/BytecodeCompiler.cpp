@@ -9,7 +9,6 @@
 #include "../optimization/PeepholeOptimizer.hpp"
 #include <stdexcept>
 #include <iostream>
-
 namespace vm::compiler
 {
     BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,

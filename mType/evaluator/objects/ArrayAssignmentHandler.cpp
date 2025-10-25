@@ -222,25 +222,21 @@ namespace evaluator
                     if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
                     {
                         auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
-                        std::string actualTypeName = objInstance->getClassDefinition()->getName();
 
-                        // For generic instantiations like Box<Int>, the expected type is "Box<Int>"
-                        // but the actual class name is just "Box". We need to compare base class names.
+                        // Get the full type name including generic type arguments
+                        std::string actualTypeName = objInstance->getFullTypeName();
+
+                        // For generic instantiations, we now compare the full type names
                         if (isGenericInstantiation)
                         {
-                            // Extract base class name from generic type (e.g., "Box<Int>" -> "Box")
-                            std::string expectedBaseName = expectedTypeName.substr(0, expectedTypeName.find('<'));
-
-                            // Base class must match (allows Box<Int> but not Dog into Box<Int>[])
-                            if (expectedBaseName != actualTypeName)
+                            // Compare full generic type names (e.g., "Box<Int>" vs "Box<String>")
+                            if (expectedTypeName != actualTypeName)
                             {
                                 throw TypeException(
                                     "Array element type mismatch: cannot assign " + actualTypeName +
                                     " to array of type " + expectedTypeName + "[]",
                                     node->getLocation());
                             }
-                            // Note: We cannot verify type arguments at runtime (Box<String> vs Box<Int>)
-                            // This is a limitation - full generic type safety requires compile-time checking
                         }
                     }
                     // Allow null assignment to object arrays
@@ -467,16 +463,15 @@ namespace evaluator
                         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
                         {
                             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
-                            std::string actualTypeName = objInstance->getClassDefinition()->getName();
 
-                            // For generic instantiations, compare base class names
+                            // Get the full type name including generic type arguments
+                            std::string actualTypeName = objInstance->getFullTypeName();
+
+                            // For generic instantiations, compare full type names
                             if (isGenericInstantiation)
                             {
-                                // Extract base class name from generic type (e.g., "Box<Int>" -> "Box")
-                                std::string expectedBaseName = expectedTypeName.substr(0, expectedTypeName.find('<'));
-
-                                // Base class must match
-                                if (expectedBaseName != actualTypeName)
+                                // Compare full generic type names (e.g., "Box<Int>" vs "Box<String>")
+                                if (expectedTypeName != actualTypeName)
                                 {
                                     throw TypeException(
                                         "Array element type mismatch: cannot assign " + actualTypeName +

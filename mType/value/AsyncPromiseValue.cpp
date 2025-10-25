@@ -1,5 +1,5 @@
 #include "AsyncPromiseValue.hpp"
-
+#include <iostream>
 namespace value
 {
     void AsyncPromiseValue::then(std::function<void(Value)> callback)

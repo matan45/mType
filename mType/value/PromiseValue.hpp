@@ -1,11 +1,7 @@
 #pragma once
 #include "ValueType.hpp"
-#include <memory>
-#include <functional>
-#include <vector>
 #include <mutex>
 #include <condition_variable>
-#include <iostream>
 
 namespace value
 {
