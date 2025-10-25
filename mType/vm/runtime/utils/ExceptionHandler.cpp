@@ -24,6 +24,20 @@ namespace vm::runtime::utils
             {
                 searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
             }
+            else if (functionName.find("<lambda>") != std::string::npos)
+            {
+                // Lambda function - search forward for RETURN or RETURN_VALUE to find end
+                for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)
+                {
+                    const auto& instr = program->getInstruction(searchIP);
+                    if (instr.opcode == bytecode::OpCode::RETURN ||
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
+                    {
+                        searchLimit = searchIP + 1; // Include the RETURN instruction
+                        break;
+                    }
+                }
+            }
         }
 
         return searchLimit;
@@ -116,12 +130,26 @@ namespace vm::runtime::utils
         size_t searchLimit = determineSearchLimit(currentIP);
 
         // First search: Look for CATCH or FINALLY in current scope
+        // But only accept CATCH/FINALLY that belongs to the same try block
+        int tryDepth = 0; // Track nesting depth
         while (searchIP < searchLimit)
         {
             const auto& searchInstr = program->getInstruction(searchIP);
 
+            // Track try-catch nesting
+            if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN) {
+                tryDepth++;
+            }
+
             if (searchInstr.opcode == bytecode::OpCode::CATCH)
             {
+                // Only accept CATCH if it's at the same nesting level (tryDepth == 0)
+                // This ensures we don't catch with a CATCH from a different try-catch block
+                if (tryDepth > 0) {
+                    searchIP++;
+                    continue;
+                }
+
                 // Found a catch block - check if it matches the exception type
                 if (!searchInstr.operands.empty())
                 {
@@ -145,6 +173,12 @@ namespace vm::runtime::utils
             }
             else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
             {
+                // Only accept FINALLY if it's at the same nesting level
+                if (tryDepth > 0) {
+                    searchIP++;
+                    continue;
+                }
+
                 // Check if this is the currently executing finally block
                 if (isInFinallyBlock(searchIP, currentFinallyOffset))
                 {
@@ -157,6 +191,13 @@ namespace vm::runtime::utils
                 result.handled = true;
                 result.newInstructionPointer = searchIP;
                 return result;
+            }
+            else if (searchInstr.opcode == bytecode::OpCode::TRY_END) {
+                // TRY_END marks the end of a try block's body
+                // If we're at depth > 0, this ends the nested try we entered
+                if (tryDepth > 0) {
+                    tryDepth--;
+                }
             }
 
             searchIP++;
