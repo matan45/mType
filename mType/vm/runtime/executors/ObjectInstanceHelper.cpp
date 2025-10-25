@@ -201,18 +201,27 @@ namespace vm::runtime
         }
 
         std::string parentClassName = classDef->getParentClassName();
-        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+
+        // Extract base parent class name (strip generic type arguments)
+        // e.g., "BaseContainer<T>" -> "BaseContainer"
+        std::string baseParentClassName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentClassName = parentClassName.substr(0, genericStart);
+        }
+
+        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+            throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
         auto parentConstructor = parentClass->findConstructor(argCount);
         if (!parentConstructor) {
-            throw errors::RuntimeException("No constructor found in parent class " + parentClassName +
+            throw errors::RuntimeException("No constructor found in parent class " + baseParentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string constructorName = parentClassName + "::<init>/" + std::to_string(argCount);
+        std::string constructorName = baseParentClassName + "::<init>/" + std::to_string(argCount);
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -274,18 +283,27 @@ namespace vm::runtime
         }
 
         std::string parentClassName = classDef->getParentClassName();
-        auto parentClass = context.environment->getClassRegistry()->findClass(parentClassName);
+
+        // Extract base parent class name (strip generic type arguments)
+        // e.g., "BaseContainer<T>" -> "BaseContainer"
+        std::string baseParentClassName = parentClassName;
+        size_t genericStart = parentClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseParentClassName = parentClassName.substr(0, genericStart);
+        }
+
+        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
-            throw errors::RuntimeException("Parent class not found: " + parentClassName);
+            throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
         auto method = parentClass->findMethod(methodName, argCount);
         if (!method) {
-            throw errors::RuntimeException("Method not found in parent class " + parentClassName + ": " + methodName +
+            throw errors::RuntimeException("Method not found in parent class " + baseParentClassName + ": " + methodName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string qualifiedName = parentClassName + "::" + methodName;
+        std::string qualifiedName = baseParentClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -468,10 +486,19 @@ namespace vm::runtime
         if (derivedClass.empty()) return false;
         auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
-            if (currentClass->getParentClassName() == baseClass) {
+            std::string parentClassName = currentClass->getParentClassName();
+
+            // Extract base parent class name (strip generic type arguments)
+            std::string baseParentClassName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentClassName = parentClassName.substr(0, genericStart);
+            }
+
+            if (baseParentClassName == baseClass) {
                 return true;
             }
-            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
             currentClass = parentClass;
         }
         return false;
