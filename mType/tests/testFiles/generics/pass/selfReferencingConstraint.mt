@@ -9,7 +9,7 @@ interface Comparable<T> {
 class ComparableInt implements Comparable<ComparableInt> {
     int value;
 
-    public function ComparableInt(int val) {
+    constructor(int val) {
         value = val;
     }
 

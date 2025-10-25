@@ -207,6 +207,36 @@ namespace evaluator
                         node->getLocation());
                 }
 
+                // Type check for object arrays with generics (e.g., Box<Int>[] cannot accept Box<String>)
+                if (nativeArray->getElementType() == ValueType::OBJECT)
+                {
+                    std::string expectedTypeName = nativeArray->getElementTypeName();
+
+                    // Check if value is an object instance
+                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
+                    {
+                        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
+                        std::string actualTypeName = objInstance->getClassDefinition()->getName();
+
+                        // For generic types like Box<Int>, require exact match (no covariance)
+                        // This prevents assigning Box<String> to Box<Int>[] even if both extend some common base
+                        if (expectedTypeName != actualTypeName)
+                        {
+                            throw TypeException(
+                                "Array element type mismatch: cannot assign " + actualTypeName +
+                                " to array of type " + expectedTypeName + "[]",
+                                node->getLocation());
+                        }
+                    }
+                    // Allow null assignment to object arrays
+                    else if (!std::holds_alternative<std::monostate>(newValue))
+                    {
+                        throw TypeException(
+                            "Cannot assign non-object value to object array of type " + expectedTypeName + "[]",
+                            node->getLocation());
+                    }
+                }
+
                 // Use unchecked access (bounds already verified)
                 // PERFORMANCE: Eliminates redundant bounds check in nativeArray->set()
                 nativeArray->setUnchecked(arrayIndex, newValue);
@@ -413,6 +443,35 @@ namespace evaluator
                     {
                         throw TypeException("Final index " + std::to_string(finalIndex) + " out of bounds " +
                                             "(size: " + std::to_string(finalArray->size()) + ")", location);
+                    }
+
+                    // Type check for object arrays with generics (same validation as single-dimensional)
+                    if (finalArray->getElementType() == ValueType::OBJECT)
+                    {
+                        std::string expectedTypeName = finalArray->getElementTypeName();
+
+                        // Check if value is an object instance
+                        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue))
+                        {
+                            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(newValue);
+                            std::string actualTypeName = objInstance->getClassDefinition()->getName();
+
+                            // For generic types like Box<Int>, require exact match (no covariance)
+                            if (expectedTypeName != actualTypeName)
+                            {
+                                throw TypeException(
+                                    "Array element type mismatch: cannot assign " + actualTypeName +
+                                    " to array of type " + expectedTypeName + "[]",
+                                    location);
+                            }
+                        }
+                        // Allow null assignment to object arrays
+                        else if (!std::holds_alternative<std::monostate>(newValue))
+                        {
+                            throw TypeException(
+                                "Cannot assign non-object value to object array of type " + expectedTypeName + "[]",
+                                location);
+                        }
                     }
 
                     // Use unchecked access (bounds already verified)

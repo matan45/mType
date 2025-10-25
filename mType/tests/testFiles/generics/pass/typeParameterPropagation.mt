@@ -3,7 +3,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Test type parameter propagation through inheritance (Generic<T> extends Base<T>)
 class BaseContainer<T> {
-    T value;
+    protected T value;
 
     constructor(T val) {
         value = val;

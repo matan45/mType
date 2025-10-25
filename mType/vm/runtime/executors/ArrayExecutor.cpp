@@ -164,6 +164,32 @@ namespace vm::runtime
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
 
+        // Type check for object arrays with generics (e.g., Box<Int>[] cannot accept Box<String>)
+        if (array->getElementType() == value::ValueType::OBJECT) {
+            std::string expectedTypeName = array->getElementTypeName();
+
+            // Check if value is an object instance
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet)) {
+                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet);
+                std::string actualTypeName = objInstance->getClassDefinition()->getName();
+
+                // For generic types like Box<Int>, require exact match (no covariance)
+                // This prevents assigning Box<String> to Box<Int>[] even if both extend some common base
+                if (expectedTypeName != actualTypeName) {
+                    throw errors::TypeException(
+                        "Array element type mismatch: cannot assign " + actualTypeName +
+                        " to array of type " + expectedTypeName + "[]"
+                    );
+                }
+            }
+            // Allow null assignment to object arrays
+            else if (!std::holds_alternative<std::monostate>(valueToSet)) {
+                throw errors::TypeException(
+                    "Cannot assign non-object value to object array of type " + expectedTypeName + "[]"
+                );
+            }
+        }
+
         // Set element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->set()
         array->setUnchecked(static_cast<size_t>(index), valueToSet);

@@ -273,6 +273,29 @@ namespace evaluator
             {
                 if (expectedClassName.find("[]") != std::string::npos)
                 {
+                    // Array covariance check: element types must match EXACTLY
+                    // (cannot assign Dog[] to Animal[] even though Dog extends Animal)
+                    auto nativeArray = std::get<std::shared_ptr<value::NativeArray>>(value);
+
+                    // Extract expected element type (e.g., "Animal" from "Animal[]")
+                    std::string expectedElementType = expectedClassName.substr(0, expectedClassName.find("[]"));
+
+                    // Get actual element type from array
+                    if (nativeArray->getElementType() == ValueType::OBJECT)
+                    {
+                        std::string actualElementType = nativeArray->getElementTypeName();
+
+                        // Require exact match (no inheritance/polymorphism for arrays)
+                        if (expectedElementType != actualElementType)
+                        {
+                            throw TypeException(
+                                "Array covariance violation for variable '" + variableName + "': " +
+                                "cannot assign " + actualElementType + "[] to " + expectedElementType + "[] " +
+                                "(arrays are invariant, not covariant)",
+                                location);
+                        }
+                    }
+
                     return; // Array type matches
                 }
                 else

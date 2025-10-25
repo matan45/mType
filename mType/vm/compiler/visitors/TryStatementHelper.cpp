@@ -107,36 +107,22 @@ namespace vm::compiler::visitors
         ctx.exceptionManager.setFinallyOffset(finallyOffset);
 
         // Patch RETURN jumps to point to the finally block
-        // These are from return statements and will fall through to RETURN_VALUE
+        // These are from return statements and will execute finally, then fall through to return logic
         for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
             ctx.emitter.patchJump(returnJump);
         }
 
-        // Patch EXIT jumps (normal try completion) to also execute finally
-        // Finally block must execute in ALL cases: exception, return, or normal completion
-        for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
-            ctx.emitter.patchJump(exitJump);
-        }
-
-        // Emit FINALLY instruction
+        // Emit FINALLY instruction for RETURN path
         ctx.program.emit(bytecode::OpCode::FINALLY);
 
         // Mark that we're now in the finally block
-        // This prevents return statements inside finally from trying to jump to finally again
         ctx.exceptionManager.enterFinally();
 
-        // Compile finally body
+        // Compile finally body (for RETURN path)
         finallyBlock->accept(ctx.visitor);
 
         // Mark that we've exited the finally block
         ctx.exceptionManager.exitFinally();
-
-        // After finally completes normally (no return), jump past the return logic
-        size_t normalCompletionJump = SIZE_MAX;
-        if (ctx.exceptionManager.getReturnValueSlot() != SIZE_MAX) {
-            // There was a return statement, so we need to skip the return logic for normal completion
-            normalCompletionJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-        }
 
         // After finally, load the return value back from the special slot if it was saved
         size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
@@ -176,14 +162,30 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Patch normalCompletionJump to skip past RETURN_VALUE
-        // This is for normal try/catch completion (no return statement)
-        if (normalCompletionJump != SIZE_MAX) {
-            size_t afterReturn = ctx.program.getCurrentOffset();
-            ctx.program.patchJump(normalCompletionJump, static_cast<uint32_t>(afterReturn));
+        // For EXIT jumps (normal completion), emit finally body again and patch EXIT jumps to it
+        // This avoids the complexity of tracking return vs non-return paths at runtime
+        if (!ctx.exceptionManager.getExitJumps().empty()) {
+            // Emit a JUMP to skip over the EXIT path's finally body (for RETURN path)
+            size_t skipExitFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+            // Patch EXIT jumps to point here (separate finally execution for normal completion)
+            for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
+                ctx.emitter.patchJump(exitJump);
+            }
+
+            // Emit FINALLY instruction for EXIT path
+            ctx.program.emit(bytecode::OpCode::FINALLY);
+
+            // Compile finally body again (for EXIT path - normal completion)
+            ctx.exceptionManager.enterFinally();
+            finallyBlock->accept(ctx.visitor);
+            ctx.exceptionManager.exitFinally();
+
+            // Patch the skip jump to point here (after EXIT path's finally)
+            ctx.emitter.patchJump(skipExitFinally);
         }
 
-        // Note: EXIT jumps were already patched to FINALLY at line 117
-        // They execute finally, then the normalCompletionJump skips the return logic
+        // Note: RETURN jumps execute the first finally copy, then fall through to return logic above
+        // EXIT jumps execute the second finally copy, then continue here without returning
     }
 }

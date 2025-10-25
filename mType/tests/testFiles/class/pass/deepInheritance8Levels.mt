@@ -2,7 +2,7 @@
 // Tests MAX_INHERITANCE_DEPTH handling
 
 class Level1 {
-    int level;
+    protected int level;
 
     constructor() {
         level = 1;

@@ -6,6 +6,7 @@
 #include "../core/BaseParser.hpp"
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 namespace parser
 {
@@ -26,5 +27,14 @@ namespace parser
     private:
         std::string parseNestedGenericConstraint();
         void validateGenericParameterName(const std::string& paramName);
+        void validateNoCircularDependencies(const std::vector<GenericTypeParameter>& parameters);
+        bool hasCircularDependency(
+            const std::string& paramName,
+            const std::vector<GenericTypeParameter>& parameters,
+            std::unordered_set<std::string>& visited,
+            std::unordered_set<std::string>& recursionStack);
+        static std::vector<std::string> extractTypeParameters(
+            const std::string& constraint,
+            const std::vector<GenericTypeParameter>& parameters);
     };
 }
