@@ -279,6 +279,42 @@ namespace vm::compiler::visitors
         ctx.exceptionManager.registerReturnJump(returnJump);
     }
 
+    void FunctionCompiler::emitReturnWithOuterFinally(ast::ReturnNode* node, ast::ASTNode* returnValue)
+    {
+        // We're in a finally block that has a return, but there's an outer finally that must execute
+        // Get or create the outer context's return value slot
+        size_t outerReturnValueSlot = ctx.exceptionManager.getReturnValueSlotForOuter();
+        if (outerReturnValueSlot == SIZE_MAX) {
+            outerReturnValueSlot = ctx.variableTracker.getNextLocalSlot();
+            ctx.functionFrameManager.updateMaxLocalSlot(outerReturnValueSlot + 1);
+            ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
+        }
+
+        if (returnValue) {
+            // Wrap in Promise if needed
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+            // Store return value in outer slot
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+        } else {
+            // Push null for void return
+            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+
+            // For async functions, wrap in Promise
+            if (ctx.functionFrameManager.currentFrame().isAsync) {
+                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            }
+
+            // Store return value
+            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+        }
+
+        // Jump to outer finally
+        size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        ctx.exceptionManager.registerReturnJumpWithOuter(returnJump);
+    }
+
     void FunctionCompiler::emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
         if (returnValue) {
@@ -314,9 +350,14 @@ namespace vm::compiler::visitors
 
         // Check if in function context
         if (ctx.functionFrameManager.isInFunction()) {
-            // Check if we're in a try block with a finally
-            if (ctx.exceptionManager.hasPendingFinally()) {
+            // Check if we're in a try block with a finally, but NOT already inside the finally block
+            // If we're IN the finally block, we should return directly (not jump to finally again)
+            if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
                 emitReturnWithFinally(node, returnValue);
+            } else if (ctx.exceptionManager.isInFinally() && ctx.exceptionManager.hasOuterFinally()) {
+                // We're in a finally block, but there's an outer finally that must execute
+                // Store return value and jump to outer finally instead of returning immediately
+                emitReturnWithOuterFinally(node, returnValue);
             } else {
                 emitReturnValueBytecode(node, returnValue);
             }

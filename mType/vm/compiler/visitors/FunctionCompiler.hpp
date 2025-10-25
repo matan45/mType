@@ -31,6 +31,7 @@ namespace vm::compiler::visitors
         // Helper methods for compileReturn
         void validateReturnType(ast::ReturnNode* node, ast::ASTNode* returnValue);
         void emitReturnWithFinally(ast::ReturnNode* node, ast::ASTNode* returnValue);
+        void emitReturnWithOuterFinally(ast::ReturnNode* node, ast::ASTNode* returnValue);
         void emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue);
 
         // Helper methods for compileLambda

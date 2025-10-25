@@ -242,6 +242,13 @@ namespace parser
 
             for (const auto& refParam : referencedParams)
             {
+                // Allow self-references (e.g., T extends Comparable<T>)
+                // This is a common and valid pattern, not a circular dependency
+                if (refParam == paramName)
+                {
+                    continue;  // Skip self-references
+                }
+
                 if (hasCircularDependency(refParam, parameters, visited, recursionStack))
                 {
                     return true;
