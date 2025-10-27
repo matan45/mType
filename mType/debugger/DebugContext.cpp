@@ -1,0 +1,366 @@
+#include "DebugContext.hpp"
+#include <algorithm>
+
+namespace debugger {
+
+    // Static member initialization
+    std::unique_ptr<DebugContext> DebugContext::instance = nullptr;
+    std::mutex DebugContext::instanceMutex;
+
+    DebugContext::DebugContext()
+        : mode(DebugMode::DISABLED),
+          state(ExecutionState::NOT_STARTED),
+          enabled(false),
+          stepStartDepth(0),
+          paused(false) {
+    }
+
+    DebugContext& DebugContext::getInstance() {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+        if (!instance) {
+            instance = std::unique_ptr<DebugContext>(new DebugContext());
+        }
+        return *instance;
+    }
+
+    void DebugContext::initialize() {
+        getInstance().enable();
+    }
+
+    void DebugContext::shutdown() {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+        if (instance) {
+            instance->disable();
+            instance.reset();
+        }
+    }
+
+    void DebugContext::enable() {
+        enabled = true;
+        state = ExecutionState::PAUSED;
+        mode = DebugMode::PAUSED;
+    }
+
+    void DebugContext::disable() {
+        enabled = false;
+        state = ExecutionState::STOPPED;
+        mode = DebugMode::DISABLED;
+    }
+
+    bool DebugContext::isEnabled() const {
+        return enabled.load();
+    }
+
+    void DebugContext::addBreakpoint(const std::string& filename, int line,
+                                      const std::string& condition,
+                                      const std::string& logMessage) {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        BreakpointInfo info;
+        info.condition = condition;
+        info.logMessage = logMessage;
+        info.hitCount = 0;
+        breakpoints[{filename, line}] = info;
+    }
+
+    void DebugContext::removeBreakpoint(const std::string& filename, int line) {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        breakpoints.erase({filename, line});
+    }
+
+    void DebugContext::clearBreakpoints(const std::string& filename) {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        auto it = breakpoints.begin();
+        while (it != breakpoints.end()) {
+            if (it->first.filename == filename) {
+                it = breakpoints.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void DebugContext::clearAllBreakpoints() {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        breakpoints.clear();
+    }
+
+    bool DebugContext::hasBreakpoint(const SourceLocation& location) const {
+        return hasBreakpoint(location.getFilename(), location.getLine());
+    }
+
+    bool DebugContext::hasBreakpoint(const std::string& filename, int line) const {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        return breakpoints.find({filename, line}) != breakpoints.end();
+    }
+
+    BreakpointInfo* DebugContext::getBreakpointInfo(const std::string& filename, int line) {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        auto it = breakpoints.find({filename, line});
+        if (it != breakpoints.end()) {
+            return &it->second;
+        }
+        return nullptr;
+    }
+
+    std::vector<BreakpointKey> DebugContext::getBreakpoints() const {
+        std::lock_guard<std::mutex> lock(breakpointMutex);
+        std::vector<BreakpointKey> keys;
+        for (const auto& [key, info] : breakpoints) {
+            keys.push_back(key);
+        }
+        return keys;
+    }
+
+    void DebugContext::setExceptionBreakpoints(const std::vector<std::string>& filters) {
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+        exceptionBreakpoints.clear();
+        for (const auto& filter : filters) {
+            exceptionBreakpoints.insert(filter);
+        }
+    }
+
+    void DebugContext::clearExceptionBreakpoints() {
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+        exceptionBreakpoints.clear();
+    }
+
+    bool DebugContext::shouldBreakOnException(bool isUncaught) const {
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+
+        // Check if we should break on all exceptions
+        if (exceptionBreakpoints.find("all") != exceptionBreakpoints.end()) {
+            return true;
+        }
+
+        // Check if we should break on uncaught exceptions only
+        if (isUncaught && exceptionBreakpoints.find("uncaught") != exceptionBreakpoints.end()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    void DebugContext::pause() {
+        std::lock_guard<std::mutex> lock(pauseMutex);
+        paused = true;
+        state = ExecutionState::PAUSED;
+        mode = DebugMode::PAUSED;
+    }
+
+    void DebugContext::resume() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            paused = false;
+            state = ExecutionState::RUNNING;
+        }
+        pauseCondition.notify_one();
+    }
+
+    void DebugContext::stepInto() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            mode = DebugMode::STEP_INTO;
+            stepStartDepth = getCurrentDepth();
+            paused = false;
+            state = ExecutionState::RUNNING;
+        }
+        pauseCondition.notify_one();
+    }
+
+    void DebugContext::stepOver() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            mode = DebugMode::STEP_OVER;
+            stepStartDepth = getCurrentDepth();
+            paused = false;
+            state = ExecutionState::RUNNING;
+        }
+        pauseCondition.notify_one();
+    }
+
+    void DebugContext::stepOut() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            mode = DebugMode::STEP_OUT;
+            stepStartDepth = getCurrentDepth();
+            paused = false;
+            state = ExecutionState::RUNNING;
+        }
+        pauseCondition.notify_one();
+    }
+
+    void DebugContext::continueExecution() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            mode = DebugMode::CONTINUE;
+            paused = false;
+            state = ExecutionState::RUNNING;
+        }
+        pauseCondition.notify_one();
+    }
+
+    void DebugContext::stop() {
+        {
+            std::lock_guard<std::mutex> lock(pauseMutex);
+            state = ExecutionState::STOPPED;
+            mode = DebugMode::DISABLED;
+            paused = false;
+        }
+        pauseCondition.notify_all();
+    }
+
+    DebugMode DebugContext::getMode() const {
+        return mode;
+    }
+
+    ExecutionState DebugContext::getState() const {
+        return state;
+    }
+
+    bool DebugContext::isPaused() const {
+        return paused.load();
+    }
+
+    bool DebugContext::shouldPauseAt(const SourceLocation& location) {
+        if (!enabled || state == ExecutionState::STOPPED) {
+            return false;
+        }
+
+        // Don't pause at the same location twice in a row
+        if (location.getFilename() == lastStopLocation.getFilename() &&
+            location.getLine() == lastStopLocation.getLine()) {
+            return false;
+        }
+
+        // Check for breakpoint
+        if (hasBreakpoint(location)) {
+            BreakpointInfo* bpInfo = getBreakpointInfo(location.getFilename(), location.getLine());
+            if (bpInfo) {
+                bpInfo->hitCount++;
+
+                // Check if this is a log point
+                if (bpInfo->isLogPoint()) {
+                    // Log points don't pause execution, just output
+                    notifyEvent(DebugEvent(
+                        DebugEvent::Type::SCRIPT_STARTED,  // Reuse this for log output
+                        location,
+                        "LogPoint: " + bpInfo->logMessage
+                    ));
+                    return false;  // Don't pause
+                }
+
+                // Check condition if present
+                if (bpInfo->hasCondition()) {
+                    if (!evaluateCondition(bpInfo->condition)) {
+                        return false;  // Condition not met, don't pause
+                    }
+                }
+
+                // Condition met or no condition, pause
+                lastStopLocation = location;
+                pause();
+                notifyEvent(DebugEvent(DebugEvent::Type::BREAKPOINT_HIT, location));
+                return true;
+            }
+        }
+
+        // Check for stepping
+        if (shouldStopForStepping(location)) {
+            lastStopLocation = location;
+            pause();
+            notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
+            return true;
+        }
+
+        return false;
+    }
+
+    bool DebugContext::shouldStopForStepping(const SourceLocation& location) {
+        int currentDepth = getCurrentDepth();
+
+        switch (mode) {
+            case DebugMode::STEP_INTO:
+                // Stop at every statement
+                return true;
+
+            case DebugMode::STEP_OVER:
+                // Stop when we return to the same or shallower depth
+                return currentDepth <= stepStartDepth;
+
+            case DebugMode::STEP_OUT:
+                // Stop when we return to a shallower depth
+                return currentDepth < stepStartDepth;
+
+            case DebugMode::CONTINUE:
+            case DebugMode::PAUSED:
+            case DebugMode::DISABLED:
+                return false;
+        }
+
+        return false;
+    }
+
+    void DebugContext::pushCallFrame(const std::string& functionName, const SourceLocation& location) {
+        std::lock_guard<std::mutex> lock(callStackMutex);
+        int depth = callStack.size();
+        callStack.emplace_back(functionName, location, depth);
+    }
+
+    void DebugContext::popCallFrame() {
+        std::lock_guard<std::mutex> lock(callStackMutex);
+        if (!callStack.empty()) {
+            callStack.pop_back();
+        }
+    }
+
+    std::vector<CallFrame> DebugContext::getCallStack() const {
+        std::lock_guard<std::mutex> lock(callStackMutex);
+        return callStack;
+    }
+
+    int DebugContext::getCurrentDepth() const {
+        std::lock_guard<std::mutex> lock(callStackMutex);
+        return static_cast<int>(callStack.size());
+    }
+
+    void DebugContext::setEventCallback(std::function<void(const DebugEvent&)> callback) {
+        std::lock_guard<std::mutex> lock(callbackMutex);
+        eventCallback = callback;
+    }
+
+    void DebugContext::notifyEvent(const DebugEvent& event) {
+        std::lock_guard<std::mutex> lock(callbackMutex);
+        if (eventCallback) {
+            eventCallback(event);
+        }
+    }
+
+    void DebugContext::waitForResume() {
+        std::unique_lock<std::mutex> lock(pauseMutex);
+        pauseCondition.wait(lock, [this] {
+            return !paused.load() || state == ExecutionState::STOPPED;
+        });
+    }
+
+    void DebugContext::setConditionEvaluator(std::function<bool(const std::string&)> evaluator) {
+        std::lock_guard<std::mutex> lock(evaluatorMutex);
+        conditionEvaluator = evaluator;
+    }
+
+    bool DebugContext::evaluateCondition(const std::string& condition) {
+        std::lock_guard<std::mutex> lock(evaluatorMutex);
+
+        if (!conditionEvaluator) {
+            // No evaluator set, treat as always true (fail-safe behavior)
+            return true;
+        }
+
+        try {
+            return conditionEvaluator(condition);
+        } catch (...) {
+            // If evaluation fails, default to true (pause anyway)
+            return true;
+        }
+    }
+
+} // namespace debugger

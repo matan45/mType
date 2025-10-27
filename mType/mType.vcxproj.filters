@@ -31,6 +31,9 @@
     <Filter Include="constants">
       <UniqueIdentifier>{6215F996-CE7F-AD0D-17BE-5EB383678B62}</UniqueIdentifier>
     </Filter>
+    <Filter Include="debugger">
+      <UniqueIdentifier>{4A693D11-3636-981C-5F4F-86C44B7BCDAA}</UniqueIdentifier>
+    </Filter>
     <Filter Include="environment">
       <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
     </Filter>
@@ -620,6 +623,18 @@
     </ClInclude>
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebugContext.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebugHookHelper.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebugProtocol.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\VariableInspector.hpp">
+      <Filter>debugger</Filter>
     </ClInclude>
     <ClInclude Include="environment\Environment.hpp">
       <Filter>environment</Filter>
@@ -1729,6 +1744,18 @@
     </ClCompile>
     <ClCompile Include="circularDependency\DependencyTypeUtils.cpp">
       <Filter>circularDependency</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugContext.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugHookHelper.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugProtocol.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VariableInspector.cpp">
+      <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="environment\Environment.cpp">
       <Filter>environment</Filter>

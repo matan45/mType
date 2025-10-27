@@ -48,9 +48,16 @@ namespace evaluator::base
         mutable std::shared_ptr<Environment> cachedEnv;
         mutable bool envCacheValid;
 
+        // Debug support (optional, nullptr when debugging disabled)
+        bool debuggingEnabled;
+
     public:
         explicit EvaluationContext(std::shared_ptr<Environment> env);
         ~EvaluationContext() = default;
+
+        // Debug support
+        void setDebuggingEnabled(bool enabled);
+        bool isDebuggingEnabled() const;
 
         // Environment management with caching
         std::shared_ptr<Environment> getEnvironment() const;

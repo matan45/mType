@@ -17,7 +17,8 @@
     "vscode": "^1.60.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "keywords": [
     "mtype",
@@ -28,7 +29,9 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
-    "onLanguage:mtype-compiled"
+    "onLanguage:mtype-compiled",
+    "onDebugResolve:mtype",
+    "onDebugDynamicConfigurations:mtype"
   ],
   "contributes": {
     "languages": [
@@ -65,6 +68,94 @@
         "language": "mtype-compiled",
         "scopeName": "source.mtype.compiled",
         "path": "./syntaxes/mtype.tmGrammar.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "mtype"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "mtype",
+        "label": "mType Debug",
+        "languages": ["mtype"],
+        "exceptionBreakpointFilters": [
+          {
+            "filter": "all",
+            "label": "All Exceptions",
+            "description": "Break on all exceptions",
+            "default": false
+          },
+          {
+            "filter": "uncaught",
+            "label": "Uncaught Exceptions",
+            "description": "Break on uncaught exceptions only",
+            "default": true
+          }
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to the mType file to debug",
+                "default": "${file}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch",
+                "default": true
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol",
+                "default": false
+              },
+              "interpreterPath": {
+                "type": "string",
+                "description": "Path to mType interpreter executable",
+                "default": "${config:mTypeLanguageServer.interpreterPath}"
+              },
+              "args": {
+                "type": "array",
+                "description": "Command line arguments passed to the program",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the program",
+                "default": "${workspaceFolder}"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "mtype",
+            "request": "launch",
+            "name": "Debug mType File",
+            "program": "${file}",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "mType: Launch",
+            "description": "Launch and debug an mType program",
+            "body": {
+              "type": "mtype",
+              "request": "launch",
+              "name": "Debug mType",
+              "program": "^\"\\${file}\"",
+              "stopOnEntry": true
+            }
+          }
+        ]
       }
     ],
     "iconThemes": [
@@ -180,6 +271,8 @@
   "dependencies": {
     "vscode-languageclient": "^8.1.0",
     "vscode-languageserver": "^8.1.0",
-    "vscode-languageserver-textdocument": "^1.0.1"
+    "vscode-languageserver-textdocument": "^1.0.1",
+    "@vscode/debugadapter": "^1.65.0",
+    "@vscode/debugprotocol": "^1.65.0"
   }
 }

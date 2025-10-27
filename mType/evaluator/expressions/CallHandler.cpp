@@ -14,6 +14,7 @@
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
+#include "../../debugger/DebugHookHelper.hpp"
 
 using namespace errors;
 using namespace evaluator::utils;
@@ -46,6 +47,27 @@ namespace evaluator
 
         Value CallHandler::evaluateFunctionCall(FunctionCallNode* node)
         {
+            // Debug hook: Track function call in call stack
+            // Use RAII pattern to ensure exit hook is called on all return paths
+            struct CallStackGuard {
+                bool enabled;
+                std::string funcName;
+
+                CallStackGuard(const std::string& name, const SourceLocation& loc)
+                    : funcName(name) {
+                    enabled = debugger::DebugHookHelper::isDebuggingEnabled();
+                    if (enabled) {
+                        debugger::DebugHookHelper::enterFunctionHook(funcName, loc);
+                    }
+                }
+
+                ~CallStackGuard() {
+                    if (enabled) {
+                        debugger::DebugHookHelper::exitFunctionHook(funcName);
+                    }
+                }
+            } callStackGuard(node->getFunctionName(), node->getLocation());
+
             // Try different call types in order of precedence
             if (auto result = tryNativeFunctionCall(node))
                 return *result;

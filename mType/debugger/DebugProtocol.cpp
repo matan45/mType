@@ -1,0 +1,424 @@
+#include "DebugProtocol.hpp"
+#include "VariableInspector.hpp"
+#include <sstream>
+#include <iostream>
+
+namespace debugger {
+
+    DebugProtocol::Message DebugProtocol::parse(const std::string& line) {
+        Message msg;
+        std::string trimmedLine = line;
+
+        // Remove leading/trailing whitespace
+        size_t start = trimmedLine.find_first_not_of(" \t\r\n");
+        size_t end = trimmedLine.find_last_not_of(" \t\r\n");
+        if (start != std::string::npos && end != std::string::npos) {
+            trimmedLine = trimmedLine.substr(start, end - start + 1);
+        }
+
+        if (trimmedLine.empty()) {
+            return msg;
+        }
+
+        // Extract command (first word)
+        size_t cmdEnd = trimmedLine.find(' ');
+        if (cmdEnd == std::string::npos) {
+            msg.command = trimmedLine;
+            return msg;
+        }
+
+        msg.command = trimmedLine.substr(0, cmdEnd);
+
+        // Parse key=value pairs
+        size_t pos = cmdEnd + 1;
+        while (pos < trimmedLine.length()) {
+            // Skip whitespace
+            while (pos < trimmedLine.length() && (trimmedLine[pos] == ' ' || trimmedLine[pos] == '\t')) {
+                pos++;
+            }
+
+            if (pos >= trimmedLine.length()) break;
+
+            // Find key
+            size_t eqPos = trimmedLine.find('=', pos);
+            if (eqPos == std::string::npos) break;
+
+            std::string key = trimmedLine.substr(pos, eqPos - pos);
+
+            // Find value
+            pos = eqPos + 1;
+            std::string value;
+
+            if (pos < trimmedLine.length() && trimmedLine[pos] == '"') {
+                // Quoted value
+                pos++; // Skip opening quote
+                bool escaped = false;
+                while (pos < trimmedLine.length()) {
+                    char c = trimmedLine[pos];
+                    if (escaped) {
+                        value += c;
+                        escaped = false;
+                    } else if (c == '\\') {
+                        escaped = true;
+                    } else if (c == '"') {
+                        pos++; // Skip closing quote
+                        break;
+                    } else {
+                        value += c;
+                    }
+                    pos++;
+                }
+            } else {
+                // Unquoted value - read until space
+                size_t valueEnd = trimmedLine.find(' ', pos);
+                if (valueEnd == std::string::npos) {
+                    value = trimmedLine.substr(pos);
+                    pos = trimmedLine.length();
+                } else {
+                    value = trimmedLine.substr(pos, valueEnd - pos);
+                    pos = valueEnd;
+                }
+            }
+
+            msg.parameters[key] = value;
+        }
+
+        return msg;
+    }
+
+    void DebugProtocol::send(const Message& message) {
+        std::cout << message.serialize() << std::endl;
+        std::cout.flush();
+    }
+
+    void DebugProtocol::sendOK() {
+        Message msg("OK");
+        send(msg);
+    }
+
+    void DebugProtocol::sendError(const std::string& errorMessage) {
+        Message msg("ERROR");
+        msg.addParameter("message", errorMessage);
+        send(msg);
+    }
+
+    void DebugProtocol::sendStoppedEvent(const std::string& reason, const SourceLocation& location) {
+        Message msg("STOPPED");
+        msg.addParameter("reason", reason);
+        msg.addParameter("file", location.getFilename());
+        msg.addParameter("line", location.getLine());
+        msg.addParameter("column", location.getColumn());
+        send(msg);
+    }
+
+    void DebugProtocol::sendStackTrace(const std::vector<CallFrame>& frames) {
+        Message msg("STACKTRACE");
+        for (size_t i = 0; i < frames.size(); i++) {
+            const CallFrame& frame = frames[i];
+            std::string frameStr = frame.functionName + "@" +
+                                 frame.location.getFilename() + ":" +
+                                 std::to_string(frame.location.getLine());
+            msg.addParameter("frame" + std::to_string(i), frameStr);
+        }
+        send(msg);
+    }
+
+    void DebugProtocol::sendOutput(const std::string& text, const std::string& category) {
+        Message msg("OUTPUT");
+        msg.addParameter("text", text);
+        msg.addParameter("category", category);
+        send(msg);
+    }
+
+    void DebugProtocol::sendVariables(
+        const std::vector<std::tuple<std::string, std::string, std::string, int>>& vars) {
+
+        Message msg("VARIABLES");
+        for (size_t i = 0; i < vars.size(); i++) {
+            const auto& [name, value, type, refId] = vars[i];
+            std::string varStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
+            msg.addParameter("var" + std::to_string(i), varStr);
+        }
+        send(msg);
+    }
+
+    void DebugProtocol::sendExpandedVariable(
+        const std::vector<std::tuple<std::string, std::string, std::string, int>>& children) {
+
+        Message msg("EXPANDEDVAR");
+        for (size_t i = 0; i < children.size(); i++) {
+            const auto& [name, value, type, refId] = children[i];
+            std::string childStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
+            msg.addParameter("child" + std::to_string(i), childStr);
+        }
+        send(msg);
+    }
+
+    void DebugProtocol::sendEvaluateResult(const std::string& result, const std::string& type, int refId) {
+        Message msg("RESULT");
+        msg.addParameter("value", result);
+        msg.addParameter("type", type);
+        if (refId > 0) {
+            msg.addParameter("ref", refId);
+        }
+        send(msg);
+    }
+
+    // DebugServer implementation
+
+    DebugServer::DebugServer()
+        : running(false), debugContext(&DebugContext::getInstance()),
+          variableInspector(std::make_unique<VariableInspector>()) {
+    }
+
+    DebugServer::~DebugServer() {
+        stop();
+    }
+
+    void DebugServer::setEnvironment(std::shared_ptr<environment::Environment> env) {
+        currentEnvironment = env;
+    }
+
+    void DebugServer::run() {
+        running = true;
+
+        // Set up event callback
+        debugContext->setEventCallback([](const DebugEvent& event) {
+            switch (event.type) {
+                case DebugEvent::Type::BREAKPOINT_HIT:
+                    DebugProtocol::sendStoppedEvent("breakpoint", event.location);
+                    break;
+                case DebugEvent::Type::STEP_COMPLETE:
+                    DebugProtocol::sendStoppedEvent("step", event.location);
+                    break;
+                case DebugEvent::Type::EXCEPTION_THROWN:
+                    DebugProtocol::sendStoppedEvent("exception", event.location);
+                    DebugProtocol::sendOutput(event.message, "stderr");
+                    break;
+                case DebugEvent::Type::SCRIPT_STARTED:
+                    DebugProtocol::sendOutput(event.message, "console");
+                    break;
+                case DebugEvent::Type::SCRIPT_COMPLETE: {
+                    DebugProtocol::sendOutput(event.message, "console");
+                    DebugProtocol::Message msg("TERMINATED");
+                    DebugProtocol::send(msg);
+                    break;
+                }
+            }
+        });
+
+        // Read commands from stdin
+        std::string line;
+        while (running && std::getline(std::cin, line)) {
+            if (line.empty()) continue;
+
+            DebugProtocol::Message msg = DebugProtocol::parse(line);
+            if (!msg.command.empty()) {
+                processCommand(msg);
+            }
+        }
+    }
+
+    void DebugServer::stop() {
+        running = false;
+        if (debugContext) {
+            debugContext->stop();
+        }
+    }
+
+    void DebugServer::processCommand(const DebugProtocol::Message& message) {
+        const std::string& cmd = message.command;
+
+        try {
+            if (cmd == "SETBREAKPOINT") {
+                handleSetBreakpoint(message);
+            } else if (cmd == "CLEARBREAKPOINT") {
+                handleClearBreakpoint(message);
+            } else if (cmd == "CLEARALL") {
+                debugContext->clearAllBreakpoints();
+                DebugProtocol::sendOK();
+            } else if (cmd == "CONTINUE") {
+                handleContinue();
+            } else if (cmd == "STEPINTO") {
+                handleStepInto();
+            } else if (cmd == "STEPOVER") {
+                handleStepOver();
+            } else if (cmd == "STEPOUT") {
+                handleStepOut();
+            } else if (cmd == "GETSTACKTRACE") {
+                handleGetStackTrace();
+            } else if (cmd == "GETVARIABLES") {
+                handleGetVariables(message);
+            } else if (cmd == "EXPANDVARIABLE") {
+                handleExpandVariable(message);
+            } else if (cmd == "SETEXCEPTIONBREAKPOINTS") {
+                handleSetExceptionBreakpoints(message);
+            } else if (cmd == "EVALUATE") {
+                handleEvaluate(message);
+            } else if (cmd == "STOP") {
+                handleStop();
+            } else {
+                DebugProtocol::sendError("Unknown command: " + cmd);
+            }
+        } catch (const std::exception& e) {
+            DebugProtocol::sendError(std::string("Command error: ") + e.what());
+        }
+    }
+
+    void DebugServer::handleSetBreakpoint(const DebugProtocol::Message& message) {
+        std::string file = message.getParameter("file");
+        int line = message.getIntParameter("line", -1);
+        std::string condition = message.getParameter("condition");      // Optional
+        std::string logMessage = message.getParameter("logMessage");    // Optional
+
+        if (file.empty() || line < 0) {
+            DebugProtocol::sendError("Invalid breakpoint parameters");
+            return;
+        }
+
+        debugContext->addBreakpoint(file, line, condition, logMessage);
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleClearBreakpoint(const DebugProtocol::Message& message) {
+        std::string file = message.getParameter("file");
+        int line = message.getIntParameter("line", -1);
+
+        if (file.empty() || line < 0) {
+            DebugProtocol::sendError("Invalid breakpoint parameters");
+            return;
+        }
+
+        debugContext->removeBreakpoint(file, line);
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleContinue() {
+        debugContext->continueExecution();
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleStepInto() {
+        debugContext->stepInto();
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleStepOver() {
+        debugContext->stepOver();
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleStepOut() {
+        debugContext->stepOut();
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleGetStackTrace() {
+        std::vector<CallFrame> frames = debugContext->getCallStack();
+        DebugProtocol::sendStackTrace(frames);
+    }
+
+    void DebugServer::handleGetVariables(const DebugProtocol::Message& message) {
+        if (!currentEnvironment || !variableInspector) {
+            DebugProtocol::sendError("No environment available for variable inspection");
+            return;
+        }
+
+        std::string scope = message.getParameter("scope", "local");
+        std::vector<DebugVariable> variables;
+
+        if (scope == "local") {
+            variables = variableInspector->getLocalVariables(currentEnvironment);
+        } else if (scope == "global") {
+            variables = variableInspector->getGlobalVariables(currentEnvironment);
+        } else {
+            DebugProtocol::sendError("Invalid scope: " + scope);
+            return;
+        }
+
+        // Convert to protocol format: (name, value, type, refId)
+        std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
+        for (const auto& var : variables) {
+            varList.emplace_back(var.name, var.value, var.type, var.referenceId);
+        }
+
+        DebugProtocol::sendVariables(varList);
+    }
+
+    void DebugServer::handleExpandVariable(const DebugProtocol::Message& message) {
+        if (!variableInspector) {
+            DebugProtocol::sendError("No variable inspector available");
+            return;
+        }
+
+        int refId = message.getIntParameter("ref", 0);
+        if (refId == 0) {
+            DebugProtocol::sendError("Invalid reference ID");
+            return;
+        }
+
+        std::vector<DebugVariable> children = variableInspector->getVariableChildren(refId);
+
+        // Convert to protocol format
+        std::vector<std::tuple<std::string, std::string, std::string, int>> childList;
+        for (const auto& child : children) {
+            childList.emplace_back(child.name, child.value, child.type, child.referenceId);
+        }
+
+        DebugProtocol::sendExpandedVariable(childList);
+    }
+
+    void DebugServer::handleSetExceptionBreakpoints(const DebugProtocol::Message& message) {
+        std::vector<std::string> filters;
+
+        // Parse filter parameters (filter0=all, filter1=uncaught, etc.)
+        int i = 0;
+        while (true) {
+            std::string filterKey = "filter" + std::to_string(i);
+            std::string filter = message.getParameter(filterKey);
+            if (filter.empty()) {
+                break;
+            }
+            filters.push_back(filter);
+            i++;
+        }
+
+        debugContext->setExceptionBreakpoints(filters);
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleEvaluate(const DebugProtocol::Message& message) {
+        std::string expression = message.getParameter("expr");
+        int frameId = message.getIntParameter("frame", 0);
+
+        if (expression.empty()) {
+            DebugProtocol::sendError("Empty expression");
+            return;
+        }
+
+        // TODO: Full implementation requires:
+        // 1. Get the environment for the specified frame
+        // 2. Parse the expression using the Parser
+        // 3. Evaluate the expression using the Evaluator
+        // 4. Format the result using VariableInspector
+        //
+        // For now, return a placeholder response
+        // Basic implementation could handle simple variable lookups
+
+        // TODO: Implement full expression evaluation
+        // This would require:
+        // 1. Tokenizing the expression
+        // 2. Parsing it with ExpressionParser
+        // 3. Evaluating with ExpressionEvaluator in current environment context
+        // 4. Formatting the result with VariableInspector
+        //
+        // For now, just return an error
+        DebugProtocol::sendError("Expression evaluation not yet implemented. Expression: " + expression);
+    }
+
+    void DebugServer::handleStop() {
+        DebugProtocol::sendOK();
+        stop();
+    }
+
+} // namespace debugger

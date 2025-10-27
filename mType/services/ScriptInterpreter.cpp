@@ -333,6 +333,30 @@ namespace services
         return evaluator.get();
     }
 
+    void ScriptInterpreter::enableDebugging()
+    {
+        if (evaluator)
+        {
+            auto context = evaluator->getContext();
+            if (context)
+            {
+                context->setDebuggingEnabled(true);
+            }
+        }
+    }
+
+    void ScriptInterpreter::disableDebugging()
+    {
+        if (evaluator)
+        {
+            auto context = evaluator->getContext();
+            if (context)
+            {
+                context->setDebuggingEnabled(false);
+            }
+        }
+    }
+
     void ScriptInterpreter::setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program)
     {
         if (scriptAPI)

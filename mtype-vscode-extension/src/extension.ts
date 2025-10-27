@@ -6,6 +6,7 @@ import { MTypeReferenceProvider } from './references/MTypeReferenceProvider';
 import { MTypeImportResolver } from './imports/MTypeImportResolver';
 import { MTypeImportCompletionProvider, MTypeImportedSymbolProvider } from './imports/MTypeImportCompletionProvider';
 import { MTypeImportDiagnostics } from './imports/MTypeImportDiagnostics';
+import { MTypeDebugConfigurationProvider, MTypeDebugAdapterDescriptorFactory } from './debug/MTypeDebugAdapter';
 
 export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage('mType extension activated!');
@@ -87,6 +88,14 @@ export function activate(context: vscode.ExtensionContext) {
     const formatter = new MTypeFormatter();
     const formatterDisposable = vscode.languages.registerDocumentFormattingEditProvider('mtype', formatter);
 
+    // Register debug configuration provider
+    const debugConfigProvider = new MTypeDebugConfigurationProvider();
+    const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
+
+    // Register debug adapter descriptor factory
+    const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
+    const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
+
     // Register additional commands
     const disposables = [
         // Command to run mType file
@@ -151,6 +160,8 @@ export function activate(context: vscode.ExtensionContext) {
         formatterDisposable,
         definitionDisposable,
         referenceDisposable,
+        debugConfigDisposable,
+        debugAdapterDisposable,
         documentChangeDisposable,
         documentOpenDisposable,
         documentCloseDisposable,

@@ -7,7 +7,7 @@ namespace evaluator::base
         : environment(env), currentInstance(nullptr), hasReturned(false),
           isInStaticMethod(false), inSuperInitializerContext(false), currentMethod(nullptr),
           currentConstructorClass(nullptr), eventLoop(std::make_unique<::runtime::EventLoop>()),
-          currentTaskId(0), cachedEnv(nullptr), envCacheValid(false)
+          currentTaskId(0), cachedEnv(nullptr), envCacheValid(false), debuggingEnabled(false)
     {
     }
 
@@ -148,5 +148,15 @@ namespace evaluator::base
     bool EvaluationContext::hasCallingClass() const
     {
         return !callingClassStack.empty();
+    }
+
+    void EvaluationContext::setDebuggingEnabled(bool enabled)
+    {
+        debuggingEnabled = enabled;
+    }
+
+    bool EvaluationContext::isDebuggingEnabled() const
+    {
+        return debuggingEnabled;
     }
 }
