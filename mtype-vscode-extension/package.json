@@ -4,6 +4,7 @@
   "description": "Syntax highlighting and code completion for mType programming language",
   "version": "1.0.0",
   "publisher": "mtype-team",
+  "icon": "images/logo-circle.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/mtype-lang/mtype"
