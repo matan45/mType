@@ -2195,8 +2195,8 @@
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
-    <ClCompile Include="tests\suites\find_script_classes_example.cpp">
-      <Filter>tests\suites</Filter>
+    <ClCompile Include="tests\testFiles\annotation\create_and_call_example.cpp">
+      <Filter>tests\testFiles\annotation</Filter>
     </ClCompile>
     <ClCompile Include="tests\testFramework\TestCase.cpp">
       <Filter>tests\testFramework</Filter>
@@ -2495,9 +2495,6 @@
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_annotation_pass.mt">
-      <Filter>tests\testFiles\annotation\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\annotation\pass\script_annotation_query_pass.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\arrayLiteralMixedTypes.mt">

@@ -341,14 +341,14 @@ namespace services
             // Set ImportManager on environment
             environment->setImportManager(importManager.get());
 
-            // For bytecode mode, compile without execution (registers classes)
-            if (compiler)
+            // Run the script with AST interpreter to register classes
+            // Note: This will execute the script, but classes will be registered
+            if (evaluator)
             {
-                compiler->compile(ast.get());
+                evaluator->evaluate(ast.get());
             }
 
             // Note: Classes are now registered in the environment's class registry
-            // The script code is NOT executed
         }
         catch (const ParseException&)
         {

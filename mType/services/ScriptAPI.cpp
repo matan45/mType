@@ -1,5 +1,6 @@
 #include "ScriptAPI.hpp"
 #include "../evaluator/Evaluator.hpp"
+#include "../evaluator/base/EvaluationContext.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
@@ -192,7 +193,14 @@ namespace services
             // Execute constructor body if it exists
             if (constructor->getBody())
             {
+                // Set current instance context so constructor body can access fields
+                auto context = evaluator->getContext();
+                context->setCurrentInstance(instance);
+
                 evaluator->evaluate(constructor->getBody());
+
+                // Clear instance context
+                context->clearCurrentInstance();
             }
 
             environment->exitScope();
