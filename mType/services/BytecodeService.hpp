@@ -66,5 +66,8 @@ namespace services
 
         // Load and execute bytecode file
         void runCompiledBytecode(const std::string& bytecodeFile);
+
+        // Load bytecode file and register classes without executing
+        std::unique_ptr<vm::bytecode::BytecodeProgram> loadCompiledBytecodeWithoutExecuting(const std::string& bytecodeFile);
     };
 }

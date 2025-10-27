@@ -146,6 +146,39 @@ namespace services
         }
     }
 
+    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadCompiledBytecodeWithoutExecuting(
+        const std::string& bytecodeFile)
+    {
+        using namespace vm::bytecode;
+
+        // Deserialize bytecode program
+        std::ifstream inFile(bytecodeFile, std::ios::binary);
+        if (!inFile)
+        {
+            throw std::runtime_error("Could not open bytecode file: " + bytecodeFile);
+        }
+        auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
+        inFile.close();
+
+        // Register classes from metadata
+        registerClassesFromMetadata(program->getClasses());
+
+        // Set program on VM for C++ API methods
+        if (vm)
+        {
+            vm->setProgram(program.get());
+        }
+
+        // Set program on ScriptAPI for C++ interop
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(program.get());
+        }
+
+        // Return the program so caller can keep it alive
+        return program;
+    }
+
     void BytecodeService::registerClassesFromMetadata(
         const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes)
     {

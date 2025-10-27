@@ -5551,6 +5551,9 @@
     <None Include="tests\testFiles\optimizer\pass\peephole_dead_code.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
+    <None Include="tests\testFiles\optimizer\pass\script_annotation_query_pass.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
     <None Include="tests\testFiles\optimizer\pass\switchOptimization.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
