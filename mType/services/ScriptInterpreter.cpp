@@ -65,8 +65,10 @@ namespace services
         bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
-        bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm);
-        scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get());
+        // ScriptAPI initialized with VM support (program will be set when bytecode is loaded)
+        scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get(), vm.get(), nullptr);
+        // BytecodeService needs ScriptAPI reference to update program during execution
+        bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm, scriptAPI.get());
 
         // Create appropriate execution strategy based on execution mode
         switch (executionMode)
@@ -75,7 +77,7 @@ namespace services
             executionStrategy = std::make_unique<ASTExecutionStrategy>(evaluator.get());
             break;
         case constants::ExecutionMode::BYTECODE_VM:
-            executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get());
+            executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
             break;
         case constants::ExecutionMode::DUAL_VALIDATION:
             executionStrategy = std::make_unique<DualValidationStrategy>(evaluator.get(), environment, importResolver.get(), optimizationService.get());
@@ -328,6 +330,14 @@ namespace services
     evaluator::Evaluator* ScriptInterpreter::getEvaluator() const
     {
         return evaluator.get();
+    }
+
+    void ScriptInterpreter::setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program)
+    {
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(program);
+        }
     }
 
     // Parse and register classes without executing

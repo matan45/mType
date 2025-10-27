@@ -15,16 +15,26 @@
 #include "../errors/ParameterMismatchException.hpp"
 #include "../errors/TypeConversionException.hpp"
 #include "../errors/ReturnException.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
+#include "../vm/bytecode/BytecodeProgram.hpp"
 #include <iostream>
 
 namespace services
 {
-    ScriptAPI::ScriptAPI(std::shared_ptr<environment::Environment> env, evaluator::Evaluator* eval)
-        : environment(env), evaluator(eval)
+    ScriptAPI::ScriptAPI(std::shared_ptr<environment::Environment> env,
+                         evaluator::Evaluator* eval,
+                         vm::runtime::VirtualMachine* virtualMachine,
+                         const vm::bytecode::BytecodeProgram* bytecodeProgram)
+        : environment(env), evaluator(eval), vm(virtualMachine), program(bytecodeProgram)
     {
     }
 
     ScriptAPI::~ScriptAPI() = default;
+
+    void ScriptAPI::setBytecodeProgram(const vm::bytecode::BytecodeProgram* bytecodeProgram)
+    {
+        program = bytecodeProgram;
+    }
 
     value::Value ScriptAPI::callFunction(const std::string& functionName, const std::vector<value::Value>& args)
     {
@@ -59,6 +69,14 @@ namespace services
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+
+        // If VM and program are available, use bytecode execution
+        if (vm && program)
+        {
+            return vm->invokeMethod(instance, methodName, args);
+        }
+
+        // Otherwise fall back to AST evaluation
         return evaluator->callMethodOnInstance(instance, methodName, args);
     }
 
@@ -72,11 +90,25 @@ namespace services
             throw errors::ClassNotFoundException(className);
         }
 
+        // If VM and program are available, use bytecode execution
+        if (vm && program)
+        {
+            return vm->invokeStaticMethod(className, methodName, args);
+        }
+
+        // Otherwise fall back to AST evaluation
         return invokeStaticMethod(classDef, methodName, args);
     }
 
     value::Value ScriptAPI::getStaticField(const std::string& className, const std::string& fieldName)
     {
+        // If VM and program are available, use VM field access
+        if (vm && program)
+        {
+            return vm->getStaticField(className, fieldName);
+        }
+
+        // Otherwise fall back to direct field access
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -96,6 +128,14 @@ namespace services
                                    const std::string& fieldName,
                                    const value::Value& value)
     {
+        // If VM and program are available, use VM field access
+        if (vm && program)
+        {
+            vm->setStaticField(className, fieldName, value);
+            return;
+        }
+
+        // Otherwise fall back to direct field access
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -143,9 +183,74 @@ namespace services
         varDef->setValue(value);
     }
 
+    value::Value ScriptAPI::getField(const value::Value& object, const std::string& fieldName)
+    {
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
+        {
+            throw errors::ObjectException("Cannot access field on non-object value", "", __FUNCTION__);
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+
+        // If VM and program are available, use VM field access
+        if (vm && program)
+        {
+            return vm->getField(instance, fieldName);
+        }
+
+        // Otherwise fall back to direct field access
+        auto fieldDef = instance->getField(fieldName);
+        if (!fieldDef)
+        {
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        return fieldDef->getValue();
+    }
+
+    void ScriptAPI::setField(const value::Value& object,
+                            const std::string& fieldName,
+                            const value::Value& value)
+    {
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
+        {
+            throw errors::ObjectException("Cannot set field on non-object value", "", __FUNCTION__);
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+
+        // If VM and program are available, use VM field access
+        if (vm && program)
+        {
+            vm->setField(instance, fieldName, value);
+            return;
+        }
+
+        // Otherwise fall back to direct field access
+        auto fieldDef = instance->getField(fieldName);
+        if (!fieldDef)
+        {
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        if (fieldDef->isFinal() && fieldDef->isInitialized())
+        {
+            throw errors::FinalModificationException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        fieldDef->setValue(value);
+    }
+
     value::Value ScriptAPI::createObject(const std::string& className,
                                          const std::vector<value::Value>& constructorArgs)
     {
+        // If VM and program are available, use bytecode execution
+        if (vm && program)
+        {
+            return vm->createObject(className, constructorArgs);
+        }
+
+        // Otherwise fall back to AST evaluation
         auto classDef = environment->findClass(className);
         if (!classDef)
         {

@@ -16,6 +16,7 @@ namespace vm::runtime
 namespace services
 {
     class ImportResolver;
+    class ScriptAPI;
 
     /**
      * Execution strategy for bytecode VM mode
@@ -27,6 +28,7 @@ namespace services
         vm::compiler::BytecodeCompiler* compiler;
         std::shared_ptr<vm::runtime::VirtualMachine> vm;
         ImportResolver* importResolver;
+        ScriptAPI* scriptAPI;  // For updating bytecode program reference
 
         // Helper for executing compiled bytecode program
         value::Value executeBytecodeProgram(const vm::bytecode::BytecodeProgram& program);
@@ -34,7 +36,8 @@ namespace services
     public:
         BytecodeExecutionStrategy(vm::compiler::BytecodeCompiler* comp,
                                  std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine,
-                                 ImportResolver* resolver);
+                                 ImportResolver* resolver,
+                                 ScriptAPI* api = nullptr);
         ~BytecodeExecutionStrategy() override = default;
 
         value::Value execute(ast::ASTNode* ast) override;

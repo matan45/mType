@@ -101,6 +101,24 @@ namespace vm::runtime
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
 
+        // C++ Interop API - Object creation and method invocation
+        value::Value createObject(const std::string& className, const std::vector<value::Value>& args);
+        value::Value invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                 const std::string& methodName,
+                                 const std::vector<value::Value>& args);
+        value::Value invokeStaticMethod(const std::string& className,
+                                        const std::string& methodName,
+                                        const std::vector<value::Value>& args);
+
+        // C++ Interop API - Field access
+        value::Value getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                             const std::string& fieldName);
+        void setField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                     const std::string& fieldName,
+                     const value::Value& value);
+        value::Value getStaticField(const std::string& className, const std::string& fieldName);
+        void setStaticField(const std::string& className, const std::string& fieldName, const value::Value& value);
+
         // Event loop integration (lazy initialization)
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
         ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist

@@ -131,5 +131,8 @@ namespace services
         // Access to environment and evaluator for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
         evaluator::Evaluator* getEvaluator() const;
+
+        // Internal API for updating bytecode program reference (used by BytecodeService)
+        void setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program);
     };
 }

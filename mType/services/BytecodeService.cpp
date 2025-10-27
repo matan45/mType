@@ -2,6 +2,7 @@
 #include "BytecodeExecutor.hpp"
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"
+#include "ScriptAPI.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -35,8 +36,9 @@ namespace services
 {
     BytecodeService::BytecodeService(std::shared_ptr<environment::Environment> env,
                                      OptimizationService* optService,
-                                     std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine)
-        : environment(env), optimizationService(optService), vm(virtualMachine)
+                                     std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine,
+                                     ScriptAPI* api)
+        : environment(env), optimizationService(optService), vm(virtualMachine), scriptAPI(api)
     {
     }
 
@@ -114,8 +116,32 @@ namespace services
         // Register classes from metadata
         registerClassesFromMetadata(program.getClasses());
 
-        // Execute the bytecode using BytecodeExecutor utility
-        BytecodeExecutor::executeProgram(vm, program);
+        // Set bytecode program on ScriptAPI for C++ interop
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(&program);
+        }
+
+        try
+        {
+            // Execute the bytecode using BytecodeExecutor utility
+            BytecodeExecutor::executeProgram(vm, program);
+        }
+        catch (...)
+        {
+            // Clear program reference before rethrowing
+            if (scriptAPI)
+            {
+                scriptAPI->setBytecodeProgram(nullptr);
+            }
+            throw;
+        }
+
+        // Clear program reference after execution
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(nullptr);
+        }
     }
 
     void BytecodeService::registerClassesFromMetadata(

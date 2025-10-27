@@ -15,6 +15,9 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../errors/SourceLocation.hpp"
+#include "../../errors/ClassNotFoundException.hpp"
+#include "../../errors/FieldNotFoundException.hpp"
+#include "../../errors/NullPointerException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
@@ -133,6 +136,323 @@ namespace vm::runtime
         instructionPointer = funcMetadata->startOffset;
 
         return interpretLoop();
+    }
+
+    // C++ Interop API implementations
+    value::Value VirtualMachine::createObject(const std::string& className, const std::vector<value::Value>& args)
+    {
+        if (!program)
+        {
+            throw errors::RuntimeException("No program loaded - cannot create object in bytecode mode without compiled bytecode");
+        }
+
+        // Find class definition
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            throw errors::ClassNotFoundException(className);
+        }
+
+        // Create object instance
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+        // Find constructor
+        auto constructor = classDef->findConstructor(args.size());
+        if (!constructor)
+        {
+            throw errors::RuntimeException("Constructor not found for class '" + className +
+                                         "' with " + std::to_string(args.size()) + " parameters");
+        }
+
+        // Look for constructor bytecode
+        std::string qualifiedName = className + "::<constructor>";
+        auto* ctorMetadata = program->getFunction(qualifiedName);
+        if (!ctorMetadata)
+        {
+            throw errors::RuntimeException("Constructor '" + qualifiedName +
+                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+        }
+
+        // Save current state
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+
+        try
+        {
+            // Push instance and arguments onto stack
+            size_t frameBase = stackManager->size();
+            push(instance);
+            for (const auto& arg : args)
+            {
+                push(arg);
+            }
+
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = qualifiedName;
+            frame.thisInstance = instance;
+            frame.definingClassName = className;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Execute constructor
+            instructionPointer = ctorMetadata->startOffset;
+            interpretLoop();
+
+            // Restore state
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+
+            return instance;
+        }
+        catch (...)
+        {
+            // Restore state on error
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            throw;
+        }
+    }
+
+    value::Value VirtualMachine::invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                             const std::string& methodName,
+                                             const std::vector<value::Value>& args)
+    {
+        if (!program)
+        {
+            throw errors::RuntimeException("No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
+        }
+
+        if (!instance)
+        {
+            throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+        }
+
+        auto classDef = instance->getClassDefinition();
+        size_t argCount = args.size();
+
+        // Find method in hierarchy
+        auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
+        if (!method)
+        {
+            throw errors::RuntimeException("Instance method not found: " + methodName +
+                                         " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+        }
+
+        // Find which class defines this method
+        std::string definingClassName = classDef->getName();
+        auto currentClass = classDef;
+        while (currentClass)
+        {
+            auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
+            if (localMethod)
+            {
+                definingClassName = currentClass->getName();
+                break;
+            }
+            currentClass = currentClass->getParentClass();
+        }
+
+        // Look for method bytecode
+        std::string qualifiedName = definingClassName + "::" + methodName;
+        auto* funcMetadata = program->getFunction(qualifiedName);
+        if (!funcMetadata)
+        {
+            throw errors::RuntimeException("Method '" + qualifiedName +
+                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+        }
+
+        // Save current state
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+
+        try
+        {
+            // Push instance and arguments onto stack
+            size_t frameBase = stackManager->size();
+            push(instance);
+            for (const auto& arg : args)
+            {
+                push(arg);
+            }
+
+            // Create call frame
+            CallFrame frame;
+            frame.returnAddress = instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = qualifiedName;
+            frame.thisInstance = instance;
+            frame.definingClassName = definingClassName;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
+
+            // Execute method
+            instructionPointer = funcMetadata->startOffset;
+            value::Value result = interpretLoop();
+
+            // Restore state
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+
+            return result;
+        }
+        catch (...)
+        {
+            // Restore state on error
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            throw;
+        }
+    }
+
+    value::Value VirtualMachine::invokeStaticMethod(const std::string& className,
+                                                    const std::string& methodName,
+                                                    const std::vector<value::Value>& args)
+    {
+        if (!program)
+        {
+            throw errors::RuntimeException("No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
+        }
+
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            throw errors::ClassNotFoundException(className);
+        }
+
+        size_t argCount = args.size();
+        auto method = classDef->findStaticMethod(methodName, argCount);
+        if (!method)
+        {
+            throw errors::RuntimeException("Static method not found: " + methodName +
+                                         " with " + std::to_string(argCount) + " arguments in class " + className);
+        }
+
+        // Look for method bytecode
+        std::string qualifiedName = className + "::" + methodName;
+        auto* funcMetadata = program->getFunction(qualifiedName);
+        if (!funcMetadata)
+        {
+            throw errors::RuntimeException("Static method '" + qualifiedName +
+                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+        }
+
+        // Save current state
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+
+        try
+        {
+            // Push arguments onto stack
+            for (const auto& arg : args)
+            {
+                push(arg);
+            }
+
+            // Execute method
+            instructionPointer = funcMetadata->startOffset;
+            value::Value result = interpretLoop();
+
+            // Restore state
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+
+            return result;
+        }
+        catch (...)
+        {
+            // Restore state on error
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            throw;
+        }
+    }
+
+    value::Value VirtualMachine::getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                         const std::string& fieldName)
+    {
+        if (!instance)
+        {
+            throw errors::NullPointerException("Cannot access field '" + fieldName + "' on null object");
+        }
+
+        auto fieldDef = instance->getField(fieldName);
+        if (!fieldDef)
+        {
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        return fieldDef->getValue();
+    }
+
+    void VirtualMachine::setField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                 const std::string& fieldName,
+                                 const value::Value& value)
+    {
+        if (!instance)
+        {
+            throw errors::NullPointerException("Cannot set field '" + fieldName + "' on null object");
+        }
+
+        auto fieldDef = instance->getField(fieldName);
+        if (!fieldDef)
+        {
+            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+        }
+
+        if (fieldDef->isFinal() && fieldDef->isInitialized())
+        {
+            throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+        }
+
+        fieldDef->setValue(value);
+    }
+
+    value::Value VirtualMachine::getStaticField(const std::string& className, const std::string& fieldName)
+    {
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            throw errors::ClassNotFoundException(className);
+        }
+
+        auto fieldDef = classDef->getField(fieldName);
+        if (!fieldDef || !fieldDef->isStatic())
+        {
+            throw errors::FieldNotFoundException(fieldName, className);
+        }
+
+        return fieldDef->getValue();
+    }
+
+    void VirtualMachine::setStaticField(const std::string& className,
+                                       const std::string& fieldName,
+                                       const value::Value& value)
+    {
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            throw errors::ClassNotFoundException(className);
+        }
+
+        auto fieldDef = classDef->getField(fieldName);
+        if (!fieldDef || !fieldDef->isStatic())
+        {
+            throw errors::FieldNotFoundException(fieldName, className);
+        }
+
+        if (fieldDef->isFinal() && fieldDef->isInitialized())
+        {
+            throw errors::RuntimeException("Cannot assign to final static field '" + fieldName + "'");
+        }
+
+        fieldDef->setValue(value);
     }
 
     value::Value VirtualMachine::interpretLoop()
