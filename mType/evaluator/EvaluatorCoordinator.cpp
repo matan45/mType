@@ -408,4 +408,10 @@ namespace evaluator
     {
         return stmtEvaluator->evaluateThrowNode(node);
     }
+
+    Value EvaluatorCoordinator::visitAnnotationNode(AnnotationNode* node)
+    {
+        // Annotations are metadata only - no runtime evaluation needed
+        return Value();
+    }
 }

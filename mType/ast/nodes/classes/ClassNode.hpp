@@ -2,6 +2,7 @@
 #include "../../ASTNode.hpp"
 #include "../../GenericTypeParameter.hpp"
 #include "../../VisibilityModifier.hpp"
+#include "../annotations/AnnotationNode.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -21,6 +22,7 @@ namespace ast::nodes::classes
         bool finalClass; // NEW: Final modifier to prevent inheritance
         bool abstractClass; // NEW: Abstract modifier for abstract classes
         VisibilityModifier visibility; // NEW: Top-level visibility for imports
+        std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations; // NEW: Annotations for this class
     public:
         // Backward compatibility constructor (most common usage)
         explicit ClassNode(const std::string& name, const SourceLocation& loc = SourceLocation());
@@ -81,6 +83,12 @@ namespace ast::nodes::classes
         // NEW: Visibility modifier methods (for import/export system)
         VisibilityModifier getVisibility() const;
         void setVisibility(VisibilityModifier vis);
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const;
+        void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation);
+        bool hasAnnotation(const std::string& annotationName) const;
+        std::shared_ptr<annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

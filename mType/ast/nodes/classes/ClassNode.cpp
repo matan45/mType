@@ -168,6 +168,40 @@ namespace ast::nodes::classes
         visibility = vis;
     }
 
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>& ClassNode::getAnnotations() const
+    {
+        return annotations;
+    }
+
+    void ClassNode::addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation)
+    {
+        annotations.push_back(annotation);
+    }
+
+    bool ClassNode::hasAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::shared_ptr<annotations::AnnotationNode> ClassNode::getAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return annotation;
+            }
+        }
+        return nullptr;
+    }
+
     Value ClassNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitClassNode(this);
@@ -209,6 +243,19 @@ namespace ast::nodes::classes
         clonedClass->setFinal(finalClass);
         clonedClass->setAbstract(abstractClass);
         clonedClass->setVisibility(visibility);
+
+        // Clone annotations
+        for (const auto& annotation : annotations) {
+            if (annotation) {
+                // Safely reconstruct annotation using make_shared to avoid unsafe cast
+                auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
+                    annotation->getName(),
+                    annotation->getParameters(),
+                    annotation->getLocation()
+                );
+                clonedClass->addAnnotation(clonedAnnotation);
+            }
+        }
 
         return clonedClass;
     }

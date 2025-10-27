@@ -10,6 +10,16 @@ namespace evaluator
     class Evaluator;
 }
 
+namespace vm::runtime
+{
+    class VirtualMachine;
+}
+
+namespace vm::bytecode
+{
+    class BytecodeProgram;
+}
+
 namespace services
 {
     /**
@@ -21,6 +31,10 @@ namespace services
     private:
         std::shared_ptr<environment::Environment> environment;
         evaluator::Evaluator* evaluator;
+
+        // Bytecode VM support (optional - used when executing in bytecode mode)
+        vm::runtime::VirtualMachine* vm;
+        const vm::bytecode::BytecodeProgram* program;
 
         // Helper methods for internal use
         value::Value invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef,
@@ -37,8 +51,14 @@ namespace services
         value::Value executeStaticMethodBody(std::shared_ptr<runtimeTypes::klass::MethodDefinition> method);
 
     public:
-        ScriptAPI(std::shared_ptr<environment::Environment> env, evaluator::Evaluator* eval);
+        ScriptAPI(std::shared_ptr<environment::Environment> env,
+                 evaluator::Evaluator* eval,
+                 vm::runtime::VirtualMachine* virtualMachine = nullptr,
+                 const vm::bytecode::BytecodeProgram* bytecodeProgram = nullptr);
         ~ScriptAPI();
+
+        // Update bytecode program reference (for bytecode mode)
+        void setBytecodeProgram(const vm::bytecode::BytecodeProgram* bytecodeProgram);
 
         // Function calling
         value::Value callFunction(const std::string& functionName,
@@ -53,6 +73,12 @@ namespace services
         value::Value callStaticMethod(const std::string& className,
                                      const std::string& methodName,
                                      const std::vector<value::Value>& args = {});
+
+        // Instance field access
+        value::Value getField(const value::Value& object, const std::string& fieldName);
+        void setField(const value::Value& object,
+                     const std::string& fieldName,
+                     const value::Value& value);
 
         // Static field access
         value::Value getStaticField(const std::string& className, const std::string& fieldName);

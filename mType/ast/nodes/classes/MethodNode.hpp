@@ -4,6 +4,7 @@
 #include "../../GenericType.hpp"
 #include "../../AccessModifier.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../annotations/AnnotationNode.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -25,6 +26,7 @@ namespace ast::nodes::classes
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
         AccessModifier accessModifier;
+        std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this method
 
         // Performance cache for legacy getParameters() - O(1) after first call
         mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
@@ -107,6 +109,12 @@ namespace ast::nodes::classes
         void setAccessModifier(AccessModifier modifier);
 
         [[nodiscard]] size_t getParameterCount() const noexcept;
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const;
+        void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation);
+        bool hasAnnotation(const std::string& annotationName) const;
+        std::shared_ptr<annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

@@ -7,6 +7,9 @@
     <Filter Include="ast\nodes">
       <UniqueIdentifier>{7516E18D-E180-9504-2ABF-46AA96687359}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ast\nodes\annotations">
+      <UniqueIdentifier>{12FA1464-7E66-D05E-475A-68BCB385F2C6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ast\nodes\classes">
       <UniqueIdentifier>{72C25BF5-DED8-598B-2750-E5AC93A52A13}</UniqueIdentifier>
     </Filter>
@@ -135,6 +138,15 @@
     </Filter>
     <Filter Include="tests\testFiles">
       <UniqueIdentifier>{5A55F118-C6E0-5EDD-CFF1-E1D13BFCBADD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\annotation">
+      <UniqueIdentifier>{84C7DC0F-70D7-88E0-D990-EDFEC5BF7779}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\annotation\error">
+      <UniqueIdentifier>{DDF12330-C942-0F72-F2A6-FD33DE56A2DB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\annotation\pass">
+      <UniqueIdentifier>{0AB06BC3-7693-7A03-7F96-A83FEBF84054}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\arrays">
       <UniqueIdentifier>{DB312977-C72B-52C9-B098-E8D99C31B835}</UniqueIdentifier>
@@ -292,6 +304,9 @@
     <Filter Include="types">
       <UniqueIdentifier>{5A5E7610-C672-9EC1-8FF4-4121FBC79AF2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="validation">
+      <UniqueIdentifier>{10E17C64-FC98-BEB1-65A0-970D517759A2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
@@ -407,6 +422,9 @@
     </ClInclude>
     <ClInclude Include="ast\VisibilityModifier.hpp">
       <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\annotations\AnnotationNode.hpp">
+      <Filter>ast\nodes\annotations</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
       <Filter>ast\nodes\classes</Filter>
@@ -1044,6 +1062,9 @@
     <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="parser\utilities\AnnotationParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
     <ClInclude Include="parser\utilities\AsyncValidator.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
@@ -1140,6 +1161,9 @@
     <ClInclude Include="services\ScriptInterpreter.hpp">
       <Filter>services</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\AnnotationTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ArrayTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -1208,6 +1232,9 @@
     </ClInclude>
     <ClInclude Include="types\TypeRegistry.hpp">
       <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="validation\AnnotationValidator.hpp">
+      <Filter>validation</Filter>
     </ClInclude>
     <ClInclude Include="value\ArrayPool.hpp">
       <Filter>value</Filter>
@@ -1531,6 +1558,9 @@
     </ClCompile>
     <ClCompile Include="ast\VisibilityModifier.cpp">
       <Filter>ast</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\annotations\AnnotationNode.cpp">
+      <Filter>ast\nodes\annotations</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
       <Filter>ast\nodes\classes</Filter>
@@ -2021,6 +2051,9 @@
     <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
+    <ClCompile Include="parser\utilities\AnnotationParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
     <ClCompile Include="parser\utilities\AsyncValidator.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
@@ -2117,6 +2150,9 @@
     <ClCompile Include="services\ScriptInterpreter.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\AnnotationTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\ArrayTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -2176,6 +2212,9 @@
     </ClCompile>
     <ClCompile Include="types\TypeRegistry.cpp">
       <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="validation\AnnotationValidator.cpp">
+      <Filter>validation</Filter>
     </ClCompile>
     <ClCompile Include="value\AsyncPromiseValue.cpp">
       <Filter>value</Filter>
@@ -2413,6 +2452,69 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\annotation\error\override_no_parent_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\override_no_parent_method_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\override_wrong_param_count_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\override_wrong_return_type_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\override_wrong_signature_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_default_constructor_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_update_method_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_grandparent_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_grandparent_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_interface_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_interface_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_valid.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_valid.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\arrayLiteralMixedTypes.mt">
       <Filter>tests\testFiles\arrays\error</Filter>
     </None>
@@ -5447,6 +5549,9 @@
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\peephole_dead_code.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\script_annotation_query_pass.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\switchOptimization.mt">

@@ -13,11 +13,13 @@
 #include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
+#include "../tests/suites/AnnotationTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
+#include "../runtimeTypes/klass/ClassDefinition.hpp"
 
 #include <vector>
 #include <memory>
@@ -93,6 +95,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<AwaitTestSuite>();
     }
+    else if (suiteName == "annotation" || suiteName == "annotations")
+    {
+        return std::make_unique<AnnotationTestSuite>();
+    }
     return nullptr;
 }
 
@@ -113,6 +119,7 @@ void printAvailableTestSuites()
     std::cout << "  cast         - Cast and Type Checking Test Suite\n";
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
+    std::cout << "  annotation   - Annotation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -139,6 +146,193 @@ void runSpecificTestSuite(const std::string& suiteName,
 // Helper function to convert string type name to ValueType
 // Note: stringToValueType and registerClassesFromMetadata have been refactored into ScriptInterpreter
 // Note: resolveImports functionality has been refactored into ImportManager::resolveAllImports()
+
+/**
+ * Demonstrate creating objects and calling methods on @Script classes
+ */
+void demonstrateScriptObjectUsage(const std::string& scriptFile,
+                                  constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+{
+    std::cout << "\n" << std::string(80, '=') << "\n";
+    std::cout << "Script Class Object Usage Demo\n";
+    std::cout << "Execution Mode: ";
+    switch (execMode)
+    {
+    case constants::ExecutionMode::AST_INTERPRETER:
+        std::cout << "AST Interpreter\n";
+        break;
+    case constants::ExecutionMode::BYTECODE_VM:
+        std::cout << "Bytecode VM\n";
+        break;
+    case constants::ExecutionMode::DUAL_VALIDATION:
+        std::cout << "Dual Validation\n";
+        break;
+    }
+    std::cout << std::string(80, '=') << "\n\n";
+
+    try
+    {
+        // Step 1: Parse and register classes
+        std::cout << "Step 1: Parsing script and registering classes...\n";
+        ScriptInterpreter interpreter(execMode);
+        interpreter.parseAndRegisterClasses(scriptFile);
+        std::cout << "  Done!\n\n";
+
+        // Step 2: Find @Script classes
+        std::cout << "Step 2: Finding @Script annotated classes...\n";
+        auto environment = interpreter.getEnvironment();
+        auto classRegistry = environment->getClassRegistry();
+        auto allClassNames = classRegistry->getAllItemNames();
+
+        std::vector<std::string> scriptClasses;
+        for (const auto& className : allClassNames)
+        {
+            auto classDef = classRegistry->findClass(className);
+            if (classDef && classDef->hasAnnotation("Script"))
+            {
+                scriptClasses.push_back(className);
+                std::cout << "  Found: " << className << "\n";
+            }
+        }
+        std::cout << "\n";
+
+        // Step 3: Create and use PlayerController
+        if (std::find(scriptClasses.begin(), scriptClasses.end(), "PlayerController") != scriptClasses.end())
+        {
+            std::cout << "Step 3: Creating PlayerController instance...\n";
+
+            std::vector<value::Value> ctorArgs;
+            ctorArgs.push_back(value::Value(100)); // health = 100
+
+            value::Value player = interpreter.createObject("PlayerController", ctorArgs);
+            std::cout << "  PlayerController created with health=100\n\n";
+
+            std::cout << "Step 4: Calling methods on PlayerController...\n";
+
+            // Call getHealth()
+            std::vector<value::Value> noArgs;
+            value::Value health = interpreter.callMethod(player, "getHealth", noArgs);
+            std::cout << "  player.getHealth() = " << std::get<int>(health) << "\n";
+
+            // Call takeDamage(30)
+            std::vector<value::Value> damageArgs;
+            damageArgs.push_back(value::Value(30));
+            interpreter.callMethod(player, "takeDamage", damageArgs);
+            std::cout << "  player.takeDamage(30) called\n";
+
+            // Call getHealth() again
+            value::Value newHealth = interpreter.callMethod(player, "getHealth", noArgs);
+            std::cout << "  player.getHealth() = " << std::get<int>(newHealth) << " (after damage)\n\n";
+        }
+
+        // Step 5: Create and use GameWorld
+        if (std::find(scriptClasses.begin(), scriptClasses.end(), "GameWorld") != scriptClasses.end())
+        {
+            std::cout << "Step 5: Creating GameWorld instance...\n";
+
+            std::vector<value::Value> worldArgs;
+            worldArgs.push_back(value::Value(5)); // level = 5
+
+            value::Value world = interpreter.createObject("GameWorld", worldArgs);
+            std::cout << "  GameWorld created with level=5\n";
+
+            // Call getLevel()
+            std::vector<value::Value> noArgs;
+            value::Value level = interpreter.callMethod(world, "getLevel", noArgs);
+            std::cout << "  world.getLevel() = " << std::get<int>(level) << "\n\n";
+        }
+
+        std::cout << std::string(80, '=') << "\n";
+        std::cout << "Demo Complete!\n";
+        std::cout << std::string(80, '=') << "\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << "\n";
+    }
+}
+
+/**
+ * Find and print all classes with @Script annotation
+ * This demonstrates the use case for @Script annotation
+ */
+void printScriptAnnotatedClasses(std::shared_ptr<environment::Environment> environment)
+{
+    std::cout << "\n" << std::string(80, '=') << "\n";
+    std::cout << "Classes with @Script annotation:\n";
+    std::cout << std::string(80, '=') << "\n\n";
+
+    auto classRegistry = environment->getClassRegistry();
+    if (!classRegistry)
+    {
+        std::cout << "No class registry available\n";
+        return;
+    }
+
+    auto allClassNames = classRegistry->getAllItemNames();
+    int scriptClassCount = 0;
+
+    for (const auto& className : allClassNames)
+    {
+        auto classDef = classRegistry->findClass(className);
+        if (classDef && classDef->hasAnnotation("Script"))
+        {
+            scriptClassCount++;
+
+            std::cout << "Class: " << className << "\n";
+
+            // Print instance methods
+            const auto& methods = classDef->getInstanceMethods();
+            if (!methods.empty())
+            {
+                std::cout << "  Instance Methods:\n";
+                for (const auto& [methodName, methodDef] : methods)
+                {
+                    std::cout << "    - " << methodName << "()\n";
+                }
+            }
+
+            // Print static methods
+            const auto& staticMethods = classDef->getStaticMethods();
+            if (!staticMethods.empty())
+            {
+                std::cout << "  Static Methods:\n";
+                for (const auto& [methodName, methodDef] : staticMethods)
+                {
+                    std::cout << "    - static " << methodName << "()\n";
+                }
+            }
+
+            // Print instance fields
+            const auto& fields = classDef->getInstanceFields();
+            if (!fields.empty())
+            {
+                std::cout << "  Instance Fields:\n";
+                for (const auto& [fieldName, fieldDef] : fields)
+                {
+                    std::cout << "    - " << fieldName << "\n";
+                }
+            }
+
+            // Print static fields
+            const auto& staticFields = classDef->getStaticFields();
+            if (!staticFields.empty())
+            {
+                std::cout << "  Static Fields:\n";
+                for (const auto& [fieldName, fieldDef] : staticFields)
+                {
+                    std::cout << "    - static " << fieldName << "\n";
+                }
+            }
+
+            std::cout << "\n";
+        }
+    }
+
+    std::cout << std::string(80, '-') << "\n";
+    std::cout << "Total @Script annotated classes: " << scriptClassCount << "\n";
+    std::cout << std::string(80, '=') << "\n";
+}
 
 void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
@@ -173,6 +367,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     suites.push_back(std::make_unique<CastTestSuite>());
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
+    suites.push_back(std::make_unique<AnnotationTestSuite>());
 
     for (auto& suite : suites)
     {
@@ -246,6 +441,11 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
+        std::cout << "  " << argv[0] <<
+            " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
+        std::cout << "  " << argv[0] <<
+            " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
+        std::cout << "  " << argv[0] << " --test-script-objects <script.mt> --bytecode - Same demo using Bytecode VM\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
@@ -331,6 +531,75 @@ int main(int argc, char* argv[])
         catch (const std::exception& e)
         {
             std::cerr << "Execution error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --test-script-objects command
+    if (argc >= 3 && std::string(argv[1]) == "--test-script-objects")
+    {
+        std::string scriptFile = argv[2];
+
+        // Check for execution mode flag
+        constants::ExecutionMode mode = constants::ExecutionMode::AST_INTERPRETER;
+        for (int i = 3; i < argc; ++i)
+        {
+            if (std::string(argv[i]) == "--bytecode")
+            {
+                mode = constants::ExecutionMode::BYTECODE_VM;
+            }
+            else if (std::string(argv[i]) == "--dual")
+            {
+                mode = constants::ExecutionMode::DUAL_VALIDATION;
+            }
+        }
+
+        try
+        {
+            demonstrateScriptObjectUsage(scriptFile, mode);
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --find-script-classes command
+    if (argc >= 3 && std::string(argv[1]) == "--find-script-classes")
+    {
+        std::string scriptFile = argv[2];
+
+        // Check for optional execution mode flags
+        constants::ExecutionMode mode = constants::ExecutionMode::BYTECODE_VM; // Use bytecode for analysis
+        for (int i = 3; i < argc; ++i)
+        {
+            if (std::string(argv[i]) == "--bytecode")
+            {
+                mode = constants::ExecutionMode::BYTECODE_VM;
+            }
+        }
+
+        try
+        {
+            std::cout << "Analyzing script: " << scriptFile << "\n";
+            std::cout << "(Parsing and registering classes for analysis)\n\n";
+
+            ScriptInterpreter interpreter(mode);
+
+            // Parse and register classes without executing the script
+            interpreter.parseAndRegisterClasses(scriptFile);
+
+            // Query and print all @Script annotated classes
+            auto environment = interpreter.getEnvironment();
+            printScriptAnnotatedClasses(environment);
+
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
             return 1;
         }
     }

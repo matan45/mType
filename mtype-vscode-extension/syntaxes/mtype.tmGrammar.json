@@ -331,6 +331,30 @@
     "annotations": {
       "patterns": [
         {
+          "name": "meta.annotation.override.mtype",
+          "match": "(@)(Override)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.annotation.mtype"
+            },
+            "2": {
+              "name": "storage.type.annotation.override.mtype"
+            }
+          }
+        },
+        {
+          "name": "meta.annotation.script.mtype",
+          "match": "(@)(Script)\\b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.annotation.mtype"
+            },
+            "2": {
+              "name": "storage.type.annotation.script.mtype"
+            }
+          }
+        },
+        {
           "name": "meta.annotation.mtype",
           "match": "@([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {

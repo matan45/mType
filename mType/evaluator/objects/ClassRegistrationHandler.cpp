@@ -14,6 +14,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../validation/InheritanceValidator.hpp"
 #include "../validation/AbstractClassValidator.hpp"
+#include "../../validation/AnnotationValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
@@ -53,6 +54,12 @@ namespace evaluator
 
             // Set implemented interfaces
             classDef->setImplementedInterfaces(node->getImplementedInterfaces());
+
+            // NEW: Copy annotations from AST to runtime definition
+            for (const auto& annotation : node->getAnnotations())
+            {
+                classDef->addAnnotation(annotation);
+            }
 
             // NEW: Handle inheritance if parent class specified
             if (node->hasParentClass()) {
@@ -219,6 +226,9 @@ namespace evaluator
                     );
                 }
 
+                // NEW: Set source location for error reporting
+                methodDef->setSourceLocation(methodNode->getLocation());
+
                 // NEW: Copy async flag from AST to runtime definition
                 methodDef->setIsAsync(methodNode->getIsAsync());
 
@@ -228,6 +238,12 @@ namespace evaluator
                 // Track abstract methods in the class definition
                 if (methodNode->isAbstract()) {
                     classDef->addAbstractMethod(methodNode->getName());
+                }
+
+                // NEW: Copy annotations from AST to runtime definition
+                for (const auto& annotation : methodNode->getAnnotations())
+                {
+                    methodDef->addAnnotation(annotation);
                 }
 
                 classDef->addMethod(methodDef);
@@ -291,6 +307,9 @@ namespace evaluator
                     classDef,
                     node->getLocation());
             }
+
+            // Validate annotations (e.g., @Override)
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, env);
 
             // Register class
             registerClass(classDef);

@@ -469,4 +469,11 @@ namespace vm::compiler
         return controlFlowCompiler.compileThrow(node);
     }
 
+    value::Value BytecodeCompiler::visitAnnotationNode(ast::AnnotationNode* node)
+    {
+        // Annotations are metadata only - no bytecode generation needed
+        // They are processed during semantic analysis phase, not compilation
+        return value::Value();
+    }
+
 } // namespace vm::compiler

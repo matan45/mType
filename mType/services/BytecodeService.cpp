@@ -2,6 +2,8 @@
 #include "BytecodeExecutor.hpp"
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"
+#include "ScriptAPI.hpp"
+#include "../validation/AnnotationValidator.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -11,6 +13,7 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../ast/GenericType.hpp"
+#include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -35,8 +38,9 @@ namespace services
 {
     BytecodeService::BytecodeService(std::shared_ptr<environment::Environment> env,
                                      OptimizationService* optService,
-                                     std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine)
-        : environment(env), optimizationService(optService), vm(virtualMachine)
+                                     std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine,
+                                     ScriptAPI* api)
+        : environment(env), optimizationService(optService), vm(virtualMachine), scriptAPI(api)
     {
     }
 
@@ -114,8 +118,65 @@ namespace services
         // Register classes from metadata
         registerClassesFromMetadata(program.getClasses());
 
-        // Execute the bytecode using BytecodeExecutor utility
-        BytecodeExecutor::executeProgram(vm, program);
+        // Set bytecode program on ScriptAPI for C++ interop
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(&program);
+        }
+
+        try
+        {
+            // Execute the bytecode using BytecodeExecutor utility
+            BytecodeExecutor::executeProgram(vm, program);
+        }
+        catch (...)
+        {
+            // Clear program reference before rethrowing
+            if (scriptAPI)
+            {
+                scriptAPI->setBytecodeProgram(nullptr);
+            }
+            throw;
+        }
+
+        // Clear program reference after execution
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(nullptr);
+        }
+    }
+
+    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadCompiledBytecodeWithoutExecuting(
+        const std::string& bytecodeFile)
+    {
+        using namespace vm::bytecode;
+
+        // Deserialize bytecode program
+        std::ifstream inFile(bytecodeFile, std::ios::binary);
+        if (!inFile)
+        {
+            throw std::runtime_error("Could not open bytecode file: " + bytecodeFile);
+        }
+        auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
+        inFile.close();
+
+        // Register classes from metadata
+        registerClassesFromMetadata(program->getClasses());
+
+        // Set program on VM for C++ API methods
+        if (vm)
+        {
+            vm->setProgram(program.get());
+        }
+
+        // Set program on ScriptAPI for C++ interop
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(program.get());
+        }
+
+        // Return the program so caller can keep it alive
+        return program;
     }
 
     void BytecodeService::registerClassesFromMetadata(
@@ -134,6 +195,10 @@ namespace services
         {
             auto classDef = classMap[classMeta.name];
             populateClassFromMetadata(classMeta, classDef, classMap);
+
+            // Validate annotations (e.g., @Script)
+            // NOTE: Annotations are now serialized in ClassMetadata for bytecode mode
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
 
             // Register the class
             classRegistry->registerClass(classMeta.name, classDef);
@@ -164,6 +229,25 @@ namespace services
                 classDef->setParentClassName(classMeta.parentClassName);
             }
             classDef->setImplementedInterfaces(classMeta.implementedInterfaces);
+
+            // Restore annotations from bytecode metadata
+            for (const auto& annotData : classMeta.annotations)
+            {
+                // Create annotation node from metadata
+                // Convert argument pairs back to parameter map
+                std::unordered_map<std::string, std::string> params;
+                for (const auto& [key, value] : annotData.arguments)
+                {
+                    params[key] = value;
+                }
+
+                auto annotNode = std::make_shared<ast::nodes::annotations::AnnotationNode>(
+                    annotData.name,
+                    params,
+                    annotData.location  // Use deserialized source location
+                );
+                classDef->addAnnotation(annotNode);
+            }
 
             classMap[classMeta.name] = classDef;
         }

@@ -52,6 +52,7 @@ namespace services
         std::unique_ptr<BytecodeService> bytecodeService;
         std::unique_ptr<ScriptAPI> scriptAPI;
         std::unique_ptr<ExecutionStrategy> executionStrategy;
+        std::unique_ptr<vm::bytecode::BytecodeProgram> cachedBytecodeProgram;  // Keep compiled program alive for C++ API calls
 
         // Execution mode
         constants::ExecutionMode executionMode;
@@ -68,10 +69,12 @@ namespace services
         explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+        void parseAndRegisterClasses(const std::string& filename);
 
         // Bytecode compilation and execution
         void compileToFile(const std::string& sourceFile, const std::string& outputFile);
         void runCompiledBytecode(const std::string& bytecodeFile);
+        void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);
@@ -130,5 +133,8 @@ namespace services
         // Access to environment and evaluator for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
         evaluator::Evaluator* getEvaluator() const;
+
+        // Internal API for updating bytecode program reference (used by BytecodeService)
+        void setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program);
     };
 }

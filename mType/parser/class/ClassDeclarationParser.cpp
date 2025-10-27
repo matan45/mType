@@ -6,7 +6,6 @@
 #include "../utilities/VisibilityParser.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../errors/ParseException.hpp"
-
 namespace parser
 {
     using namespace ast::nodes::classes;

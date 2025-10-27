@@ -13,6 +13,7 @@ namespace vm::runtime
 namespace services
 {
     class OptimizationService;
+    class ScriptAPI;
 
     /**
      * Service for bytecode compilation and execution
@@ -24,6 +25,7 @@ namespace services
         std::shared_ptr<environment::Environment> environment;
         OptimizationService* optimizationService;
         std::shared_ptr<vm::runtime::VirtualMachine> vm;
+        ScriptAPI* scriptAPI;  // For updating bytecode program reference
 
         // Register classes from bytecode metadata into environment
         void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes);
@@ -55,7 +57,8 @@ namespace services
     public:
         BytecodeService(std::shared_ptr<environment::Environment> env,
                        OptimizationService* optService,
-                       std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine);
+                       std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine,
+                       ScriptAPI* api = nullptr);
         ~BytecodeService();
 
         // Compile source file to bytecode file
@@ -63,5 +66,8 @@ namespace services
 
         // Load and execute bytecode file
         void runCompiledBytecode(const std::string& bytecodeFile);
+
+        // Load bytecode file and register classes without executing
+        std::unique_ptr<vm::bytecode::BytecodeProgram> loadCompiledBytecodeWithoutExecuting(const std::string& bytecodeFile);
     };
 }

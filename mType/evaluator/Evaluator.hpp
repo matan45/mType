@@ -78,6 +78,7 @@ namespace evaluator
         Value visitTryNode(TryNode* node) override;
         Value visitCatchNode(CatchNode* node) override;
         Value visitThrowNode(ThrowNode* node) override;
+        Value visitAnnotationNode(AnnotationNode* node) override;
 
         // Compatibility methods - delegate to coordinator
         std::shared_ptr<Environment> getEnvironment() const;

@@ -582,4 +582,28 @@ namespace runtimeTypes::klass
         auto unimplemented = getUnimplementedAbstractMethods();
         return unimplemented.empty();
     }
+
+    bool ClassDefinition::hasAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::shared_ptr<ast::nodes::annotations::AnnotationNode> ClassDefinition::getAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return annotation;
+            }
+        }
+        return nullptr;
+    }
 }

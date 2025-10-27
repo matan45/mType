@@ -11,6 +11,7 @@
 #include "NativeFunctionRegistry.hpp"
 #include "ImportResolver.hpp"
 #include "BytecodeService.hpp"
+#include "BytecodeExecutor.hpp"
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
 #include "ASTExecutionStrategy.hpp"
@@ -65,8 +66,10 @@ namespace services
         bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
-        bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm);
-        scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get());
+        // ScriptAPI initialized with VM support (program will be set when bytecode is loaded)
+        scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get(), vm.get(), nullptr);
+        // BytecodeService needs ScriptAPI reference to update program during execution
+        bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm, scriptAPI.get());
 
         // Create appropriate execution strategy based on execution mode
         switch (executionMode)
@@ -75,7 +78,7 @@ namespace services
             executionStrategy = std::make_unique<ASTExecutionStrategy>(evaluator.get());
             break;
         case constants::ExecutionMode::BYTECODE_VM:
-            executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get());
+            executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
             break;
         case constants::ExecutionMode::DUAL_VALIDATION:
             executionStrategy = std::make_unique<DualValidationStrategy>(evaluator.get(), environment, importResolver.get(), optimizationService.get());
@@ -130,13 +133,15 @@ namespace services
         }
         catch (const ParseException&)
         {
-            std::cerr << "Error" << std::endl;
-            throw; // Re-throw to be caught by main()
+            // Re-throw to be caught by main() for centralized error handling
+            // Don't print here to avoid duplicate error messages
+            throw;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
-            throw; // Re-throw to be caught by main()
+            // Re-throw to be caught by main() for centralized error handling
+            // Don't print here to avoid duplicate error messages
+            throw;
         }
     }
 
@@ -328,6 +333,83 @@ namespace services
         return evaluator.get();
     }
 
+    void ScriptInterpreter::setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program)
+    {
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(program);
+        }
+    }
+
+    // Parse and register classes without executing
+    void ScriptInterpreter::parseAndRegisterClasses(const std::string& filename)
+    {
+        try
+        {
+            // Check if this is a compiled bytecode file
+            if (filename.length() >= 4 && filename.substr(filename.length() - 4) == ".mtc")
+            {
+                // Load pre-compiled bytecode and register classes
+                loadCompiledBytecode(filename);
+                return;
+            }
+
+            // Parse the script file
+            auto [ast, importManager] = parseScriptFile(filename);
+
+            // Set ImportManager on environment
+            environment->setImportManager(importManager.get());
+
+            // For bytecode mode, compile the AST to register classes
+            // Classes are registered during compilation by ClassRegistrar
+            // We don't need to execute the bytecode - just compile and cache it
+            if (executionMode == constants::ExecutionMode::BYTECODE_VM && compiler)
+            {
+                // Compile the AST to bytecode (this registers all classes)
+                cachedBytecodeProgram = std::make_unique<vm::bytecode::BytecodeProgram>(compiler->compile(ast.get()));
+
+                // Set program reference on VM for C++ API methods (createObject, invokeMethod, etc.)
+                // We use setProgram() instead of execute() to avoid running the script
+                if (vm)
+                {
+                    vm->setProgram(cachedBytecodeProgram.get());
+                }
+
+                // Set program reference on ScriptAPI for C++ interop
+                if (scriptAPI)
+                {
+                    scriptAPI->setBytecodeProgram(cachedBytecodeProgram.get());
+                }
+
+                // Note: Classes are already registered during compilation by ClassRegistrar
+                // We do NOT execute the bytecode, so any top-level code in the script won't run
+            }
+            else
+            {
+                // For AST mode, we need to evaluate the AST to register classes
+                // Class registration happens during evaluation via ClassDeclarationHandler
+                if (executionStrategy)
+                {
+                    executionStrategy->execute(ast.get());
+                }
+                else if (evaluator)
+                {
+                    evaluator->evaluate(ast.get());
+                }
+            }
+
+            // Note: Classes are now registered in the environment's class registry
+        }
+        catch (const ParseException&)
+        {
+            throw;
+        }
+        catch (const std::exception&)
+        {
+            throw;
+        }
+    }
+
     // Execution mode helpers
     void ScriptInterpreter::compileToFile(const std::string& sourceFile, const std::string& outputFile)
     {
@@ -337,5 +419,11 @@ namespace services
     void ScriptInterpreter::runCompiledBytecode(const std::string& bytecodeFile)
     {
         bytecodeService->runCompiledBytecode(bytecodeFile);
+    }
+
+    void ScriptInterpreter::loadCompiledBytecode(const std::string& bytecodeFile)
+    {
+        // Load bytecode and register classes without executing
+        cachedBytecodeProgram = bytecodeService->loadCompiledBytecodeWithoutExecuting(bytecodeFile);
     }
 }

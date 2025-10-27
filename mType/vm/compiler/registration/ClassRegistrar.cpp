@@ -14,6 +14,7 @@
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../../validation/AnnotationValidator.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -92,6 +93,11 @@ namespace vm::compiler::registration
         // Set abstract modifier
         classDef->setAbstract(classNode->isAbstract());
 
+        // Copy annotations from AST to runtime definition
+        for (const auto& annotation : classNode->getAnnotations()) {
+            classDef->addAnnotation(annotation);
+        }
+
         // Handle parent class
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
@@ -150,6 +156,9 @@ namespace vm::compiler::registration
                     methodNode->getAccessModifier()
                 );
 
+                // Set source location for error reporting
+                methodDef->setSourceLocation(methodNode->getLocation());
+
                 // Set generic type information for proper interface validation
                 if (methodNode->getGenericReturnType()) {
                     methodDef->setGenericReturnType(methodNode->getGenericReturnType());
@@ -161,6 +170,11 @@ namespace vm::compiler::registration
                 methodDef->setAbstract(methodNode->isAbstract());
                 if (methodNode->isAbstract()) {
                     classDef->addAbstractMethod(methodNode->getName());
+                }
+
+                // Copy annotations from AST to runtime definition
+                for (const auto& annotation : methodNode->getAnnotations()) {
+                    methodDef->addAnnotation(annotation);
                 }
 
                 if (methodNode->getIsStatic()) {
@@ -197,7 +211,8 @@ namespace vm::compiler::registration
             interfaceRegistrar->validateInterfaceImplementations(classDef, classNode);
         }
 
-        // Note: Abstract method validation is done in linkSingleClass() after parent links are established
+        // Note: Abstract method validation and annotation validation are done in linkSingleClass()
+        // after parent links are established
 
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);
@@ -305,6 +320,13 @@ namespace vm::compiler::registration
                     );
                 }
             }
+
+            // Validate annotations for classes without parents
+            // (e.g., @Override should fail if there's no parent)
+            if (classDef) {
+                ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+            }
+
             return;
         }
 
@@ -337,6 +359,9 @@ namespace vm::compiler::registration
 
             // Validate inheritance depth after establishing the link
             validateInheritanceDepth(className, classNode->getLocation());
+
+            // Validate annotations (e.g., @Override) after parent link is established
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
 
             // Validate method overrides
             validateMethodOverrides(classDef, parentDef, classNode);
@@ -416,6 +441,22 @@ namespace vm::compiler::registration
         const auto& genericParams = classNode->getGenericParameters();
         for (const auto& param : genericParams) {
             metadata.genericParameters.push_back(param.name);
+        }
+
+        // Extract annotations
+        const auto& annotations = classNode->getAnnotations();
+        for (const auto& annotationNode : annotations) {
+            bytecode::BytecodeProgram::AnnotationData annot;
+            annot.name = annotationNode->getName();
+            annot.location = annotationNode->getLocation();
+
+            // Extract annotation parameters if present
+            const auto& params = annotationNode->getParameters();
+            for (const auto& [key, value] : params) {
+                annot.arguments.push_back({key, value});
+            }
+
+            metadata.annotations.push_back(annot);
         }
 
         // Extract fields

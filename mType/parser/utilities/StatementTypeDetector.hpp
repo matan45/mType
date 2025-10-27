@@ -42,6 +42,7 @@ namespace parser::utilities
         static StatementType analyzeAccessModifier(const TokenStream& stream);
         static StatementType analyzeFinalKeyword(const TokenStream& stream);
         static StatementType analyzeAbstractKeyword(const TokenStream& stream);
+        static StatementType analyzeAnnotation(const TokenStream& stream);
         static StatementType analyzeByKeywordCategory(TokenType currentType);
     };
 }

@@ -9,6 +9,8 @@
 #include "../../ast/AccessModifier.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../../errors/SourceLocation.hpp"
 #include "../Definition.hpp"
 
 // Forward declarations to avoid circular dependency
@@ -52,6 +54,12 @@ namespace runtimeTypes::klass
 
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
+
+        // NEW: Annotations for this method
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
+
+        // NEW: Source location for error reporting
+        ast::SourceLocation sourceLocation;
 
         // Helper methods for resolveParameterType
         ValueType resolveGenericParameter(size_t paramIndex, ValueType storedType) const;
@@ -227,5 +235,15 @@ namespace runtimeTypes::klass
         // NEW: Abstract support
         bool isAbstract() const { return abstractMethod; }
         void setAbstract(bool isAbstract) { abstractMethod = isAbstract; }
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const { return annotations; }
+        void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation) { annotations.push_back(annotation); }
+        bool hasAnnotation(const std::string& annotationName) const;
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
+
+        // NEW: Source location methods
+        const ast::SourceLocation& getSourceLocation() const { return sourceLocation; }
+        void setSourceLocation(const ast::SourceLocation& location) { sourceLocation = location; }
     };
 }

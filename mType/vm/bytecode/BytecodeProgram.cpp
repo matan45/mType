@@ -790,6 +790,28 @@ namespace vm::bytecode
         BytecodeIOHelper::writeStringVector(out, classMeta.implementedInterfaces);
         BytecodeIOHelper::writeStringVector(out, classMeta.genericParameters);
 
+        // Write annotations
+        size_t annotCount = classMeta.annotations.size();
+        out.write(reinterpret_cast<const char*>(&annotCount), sizeof(annotCount));
+        for (const auto& annot : classMeta.annotations) {
+            BytecodeIOHelper::writeString(out, annot.name);
+
+            // Write source location using public getters
+            int line = annot.location.getLine();
+            int column = annot.location.getColumn();
+            out.write(reinterpret_cast<const char*>(&line), sizeof(line));
+            out.write(reinterpret_cast<const char*>(&column), sizeof(column));
+            BytecodeIOHelper::writeString(out, annot.location.getFilename());
+
+            // Write arguments
+            size_t argCount = annot.arguments.size();
+            out.write(reinterpret_cast<const char*>(&argCount), sizeof(argCount));
+            for (const auto& [key, value] : annot.arguments) {
+                BytecodeIOHelper::writeString(out, key);
+                BytecodeIOHelper::writeString(out, value);
+            }
+        }
+
         // Write instance fields
         size_t fieldCount = classMeta.instanceFields.size();
         out.write(reinterpret_cast<const char*>(&fieldCount), sizeof(fieldCount));
@@ -872,6 +894,33 @@ namespace vm::bytecode
         // Read implemented interfaces and generic parameters
         classMeta.implementedInterfaces = BytecodeIOHelper::readStringVector(in);
         classMeta.genericParameters = BytecodeIOHelper::readStringVector(in);
+
+        // Read annotations
+        size_t annotCount;
+        in.read(reinterpret_cast<char*>(&annotCount), sizeof(annotCount));
+        classMeta.annotations.resize(annotCount);
+        for (auto& annot : classMeta.annotations) {
+            annot.name = BytecodeIOHelper::readString(in);
+
+            // Read source location using public setters
+            int line, column;
+            in.read(reinterpret_cast<char*>(&line), sizeof(line));
+            in.read(reinterpret_cast<char*>(&column), sizeof(column));
+            std::string filename = BytecodeIOHelper::readString(in);
+            annot.location.setLine(line);
+            annot.location.setColumn(column);
+            annot.location.setFilename(filename);
+
+            // Read arguments
+            size_t argCount;
+            in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
+            annot.arguments.resize(argCount);
+            for (size_t i = 0; i < argCount; ++i) {
+                std::string key = BytecodeIOHelper::readString(in);
+                std::string value = BytecodeIOHelper::readString(in);
+                annot.arguments[i] = {key, value};
+            }
+        }
 
         // Read instance fields
         size_t fieldCount;
