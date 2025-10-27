@@ -1,20 +1,25 @@
 #include "DebugHookHelper.hpp"
 #include  <iostream>
-namespace debugger {
 
-    bool DebugHookHelper::preExecuteHook(ast::ASTNode* node) {
-        if (!isDebuggingEnabled()) {
+namespace debugger
+{
+    bool DebugHookHelper::preExecuteHook(ast::ASTNode* node)
+    {
+        if (!isDebuggingEnabled())
+        {
             return false;
         }
 
-        if (!node) {
+        if (!node)
+        {
             return false;
         }
 
         const SourceLocation& location = node->getLocation();
 
         // Only check for valid source locations
-        if (location.getFilename().empty() || location.getLine() <= 0) {
+        if (location.getFilename().empty() || location.getLine() <= 0)
+        {
             return false;
         }
 
@@ -23,7 +28,8 @@ namespace debugger {
 
         // Check if we should pause at this location
         DebugContext& debugCtx = DebugContext::getInstance();
-        if (debugCtx.shouldPauseAt(location)) {
+        if (debugCtx.shouldPauseAt(location))
+        {
             std::cerr << "Paused at: " << location.getFilename() << ":" << location.getLine() << "\n";
             // Block until debugger resumes
             debugCtx.waitForResume();
@@ -33,16 +39,18 @@ namespace debugger {
         return false;
     }
 
-    void DebugHookHelper::postExecuteHook(ast::ASTNode* node) {
+    void DebugHookHelper::postExecuteHook(ast::ASTNode* node)
+    {
         // Currently no post-execution logic needed
         // Can be extended in the future for profiling, tracing, etc.
     }
 
     void DebugHookHelper::enterFunctionHook(
         const std::string& functionName,
-        const SourceLocation& location) {
-
-        if (!isDebuggingEnabled()) {
+        const SourceLocation& location)
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -50,8 +58,10 @@ namespace debugger {
         debugCtx.pushCallFrame(functionName, location);
     }
 
-    void DebugHookHelper::exitFunctionHook(const std::string& functionName) {
-        if (!isDebuggingEnabled()) {
+    void DebugHookHelper::exitFunctionHook(const std::string& functionName)
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -59,8 +69,10 @@ namespace debugger {
         debugCtx.popCallFrame();
     }
 
-    bool DebugHookHelper::shouldPause(const SourceLocation& location) {
-        if (!isDebuggingEnabled()) {
+    bool DebugHookHelper::shouldPause(const SourceLocation& location)
+    {
+        if (!isDebuggingEnabled())
+        {
             return false;
         }
 
@@ -68,8 +80,10 @@ namespace debugger {
         return debugCtx.shouldPauseAt(location);
     }
 
-    void DebugHookHelper::waitForResume() {
-        if (!isDebuggingEnabled()) {
+    void DebugHookHelper::waitForResume()
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -77,8 +91,10 @@ namespace debugger {
         debugCtx.waitForResume();
     }
 
-    void DebugHookHelper::notifyScriptStart(const std::string& scriptPath) {
-        if (!isDebuggingEnabled()) {
+    void DebugHookHelper::notifyScriptStart(const std::string& scriptPath)
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -92,8 +108,10 @@ namespace debugger {
         ));
     }
 
-    void DebugHookHelper::notifyScriptComplete(const std::string& scriptPath) {
-        if (!isDebuggingEnabled()) {
+    void DebugHookHelper::notifyScriptComplete(const std::string& scriptPath)
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -110,9 +128,10 @@ namespace debugger {
     void DebugHookHelper::notifyException(
         const std::string& exceptionType,
         const std::string& message,
-        const SourceLocation& location) {
-
-        if (!isDebuggingEnabled()) {
+        const SourceLocation& location)
+    {
+        if (!isDebuggingEnabled())
+        {
             return;
         }
 
@@ -124,8 +143,10 @@ namespace debugger {
         ));
     }
 
-    bool DebugHookHelper::shouldBreakOnException(bool isUncaught) {
-        if (!isDebuggingEnabled()) {
+    bool DebugHookHelper::shouldBreakOnException(bool isUncaught)
+    {
+        if (!isDebuggingEnabled())
+        {
             return false;
         }
 
@@ -137,16 +158,18 @@ namespace debugger {
         const std::string& exceptionType,
         const std::string& message,
         const SourceLocation& location,
-        bool isUncaught) {
-
-        if (!isDebuggingEnabled()) {
+        bool isUncaught)
+    {
+        if (!isDebuggingEnabled())
+        {
             return false;
         }
 
         DebugContext& debugCtx = DebugContext::getInstance();
 
         // Check if we should break on this exception
-        if (!debugCtx.shouldBreakOnException(isUncaught)) {
+        if (!debugCtx.shouldBreakOnException(isUncaught))
+        {
             return false;
         }
 
@@ -159,5 +182,4 @@ namespace debugger {
 
         return true;
     }
-
 } // namespace debugger
