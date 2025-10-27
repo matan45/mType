@@ -3,17 +3,17 @@
 
 interface Drawable {
     function draw(): void;
-    function resize(Int width, Int height): void;
+    function resize(int width, int height): void;
 }
 
 class Circle implements Drawable {
     @Override
-    function draw(): void {
+    public function draw(): void {
         print("Drawing circle");
     }
 
     @Override
-    function resize(Int width, Int height): void {
+    public function resize(int width, int height): void {
         print("Resizing circle");
     }
 }

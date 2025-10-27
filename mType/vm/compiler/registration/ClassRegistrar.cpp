@@ -211,10 +211,8 @@ namespace vm::compiler::registration
             interfaceRegistrar->validateInterfaceImplementations(classDef, classNode);
         }
 
-        // Validate annotations (e.g., @Override)
-        evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
-
-        // Note: Abstract method validation is done in linkSingleClass() after parent links are established
+        // Note: Abstract method validation and annotation validation are done in linkSingleClass()
+        // after parent links are established
 
         // Extract and store class metadata for bytecode serialization
         auto classMetadata = extractClassMetadata(classNode);
@@ -322,6 +320,13 @@ namespace vm::compiler::registration
                     );
                 }
             }
+
+            // Validate annotations for classes without parents
+            // (e.g., @Override should fail if there's no parent)
+            if (classDef) {
+                evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+            }
+
             return;
         }
 
@@ -354,6 +359,9 @@ namespace vm::compiler::registration
 
             // Validate inheritance depth after establishing the link
             validateInheritanceDepth(className, classNode->getLocation());
+
+            // Validate annotations (e.g., @Override) after parent link is established
+            evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
 
             // Validate method overrides
             validateMethodOverrides(classDef, parentDef, classNode);

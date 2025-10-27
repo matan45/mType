@@ -1,6 +1,5 @@
 #include "AnnotationParser.hpp"
 #include "../../errors/ParseException.hpp"
-
 namespace parser::utilities
 {
     std::shared_ptr<AnnotationNode> AnnotationParser::parseAnnotation(TokenStream& tokenStream)
@@ -24,7 +23,7 @@ namespace parser::utilities
             );
         }
 
-        std::string annotationName = tokenStream.current().stringValue;
+        std::string annotationName = tokenStream.current().stringValue.getString();
         auto annotationLocation = tokenStream.current().location;
         tokenStream.advance();
 

@@ -2464,16 +2464,31 @@
     <None Include="tests\testFiles\annotation\error\override_wrong_signature_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\override_grandparent_pass.expected">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\override_grandparent_pass.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\override_interface_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\override_interface_pass.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_pass.expected">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_annotation_pass.mt">

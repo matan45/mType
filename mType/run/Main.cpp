@@ -13,6 +13,7 @@
 #include "../tests/suites/CastTestSuite.hpp"
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
+#include "../tests/suites/AnnotationTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -93,6 +94,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<AwaitTestSuite>();
     }
+    else if (suiteName == "annotation" || suiteName == "annotations")
+    {
+        return std::make_unique<AnnotationTestSuite>();
+    }
     return nullptr;
 }
 
@@ -113,6 +118,7 @@ void printAvailableTestSuites()
     std::cout << "  cast         - Cast and Type Checking Test Suite\n";
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
+    std::cout << "  annotation   - Annotation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -173,6 +179,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     suites.push_back(std::make_unique<CastTestSuite>());
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
+    suites.push_back(std::make_unique<AnnotationTestSuite>());
 
     for (auto& suite : suites)
     {

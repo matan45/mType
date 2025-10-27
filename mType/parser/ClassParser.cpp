@@ -13,7 +13,6 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../errors/ParseException.hpp"
 #include <unordered_set>
-
 namespace parser
 {
     using namespace ast::nodes::classes;

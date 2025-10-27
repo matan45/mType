@@ -57,6 +57,100 @@ namespace parser::utilities
         return StatementType::UNKNOWN;
     }
 
+    StatementType StatementTypeDetector::analyzeAnnotation(const TokenStream& stream)
+    {
+        // Skip past all consecutive annotations (@Override @Script etc)
+        // to find what they're annotating
+        // Use peek to avoid consuming tokens from the lexer
+        size_t lookAheadIndex = 0;
+
+        // Helper lambda to get token at index (0 = current, 1+ = peekAhead)
+        // peekAhead(N) returns the token N positions ahead from current
+        auto getTokenAt = [&stream](size_t index) -> Token {
+            if (index == 0) return stream.current();
+            return stream.peekAhead(index);
+        };
+
+        while (getTokenAt(lookAheadIndex).type == TokenType::AT)
+        {
+            lookAheadIndex++; // Skip @
+            if (getTokenAt(lookAheadIndex).type == TokenType::IDENTIFIER)
+            {
+                lookAheadIndex++; // Skip annotation name
+            }
+            else
+            {
+                return StatementType::UNKNOWN;
+            }
+            // Future: Skip annotation parameters like @Annotation("value") if needed
+        }
+
+        // Now check what comes after the annotation(s)
+        TokenType afterAnnotations = getTokenAt(lookAheadIndex).type;
+
+        // Annotations can precede: classes, interfaces, functions, or methods
+        if (afterAnnotations == TokenType::CLASS)
+        {
+            return StatementType::CLASS;
+        }
+        else if (afterAnnotations == TokenType::INTERFACE)
+        {
+            return StatementType::INTERFACE;
+        }
+        else if (afterAnnotations == TokenType::FUNCTION || afterAnnotations == TokenType::NATIVE)
+        {
+            return StatementType::FUNCTION;
+        }
+        // Annotations with access modifiers: @Override public function ...
+        else if (afterAnnotations == TokenType::PUBLIC || afterAnnotations == TokenType::PRIVATE)
+        {
+            lookAheadIndex++; // Skip access modifier
+            TokenType afterModifier = getTokenAt(lookAheadIndex).type;
+            if (afterModifier == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+            else if (afterModifier == TokenType::INTERFACE)
+            {
+                return StatementType::INTERFACE;
+            }
+            else if (afterModifier == TokenType::FUNCTION || afterModifier == TokenType::NATIVE)
+            {
+                return StatementType::FUNCTION;
+            }
+            // If followed by type/identifier, it's likely a declaration with annotation
+            else if (isTypeKeyword(afterModifier) || afterModifier == TokenType::IDENTIFIER)
+            {
+                return StatementType::DECLARATION;
+            }
+        }
+        // Annotations with final/abstract: @Override abstract function ...
+        else if (afterAnnotations == TokenType::FINAL || afterAnnotations == TokenType::ABSTRACT)
+        {
+            lookAheadIndex++; // Skip modifier
+            TokenType afterModifier = getTokenAt(lookAheadIndex).type;
+            if (afterModifier == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+            else if (afterModifier == TokenType::INTERFACE)
+            {
+                return StatementType::INTERFACE;
+            }
+            else if (afterModifier == TokenType::FUNCTION || afterModifier == TokenType::NATIVE)
+            {
+                return StatementType::FUNCTION;
+            }
+        }
+        // Annotations directly on typed declarations: @Deprecated int x;
+        else if (isTypeKeyword(afterAnnotations) || afterAnnotations == TokenType::IDENTIFIER)
+        {
+            return StatementType::DECLARATION;
+        }
+
+        return StatementType::UNKNOWN;
+    }
+
     StatementType StatementTypeDetector::analyzeByKeywordCategory(TokenType currentType)
     {
         if (isControlFlowKeyword(currentType))
@@ -124,6 +218,13 @@ namespace parser::utilities
         case TokenType::ABSTRACT:
             {
                 StatementType result = analyzeAbstractKeyword(stream);
+                if (result != StatementType::UNKNOWN)
+                    return result;
+            }
+            break;
+        case TokenType::AT:
+            {
+                StatementType result = analyzeAnnotation(stream);
                 if (result != StatementType::UNKNOWN)
                     return result;
             }
