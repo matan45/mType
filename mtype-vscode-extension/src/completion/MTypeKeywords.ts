@@ -543,6 +543,28 @@ export class MTypeKeywords {
         // If you need other operators, add them here
     ];
 
+    // Annotations
+    static readonly ANNOTATION_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: '@Override',
+            detail: 'Override annotation',
+            documentation: 'Marks a method as overriding a parent class or interface method.\n\nValidation ensures:\n- The method exists in the parent class or implemented interface\n- The method signature matches exactly (name, parameters, return type)',
+            insertText: '@Override\n${1:returnType} ${2:methodName}(${3:parameters}): ${4:returnType} {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Property,
+            contexts: ['class', 'before-method'],
+            priority: 9
+        },
+        {
+            keyword: '@Script',
+            detail: 'Script class annotation',
+            documentation: 'Marks a class as a script that can be instantiated and updated from C++.\n\nRequirements:\n- Class must not be abstract\n- Must have a default constructor (no parameters)\n- Must have an update(dt: float): void method\n\nUsage: For game objects, behaviors, and entities managed by the engine',
+            insertText: '@Script\nclass ${1:ScriptName} {\n\tconstructor() {\n\t\t${2:// Initialize}\n\t}\n\n\tupdate(dt: float): void {\n\t\t${3:// Update logic}\n\t}\n\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Property,
+            contexts: ['global', 'before-class'],
+            priority: 9
+        }
+    ];
+
     // Get all keywords
     static getAllKeywords(): KeywordInfo[] {
         return [
@@ -551,7 +573,8 @@ export class MTypeKeywords {
             ...this.TYPE_KEYWORDS,
             ...this.COLLECTION_KEYWORDS,
             ...this.LITERAL_KEYWORDS,
-            ...this.OPERATOR_KEYWORDS
+            ...this.OPERATOR_KEYWORDS,
+            ...this.ANNOTATION_KEYWORDS
         ];
     }
 

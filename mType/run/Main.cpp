@@ -150,7 +150,8 @@ void runSpecificTestSuite(const std::string& suiteName,
 /**
  * Demonstrate creating objects and calling methods on @Script classes
  */
-void demonstrateScriptObjectUsage(const std::string& scriptFile, constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+void demonstrateScriptObjectUsage(const std::string& scriptFile,
+                                  constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
     std::cout << "\n" << std::string(80, '=') << "\n";
     std::cout << "Script Class Object Usage Demo\n";
@@ -440,8 +441,10 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
-        std::cout << "  " << argv[0] << " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
-        std::cout << "  " << argv[0] << " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
+        std::cout << "  " << argv[0] <<
+            " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
+        std::cout << "  " << argv[0] <<
+            " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
         std::cout << "  " << argv[0] << " --test-script-objects <script.mt> --bytecode - Same demo using Bytecode VM\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
