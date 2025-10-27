@@ -14,6 +14,7 @@
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../../evaluator/validation/AnnotationValidator.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -92,6 +93,11 @@ namespace vm::compiler::registration
         // Set abstract modifier
         classDef->setAbstract(classNode->isAbstract());
 
+        // Copy annotations from AST to runtime definition
+        for (const auto& annotation : classNode->getAnnotations()) {
+            classDef->addAnnotation(annotation);
+        }
+
         // Handle parent class
         if (classNode->hasParentClass()) {
             const std::string& parentClassName = classNode->getParentClassName();
@@ -150,6 +156,9 @@ namespace vm::compiler::registration
                     methodNode->getAccessModifier()
                 );
 
+                // Set source location for error reporting
+                methodDef->setSourceLocation(methodNode->getLocation());
+
                 // Set generic type information for proper interface validation
                 if (methodNode->getGenericReturnType()) {
                     methodDef->setGenericReturnType(methodNode->getGenericReturnType());
@@ -161,6 +170,11 @@ namespace vm::compiler::registration
                 methodDef->setAbstract(methodNode->isAbstract());
                 if (methodNode->isAbstract()) {
                     classDef->addAbstractMethod(methodNode->getName());
+                }
+
+                // Copy annotations from AST to runtime definition
+                for (const auto& annotation : methodNode->getAnnotations()) {
+                    methodDef->addAnnotation(annotation);
                 }
 
                 if (methodNode->getIsStatic()) {
@@ -196,6 +210,9 @@ namespace vm::compiler::registration
         if (interfaceRegistrar && !classDef->getImplementedInterfaces().empty()) {
             interfaceRegistrar->validateInterfaceImplementations(classDef, classNode);
         }
+
+        // Validate annotations (e.g., @Override)
+        evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
 
         // Note: Abstract method validation is done in linkSingleClass() after parent links are established
 

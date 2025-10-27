@@ -35,7 +35,7 @@ namespace evaluator::validation
                     methodDef.get(),
                     classDefinition,
                     environment,
-                    SourceLocation()  // Location would ideally come from method definition
+                    methodDef->getSourceLocation()  // Use stored source location for accurate error reporting
                 );
             }
         }

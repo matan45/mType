@@ -130,13 +130,15 @@ namespace services
         }
         catch (const ParseException&)
         {
-            std::cerr << "Error" << std::endl;
-            throw; // Re-throw to be caught by main()
+            // Re-throw to be caught by main() for centralized error handling
+            // Don't print here to avoid duplicate error messages
+            throw;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
-            throw; // Re-throw to be caught by main()
+            // Re-throw to be caught by main() for centralized error handling
+            // Don't print here to avoid duplicate error messages
+            throw;
         }
     }
 

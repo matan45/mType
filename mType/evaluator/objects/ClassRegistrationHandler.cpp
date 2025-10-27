@@ -226,6 +226,9 @@ namespace evaluator
                     );
                 }
 
+                // NEW: Set source location for error reporting
+                methodDef->setSourceLocation(methodNode->getLocation());
+
                 // NEW: Copy async flag from AST to runtime definition
                 methodDef->setIsAsync(methodNode->getIsAsync());
 
