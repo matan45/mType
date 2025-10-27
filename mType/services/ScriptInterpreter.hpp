@@ -52,6 +52,7 @@ namespace services
         std::unique_ptr<BytecodeService> bytecodeService;
         std::unique_ptr<ScriptAPI> scriptAPI;
         std::unique_ptr<ExecutionStrategy> executionStrategy;
+        std::unique_ptr<vm::bytecode::BytecodeProgram> cachedBytecodeProgram;  // Keep compiled program alive for C++ API calls
 
         // Execution mode
         constants::ExecutionMode executionMode;
@@ -73,6 +74,7 @@ namespace services
         // Bytecode compilation and execution
         void compileToFile(const std::string& sourceFile, const std::string& outputFile);
         void runCompiledBytecode(const std::string& bytecodeFile);
+        void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);

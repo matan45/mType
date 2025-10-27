@@ -11,6 +11,7 @@
 #include "NativeFunctionRegistry.hpp"
 #include "ImportResolver.hpp"
 #include "BytecodeService.hpp"
+#include "BytecodeExecutor.hpp"
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
 #include "ASTExecutionStrategy.hpp"
@@ -345,17 +346,56 @@ namespace services
     {
         try
         {
+            // Check if this is a compiled bytecode file
+            if (filename.length() >= 4 && filename.substr(filename.length() - 4) == ".mtc")
+            {
+                // Load pre-compiled bytecode and register classes
+                loadCompiledBytecode(filename);
+                return;
+            }
+
             // Parse the script file
             auto [ast, importManager] = parseScriptFile(filename);
 
             // Set ImportManager on environment
             environment->setImportManager(importManager.get());
 
-            // Run the script with AST interpreter to register classes
-            // Note: This will execute the script, but classes will be registered
-            if (evaluator)
+            // For bytecode mode, compile the AST to register classes
+            // Classes are registered during compilation by ClassRegistrar
+            // We don't need to execute the bytecode - just compile and cache it
+            if (executionMode == constants::ExecutionMode::BYTECODE_VM && compiler)
             {
-                evaluator->evaluate(ast.get());
+                // Compile the AST to bytecode (this registers all classes)
+                cachedBytecodeProgram = std::make_unique<vm::bytecode::BytecodeProgram>(compiler->compile(ast.get()));
+
+                // Set program reference on VM for C++ API methods (createObject, invokeMethod, etc.)
+                // We use setProgram() instead of execute() to avoid running the script
+                if (vm)
+                {
+                    vm->setProgram(cachedBytecodeProgram.get());
+                }
+
+                // Set program reference on ScriptAPI for C++ interop
+                if (scriptAPI)
+                {
+                    scriptAPI->setBytecodeProgram(cachedBytecodeProgram.get());
+                }
+
+                // Note: Classes are already registered during compilation by ClassRegistrar
+                // We do NOT execute the bytecode, so any top-level code in the script won't run
+            }
+            else
+            {
+                // For AST mode, we need to evaluate the AST to register classes
+                // Class registration happens during evaluation via ClassDeclarationHandler
+                if (executionStrategy)
+                {
+                    executionStrategy->execute(ast.get());
+                }
+                else if (evaluator)
+                {
+                    evaluator->evaluate(ast.get());
+                }
             }
 
             // Note: Classes are now registered in the environment's class registry
@@ -379,5 +419,11 @@ namespace services
     void ScriptInterpreter::runCompiledBytecode(const std::string& bytecodeFile)
     {
         bytecodeService->runCompiledBytecode(bytecodeFile);
+    }
+
+    void ScriptInterpreter::loadCompiledBytecode(const std::string& bytecodeFile)
+    {
+        // Load bytecode and register classes without executing
+        cachedBytecodeProgram = bytecodeService->loadCompiledBytecodeWithoutExecuting(bytecodeFile);
     }
 }

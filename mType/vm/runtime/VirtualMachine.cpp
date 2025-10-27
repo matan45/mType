@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
-
+#include <iostream>
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -79,27 +79,8 @@ namespace vm::runtime
             stats = ExecutionStats{};
         }
 
-        // Initialize executors with execution context
-        ExecutionContext context(program, instructionPointer, callStack, environment,
-                                 stackManager, stats, executionStart);
-        stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
-        comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
-        logicalExecutor = std::make_unique<LogicalExecutor>(context);
-        arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
-        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
-        variableExecutor = std::make_unique<VariableExecutor>(context);
-        functionExecutor = std::make_unique<FunctionExecutor>(context);
-        typeExecutor = std::make_unique<TypeExecutor>(context);
-        arrayExecutor = std::make_unique<ArrayExecutor>(context);
-        objectExecutor = std::make_unique<ObjectExecutor>(context);
-        lambdaExecutor = std::make_unique<LambdaExecutor>(context);
-        exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
-
-        // Set function executor reference in object executor for lambda-to-interface conversion
-        objectExecutor->setFunctionExecutor(functionExecutor.get());
-
-        // Initialize exception handler
-        exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
+        // Note: Executors are now initialized in interpretLoop() to ensure
+        // they always have valid references, even when called from C++ API methods
 
         try
         {
@@ -165,7 +146,8 @@ namespace vm::runtime
         }
 
         // Look for constructor bytecode
-        std::string qualifiedName = className + "::<constructor>";
+        // Constructors are registered as "ClassName::<init>/paramCount"
+        std::string qualifiedName = className + "::<init>/" + std::to_string(args.size());
         auto* ctorMetadata = program->getFunction(qualifiedName);
         if (!ctorMetadata)
         {
@@ -189,7 +171,8 @@ namespace vm::runtime
 
             // Create call frame
             CallFrame frame;
-            frame.returnAddress = instructionPointer;
+            // Set return address to end of program so interpretLoop exits after constructor returns
+            frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
             frame.functionName = qualifiedName;
@@ -282,7 +265,8 @@ namespace vm::runtime
 
             // Create call frame
             CallFrame frame;
-            frame.returnAddress = instructionPointer;
+            // Set return address to end of program so interpretLoop exits after method returns
+            frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
             frame.functionName = qualifiedName;
@@ -350,10 +334,24 @@ namespace vm::runtime
         try
         {
             // Push arguments onto stack
+            size_t frameBase = stackManager->size();
             for (const auto& arg : args)
             {
                 push(arg);
             }
+
+            // Create call frame
+            CallFrame frame;
+            // Set return address to end of program so interpretLoop exits after method returns
+            frame.returnAddress = program->getInstructionCount();
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = qualifiedName;
+            frame.thisInstance = nullptr;  // Static methods have no 'this'
+            frame.definingClassName = className;
+
+            callStack.push_back(frame);
+            stats.functionCalls++;
 
             // Execute method
             instructionPointer = funcMetadata->startOffset;
@@ -458,6 +456,29 @@ namespace vm::runtime
     value::Value VirtualMachine::interpretLoop()
     {
         suspendedByAwait = false; // Reset flag at start
+
+        // Initialize executors with fresh execution context
+        // This ensures executors always have valid references, even when called from C++ API
+        ExecutionContext context(program, instructionPointer, callStack, environment,
+                                 stackManager, stats, executionStart);
+        stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
+        comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
+        logicalExecutor = std::make_unique<LogicalExecutor>(context);
+        arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
+        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
+        variableExecutor = std::make_unique<VariableExecutor>(context);
+        functionExecutor = std::make_unique<FunctionExecutor>(context);
+        typeExecutor = std::make_unique<TypeExecutor>(context);
+        arrayExecutor = std::make_unique<ArrayExecutor>(context);
+        objectExecutor = std::make_unique<ObjectExecutor>(context);
+        lambdaExecutor = std::make_unique<LambdaExecutor>(context);
+        exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
+
+        // Set function executor reference in object executor for lambda-to-interface conversion
+        objectExecutor->setFunctionExecutor(functionExecutor.get());
+
+        // Initialize exception handler
+        exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
 
         while (instructionPointer < program->getInstructionCount())
         {

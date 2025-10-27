@@ -119,6 +119,9 @@ namespace vm::runtime
         value::Value getStaticField(const std::string& className, const std::string& fieldName);
         void setStaticField(const std::string& className, const std::string& fieldName, const value::Value& value);
 
+        // Program management
+        void setProgram(const bytecode::BytecodeProgram* prog) { program = prog; }
+
         // Event loop integration (lazy initialization)
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
         ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist
