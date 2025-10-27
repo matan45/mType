@@ -2,25 +2,25 @@
 // Expected: Pass - method overrides method from grandparent
 
 class GrandParent {
-    void ancestorMethod() {
+    public function ancestorMethod(): void {
         print("GrandParent method");
     }
 }
 
 class Parent extends GrandParent {
-    void parentMethod() {
+    public function parentMethod(): void {
         print("Parent method");
     }
 }
 
 class Child extends Parent {
     @Override
-    void ancestorMethod() {
+    public function ancestorMethod():void {
         print("Child overriding ancestor");
     }
 
     @Override
-    void parentMethod() {
+    public function parentMethod(): void {
         print("Child overriding parent");
     }
 }

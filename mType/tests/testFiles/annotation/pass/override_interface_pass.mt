@@ -2,18 +2,18 @@
 // Expected: Pass - method correctly implements interface method
 
 interface Drawable {
-    void draw();
-    void resize(Int width, Int height);
+    function draw(): void;
+    function resize(Int width, Int height): void;
 }
 
 class Circle implements Drawable {
     @Override
-    void draw() {
+    function draw(): void {
         print("Drawing circle");
     }
 
     @Override
-    void resize(Int width, Int height) {
+    function resize(Int width, Int height): void {
         print("Resizing circle");
     }
 }

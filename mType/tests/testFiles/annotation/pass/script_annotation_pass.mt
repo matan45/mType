@@ -3,15 +3,15 @@
 
 @Script
 class GameEntity {
-    Int x;
-    Int y;
+    int x;
+    int y;
 
-    GameEntity(Int posX, Int posY) {
+    constructor(int posX, int posY) {
         x = posX;
         y = posY;
     }
 
-    void move(Int dx, Int dy) {
+    public function move(int dx, int dy):void {
         x = x + dx;
         y = y + dy;
     }
@@ -19,14 +19,13 @@ class GameEntity {
 
 @Script
 class Player extends GameEntity {
-    String name;
+    string name;
 
-    Player(String playerName, Int posX, Int posY) {
-        super(posX, posY);
+    constructor(string playerName, int posX, int posY): super(posX, posY) {
         name = playerName;
     }
 
-    void attack() {
+    public function attack(): void {
         print("Player attacking");
     }
 }

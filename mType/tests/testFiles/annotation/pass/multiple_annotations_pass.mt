@@ -2,26 +2,26 @@
 // Expected: Pass - both @Script and @Override work together
 
 interface Updatable {
-    void update();
+    function update(): void;
 }
 
 @Script
 class Component implements Updatable {
-    String name;
+    string name;
 
-    Component(String componentName) {
+    constructor(string componentName) {
         name = componentName;
     }
 
     @Override
-    void update() {
+    public function update(): void {
         print("Updating component");
     }
 }
 
 @Script
 class GameObject {
-    void init() {
+    public function init(): void {
         print("GameObject initialized");
     }
 }
@@ -29,12 +29,12 @@ class GameObject {
 @Script
 class Entity extends GameObject implements Updatable {
     @Override
-    void init() {
+    public function init(): void {
         print("Entity initialized");
     }
 
     @Override
-    void update() {
+    public function update(): void {
         print("Entity updated");
     }
 }

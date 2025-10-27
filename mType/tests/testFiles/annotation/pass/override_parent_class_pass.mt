@@ -2,23 +2,23 @@
 // Expected: Pass - method correctly overrides parent method
 
 class Parent {
-    void greet() {
+    public function greet(): void {
         print("Hello from Parent");
     }
 
-    Int calculate(Int x, Int y) {
+    public function calculate(int x, int y): int {
         return x + y;
     }
 }
 
 class Child extends Parent {
     @Override
-    void greet() {
+    public function greet(): void {
         print("Hello from Child");
     }
 
     @Override
-    Int calculate(Int x, Int y) {
+    public function calculate(int x, int y): int {
         return x * y;
     }
 }
@@ -26,5 +26,5 @@ class Child extends Parent {
 // Test execution
 Child child = new Child();
 child.greet();
-Int result = child.calculate(5, 3);
+int result = child.calculate(5, 3);
 print(result);
