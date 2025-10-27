@@ -1,0 +1,10 @@
+Test 1: Two-level nested generics (HashMap<String, Int>)
+Map operations count: 2
+
+Test 2: Three-level nested generics (HashMap<String, List<Int>>)
+Complex operations count: 2
+
+Test 3: Multiple parameters with deep nesting
+Nested pair total: 5
+
+All nested generic inheritance tests passed!

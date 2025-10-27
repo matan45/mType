@@ -208,13 +208,18 @@ namespace evaluator::utils
             std::shared_ptr<environment::registry::ClassRegistry> classRegistry,
             std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry);
 
-    private:
         /**
-         * @brief Parse type arguments from a generic instantiation
-         * @param typeArgsString The content between < and >
-         * @return Vector of individual type argument strings
+         * @brief Parse comma-separated generic type arguments with proper depth tracking
+         * @param typeArgsString String like "String, List<Int>, Map<K,V>" (content between < and >)
+         * @return Vector of parsed type argument strings
+         *
+         * This method properly handles nested generic types by tracking bracket depth.
+         * Example: "HashMap<String, List<Int>>" -> ["HashMap<String, List<Int>>"]
+         * NOT: ["HashMap<String", "List<Int>>"]
          */
         static std::vector<std::string> parseTypeArguments(const std::string& typeArgsString);
+
+    private:
 
         /**
          * @brief Convert GenericType to ValueType with generic parameter substitution (AST-based)
