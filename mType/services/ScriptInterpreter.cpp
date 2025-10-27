@@ -335,6 +335,7 @@ namespace services
 
     void ScriptInterpreter::enableDebugging()
     {
+        // Enable debugging for evaluator (AST mode)
         if (evaluator)
         {
             auto context = evaluator->getContext();
@@ -343,10 +344,17 @@ namespace services
                 context->setDebuggingEnabled(true);
             }
         }
+
+        // Enable debugging for VM (bytecode mode)
+        if (vm)
+        {
+            vm->setDebuggingEnabled(true);
+        }
     }
 
     void ScriptInterpreter::disableDebugging()
     {
+        // Disable debugging for evaluator (AST mode)
         if (evaluator)
         {
             auto context = evaluator->getContext();
@@ -354,6 +362,12 @@ namespace services
             {
                 context->setDebuggingEnabled(false);
             }
+        }
+
+        // Disable debugging for VM (bytecode mode)
+        if (vm)
+        {
+            vm->setDebuggingEnabled(false);
         }
     }
 

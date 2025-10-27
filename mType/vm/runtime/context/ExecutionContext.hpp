@@ -108,6 +108,11 @@ namespace vm::runtime
         ExecutionStats& stats;
         std::chrono::steady_clock::time_point& executionStart;
 
+        // Debugging state
+        bool& debuggingEnabled;
+        std::string& currentSourceFile;
+        int& currentSourceLine;
+
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,
             size_t& ip,
@@ -115,7 +120,10 @@ namespace vm::runtime
             std::shared_ptr<environment::Environment> env,
             std::shared_ptr<StackManager> sm,
             ExecutionStats& st,
-            std::chrono::steady_clock::time_point& exStart)
+            std::chrono::steady_clock::time_point& exStart,
+            bool& debugEnabled,
+            std::string& srcFile,
+            int& srcLine)
             : program(prog)
             , instructionPointer(ip)
             , callStack(cs)
@@ -123,6 +131,9 @@ namespace vm::runtime
             , stackManager(std::move(sm))
             , stats(st)
             , executionStart(exStart)
+            , debuggingEnabled(debugEnabled)
+            , currentSourceFile(srcFile)
+            , currentSourceLine(srcLine)
         {}
     };
 }

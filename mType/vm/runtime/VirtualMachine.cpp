@@ -26,6 +26,8 @@
 #include "../../value/PromiseValue.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../runtime/EventLoop.hpp"
+#include "../../debugger/DebugContext.hpp"
+#include "../../debugger/DebugHookHelper.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -42,6 +44,9 @@ namespace vm::runtime
           , eventLoop(nullptr) // Lazy initialization - only created when needed
           , currentTaskId(0)
           , suspendedByAwait(false)
+          , debuggingEnabled(false)
+          , currentSourceFile("")
+          , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
     {
         callStack.reserve(64);
@@ -460,7 +465,8 @@ namespace vm::runtime
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, environment,
-                                 stackManager, stats, executionStart);
+                                 stackManager, stats, executionStart,
+                                 debuggingEnabled, currentSourceFile, currentSourceLine);
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
         logicalExecutor = std::make_unique<LogicalExecutor>(context);
@@ -483,6 +489,29 @@ namespace vm::runtime
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
+
+            // Debug hook: Check for breakpoints and stepping before executing instruction
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                // Get source location for current instruction from program
+                auto sourceLoc = program->getSourceLocation(instructionPointer);
+                if (sourceLoc && sourceLoc->line > 0)
+                {
+                    currentSourceFile = sourceLoc->filename;
+                    currentSourceLine = static_cast<int>(sourceLoc->line);
+
+                    // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
+                    errors::SourceLocation location(sourceLoc->filename,
+                                                   static_cast<int>(sourceLoc->line),
+                                                   static_cast<int>(sourceLoc->column));
+
+                    // Check for breakpoints/stepping
+                    if (debugger::DebugHookHelper::shouldPause(location))
+                    {
+                        debugger::DebugHookHelper::waitForResume();
+                    }
+                }
+            }
 
             try
             {
@@ -846,6 +875,55 @@ namespace vm::runtime
                 throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
                 break;
             }
+
+        // Debug opcodes
+        case OpCode::BREAKPOINT:
+            // Breakpoint hit - pause execution
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                auto sourceLoc = program->getSourceLocation(instructionPointer);
+                if (sourceLoc)
+                {
+                    // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
+                    errors::SourceLocation location(sourceLoc->filename,
+                                                   static_cast<int>(sourceLoc->line),
+                                                   static_cast<int>(sourceLoc->column));
+
+                    // Always pause at explicit breakpoint
+                    if (debugger::DebugHookHelper::shouldPause(location))
+                    {
+                        debugger::DebugHookHelper::waitForResume();
+                    }
+                }
+            }
+            break;
+
+        case OpCode::LINE:
+            // Update current source line
+            if (!instr.operands.empty())
+            {
+                currentSourceLine = static_cast<int>(instr.operands[0]);
+            }
+            break;
+
+        case OpCode::SOURCE_FILE:
+            // Update current source file from constant pool
+            if (!instr.operands.empty())
+            {
+                size_t stringIndex = instr.operands[0];
+                const auto& constPool = program->getConstantPool();
+                if (stringIndex < constPool.strings.size())
+                {
+                    currentSourceFile = constPool.getString(stringIndex);
+                }
+            }
+            break;
+
+        case OpCode::PROFILE_ENTER:
+        case OpCode::PROFILE_EXIT:
+            // Profiling opcodes - currently no-op
+            // Can be implemented for performance profiling
+            break;
 
         default:
             throw errors::RuntimeException("Unimplemented opcode: " +

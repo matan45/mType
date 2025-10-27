@@ -7,7 +7,7 @@
             "name": "Debug test_debugger.mt",
             "program": "${workspaceFolder}/test_debugger.mt",
             "interpreterPath": "${workspaceFolder}/bin/mType/Debug/x64/mType.exe",
-            "args": ["--debug", "${workspaceFolder}/test_debugger.mt"],
+            "args": ["--debug --bytecode", "${workspaceFolder}/test_debugger.mt"],
             "stopOnEntry": true,
             "cwd": "${workspaceFolder}"
         },
@@ -17,7 +17,7 @@
             "name": "Debug Current File",
             "program": "${file}",
             "interpreterPath": "${workspaceFolder}/bin/mType/Debug/x64/mType.exe",
-            "args": ["--debug", "${file}"],
+            "args": ["--debug --bytecode", "${file}"],
             "stopOnEntry": true,
             "cwd": "${fileDirname}"
         }
