@@ -247,9 +247,11 @@ namespace ast::nodes::classes
         // Clone annotations
         for (const auto& annotation : annotations) {
             if (annotation) {
-                auto clonedAnnotationPtr = annotation->clone();
-                auto clonedAnnotation = std::shared_ptr<annotations::AnnotationNode>(
-                    dynamic_cast<annotations::AnnotationNode*>(clonedAnnotationPtr.release())
+                // Safely reconstruct annotation using make_shared to avoid unsafe cast
+                auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
+                    annotation->getName(),
+                    annotation->getParameters(),
+                    annotation->getLocation()
                 );
                 clonedClass->addAnnotation(clonedAnnotation);
             }

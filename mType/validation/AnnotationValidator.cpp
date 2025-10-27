@@ -159,15 +159,13 @@ namespace validation
             if (interfaceDef)
             {
                 // Check if interface has a method with matching signature
-                if (interfaceDef->hasMethod(method->getName()))
+                // Optimized: Use findMethod directly instead of hasMethod + findMethod
+                // This reduces from 2 lookups to 1 lookup (both iterate methodSignatures)
+                auto interfaceMethod = interfaceDef->findMethod(method->getName(), methodParamCount);
+                if (interfaceMethod)
                 {
-                    // findMethod requires methodName and paramCount
-                    auto interfaceMethod = interfaceDef->findMethod(method->getName(), methodParamCount);
-                    if (interfaceMethod)
-                    {
-                        // Found a matching method in the interface
-                        return true;
-                    }
+                    // Found a matching method in the interface
+                    return true;
                 }
             }
         }

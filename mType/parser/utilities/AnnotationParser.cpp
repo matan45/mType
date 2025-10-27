@@ -43,17 +43,23 @@ namespace parser::utilities
         std::vector<std::shared_ptr<AnnotationNode>> annotations;
 
         // Parse all consecutive annotations
+        // Invariant: parseAnnotation() never returns nullptr when isAnnotation() returns true
+        // It either returns a valid shared_ptr or throws ParseException
         while (isAnnotation(tokenStream.current().type))
         {
             auto annotation = parseAnnotation(tokenStream);
-            if (annotation)
+
+            // This should never be null due to the loop condition
+            // If it is null, there's a critical bug in parseAnnotation()
+            if (!annotation)
             {
-                annotations.push_back(annotation);
+                throw ParseException(
+                    "Internal error: parseAnnotation returned null after isAnnotation check passed",
+                    tokenStream.current().location
+                );
             }
-            else
-            {
-                break;
-            }
+
+            annotations.push_back(annotation);
         }
 
         return annotations;
