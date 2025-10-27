@@ -395,12 +395,13 @@ void runInDebugMode(const std::string& filename,
                     constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER,
                     constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug)
 {
-    std::cout << "\n" << std::string(80, '=') << "\n";
-    std::cout << "mType Debugger Mode\n";
-    std::cout << std::string(80, '=') << "\n";
-    std::cout << "Debug protocol: stdin/stdout\n";
-    std::cout << "Script file: " << filename << "\n";
-    std::cout << std::string(80, '=') << "\n\n";
+    // Output debug banner to stderr so it doesn't interfere with debug protocol on stdout
+    std::cerr << "\n" << std::string(80, '=') << "\n";
+    std::cerr << "mType Debugger Mode\n";
+    std::cerr << std::string(80, '=') << "\n";
+    std::cerr << "Debug protocol: stdin/stdout\n";
+    std::cerr << "Script file: " << filename << "\n";
+    std::cerr << std::string(80, '=') << "\n\n";
 
     try
     {
@@ -425,7 +426,19 @@ void runInDebugMode(const std::string& filename,
         // Notify debugger that script is starting
         debugger::DebugHookHelper::notifyScriptStart(filename);
 
-        // Run the script (will pause at first statement if stop-on-entry is enabled)
+        // Pause at entry to allow debugger to set breakpoints
+        debugCtx.pause();
+        std::cerr << "Paused at entry. Waiting for debugger commands...\n";
+
+        // Send STOPPED event with reason "entry" to notify VSCode
+        errors::SourceLocation entryLocation(filename, 1, 1);
+        debugger::DebugProtocol::sendStoppedEvent("entry", entryLocation);
+
+        // Wait for debugger to set breakpoints and send CONTINUE
+        debugCtx.waitForResume();
+        std::cerr << "Resuming script execution...\n";
+
+        // Run the script (will pause at breakpoints)
         interpreter.runScript(filename);
 
         // Notify debugger that script completed
@@ -441,9 +454,9 @@ void runInDebugMode(const std::string& filename,
         // Shutdown debug context
         debugger::DebugContext::shutdown();
 
-        std::cout << "\n" << std::string(80, '=') << "\n";
-        std::cout << "Debug session ended\n";
-        std::cout << std::string(80, '=') << "\n";
+        std::cerr << "\n" << std::string(80, '=') << "\n";
+        std::cerr << "Debug session ended\n";
+        std::cerr << std::string(80, '=') << "\n";
     }
     catch (const std::exception& e)
     {

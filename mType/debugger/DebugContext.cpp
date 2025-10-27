@@ -1,7 +1,31 @@
 #include "DebugContext.hpp"
 #include <algorithm>
-
+#include <filesystem>
+#include <iostream>
 namespace debugger {
+
+    // Helper function to normalize file paths for comparison
+    static std::string normalizePath(const std::string& path) {
+        try {
+            // Convert to canonical path (resolves .., ., and makes absolute)
+            std::filesystem::path p(path);
+            std::string normalized = std::filesystem::weakly_canonical(p).string();
+
+            // Convert to lowercase for case-insensitive comparison on Windows
+            std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
+
+            // Replace backslashes with forward slashes for consistency
+            std::replace(normalized.begin(), normalized.end(), '\\', '/');
+
+            return normalized;
+        } catch (...) {
+            // If path normalization fails, just return lowercase version
+            std::string result = path;
+            std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+            std::replace(result.begin(), result.end(), '\\', '/');
+            return result;
+        }
+    }
 
     // Static member initialization
     std::unique_ptr<DebugContext> DebugContext::instance = nullptr;
@@ -90,14 +114,26 @@ namespace debugger {
 
     bool DebugContext::hasBreakpoint(const std::string& filename, int line) const {
         std::lock_guard<std::mutex> lock(breakpointMutex);
-        return breakpoints.find({filename, line}) != breakpoints.end();
+        std::string normalizedFilename = normalizePath(filename);
+
+        // Check if any breakpoint matches this location
+        for (const auto& [key, info] : breakpoints) {
+            if (normalizePath(key.filename) == normalizedFilename && key.line == line) {
+                return true;
+            }
+        }
+        return false;
     }
 
     BreakpointInfo* DebugContext::getBreakpointInfo(const std::string& filename, int line) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
-        auto it = breakpoints.find({filename, line});
-        if (it != breakpoints.end()) {
-            return &it->second;
+        std::string normalizedFilename = normalizePath(filename);
+
+        // Find breakpoint with matching normalized path
+        for (auto& [key, info] : breakpoints) {
+            if (normalizePath(key.filename) == normalizedFilename && key.line == line) {
+                return &info;
+            }
         }
         return nullptr;
     }
@@ -159,6 +195,7 @@ namespace debugger {
     void DebugContext::stepInto() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::cerr << "[DEBUG] Mode changed to: STEP_INTO\n";
             mode = DebugMode::STEP_INTO;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -170,6 +207,7 @@ namespace debugger {
     void DebugContext::stepOver() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::cerr << "[DEBUG] Mode changed to: STEP_OVER\n";
             mode = DebugMode::STEP_OVER;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -181,6 +219,7 @@ namespace debugger {
     void DebugContext::stepOut() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::cerr << "[DEBUG] Mode changed to: STEP_OUT\n";
             mode = DebugMode::STEP_OUT;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -192,6 +231,7 @@ namespace debugger {
     void DebugContext::continueExecution() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::cerr << "[DEBUG] Mode changed to: CONTINUE\n";
             mode = DebugMode::CONTINUE;
             paused = false;
             state = ExecutionState::RUNNING;
@@ -226,13 +266,18 @@ namespace debugger {
             return false;
         }
 
+        // Skip internal/generated code (has no source file)
+        bool isInternalCode = location.getFilename().empty() ||
+                              location.getFilename() == "<unknown>" ||
+                              location.getLine() <= 0;
+
         // Don't pause at the same location twice in a row
         if (location.getFilename() == lastStopLocation.getFilename() &&
             location.getLine() == lastStopLocation.getLine()) {
             return false;
         }
 
-        // Check for breakpoint
+        // Check for breakpoint (even in internal code, though unlikely to be set there)
         if (hasBreakpoint(location)) {
             BreakpointInfo* bpInfo = getBreakpointInfo(location.getFilename(), location.getLine());
             if (bpInfo) {
@@ -264,8 +309,8 @@ namespace debugger {
             }
         }
 
-        // Check for stepping
-        if (shouldStopForStepping(location)) {
+        // Check for stepping (but skip internal code)
+        if (!isInternalCode && shouldStopForStepping(location)) {
             lastStopLocation = location;
             pause();
             notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
@@ -280,7 +325,7 @@ namespace debugger {
 
         switch (mode) {
             case DebugMode::STEP_INTO:
-                // Stop at every statement
+                // Stop at every statement (caller already filters out internal code)
                 return true;
 
             case DebugMode::STEP_OVER:

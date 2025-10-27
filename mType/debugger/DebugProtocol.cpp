@@ -229,6 +229,9 @@ namespace debugger {
     void DebugServer::processCommand(const DebugProtocol::Message& message) {
         const std::string& cmd = message.command;
 
+        // Debug: log all commands received
+        std::cerr << "[DEBUG] Received command: " << cmd << "\n";
+
         try {
             if (cmd == "SETBREAKPOINT") {
                 handleSetBreakpoint(message);
@@ -276,6 +279,9 @@ namespace debugger {
             return;
         }
 
+        // Debug: log breakpoint being set
+        std::cerr << "Setting breakpoint: " << file << ":" << line << "\n";
+
         debugContext->addBreakpoint(file, line, condition, logMessage);
         DebugProtocol::sendOK();
     }
@@ -319,12 +325,23 @@ namespace debugger {
     }
 
     void DebugServer::handleGetVariables(const DebugProtocol::Message& message) {
-        if (!currentEnvironment || !variableInspector) {
+        std::cerr << "[DEBUG] handleGetVariables called\n";
+
+        if (!currentEnvironment) {
+            std::cerr << "[DEBUG] No currentEnvironment!\n";
             DebugProtocol::sendError("No environment available for variable inspection");
             return;
         }
 
+        if (!variableInspector) {
+            std::cerr << "[DEBUG] No variableInspector!\n";
+            DebugProtocol::sendError("No variable inspector available");
+            return;
+        }
+
         std::string scope = message.getParameter("scope", "local");
+        std::cerr << "[DEBUG] Getting variables for scope: " << scope << "\n";
+
         std::vector<DebugVariable> variables;
 
         if (scope == "local") {
@@ -336,13 +353,17 @@ namespace debugger {
             return;
         }
 
+        std::cerr << "[DEBUG] Found " << variables.size() << " variables\n";
+
         // Convert to protocol format: (name, value, type, refId)
         std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
         for (const auto& var : variables) {
+            std::cerr << "[DEBUG] Variable: " << var.name << " = " << var.value << " (" << var.type << ")\n";
             varList.emplace_back(var.name, var.value, var.type, var.referenceId);
         }
 
         DebugProtocol::sendVariables(varList);
+        std::cerr << "[DEBUG] Sent VARIABLES response\n";
     }
 
     void DebugServer::handleExpandVariable(const DebugProtocol::Message& message) {

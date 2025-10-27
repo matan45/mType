@@ -1,5 +1,5 @@
 #include "DebugHookHelper.hpp"
-
+#include  <iostream>
 namespace debugger {
 
     bool DebugHookHelper::preExecuteHook(ast::ASTNode* node) {
@@ -18,9 +18,13 @@ namespace debugger {
             return false;
         }
 
+        // Debug: log every statement being executed
+        std::cerr << "Executing: " << location.getFilename() << ":" << location.getLine() << "\n";
+
         // Check if we should pause at this location
         DebugContext& debugCtx = DebugContext::getInstance();
         if (debugCtx.shouldPauseAt(location)) {
+            std::cerr << "Paused at: " << location.getFilename() << ":" << location.getLine() << "\n";
             // Block until debugger resumes
             debugCtx.waitForResume();
             return true;

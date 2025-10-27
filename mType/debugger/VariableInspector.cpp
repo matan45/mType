@@ -3,6 +3,7 @@
 #include "../environment/manager/ScopeManager.hpp"
 #include <variant>
 #include <iomanip>
+#include <iostream>
 
 namespace debugger {
 
@@ -16,31 +17,40 @@ namespace debugger {
         std::vector<DebugVariable> variables;
 
         if (!env) {
+            std::cerr << "[VI] No environment provided\n";
             return variables;
         }
 
         // Get the scope manager
         auto scopeManager = env->getScopeManager();
         if (!scopeManager) {
+            std::cerr << "[VI] No scope manager\n";
             return variables;
         }
 
         // Get the current scope
         auto currentScope = scopeManager->getCurrentScope();
         if (!currentScope) {
+            std::cerr << "[VI] No current scope\n";
             return variables;
         }
 
-        // Get all variables in current scope
-        auto varManager = env->getVariableManager();
-        if (!varManager) {
-            return variables;
-        }
+        std::cerr << "[VI] Current scope: " << currentScope->getName() << "\n";
 
-        // Get variables from the current scope
-        // Note: This depends on how VariableManager exposes scope variables
-        // For now, we'll get variables by trying common names
-        // TODO: Add proper API to VariableManager for enumerating scope variables
+        // Get all variable names from current scope (not including parent scopes)
+        std::vector<std::string> varNames = currentScope->getAllVariableNames();
+        std::cerr << "[VI] Found " << varNames.size() << " variable names in current scope\n";
+
+        // For each variable, get its value and format it
+        for (const auto& varName : varNames) {
+            std::cerr << "[VI] Processing variable: " << varName << "\n";
+            auto varDef = currentScope->findVariableInCurrentScope(varName);
+            if (varDef) {
+                variables.push_back(formatValue(varName, varDef->getValue()));
+            } else {
+                std::cerr << "[VI] Could not find definition for: " << varName << "\n";
+            }
+        }
 
         return variables;
     }
@@ -60,8 +70,16 @@ namespace debugger {
             return variables;
         }
 
-        // TODO: Add proper API to VariableManager for enumerating global variables
-        // For now, return empty - will be populated when we have the API
+        // Get all global variable names
+        std::vector<std::string> varNames = varManager->getAllVariableNames();
+
+        // For each variable, get its value and format it
+        for (const auto& varName : varNames) {
+            auto varDef = varManager->findVariable(varName);
+            if (varDef) {
+                variables.push_back(formatValue(varName, varDef->getValue()));
+            }
+        }
 
         return variables;
     }
@@ -167,6 +185,9 @@ namespace debugger {
         if (std::holds_alternative<std::string>(val)) {
             return "\"" + std::get<std::string>(val) + "\"";
         }
+        if (std::holds_alternative<InternedString>(val)) {
+            return "\"" + std::get<InternedString>(val).getString() + "\"";
+        }
         if (std::holds_alternative<bool>(val)) {
             return std::get<bool>(val) ? "true" : "false";
         }
@@ -243,6 +264,9 @@ namespace debugger {
             return "float";
         }
         if (std::holds_alternative<std::string>(val)) {
+            return "string";
+        }
+        if (std::holds_alternative<InternedString>(val)) {
             return "string";
         }
         if (std::holds_alternative<bool>(val)) {
