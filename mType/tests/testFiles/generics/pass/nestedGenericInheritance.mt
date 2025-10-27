@@ -1,7 +1,8 @@
 // Test: Nested generic type arguments in inheritance
 // This tests the critical fix for ObjectInstanceHelper and SuperCallHandler
 // to properly parse nested generics like "Container<HashMap<String, List<Int>>>"
-
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 // Define base classes
 class List<T> {
     private T[] items;
@@ -55,8 +56,8 @@ class MapContainer extends Container<HashMap<String, Int>> {
 
     public function testMapOperations(): int {
         HashMap<String, Int> map = super.getData();
-        map.put("key1", 10);
-        map.put("key2", 20);
+        map.put(new String("key1"), new Int(10));
+        map.put(new String("key2"), new Int(20));
         return map.getCount();
     }
 }
@@ -69,16 +70,16 @@ class ComplexContainer extends Container<HashMap<String, List<Int>>> {
     public function testComplexOperations(): int {
         HashMap<String, List<Int>> map = super.getData();
         List<Int> list1 = new List<Int>();
-        list1.add(1);
-        list1.add(2);
-        list1.add(3);
+        list1.add(new Int(1));
+        list1.add(new Int(2));
+        list1.add(new Int(3));
 
         List<Int> list2 = new List<Int>();
-        list2.add(10);
-        list2.add(20);
+        list2.add(new Int(10));
+        list2.add(new Int(20));
 
-        map.put("list1", list1);
-        map.put("list2", list2);
+        map.put(new String("list1"), list1);
+        map.put(new String("list2"), list2);
 
         return map.getCount();
     }
@@ -113,13 +114,13 @@ class NestedPairContainer extends Container<Pair<List<String>, HashMap<Int, Stri
     public function testNestedPair(): int {
         Pair<List<String>, HashMap<Int, String>> pair = super.getData();
         List<String> list = pair.getFirst();
-        list.add("hello");
-        list.add("world");
+        list.add(new String("hello"));
+        list.add(new String("world"));
 
         HashMap<Int, String> map = pair.getSecond();
-        map.put(1, "one");
-        map.put(2, "two");
-        map.put(3, "three");
+        map.put(new Int(1), new String("one"));
+        map.put(new Int(2), new String("two"));
+        map.put(new Int(3), new String("three"));
 
         return list.getSize() + map.getCount();
     }

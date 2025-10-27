@@ -1,5 +1,5 @@
-import "../../lib/exceptions/Exception.mt";
-import "../../lib/exceptions/RuntimeException.mt";
+import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
 
 function testSimpleStackTrace(): void {
     try {

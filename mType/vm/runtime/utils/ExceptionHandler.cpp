@@ -6,8 +6,8 @@ namespace vm::runtime::utils
                                        std::shared_ptr<StackManager> stackMgr,
                                        std::vector<CallFrame>& callStack)
         : program(prog)
-        , stackManager(stackMgr)
-        , callStack(callStack)
+          , stackManager(stackMgr)
+          , callStack(callStack)
     {
     }
 
@@ -40,29 +40,36 @@ namespace vm::runtime::utils
                     if (instr.opcode == bytecode::OpCode::CALL ||
                         instr.opcode == bytecode::OpCode::CALL_METHOD ||
                         instr.opcode == bytecode::OpCode::CALL_STATIC ||
-                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE) {
+                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE)
+                    {
                         callDepth++;
                     }
 
                     if (instr.opcode == bytecode::OpCode::RETURN ||
-                        instr.opcode == bytecode::OpCode::RETURN_VALUE) {
-                        if (callDepth == 0) {
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
+                    {
+                        if (callDepth == 0)
+                        {
                             // This is a return at our lambda's scope level
                             lastReturn = searchIP;
                             // Don't break - keep searching for more RETURNs
-                        } else {
+                        }
+                        else
+                        {
                             // This return belongs to a nested function call
                             callDepth--;
                         }
                     }
 
                     // Stop if we hit another lambda or function definition
-                    if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP) {
+                    if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP)
+                    {
                         break;
                     }
                 }
 
-                if (lastReturn != SIZE_MAX) {
+                if (lastReturn != SIZE_MAX)
+                {
                     searchLimit = lastReturn + 1; // Include the RETURN instruction
                 }
             }
@@ -185,7 +192,8 @@ namespace vm::runtime::utils
             const auto& searchInstr = program->getInstruction(searchIP);
 
             // Track try-catch nesting
-            if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN) {
+            if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN)
+            {
                 tryDepth++;
             }
 
@@ -193,7 +201,8 @@ namespace vm::runtime::utils
             {
                 // Only accept CATCH if it's at the same nesting level (tryDepth == 0)
                 // This ensures we don't catch with a CATCH from a different try-catch block
-                if (tryDepth > 0) {
+                if (tryDepth > 0)
+                {
                     searchIP++;
                     continue;
                 }
@@ -222,7 +231,8 @@ namespace vm::runtime::utils
             else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
             {
                 // Only accept FINALLY if it's at the same nesting level
-                if (tryDepth > 0) {
+                if (tryDepth > 0)
+                {
                     searchIP++;
                     continue;
                 }
@@ -240,10 +250,12 @@ namespace vm::runtime::utils
                 result.newInstructionPointer = searchIP;
                 return result;
             }
-            else if (searchInstr.opcode == bytecode::OpCode::TRY_END) {
+            else if (searchInstr.opcode == bytecode::OpCode::TRY_END)
+            {
                 // TRY_END marks the end of a try block's body
                 // If we're at depth > 0, this ends the nested try we entered
-                if (tryDepth > 0) {
+                if (tryDepth > 0)
+                {
                     tryDepth--;
                 }
             }
@@ -308,7 +320,7 @@ namespace vm::runtime::utils
                     return result;
                 }
                 else if (searchInstr.opcode == bytecode::OpCode::RETURN ||
-                         searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
+                    searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
                 {
                     break;
                 }
