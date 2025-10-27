@@ -419,7 +419,8 @@ void runInDebugMode(const std::string& filename,
         // Set the environment for variable inspection
         debugServer.setEnvironment(interpreter.getEnvironment());
 
-        std::thread serverThread([&debugServer]() {
+        std::thread serverThread([&debugServer]()
+        {
             debugServer.run();
         });
 
