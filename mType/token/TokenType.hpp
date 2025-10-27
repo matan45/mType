@@ -49,6 +49,7 @@ namespace token
         IMPLEMENTS, // implements keyword
         EXTENDS, // extends keyword
         SUPER, // super keyword for parent class access
+        AT, // @ for annotations
         ARROW,        // -> for lambda expressions
         ISCLASSOF, // isClassOf keyword for type checking
         ASYNC, // async keyword for async functions

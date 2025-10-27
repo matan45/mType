@@ -169,6 +169,40 @@ namespace ast::nodes::classes
         return parameters.size();
     }
 
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>& MethodNode::getAnnotations() const
+    {
+        return annotations;
+    }
+
+    void MethodNode::addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation)
+    {
+        annotations.push_back(annotation);
+    }
+
+    bool MethodNode::hasAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::shared_ptr<annotations::AnnotationNode> MethodNode::getAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return annotation;
+            }
+        }
+        return nullptr;
+    }
+
     Value MethodNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitMethodNode(this);
@@ -191,6 +225,18 @@ namespace ast::nodes::classes
             clonedGenericParams, accessModifier, isAsync, location
         );
         cloned->setAbstract(abstractMethod);
+
+        // Clone annotations
+        for (const auto& annotation : annotations) {
+            if (annotation) {
+                auto clonedAnnotationPtr = annotation->clone();
+                auto clonedAnnotation = std::shared_ptr<annotations::AnnotationNode>(
+                    dynamic_cast<annotations::AnnotationNode*>(clonedAnnotationPtr.release())
+                );
+                cloned->addAnnotation(clonedAnnotation);
+            }
+        }
+
         return cloned;
     }
 }

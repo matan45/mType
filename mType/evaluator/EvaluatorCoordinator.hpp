@@ -88,6 +88,7 @@ namespace evaluator
         Value visitTryNode(TryNode* node) override;
         Value visitCatchNode(CatchNode* node) override;
         Value visitThrowNode(ThrowNode* node) override;
+        Value visitAnnotationNode(AnnotationNode* node) override;
 
         // Context and evaluator access methods
         std::shared_ptr<EvaluationContext> getContext() const { return context; }

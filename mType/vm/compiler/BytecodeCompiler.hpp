@@ -127,6 +127,9 @@ namespace vm::compiler
         value::Value visitCatchNode(ast::CatchNode* node) override;
         value::Value visitThrowNode(ast::ThrowNode* node) override;
 
+        // Annotations (metadata only - no bytecode generation)
+        value::Value visitAnnotationNode(ast::AnnotationNode* node) override;
+
     private:
         // Core components
         bytecode::BytecodeProgram program;

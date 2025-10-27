@@ -367,4 +367,28 @@ namespace runtimeTypes::klass
             validateGenericTypeRecursive(genericReturnType, "return type");
         }
     }
+
+    bool MethodDefinition::hasAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::shared_ptr<ast::nodes::annotations::AnnotationNode> MethodDefinition::getAnnotation(const std::string& annotationName) const
+    {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation->getName() == annotationName)
+            {
+                return annotation;
+            }
+        }
+        return nullptr;
+    }
 }

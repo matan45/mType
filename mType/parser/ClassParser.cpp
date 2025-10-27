@@ -7,6 +7,7 @@
 #include "class/ObjectCreationParser.hpp"
 #include "class/GenericParameterParser.hpp"
 #include "utilities/ParserUtils.hpp"
+#include "utilities/AnnotationParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
@@ -41,26 +42,35 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
-        // Step 1: Validate declaration context
+        // Step 1: Parse annotations before class declaration
+        auto annotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+
+        // Step 2: Validate declaration context
         validateClassDeclarationContext();
 
-        // Step 2: Parse and validate class header
+        // Step 3: Parse and validate class header
         std::unique_ptr<ASTNode> classNode;
         auto* classNodePtr = parseAndValidateClassHeader(classNode);
         const std::string& className = classNodePtr->getClassName();
 
-        // Step 3: Track method signatures for duplicate detection
+        // Step 4: Add annotations to class node
+        for (auto& annotation : annotations)
+        {
+            classNodePtr->addAnnotation(annotation);
+        }
+
+        // Step 5: Track method signatures for duplicate detection
         std::unordered_set<std::string> declaredStaticMethodSignatures;
         std::unordered_set<std::string> declaredInstanceMethodSignatures;
 
-        // Step 4: Set class context when parsing class body
+        // Step 6: Set class context when parsing class body
         ParserContextState::ClassContextGuard classGuard(context.getContextState());
 
-        // Step 5: Parse class body members
+        // Step 7: Parse class body members
         parseClassMembers(classNodePtr, className,
                           declaredStaticMethodSignatures, declaredInstanceMethodSignatures);
 
-        // Step 6: Expect closing brace
+        // Step 8: Expect closing brace
         tokenStream.expect(TokenType::RBRACE);
         return classNode;
     }
@@ -137,6 +147,9 @@ namespace parser
         // Parse class body members
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {
+            // Parse annotations before each member (method, field, or constructor)
+            auto annotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+
             TokenType currentToken = tokenStream.current().type;
 
             // Check for constructor (with or without access modifier)
@@ -163,6 +176,12 @@ namespace parser
                     auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
                     if (methodNode)
                     {
+                        // Add annotations to method
+                        for (auto& annotation : annotations)
+                        {
+                            methodNode->addAnnotation(annotation);
+                        }
+
                         validateAndRegisterMethodSignature(methodNode, className,
                                                            declaredStaticMethodSignatures,
                                                            declaredInstanceMethodSignatures);

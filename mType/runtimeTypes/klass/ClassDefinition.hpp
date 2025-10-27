@@ -10,6 +10,7 @@
 #include "MethodDefinition.hpp"
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
 
 namespace runtimeTypes::klass
 {
@@ -49,6 +50,9 @@ namespace runtimeTypes::klass
         // NEW: Abstract modifier for abstract classes
         bool abstractClass;
         std::unordered_set<std::string> abstractMethods; // Track which methods are abstract
+
+        // NEW: Annotations for this class
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
     public:
         explicit ClassDefinition(const std::string& n)
@@ -185,6 +189,12 @@ namespace runtimeTypes::klass
         // Check if all abstract methods from parent are implemented
         std::vector<std::string> getUnimplementedAbstractMethods() const;
         bool hasAllAbstractMethodsImplemented() const;
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const { return annotations; }
+        void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation) { annotations.push_back(annotation); }
+        bool hasAnnotation(const std::string& annotationName) const;
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
     private:
         // Depth protection for interface and class inheritance chains

@@ -72,6 +72,11 @@ namespace ast
             class SuperMemberAccessNode;
             class SuperMemberAssignmentNode;
         }
+
+        namespace annotations
+        {
+            class AnnotationNode;
+        }
     }
 
     // Type aliases for backward compatibility - these map to the refactored namespaced types
@@ -127,4 +132,5 @@ namespace ast
     using TryNode = nodes::statements::TryNode;
     using CatchNode = nodes::statements::CatchNode;
     using ThrowNode = nodes::statements::ThrowNode;
+    using AnnotationNode = nodes::annotations::AnnotationNode;
 }

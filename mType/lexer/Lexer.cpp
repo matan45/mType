@@ -28,7 +28,7 @@ namespace lexer
         }
     };
 
-    const std::array<Lexer::OperatorInfo, 20> Lexer::SINGLE_CHAR_OPERATORS = {
+    const std::array<Lexer::OperatorInfo, 21> Lexer::SINGLE_CHAR_OPERATORS = {
         {
             {"+", TokenType::PLUS, 1},
             {"-", TokenType::MINUS, 1},
@@ -49,7 +49,8 @@ namespace lexer
             {"!", TokenType::NOT, 1},
             {"<", TokenType::LESS, 1},
             {">", TokenType::GREATER, 1},
-            {".", TokenType::DOT, 1}
+            {".", TokenType::DOT, 1},
+            {"@", TokenType::AT, 1}
         }
     };
 

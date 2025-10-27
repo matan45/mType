@@ -7,6 +7,9 @@
     <Filter Include="ast\nodes">
       <UniqueIdentifier>{7516E18D-E180-9504-2ABF-46AA96687359}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ast\nodes\annotations">
+      <UniqueIdentifier>{12FA1464-7E66-D05E-475A-68BCB385F2C6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ast\nodes\classes">
       <UniqueIdentifier>{72C25BF5-DED8-598B-2750-E5AC93A52A13}</UniqueIdentifier>
     </Filter>
@@ -407,6 +410,9 @@
     </ClInclude>
     <ClInclude Include="ast\VisibilityModifier.hpp">
       <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\annotations\AnnotationNode.hpp">
+      <Filter>ast\nodes\annotations</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
       <Filter>ast\nodes\classes</Filter>
@@ -879,6 +885,9 @@
     <ClInclude Include="evaluator\validation\AccessValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
+    <ClInclude Include="evaluator\validation\AnnotationValidator.hpp">
+      <Filter>evaluator\validation</Filter>
+    </ClInclude>
     <ClInclude Include="evaluator\validation\InheritanceValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
@@ -1042,6 +1051,9 @@
       <Filter>parser\statement</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\AnnotationParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
     <ClInclude Include="parser\utilities\AsyncValidator.hpp">
@@ -1532,6 +1544,9 @@
     <ClCompile Include="ast\VisibilityModifier.cpp">
       <Filter>ast</Filter>
     </ClCompile>
+    <ClCompile Include="ast\nodes\annotations\AnnotationNode.cpp">
+      <Filter>ast\nodes\annotations</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
@@ -1868,6 +1883,9 @@
     <ClCompile Include="evaluator\validation\AccessValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
+    <ClCompile Include="evaluator\validation\AnnotationValidator.cpp">
+      <Filter>evaluator\validation</Filter>
+    </ClCompile>
     <ClCompile Include="evaluator\validation\InheritanceValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
@@ -2019,6 +2037,9 @@
       <Filter>parser\statement</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\AnnotationParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
     <ClCompile Include="parser\utilities\AsyncValidator.cpp">

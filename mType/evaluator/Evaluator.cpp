@@ -360,4 +360,10 @@ namespace evaluator
         return coordinator->visitThrowNode(node);
     }
 
+    Value Evaluator::visitAnnotationNode(AnnotationNode* node)
+    {
+        // Annotations are metadata only - no runtime evaluation needed
+        return Value();
+    }
+
 }
