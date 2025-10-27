@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "mtype",
+            "request": "launch",
+            "name": "Debug test_debugger.mt",
+            "program": "${workspaceFolder}/test_debugger.mt",
+            "interpreterPath": "${workspaceFolder}/bin/mType/Debug/x64/mType.exe",
+            "args": ["--debug", "${workspaceFolder}/test_debugger.mt"],
+            "stopOnEntry": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "mtype",
+            "request": "launch",
+            "name": "Debug Current File",
+            "program": "${file}",
+            "interpreterPath": "${workspaceFolder}/bin/mType/Debug/x64/mType.exe",
+            "args": ["--debug", "${file}"],
+            "stopOnEntry": true,
+            "cwd": "${fileDirname}"
+        }
+    ]
+}

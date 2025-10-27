@@ -17,38 +17,29 @@ namespace debugger {
         std::vector<DebugVariable> variables;
 
         if (!env) {
-            std::cerr << "[VI] No environment provided\n";
             return variables;
         }
 
         // Get the scope manager
         auto scopeManager = env->getScopeManager();
         if (!scopeManager) {
-            std::cerr << "[VI] No scope manager\n";
             return variables;
         }
 
         // Get the current scope
         auto currentScope = scopeManager->getCurrentScope();
         if (!currentScope) {
-            std::cerr << "[VI] No current scope\n";
             return variables;
         }
 
-        std::cerr << "[VI] Current scope: " << currentScope->getName() << "\n";
-
         // Get all variable names from current scope (not including parent scopes)
         std::vector<std::string> varNames = currentScope->getAllVariableNames();
-        std::cerr << "[VI] Found " << varNames.size() << " variable names in current scope\n";
 
         // For each variable, get its value and format it
         for (const auto& varName : varNames) {
-            std::cerr << "[VI] Processing variable: " << varName << "\n";
             auto varDef = currentScope->findVariableInCurrentScope(varName);
             if (varDef) {
                 variables.push_back(formatValue(varName, varDef->getValue()));
-            } else {
-                std::cerr << "[VI] Could not find definition for: " << varName << "\n";
             }
         }
 
@@ -590,24 +581,79 @@ namespace debugger {
             return elements;
         }
 
-        // For sparse arrays, we can't easily enumerate all elements
-        // Just show info about dimensions
+        // Get sparsity statistics
+        auto stats = arr->getSparsityStats();
+
+        // Show sparsity information
         std::string dimInfo = "Dimensions: ";
         for (size_t i = 0; i < dims.size(); ++i) {
             if (i > 0) dimInfo += " x ";
             dimInfo += std::to_string(dims[i]);
         }
+        dimInfo += " | Non-default: " + std::to_string(stats.nonDefaultElements) +
+                   " / " + std::to_string(stats.totalElements);
 
         elements.push_back(DebugVariable(
-            "[info]",
+            "[sparsity]",
             dimInfo,
             "info",
             false,
             0
         ));
 
-        // TODO: In the future, we could show only non-default values
-        // This would require additional API from SparseMultiArray
+        // For sparse mode arrays, show non-default values
+        if (stats.currentMode == value::SparseMultiArray::StorageMode::SPARSE &&
+            stats.nonDefaultElements > 0) {
+
+            // Limit to first 100 non-default elements
+            size_t displayCount = std::min(stats.nonDefaultElements, static_cast<size_t>(100));
+            size_t count = 0;
+
+            // Note: We can't access the internal sparse map directly without adding a public API
+            // For now, we'll just show that there are non-default elements
+            // TODO: Add public API to SparseMultiArray to iterate over non-default values
+
+            elements.push_back(DebugVariable(
+                "[mode]",
+                "SPARSE mode with " + std::to_string(stats.nonDefaultElements) + " set values",
+                "info",
+                false,
+                0
+            ));
+        } else if (stats.currentMode == value::SparseMultiArray::StorageMode::DENSE) {
+            // For dense mode, show first dimension elements like other arrays
+            size_t firstDimSize = dims[0];
+            size_t displayCount = std::min(firstDimSize, static_cast<size_t>(100));
+
+            for (size_t i = 0; i < displayCount; ++i) {
+                try {
+                    std::vector<size_t> indices(dims.size(), 0);
+                    indices[0] = i;
+                    value::Value element = arr->get(indices);
+
+                    std::string indexName = "[" + std::to_string(i) + "]";
+                    elements.push_back(formatValue(indexName, element));
+                } catch (...) {
+                    elements.push_back(DebugVariable(
+                        "[" + std::to_string(i) + "]",
+                        "<error>",
+                        "unknown",
+                        false,
+                        0
+                    ));
+                }
+            }
+
+            if (firstDimSize > displayCount) {
+                elements.push_back(DebugVariable(
+                    "[...]",
+                    "(" + std::to_string(firstDimSize - displayCount) + " more elements)",
+                    "info",
+                    false,
+                    0
+                ));
+            }
+        }
 
         return elements;
     }

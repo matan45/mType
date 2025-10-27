@@ -195,7 +195,6 @@ namespace debugger {
     void DebugContext::stepInto() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
-            std::cerr << "[DEBUG] Mode changed to: STEP_INTO\n";
             mode = DebugMode::STEP_INTO;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -207,7 +206,6 @@ namespace debugger {
     void DebugContext::stepOver() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
-            std::cerr << "[DEBUG] Mode changed to: STEP_OVER\n";
             mode = DebugMode::STEP_OVER;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -219,7 +217,6 @@ namespace debugger {
     void DebugContext::stepOut() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
-            std::cerr << "[DEBUG] Mode changed to: STEP_OUT\n";
             mode = DebugMode::STEP_OUT;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -231,7 +228,6 @@ namespace debugger {
     void DebugContext::continueExecution() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
-            std::cerr << "[DEBUG] Mode changed to: CONTINUE\n";
             mode = DebugMode::CONTINUE;
             paused = false;
             state = ExecutionState::RUNNING;

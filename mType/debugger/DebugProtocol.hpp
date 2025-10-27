@@ -210,6 +210,7 @@ namespace debugger {
         void processCommand(const DebugProtocol::Message& message);
         void handleSetBreakpoint(const DebugProtocol::Message& message);
         void handleClearBreakpoint(const DebugProtocol::Message& message);
+        void handleClearFile(const DebugProtocol::Message& message);
         void handleContinue();
         void handleStepInto();
         void handleStepOver();

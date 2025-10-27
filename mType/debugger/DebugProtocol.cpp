@@ -1,5 +1,7 @@
 #include "DebugProtocol.hpp"
 #include "VariableInspector.hpp"
+#include "../environment/manager/VariableManager.hpp"
+#include "../environment/manager/ScopeManager.hpp"
 #include <sstream>
 #include <iostream>
 
@@ -229,9 +231,6 @@ namespace debugger {
     void DebugServer::processCommand(const DebugProtocol::Message& message) {
         const std::string& cmd = message.command;
 
-        // Debug: log all commands received
-        std::cerr << "[DEBUG] Received command: " << cmd << "\n";
-
         try {
             if (cmd == "SETBREAKPOINT") {
                 handleSetBreakpoint(message);
@@ -240,6 +239,8 @@ namespace debugger {
             } else if (cmd == "CLEARALL") {
                 debugContext->clearAllBreakpoints();
                 DebugProtocol::sendOK();
+            } else if (cmd == "CLEARFILE") {
+                handleClearFile(message);
             } else if (cmd == "CONTINUE") {
                 handleContinue();
             } else if (cmd == "STEPINTO") {
@@ -279,9 +280,6 @@ namespace debugger {
             return;
         }
 
-        // Debug: log breakpoint being set
-        std::cerr << "Setting breakpoint: " << file << ":" << line << "\n";
-
         debugContext->addBreakpoint(file, line, condition, logMessage);
         DebugProtocol::sendOK();
     }
@@ -296,6 +294,18 @@ namespace debugger {
         }
 
         debugContext->removeBreakpoint(file, line);
+        DebugProtocol::sendOK();
+    }
+
+    void DebugServer::handleClearFile(const DebugProtocol::Message& message) {
+        std::string file = message.getParameter("file");
+
+        if (file.empty()) {
+            DebugProtocol::sendError("Invalid file parameter");
+            return;
+        }
+
+        debugContext->clearBreakpoints(file);
         DebugProtocol::sendOK();
     }
 
@@ -325,22 +335,17 @@ namespace debugger {
     }
 
     void DebugServer::handleGetVariables(const DebugProtocol::Message& message) {
-        std::cerr << "[DEBUG] handleGetVariables called\n";
-
         if (!currentEnvironment) {
-            std::cerr << "[DEBUG] No currentEnvironment!\n";
             DebugProtocol::sendError("No environment available for variable inspection");
             return;
         }
 
         if (!variableInspector) {
-            std::cerr << "[DEBUG] No variableInspector!\n";
             DebugProtocol::sendError("No variable inspector available");
             return;
         }
 
         std::string scope = message.getParameter("scope", "local");
-        std::cerr << "[DEBUG] Getting variables for scope: " << scope << "\n";
 
         std::vector<DebugVariable> variables;
 
@@ -353,17 +358,13 @@ namespace debugger {
             return;
         }
 
-        std::cerr << "[DEBUG] Found " << variables.size() << " variables\n";
-
         // Convert to protocol format: (name, value, type, refId)
         std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
         for (const auto& var : variables) {
-            std::cerr << "[DEBUG] Variable: " << var.name << " = " << var.value << " (" << var.type << ")\n";
             varList.emplace_back(var.name, var.value, var.type, var.referenceId);
         }
 
         DebugProtocol::sendVariables(varList);
-        std::cerr << "[DEBUG] Sent VARIABLES response\n";
     }
 
     void DebugServer::handleExpandVariable(const DebugProtocol::Message& message) {
@@ -417,24 +418,44 @@ namespace debugger {
             return;
         }
 
-        // TODO: Full implementation requires:
-        // 1. Get the environment for the specified frame
-        // 2. Parse the expression using the Parser
-        // 3. Evaluate the expression using the Evaluator
-        // 4. Format the result using VariableInspector
-        //
-        // For now, return a placeholder response
-        // Basic implementation could handle simple variable lookups
+        if (!currentEnvironment || !variableInspector) {
+            DebugProtocol::sendError("Environment not available");
+            return;
+        }
 
-        // TODO: Implement full expression evaluation
-        // This would require:
-        // 1. Tokenizing the expression
-        // 2. Parsing it with ExpressionParser
-        // 3. Evaluating with ExpressionEvaluator in current environment context
-        // 4. Formatting the result with VariableInspector
-        //
-        // For now, just return an error
-        DebugProtocol::sendError("Expression evaluation not yet implemented. Expression: " + expression);
+        try {
+            // Trim whitespace
+            size_t start = expression.find_first_not_of(" \t\r\n");
+            size_t end = expression.find_last_not_of(" \t\r\n");
+            if (start == std::string::npos) {
+                DebugProtocol::sendError("Empty expression");
+                return;
+            }
+            std::string varName = expression.substr(start, end - start + 1);
+
+            // For now, support simple variable lookup only
+            // TODO: Full expression evaluation requires parser/evaluator integration
+
+            // Try to find variable in current scope (local first, then global)
+            auto scopeManager = currentEnvironment->getScopeManager();
+            if (!scopeManager) {
+                DebugProtocol::sendError("No scope manager available");
+                return;
+            }
+
+            auto varDef = scopeManager->findVariable(varName);
+            if (!varDef) {
+                DebugProtocol::sendError("Variable not found: " + varName);
+                return;
+            }
+
+            // Format and send the result
+            auto debugVar = variableInspector->formatValue(varName, varDef->getValue());
+            DebugProtocol::sendEvaluateResult(debugVar.value, debugVar.type, debugVar.referenceId);
+
+        } catch (const std::exception& e) {
+            DebugProtocol::sendError(std::string("Evaluation error: ") + e.what());
+        }
     }
 
     void DebugServer::handleStop() {
