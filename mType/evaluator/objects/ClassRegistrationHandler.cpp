@@ -14,7 +14,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../validation/InheritanceValidator.hpp"
 #include "../validation/AbstractClassValidator.hpp"
-#include "../validation/AnnotationValidator.hpp"
+#include "../../validation/AnnotationValidator.hpp"
 #include "../utils/ValueConverter.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
@@ -309,7 +309,7 @@ namespace evaluator
             }
 
             // Validate annotations (e.g., @Override)
-            validation::AnnotationValidator::validateClassAnnotations(classDef, env);
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, env);
 
             // Register class
             registerClass(classDef);

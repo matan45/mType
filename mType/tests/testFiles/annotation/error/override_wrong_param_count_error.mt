@@ -2,14 +2,14 @@
 // Expected: Compile Error - parameter count doesn't match
 
 class Parent {
-    void calculate(Int x, Int y) {
+    function calculate(int x, int y): void {
         print("Calculating");
     }
 }
 
 class Child extends Parent {
     @Override
-    void calculate(Int x) {
+    function calculate(int x): void {
         print("This should fail - wrong parameter count");
     }
 }

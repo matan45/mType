@@ -2,14 +2,14 @@
 // Expected: Compile Error - parameter types don't match
 
 class Parent {
-    void process(Int value) {
+    function process(int value): void {
         print("Processing int");
     }
 }
 
 class Child extends Parent {
     @Override
-    void process(String value) {
+    function process(string value): void {
         print("This should fail - wrong parameter type");
     }
 }

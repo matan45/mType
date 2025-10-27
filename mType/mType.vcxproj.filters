@@ -304,6 +304,9 @@
     <Filter Include="types">
       <UniqueIdentifier>{5A5E7610-C672-9EC1-8FF4-4121FBC79AF2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="validation">
+      <UniqueIdentifier>{10E17C64-FC98-BEB1-65A0-970D517759A2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="value">
       <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
     </Filter>
@@ -894,9 +897,6 @@
     <ClInclude Include="evaluator\validation\AccessValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
-    <ClInclude Include="evaluator\validation\AnnotationValidator.hpp">
-      <Filter>evaluator\validation</Filter>
-    </ClInclude>
     <ClInclude Include="evaluator\validation\InheritanceValidator.hpp">
       <Filter>evaluator\validation</Filter>
     </ClInclude>
@@ -1232,6 +1232,9 @@
     </ClInclude>
     <ClInclude Include="types\TypeRegistry.hpp">
       <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="validation\AnnotationValidator.hpp">
+      <Filter>validation</Filter>
     </ClInclude>
     <ClInclude Include="value\ArrayPool.hpp">
       <Filter>value</Filter>
@@ -1895,9 +1898,6 @@
     <ClCompile Include="evaluator\validation\AccessValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
-    <ClCompile Include="evaluator\validation\AnnotationValidator.cpp">
-      <Filter>evaluator\validation</Filter>
-    </ClCompile>
     <ClCompile Include="evaluator\validation\InheritanceValidator.cpp">
       <Filter>evaluator\validation</Filter>
     </ClCompile>
@@ -2195,9 +2195,6 @@
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
-    <ClCompile Include="tests\testFiles\annotation\create_and_call_example.cpp">
-      <Filter>tests\testFiles\annotation</Filter>
-    </ClCompile>
     <ClCompile Include="tests\testFramework\TestCase.cpp">
       <Filter>tests\testFramework</Filter>
     </ClCompile>
@@ -2215,6 +2212,9 @@
     </ClCompile>
     <ClCompile Include="types\TypeRegistry.cpp">
       <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="validation\AnnotationValidator.cpp">
+      <Filter>validation</Filter>
     </ClCompile>
     <ClCompile Include="value\AsyncPromiseValue.cpp">
       <Filter>value</Filter>
@@ -2467,6 +2467,18 @@
     <None Include="tests\testFiles\annotation\error\override_wrong_signature_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_default_constructor_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_update_method_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.expected">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
@@ -2495,6 +2507,12 @@
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_annotation_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_valid.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_annotation_valid.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\arrayLiteralMixedTypes.mt">

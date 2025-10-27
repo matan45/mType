@@ -3,7 +3,7 @@
 
 class Standalone {
     @Override
-    void someMethod() {
+    function someMethod(): void {
         print("This should fail - no parent to override from");
     }
 }

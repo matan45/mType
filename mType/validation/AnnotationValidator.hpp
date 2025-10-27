@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../../errors/SourceLocation.hpp"
-#include "../../environment/Environment.hpp"
+#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../errors/SourceLocation.hpp"
+#include "../environment/Environment.hpp"
 #include <memory>
 #include <string>
 
-namespace evaluator::validation
+namespace validation
 {
     using namespace runtimeTypes::klass;
     using namespace errors;
@@ -51,6 +51,22 @@ namespace evaluator::validation
             const MethodDefinition* method,
             std::shared_ptr<ClassDefinition> containingClass,
             std::shared_ptr<Environment> environment,
+            const SourceLocation& location);
+
+        /**
+         * @brief Validate @Script annotation on a class
+         *
+         * Checks that:
+         * 1. The class is not abstract
+         * 2. The class has a default constructor (0 parameters)
+         * 3. The class has an update(float dt): void method
+         *
+         * @param classDefinition The class definition to validate
+         * @param location Source location for error reporting
+         * @throws TypeException if @Script requirements are not met
+         */
+        static void validateScriptAnnotation(
+            std::shared_ptr<ClassDefinition> classDefinition,
             const SourceLocation& location);
 
     private:

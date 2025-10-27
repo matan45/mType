@@ -24,6 +24,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Script Annotation on Classes",
                         passPath + "script_annotation_pass.mt");
 
+        addOutputVerificationTest("Script Annotation Valid Requirements",
+                        passPath + "script_annotation_valid.mt");
+
         // ===== MULTIPLE ANNOTATIONS - PASS TESTS =====
         // Tests for using multiple annotations together
 
@@ -51,6 +54,25 @@ namespace tests::testSuite
 
         addTestFromFile("Override With Wrong Return Type",
                     errorPath + "override_wrong_return_type_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // ===== @Script ANNOTATION - ERROR TESTS =====
+        // Tests for invalid @Script usage that should fail compilation
+
+        addTestFromFile("Script on Abstract Class",
+                    errorPath + "script_annotation_abstract_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Script Without Default Constructor",
+                    errorPath + "script_annotation_no_default_constructor_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Script Without Update Method",
+                    errorPath + "script_annotation_no_update_method_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Script With Wrong Update Signature",
+                    errorPath + "script_annotation_wrong_update_signature_error.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

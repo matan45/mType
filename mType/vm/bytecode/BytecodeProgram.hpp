@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <iosfwd>
 #include "OpCode.hpp"
+#include "../../errors/SourceLocation.hpp"
 
 namespace vm::bytecode
 {
@@ -77,6 +78,16 @@ namespace vm::bytecode
         };
 
         /**
+         * Annotation metadata for bytecode serialization
+         */
+        struct AnnotationData
+        {
+            std::string name;
+            std::vector<std::pair<std::string, std::string>> arguments; // key-value pairs
+            errors::SourceLocation location; // Source location for error reporting (using errors::SourceLocation for compatibility)
+        };
+
+        /**
          * Class metadata for registration when loading cached bytecode
          */
         struct FieldMetadata
@@ -118,6 +129,7 @@ namespace vm::bytecode
             std::vector<std::string> genericParameters;
             bool isAbstract; // NEW: Abstract class flag
             bool isFinal; // Final class flag
+            std::vector<AnnotationData> annotations; // NEW: Class annotations (e.g., @Script)
             std::vector<FieldMetadata> instanceFields;
             std::vector<FieldMetadata> staticFields;
             std::vector<MethodMetadata> instanceMethods;

@@ -3,6 +3,7 @@
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"
 #include "ScriptAPI.hpp"
+#include "../validation/AnnotationValidator.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -12,6 +13,7 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../ast/GenericType.hpp"
+#include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -161,6 +163,10 @@ namespace services
             auto classDef = classMap[classMeta.name];
             populateClassFromMetadata(classMeta, classDef, classMap);
 
+            // Validate annotations (e.g., @Script)
+            // NOTE: Annotations are now serialized in ClassMetadata for bytecode mode
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+
             // Register the class
             classRegistry->registerClass(classMeta.name, classDef);
         }
@@ -190,6 +196,25 @@ namespace services
                 classDef->setParentClassName(classMeta.parentClassName);
             }
             classDef->setImplementedInterfaces(classMeta.implementedInterfaces);
+
+            // Restore annotations from bytecode metadata
+            for (const auto& annotData : classMeta.annotations)
+            {
+                // Create annotation node from metadata
+                // Convert argument pairs back to parameter map
+                std::unordered_map<std::string, std::string> params;
+                for (const auto& [key, value] : annotData.arguments)
+                {
+                    params[key] = value;
+                }
+
+                auto annotNode = std::make_shared<ast::nodes::annotations::AnnotationNode>(
+                    annotData.name,
+                    params,
+                    annotData.location  // Use deserialized source location
+                );
+                classDef->addAnnotation(annotNode);
+            }
 
             classMap[classMeta.name] = classDef;
         }

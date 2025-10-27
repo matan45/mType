@@ -1,10 +1,12 @@
 #include "AnnotationValidator.hpp"
-#include "../../errors/InheritanceException.hpp"
-#include "../../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../errors/InheritanceException.hpp"
+#include "../errors/TypeException.hpp"
+#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../value/ValueType.hpp"
 #include <sstream>
 
-namespace evaluator::validation
+namespace validation
 {
     void AnnotationValidator::validateClassAnnotations(
         std::shared_ptr<ClassDefinition> classDefinition,
@@ -13,6 +15,14 @@ namespace evaluator::validation
         if (!classDefinition || !environment)
         {
             return;
+        }
+
+        // Validate @Script annotation on class
+        if (classDefinition->hasAnnotation("Script"))
+        {
+            auto scriptAnnotation = classDefinition->getAnnotation("Script");
+            SourceLocation location = scriptAnnotation ? scriptAnnotation->getLocation() : SourceLocation();
+            validateScriptAnnotation(classDefinition, location);
         }
 
         // Get parent class if exists
@@ -223,5 +233,81 @@ namespace evaluator::validation
             << "  - The class does not implement an interface with this method\n\n"
             << "Please verify the method signature matches exactly with the parent method or interface.";
         return oss.str();
+    }
+
+    void AnnotationValidator::validateScriptAnnotation(
+        std::shared_ptr<ClassDefinition> classDefinition,
+        const SourceLocation& location)
+    {
+        if (!classDefinition)
+        {
+            return;
+        }
+
+        const std::string& className = classDefinition->getName();
+
+        // Check 1: Class must not be abstract
+        if (classDefinition->isAbstract())
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className << "' is marked with @Script but is abstract.\n\n"
+                << "@Script classes must be concrete classes that can be instantiated.\n"
+                << "Please remove the 'abstract' modifier or the @Script annotation.";
+            throw TypeException(oss.str(), location);
+        }
+
+        // Check 2: Must have default constructor (0 parameters)
+        bool hasDefaultConstructor = false;
+        const auto& constructors = classDefinition->getConstructors();
+
+        for (const auto& constructor : constructors)
+        {
+            if (constructor->getParameters().empty())
+            {
+                hasDefaultConstructor = true;
+                break;
+            }
+        }
+
+        if (!hasDefaultConstructor)
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className << "' is marked with @Script but does not have a default constructor.\n\n"
+                << "@Script classes must have a constructor with no parameters.\n"
+                << "Please add a default constructor:\n"
+                << "  constructor() {\n"
+                << "    // initialization code\n"
+                << "  }";
+            throw TypeException(oss.str(), location);
+        }
+
+        // Check 3: Must have update(float): void method
+        bool hasUpdateMethod = false;
+        const auto& instanceMethods = classDefinition->getInstanceMethods();
+
+        auto it = instanceMethods.find("update");
+        if (it != instanceMethods.end())
+        {
+            const auto& method = it->second;
+            const auto& params = method->getParameters();
+
+            // Check: exactly 1 parameter of type float, return type void
+            if (params.size() == 1 &&
+                params[0].second.basicType == value::ValueType::FLOAT &&
+                method->getReturnType() == value::ValueType::VOID)
+            {
+                hasUpdateMethod = true;
+            }
+        }
+
+        if (!hasUpdateMethod)
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className << "' is marked with @Script but does not have the required update method.\n\n"
+                << "@Script classes must have an update method with signature:\n"
+                << " function update(float dt ): void\n\n"
+                << "Please add this method to your class.";
+            throw TypeException(oss.str(), location);
+        }
     }
 }

@@ -2,14 +2,14 @@
 // Expected: Compile Error - return type doesn't match
 
 class Parent {
-    Int getValue() {
+    function getValue(): int {
         return 42;
     }
 }
 
 class Child extends Parent {
     @Override
-    String getValue() {
+    function getValue(): string {
         return "This should fail - wrong return type";
     }
 }

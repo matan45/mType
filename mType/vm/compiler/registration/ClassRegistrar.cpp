@@ -14,7 +14,7 @@
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../../../evaluator/validation/AnnotationValidator.hpp"
+#include "../../../validation/AnnotationValidator.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -324,7 +324,7 @@ namespace vm::compiler::registration
             // Validate annotations for classes without parents
             // (e.g., @Override should fail if there's no parent)
             if (classDef) {
-                evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+                ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
             }
 
             return;
@@ -361,7 +361,7 @@ namespace vm::compiler::registration
             validateInheritanceDepth(className, classNode->getLocation());
 
             // Validate annotations (e.g., @Override) after parent link is established
-            evaluator::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+            ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
 
             // Validate method overrides
             validateMethodOverrides(classDef, parentDef, classNode);
@@ -441,6 +441,22 @@ namespace vm::compiler::registration
         const auto& genericParams = classNode->getGenericParameters();
         for (const auto& param : genericParams) {
             metadata.genericParameters.push_back(param.name);
+        }
+
+        // Extract annotations
+        const auto& annotations = classNode->getAnnotations();
+        for (const auto& annotationNode : annotations) {
+            bytecode::BytecodeProgram::AnnotationData annot;
+            annot.name = annotationNode->getName();
+            annot.location = annotationNode->getLocation();
+
+            // Extract annotation parameters if present
+            const auto& params = annotationNode->getParameters();
+            for (const auto& [key, value] : params) {
+                annot.arguments.push_back({key, value});
+            }
+
+            metadata.annotations.push_back(annot);
         }
 
         // Extract fields
