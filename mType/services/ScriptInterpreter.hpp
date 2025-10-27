@@ -68,6 +68,7 @@ namespace services
         explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+        void parseAndRegisterClasses(const std::string& filename);
 
         // Bytecode compilation and execution
         void compileToFile(const std::string& sourceFile, const std::string& outputFile);

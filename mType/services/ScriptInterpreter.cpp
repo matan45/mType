@@ -330,6 +330,36 @@ namespace services
         return evaluator.get();
     }
 
+    // Parse and register classes without executing
+    void ScriptInterpreter::parseAndRegisterClasses(const std::string& filename)
+    {
+        try
+        {
+            // Parse the script file
+            auto [ast, importManager] = parseScriptFile(filename);
+
+            // Set ImportManager on environment
+            environment->setImportManager(importManager.get());
+
+            // For bytecode mode, compile without execution (registers classes)
+            if (compiler)
+            {
+                compiler->compile(ast.get());
+            }
+
+            // Note: Classes are now registered in the environment's class registry
+            // The script code is NOT executed
+        }
+        catch (const ParseException&)
+        {
+            throw;
+        }
+        catch (const std::exception&)
+        {
+            throw;
+        }
+    }
+
     // Execution mode helpers
     void ScriptInterpreter::compileToFile(const std::string& sourceFile, const std::string& outputFile)
     {

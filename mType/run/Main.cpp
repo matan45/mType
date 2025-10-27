@@ -19,6 +19,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
+#include "../runtimeTypes/klass/ClassDefinition.hpp"
 
 #include <vector>
 #include <memory>
@@ -146,6 +147,88 @@ void runSpecificTestSuite(const std::string& suiteName,
 // Note: stringToValueType and registerClassesFromMetadata have been refactored into ScriptInterpreter
 // Note: resolveImports functionality has been refactored into ImportManager::resolveAllImports()
 
+/**
+ * Find and print all classes with @Script annotation
+ * This demonstrates the use case for @Script annotation
+ */
+void printScriptAnnotatedClasses(std::shared_ptr<environment::Environment> environment)
+{
+    std::cout << "\n" << std::string(80, '=') << "\n";
+    std::cout << "Classes with @Script annotation:\n";
+    std::cout << std::string(80, '=') << "\n\n";
+
+    auto classRegistry = environment->getClassRegistry();
+    if (!classRegistry)
+    {
+        std::cout << "No class registry available\n";
+        return;
+    }
+
+    auto allClassNames = classRegistry->getAllItemNames();
+    int scriptClassCount = 0;
+
+    for (const auto& className : allClassNames)
+    {
+        auto classDef = classRegistry->findClass(className);
+        if (classDef && classDef->hasAnnotation("Script"))
+        {
+            scriptClassCount++;
+
+            std::cout << "Class: " << className << "\n";
+
+            // Print instance methods
+            const auto& methods = classDef->getInstanceMethods();
+            if (!methods.empty())
+            {
+                std::cout << "  Instance Methods:\n";
+                for (const auto& [methodName, methodDef] : methods)
+                {
+                    std::cout << "    - " << methodName << "()\n";
+                }
+            }
+
+            // Print static methods
+            const auto& staticMethods = classDef->getStaticMethods();
+            if (!staticMethods.empty())
+            {
+                std::cout << "  Static Methods:\n";
+                for (const auto& [methodName, methodDef] : staticMethods)
+                {
+                    std::cout << "    - static " << methodName << "()\n";
+                }
+            }
+
+            // Print instance fields
+            const auto& fields = classDef->getInstanceFields();
+            if (!fields.empty())
+            {
+                std::cout << "  Instance Fields:\n";
+                for (const auto& [fieldName, fieldDef] : fields)
+                {
+                    std::cout << "    - " << fieldName << "\n";
+                }
+            }
+
+            // Print static fields
+            const auto& staticFields = classDef->getStaticFields();
+            if (!staticFields.empty())
+            {
+                std::cout << "  Static Fields:\n";
+                for (const auto& [fieldName, fieldDef] : staticFields)
+                {
+                    std::cout << "    - static " << fieldName << "\n";
+                }
+            }
+
+            std::cout << "\n";
+        }
+    }
+
+    std::cout << std::string(80, '-') << "\n";
+    std::cout << "Total @Script annotated classes: " << scriptClassCount << "\n";
+    std::cout << std::string(80, '=') << "\n";
+}
+
 void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
 {
     std::cout << "Running all test suites...\n";
@@ -253,6 +336,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
+        std::cout << "  " << argv[0] << " --find-script-classes <script.mt> - Run script and show all @Script classes\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
@@ -338,6 +422,44 @@ int main(int argc, char* argv[])
         catch (const std::exception& e)
         {
             std::cerr << "Execution error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --find-script-classes command
+    if (argc >= 3 && std::string(argv[1]) == "--find-script-classes")
+    {
+        std::string scriptFile = argv[2];
+
+        // Check for optional execution mode flags
+        constants::ExecutionMode mode = constants::ExecutionMode::BYTECODE_VM; // Use bytecode for analysis
+        for (int i = 3; i < argc; ++i)
+        {
+            if (std::string(argv[i]) == "--bytecode")
+            {
+                mode = constants::ExecutionMode::BYTECODE_VM;
+            }
+        }
+
+        try
+        {
+            std::cout << "Analyzing script: " << scriptFile << "\n";
+            std::cout << "(Classes are registered but script is not executed)\n\n";
+
+            ScriptInterpreter interpreter(mode);
+
+            // Parse and register classes without executing the script
+            interpreter.parseAndRegisterClasses(scriptFile);
+
+            // Query and print all @Script annotated classes
+            auto environment = interpreter.getEnvironment();
+            printScriptAnnotatedClasses(environment);
+
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
             return 1;
         }
     }
