@@ -94,11 +94,8 @@ export class InterpreterConnection extends EventEmitter {
      * Send a command to the interpreter
      */
     public sendCommand(command: string): void {
-        console.log(`[DEBUG EXT] InterpreterConnection.sendCommand: ${command}`);
         if (this.process && this.process.stdin) {
             this.process.stdin.write(command + '\n');
-        } else {
-            console.log(`[DEBUG EXT] WARNING: Cannot send command, process or stdin is null`);
         }
     }
 
@@ -155,10 +152,7 @@ export class InterpreterConnection extends EventEmitter {
                 break;
 
             case 'EXPANDEDVAR':
-                console.log('[DEBUG TS] Received EXPANDEDVAR message, params:', message.params);
-                const expandedChildren = this.parseVariables(message.params);
-                console.log('[DEBUG TS] Parsed children:', JSON.stringify(expandedChildren));
-                this.emit('expandedVariable', expandedChildren);
+                this.emit('expandedVariable', this.parseVariables(message.params));
                 break;
 
             case 'RESULT':

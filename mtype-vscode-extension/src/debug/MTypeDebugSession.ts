@@ -282,25 +282,19 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments
     ): Promise<void> {
-        console.log('[DEBUG TS] variablesRequest called with variablesReference:', args.variablesReference);
         let runtimeVars: any[];
 
         // Check if this is a scope request (using our fixed scope IDs)
         if (args.variablesReference === MTypeDebugSession.LOCAL_SCOPE_ID) {
             // Local scope
-            console.log('[DEBUG TS] Getting variables for scope: local');
             runtimeVars = await this._runtime.getVariables("local");
         } else if (args.variablesReference === MTypeDebugSession.GLOBAL_SCOPE_ID) {
             // Global scope
-            console.log('[DEBUG TS] Getting variables for scope: global');
             runtimeVars = await this._runtime.getVariables("global");
         } else {
             // This is an expandable variable request (refId from interpreter, >= 1000)
-            console.log('[DEBUG TS] Getting children for expandable variable with refId:', args.variablesReference);
             runtimeVars = await this._runtime.getVariableChildren(args.variablesReference);
         }
-
-        console.log('[DEBUG TS] Runtime variables:', JSON.stringify(runtimeVars));
 
         // Convert to DAP format
         const variables: DebugProtocol.Variable[] = runtimeVars.map(v => ({
@@ -309,8 +303,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
             type: v.type,
             variablesReference: v.refId
         }));
-
-        console.log('[DEBUG TS] Sending variables to VS Code:', JSON.stringify(variables));
 
         response.body = {
             variables: variables

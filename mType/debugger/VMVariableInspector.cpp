@@ -108,9 +108,6 @@ namespace debugger
                         // but appear in localVariableNames (which captures all variables at compile time)
                         if (!std::holds_alternative<std::monostate>(val))
                         {
-                            std::cerr << "[TEMP] Local var[" << i << "] '" << funcMetadata->localVariableNames[i]
-                                      << "' at stackIndex=" << stackIndex
-                                      << " (localBase=" << currentFrame.localBase << ")" << std::endl;
                             variables.push_back(valueToDebugVariable(funcMetadata->localVariableNames[i], val));
                         }
                     }
@@ -169,13 +166,11 @@ namespace debugger
     std::vector<DebugVariable> VMVariableInspector::getVariableChildren(
         std::shared_ptr<vm::runtime::VirtualMachine> vm, int refId)
     {
-        std::cerr << "[TEMP] getVariableChildren called with refId=" << refId << std::endl;
         std::vector<DebugVariable> children;
 
         auto it = refIdToValue.find(refId);
         if (it == refIdToValue.end())
         {
-            std::cerr << "[TEMP] refId not found! Returning empty." << std::endl;
             return children;
         }
 
@@ -185,7 +180,6 @@ namespace debugger
         if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val))
         {
             auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
-            std::cerr << "[TEMP] Found NativeArray, size=" << (arr ? arr->size() : 0) << std::endl;
             if (arr)
             {
                 for (size_t i = 0; i < arr->size() && i < 100; ++i) // Limit to 100 elements
@@ -193,7 +187,6 @@ namespace debugger
                     std::string indexName = "[" + std::to_string(i) + "]";
                     value::Value element = arr->get(i);
                     children.push_back(valueToDebugVariable(indexName, element));
-                    std::cerr << "[TEMP] Added child: " << indexName << std::endl;
                 }
             }
         }
@@ -201,24 +194,16 @@ namespace debugger
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
         {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-            std::cerr << "[TEMP] Found ObjectInstance" << std::endl;
             if (obj)
             {
                 const auto& fields = obj->getAllFieldValues();
-                std::cerr << "[TEMP] Object has " << fields.size() << " fields" << std::endl;
                 for (const auto& [fieldName, fieldValue] : fields)
                 {
                     children.push_back(valueToDebugVariable(fieldName, fieldValue));
-                    std::cerr << "[TEMP] Added field: " << fieldName << std::endl;
                 }
             }
         }
-        else
-        {
-            std::cerr << "[TEMP] Value is neither array nor object!" << std::endl;
-        }
 
-        std::cerr << "[TEMP] Returning " << children.size() << " children" << std::endl;
         return children;
     }
 
@@ -233,14 +218,10 @@ namespace debugger
         {
             refId = nextRefId++;
             refIdToValue[refId] = val;
-            std::cerr << "[TEMP] Assigned refId=" << refId << " to '" << name << "'" << std::endl;
         }
 
         // Create DebugVariable using constructor
         DebugVariable var(name, valueToString(val), getTypeName(val), expandable, refId);
-        std::cerr << "[TEMP] Created DebugVariable: name='" << name << "', value='" << valueToString(val)
-                  << "', type='" << getTypeName(val) << "', expandable=" << expandable
-                  << ", refId=" << refId << std::endl;
         return var;
     }
 

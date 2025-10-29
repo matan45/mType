@@ -230,25 +230,18 @@ export class MTypeRuntime extends EventEmitter {
      * Get children of an expandable variable
      */
     public async getVariableChildren(refId: number): Promise<any[]> {
-        console.log('[DEBUG TS] getVariableChildren called with refId:', refId);
-        console.log('[DEBUG TS] Current cache for refId:', this.variableReferences.get(refId));
-
         return new Promise((resolve) => {
             // Store pending request so we know which refId this response is for
             this.pendingExpandRequest = { refId, resolve };
 
             // Request expansion from interpreter
-            console.log('[DEBUG TS] Sending EXPANDVARIABLE command for refId:', refId);
             this.connection.sendCommand(`EXPANDVARIABLE ref=${refId}`);
 
             // Timeout after 1 second (return cached or empty)
             setTimeout(() => {
                 if (this.pendingExpandRequest && this.pendingExpandRequest.refId === refId) {
-                    console.log('[DEBUG TS] TIMEOUT waiting for expansion response for refId:', refId);
                     this.pendingExpandRequest = null;
-                    const cached = this.variableReferences.get(refId) || [];
-                    console.log('[DEBUG TS] Returning cached/empty:', cached);
-                    resolve(cached);
+                    resolve(this.variableReferences.get(refId) || []);
                 }
             }, 1000);
         });
@@ -400,31 +393,23 @@ export class MTypeRuntime extends EventEmitter {
      * Handle expanded variable response from interpreter
      */
     private handleExpandedVariableResponse(children: any[]): void {
-        console.log('[DEBUG TS] handleExpandedVariableResponse called with children:', JSON.stringify(children));
-        console.log('[DEBUG TS] Pending expand request:', this.pendingExpandRequest);
-
         // Check if this response is for a pending expand request
         if (this.pendingExpandRequest) {
             const { refId, resolve } = this.pendingExpandRequest;
             this.pendingExpandRequest = null;
 
-            console.log('[DEBUG TS] Storing children for refId:', refId);
             // Store children associated with their parent refId
             this.variableReferences.set(refId, children);
 
             // Store references for any expandable children
             for (const child of children) {
                 if (child.refId > 0) {
-                    console.log('[DEBUG TS] Found expandable child, initializing refId:', child.refId);
                     this.variableReferences.set(child.refId, []);
                 }
             }
 
             // Resolve the promise with the children
-            console.log('[DEBUG TS] Resolving promise with children:', JSON.stringify(children));
             resolve(children);
-        } else {
-            console.log('[DEBUG TS] WARNING: No pending expand request!');
         }
     }
 }
