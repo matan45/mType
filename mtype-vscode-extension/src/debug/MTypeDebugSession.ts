@@ -50,14 +50,17 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         // Setup runtime event handlers
         this._runtime.on('stopOnEntry', () => {
+            console.log('[DEBUG] Sending StoppedEvent: entry');
             this.sendEvent(new StoppedEvent('entry', MTypeDebugSession.THREAD_ID));
         });
 
         this._runtime.on('stopOnStep', () => {
+            console.log('[DEBUG] Sending StoppedEvent: step');
             this.sendEvent(new StoppedEvent('step', MTypeDebugSession.THREAD_ID));
         });
 
         this._runtime.on('stopOnBreakpoint', () => {
+            console.log('[DEBUG] Sending StoppedEvent: breakpoint');
             this.sendEvent(new StoppedEvent('breakpoint', MTypeDebugSession.THREAD_ID));
         });
 
@@ -148,12 +151,15 @@ export class MTypeDebugSession extends LoggingDebugSession {
         // Setup logging if trace is enabled
         logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Error, false);
 
+        console.log(`[DEBUG EXTENSION] Launch args from launch.json:`, args.args);
+
         // Wait for configuration to complete
         await this._runtime.start(
             args.program,
             args.interpreterPath || 'mType.exe',
             args.stopOnEntry || false,
-            args.cwd || path.dirname(args.program)
+            args.cwd || path.dirname(args.program),
+            args.args  // Pass additional args (like --bytecode) to the interpreter
         );
 
         this.sendResponse(response);
@@ -236,6 +242,11 @@ export class MTypeDebugSession extends LoggingDebugSession {
         const maxLevels = typeof args.levels === 'number' ? args.levels : 1000;
 
         const stack = this._runtime.getStack(startFrame, maxLevels);
+
+        console.log(`[DEBUG] stackTraceRequest - returning ${stack.frames.length} frames:`);
+        stack.frames.forEach((f, i) => {
+            console.log(`[DEBUG]   Frame ${i}: ${f.name} at ${f.file}:${f.line}:${f.column}`);
+        });
 
         response.body = {
             stackFrames: stack.frames.map(f => {

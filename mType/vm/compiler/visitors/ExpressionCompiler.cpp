@@ -82,12 +82,12 @@ namespace vm::compiler::visitors
                     ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
                 } else {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
-                    ctx.program.emit(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex));
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
                 }
 
                 // Apply increment/decrement
                 bytecode::OpCode opcode = ctx.emitter.getUnaryOpCode(op);
-                ctx.program.emit(opcode);
+                ctx.emitter.emitWithLocation(opcode, node);
 
                 // Store back
                 if (isQualifiedStatic) {
@@ -95,10 +95,10 @@ namespace vm::compiler::visitors
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
                 } else if (isLocal) {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
-                    ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), static_cast<uint32_t>(nameIndex));
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), static_cast<uint32_t>(nameIndex), node);
                 } else {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
-                    ctx.program.emit(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex));
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
                 }
 
                 return std::monostate{};
@@ -112,7 +112,7 @@ namespace vm::compiler::visitors
 
                 // Duplicate object reference for later SET_FIELD
                 // Stack: [object, object]
-                ctx.program.emit(bytecode::OpCode::DUP);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
 
                 // Get current field value
                 // Stack: [object, fieldValue]
@@ -122,12 +122,12 @@ namespace vm::compiler::visitors
                 // Apply increment/decrement
                 // Stack: [object, incrementedValue]
                 bytecode::OpCode opcode = ctx.emitter.getUnaryOpCode(op);
-                ctx.program.emit(opcode);
+                ctx.emitter.emitWithLocation(opcode, node);
 
                 // SET_FIELD pops value first (top), then object (below)
                 // Current stack: [object, incrementedValue] - value already on top, object below
                 // This is the correct order! No swap needed.
-                ctx.program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
 
                 return std::monostate{};
             }
@@ -278,7 +278,7 @@ namespace vm::compiler::visitors
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 
         // Emit CAST instruction
-        ctx.program.emit(bytecode::OpCode::CAST, static_cast<uint32_t>(typeNameIndex));
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CAST, static_cast<uint32_t>(typeNameIndex), node);
 
         return std::monostate{};
     }
@@ -296,7 +296,7 @@ namespace vm::compiler::visitors
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 
         // Emit INSTANCEOF instruction
-        ctx.program.emit(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex));
+        ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex), node);
 
         return std::monostate{};
     }

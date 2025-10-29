@@ -258,7 +258,11 @@ namespace debugger {
     }
 
     bool DebugContext::shouldPauseAt(const SourceLocation& location) {
+        std::cerr << "[DEBUG C++] shouldPauseAt called: " << location.getFilename() << ":" << location.getLine() << "\n";
+        std::cerr << "[DEBUG C++]   enabled=" << enabled << ", state=" << static_cast<int>(state) << ", mode=" << static_cast<int>(mode) << "\n";
+
         if (!enabled || state == ExecutionState::STOPPED) {
+            std::cerr << "[DEBUG C++]   Skipping: debugging disabled or stopped\n";
             return false;
         }
 
@@ -267,20 +271,30 @@ namespace debugger {
                               location.getFilename() == "<unknown>" ||
                               location.getLine() <= 0;
 
+        if (isInternalCode) {
+            std::cerr << "[DEBUG C++]   Skipping: internal code\n";
+        }
+
         // Don't pause at the same location twice in a row
         if (location.getFilename() == lastStopLocation.getFilename() &&
             location.getLine() == lastStopLocation.getLine()) {
+            std::cerr << "[DEBUG C++]   Skipping: same location as last stop\n";
             return false;
         }
 
         // Check for breakpoint (even in internal code, though unlikely to be set there)
-        if (hasBreakpoint(location)) {
+        bool hasBp = hasBreakpoint(location);
+        std::cerr << "[DEBUG C++]   hasBreakpoint: " << (hasBp ? "true" : "false") << "\n";
+
+        if (hasBp) {
             BreakpointInfo* bpInfo = getBreakpointInfo(location.getFilename(), location.getLine());
             if (bpInfo) {
                 bpInfo->hitCount++;
+                std::cerr << "[DEBUG C++]   Breakpoint hit! hitCount=" << bpInfo->hitCount << "\n";
 
                 // Check if this is a log point
                 if (bpInfo->isLogPoint()) {
+                    std::cerr << "[DEBUG C++]   Log point, not pausing\n";
                     // Log points don't pause execution, just output
                     notifyEvent(DebugEvent(
                         DebugEvent::Type::SCRIPT_STARTED,  // Reuse this for log output
@@ -292,12 +306,15 @@ namespace debugger {
 
                 // Check condition if present
                 if (bpInfo->hasCondition()) {
-                    if (!evaluateCondition(bpInfo->condition)) {
+                    bool conditionMet = evaluateCondition(bpInfo->condition);
+                    std::cerr << "[DEBUG C++]   Condition evaluation: " << (conditionMet ? "true" : "false") << "\n";
+                    if (!conditionMet) {
                         return false;  // Condition not met, don't pause
                     }
                 }
 
                 // Condition met or no condition, pause
+                std::cerr << "[DEBUG C++]   Pausing at breakpoint\n";
                 lastStopLocation = location;
                 pause();
                 notifyEvent(DebugEvent(DebugEvent::Type::BREAKPOINT_HIT, location));

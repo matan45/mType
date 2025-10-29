@@ -462,6 +462,9 @@ namespace vm::runtime
     {
         suspendedByAwait = false; // Reset flag at start
 
+        // DEBUG: Verify this code is being executed
+        std::cerr << "[DEBUG VM] interpretLoop started - enhanced logging active\n";
+
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, environment,
@@ -490,11 +493,31 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
+            // DEBUG: Unconditionally log instructions with missing source locations
+            auto debugSourceLoc = program->getSourceLocation(instructionPointer);
+            if (!debugSourceLoc || debugSourceLoc->line == 0) {
+                std::cerr << "[DEBUG VM MISSING LOC] IP=" << instructionPointer
+                          << " OpCode=" << bytecode::getOpCodeName(instr.opcode)
+                          << " Operands=" << instr.operands.size() << "\n";
+            }
+
             // Debug hook: Check for breakpoints and stepping before executing instruction
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
                 // Get source location for current instruction from program
                 auto sourceLoc = program->getSourceLocation(instructionPointer);
+
+                // DEBUG: Log source location lookup
+                std::cerr << "[DEBUG VM] IP=" << instructionPointer
+                          << " OpCode=" << bytecode::getOpCodeName(instr.opcode)
+                          << " HasSourceLoc=" << (sourceLoc != nullptr ? "yes" : "no");
+                if (sourceLoc) {
+                    std::cerr << " Loc=" << sourceLoc->filename << ":" << sourceLoc->line;
+                } else {
+                    std::cerr << " Loc=<unknown>:1";
+                }
+                std::cerr << "\n";
+
                 if (sourceLoc && sourceLoc->line > 0)
                 {
                     currentSourceFile = sourceLoc->filename;

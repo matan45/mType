@@ -80,7 +80,7 @@ namespace vm::compiler
         }
 
         // Emit halt instruction
-        program.emit(bytecode::OpCode::HALT);
+        context.emitter.emitWithLocation(bytecode::OpCode::HALT, root);
 
         // OPTIMIZATION PASS: Run loop optimizer after bytecode generation
         // This analyzes LOOP_START/LOOP_END markers and applies optimizations
@@ -354,7 +354,7 @@ namespace vm::compiler
 
         // Emit AWAIT instruction to unwrap the Promise
         // In Phase 2 synchronous model, this immediately returns the Promise's value
-        program.emit(bytecode::OpCode::AWAIT);
+        context.emitter.emitWithLocation(bytecode::OpCode::AWAIT, node);
 
         return std::monostate{};
     }

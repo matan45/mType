@@ -112,12 +112,12 @@ namespace vm::compiler::visitors
         bool isAsyncVoidFunction = (node->getIsAsync() && returnTypeStr == "Promise<void>");
 
         if (isVoidFunction || isAsyncVoidFunction) {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
             // Wrap in Promise if async function
             if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
 
         // Calculate local count before exiting frame
@@ -260,22 +260,22 @@ namespace vm::compiler::visitors
             // For async functions, wrap in Promise before storing
             // This ensures consistency - we always store a Promise for async functions
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value in the special slot
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
         } else {
             // Push null for void return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // For async functions, wrap in Promise before storing for finally
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
         }
 
         // Jump to finally
@@ -297,21 +297,21 @@ namespace vm::compiler::visitors
         if (returnValue) {
             // Wrap in Promise if needed
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
             // Store return value in outer slot
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot), node);
         } else {
             // Push null for void return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // For async functions, wrap in Promise
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot), node);
         }
 
         // Jump to outer finally
@@ -321,18 +321,21 @@ namespace vm::compiler::visitors
 
     void FunctionCompiler::emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
+        // Use returnValue's location if available (fallback for when ReturnNode lacks proper location)
+        ast::ASTNode* locationNode = (returnValue && returnValue->getLocation().getLine() > 0) ? returnValue : node;
+
         if (returnValue) {
             // Wrap in Promise if needed and return immediately
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, locationNode);
             }
-            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, locationNode);
         } else {
             // For async functions, treat return; as return null; wrapped in Promise
             // This allows Promise<void> functions to use return; like regular void functions
             if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             } else {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
@@ -453,7 +456,7 @@ namespace vm::compiler::visitors
             operands.push_back(static_cast<uint32_t>(local.slot));
         }
 
-        ctx.program.emit(bytecode::OpCode::LAMBDA, operands);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LAMBDA, operands, node);
     }
 
     value::Value FunctionCompiler::compileLambda(ast::LambdaNode* node)
@@ -463,7 +466,7 @@ namespace vm::compiler::visitors
         std::string lambdaFuncName = "__lambda_" + std::to_string(lambdaCounter++);
 
         // Store current position to jump over lambda body
-        ctx.program.emit(bytecode::OpCode::JUMP, 0); // Placeholder
+        ctx.emitter.emitWithLocation(bytecode::OpCode::JUMP, 0u, node); // Placeholder
         size_t skipJump = ctx.program.getCurrentOffset() - 1;
 
         // Lambda function starts here
@@ -492,24 +495,24 @@ namespace vm::compiler::visitors
 
             // Wrap in Promise if async lambda
             if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
         else {
             // Block lambda: () -> { ... }
             body->accept(ctx.visitor);
 
             // Implicit return null if no explicit return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // Wrap in Promise if async lambda
             if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
 
         ctx.variableTracker.endScope();

@@ -76,11 +76,12 @@ export class MTypeRuntime extends EventEmitter {
         program: string,
         interpreterPath: string,
         stopOnEntry: boolean,
-        cwd: string
+        cwd: string,
+        additionalArgs?: string[]
     ): Promise<void> {
 
         // Start the interpreter in debug mode
-        await this.connection.start(program, interpreterPath, cwd);
+        await this.connection.start(program, interpreterPath, cwd, additionalArgs);
 
         // If stop on entry, the interpreter will pause at first line
         if (stopOnEntry) {
@@ -310,6 +311,8 @@ export class MTypeRuntime extends EventEmitter {
      * Update stack frames from current location
      */
     private updateStackFrames(file: string, line: number): void {
+        console.log(`[DEBUG] updateStackFrames called - file: ${file}, line: ${line}`);
+
         // Store the current stopped location
         this.lastStoppedLocation = { file, line };
 
@@ -328,6 +331,8 @@ export class MTypeRuntime extends EventEmitter {
             }
         ];
 
+        console.log(`[DEBUG] Created temporary stack frame:`, this.stackFrames[0]);
+
         // Request variables when we stop
         this.requestVariables();
     }
@@ -336,6 +341,8 @@ export class MTypeRuntime extends EventEmitter {
      * Handle stack trace response from interpreter
      */
     private handleStackTraceResponse(frames: any[]): void {
+        console.log(`[DEBUG] handleStackTraceResponse - received ${frames.length} frames:`, frames);
+
         // Convert to RuntimeStackFrame format
         this.stackFrames = frames.map((frame, index) => ({
             index: index,
@@ -345,12 +352,17 @@ export class MTypeRuntime extends EventEmitter {
             column: 1
         }));
 
+        console.log(`[DEBUG] Converted stack frames:`, this.stackFrames);
+
         // IMPORTANT: Use the STOPPED event's line number for frame 0 (current location)
         // The STACKTRACE shows call sites, not the current execution line
         if (this.lastStoppedLocation && this.stackFrames.length > 0) {
+            console.log(`[DEBUG] Overriding frame 0 with lastStoppedLocation:`, this.lastStoppedLocation);
             this.stackFrames[0].file = this.lastStoppedLocation.file;
             this.stackFrames[0].line = this.lastStoppedLocation.line;
         }
+
+        console.log(`[DEBUG] Final stack frames:`, this.stackFrames);
     }
 
     /**

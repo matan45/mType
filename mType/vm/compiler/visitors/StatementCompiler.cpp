@@ -151,14 +151,9 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
             size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
-                           static_cast<uint32_t>(slot),
-                           static_cast<uint32_t>(nameIndex));
-            // Add source location for the store instruction
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+                                        static_cast<uint32_t>(slot),
+                                        static_cast<uint32_t>(nameIndex), node);
             return;
         }
 
@@ -177,12 +172,12 @@ namespace vm::compiler::visitors
         size_t typeIndex = ctx.program.getConstantPool().addString("auto");
         uint32_t isFinal = node->getIsFinal() ? 1 : 0;
 
-        ctx.program.emit(bytecode::OpCode::DECLARE_VAR,
-                       std::vector<uint32_t>{
-                           static_cast<uint32_t>(nameIndex),
-                           static_cast<uint32_t>(typeIndex),
-                           isFinal
-                       });
+        ctx.emitter.emitWithLocation(bytecode::OpCode::DECLARE_VAR,
+                                    std::vector<uint32_t>{
+                                        static_cast<uint32_t>(nameIndex),
+                                        static_cast<uint32_t>(typeIndex),
+                                        isFinal
+                                    }, node);
     }
 
     void StatementCompiler::emitVariableReassignment(ast::AssignmentNode* node)
@@ -206,14 +201,9 @@ namespace vm::compiler::visitors
         if (localSlot != SIZE_MAX) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL,
-                           static_cast<uint32_t>(localSlot),
-                           static_cast<uint32_t>(nameIndex));
-            // Add source location for the store instruction
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+                                        static_cast<uint32_t>(localSlot),
+                                        static_cast<uint32_t>(nameIndex), node);
             return;
         }
 
@@ -301,7 +291,7 @@ namespace vm::compiler::visitors
             }
             value->accept(ctx.visitor);
         } else {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
         }
 
         // Emit bytecode based on whether this is a declaration or reassignment

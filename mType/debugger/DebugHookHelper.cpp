@@ -24,13 +24,16 @@ namespace debugger
         }
 
         // Debug: log every statement being executed
-        std::cerr << "Executing: " << location.getFilename() << ":" << location.getLine() << "\n";
+        std::cerr << "[DEBUG C++] Executing: " << location.getFilename() << ":" << location.getLine() << "\n";
 
         // Check if we should pause at this location
         DebugContext& debugCtx = DebugContext::getInstance();
-        if (debugCtx.shouldPauseAt(location))
+        bool shouldPause = debugCtx.shouldPauseAt(location);
+        std::cerr << "[DEBUG C++] shouldPauseAt returned: " << (shouldPause ? "true" : "false") << "\n";
+
+        if (shouldPause)
         {
-            std::cerr << "Paused at: " << location.getFilename() << ":" << location.getLine() << "\n";
+            std::cerr << "[DEBUG C++] Paused at: " << location.getFilename() << ":" << location.getLine() << "\n";
             // Block until debugger resumes
             debugCtx.waitForResume();
             return true;

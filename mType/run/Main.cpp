@@ -740,31 +740,34 @@ int main(int argc, char* argv[])
     {
         ScriptInterpreter interpreter(execMode, optLevel);
 
-        // Print execution mode
-        std::cout << "Execution Mode: ";
+        // Print execution mode to both stdout and stderr (for debug console visibility)
+        std::string modeStr;
         switch (execMode)
         {
         case constants::ExecutionMode::AST_INTERPRETER:
-            std::cout << "AST Interpreter";
+            modeStr = "AST Interpreter";
             break;
         case constants::ExecutionMode::BYTECODE_VM:
-            std::cout << "Bytecode VM";
+            modeStr = "Bytecode VM";
             break;
         case constants::ExecutionMode::DUAL_VALIDATION:
-            std::cout << "Dual Validation";
+            modeStr = "Dual Validation";
             break;
         }
-        std::cout << " (Optimization: ";
+
+        std::string optStr;
         switch (optLevel)
         {
         case constants::OptimizationLevel::Debug:
-            std::cout << "Debug";
+            optStr = "Debug";
             break;
         case constants::OptimizationLevel::Release:
-            std::cout << "Release";
+            optStr = "Release";
             break;
         }
-        std::cout << ")\n\n";
+
+        std::cout << "Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n\n";
+        std::cerr << "[DEBUG C++ MAIN] Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n";
 
         interpreter.runScript(filename);
     }

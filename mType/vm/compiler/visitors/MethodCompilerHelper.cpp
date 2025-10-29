@@ -13,7 +13,7 @@ namespace vm::compiler::visitors
     void MethodCompilerHelper::compileDefaultConstructor(ast::ClassNode* node)
     {
         // Emit JUMP to skip over default constructor during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t constructorStart = ctx.program.getCurrentOffset();
 
         // Default constructor has only 'this' as parameter
@@ -47,9 +47,9 @@ namespace vm::compiler::visitors
                     // Call parent's default constructor: super()
                     std::string currentClassName = node->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
-                    ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0)); // 0 arguments
+                                     static_cast<uint32_t>(0), node); // 0 arguments
                 }
             }
         }
@@ -58,8 +58,8 @@ namespace vm::compiler::visitors
         initializeInstanceFields(node);
 
         // Return 'this'
-        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
-        ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         size_t localCount = ctx.functionFrameManager.getLocalCount();
         ctx.variableTracker.endScope();
@@ -106,7 +106,7 @@ namespace vm::compiler::visitors
                 if (!fieldNode->getIsStatic() && fieldNode->getInitialValue())
                 {
                     // Load 'this' FIRST (which is in local slot 0)
-                    ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, fieldNode);
 
                     // Compile the initializer expression (pushes value)
                     fieldNode->getInitialValue()->accept(ctx.visitor);
@@ -114,7 +114,7 @@ namespace vm::compiler::visitors
                     // Store in field
                     std::string fieldName = fieldNode->getName();
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
-                    ctx.program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), fieldNode);
                 }
             }
         }
@@ -206,12 +206,12 @@ namespace vm::compiler::visitors
 
         if (isVoidMethod || isAsyncVoidMethod)
         {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
             if (node->getIsAsync())
             {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
 
         // Calculate local count before exiting frame
@@ -282,7 +282,7 @@ namespace vm::compiler::visitors
         }
 
         // Emit JUMP to skip over method body during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t methodStart = ctx.program.getCurrentOffset();
 
         // Collect method parameters and return type
@@ -310,7 +310,7 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = true;
 
         // Emit JUMP to skip over constructor body during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
 
         // Constructor starts here
         size_t constructorStart = ctx.program.getCurrentOffset();
@@ -366,9 +366,9 @@ namespace vm::compiler::visitors
                     // Emit SUPER_CONSTRUCTOR call with 0 arguments
                     std::string currentClassName = ctx.currentClassNode->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
-                    ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0)); // 0 arguments
+                                     static_cast<uint32_t>(0), node); // 0 arguments
                 }
             }
         }
@@ -390,8 +390,8 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = wasInInstanceMethod;
 
         // Constructors implicitly return 'this'
-        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
-        ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
