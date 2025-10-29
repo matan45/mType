@@ -169,6 +169,15 @@ namespace vm::compiler::visitors
         ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(),
                                          ctx.variableTracker.getCurrentScopeDepth());
 
+        // Register global variable metadata for debugger
+        std::string typeName = node->getClassName().empty() ? "auto" : node->getClassName();
+        vm::bytecode::BytecodeProgram::GlobalVariableMetadata globalMeta;
+        globalMeta.name = name;
+        globalMeta.typeName = typeName;
+        globalMeta.type = varType;
+        globalMeta.isFinal = node->getIsFinal();
+        ctx.program.registerGlobalVariable(globalMeta);
+
         size_t nameIndex = ctx.program.getConstantPool().addString(name);
         size_t typeIndex = ctx.program.getConstantPool().addString("auto");
         uint32_t isFinal = node->getIsFinal() ? 1 : 0;

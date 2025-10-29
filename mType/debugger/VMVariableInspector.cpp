@@ -142,24 +142,53 @@ namespace debugger
             return variables;
         }
 
-        // Get global variables from the environment
+        // Get global variable metadata from the bytecode program
+        const auto* program = vm->getProgram();
+        if (!program)
+        {
+            return variables;
+        }
+
+        const auto& globalMetadata = program->getGlobalVariables();
+
+        std::cerr << "[DEBUG GLOBALS] GlobalMetadata count: " << globalMetadata.size() << std::endl;
+
+        if (globalMetadata.empty())
+        {
+            return variables;
+        }
+
+        // Get the environment to access actual global variable values
         auto env = vm->getEnvironment();
         if (!env)
         {
+            std::cerr << "[DEBUG GLOBALS] No environment found" << std::endl;
             return variables;
         }
 
-        // Access global scope through the variable manager
-        // Note: In bytecode mode, global variables may not be used as much,
-        // but we'll try to get them from the environment's variable manager
-        auto varManager = env->getVariableManager();
-        if (!varManager)
+        // For each global variable in metadata, try to get its value
+        for (const auto& meta : globalMetadata)
         {
-            return variables;
+            std::cerr << "[DEBUG GLOBALS] Looking for global variable: " << meta.name << std::endl;
+
+            // Try to get the variable definition from the environment
+            // Use the same method as VariableExecutor::handleLoadVar
+            auto varDef = env->findVariable(meta.name);
+            if (varDef)
+            {
+                std::cerr << "[DEBUG GLOBALS] Found variable: " << meta.name << std::endl;
+                // Get the value from the variable definition
+                value::Value val = varDef->getValue();
+                variables.push_back(valueToDebugVariable(meta.name, val));
+            }
+            else
+            {
+                std::cerr << "[DEBUG GLOBALS] Variable NOT found in environment: " << meta.name << std::endl;
+            }
         }
 
-        // For now, we'll return empty since globals are typically not used in bytecode mode
-        // Most variables are local on the VM stack
+        std::cerr << "[DEBUG GLOBALS] Returning " << variables.size() << " variables" << std::endl;
+
         return variables;
     }
 

@@ -5,6 +5,7 @@
 #include <iosfwd>
 #include "OpCode.hpp"
 #include "../../errors/SourceLocation.hpp"
+#include "../../value/ValueType.hpp"
 
 namespace vm::bytecode
 {
@@ -46,6 +47,17 @@ namespace vm::bytecode
             int getInteger(size_t index) const;
             double getFloat(size_t index) const;
             const std::string& getString(size_t index) const;
+        };
+
+        /**
+         * Global variable metadata for debugging
+         */
+        struct GlobalVariableMetadata
+        {
+            std::string name;
+            std::string typeName; // Type as string (e.g., "Int", "String", "MyClass")
+            value::ValueType type; // ValueType enum
+            bool isFinal;
         };
 
         /**
@@ -144,6 +156,7 @@ namespace vm::bytecode
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
+        std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
         size_t entryPoint;
         std::string sourceFilePath; // For class registration when loading cached bytecode
 
@@ -178,6 +191,10 @@ namespace vm::bytecode
         void registerFunction(const std::string& name, const FunctionMetadata& metadata);
         const FunctionMetadata* getFunction(const std::string& name) const;
         const std::unordered_map<std::string, FunctionMetadata>& getFunctions() const;
+
+        // Global Variable Management (for debugging)
+        void registerGlobalVariable(const GlobalVariableMetadata& metadata);
+        const std::vector<GlobalVariableMetadata>& getGlobalVariables() const;
 
         // Source Location Management
         void addSourceLocation(size_t instructionOffset, uint32_t line, uint32_t column, const std::string& filename);
