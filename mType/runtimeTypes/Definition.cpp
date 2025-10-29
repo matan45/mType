@@ -2,8 +2,7 @@
 
 namespace runtimeTypes
 {
-    Definition::Definition(const std::string& n): name(n)
+    Definition::Definition(const std::string& n) : name(n)
     {
     }
-    
 }

@@ -315,7 +315,6 @@ export class MTypeRuntime extends EventEmitter {
      * Update stack frames from current location
      */
     private updateStackFrames(file: string, line: number): void {
-
         // Store the current stopped location
         this.lastStoppedLocation = { file, line };
 
@@ -344,6 +343,12 @@ export class MTypeRuntime extends EventEmitter {
      * Handle stack trace response from interpreter
      */
     private handleStackTraceResponse(frames: any[]): void {
+        // If STACKTRACE is empty but we have a lastStoppedLocation, keep the temporary frame
+        if (frames.length === 0 && this.lastStoppedLocation) {
+            // Keep the temporary frame created in updateStackFrames
+            return;
+        }
+
         // Convert to RuntimeStackFrame format
         this.stackFrames = frames.map((frame, index) => ({
             index: index,

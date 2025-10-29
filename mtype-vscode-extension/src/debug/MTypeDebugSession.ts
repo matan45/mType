@@ -335,7 +335,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments
     ): void {
-
         this._runtime.stepOver();
         this.sendResponse(response);
     }
