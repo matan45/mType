@@ -115,13 +115,16 @@ namespace debugger {
 
     void DebugProtocol::sendStackTrace(const std::vector<CallFrame>& frames) {
         Message msg("STACKTRACE");
+        std::cerr << "[DEBUG C++] sendStackTrace - sending " << frames.size() << " frames\n";
         for (size_t i = 0; i < frames.size(); i++) {
             const CallFrame& frame = frames[i];
             std::string frameStr = frame.functionName + "@" +
                                  frame.location.getFilename() + ":" +
                                  std::to_string(frame.location.getLine());
             msg.addParameter("frame" + std::to_string(i), frameStr);
+            std::cerr << "[DEBUG C++]   Sending frame" << i << "=" << frameStr << "\n";
         }
+        std::cerr << "[DEBUG C++] Final STACKTRACE message: " << msg.serialize() << "\n";
         send(msg);
     }
 
@@ -331,6 +334,11 @@ namespace debugger {
 
     void DebugServer::handleGetStackTrace() {
         std::vector<CallFrame> frames = debugContext->getCallStack();
+        std::cerr << "[DEBUG C++] handleGetStackTrace - got " << frames.size() << " frames\n";
+        for (size_t i = 0; i < frames.size(); i++) {
+            std::cerr << "[DEBUG C++]   Frame " << i << ": " << frames[i].functionName
+                      << " at " << frames[i].location.getFilename() << ":" << frames[i].location.getLine() << "\n";
+        }
         DebugProtocol::sendStackTrace(frames);
     }
 

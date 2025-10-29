@@ -4,6 +4,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../evaluator/utils/GenericTypeManager.hpp"
+#include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -426,6 +427,24 @@ namespace vm::runtime
 
         context.callStack.push_back(frame);
         context.stats.functionCalls++;
+
+        // Notify debugger of constructor entry
+        if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+            auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+            if (sourceLoc) {
+                errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+            } else {
+                // Fallback: use constructor start location if current instruction has no location
+                auto ctorStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                if (ctorStartLoc) {
+                    errors::SourceLocation errorsLoc(ctorStartLoc->filename, ctorStartLoc->line, ctorStartLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                } else {
+                    debugger::DebugHookHelper::enterFunctionHook(constructorName, errors::SourceLocation());
+                }
+            }
+        }
 
         context.stackManager->push(instance);
         for (size_t i = 0; i < argCount; ++i) {

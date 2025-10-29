@@ -5,6 +5,7 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../value/LambdaValue.hpp"
 #include "../../../constants/LambdaConstants.hpp"
+#include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -56,6 +57,24 @@ namespace vm::runtime
 
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
+
+            // Notify debugger of function entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(functionName, errorsLoc);
+                } else {
+                    // Fallback: use function start location if current instruction has no location
+                    auto funcStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (funcStartLoc) {
+                        errors::SourceLocation errorsLoc(funcStartLoc->filename, funcStartLoc->line, funcStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(functionName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(functionName, errors::SourceLocation());
+                    }
+                }
+            }
 
             // Push arguments onto operand stack as locals (they will be at frameBase + slot)
             for (size_t i = 0; i < argCount; ++i) {
@@ -135,6 +154,24 @@ namespace vm::runtime
 
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
+
+            // Notify debugger of static method entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errorsLoc);
+                } else {
+                    // Fallback: use function start location if current instruction has no location
+                    auto funcStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (funcStartLoc) {
+                        errors::SourceLocation errorsLoc(funcStartLoc->filename, funcStartLoc->line, funcStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errors::SourceLocation());
+                    }
+                }
+            }
 
             // Push arguments onto stack as locals (slot 0, 1, 2, ...)
             for (size_t i = 0; i < argCount; ++i) {

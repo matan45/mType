@@ -87,12 +87,38 @@ namespace vm::runtime
         // Note: Executors are now initialized in interpretLoop() to ensure
         // they always have valid references, even when called from C++ API methods
 
+        // Push a main script frame to DebugContext for top-level script execution
+        if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+        {
+            auto entryLoc = program->getSourceLocation(program->getEntryPoint());
+            if (entryLoc) {
+                errors::SourceLocation scriptLoc(entryLoc->filename, entryLoc->line, entryLoc->column);
+                debugger::DebugHookHelper::enterFunctionHook("<main>", scriptLoc);
+            } else {
+                debugger::DebugHookHelper::enterFunctionHook("<main>", errors::SourceLocation());
+            }
+        }
+
         try
         {
-            return interpretLoop();
+            value::Value result = interpretLoop();
+
+            // Pop the main script frame after execution completes
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                debugger::DebugHookHelper::exitFunctionHook("<main>");
+            }
+
+            return result;
         }
         catch (...)
         {
+            // Pop the main script frame on exception
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                debugger::DebugHookHelper::exitFunctionHook("<main>");
+            }
+
             // Clean up and rethrow
             reset();
             throw;

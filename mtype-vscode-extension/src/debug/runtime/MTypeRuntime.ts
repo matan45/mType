@@ -283,14 +283,19 @@ export class MTypeRuntime extends EventEmitter {
      * Handle stopped event from interpreter
      */
     private handleStoppedEvent(data: any): void {
+        console.log(`[DEBUG] handleStoppedEvent called - data:`, data);
+
         const reason = data.reason || 'unknown';
         const file = data.file || '';
         const line = parseInt(data.line) || 0;
+
+        console.log(`[DEBUG] Parsed stopped event - reason: ${reason}, file: ${file}, line: ${line}`);
 
         // Update stack frames
         this.updateStackFrames(file, line);
 
         // Emit appropriate event
+        console.log(`[DEBUG] Emitting event for reason: ${reason}`);
         switch (reason) {
             case 'entry':
                 this.emit('stopOnEntry');
@@ -304,6 +309,8 @@ export class MTypeRuntime extends EventEmitter {
             case 'exception':
                 this.emit('stopOnException', data.message || 'Exception occurred');
                 break;
+            default:
+                console.log(`[DEBUG] Unknown reason: ${reason}, not emitting any event`);
         }
     }
 

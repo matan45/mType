@@ -282,7 +282,23 @@ namespace debugger {
             return false;
         }
 
-        // Check for breakpoint (even in internal code, though unlikely to be set there)
+        // When stepping (STEP_INTO, STEP_OVER, STEP_OUT), ignore breakpoints and only check stepping logic
+        bool isStepping = (mode == DebugMode::STEP_INTO || mode == DebugMode::STEP_OVER || mode == DebugMode::STEP_OUT);
+
+        if (isStepping) {
+            std::cerr << "[DEBUG C++]   In stepping mode, checking stepping logic only\n";
+            // Check for stepping (but skip internal code)
+            if (!isInternalCode && shouldStopForStepping(location)) {
+                std::cerr << "[DEBUG C++]   Pausing for step\n";
+                lastStopLocation = location;
+                pause();
+                notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
+                return true;
+            }
+            return false;
+        }
+
+        // In CONTINUE mode, check for breakpoints
         bool hasBp = hasBreakpoint(location);
         std::cerr << "[DEBUG C++]   hasBreakpoint: " << (hasBp ? "true" : "false") << "\n";
 
@@ -320,14 +336,6 @@ namespace debugger {
                 notifyEvent(DebugEvent(DebugEvent::Type::BREAKPOINT_HIT, location));
                 return true;
             }
-        }
-
-        // Check for stepping (but skip internal code)
-        if (!isInternalCode && shouldStopForStepping(location)) {
-            lastStopLocation = location;
-            pause();
-            notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
-            return true;
         }
 
         return false;

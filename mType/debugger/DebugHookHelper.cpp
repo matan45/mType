@@ -57,8 +57,14 @@ namespace debugger
             return;
         }
 
+        std::cerr << "[DEBUG C++] enterFunctionHook: " << functionName
+                  << " at " << location.getFilename() << ":" << location.getLine() << "\n";
+
         DebugContext& debugCtx = DebugContext::getInstance();
         debugCtx.pushCallFrame(functionName, location);
+
+        // Log current stack depth
+        std::cerr << "[DEBUG C++] Call stack depth after push: " << debugCtx.getCurrentDepth() << "\n";
     }
 
     void DebugHookHelper::exitFunctionHook(const std::string& functionName)
@@ -68,8 +74,13 @@ namespace debugger
             return;
         }
 
+        std::cerr << "[DEBUG C++] exitFunctionHook: " << functionName << "\n";
+
         DebugContext& debugCtx = DebugContext::getInstance();
         debugCtx.popCallFrame();
+
+        // Log current stack depth
+        std::cerr << "[DEBUG C++] Call stack depth after pop: " << debugCtx.getCurrentDepth() << "\n";
     }
 
     bool DebugHookHelper::shouldPause(const SourceLocation& location)

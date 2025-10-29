@@ -1,5 +1,6 @@
 #include "ControlFlowExecutor.hpp"
 #include "../../../value/PromiseValue.hpp"
+#include "../../../debugger/DebugHookHelper.hpp"
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
@@ -47,6 +48,12 @@ namespace vm::runtime
             context.instructionPointer = context.program->getInstructionCount();
         } else {
             CallFrame frame = context.callStack.back();
+
+            // Notify debugger of function exit BEFORE popping the call stack
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                debugger::DebugHookHelper::exitFunctionHook(frame.functionName);
+            }
+
             context.callStack.pop_back();
             context.instructionPointer = frame.returnAddress;
             // Exit function scope (to clean up parameters and local variables)
