@@ -1,6 +1,7 @@
 // Test: @Throw annotation combined with @Override
 // Expected: Should compile and validate successfully
 import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
 class IOException extends Exception {
     constructor(string message): super(message) {
     }
@@ -12,7 +13,7 @@ class FileReader {
         return "default content";
     }
 	
-	@Throw(IOException)
+	@Throw(IOException,RuntimeException)
     public static function read2(string path): string {
         return "default content";
     }
