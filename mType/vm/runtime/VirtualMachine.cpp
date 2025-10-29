@@ -68,19 +68,16 @@ namespace vm::runtime
 
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {
-        std::cerr << "[DEBUG C++] VirtualMachine::execute started\n";
         program = &bytecodeProgram;
 
         // Check if we're resuming from a saved state
         if (savedState.has_value())
         {
-            std::cerr << "[DEBUG C++] Restoring from saved state\n";
             restoreState(savedState.value());
             savedState.reset(); // Clear saved state after restoring
         }
         else
         {
-            std::cerr << "[DEBUG C++] Fresh execution, entry point=" << bytecodeProgram.getEntryPoint() << "\n";
             // Fresh execution - start from entry point
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
@@ -93,16 +90,13 @@ namespace vm::runtime
         // Note: The main script frame is now pushed in Main.cpp before pausing at entry,
         // so VS Code has a frame to display immediately. It's also popped there after completion.
 
-        std::cerr << "[DEBUG C++] About to call interpretLoop()\n";
         try
         {
             value::Value result = interpretLoop();
-            std::cerr << "[DEBUG C++] interpretLoop() returned successfully\n";
             return result;
         }
         catch (...)
         {
-            std::cerr << "[DEBUG C++] interpretLoop() threw exception, cleaning up\n";
             // Clean up and rethrow
             reset();
             throw;
@@ -499,39 +493,15 @@ namespace vm::runtime
         // Initialize exception handler
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
 
-        std::cerr << "[DEBUG C++] Starting execution loop, IP=" << instructionPointer
-                  << ", instrCount=" << program->getInstructionCount() << "\n";
-
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
-            std::cerr << "[DEBUG C++] Executing IP=" << instructionPointer
-                      << ", OpCode=" << bytecode::getOpCodeName(instr.opcode) << "\n";
-
-            // DEBUG: Unconditionally log instructions with missing source locations
-            auto debugSourceLoc = program->getSourceLocation(instructionPointer);
-            if (!debugSourceLoc || debugSourceLoc->line == 0) {
-                std::cerr << "[DEBUG VM MISSING LOC] IP=" << instructionPointer
-                          << " OpCode=" << bytecode::getOpCodeName(instr.opcode)
-                          << " Operands=" << instr.operands.size() << "\n";
-            }
 
             // Debug hook: Check for breakpoints and stepping before executing instruction
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
                 // Get source location for current instruction from program
                 auto sourceLoc = program->getSourceLocation(instructionPointer);
-
-                // DEBUG: Log source location lookup
-                std::cerr << "[DEBUG VM] IP=" << instructionPointer
-                          << " OpCode=" << bytecode::getOpCodeName(instr.opcode)
-                          << " HasSourceLoc=" << (sourceLoc != nullptr ? "yes" : "no");
-                if (sourceLoc) {
-                    std::cerr << " Loc=" << sourceLoc->filename << ":" << sourceLoc->line;
-                } else {
-                    std::cerr << " Loc=<unknown>:1";
-                }
-                std::cerr << "\n";
 
                 if (sourceLoc && sourceLoc->line > 0)
                 {

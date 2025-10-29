@@ -208,19 +208,16 @@ export class MTypeRuntime extends EventEmitter {
      * Get variables for a scope
      */
     public async getVariables(scope: string): Promise<any[]> {
-        console.log(`[DEBUG EXT] getVariables() called for scope: ${scope}`);
         return new Promise((resolve) => {
             // Store pending request so we know which scope this response is for
             this.pendingVariableRequest = { scope, resolve };
 
             // Request variables from interpreter
-            console.log(`[DEBUG EXT] Sending GETVARIABLES command for scope: ${scope}`);
             this.connection.sendCommand(`GETVARIABLES scope=${scope}`);
 
             // Timeout after 1 second (return cached or empty)
             setTimeout(() => {
                 if (this.pendingVariableRequest && this.pendingVariableRequest.scope === scope) {
-                    console.log(`[DEBUG EXT] getVariables timeout for scope ${scope}, returning cached`);
                     this.pendingVariableRequest = null;
                     const cached = this.variables.get(scope) || [];
                     resolve(cached);
@@ -363,7 +360,6 @@ export class MTypeRuntime extends EventEmitter {
      * Request variables from the interpreter
      */
     private requestVariables(): void {
-        console.log('[DEBUG EXT] requestVariables() called - sending GETVARIABLES commands');
         this.connection.sendCommand('GETVARIABLES scope=local');
         this.connection.sendCommand('GETVARIABLES scope=global');
     }

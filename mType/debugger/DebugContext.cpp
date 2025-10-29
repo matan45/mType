@@ -193,7 +193,6 @@ namespace debugger {
     }
 
     void DebugContext::stepInto() {
-        std::cerr << "[DEBUG C++] stepInto called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_INTO;
@@ -202,11 +201,9 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
-        std::cerr << "[DEBUG C++] stepInto completed, mode set to STEP_INTO\n";
     }
 
     void DebugContext::stepOver() {
-        std::cerr << "[DEBUG C++] stepOver called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_OVER;
@@ -215,11 +212,9 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
-        std::cerr << "[DEBUG C++] stepOver completed, mode set to STEP_OVER\n";
     }
 
     void DebugContext::stepOut() {
-        std::cerr << "[DEBUG C++] stepOut called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_OUT;
@@ -228,11 +223,9 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
-        std::cerr << "[DEBUG C++] stepOut completed, mode set to STEP_OUT\n";
     }
 
     void DebugContext::continueExecution() {
-        std::cerr << "[DEBUG C++] continueExecution called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::CONTINUE;
@@ -240,7 +233,6 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
-        std::cerr << "[DEBUG C++] continueExecution completed, mode set to CONTINUE\n";
     }
 
     void DebugContext::stop() {
@@ -266,11 +258,7 @@ namespace debugger {
     }
 
     bool DebugContext::shouldPauseAt(const SourceLocation& location) {
-        std::cerr << "[DEBUG C++] shouldPauseAt called: " << location.getFilename() << ":" << location.getLine() << "\n";
-        std::cerr << "[DEBUG C++]   enabled=" << enabled << ", state=" << static_cast<int>(state) << ", mode=" << static_cast<int>(mode) << "\n";
-
         if (!enabled || state == ExecutionState::STOPPED) {
-            std::cerr << "[DEBUG C++]   Skipping: debugging disabled or stopped\n";
             return false;
         }
 
@@ -279,14 +267,9 @@ namespace debugger {
                               location.getFilename() == "<unknown>" ||
                               location.getLine() <= 0;
 
-        if (isInternalCode) {
-            std::cerr << "[DEBUG C++]   Skipping: internal code\n";
-        }
-
         // Don't pause at the same location twice in a row
         if (location.getFilename() == lastStopLocation.getFilename() &&
             location.getLine() == lastStopLocation.getLine()) {
-            std::cerr << "[DEBUG C++]   Skipping: same location as last stop\n";
             return false;
         }
 
@@ -294,10 +277,8 @@ namespace debugger {
         bool isStepping = (mode == DebugMode::STEP_INTO || mode == DebugMode::STEP_OVER || mode == DebugMode::STEP_OUT);
 
         if (isStepping) {
-            std::cerr << "[DEBUG C++]   In stepping mode, checking stepping logic only\n";
             // Check for stepping (but skip internal code)
             if (!isInternalCode && shouldStopForStepping(location)) {
-                std::cerr << "[DEBUG C++]   Pausing for step\n";
                 lastStopLocation = location;
                 pause();
                 notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
@@ -308,17 +289,14 @@ namespace debugger {
 
         // In CONTINUE mode, check for breakpoints
         bool hasBp = hasBreakpoint(location);
-        std::cerr << "[DEBUG C++]   hasBreakpoint: " << (hasBp ? "true" : "false") << "\n";
 
         if (hasBp) {
             BreakpointInfo* bpInfo = getBreakpointInfo(location.getFilename(), location.getLine());
             if (bpInfo) {
                 bpInfo->hitCount++;
-                std::cerr << "[DEBUG C++]   Breakpoint hit! hitCount=" << bpInfo->hitCount << "\n";
 
                 // Check if this is a log point
                 if (bpInfo->isLogPoint()) {
-                    std::cerr << "[DEBUG C++]   Log point, not pausing\n";
                     // Log points don't pause execution, just output
                     notifyEvent(DebugEvent(
                         DebugEvent::Type::SCRIPT_STARTED,  // Reuse this for log output
@@ -331,14 +309,12 @@ namespace debugger {
                 // Check condition if present
                 if (bpInfo->hasCondition()) {
                     bool conditionMet = evaluateCondition(bpInfo->condition);
-                    std::cerr << "[DEBUG C++]   Condition evaluation: " << (conditionMet ? "true" : "false") << "\n";
                     if (!conditionMet) {
                         return false;  // Condition not met, don't pause
                     }
                 }
 
                 // Condition met or no condition, pause
-                std::cerr << "[DEBUG C++]   Pausing at breakpoint\n";
                 lastStopLocation = location;
                 pause();
                 notifyEvent(DebugEvent(DebugEvent::Type::BREAKPOINT_HIT, location));
@@ -376,7 +352,7 @@ namespace debugger {
 
     void DebugContext::pushCallFrame(const std::string& functionName, const SourceLocation& location) {
         std::lock_guard<std::mutex> lock(callStackMutex);
-        int depth = callStack.size();
+        int depth = static_cast<int>(callStack.size());
         callStack.emplace_back(functionName, location, depth);
     }
 

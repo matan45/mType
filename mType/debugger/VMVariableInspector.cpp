@@ -23,36 +23,29 @@ namespace debugger
     std::vector<DebugVariable> VMVariableInspector::getLocalVariables(std::shared_ptr<vm::runtime::VirtualMachine> vm)
     {
         std::vector<DebugVariable> variables;
-        std::cerr << "[DEBUG VMInspector] getLocalVariables called" << std::endl;
 
         if (!vm)
         {
-            std::cerr << "[DEBUG VMInspector] ERROR: VM is null" << std::endl;
             return variables;
         }
 
         const auto& callStack = vm->getCallStack();
-        std::cerr << "[DEBUG VMInspector] Call stack size: " << callStack.size() << std::endl;
         if (callStack.empty())
         {
-            std::cerr << "[DEBUG VMInspector] ERROR: Call stack is empty" << std::endl;
             return variables;
         }
 
         // Get the top call frame (current function)
         const auto& currentFrame = callStack.back();
-        std::cerr << "[DEBUG VMInspector] Current function: " << currentFrame.functionName << std::endl;
 
         // Check if we have a shared frame (for lambdas)
         if (currentFrame.sharedFrame)
         {
-            std::cerr << "[DEBUG VMInspector] Using shared frame (lambda)" << std::endl;
             for (const auto& [name, slot] : currentFrame.sharedFrame->nameToSlot)
             {
                 value::Value val = currentFrame.sharedFrame->getLocal(slot);
                 variables.push_back(valueToDebugVariable(name, val));
             }
-            std::cerr << "[DEBUG VMInspector] Found " << variables.size() << " lambda variables" << std::endl;
             return variables;
         }
 
@@ -60,32 +53,23 @@ namespace debugger
         const auto* program = vm->getProgram();
         if (!program)
         {
-            std::cerr << "[DEBUG VMInspector] ERROR: Program is null" << std::endl;
             return variables;
         }
 
         const auto* funcMetadata = program->getFunction(currentFrame.functionName);
         if (!funcMetadata)
         {
-            std::cerr << "[DEBUG VMInspector] ERROR: No metadata for function: " << currentFrame.functionName << std::endl;
             return variables;
         }
-        std::cerr << "[DEBUG VMInspector] Function metadata found" << std::endl;
-        std::cerr << "[DEBUG VMInspector]   parameterCount: " << funcMetadata->parameterCount << std::endl;
-        std::cerr << "[DEBUG VMInspector]   localCount: " << funcMetadata->localCount << std::endl;
-        std::cerr << "[DEBUG VMInspector]   localVariableNames.size(): " << funcMetadata->localVariableNames.size() << std::endl;
 
         // Get the stack manager to access local variables
         auto stackManager = vm->getStackManager();
         if (!stackManager)
         {
-            std::cerr << "[DEBUG VMInspector] ERROR: StackManager is null" << std::endl;
             return variables;
         }
 
         const auto& stack = stackManager->getStack();
-        std::cerr << "[DEBUG VMInspector] Stack size: " << stack.size() << std::endl;
-        std::cerr << "[DEBUG VMInspector] Current frame localBase: " << currentFrame.localBase << std::endl;
 
         // First, add parameters (we have names for these)
         for (size_t i = 0; i < funcMetadata->parameterCount && i < funcMetadata->parameterNames.size(); ++i)
@@ -102,12 +86,9 @@ namespace debugger
         // Add other local variables if we have names for them
         if (!funcMetadata->localVariableNames.empty())
         {
-            std::cerr << "[DEBUG VMInspector] Using localVariableNames from metadata" << std::endl;
             for (size_t i = 0; i < funcMetadata->localVariableNames.size(); ++i)
             {
                 size_t stackIndex = currentFrame.localBase + i;
-                std::cerr << "[DEBUG VMInspector]   Checking var[" << i << "] stackIndex=" << stackIndex
-                          << " name='" << funcMetadata->localVariableNames[i] << "'" << std::endl;
 
                 if (stackIndex < stack.size())
                 {
@@ -115,23 +96,13 @@ namespace debugger
                     // Only add if name is not empty
                     if (!funcMetadata->localVariableNames[i].empty())
                     {
-                        std::cerr << "[DEBUG VMInspector]   Adding variable: " << funcMetadata->localVariableNames[i] << std::endl;
                         variables.push_back(valueToDebugVariable(funcMetadata->localVariableNames[i], val));
                     }
-                    else
-                    {
-                        std::cerr << "[DEBUG VMInspector]   Skipping variable with empty name" << std::endl;
-                    }
-                }
-                else
-                {
-                    std::cerr << "[DEBUG VMInspector]   ERROR: stackIndex " << stackIndex << " >= stack.size() " << stack.size() << std::endl;
                 }
             }
         }
         else
         {
-            std::cerr << "[DEBUG VMInspector] No localVariableNames, using generic names" << std::endl;
             // For now, add unnamed locals as "local_N"
             for (size_t i = funcMetadata->parameterCount; i < funcMetadata->localCount; ++i)
             {
@@ -146,7 +117,6 @@ namespace debugger
             }
         }
 
-        std::cerr << "[DEBUG VMInspector] Returning " << variables.size() << " variables" << std::endl;
         return variables;
     }
 

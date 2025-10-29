@@ -152,10 +152,8 @@ namespace vm::compiler::visitors
                 );
             }
 
-            std::cerr << "[COMPILER DEBUG] Calling declareLocal for " << name << std::endl;
             ctx.variableTracker.declareLocal(name, varType, node->getClassName());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-            std::cerr << "[COMPILER DEBUG] Successfully registered " << name << " in VariableTracker" << std::endl;
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
             size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
@@ -283,11 +281,7 @@ namespace vm::compiler::visitors
 
         // If we're in a function and variable doesn't exist yet and this is not a reassignment,
         // it's a new local variable declaration with type inference - register it
-        std::cerr << "[COMPILER DEBUG emitVariableReassignment] name=" << name
-                  << " isInFunction=" << ctx.functionFrameManager.isInFunction()
-                  << " isReassignment=" << isReassignment << std::endl;
         if (ctx.functionFrameManager.isInFunction() && !isReassignment) {
-            std::cerr << "[COMPILER DEBUG] Registering type-inferred variable: " << name << std::endl;
             // Check if variable exists anywhere in the function (including parameters)
             if (ctx.variableTracker.existsInFunction(name)) {
                 throw errors::EnvironmentException(
@@ -302,7 +296,6 @@ namespace vm::compiler::visitors
             // STORE_LOCAL will consume the value from the stack - no DUP needed
             size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            std::cerr << "[COMPILER DEBUG] Registered variable " << name << " at slot " << slot << std::endl;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
                                         static_cast<uint32_t>(slot),
                                         static_cast<uint32_t>(nameIndex), node);

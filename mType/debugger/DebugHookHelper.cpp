@@ -23,17 +23,12 @@ namespace debugger
             return false;
         }
 
-        // Debug: log every statement being executed
-        std::cerr << "[DEBUG C++] Executing: " << location.getFilename() << ":" << location.getLine() << "\n";
-
         // Check if we should pause at this location
         DebugContext& debugCtx = DebugContext::getInstance();
         bool shouldPause = debugCtx.shouldPauseAt(location);
-        std::cerr << "[DEBUG C++] shouldPauseAt returned: " << (shouldPause ? "true" : "false") << "\n";
 
         if (shouldPause)
         {
-            std::cerr << "[DEBUG C++] Paused at: " << location.getFilename() << ":" << location.getLine() << "\n";
             // Block until debugger resumes
             debugCtx.waitForResume();
             return true;
@@ -57,14 +52,8 @@ namespace debugger
             return;
         }
 
-        std::cerr << "[DEBUG C++] enterFunctionHook: " << functionName
-                  << " at " << location.getFilename() << ":" << location.getLine() << "\n";
-
         DebugContext& debugCtx = DebugContext::getInstance();
         debugCtx.pushCallFrame(functionName, location);
-
-        // Log current stack depth
-        std::cerr << "[DEBUG C++] Call stack depth after push: " << debugCtx.getCurrentDepth() << "\n";
     }
 
     void DebugHookHelper::exitFunctionHook(const std::string& functionName)
@@ -74,13 +63,8 @@ namespace debugger
             return;
         }
 
-        std::cerr << "[DEBUG C++] exitFunctionHook: " << functionName << "\n";
-
         DebugContext& debugCtx = DebugContext::getInstance();
         debugCtx.popCallFrame();
-
-        // Log current stack depth
-        std::cerr << "[DEBUG C++] Call stack depth after pop: " << debugCtx.getCurrentDepth() << "\n";
     }
 
     bool DebugHookHelper::shouldPause(const SourceLocation& location)

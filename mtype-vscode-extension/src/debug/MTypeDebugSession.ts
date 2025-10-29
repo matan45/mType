@@ -278,19 +278,14 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments
     ): Promise<void> {
-        console.log(`[DEBUG EXT] variablesRequest called, variablesReference=${args.variablesReference}`);
         const scopeName = this._variableHandles.get(args.variablesReference);
-        console.log(`[DEBUG EXT] scopeName=${scopeName}`);
         let runtimeVars: any[];
 
         if (scopeName) {
             // This is a scope request (local or global)
-            console.log(`[DEBUG EXT] Requesting variables for scope: ${scopeName}`);
             runtimeVars = await this._runtime.getVariables(scopeName);
-            console.log(`[DEBUG EXT] Received ${runtimeVars.length} variables`);
         } else {
             // This is an expandable variable request (refId)
-            console.log(`[DEBUG EXT] Requesting children for refId: ${args.variablesReference}`);
             runtimeVars = await this._runtime.getVariableChildren(args.variablesReference);
         }
 
@@ -302,7 +297,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
             variablesReference: v.refId
         }));
 
-        console.log(`[DEBUG EXT] Sending ${variables.length} variables to VS Code`);
         response.body = {
             variables: variables
         };

@@ -441,21 +441,16 @@ void runInDebugMode(const std::string& filename,
         debugger::DebugProtocol::sendStoppedEvent("entry", entryLocation);
 
         // Wait for debugger to set breakpoints and send CONTINUE
-        std::cerr << "[DEBUG C++] Waiting for resume command...\n";
         debugCtx.waitForResume();
-        std::cerr << "[DEBUG C++] Resume command received, about to call runScript\n";
 
         // In bytecode mode, update DebugServer to use VM for variable inspection
         auto vm = interpreter.getVM();
         if (vm) {
-            std::cerr << "[DEBUG C++] Updating DebugServer to use VM for bytecode variable inspection\n";
             debugServer.setVM(vm);
         }
 
         // Run the script (will pause at breakpoints)
-        std::cerr << "[DEBUG C++] Calling interpreter.runScript()\n";
         interpreter.runScript(filename);
-        std::cerr << "[DEBUG C++] interpreter.runScript() returned successfully\n";
 
         // Pop main script frame after completion
         debugger::DebugHookHelper::exitFunctionHook("<main>");
