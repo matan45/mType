@@ -193,6 +193,7 @@ namespace debugger {
     }
 
     void DebugContext::stepInto() {
+        std::cerr << "[DEBUG C++] stepInto called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_INTO;
@@ -201,9 +202,11 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
+        std::cerr << "[DEBUG C++] stepInto completed, mode set to STEP_INTO\n";
     }
 
     void DebugContext::stepOver() {
+        std::cerr << "[DEBUG C++] stepOver called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_OVER;
@@ -212,9 +215,11 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
+        std::cerr << "[DEBUG C++] stepOver completed, mode set to STEP_OVER\n";
     }
 
     void DebugContext::stepOut() {
+        std::cerr << "[DEBUG C++] stepOut called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::STEP_OUT;
@@ -223,9 +228,11 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
+        std::cerr << "[DEBUG C++] stepOut completed, mode set to STEP_OUT\n";
     }
 
     void DebugContext::continueExecution() {
+        std::cerr << "[DEBUG C++] continueExecution called, current depth=" << getCurrentDepth() << "\n";
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
             mode = DebugMode::CONTINUE;
@@ -233,6 +240,7 @@ namespace debugger {
             state = ExecutionState::RUNNING;
         }
         pauseCondition.notify_one();
+        std::cerr << "[DEBUG C++] continueExecution completed, mode set to CONTINUE\n";
     }
 
     void DebugContext::stop() {

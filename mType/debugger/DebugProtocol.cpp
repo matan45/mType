@@ -343,25 +343,37 @@ namespace debugger {
     }
 
     void DebugServer::handleGetVariables(const DebugProtocol::Message& message) {
+        std::cerr << "[DEBUG C++] handleGetVariables called\n";
+
         if (!currentEnvironment) {
+            std::cerr << "[DEBUG C++] ERROR: No currentEnvironment!\n";
             DebugProtocol::sendError("No environment available for variable inspection");
             return;
         }
+        std::cerr << "[DEBUG C++] currentEnvironment is set\n";
 
         if (!variableInspector) {
+            std::cerr << "[DEBUG C++] ERROR: No variableInspector!\n";
             DebugProtocol::sendError("No variable inspector available");
             return;
         }
+        std::cerr << "[DEBUG C++] variableInspector is set\n";
 
         std::string scope = message.getParameter("scope", "local");
+        std::cerr << "[DEBUG C++] Requesting variables for scope: " << scope << "\n";
 
         std::vector<DebugVariable> variables;
 
         if (scope == "local") {
+            std::cerr << "[DEBUG C++] Calling getLocalVariables()\n";
             variables = variableInspector->getLocalVariables(currentEnvironment);
+            std::cerr << "[DEBUG C++] getLocalVariables() returned " << variables.size() << " variables\n";
         } else if (scope == "global") {
+            std::cerr << "[DEBUG C++] Calling getGlobalVariables()\n";
             variables = variableInspector->getGlobalVariables(currentEnvironment);
+            std::cerr << "[DEBUG C++] getGlobalVariables() returned " << variables.size() << " variables\n";
         } else {
+            std::cerr << "[DEBUG C++] ERROR: Invalid scope: " << scope << "\n";
             DebugProtocol::sendError("Invalid scope: " + scope);
             return;
         }
@@ -369,9 +381,11 @@ namespace debugger {
         // Convert to protocol format: (name, value, type, refId)
         std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
         for (const auto& var : variables) {
+            std::cerr << "[DEBUG C++]   Variable: " << var.name << " = " << var.value << " (" << var.type << ")\n";
             varList.emplace_back(var.name, var.value, var.type, var.referenceId);
         }
 
+        std::cerr << "[DEBUG C++] Sending " << varList.size() << " variables\n";
         DebugProtocol::sendVariables(varList);
     }
 

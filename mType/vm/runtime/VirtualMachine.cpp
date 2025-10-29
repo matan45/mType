@@ -68,16 +68,19 @@ namespace vm::runtime
 
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {
+        std::cerr << "[DEBUG C++] VirtualMachine::execute started\n";
         program = &bytecodeProgram;
 
         // Check if we're resuming from a saved state
         if (savedState.has_value())
         {
+            std::cerr << "[DEBUG C++] Restoring from saved state\n";
             restoreState(savedState.value());
             savedState.reset(); // Clear saved state after restoring
         }
         else
         {
+            std::cerr << "[DEBUG C++] Fresh execution, entry point=" << bytecodeProgram.getEntryPoint() << "\n";
             // Fresh execution - start from entry point
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
@@ -87,38 +90,19 @@ namespace vm::runtime
         // Note: Executors are now initialized in interpretLoop() to ensure
         // they always have valid references, even when called from C++ API methods
 
-        // Push a main script frame to DebugContext for top-level script execution
-        if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
-        {
-            auto entryLoc = program->getSourceLocation(program->getEntryPoint());
-            if (entryLoc) {
-                errors::SourceLocation scriptLoc(entryLoc->filename, entryLoc->line, entryLoc->column);
-                debugger::DebugHookHelper::enterFunctionHook("<main>", scriptLoc);
-            } else {
-                debugger::DebugHookHelper::enterFunctionHook("<main>", errors::SourceLocation());
-            }
-        }
+        // Note: The main script frame is now pushed in Main.cpp before pausing at entry,
+        // so VS Code has a frame to display immediately. It's also popped there after completion.
 
+        std::cerr << "[DEBUG C++] About to call interpretLoop()\n";
         try
         {
             value::Value result = interpretLoop();
-
-            // Pop the main script frame after execution completes
-            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
-            {
-                debugger::DebugHookHelper::exitFunctionHook("<main>");
-            }
-
+            std::cerr << "[DEBUG C++] interpretLoop() returned successfully\n";
             return result;
         }
         catch (...)
         {
-            // Pop the main script frame on exception
-            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
-            {
-                debugger::DebugHookHelper::exitFunctionHook("<main>");
-            }
-
+            std::cerr << "[DEBUG C++] interpretLoop() threw exception, cleaning up\n";
             // Clean up and rethrow
             reset();
             throw;
@@ -515,9 +499,14 @@ namespace vm::runtime
         // Initialize exception handler
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
 
+        std::cerr << "[DEBUG C++] Starting execution loop, IP=" << instructionPointer
+                  << ", instrCount=" << program->getInstructionCount() << "\n";
+
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
+            std::cerr << "[DEBUG C++] Executing IP=" << instructionPointer
+                      << ", OpCode=" << bytecode::getOpCodeName(instr.opcode) << "\n";
 
             // DEBUG: Unconditionally log instructions with missing source locations
             auto debugSourceLoc = program->getSourceLocation(instructionPointer);

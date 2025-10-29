@@ -19,6 +19,7 @@
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../debugger/DebugContext.hpp"
 #include "../debugger/DebugHookHelper.hpp"
@@ -427,6 +428,10 @@ void runInDebugMode(const std::string& filename,
         // Notify debugger that script is starting
         debugger::DebugHookHelper::notifyScriptStart(filename);
 
+        // Push main script frame before pausing so VSCode has a frame to show
+        errors::SourceLocation mainFrameLoc(filename, 1, 1);
+        debugger::DebugHookHelper::enterFunctionHook("<main>", mainFrameLoc);
+
         // Pause at entry to allow debugger to set breakpoints
         debugCtx.pause();
         std::cerr << "Paused at entry. Waiting for debugger commands...\n";
@@ -436,11 +441,24 @@ void runInDebugMode(const std::string& filename,
         debugger::DebugProtocol::sendStoppedEvent("entry", entryLocation);
 
         // Wait for debugger to set breakpoints and send CONTINUE
+        std::cerr << "[DEBUG C++] Waiting for resume command...\n";
         debugCtx.waitForResume();
-        std::cerr << "Resuming script execution...\n";
+        std::cerr << "[DEBUG C++] Resume command received, about to call runScript\n";
+
+        // In bytecode mode, update DebugServer to use VM's environment for variable inspection
+        auto vm = interpreter.getVM();
+        if (vm) {
+            std::cerr << "[DEBUG C++] Updating DebugServer to use VM's environment\n";
+            debugServer.setEnvironment(vm->getEnvironment());
+        }
 
         // Run the script (will pause at breakpoints)
+        std::cerr << "[DEBUG C++] Calling interpreter.runScript()\n";
         interpreter.runScript(filename);
+        std::cerr << "[DEBUG C++] interpreter.runScript() returned successfully\n";
+
+        // Pop main script frame after completion
+        debugger::DebugHookHelper::exitFunctionHook("<main>");
 
         // Notify debugger that script completed
         debugger::DebugHookHelper::notifyScriptComplete(filename);
@@ -461,6 +479,11 @@ void runInDebugMode(const std::string& filename,
     }
     catch (const std::exception& e)
     {
+        // Pop main script frame on exception
+        if (debugger::DebugHookHelper::isDebuggingEnabled())
+        {
+            debugger::DebugHookHelper::exitFunctionHook("<main>");
+        }
         std::cerr << "Debug session error: " << e.what() << std::endl;
         debugger::DebugContext::shutdown();
     }

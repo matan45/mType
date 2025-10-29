@@ -110,15 +110,21 @@ namespace services
 
     void ScriptInterpreter::runScript(const std::string& filename)
     {
+        std::cerr << "[DEBUG C++] ScriptInterpreter::runScript() entered, filename=" << filename << "\n";
         try
         {
+            std::cerr << "[DEBUG C++] About to call parseScriptFile()\n";
             auto [ast, importManager] = parseScriptFile(filename);
+            std::cerr << "[DEBUG C++] parseScriptFile() returned successfully\n";
 
             // Set ImportManager on environment for clean architecture
+            std::cerr << "[DEBUG C++] Setting ImportManager on environment\n";
             environment->setImportManager(importManager.get());
 
             // Execute the script
+            std::cerr << "[DEBUG C++] About to call executeScriptAST()\n";
             value::Value result = executeScriptAST(std::move(ast));
+            std::cerr << "[DEBUG C++] executeScriptAST() returned successfully\n";
 
             // Automatic cleanup after script execution to prevent memory growth
             // Only clean up interfaces that are no longer referenced
