@@ -82,7 +82,34 @@ namespace parser::utilities
             {
                 return StatementType::UNKNOWN;
             }
-            // Future: Skip annotation parameters like @Annotation("value") if needed
+
+            // Skip annotation parameters if present (e.g., @Throw(IOException, NetworkException))
+            if (getTokenAt(lookAheadIndex).type == TokenType::LPAREN)
+            {
+                lookAheadIndex++; // Skip LPAREN
+
+                // Skip all tokens until we find the matching RPAREN
+                int parenDepth = 1;
+                while (parenDepth > 0 && getTokenAt(lookAheadIndex).type != TokenType::END)
+                {
+                    TokenType current = getTokenAt(lookAheadIndex).type;
+                    if (current == TokenType::LPAREN)
+                    {
+                        parenDepth++;
+                    }
+                    else if (current == TokenType::RPAREN)
+                    {
+                        parenDepth--;
+                    }
+                    lookAheadIndex++;
+                }
+
+                // If we didn't find matching RPAREN, annotation is malformed
+                if (parenDepth != 0)
+                {
+                    return StatementType::UNKNOWN;
+                }
+            }
         }
 
         // Now check what comes after the annotation(s)

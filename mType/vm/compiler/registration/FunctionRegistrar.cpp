@@ -3,12 +3,16 @@
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
+#include "../../../validation/AnnotationValidator.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
 {
-    FunctionRegistrar::FunctionRegistrar(bytecode::BytecodeProgram& program)
-        : program(program)
+    FunctionRegistrar::FunctionRegistrar(
+        std::shared_ptr<environment::Environment> env,
+        bytecode::BytecodeProgram& prog)
+        : environment(env)
+        , program(prog)
     {
     }
 
@@ -116,7 +120,65 @@ namespace vm::compiler::registration
             }
         }
 
+        // NOTE: @Throw annotation validation is deferred until after classes are registered
+        // See validateThrowAnnotations() method
+
         // Register the function signature
         program.registerFunction(funcName, metadata);
+    }
+
+    void FunctionRegistrar::validateThrowAnnotations(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // Check if this node is a FunctionNode
+        if (auto functionNode = dynamic_cast<ast::FunctionNode*>(node))
+        {
+            validateSingleFunctionThrow(functionNode);
+            return; // Don't traverse into function body
+        }
+
+        // Check if this node is a ClassNode - skip it (methods handled by ClassRegistrar)
+        if (dynamic_cast<ast::ClassNode*>(node))
+        {
+            return; // ClassRegistrar handles methods
+        }
+
+        // Recursively process child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                validateThrowAnnotations(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                validateThrowAnnotations(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            // Process functions from imported AST
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                validateThrowAnnotations(importNode->getImportedAST());
+            }
+        }
+    }
+
+    void FunctionRegistrar::validateSingleFunctionThrow(ast::FunctionNode* functionNode)
+    {
+        // Validate @Throw annotation if present
+        if (auto throwAnnotation = functionNode->getAnnotation("Throw"))
+        {
+            ::validation::AnnotationValidator::validateThrowAnnotation(
+                throwAnnotation,
+                environment,
+                functionNode->getLocation()
+            );
+        }
     }
 }

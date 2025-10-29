@@ -18,8 +18,15 @@ namespace vm::compiler::visitors
         bool hasFinally = (node->getFinallyBlock() != nullptr);
         ctx.exceptionManager.enterTry(tryBeginOffset, hasFinally);
 
+        // Enter scope for try block (variables shouldn't leak to catch/finally)
+        ctx.variableTracker.beginScope();
+
         // Compile try block
         node->getTryBlock()->accept(ctx.visitor);
+
+        // Exit try block scope
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Mark end of try block
         size_t tryEndOffset = ctx.program.getCurrentOffset();
@@ -164,8 +171,15 @@ namespace vm::compiler::visitors
         // Mark that we're now in the finally block
         ctx.exceptionManager.enterFinally();
 
+        // Enter scope for finally block (variables shouldn't leak from try/catch)
+        ctx.variableTracker.beginScope();
+
         // Compile finally body
         finallyBlock->accept(ctx.visitor);
+
+        // Exit finally block scope
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Mark that we've exited the finally block
         ctx.exceptionManager.exitFinally();

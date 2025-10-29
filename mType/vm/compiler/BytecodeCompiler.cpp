@@ -20,7 +20,7 @@ namespace vm::compiler
         , typeValidator(env)
         , interfaceRegistrar(env, genericResolver)
         , classRegistrar(env, program, &interfaceRegistrar)
-        , functionRegistrar(program)
+        , functionRegistrar(env, program)
         , compileTimeValidator(std::make_unique<validation::CompileTimeValidator>(env, program))
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager, exceptionManager,
@@ -67,8 +67,11 @@ namespace vm::compiler
         // Third, register all classes and interfaces using registrars
         registerClassesForBytecode(root);
 
-        // Third, establish parent-child relationships
+        // Fourth, establish parent-child relationships
         linkParentClasses(root);
+
+        // Fifth, validate @Throw annotations now that all classes are registered
+        functionRegistrar.validateThrowAnnotations(root);
 
         // Visit the root node to generate bytecode
         root->accept(*this);
@@ -436,6 +439,9 @@ namespace vm::compiler
             // This ensures that parent classes from nested imports are available
             registerClassesForBytecode(importedAST);
             linkParentClasses(importedAST);
+
+            // Validate @Throw annotations now that all classes are registered
+            functionRegistrar.validateThrowAnnotations(importedAST);
 
             // Compile the imported file to generate bytecode for functions and methods
             // This will register all functions/methods in the BytecodeProgram

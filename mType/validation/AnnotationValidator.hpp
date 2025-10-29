@@ -4,8 +4,10 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../errors/SourceLocation.hpp"
 #include "../environment/Environment.hpp"
+#include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace validation
 {
@@ -69,6 +71,24 @@ namespace validation
             std::shared_ptr<ClassDefinition> classDefinition,
             const SourceLocation& location);
 
+        /**
+         * @brief Validate @Throw annotation on a method or function
+         *
+         * Checks that:
+         * 1. All exception class names in the annotation exist in the class registry
+         * 2. All exception classes inherit from the Exception base class
+         * 3. No duplicate exception class names are declared
+         *
+         * @param throwAnnotation The @Throw annotation to validate
+         * @param environment The environment containing class registry
+         * @param location Source location for error reporting
+         * @throws TypeException if exception class doesn't exist or is invalid
+         */
+        static void validateThrowAnnotation(
+            std::shared_ptr<ast::nodes::annotations::AnnotationNode> throwAnnotation,
+            std::shared_ptr<Environment> environment,
+            const SourceLocation& location);
+
     private:
         /**
          * @brief Find a matching method in the parent class hierarchy
@@ -117,5 +137,35 @@ namespace validation
         static std::string generateOverrideErrorMessage(
             const std::string& methodName,
             const std::string& className);
+
+        /**
+         * @brief Parse comma-separated exception class names from annotation parameter
+         *
+         * @param exceptionsParam The comma-separated string of exception class names
+         * @return Vector of exception class names
+         */
+        static std::vector<std::string> parseExceptionList(const std::string& exceptionsParam);
+
+        /**
+         * @brief Check if a class inherits from the Exception base class
+         *
+         * @param className The class name to check
+         * @param environment The environment containing class registry
+         * @return true if the class is an exception class
+         */
+        static bool isExceptionClass(
+            const std::string& className,
+            std::shared_ptr<Environment> environment);
+
+        /**
+         * @brief Check for duplicate exception names in the list
+         *
+         * @param exceptionNames The list of exception class names
+         * @param location Source location for error reporting
+         * @throws TypeException if duplicates are found (as warning)
+         */
+        static void checkForDuplicates(
+            const std::vector<std::string>& exceptionNames,
+            const SourceLocation& location);
     };
 }

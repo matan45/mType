@@ -14,6 +14,7 @@
 #include "../../services/ImportManager.hpp"
 #include "../../environment/registry/ExportRegistry.hpp"
 #include "../../environment/registry/ExportSymbolCollector.hpp"
+#include "../../validation/AnnotationValidator.hpp"
 
 using namespace errors;
 using namespace runtimeTypes::global;
@@ -262,6 +263,22 @@ namespace statements {
 
         // NEW: Set async flag if the function is async
         funcDef->setIsAsync(node->getIsAsync());
+
+        // NEW: Transfer annotations from FunctionNode to FunctionDefinition
+        for (const auto& annotation : node->getAnnotations())
+        {
+            funcDef->addAnnotation(annotation);
+        }
+
+        // NEW: Validate @Throw annotation if present
+        if (auto throwAnnotation = funcDef->getAnnotation("Throw"))
+        {
+            ::validation::AnnotationValidator::validateThrowAnnotation(
+                throwAnnotation,
+                env,
+                node->getLocation()
+            );
+        }
 
         // Register function in environment
         env->registerFunction(node->getName(), funcDef);
