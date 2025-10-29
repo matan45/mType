@@ -136,16 +136,10 @@ namespace vm::compiler::visitors
         std::string name = node->getVariableName();
         value::ValueType varType = node->getVariableType();
 
-        std::cerr << "[COMPILER DEBUG emitVariableDeclaration] name=" << name
-                  << " varType=" << static_cast<int>(varType)
-                  << " isInFunction=" << ctx.functionFrameManager.isInFunction() << std::endl;
-
         if (ctx.functionFrameManager.isInFunction()) {
-            std::cerr << "[COMPILER DEBUG] In function, checking if variable exists" << std::endl;
             // Check if variable exists anywhere in the function (including parameters)
             // This prevents parameter shadowing and variable redefinition
             if (ctx.variableTracker.existsInFunction(name)) {
-                std::cerr << "[COMPILER DEBUG] Variable already exists, throwing exception" << std::endl;
                 throw errors::EnvironmentException(
                     "Variable '" + name + "' is already defined in this scope",
                     node->getLocation()
@@ -354,14 +348,9 @@ namespace vm::compiler::visitors
         }
 
         // Emit bytecode based on whether this is a declaration or reassignment
-        std::cerr << "[COMPILER DEBUG compileAssignment] name=" << name
-                  << " varType=" << static_cast<int>(varType)
-                  << " isReassignment=" << isReassignment << std::endl;
         if (varType != value::ValueType::VOID) {
-            std::cerr << "[COMPILER DEBUG] Taking declaration path" << std::endl;
             emitVariableDeclaration(node);
         } else {
-            std::cerr << "[COMPILER DEBUG] Taking reassignment path" << std::endl;
             emitVariableReassignment(node, isReassignment);
         }
 

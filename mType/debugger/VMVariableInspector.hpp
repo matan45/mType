@@ -43,6 +43,12 @@ namespace debugger
          */
         std::vector<DebugVariable> getVariableChildren(std::shared_ptr<vm::runtime::VirtualMachine> vm, int refId);
 
+        /**
+         * Clear cached variable references
+         * Should be called when starting a new variables request to avoid stale refIds
+         */
+        void clearCache();
+
     private:
         // Helper to convert a Value to a debug variable
         DebugVariable valueToDebugVariable(const std::string& name, const value::Value& val);

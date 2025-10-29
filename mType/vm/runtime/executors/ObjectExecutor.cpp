@@ -342,6 +342,17 @@ namespace vm::runtime
             }
         }
 
+        // Reserve and initialize local variable slots (beyond 'this' and parameters)
+        // localCount for instance methods includes 'this' (slot 0) + parameters + locals
+        // We've already pushed 'this' and arguments, so reserve (localCount - 1 - argCount) additional slots
+        size_t pushedSlots = 1 + argCount;  // 'this' + arguments
+        if (funcMetadata->localCount > pushedSlots) {
+            size_t additionalLocals = funcMetadata->localCount - pushedSlots;
+            for (size_t i = 0; i < additionalLocals; ++i) {
+                context.stackManager->push(std::monostate{});
+            }
+        }
+
         context.instructionPointer = funcMetadata->startOffset - 1;
     }
 

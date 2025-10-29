@@ -81,6 +81,13 @@ namespace vm::runtime
                 context.stackManager->push(args[i]);
             }
 
+            // Reserve and initialize remaining local variable slots (beyond parameters)
+            // to prevent showing uninitialized variables in debugger
+            // All non-parameter slots are initialized to std::monostate (null) until explicitly assigned by STORE_LOCAL
+            for (size_t i = argCount; i < funcMetadata->localCount; ++i) {
+                context.stackManager->push(std::monostate{});
+            }
+
             // Jump to function start
             context.instructionPointer = funcMetadata->startOffset - 1;  // -1 because loop will increment
             return;

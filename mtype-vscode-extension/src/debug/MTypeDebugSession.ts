@@ -31,8 +31,11 @@ export class MTypeDebugSession extends LoggingDebugSession {
     // Thread ID constant (mType is single-threaded)
     private static THREAD_ID = 1;
 
+    // Fixed scope IDs that won't collide with interpreter refIds (which start at 1000)
+    private static LOCAL_SCOPE_ID = 1;
+    private static GLOBAL_SCOPE_ID = 2;
+
     private _runtime: MTypeRuntime;
-    private _variableHandles = new Handles<string>();
     private _configurationDone = false;
 
     /**
@@ -260,9 +263,10 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
     ): void {
+        // Use fixed scope IDs (1, 2) that won't collide with interpreter refIds (starting at 1000)
         const scopes: Scope[] = [
-            new Scope("Local", this._variableHandles.create("local"), false),
-            new Scope("Global", this._variableHandles.create("global"), true)
+            new Scope("Local", MTypeDebugSession.LOCAL_SCOPE_ID, false),
+            new Scope("Global", MTypeDebugSession.GLOBAL_SCOPE_ID, true)
         ];
 
         response.body = {
@@ -278,16 +282,25 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments
     ): Promise<void> {
-        const scopeName = this._variableHandles.get(args.variablesReference);
+        console.log('[DEBUG TS] variablesRequest called with variablesReference:', args.variablesReference);
         let runtimeVars: any[];
 
-        if (scopeName) {
-            // This is a scope request (local or global)
-            runtimeVars = await this._runtime.getVariables(scopeName);
+        // Check if this is a scope request (using our fixed scope IDs)
+        if (args.variablesReference === MTypeDebugSession.LOCAL_SCOPE_ID) {
+            // Local scope
+            console.log('[DEBUG TS] Getting variables for scope: local');
+            runtimeVars = await this._runtime.getVariables("local");
+        } else if (args.variablesReference === MTypeDebugSession.GLOBAL_SCOPE_ID) {
+            // Global scope
+            console.log('[DEBUG TS] Getting variables for scope: global');
+            runtimeVars = await this._runtime.getVariables("global");
         } else {
-            // This is an expandable variable request (refId)
+            // This is an expandable variable request (refId from interpreter, >= 1000)
+            console.log('[DEBUG TS] Getting children for expandable variable with refId:', args.variablesReference);
             runtimeVars = await this._runtime.getVariableChildren(args.variablesReference);
         }
+
+        console.log('[DEBUG TS] Runtime variables:', JSON.stringify(runtimeVars));
 
         // Convert to DAP format
         const variables: DebugProtocol.Variable[] = runtimeVars.map(v => ({
@@ -296,6 +309,8 @@ export class MTypeDebugSession extends LoggingDebugSession {
             type: v.type,
             variablesReference: v.refId
         }));
+
+        console.log('[DEBUG TS] Sending variables to VS Code:', JSON.stringify(variables));
 
         response.body = {
             variables: variables

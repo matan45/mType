@@ -21,7 +21,6 @@ namespace vm::compiler::visitors
     value::Value FunctionCompiler::compileFunction(ast::FunctionNode* node)
     {
         std::string funcName = node->getName();
-        std::cerr << "[COMPILER DEBUG] ===== Compiling function: " << funcName << " =====" << std::endl;
 
         // Check if this function is already registered as a native function
         const auto* existingFunc = ctx.program.getFunction(funcName);
@@ -85,24 +84,19 @@ namespace vm::compiler::visitors
         }
 
         // Track parameters as locals
-        std::cerr << "[COMPILER DEBUG] Registering " << paramTypesVec.size() << " parameters" << std::endl;
         for (const auto& param : paramTypesVec) {
-            std::cerr << "[COMPILER DEBUG]   Parameter: " << param.first << std::endl;
             ctx.variableTracker.declareLocal(param.first, param.second.basicType,
                 param.second.className.value_or(""));
         }
 
         // Update max local slot after parameters
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-        std::cerr << "[COMPILER DEBUG] After parameters, locals.size()=" << ctx.variableTracker.getLocals().size() << std::endl;
 
         // Compile function body
-        std::cerr << "[COMPILER DEBUG] Compiling function body..." << std::endl;
         auto* body = node->getBodyPtr();
         if (body) {
             body->accept(ctx.visitor);  // Will need delegation
         }
-        std::cerr << "[COMPILER DEBUG] After compiling body, locals.size()=" << ctx.variableTracker.getLocals().size() << std::endl;
 
         // Pop generic bindings if we pushed them
         if (pushedGenericBindings)
@@ -131,28 +125,20 @@ namespace vm::compiler::visitors
 
         // Capture local variable names for debugging (before exiting frame)
         const auto& locals = ctx.variableTracker.getLocals();
-        std::cerr << "[COMPILER DEBUG] Capturing local variable names for function: " << node->getName() << std::endl;
-        std::cerr << "[COMPILER DEBUG]   localCount=" << localCount << std::endl;
-        std::cerr << "[COMPILER DEBUG]   locals.size()=" << locals.size() << std::endl;
-        for (size_t i = 0; i < locals.size(); ++i)
-        {
-            std::cerr << "[COMPILER DEBUG]   locals[" << i << "]: name='" << locals[i].name
-                      << "' slot=" << locals[i].slot << std::endl;
-        }
+        const auto& currentFrame = ctx.functionFrameManager.currentFrame();
 
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
         {
-            if (local.slot < localCount)
+            // Convert absolute slot to relative slot within this function
+            if (local.slot >= currentFrame.localStartSlot)
             {
-                localVarNames[local.slot] = local.name;
+                size_t relativeSlot = local.slot - currentFrame.localStartSlot;
+                if (relativeSlot < localCount)
+                {
+                    localVarNames[relativeSlot] = local.name;
+                }
             }
-        }
-
-        std::cerr << "[COMPILER DEBUG]   Final localVarNames:" << std::endl;
-        for (size_t i = 0; i < localVarNames.size(); ++i)
-        {
-            std::cerr << "[COMPILER DEBUG]     [" << i << "]='" << localVarNames[i] << "'" << std::endl;
         }
 
         ctx.variableTracker.endScope();      // End function body scope
@@ -550,13 +536,19 @@ namespace vm::compiler::visitors
 
         // Capture local variable names for debugging (before exiting frame)
         const auto& locals = ctx.variableTracker.getLocals();
+        const auto& currentFrame = ctx.functionFrameManager.currentFrame();
         size_t localCount = node->getParameters().size() + capturedVars.size();
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
         {
-            if (local.slot < localCount)
+            // Convert absolute slot to relative slot within this lambda
+            if (local.slot >= currentFrame.localStartSlot)
             {
-                localVarNames[local.slot] = local.name;
+                size_t relativeSlot = local.slot - currentFrame.localStartSlot;
+                if (relativeSlot < localCount)
+                {
+                    localVarNames[relativeSlot] = local.name;
+                }
             }
         }
 

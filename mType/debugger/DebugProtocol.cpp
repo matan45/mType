@@ -317,21 +317,37 @@ namespace debugger {
     }
 
     void DebugServer::handleContinue() {
+        // Clear variable cache when resuming execution
+        if (vmVariableInspector) {
+            vmVariableInspector->clearCache();
+        }
         debugContext->continueExecution();
         DebugProtocol::sendOK();
     }
 
     void DebugServer::handleStepInto() {
+        // Clear variable cache when stepping
+        if (vmVariableInspector) {
+            vmVariableInspector->clearCache();
+        }
         debugContext->stepInto();
         DebugProtocol::sendOK();
     }
 
     void DebugServer::handleStepOver() {
+        // Clear variable cache when stepping
+        if (vmVariableInspector) {
+            vmVariableInspector->clearCache();
+        }
         debugContext->stepOver();
         DebugProtocol::sendOK();
     }
 
     void DebugServer::handleStepOut() {
+        // Clear variable cache when stepping
+        if (vmVariableInspector) {
+            vmVariableInspector->clearCache();
+        }
         debugContext->stepOut();
         DebugProtocol::sendOK();
     }

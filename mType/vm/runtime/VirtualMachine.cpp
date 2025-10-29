@@ -466,9 +466,6 @@ namespace vm::runtime
     {
         suspendedByAwait = false; // Reset flag at start
 
-        // DEBUG: Verify this code is being executed
-        std::cerr << "[DEBUG VM] interpretLoop started - enhanced logging active\n";
-
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, environment,

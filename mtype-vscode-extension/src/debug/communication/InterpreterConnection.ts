@@ -155,7 +155,10 @@ export class InterpreterConnection extends EventEmitter {
                 break;
 
             case 'EXPANDEDVAR':
-                this.emit('expandedVariable', this.parseVariables(message.params));
+                console.log('[DEBUG TS] Received EXPANDEDVAR message, params:', message.params);
+                const expandedChildren = this.parseVariables(message.params);
+                console.log('[DEBUG TS] Parsed children:', JSON.stringify(expandedChildren));
+                this.emit('expandedVariable', expandedChildren);
                 break;
 
             case 'RESULT':
