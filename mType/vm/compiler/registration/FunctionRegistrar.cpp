@@ -172,9 +172,8 @@ namespace vm::compiler::registration
     void FunctionRegistrar::validateSingleFunctionThrow(ast::FunctionNode* functionNode)
     {
         // Validate @Throw annotation if present
-        if (functionNode->hasAnnotation("Throw"))
+        if (auto throwAnnotation = functionNode->getAnnotation("Throw"))
         {
-            auto throwAnnotation = functionNode->getAnnotation("Throw");
             ::validation::AnnotationValidator::validateThrowAnnotation(
                 throwAnnotation,
                 environment,

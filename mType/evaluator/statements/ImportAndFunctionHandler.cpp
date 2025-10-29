@@ -271,9 +271,8 @@ namespace statements {
         }
 
         // NEW: Validate @Throw annotation if present
-        if (funcDef->hasAnnotation("Throw"))
+        if (auto throwAnnotation = funcDef->getAnnotation("Throw"))
         {
-            auto throwAnnotation = funcDef->getAnnotation("Throw");
             ::validation::AnnotationValidator::validateThrowAnnotation(
                 throwAnnotation,
                 env,

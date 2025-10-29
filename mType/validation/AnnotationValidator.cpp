@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 #include "../value/ValueType.hpp"
+#include "../constants/ExceptionConstants.hpp"
 #include <sstream>
 #include <unordered_set>
 
@@ -19,10 +20,9 @@ namespace validation
         }
 
         // Validate @Script annotation on class
-        if (classDefinition->hasAnnotation("Script"))
+        if (auto scriptAnnotation = classDefinition->getAnnotation("Script"))
         {
-            auto scriptAnnotation = classDefinition->getAnnotation("Script");
-            SourceLocation location = scriptAnnotation ? scriptAnnotation->getLocation() : SourceLocation();
+            SourceLocation location = scriptAnnotation->getLocation();
             validateScriptAnnotation(classDefinition, location);
         }
 
@@ -51,9 +51,8 @@ namespace validation
             }
 
             // Validate @Throw annotation if present
-            if (methodDef->hasAnnotation("Throw"))
+            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
             {
-                auto throwAnnotation = methodDef->getAnnotation("Throw");
                 validateThrowAnnotation(
                     throwAnnotation,
                     environment,
@@ -66,9 +65,8 @@ namespace validation
         for (const auto& [methodName, methodDef] : classDefinition->getStaticMethods())
         {
             // Validate @Throw annotation if present
-            if (methodDef->hasAnnotation("Throw"))
+            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
             {
-                auto throwAnnotation = methodDef->getAnnotation("Throw");
                 validateThrowAnnotation(
                     throwAnnotation,
                     environment,
@@ -380,49 +378,41 @@ namespace validation
             if (!isExceptionClass(exceptionName, environment))
             {
                 std::ostringstream oss;
-                oss << "Class '" << exceptionName << "' in @Throw annotation must extend Exception.\n\n"
-                    << "Exception classes must inherit from the Exception base class.";
+                oss << "Class '" << exceptionName << "' in @Throw annotation must extend "
+                    << constants::exception::BASE_EXCEPTION_CLASS << ".\n\n"
+                    << "Exception classes must inherit from the "
+                    << constants::exception::BASE_EXCEPTION_CLASS << " base class.";
                 throw TypeException(oss.str(), location);
             }
         }
     }
 
+    // Helper function to trim whitespace from both ends of a string
+    static std::string trim(const std::string& str)
+    {
+        const std::string whitespace = " \t\n\r";
+        size_t start = str.find_first_not_of(whitespace);
+        if (start == std::string::npos)
+        {
+            return ""; // String is all whitespace
+        }
+        size_t end = str.find_last_not_of(whitespace);
+        return str.substr(start, end - start + 1);
+    }
+
     std::vector<std::string> AnnotationValidator::parseExceptionList(const std::string& exceptionsParam)
     {
         std::vector<std::string> exceptionNames;
-        std::string current;
+        std::stringstream ss(exceptionsParam);
+        std::string token;
 
-        for (char c : exceptionsParam)
+        // Use std::getline with comma delimiter
+        while (std::getline(ss, token, ','))
         {
-            if (c == ',')
+            std::string trimmed = trim(token);
+            if (!trimmed.empty())
             {
-                // Trim whitespace and add to list
-                if (!current.empty())
-                {
-                    // Simple trim: remove leading/trailing spaces
-                    size_t start = current.find_first_not_of(" \t\n\r");
-                    size_t end = current.find_last_not_of(" \t\n\r");
-                    if (start != std::string::npos && end != std::string::npos)
-                    {
-                        exceptionNames.push_back(current.substr(start, end - start + 1));
-                    }
-                }
-                current.clear();
-            }
-            else
-            {
-                current += c;
-            }
-        }
-
-        // Add the last exception name
-        if (!current.empty())
-        {
-            size_t start = current.find_first_not_of(" \t\n\r");
-            size_t end = current.find_last_not_of(" \t\n\r");
-            if (start != std::string::npos && end != std::string::npos)
-            {
-                exceptionNames.push_back(current.substr(start, end - start + 1));
+                exceptionNames.push_back(trimmed);
             }
         }
 
@@ -442,7 +432,7 @@ namespace validation
         }
 
         // Check if the class is named "Exception" (base exception class)
-        if (className == "Exception")
+        if (className == constants::exception::BASE_EXCEPTION_CLASS)
         {
             return true;
         }
@@ -464,7 +454,7 @@ namespace validation
             }
 
             std::string parentClassName = currentClass->getParentClassName();
-            if (parentClassName == "Exception")
+            if (parentClassName == constants::exception::BASE_EXCEPTION_CLASS)
             {
                 return true;
             }
