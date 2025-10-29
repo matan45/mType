@@ -166,12 +166,17 @@ namespace debugger {
 
     // Forward declarations
     class VariableInspector;
+    class VMVariableInspector;
 
 } // namespace debugger
 
-// Forward declaration for Environment
+// Forward declarations
 namespace environment {
     class Environment;
+}
+
+namespace vm::runtime {
+    class VirtualMachine;
 }
 
 namespace debugger {
@@ -184,16 +189,23 @@ namespace debugger {
         bool running;
         DebugContext* debugContext;
         std::unique_ptr<VariableInspector> variableInspector;
+        std::unique_ptr<VMVariableInspector> vmVariableInspector;
         std::shared_ptr<environment::Environment> currentEnvironment;
+        std::shared_ptr<vm::runtime::VirtualMachine> currentVM;
 
     public:
         DebugServer();
         ~DebugServer();
 
         /**
-         * Set the current environment for variable inspection
+         * Set the current environment for variable inspection (AST mode)
          */
         void setEnvironment(std::shared_ptr<environment::Environment> env);
+
+        /**
+         * Set the current VM for variable inspection (bytecode mode)
+         */
+        void setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm);
 
         /**
          * Start the debug server loop

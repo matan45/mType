@@ -5,7 +5,8 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
-
+#include "../../../ast/nodes/classes/FieldNode.hpp"
+#include  <iostream>
 
 
 namespace vm::compiler::visitors
@@ -135,20 +136,28 @@ namespace vm::compiler::visitors
         std::string name = node->getVariableName();
         value::ValueType varType = node->getVariableType();
 
-        if (ctx.functionFrameManager.isInFunction() && ctx.variableTracker.getCurrentScopeDepth() > 0) {
+        std::cerr << "[COMPILER DEBUG emitVariableDeclaration] name=" << name
+                  << " varType=" << static_cast<int>(varType)
+                  << " isInFunction=" << ctx.functionFrameManager.isInFunction() << std::endl;
+
+        if (ctx.functionFrameManager.isInFunction()) {
+            std::cerr << "[COMPILER DEBUG] In function, checking if variable exists" << std::endl;
             // Check if variable exists anywhere in the function (including parameters)
             // This prevents parameter shadowing and variable redefinition
             if (ctx.variableTracker.existsInFunction(name)) {
+                std::cerr << "[COMPILER DEBUG] Variable already exists, throwing exception" << std::endl;
                 throw errors::EnvironmentException(
                     "Variable '" + name + "' is already defined in this scope",
                     node->getLocation()
                 );
             }
 
+            std::cerr << "[COMPILER DEBUG] Calling declareLocal for " << name << std::endl;
             ctx.variableTracker.declareLocal(name, varType, node->getClassName());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            std::cerr << "[COMPILER DEBUG] Successfully registered " << name << " in VariableTracker" << std::endl;
 
-            ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+            // STORE_LOCAL will consume the value from the stack - no DUP needed
             size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
@@ -180,9 +189,10 @@ namespace vm::compiler::visitors
                                     }, node);
     }
 
-    void StatementCompiler::emitVariableReassignment(ast::AssignmentNode* node)
+    void StatementCompiler::emitVariableReassignment(ast::AssignmentNode* node, bool isReassignment)
     {
         std::string name = node->getVariableName();
+        value::ValueType varType = node->getVariableType();
 
         // Check for static field assignment
         if (name.find("::") != std::string::npos) {
@@ -198,8 +208,9 @@ namespace vm::compiler::visitors
                 ctx.functionFrameManager.currentFrame().localStartSlot);
         }
 
+        // If found as existing local, store to it
         if (localSlot != SIZE_MAX) {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+            // STORE_LOCAL will consume the value from the stack - no DUP needed
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
                                         static_cast<uint32_t>(localSlot),
@@ -207,40 +218,95 @@ namespace vm::compiler::visitors
             return;
         }
 
-        // Check if it's an instance field (when inside a method)
-        if (ctx.currentClassNode) {
-            auto classRegistry = ctx.environment->getClassRegistry();
-            if (classRegistry) {
-                auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
-                if (classDef) {
-                    // Check instance fields in current class and all parent classes
-                    auto currentClass = classDef;
-                    while (currentClass) {
-                        const auto& instanceFields = currentClass->getInstanceFields();
-                        if (instanceFields.find(name) != instanceFields.end()) {
-                            // It's an instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
+        // IMPORTANT: Check if it's an instance field BEFORE treating as type-inferred local
+        // This prevents fields from being incorrectly registered as local variables
+        // During bytecode compilation, we check the AST ClassNode directly instead of
+        // querying the runtime classRegistry (which isn't populated yet at compile-time)
+        if (ctx.currentClassNode && ctx.functionFrameManager.isInFunction()) {
+            // Check fields in the current class's AST
+            const auto& fields = ctx.currentClassNode->getFields();
+            for (const auto& fieldPtr : fields) {
+                if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get())) {
+                    if (fieldNode->getName() == name) {
+                        if (fieldNode->getIsStatic()) {
+                            // Static field - use fully qualified name: ClassName::fieldName
+                            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + name;
+                            size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                            return;
+                        } else {
+                            // Instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
                             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
                             ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
                             size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
                             ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
                             return;
                         }
-
-                        // Move to parent class to check inherited fields
-                        currentClass = currentClass->hasParentClass() ? currentClass->getParentClass() : nullptr;
-                    }
-
-                    // Check if it's a static field of the current class (static fields are not inherited)
-                    const auto& staticFields = classDef->getStaticFields();
-                    if (staticFields.find(name) != staticFields.end()) {
-                        // It's a static field - use fully qualified name: ClassName::fieldName
-                        std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + name;
-                        size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
-                        return;
                     }
                 }
             }
+
+            // Check parent class fields for inheritance
+            // Try to use class registry if available (classes may be pre-registered)
+            if (ctx.currentClassNode->hasParentClass()) {
+                auto classRegistry = ctx.environment->getClassRegistry();
+                if (classRegistry) {
+                    std::string parentClassName = ctx.currentClassNode->getParentClassName();
+                    auto parentClass = classRegistry->findClass(parentClassName);
+
+                    // Walk up the inheritance chain
+                    while (parentClass) {
+                        auto field = parentClass->getField(name);
+                        if (field) {
+                            if (field->isStatic()) {
+                                // Static field - use fully qualified name with the class where it's defined
+                                std::string qualifiedName = parentClass->getName() + "::" + name;
+                                size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                                return;
+                            } else {
+                                // Inherited instance field - emit: LOAD_LOCAL 0 (this), value, SET_FIELD
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::SWAP, node);
+                                size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                                return;
+                            }
+                        }
+
+                        // Continue up the inheritance chain
+                        parentClass = parentClass->hasParentClass() ? parentClass->getParentClass() : nullptr;
+                    }
+                }
+            }
+        }
+
+        // If we're in a function and variable doesn't exist yet and this is not a reassignment,
+        // it's a new local variable declaration with type inference - register it
+        std::cerr << "[COMPILER DEBUG emitVariableReassignment] name=" << name
+                  << " isInFunction=" << ctx.functionFrameManager.isInFunction()
+                  << " isReassignment=" << isReassignment << std::endl;
+        if (ctx.functionFrameManager.isInFunction() && !isReassignment) {
+            std::cerr << "[COMPILER DEBUG] Registering type-inferred variable: " << name << std::endl;
+            // Check if variable exists anywhere in the function (including parameters)
+            if (ctx.variableTracker.existsInFunction(name)) {
+                throw errors::EnvironmentException(
+                    "Variable '" + name + "' is already defined in this scope",
+                    node->getLocation()
+                );
+            }
+
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName());
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+
+            // STORE_LOCAL will consume the value from the stack - no DUP needed
+            size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
+            size_t nameIndex = ctx.program.getConstantPool().addString(name);
+            std::cerr << "[COMPILER DEBUG] Registered variable " << name << " at slot " << slot << std::endl;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+                                        static_cast<uint32_t>(slot),
+                                        static_cast<uint32_t>(nameIndex), node);
+            return;
         }
 
         // Global variable assignment - validate variable exists
@@ -295,10 +361,15 @@ namespace vm::compiler::visitors
         }
 
         // Emit bytecode based on whether this is a declaration or reassignment
+        std::cerr << "[COMPILER DEBUG compileAssignment] name=" << name
+                  << " varType=" << static_cast<int>(varType)
+                  << " isReassignment=" << isReassignment << std::endl;
         if (varType != value::ValueType::VOID) {
+            std::cerr << "[COMPILER DEBUG] Taking declaration path" << std::endl;
             emitVariableDeclaration(node);
         } else {
-            emitVariableReassignment(node);
+            std::cerr << "[COMPILER DEBUG] Taking reassignment path" << std::endl;
+            emitVariableReassignment(node, isReassignment);
         }
 
         return std::monostate{};
@@ -306,13 +377,25 @@ namespace vm::compiler::visitors
 
     value::Value StatementCompiler::compileBlock(ast::BlockNode* node)
     {
-        ctx.variableTracker.beginScope();
+        // IMPORTANT: Function body blocks should NOT create their own scope!
+        // The function already creates a scope, and if we create another one here,
+        // all variables will be cleared before FunctionCompiler can capture their names.
+        bool shouldManageScope = !ctx.functionFrameManager.isInFunction();
+
+        if (shouldManageScope) {
+            ctx.variableTracker.beginScope();
+        }
+
         const auto& statements = node->getStatements();
         for (auto& stmt : statements) {
             stmt->accept(ctx.visitor);  // Will need delegation
         }
-        ctx.variableTracker.endScope();
-        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
+
+        if (shouldManageScope) {
+            ctx.variableTracker.endScope();
+            ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
+        }
+
         return std::monostate{};
     }
 

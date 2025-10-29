@@ -62,6 +62,18 @@ namespace vm::compiler::visitors
         ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         size_t localCount = ctx.functionFrameManager.getLocalCount();
+
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
+
         ctx.variableTracker.endScope();
         ctx.functionFrameManager.exitFunctionFrame();
 
@@ -82,6 +94,7 @@ namespace vm::compiler::visitors
         metadata.returnType = "object";
         metadata.isStatic = false;
         metadata.isNative = false;
+        metadata.localVariableNames = localVarNames;
 
         ctx.program.registerFunction(metadata.name, metadata);
 
@@ -154,7 +167,7 @@ namespace vm::compiler::visitors
         return result;
     }
 
-    size_t MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
+    MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
     {
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(params.returnTypeStr,
@@ -217,14 +230,25 @@ namespace vm::compiler::visitors
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
+
         ctx.variableTracker.endScope();
         ctx.functionFrameManager.exitFunctionFrame();
 
-        return localCount;
+        return MethodBodyInfo{ localCount, localVarNames };
     }
 
     void MethodCompilerHelper::finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
-                                                          size_t methodStart, size_t skipJump, size_t localCount, bool isStatic)
+                                                          size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic)
     {
         // Patch skip jump to current position (after method)
         ctx.emitter.patchJump(skipJump);
@@ -248,7 +272,7 @@ namespace vm::compiler::visitors
         metadata.name = qualifiedMethodName;
         metadata.startOffset = methodStart;
         metadata.instructionCount = ctx.program.getCurrentOffset() - methodStart;
-        metadata.localCount = localCount;
+        metadata.localCount = bodyInfo.localCount;
         metadata.parameterCount = params.paramNames.size();
         metadata.parameterNames = params.paramNames;
         metadata.parameterTypes = params.paramTypes;
@@ -256,6 +280,7 @@ namespace vm::compiler::visitors
         metadata.isStatic = isStatic;
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();
+        metadata.localVariableNames = bodyInfo.localVarNames;
 
         ctx.program.registerFunction(qualifiedMethodName, metadata);
     }
@@ -289,14 +314,14 @@ namespace vm::compiler::visitors
         MethodParameters params = collectMethodParameters(node, isStatic);
 
         // Compile method body with frame management
-        size_t localCount = compileMethodBodyWithFrame(node, params, isStatic);
+        MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic);
 
         // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;
         ctx.inStaticMethod = wasInStaticMethod;
 
         // Finalize method compilation (patch jump, register metadata)
-        finalizeMethodCompilation(node, params, methodStart, skipJump, localCount, isStatic);
+        finalizeMethodCompilation(node, params, methodStart, skipJump, bodyInfo, isStatic);
 
         return std::monostate{};
     }
@@ -396,6 +421,17 @@ namespace vm::compiler::visitors
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
+
         ctx.variableTracker.endScope(); // End constructor body scope
         ctx.functionFrameManager.exitFunctionFrame();
 
@@ -417,6 +453,7 @@ namespace vm::compiler::visitors
         metadata.parameterNames = paramNames;
         metadata.returnType = returnTypeStr;
         metadata.isStatic = false;
+        metadata.localVariableNames = localVarNames;
         metadata.isNative = false;
 
         ctx.program.registerFunction(constructorName, metadata);

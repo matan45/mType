@@ -65,6 +65,7 @@ namespace vm::bytecode
             bool isNative = false;
             bool isAsync = false; // NEW: Flag for async functions
             std::vector<std::string> genericTypeParameters; // Generic type parameter names (e.g., ["T", "K", "V"])
+            std::vector<std::string> localVariableNames; // NEW: Names of all local variables (for debugging)
         };
 
         /**

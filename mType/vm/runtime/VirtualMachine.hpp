@@ -146,6 +146,9 @@ namespace vm::runtime
         void setDebuggingEnabled(bool enabled) { debuggingEnabled = enabled; }
         bool isDebuggingEnabled() const { return debuggingEnabled; }
         std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
+        const std::vector<CallFrame>& getCallStack() const { return callStack; }
+        std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
+        const bytecode::BytecodeProgram* getProgram() const { return program; }
 
         // Reset VM state
         void reset();

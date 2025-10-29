@@ -208,22 +208,21 @@ export class MTypeRuntime extends EventEmitter {
      * Get variables for a scope
      */
     public async getVariables(scope: string): Promise<any[]> {
-        console.log(`[DEBUG] getVariables called for scope: ${scope}`);
+        console.log(`[DEBUG EXT] getVariables() called for scope: ${scope}`);
         return new Promise((resolve) => {
             // Store pending request so we know which scope this response is for
             this.pendingVariableRequest = { scope, resolve };
 
             // Request variables from interpreter
-            console.log(`[DEBUG] Sending GETVARIABLES command for scope: ${scope}`);
+            console.log(`[DEBUG EXT] Sending GETVARIABLES command for scope: ${scope}`);
             this.connection.sendCommand(`GETVARIABLES scope=${scope}`);
 
             // Timeout after 1 second (return cached or empty)
             setTimeout(() => {
                 if (this.pendingVariableRequest && this.pendingVariableRequest.scope === scope) {
-                    console.log(`[DEBUG] getVariables timeout for scope: ${scope}, returning cached or empty`);
+                    console.log(`[DEBUG EXT] getVariables timeout for scope ${scope}, returning cached`);
                     this.pendingVariableRequest = null;
                     const cached = this.variables.get(scope) || [];
-                    console.log(`[DEBUG] Returning ${cached.length} cached variables`);
                     resolve(cached);
                 }
             }, 1000);
@@ -288,19 +287,14 @@ export class MTypeRuntime extends EventEmitter {
      * Handle stopped event from interpreter
      */
     private handleStoppedEvent(data: any): void {
-        console.log(`[DEBUG] handleStoppedEvent called - data:`, data);
-
         const reason = data.reason || 'unknown';
         const file = data.file || '';
         const line = parseInt(data.line) || 0;
-
-        console.log(`[DEBUG] Parsed stopped event - reason: ${reason}, file: ${file}, line: ${line}`);
 
         // Update stack frames
         this.updateStackFrames(file, line);
 
         // Emit appropriate event
-        console.log(`[DEBUG] Emitting event for reason: ${reason}`);
         switch (reason) {
             case 'entry':
                 this.emit('stopOnEntry');
@@ -314,8 +308,6 @@ export class MTypeRuntime extends EventEmitter {
             case 'exception':
                 this.emit('stopOnException', data.message || 'Exception occurred');
                 break;
-            default:
-                console.log(`[DEBUG] Unknown reason: ${reason}, not emitting any event`);
         }
     }
 
@@ -323,7 +315,6 @@ export class MTypeRuntime extends EventEmitter {
      * Update stack frames from current location
      */
     private updateStackFrames(file: string, line: number): void {
-        console.log(`[DEBUG] updateStackFrames called - file: ${file}, line: ${line}`);
 
         // Store the current stopped location
         this.lastStoppedLocation = { file, line };
@@ -343,8 +334,6 @@ export class MTypeRuntime extends EventEmitter {
             }
         ];
 
-        console.log(`[DEBUG] Created temporary stack frame:`, this.stackFrames[0]);
-
         // Request variables when we stop
         this.requestVariables();
     }
@@ -353,8 +342,6 @@ export class MTypeRuntime extends EventEmitter {
      * Handle stack trace response from interpreter
      */
     private handleStackTraceResponse(frames: any[]): void {
-        console.log(`[DEBUG] handleStackTraceResponse - received ${frames.length} frames:`, frames);
-
         // Convert to RuntimeStackFrame format
         this.stackFrames = frames.map((frame, index) => ({
             index: index,
@@ -364,23 +351,19 @@ export class MTypeRuntime extends EventEmitter {
             column: 1
         }));
 
-        console.log(`[DEBUG] Converted stack frames:`, this.stackFrames);
-
         // IMPORTANT: Use the STOPPED event's line number for frame 0 (current location)
         // The STACKTRACE shows call sites, not the current execution line
         if (this.lastStoppedLocation && this.stackFrames.length > 0) {
-            console.log(`[DEBUG] Overriding frame 0 with lastStoppedLocation:`, this.lastStoppedLocation);
             this.stackFrames[0].file = this.lastStoppedLocation.file;
             this.stackFrames[0].line = this.lastStoppedLocation.line;
         }
-
-        console.log(`[DEBUG] Final stack frames:`, this.stackFrames);
     }
 
     /**
      * Request variables from the interpreter
      */
     private requestVariables(): void {
+        console.log('[DEBUG EXT] requestVariables() called - sending GETVARIABLES commands');
         this.connection.sendCommand('GETVARIABLES scope=local');
         this.connection.sendCommand('GETVARIABLES scope=global');
     }

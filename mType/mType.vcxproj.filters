@@ -633,6 +633,9 @@
     <ClInclude Include="debugger\DebugProtocol.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
+    <ClInclude Include="debugger\VMVariableInspector.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\VariableInspector.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
@@ -1752,6 +1755,9 @@
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\DebugProtocol.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\VariableInspector.cpp">

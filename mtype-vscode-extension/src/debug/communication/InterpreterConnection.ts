@@ -31,12 +31,9 @@ export class InterpreterConnection extends EventEmitter {
             // Spawn the interpreter with --debug flag and any additional args
             const args = ['--debug'];
             if (additionalArgs) {
-                console.log(`[DEBUG EXTENSION] Additional args provided:`, additionalArgs);
                 args.push(...additionalArgs);
             }
             args.push(program);
-
-            console.log(`[DEBUG EXTENSION] Starting interpreter with args:`, args);
 
             this.process = spawn(interpreterPath, args, {
                 cwd: cwd,
@@ -97,8 +94,11 @@ export class InterpreterConnection extends EventEmitter {
      * Send a command to the interpreter
      */
     public sendCommand(command: string): void {
+        console.log(`[DEBUG EXT] InterpreterConnection.sendCommand: ${command}`);
         if (this.process && this.process.stdin) {
             this.process.stdin.write(command + '\n');
+        } else {
+            console.log(`[DEBUG EXT] WARNING: Cannot send command, process or stdin is null`);
         }
     }
 
@@ -132,13 +132,9 @@ export class InterpreterConnection extends EventEmitter {
             return;
         }
 
-        // DEBUG: Log all protocol messages
-        console.log(`[DEBUG] Received protocol message: ${message.command}`, message.params);
-
         // Handle different message types
         switch (message.command) {
             case 'STOPPED':
-                console.log(`[DEBUG] STOPPED event - reason: ${message.params.reason}, file: ${message.params.file}, line: ${message.params.line}`);
                 this.emit('stopped', message.params);
                 break;
 
@@ -180,7 +176,8 @@ export class InterpreterConnection extends EventEmitter {
                 break;
 
             default:
-                console.log(`Unknown debug message: ${message.command}`);
+                // Unknown message
+                break;
         }
     }
 

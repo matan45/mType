@@ -1,5 +1,7 @@
 #include "DebugProtocol.hpp"
 #include "VariableInspector.hpp"
+#include "VMVariableInspector.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"
 #include <sstream>
@@ -115,16 +117,13 @@ namespace debugger {
 
     void DebugProtocol::sendStackTrace(const std::vector<CallFrame>& frames) {
         Message msg("STACKTRACE");
-        std::cerr << "[DEBUG C++] sendStackTrace - sending " << frames.size() << " frames\n";
         for (size_t i = 0; i < frames.size(); i++) {
             const CallFrame& frame = frames[i];
             std::string frameStr = frame.functionName + "@" +
                                  frame.location.getFilename() + ":" +
                                  std::to_string(frame.location.getLine());
             msg.addParameter("frame" + std::to_string(i), frameStr);
-            std::cerr << "[DEBUG C++]   Sending frame" << i << "=" << frameStr << "\n";
         }
-        std::cerr << "[DEBUG C++] Final STACKTRACE message: " << msg.serialize() << "\n";
         send(msg);
     }
 
@@ -173,7 +172,8 @@ namespace debugger {
 
     DebugServer::DebugServer()
         : running(false), debugContext(&DebugContext::getInstance()),
-          variableInspector(std::make_unique<VariableInspector>()) {
+          variableInspector(std::make_unique<VariableInspector>()),
+          vmVariableInspector(std::make_unique<VMVariableInspector>()) {
     }
 
     DebugServer::~DebugServer() {
@@ -182,6 +182,10 @@ namespace debugger {
 
     void DebugServer::setEnvironment(std::shared_ptr<environment::Environment> env) {
         currentEnvironment = env;
+    }
+
+    void DebugServer::setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm) {
+        currentVM = vm;
     }
 
     void DebugServer::run() {
@@ -233,6 +237,7 @@ namespace debugger {
 
     void DebugServer::processCommand(const DebugProtocol::Message& message) {
         const std::string& cmd = message.command;
+        std::cerr << "[DEBUG C++] processCommand: " << cmd << std::endl;
 
         try {
             if (cmd == "SETBREAKPOINT") {
@@ -255,6 +260,7 @@ namespace debugger {
             } else if (cmd == "GETSTACKTRACE") {
                 handleGetStackTrace();
             } else if (cmd == "GETVARIABLES") {
+                std::cerr << "[DEBUG C++] GETVARIABLES command received!" << std::endl;
                 handleGetVariables(message);
             } else if (cmd == "EXPANDVARIABLE") {
                 handleExpandVariable(message);
@@ -265,9 +271,11 @@ namespace debugger {
             } else if (cmd == "STOP") {
                 handleStop();
             } else {
+                std::cerr << "[DEBUG C++] Unknown command: " << cmd << std::endl;
                 DebugProtocol::sendError("Unknown command: " + cmd);
             }
         } catch (const std::exception& e) {
+            std::cerr << "[DEBUG C++] Command error: " << e.what() << std::endl;
             DebugProtocol::sendError(std::string("Command error: ") + e.what());
         }
     }
@@ -334,74 +342,100 @@ namespace debugger {
 
     void DebugServer::handleGetStackTrace() {
         std::vector<CallFrame> frames = debugContext->getCallStack();
-        std::cerr << "[DEBUG C++] handleGetStackTrace - got " << frames.size() << " frames\n";
-        for (size_t i = 0; i < frames.size(); i++) {
-            std::cerr << "[DEBUG C++]   Frame " << i << ": " << frames[i].functionName
-                      << " at " << frames[i].location.getFilename() << ":" << frames[i].location.getLine() << "\n";
-        }
         DebugProtocol::sendStackTrace(frames);
     }
 
     void DebugServer::handleGetVariables(const DebugProtocol::Message& message) {
-        std::cerr << "[DEBUG C++] handleGetVariables called\n";
-
-        if (!currentEnvironment) {
-            std::cerr << "[DEBUG C++] ERROR: No currentEnvironment!\n";
-            DebugProtocol::sendError("No environment available for variable inspection");
-            return;
-        }
-        std::cerr << "[DEBUG C++] currentEnvironment is set\n";
-
-        if (!variableInspector) {
-            std::cerr << "[DEBUG C++] ERROR: No variableInspector!\n";
-            DebugProtocol::sendError("No variable inspector available");
-            return;
-        }
-        std::cerr << "[DEBUG C++] variableInspector is set\n";
-
         std::string scope = message.getParameter("scope", "local");
-        std::cerr << "[DEBUG C++] Requesting variables for scope: " << scope << "\n";
+        std::cerr << "[DEBUG C++] handleGetVariables called for scope: " << scope << std::endl;
 
         std::vector<DebugVariable> variables;
 
-        if (scope == "local") {
-            std::cerr << "[DEBUG C++] Calling getLocalVariables()\n";
-            variables = variableInspector->getLocalVariables(currentEnvironment);
-            std::cerr << "[DEBUG C++] getLocalVariables() returned " << variables.size() << " variables\n";
-        } else if (scope == "global") {
-            std::cerr << "[DEBUG C++] Calling getGlobalVariables()\n";
-            variables = variableInspector->getGlobalVariables(currentEnvironment);
-            std::cerr << "[DEBUG C++] getGlobalVariables() returned " << variables.size() << " variables\n";
-        } else {
-            std::cerr << "[DEBUG C++] ERROR: Invalid scope: " << scope << "\n";
-            DebugProtocol::sendError("Invalid scope: " + scope);
+        // Check if we're in bytecode mode (VM available)
+        if (currentVM) {
+            std::cerr << "[DEBUG C++] Using VM variable inspector" << std::endl;
+            if (!vmVariableInspector) {
+                std::cerr << "[DEBUG C++] ERROR: No VM variable inspector available" << std::endl;
+                DebugProtocol::sendError("No VM variable inspector available");
+                return;
+            }
+
+            if (scope == "local") {
+                std::cerr << "[DEBUG C++] Getting local variables from VM" << std::endl;
+                variables = vmVariableInspector->getLocalVariables(currentVM);
+                std::cerr << "[DEBUG C++] Got " << variables.size() << " local variables" << std::endl;
+            } else if (scope == "global") {
+                std::cerr << "[DEBUG C++] Getting global variables from VM" << std::endl;
+                variables = vmVariableInspector->getGlobalVariables(currentVM);
+                std::cerr << "[DEBUG C++] Got " << variables.size() << " global variables" << std::endl;
+            } else {
+                std::cerr << "[DEBUG C++] ERROR: Invalid scope: " << scope << std::endl;
+                DebugProtocol::sendError("Invalid scope: " + scope);
+                return;
+            }
+        }
+        // AST mode (Environment-based)
+        else if (currentEnvironment) {
+            std::cerr << "[DEBUG C++] Using environment variable inspector" << std::endl;
+            if (!variableInspector) {
+                std::cerr << "[DEBUG C++] ERROR: No variable inspector available" << std::endl;
+                DebugProtocol::sendError("No variable inspector available");
+                return;
+            }
+
+            if (scope == "local") {
+                variables = variableInspector->getLocalVariables(currentEnvironment);
+            } else if (scope == "global") {
+                variables = variableInspector->getGlobalVariables(currentEnvironment);
+            } else {
+                DebugProtocol::sendError("Invalid scope: " + scope);
+                return;
+            }
+        }
+        else {
+            std::cerr << "[DEBUG C++] ERROR: No environment or VM available" << std::endl;
+            DebugProtocol::sendError("No environment or VM available for variable inspection");
             return;
         }
 
         // Convert to protocol format: (name, value, type, refId)
         std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
         for (const auto& var : variables) {
-            std::cerr << "[DEBUG C++]   Variable: " << var.name << " = " << var.value << " (" << var.type << ")\n";
             varList.emplace_back(var.name, var.value, var.type, var.referenceId);
         }
 
-        std::cerr << "[DEBUG C++] Sending " << varList.size() << " variables\n";
         DebugProtocol::sendVariables(varList);
     }
 
     void DebugServer::handleExpandVariable(const DebugProtocol::Message& message) {
-        if (!variableInspector) {
-            DebugProtocol::sendError("No variable inspector available");
-            return;
-        }
-
         int refId = message.getIntParameter("ref", 0);
         if (refId == 0) {
             DebugProtocol::sendError("Invalid reference ID");
             return;
         }
 
-        std::vector<DebugVariable> children = variableInspector->getVariableChildren(refId);
+        std::vector<DebugVariable> children;
+
+        // Check if we're in bytecode mode (VM available)
+        if (currentVM) {
+            if (!vmVariableInspector) {
+                DebugProtocol::sendError("No VM variable inspector available");
+                return;
+            }
+            children = vmVariableInspector->getVariableChildren(currentVM, refId);
+        }
+        // AST mode (Environment-based)
+        else if (currentEnvironment) {
+            if (!variableInspector) {
+                DebugProtocol::sendError("No variable inspector available");
+                return;
+            }
+            children = variableInspector->getVariableChildren(refId);
+        }
+        else {
+            DebugProtocol::sendError("No environment or VM available");
+            return;
+        }
 
         // Convert to protocol format
         std::vector<std::tuple<std::string, std::string, std::string, int>> childList;

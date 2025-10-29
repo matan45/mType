@@ -26,6 +26,14 @@ namespace vm::compiler::visitors
             std::string returnTypeStr;
         };
 
+        /**
+         * Structure to hold compiled method body information
+         */
+        struct MethodBodyInfo {
+            size_t localCount;
+            std::vector<std::string> localVarNames;
+        };
+
         explicit MethodCompilerHelper(CompilerContext& context);
         ~MethodCompilerHelper() = default;
 
@@ -42,8 +50,8 @@ namespace vm::compiler::visitors
 
         // Method compilation helpers
         MethodParameters collectMethodParameters(ast::MethodNode* node, bool isStatic);
-        size_t compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic);
+        MethodBodyInfo compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic);
         void finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
-                                       size_t methodStart, size_t skipJump, size_t localCount, bool isStatic);
+                                       size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic);
     };
 }

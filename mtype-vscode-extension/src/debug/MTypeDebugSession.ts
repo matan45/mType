@@ -50,17 +50,14 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         // Setup runtime event handlers
         this._runtime.on('stopOnEntry', () => {
-            console.log('[DEBUG] Sending StoppedEvent: entry');
             this.sendEvent(new StoppedEvent('entry', MTypeDebugSession.THREAD_ID));
         });
 
         this._runtime.on('stopOnStep', () => {
-            console.log('[DEBUG] Sending StoppedEvent: step');
             this.sendEvent(new StoppedEvent('step', MTypeDebugSession.THREAD_ID));
         });
 
         this._runtime.on('stopOnBreakpoint', () => {
-            console.log('[DEBUG] Sending StoppedEvent: breakpoint');
             this.sendEvent(new StoppedEvent('breakpoint', MTypeDebugSession.THREAD_ID));
         });
 
@@ -150,9 +147,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         // Setup logging if trace is enabled
         logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Error, false);
-
-        console.log(`[DEBUG EXTENSION] Launch args from launch.json:`, args.args);
-
         // Wait for configuration to complete
         await this._runtime.start(
             args.program,
@@ -243,11 +237,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         const stack = this._runtime.getStack(startFrame, maxLevels);
 
-        console.log(`[DEBUG] stackTraceRequest - returning ${stack.frames.length} frames:`);
-        stack.frames.forEach((f, i) => {
-            console.log(`[DEBUG]   Frame ${i}: ${f.name} at ${f.file}:${f.line}:${f.column}`);
-        });
-
         response.body = {
             stackFrames: stack.frames.map(f => {
                 const sf = new StackFrame(
@@ -271,14 +260,11 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
     ): void {
-        console.log('[DEBUG] scopesRequest called, frameId=', args.frameId);
-
         const scopes: Scope[] = [
             new Scope("Local", this._variableHandles.create("local"), false),
             new Scope("Global", this._variableHandles.create("global"), true)
         ];
 
-        console.log('[DEBUG] Returning scopes:', scopes);
         response.body = {
             scopes: scopes
         };
@@ -292,20 +278,19 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.VariablesResponse,
         args: DebugProtocol.VariablesArguments
     ): Promise<void> {
-        console.log('[DEBUG] variablesRequest called, variablesReference=', args.variablesReference);
-
+        console.log(`[DEBUG EXT] variablesRequest called, variablesReference=${args.variablesReference}`);
         const scopeName = this._variableHandles.get(args.variablesReference);
-        console.log('[DEBUG] scopeName=', scopeName);
+        console.log(`[DEBUG EXT] scopeName=${scopeName}`);
         let runtimeVars: any[];
 
         if (scopeName) {
             // This is a scope request (local or global)
-            console.log('[DEBUG] Requesting variables for scope:', scopeName);
+            console.log(`[DEBUG EXT] Requesting variables for scope: ${scopeName}`);
             runtimeVars = await this._runtime.getVariables(scopeName);
-            console.log('[DEBUG] Received', runtimeVars.length, 'variables from runtime');
+            console.log(`[DEBUG EXT] Received ${runtimeVars.length} variables`);
         } else {
             // This is an expandable variable request (refId)
-            console.log('[DEBUG] Requesting children for refId:', args.variablesReference);
+            console.log(`[DEBUG EXT] Requesting children for refId: ${args.variablesReference}`);
             runtimeVars = await this._runtime.getVariableChildren(args.variablesReference);
         }
 
@@ -317,7 +302,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
             variablesReference: v.refId
         }));
 
-        console.log('[DEBUG] Returning', variables.length, 'variables to VS Code');
+        console.log(`[DEBUG EXT] Sending ${variables.length} variables to VS Code`);
         response.body = {
             variables: variables
         };

@@ -445,11 +445,11 @@ void runInDebugMode(const std::string& filename,
         debugCtx.waitForResume();
         std::cerr << "[DEBUG C++] Resume command received, about to call runScript\n";
 
-        // In bytecode mode, update DebugServer to use VM's environment for variable inspection
+        // In bytecode mode, update DebugServer to use VM for variable inspection
         auto vm = interpreter.getVM();
         if (vm) {
-            std::cerr << "[DEBUG C++] Updating DebugServer to use VM's environment\n";
-            debugServer.setEnvironment(vm->getEnvironment());
+            std::cerr << "[DEBUG C++] Updating DebugServer to use VM for bytecode variable inspection\n";
+            debugServer.setVM(vm);
         }
 
         // Run the script (will pause at breakpoints)
