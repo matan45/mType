@@ -129,6 +129,17 @@
       }
     },
     {
+      "name": "mType @Override and @Script Annotations",
+      "scope": [
+        "storage.type.annotation.override.mtype",
+        "storage.type.annotation.script.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b",
+        "fontStyle": "bold"
+      }
+    },
+    {
       "name": "mType Annotations",
       "scope": [
         "entity.name.tag.mtype",

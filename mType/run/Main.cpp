@@ -445,7 +445,8 @@ void runInDebugMode(const std::string& filename,
 
         // In bytecode mode, update DebugServer to use VM for variable inspection
         auto vm = interpreter.getVM();
-        if (vm) {
+        if (vm)
+        {
             debugServer.setVM(vm);
         }
 
