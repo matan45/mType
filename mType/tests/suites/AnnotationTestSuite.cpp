@@ -33,6 +33,21 @@ namespace tests::testSuite
         addOutputVerificationTest("Multiple Annotations Combined",
                         passPath + "multiple_annotations_pass.mt");
 
+        // ===== @Throw ANNOTATION - PASS TESTS =====
+        // Tests for valid @Throw usage with exception declarations
+
+        addOutputVerificationTest("Throw Single Exception",
+                        passPath + "single_exception_pass.mt");
+
+        addOutputVerificationTest("Throw Multiple Exceptions",
+                        passPath + "multiple_exceptions_pass.mt");
+
+        addOutputVerificationTest("Throw on Method",
+                        passPath + "method_throw_pass.mt");
+
+        addOutputVerificationTest("Throw Combined with Override",
+                        passPath + "combined_annotations_pass.mt");
+
         // ===== @Override ANNOTATION - ERROR TESTS =====
         // Tests for invalid @Override usage that should fail compilation
 
@@ -73,6 +88,21 @@ namespace tests::testSuite
 
         addTestFromFile("Script With Wrong Update Signature",
                     errorPath + "script_annotation_wrong_update_signature_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // ===== @Throw ANNOTATION - ERROR TESTS =====
+        // Tests for invalid @Throw usage that should fail compilation
+
+        addTestFromFile("Throw Invalid Exception Class",
+                    errorPath + "invalid_exception_class_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Throw Non-Exception Class",
+                    errorPath + "non_exception_class_error.mt",
+                    TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Throw Empty Parameter List",
+                    errorPath + "empty_throw_error.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

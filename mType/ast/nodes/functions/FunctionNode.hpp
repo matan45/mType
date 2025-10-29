@@ -5,6 +5,7 @@
 #include "../../VisibilityModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ParameterType.hpp"
+#include "../annotations/AnnotationNode.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -24,6 +25,7 @@ namespace ast::nodes::functions
         std::shared_ptr<ASTNode> body;
         bool isAsync;  // NEW: Flag to indicate async function
         VisibilityModifier visibility;  // NEW: Top-level visibility for imports
+        std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this function
 
         // Performance cache for legacy getParameters() - O(1) after first call
         mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
@@ -101,6 +103,12 @@ namespace ast::nodes::functions
         void setBody(std::shared_ptr<ASTNode> funcBody);
 
         [[nodiscard]] size_t getParameterCount() const noexcept;
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const;
+        void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation);
+        bool hasAnnotation(const std::string& annotationName) const;
+        std::shared_ptr<annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

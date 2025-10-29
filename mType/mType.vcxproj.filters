@@ -2485,6 +2485,15 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\annotation\error\empty_throw_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\invalid_exception_class_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\non_exception_class_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\override_no_parent_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
@@ -2512,10 +2521,28 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\method_throw_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\method_throw_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.expected">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\multiple_annotations_pass.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\multiple_exceptions_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\multiple_exceptions_pass.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\override_grandparent_pass.expected">
@@ -2546,6 +2573,12 @@
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_annotation_valid.mt">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\single_exception_pass.expected">
+      <Filter>tests\testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\single_exception_pass.mt">
       <Filter>tests\testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\arrayLiteralMixedTypes.mt">

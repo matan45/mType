@@ -5,6 +5,7 @@
 #include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 #include "../value/ValueType.hpp"
 #include <sstream>
+#include <unordered_set>
 
 namespace validation
 {
@@ -46,6 +47,32 @@ namespace validation
                     classDefinition,
                     environment,
                     methodDef->getSourceLocation()  // Use stored source location for accurate error reporting
+                );
+            }
+
+            // Validate @Throw annotation if present
+            if (methodDef->hasAnnotation("Throw"))
+            {
+                auto throwAnnotation = methodDef->getAnnotation("Throw");
+                validateThrowAnnotation(
+                    throwAnnotation,
+                    environment,
+                    methodDef->getSourceLocation()
+                );
+            }
+        }
+
+        // Validate annotations on all static methods
+        for (const auto& [methodName, methodDef] : classDefinition->getStaticMethods())
+        {
+            // Validate @Throw annotation if present
+            if (methodDef->hasAnnotation("Throw"))
+            {
+                auto throwAnnotation = methodDef->getAnnotation("Throw");
+                validateThrowAnnotation(
+                    throwAnnotation,
+                    environment,
+                    methodDef->getSourceLocation()
                 );
             }
         }
@@ -306,6 +333,163 @@ namespace validation
                 << " function update(float dt ): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
+        }
+    }
+
+    void AnnotationValidator::validateThrowAnnotation(
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> throwAnnotation,
+        std::shared_ptr<Environment> environment,
+        const SourceLocation& location)
+    {
+        if (!throwAnnotation)
+        {
+            return;
+        }
+
+        // Get the exceptions parameter from the annotation
+        std::string exceptionsParam = throwAnnotation->getParameter("exceptions");
+        if (exceptionsParam.empty())
+        {
+            throw TypeException(
+                "@Throw annotation must specify at least one exception class",
+                location
+            );
+        }
+
+        // Parse the comma-separated exception list
+        std::vector<std::string> exceptionNames = parseExceptionList(exceptionsParam);
+
+        // Check for duplicates
+        checkForDuplicates(exceptionNames, location);
+
+        // Validate each exception class
+        auto classRegistry = environment->getClassRegistry();
+        for (const auto& exceptionName : exceptionNames)
+        {
+            // Check if the class exists
+            auto exceptionClass = classRegistry->findClass(exceptionName);
+            if (!exceptionClass)
+            {
+                std::ostringstream oss;
+                oss << "Exception class '" << exceptionName << "' in @Throw annotation does not exist.\n\n"
+                    << "Make sure the exception class is defined and imported if necessary.";
+                throw TypeException(oss.str(), location);
+            }
+
+            // Check if the class inherits from Exception
+            if (!isExceptionClass(exceptionName, environment))
+            {
+                std::ostringstream oss;
+                oss << "Class '" << exceptionName << "' in @Throw annotation must extend Exception.\n\n"
+                    << "Exception classes must inherit from the Exception base class.";
+                throw TypeException(oss.str(), location);
+            }
+        }
+    }
+
+    std::vector<std::string> AnnotationValidator::parseExceptionList(const std::string& exceptionsParam)
+    {
+        std::vector<std::string> exceptionNames;
+        std::string current;
+
+        for (char c : exceptionsParam)
+        {
+            if (c == ',')
+            {
+                // Trim whitespace and add to list
+                if (!current.empty())
+                {
+                    // Simple trim: remove leading/trailing spaces
+                    size_t start = current.find_first_not_of(" \t\n\r");
+                    size_t end = current.find_last_not_of(" \t\n\r");
+                    if (start != std::string::npos && end != std::string::npos)
+                    {
+                        exceptionNames.push_back(current.substr(start, end - start + 1));
+                    }
+                }
+                current.clear();
+            }
+            else
+            {
+                current += c;
+            }
+        }
+
+        // Add the last exception name
+        if (!current.empty())
+        {
+            size_t start = current.find_first_not_of(" \t\n\r");
+            size_t end = current.find_last_not_of(" \t\n\r");
+            if (start != std::string::npos && end != std::string::npos)
+            {
+                exceptionNames.push_back(current.substr(start, end - start + 1));
+            }
+        }
+
+        return exceptionNames;
+    }
+
+    bool AnnotationValidator::isExceptionClass(
+        const std::string& className,
+        std::shared_ptr<Environment> environment)
+    {
+        auto classRegistry = environment->getClassRegistry();
+        auto classDefinition = classRegistry->findClass(className);
+
+        if (!classDefinition)
+        {
+            return false;
+        }
+
+        // Check if the class is named "Exception" (base exception class)
+        if (className == "Exception")
+        {
+            return true;
+        }
+
+        // Check if the class inherits from Exception
+        // Walk up the inheritance hierarchy
+        std::string currentClassName = className;
+        while (true)
+        {
+            auto currentClass = classRegistry->findClass(currentClassName);
+            if (!currentClass)
+            {
+                break;
+            }
+
+            if (!currentClass->hasParentClass())
+            {
+                break;
+            }
+
+            std::string parentClassName = currentClass->getParentClassName();
+            if (parentClassName == "Exception")
+            {
+                return true;
+            }
+
+            currentClassName = parentClassName;
+        }
+
+        return false;
+    }
+
+    void AnnotationValidator::checkForDuplicates(
+        const std::vector<std::string>& exceptionNames,
+        const SourceLocation& location)
+    {
+        std::unordered_set<std::string> seen;
+        for (const auto& name : exceptionNames)
+        {
+            if (seen.find(name) != seen.end())
+            {
+                // Found a duplicate - this could be a warning instead of an error
+                // For now, we'll just ignore duplicates silently
+                // In the future, this could log a warning
+                continue;
+            }
+            seen.insert(name);
         }
     }
 }
