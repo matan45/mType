@@ -208,16 +208,12 @@ export class MTypeRuntime extends EventEmitter {
      * Get variables for a scope
      */
     public async getVariables(scope: string): Promise<any[]> {
-        console.log(`[DEBUG RT] getVariables(${scope}) called`);
         return new Promise((resolve) => {
             // Add to queue (responses arrive in same order as requests)
-            console.log(`[DEBUG RT] Adding pending request to queue for scope: ${scope}`);
             const request = { scope, resolve };
             this.pendingVariableRequestQueue.push(request);
-            console.log(`[DEBUG RT] Queue length: ${this.pendingVariableRequestQueue.length}`);
 
             // Request variables from interpreter
-            console.log(`[DEBUG RT] Sending GETVARIABLES command for scope: ${scope}`);
             this.connection.sendCommand(`GETVARIABLES scope=${scope}`);
 
             // Timeout after 1 second (return cached or empty)
@@ -225,13 +221,9 @@ export class MTypeRuntime extends EventEmitter {
                 // Check if this request is still in the queue
                 const index = this.pendingVariableRequestQueue.indexOf(request);
                 if (index !== -1) {
-                    console.log(`[DEBUG RT] Timeout reached for ${scope}, returning cached`);
                     this.pendingVariableRequestQueue.splice(index, 1);
                     const cached = this.variables.get(scope) || [];
-                    console.log(`[DEBUG RT] Cached variables for ${scope}:`, cached.length);
                     resolve(cached);
-                } else {
-                    console.log(`[DEBUG RT] Timeout reached but ${scope} already resolved`);
                 }
             }, 1000);
         });
@@ -373,27 +365,20 @@ export class MTypeRuntime extends EventEmitter {
      * Request variables from the interpreter
      */
     private requestVariables(): void {
-        console.log('[DEBUG RT] requestVariables() called - sending proactive GETVARIABLES commands');
         this.connection.sendCommand('GETVARIABLES scope=local');
         this.connection.sendCommand('GETVARIABLES scope=global');
-        console.log('[DEBUG RT] Proactive commands sent (no pending requests set up!)');
     }
 
     /**
      * Handle variables response from interpreter
      */
     private handleVariablesResponse(variables: any[]): void {
-        console.log(`[DEBUG RT] handleVariablesResponse called with ${variables.length} variables`);
-
         // Dequeue the first pending request (FIFO - responses arrive in same order as requests)
         if (this.pendingVariableRequestQueue.length > 0) {
             const request = this.pendingVariableRequestQueue.shift()!;  // Remove first element
             const { scope, resolve } = request;
-            console.log(`[DEBUG RT] Dequeued pending request for scope: ${scope}`);
-            console.log(`[DEBUG RT] Queue length after dequeue: ${this.pendingVariableRequestQueue.length}`);
 
             // Store in cache with correct scope
-            console.log(`[DEBUG RT] Caching ${variables.length} variables for scope: ${scope}`);
             this.variables.set(scope, variables);
 
             // Store references for expandable variables
@@ -405,10 +390,7 @@ export class MTypeRuntime extends EventEmitter {
             }
 
             // Resolve the promise with the variables
-            console.log(`[DEBUG RT] Resolving promise with ${variables.length} variables for scope: ${scope}`);
             resolve(variables);
-        } else {
-            console.log(`[DEBUG RT] No pending request in queue! Variables lost:`, variables.length);
         }
     }
 

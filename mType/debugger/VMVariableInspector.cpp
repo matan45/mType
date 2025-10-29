@@ -151,8 +151,6 @@ namespace debugger
 
         const auto& globalMetadata = program->getGlobalVariables();
 
-        std::cerr << "[DEBUG GLOBALS] GlobalMetadata count: " << globalMetadata.size() << std::endl;
-
         if (globalMetadata.empty())
         {
             return variables;
@@ -162,32 +160,22 @@ namespace debugger
         auto env = vm->getEnvironment();
         if (!env)
         {
-            std::cerr << "[DEBUG GLOBALS] No environment found" << std::endl;
             return variables;
         }
 
         // For each global variable in metadata, try to get its value
         for (const auto& meta : globalMetadata)
         {
-            std::cerr << "[DEBUG GLOBALS] Looking for global variable: " << meta.name << std::endl;
-
             // Try to get the variable definition from the environment
             // Use the same method as VariableExecutor::handleLoadVar
             auto varDef = env->findVariable(meta.name);
             if (varDef)
             {
-                std::cerr << "[DEBUG GLOBALS] Found variable: " << meta.name << std::endl;
                 // Get the value from the variable definition
                 value::Value val = varDef->getValue();
                 variables.push_back(valueToDebugVariable(meta.name, val));
             }
-            else
-            {
-                std::cerr << "[DEBUG GLOBALS] Variable NOT found in environment: " << meta.name << std::endl;
-            }
         }
-
-        std::cerr << "[DEBUG GLOBALS] Returning " << variables.size() << " variables" << std::endl;
 
         return variables;
     }
