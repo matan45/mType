@@ -180,6 +180,62 @@ namespace debugger
         return variables;
     }
 
+    std::vector<DebugVariable> VMVariableInspector::getStaticVariables(std::shared_ptr<vm::runtime::VirtualMachine> vm)
+    {
+        std::vector<DebugVariable> variables;
+
+        if (!vm)
+        {
+            return variables;
+        }
+
+        // Get the environment to access the class registry
+        auto env = vm->getEnvironment();
+        if (!env)
+        {
+            return variables;
+        }
+
+        // Get the class registry
+        auto classRegistry = env->getClassRegistry();
+        if (!classRegistry)
+        {
+            return variables;
+        }
+
+        // Get all registered class names
+        std::vector<std::string> classNames = classRegistry->getAllItemNames();
+
+        // Iterate through all classes and their static fields
+        for (const auto& className : classNames)
+        {
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef)
+            {
+                continue;
+            }
+
+            // Get static fields for this class
+            const auto& staticFields = classDef->getStaticFields();
+            for (const auto& [fieldName, fieldDef] : staticFields)
+            {
+                if (!fieldDef)
+                {
+                    continue;
+                }
+
+                // Format as ClassName::fieldName
+                std::string qualifiedName = className + "::" + fieldName;
+
+                // Get the value from the field definition
+                value::Value val = fieldDef->getValue();
+                variables.push_back(valueToDebugVariable(qualifiedName, val));
+            }
+        }
+
+        return variables;
+    }
+
     std::vector<DebugVariable> VMVariableInspector::getVariableChildren(
         std::shared_ptr<vm::runtime::VirtualMachine> vm, int refId)
     {

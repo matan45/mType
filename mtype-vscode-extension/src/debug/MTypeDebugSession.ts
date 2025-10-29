@@ -34,6 +34,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
     // Fixed scope IDs that won't collide with interpreter refIds (which start at 1000)
     private static LOCAL_SCOPE_ID = 1;
     private static GLOBAL_SCOPE_ID = 2;
+    private static STATIC_SCOPE_ID = 3;
 
     private _runtime: MTypeRuntime;
     private _configurationDone = false;
@@ -263,10 +264,11 @@ export class MTypeDebugSession extends LoggingDebugSession {
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
     ): void {
-        // Use fixed scope IDs (1, 2) that won't collide with interpreter refIds (starting at 1000)
+        // Use fixed scope IDs (1, 2, 3) that won't collide with interpreter refIds (starting at 1000)
         const scopes: Scope[] = [
             new Scope("Local", MTypeDebugSession.LOCAL_SCOPE_ID, false),
-            new Scope("Global", MTypeDebugSession.GLOBAL_SCOPE_ID, true)
+            new Scope("Global", MTypeDebugSession.GLOBAL_SCOPE_ID, true),
+            new Scope("Static", MTypeDebugSession.STATIC_SCOPE_ID, true)
         ];
 
         response.body = {
@@ -292,6 +294,9 @@ export class MTypeDebugSession extends LoggingDebugSession {
         } else if (args.variablesReference === MTypeDebugSession.GLOBAL_SCOPE_ID) {
             // Global scope
             runtimeVars = await this._runtime.getVariables("global");
+        } else if (args.variablesReference === MTypeDebugSession.STATIC_SCOPE_ID) {
+            // Static scope
+            runtimeVars = await this._runtime.getVariables("static");
         } else {
             // This is an expandable variable request (refId from interpreter, >= 1000)
             runtimeVars = await this._runtime.getVariableChildren(args.variablesReference);

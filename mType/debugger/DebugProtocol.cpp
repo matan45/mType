@@ -373,6 +373,8 @@ namespace debugger {
                 variables = vmVariableInspector->getLocalVariables(currentVM);
             } else if (scope == "global") {
                 variables = vmVariableInspector->getGlobalVariables(currentVM);
+            } else if (scope == "static") {
+                variables = vmVariableInspector->getStaticVariables(currentVM);
             } else {
                 DebugProtocol::sendError("Invalid scope: " + scope);
                 return;
@@ -389,6 +391,10 @@ namespace debugger {
                 variables = variableInspector->getLocalVariables(currentEnvironment);
             } else if (scope == "global") {
                 variables = variableInspector->getGlobalVariables(currentEnvironment);
+            } else if (scope == "static") {
+                // For AST mode, static variables not yet supported
+                DebugProtocol::sendError("Static scope not supported in AST mode");
+                return;
             } else {
                 DebugProtocol::sendError("Invalid scope: " + scope);
                 return;

@@ -35,6 +35,14 @@ namespace debugger
         std::vector<DebugVariable> getGlobalVariables(std::shared_ptr<vm::runtime::VirtualMachine> vm);
 
         /**
+         * Get static class variables from all registered classes
+         *
+         * @param vm The virtual machine instance
+         * @return Vector of debug variables (formatted as ClassName::fieldName)
+         */
+        std::vector<DebugVariable> getStaticVariables(std::shared_ptr<vm::runtime::VirtualMachine> vm);
+
+        /**
          * Get children of an expandable variable (arrays, objects)
          *
          * @param vm The virtual machine instance
