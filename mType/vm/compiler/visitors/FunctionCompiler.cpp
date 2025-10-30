@@ -519,22 +519,46 @@ namespace vm::compiler::visitors
                                                  capturedVars,
                                                  size_t currentFrameStart,
                                                  const std::vector<variables::VariableTracker::LocalVariable>&
-                                                 currentLocals)
+                                                 currentLocals,
+                                                 const std::string& lambdaFuncName)
     {
         const auto& params = node->getParameters();
 
         // Now emit instruction to create lambda value with captured environment
+        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
+        //                   captureSlot1, ..., captureSlotN,
+        //                   paramNameIdx1, ..., paramNameIdxN,
+        //                   capturedNameIdx1, ..., capturedNameIdxN,
+        //                   parentNameIdx1, parentSlot1, ...]
         std::vector<uint32_t> operands;
         operands.push_back(static_cast<uint32_t>(lambdaStart));
         operands.push_back(static_cast<uint32_t>(params.size()));
         operands.push_back(static_cast<uint32_t>(capturedVars.size()));
         operands.push_back(static_cast<uint32_t>(currentLocals.size())); // Number of parent locals
 
+        // Add lambda function name for metadata lookup
+        size_t funcNameIdx = ctx.program.getConstantPool().addString(lambdaFuncName);
+        operands.push_back(static_cast<uint32_t>(funcNameIdx));
+
         // Add captured variable slot numbers
         for (const auto& capture : capturedVars)
         {
             size_t relativeSlot = capture.slot - currentFrameStart;
             operands.push_back(static_cast<uint32_t>(relativeSlot));
+        }
+
+        // Add parameter names for debugging
+        for (const auto& param : params)
+        {
+            size_t nameIndex = ctx.program.getConstantPool().addString(param.name);
+            operands.push_back(static_cast<uint32_t>(nameIndex));
+        }
+
+        // Add captured variable names for debugging (in the same order as capture slots)
+        for (const auto& capture : capturedVars)
+        {
+            size_t nameIndex = ctx.program.getConstantPool().addString(capture.name);
+            operands.push_back(static_cast<uint32_t>(nameIndex));
         }
 
         // Add parent local variable name->slot mapping for late-bound access
@@ -612,7 +636,7 @@ namespace vm::compiler::visitors
         // Capture local variable names for debugging (before exiting frame)
         const auto& locals = ctx.variableTracker.getLocals();
         const auto& currentFrame = ctx.functionFrameManager.currentFrame();
-        size_t localCount = node->getParameters().size() + capturedVars.size();
+        size_t localCount = ctx.functionFrameManager.getLocalCount();
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
         {
@@ -651,7 +675,7 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(lambdaFuncName, metadata);
 
         // Emit lambda instruction with captured environment
-        emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals);
+        emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals, lambdaFuncName);
 
         // Restore previous nextLocalSlot
         ctx.variableTracker.setLocalSlot(savedNextLocalSlot);

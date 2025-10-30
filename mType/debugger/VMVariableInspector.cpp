@@ -44,13 +44,88 @@ namespace debugger
         // Get the top call frame (current function)
         const auto& currentFrame = callStack.back();
 
-        // Check if we have a shared frame (for lambdas)
+        // Check if we have a shared frame (for lambdas with late-binding)
         if (currentFrame.sharedFrame)
         {
             for (const auto& [name, slot] : currentFrame.sharedFrame->nameToSlot)
             {
                 value::Value val = currentFrame.sharedFrame->getLocal(slot);
                 variables.push_back(valueToDebugVariable(name, val));
+            }
+            return variables;
+        }
+
+        // Check if this is a lambda invocation (has originatingLambda)
+        if (currentFrame.originatingLambda)
+        {
+            auto stackManager = vm->getStackManager();
+            if (stackManager)
+            {
+                const auto& stack = stackManager->getStack();
+                const auto& lambda = currentFrame.originatingLambda;
+
+                // Lambda parameters start at localBase
+                for (size_t i = 0; i < lambda->parameterCount; ++i)
+                {
+                    size_t stackIndex = currentFrame.localBase + i;
+                    if (stackIndex < stack.size())
+                    {
+                        // Use actual parameter name if available, otherwise use generic name
+                        std::string paramName = (i < lambda->parameterNames.size() && !lambda->parameterNames[i].empty())
+                            ? lambda->parameterNames[i]
+                            : "param_" + std::to_string(i);
+                        variables.push_back(valueToDebugVariable(paramName, stack[stackIndex]));
+                    }
+                }
+
+                // Captured variables come after parameters
+                for (size_t i = 0; i < lambda->capturedValues.size(); ++i)
+                {
+                    size_t stackIndex = currentFrame.localBase + lambda->parameterCount + i;
+                    if (stackIndex < stack.size())
+                    {
+                        // Use actual captured variable name if available
+                        std::string capturedName = (i < lambda->capturedNames.size() && !lambda->capturedNames[i].empty())
+                            ? lambda->capturedNames[i]
+                            : "captured_" + std::to_string(i);
+                        variables.push_back(valueToDebugVariable(capturedName, stack[stackIndex]));
+                    }
+                }
+
+                // Also show locals declared inside the lambda
+                // Get their names from the lambda's function metadata
+                const auto* program = vm->getProgram();
+                if (program && !lambda->functionName.empty())
+                {
+                    const auto* lambdaMetadata = program->getFunction(lambda->functionName);
+                    if (lambdaMetadata && !lambdaMetadata->localVariableNames.empty())
+                    {
+                        // Show locals starting after parameters + captured variables
+                        size_t localStartIndex = lambda->parameterCount + lambda->capturedValues.size();
+                        for (size_t i = localStartIndex; i < lambdaMetadata->localVariableNames.size(); ++i)
+                        {
+                            size_t stackIndex = currentFrame.localBase + i;
+                            if (stackIndex < stack.size())
+                            {
+                                const auto& val = stack[stackIndex];
+                                // Only show initialized variables
+                                if (!std::holds_alternative<std::monostate>(val))
+                                {
+                                    std::string localName = lambdaMetadata->localVariableNames[i];
+                                    if (localName.empty())
+                                    {
+                                        localName = "local_" + std::to_string(i - localStartIndex);
+                                    }
+                                    variables.push_back(valueToDebugVariable(localName, val));
+                                }
+                            }
+                            else
+                            {
+                                break; // Don't go past stack size
+                            }
+                        }
+                    }
+                }
             }
             return variables;
         }

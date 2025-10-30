@@ -58,6 +58,9 @@ namespace vm::runtime
         std::string creatingClassName;  // Class context where lambda was created (for access checks)
         std::shared_ptr<SharedStackFrame> parentFrame;  // Shared parent frame for late-bound variable access (forward refs)
         std::unordered_map<std::string, size_t> parentVarNames;  // Map of parent variable names to their slots
+        std::vector<std::string> parameterNames;  // Names of lambda parameters (for debugging)
+        std::vector<std::string> capturedNames;  // Names of captured variables (for debugging)
+        std::string functionName;  // Unique lambda function name (for metadata lookup)
     };
 
     /**
