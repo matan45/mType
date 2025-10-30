@@ -8,9 +8,11 @@ namespace ast
         std::ostringstream oss;
         oss << name;
 
-        if (hasConstraints()) {
+        if (hasConstraints())
+        {
             oss << " extends ";
-            for (size_t i = 0; i < constraints.size(); ++i) {
+            for (size_t i = 0; i < constraints.size(); ++i)
+            {
                 if (i > 0) oss << ", ";
                 oss << constraints[i];
             }

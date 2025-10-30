@@ -185,6 +185,15 @@ export class MTypeKeywords {
             priority: 8
         },
         {
+            keyword: 'super',
+            detail: 'parent class reference',
+            documentation: 'Calls the parent class constructor or accesses parent class members',
+            insertText: 'super',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['class-method', 'function', 'block', 'expression'],
+            priority: 8
+        },
+        {
             keyword: 'return',
             detail: 'return statement',
             documentation: 'Returns a value from a function',

@@ -4,7 +4,7 @@ import { MTypeReferenceProvider } from '../references/MTypeReferenceProvider';
 
 /**
  * Provides code lenses (inline information) for mType code
- * Shows reference counts above functions, classes, and methods
+ * Shows reference counts above classes, interfaces, and methods (excluding constructors)
  */
 export class MTypeCodeLensProvider implements vscode.CodeLensProvider {
     private referenceProvider: MTypeReferenceProvider;
@@ -53,8 +53,13 @@ export class MTypeCodeLensProvider implements vscode.CodeLensProvider {
                 codeLenses.push(classLens);
             }
 
-            // Add code lenses for methods in the class
+            // Add code lenses for methods in the class (exclude constructors)
             for (const [methodName, methodInfo] of classInfo.methods) {
+                // Skip constructors - only show reference counts for classes and interfaces
+                if (methodName === 'constructor') {
+                    continue;
+                }
+
                 const methodRange = new vscode.Range(
                     methodInfo.declarationLocation,
                     methodInfo.declarationLocation
@@ -65,8 +70,13 @@ export class MTypeCodeLensProvider implements vscode.CodeLensProvider {
                 codeLenses.push(methodLens);
             }
 
-            // Add code lenses for static methods
+            // Add code lenses for static methods (exclude constructors)
             for (const [methodName, methodInfo] of classInfo.staticMethods) {
+                // Skip constructors - only show reference counts for classes and interfaces
+                if (methodName === 'constructor') {
+                    continue;
+                }
+
                 const methodRange = new vscode.Range(
                     methodInfo.declarationLocation,
                     methodInfo.declarationLocation
@@ -78,9 +88,27 @@ export class MTypeCodeLensProvider implements vscode.CodeLensProvider {
             }
         }
 
-        // Add code lenses for global functions (if any)
-        // This would require global function tracking in scope analyzer
-        // For now, we focus on classes and methods
+        // Add code lenses for interfaces
+        const interfaces = scopeAnalyzer.getAllInterfaces();
+        for (const [interfaceName, interfaceInfo] of interfaces) {
+            // Find the position of the interface name on the line
+            const line = document.lineAt(interfaceInfo.scope.startLine).text;
+            const interfaceNameIndex = line.indexOf(interfaceName);
+
+            if (interfaceNameIndex !== -1) {
+                const range = new vscode.Range(
+                    interfaceInfo.scope.startLine,
+                    interfaceNameIndex,
+                    interfaceInfo.scope.startLine,
+                    interfaceNameIndex + interfaceName.length
+                );
+
+                // Add reference count lens for interface
+                const interfaceLens = new vscode.CodeLens(range);
+                (interfaceLens as any).documentUri = document.uri;
+                codeLenses.push(interfaceLens);
+            }
+        }
 
         return codeLenses;
     }
