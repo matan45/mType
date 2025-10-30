@@ -710,7 +710,11 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                typeName.startsWith('Map<') ||
                typeName.startsWith('Set<') ||
                typeName.startsWith('Stack<') ||
-               typeName.startsWith('Queue<');
+               typeName.startsWith('Queue<') ||
+               typeName.startsWith('List<') ||
+               typeName.startsWith('LinkedList<') ||
+               typeName.startsWith('HashMap<') ||
+               typeName.startsWith('HashSet<');
     }
 
     /**
@@ -765,6 +769,44 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 this.createMethodCompletion('enqueue', `void enqueue(${elementType} item)`, 'Adds an element to the rear of the queue', [`${elementType} item`]),
                 this.createMethodCompletion('dequeue', `${elementType} dequeue()`, 'Removes and returns the front element of the queue', []),
                 this.createMethodCompletion('front', `${elementType} front()`, 'Returns the front element without removing it', [])
+            );
+        } else if (typeName.startsWith('List<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the list', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the first occurrence of the element from the list', [`${elementType} item`]),
+                this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
+                this.createMethodCompletion('set', `void set(int index, ${elementType} value)`, 'Sets the element at the specified index', ['int index', `${elementType} value`]),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the list contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the list is empty', [])
+            );
+        } else if (typeName.startsWith('LinkedList<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the linked list', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the first occurrence of the element from the linked list', [`${elementType} item`]),
+                this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the linked list contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the linked list is empty', [])
+            );
+        } else if (typeName.startsWith('HashMap<')) {
+            const [keyType, valueType] = this.extractMapTypes(typeName);
+            completionItems.push(
+                this.createMethodCompletion('put', `void put(${keyType} key, ${valueType} value)`, 'Associates the specified value with the specified key', [`${keyType} key`, `${valueType} value`]),
+                this.createMethodCompletion('get', `${valueType} get(${keyType} key)`, 'Gets the value associated with the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('remove', `void remove(${keyType} key)`, 'Removes the key-value pair for the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('containsKey', `bool containsKey(${keyType} key)`, 'Returns true if the map contains the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('keySet', `keySet()`, 'Returns a set of all keys in the map', []),
+                this.createMethodCompletion('values', `values()`, 'Returns a collection of all values in the map', []),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the map is empty', [])
+            );
+        } else if (typeName.startsWith('HashSet<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `bool add(${elementType} item)`, 'Adds the specified element to the set, returns true if added', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the specified element from the set, returns true if removed', [`${elementType} item`]),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the set contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the set is empty', [])
             );
         }
 

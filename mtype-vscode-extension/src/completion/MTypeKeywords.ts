@@ -32,6 +32,33 @@ export class MTypeKeywords {
             priority: 9
         },
         {
+            keyword: 'abstract',
+            detail: 'abstract modifier',
+            documentation: 'Marks a class as abstract or defines an abstract method',
+            insertText: 'abstract ',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['global', 'class'],
+            priority: 9
+        },
+        {
+            keyword: 'abstract-class',
+            detail: 'abstract class',
+            documentation: 'Abstract class with abstract and concrete methods',
+            insertText: 'abstract class ${1:ClassName} {\n\tabstract function ${2:abstractMethod}(): ${3:void};\n\n\tpublic function ${4:concreteMethod}(): void {\n\t\t$0\n\t}\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['global', 'namespace'],
+            priority: 8
+        },
+        {
+            keyword: 'abstract-method',
+            detail: 'abstract method',
+            documentation: 'Abstract method declaration (no implementation)',
+            insertText: 'abstract function ${1:methodName}(${2:parameters}): ${3:returnType};',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['class'],
+            priority: 8
+        },
+        {
             keyword: 'extends',
             detail: 'class/interface extension',
             documentation: 'Extends a parent class or interface',
@@ -203,6 +230,24 @@ export class MTypeKeywords {
             priority: 8
         },
         {
+            keyword: 'async-function',
+            detail: 'async function',
+            documentation: 'Asynchronous function that returns a Promise',
+            insertText: 'function async ${1:functionName}(${2:parameters}): Promise<${3:void}> {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['class', 'global', 'global-function'],
+            priority: 8
+        },
+        {
+            keyword: 'Promise',
+            detail: 'Promise<T> type',
+            documentation: 'Promise type for async operations',
+            insertText: 'Promise<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
             keyword: 'from',
             detail: 'import from clause',
             documentation: 'Specifies the source module for imports',
@@ -210,6 +255,91 @@ export class MTypeKeywords {
             kind: vscode.CompletionItemKind.Keyword,
             contexts: ['global', 'after-import'],
             priority: 8
+        }
+    ];
+
+    // Exception handling keywords
+    static readonly EXCEPTION_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'try',
+            detail: 'try-catch block',
+            documentation: 'Exception handling block',
+            insertText: 'try {\n\t$0\n} catch (${1:Exception} ${2:e}) {\n\t${3:// Handle exception}\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 9
+        },
+        {
+            keyword: 'try-catch-finally',
+            detail: 'try-catch-finally block',
+            documentation: 'Exception handling block with finally clause',
+            insertText: 'try {\n\t$0\n} catch (${1:Exception} ${2:e}) {\n\t${3:// Handle exception}\n} finally {\n\t${4:// Cleanup}\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'catch',
+            detail: 'catch block',
+            documentation: 'Catches and handles exceptions',
+            insertText: 'catch (${1:Exception} ${2:e}) {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['after-try'],
+            priority: 9
+        },
+        {
+            keyword: 'finally',
+            detail: 'finally block',
+            documentation: 'Code that always executes after try-catch',
+            insertText: 'finally {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['after-catch'],
+            priority: 9
+        },
+        {
+            keyword: 'throw',
+            detail: 'throw statement',
+            documentation: 'Throws an exception',
+            insertText: 'throw new ${1:Exception}("${2:message}");',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'throw-RuntimeException',
+            detail: 'throw RuntimeException',
+            documentation: 'Throws a runtime exception',
+            insertText: 'throw new RuntimeException("${1:message}");',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'throw-NullPointerException',
+            detail: 'throw NullPointerException',
+            documentation: 'Throws a null pointer exception',
+            insertText: 'throw new NullPointerException("${1:message}");',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'throw-IllegalArgumentException',
+            detail: 'throw IllegalArgumentException',
+            documentation: 'Throws an illegal argument exception',
+            insertText: 'throw new IllegalArgumentException("${1:message}");',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'throw-IndexOutOfBoundsException',
+            detail: 'throw IndexOutOfBoundsException',
+            documentation: 'Throws an index out of bounds exception',
+            insertText: 'throw new IndexOutOfBoundsException("${1:message}");',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
         }
     ];
 
@@ -457,6 +587,153 @@ export class MTypeKeywords {
         }
     ];
 
+    // Standard library exception types
+    static readonly EXCEPTION_TYPES: KeywordInfo[] = [
+        {
+            keyword: 'Exception',
+            detail: 'Exception class',
+            documentation: 'Base exception class for all exceptions',
+            insertText: 'Exception',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global', 'after-catch'],
+            priority: 8
+        },
+        {
+            keyword: 'RuntimeException',
+            detail: 'RuntimeException class',
+            documentation: 'Runtime exception for errors during execution',
+            insertText: 'RuntimeException',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global', 'after-catch'],
+            priority: 8
+        },
+        {
+            keyword: 'NullPointerException',
+            detail: 'NullPointerException class',
+            documentation: 'Exception thrown when accessing null reference',
+            insertText: 'NullPointerException',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global', 'after-catch'],
+            priority: 7
+        },
+        {
+            keyword: 'IndexOutOfBoundsException',
+            detail: 'IndexOutOfBoundsException class',
+            documentation: 'Exception thrown when array/collection index is out of bounds',
+            insertText: 'IndexOutOfBoundsException',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global', 'after-catch'],
+            priority: 7
+        },
+        {
+            keyword: 'IllegalArgumentException',
+            detail: 'IllegalArgumentException class',
+            documentation: 'Exception thrown when method receives illegal or inappropriate argument',
+            insertText: 'IllegalArgumentException',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global', 'after-catch'],
+            priority: 7
+        }
+    ];
+
+    // Standard library wrapper types
+    static readonly WRAPPER_TYPES: KeywordInfo[] = [
+        {
+            keyword: 'Int',
+            detail: 'Int wrapper class',
+            documentation: 'Integer wrapper class with utility methods',
+            insertText: 'Int',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'Float',
+            detail: 'Float wrapper class',
+            documentation: 'Float wrapper class with utility methods',
+            insertText: 'Float',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'String',
+            detail: 'String wrapper class',
+            documentation: 'String wrapper class with utility methods',
+            insertText: 'String',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'Bool',
+            detail: 'Bool wrapper class',
+            documentation: 'Boolean wrapper class with utility methods',
+            insertText: 'Bool',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        }
+    ];
+
+    // Standard library collection types
+    static readonly STDLIB_COLLECTION_TYPES: KeywordInfo[] = [
+        {
+            keyword: 'List',
+            detail: 'List<T> class',
+            documentation: 'Dynamic list collection (similar to ArrayList)\nMethods: add, remove, get, set, size, isEmpty, clear, contains',
+            insertText: 'List<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'LinkedList',
+            detail: 'LinkedList<T> class',
+            documentation: 'Doubly-linked list collection\nMethods: add, remove, get, size, isEmpty, clear, contains',
+            insertText: 'LinkedList<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'HashMap',
+            detail: 'HashMap<K,V> class',
+            documentation: 'Hash-based key-value map\nMethods: put, get, remove, containsKey, keySet, values, size, isEmpty, clear',
+            insertText: 'HashMap<${1:K}, ${2:V}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'HashSet',
+            detail: 'HashSet<T> class',
+            documentation: 'Hash-based set of unique elements\nMethods: add, remove, contains, size, isEmpty, clear',
+            insertText: 'HashSet<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'Stack',
+            detail: 'Stack<T> class',
+            documentation: 'Last-in-first-out (LIFO) stack\nMethods: push, pop, peek, isEmpty, size, clear',
+            insertText: 'Stack<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'Queue',
+            detail: 'Queue<T> class',
+            documentation: 'First-in-first-out (FIFO) queue\nMethods: enqueue, dequeue, peek, isEmpty, size, clear',
+            insertText: 'Queue<${1:T}>',
+            kind: vscode.CompletionItemKind.Class,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        }
+    ];
+
     // Collection types
     static readonly COLLECTION_KEYWORDS: KeywordInfo[] = [
         {
@@ -543,6 +820,148 @@ export class MTypeKeywords {
         // If you need other operators, add them here
     ];
 
+    // Built-in functions
+    static readonly BUILTIN_FUNCTIONS: KeywordInfo[] = [
+        {
+            keyword: 'print',
+            detail: 'print(value)',
+            documentation: 'Prints a value to the console',
+            insertText: 'print(${1:value});',
+            kind: vscode.CompletionItemKind.Function,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'hashCode',
+            detail: 'hashCode(object)',
+            documentation: 'Returns the hash code of an object',
+            insertText: 'hashCode(${1:object})',
+            kind: vscode.CompletionItemKind.Function,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'strLength',
+            detail: 'strLength(string)',
+            documentation: 'Returns the length of a string',
+            insertText: 'strLength(${1:string})',
+            kind: vscode.CompletionItemKind.Function,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'parsePrimitive',
+            detail: 'parsePrimitive(value)',
+            documentation: 'Converts a value to its string representation',
+            insertText: 'parsePrimitive(${1:value})',
+            kind: vscode.CompletionItemKind.Function,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        }
+    ];
+
+    // Lambda expressions and functional programming
+    static readonly LAMBDA_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'lambda',
+            detail: 'lambda expression',
+            documentation: 'Lambda expression (parameter -> expression)',
+            insertText: '${1:param} -> ${2:expression}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 8
+        },
+        {
+            keyword: 'lambda-block',
+            detail: 'lambda block',
+            documentation: 'Lambda expression with block body',
+            insertText: '${1:param} -> {\n\t${2:// code}\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 8
+        },
+        {
+            keyword: 'lambda-typed',
+            detail: 'lambda (typed)',
+            documentation: 'Lambda expression with type annotation',
+            insertText: '(${1:type} ${2:param}) -> ${3:expression}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'Function',
+            detail: 'Function type',
+            documentation: 'Functional interface type for lambda expressions',
+            insertText: 'Function',
+            kind: vscode.CompletionItemKind.Interface,
+            contexts: ['type-context', 'global-function', 'global'],
+            priority: 7
+        }
+    ];
+
+    // Type casting and type checking
+    static readonly TYPE_CASTING_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'cast',
+            detail: 'type cast',
+            documentation: 'Cast expression to specified type',
+            insertText: '(${1:Type})${2:expression}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        },
+        {
+            keyword: 'isClassOf-check',
+            detail: 'type check with cast',
+            documentation: 'Type checking with safe casting pattern',
+            insertText: 'if (${1:object}.isClassOf(${2:ClassName})) {\n\t${2:ClassName} ${3:casted} = (${2:ClassName})${1:object};\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function'],
+            priority: 7
+        }
+    ];
+
+    // Array initialization and operations
+    static readonly ARRAY_KEYWORDS: KeywordInfo[] = [
+        {
+            keyword: 'array-declaration',
+            detail: 'array declaration',
+            documentation: 'Declare array with specified size',
+            insertText: '${1:type}[] ${2:name} = new ${1:type}[${3:size}];',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'class', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'array-literal',
+            detail: 'array literal',
+            documentation: 'Initialize array with literal values',
+            insertText: '${1:type}[] ${2:name} = [${3:elements}];',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'class', 'global-function', 'global'],
+            priority: 8
+        },
+        {
+            keyword: 'array-2d',
+            detail: '2D array declaration',
+            documentation: 'Declare two-dimensional array',
+            insertText: '${1:type}[][] ${2:name} = new ${1:type}[${3:rows}][${4:cols}];',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'class', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'array-length',
+            detail: 'array length property',
+            documentation: 'Get array length using .length property',
+            insertText: '${1:array}.length',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['expression', 'function', 'global-function'],
+            priority: 7
+        }
+    ];
+
     // Annotations
     static readonly ANNOTATION_KEYWORDS: KeywordInfo[] = [
         {
@@ -553,6 +972,15 @@ export class MTypeKeywords {
             kind: vscode.CompletionItemKind.Property,
             contexts: ['class', 'before-method'],
             priority: 9
+        },
+        {
+            keyword: '@Throw',
+            detail: 'Throw annotation',
+            documentation: 'Documents that a method can throw specific exception types',
+            insertText: '@Throw(${1:ExceptionType})\npublic function ${2:methodName}(${3:parameters}): ${4:void} {\n\t$0\n}',
+            kind: vscode.CompletionItemKind.Property,
+            contexts: ['class', 'before-method'],
+            priority: 8
         },
         {
             keyword: '@Script',
@@ -569,11 +997,19 @@ export class MTypeKeywords {
     static getAllKeywords(): KeywordInfo[] {
         return [
             ...this.CORE_KEYWORDS,
+            ...this.EXCEPTION_KEYWORDS,
             ...this.CONTROL_FLOW_KEYWORDS,
             ...this.TYPE_KEYWORDS,
+            ...this.EXCEPTION_TYPES,
+            ...this.WRAPPER_TYPES,
+            ...this.STDLIB_COLLECTION_TYPES,
             ...this.COLLECTION_KEYWORDS,
             ...this.LITERAL_KEYWORDS,
             ...this.OPERATOR_KEYWORDS,
+            ...this.BUILTIN_FUNCTIONS,
+            ...this.LAMBDA_KEYWORDS,
+            ...this.TYPE_CASTING_KEYWORDS,
+            ...this.ARRAY_KEYWORDS,
             ...this.ANNOTATION_KEYWORDS
         ];
     }
@@ -601,7 +1037,13 @@ export class MTypeKeywords {
 
     // Get type keywords only
     static getTypeKeywords(): KeywordInfo[] {
-        return [...this.TYPE_KEYWORDS, ...this.COLLECTION_KEYWORDS];
+        return [
+            ...this.TYPE_KEYWORDS,
+            ...this.EXCEPTION_TYPES,
+            ...this.WRAPPER_TYPES,
+            ...this.STDLIB_COLLECTION_TYPES,
+            ...this.COLLECTION_KEYWORDS
+        ];
     }
 
     // Convert to completion items

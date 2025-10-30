@@ -412,4 +412,39 @@ export class MTypeImportResolver {
 
         return diagnostics;
     }
+
+    /**
+     * Find all files in workspace that export a given symbol (class, function, etc.)
+     */
+    async findSymbolInWorkspace(symbolName: string): Promise<Array<{ relativePath: string; absolutePath: string; symbol: ExportedSymbol }>> {
+        const results: Array<{ relativePath: string; absolutePath: string; symbol: ExportedSymbol }> = [];
+
+        // Find all .mt files in workspace
+        const mtFiles = await vscode.workspace.findFiles('**/*.mt', '**/node_modules/**');
+
+        for (const fileUri of mtFiles) {
+            try {
+                const document = await vscode.workspace.openTextDocument(fileUri);
+                const exportedSymbols = this.parseExportedSymbols(document.getText());
+
+                // Check if this file exports the symbol we're looking for
+                const matchingSymbol = exportedSymbols.find(s => s.name === symbolName);
+                if (matchingSymbol) {
+                    // Calculate relative path from workspace root
+                    const absolutePath = fileUri.fsPath;
+                    const relativePath = path.relative(this.workspaceRoot, absolutePath).replace(/\\/g, '/');
+
+                    results.push({
+                        relativePath: './' + relativePath,
+                        absolutePath,
+                        symbol: matchingSymbol
+                    });
+                }
+            } catch (error) {
+                console.log(`Error reading file ${fileUri.fsPath}:`, error);
+            }
+        }
+
+        return results;
+    }
 }
