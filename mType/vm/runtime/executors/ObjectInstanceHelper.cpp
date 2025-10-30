@@ -232,6 +232,24 @@ namespace vm::runtime
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
 
+            // Notify debugger of parent constructor entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                } else {
+                    // Fallback: use constructor start location
+                    auto ctorStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (ctorStartLoc) {
+                        errors::SourceLocation errorsLoc(ctorStartLoc->filename, ctorStartLoc->line, ctorStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errors::SourceLocation());
+                    }
+                }
+            }
+
             context.instructionPointer = funcMetadata->startOffset - 1;
         } else {
             throw errors::RuntimeException("Parent constructor '" + constructorName + "' has no bytecode.");
