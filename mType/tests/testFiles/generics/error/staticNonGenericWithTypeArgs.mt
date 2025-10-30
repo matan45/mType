@@ -1,4 +1,4 @@
-import "../../complie/lib/primitives/String.mt";
+import "../../lib/primitives/String.mt";
 
 class TestClass {
     // This is NOT a generic method

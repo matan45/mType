@@ -244,21 +244,124 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
     }
 
     private getTypeCompletions(): vscode.CompletionItem[] {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        // Add built-in type keywords
         const typeKeywords = MTypeKeywords.getTypeKeywords();
-        return MTypeKeywords.toCompletionItems(typeKeywords);
+        completionItems.push(...MTypeKeywords.toCompletionItems(typeKeywords));
+
+        // Add user-defined classes
+        if (this.scopeAnalyzer) {
+            const classes = this.scopeAnalyzer.getAllClasses();
+            for (const [className, classInfo] of classes) {
+                const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                item.detail = `class ${className}`;
+                item.documentation = `User-defined class`;
+                item.sortText = '1' + className; // After built-in types
+                completionItems.push(item);
+            }
+
+            // Add user-defined interfaces
+            const interfaces = this.scopeAnalyzer.getAllInterfaces();
+            for (const [interfaceName, interfaceInfo] of interfaces) {
+                const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                item.detail = `interface ${interfaceName}`;
+                item.documentation = `User-defined interface`;
+                item.sortText = '1' + interfaceName; // After built-in types
+                completionItems.push(item);
+            }
+        }
+
+        return completionItems;
     }
 
     private getSymbolCompletions(contexts: string[], lineText: string): vscode.CompletionItem[] {
         const completionItems: vscode.CompletionItem[] = [];
 
+        // After 'implements' - only show interfaces
+        if (contexts.includes('after-implements')) {
+            if (this.scopeAnalyzer) {
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    const methodCount = interfaceInfo.methods.size;
+                    item.documentation = new vscode.MarkdownString(
+                        `**Interface**\n\n${methodCount} method${methodCount !== 1 ? 's' : ''}`
+                    );
+                    item.sortText = '0' + interfaceName; // High priority
+                    completionItems.push(item);
+                }
+            }
+            return completionItems;
+        }
+
+        // After 'extends' - show classes for classes, interfaces for interfaces
+        if (contexts.includes('after-extends')) {
+            if (this.scopeAnalyzer) {
+                // Check if we're in a class or interface context
+                const isInInterface = lineText.match(/interface\s+\w+\s+extends/);
+
+                if (isInInterface) {
+                    // Show interfaces only
+                    const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                    for (const [interfaceName, interfaceInfo] of interfaces) {
+                        const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                        item.detail = `interface ${interfaceName}`;
+                        item.sortText = '0' + interfaceName;
+                        completionItems.push(item);
+                    }
+                } else {
+                    // Show classes only
+                    const classes = this.scopeAnalyzer.getAllClasses();
+                    for (const [className, classInfo] of classes) {
+                        const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                        item.detail = `class ${className}`;
+                        item.sortText = '0' + className;
+                        completionItems.push(item);
+                    }
+                }
+            }
+            return completionItems;
+        }
+
+        // After 'new' - only show classes (not interfaces)
+        if (contexts.includes('after-new')) {
+            if (this.scopeAnalyzer) {
+                const classes = this.scopeAnalyzer.getAllClasses();
+                for (const [className, classInfo] of classes) {
+                    const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                    item.detail = `class ${className}`;
+                    item.insertText = new vscode.SnippetString(`${className}($1)`);
+                    item.documentation = new vscode.MarkdownString(`**Class** ${className}\n\nCreate new instance`);
+                    item.sortText = '0' + className; // High priority
+                    completionItems.push(item);
+                }
+            }
+            return completionItems;
+        }
+
         // Add class names in appropriate contexts
         if (contexts.includes('type-context') || contexts.includes('expression') || contexts.includes('global-function')) {
+            // Add classes
             for (const [className, classInfo] of this.analyzer.classes.entries()) {
                 const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
                 item.detail = `class ${className}`;
                 item.documentation = `User-defined class`;
                 item.sortText = '2' + className; // Lower priority than keywords
                 completionItems.push(item);
+            }
+
+            // Add interfaces
+            if (this.scopeAnalyzer) {
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    item.documentation = `User-defined interface`;
+                    item.sortText = '2' + interfaceName; // Lower priority than keywords
+                    completionItems.push(item);
+                }
             }
         }
 

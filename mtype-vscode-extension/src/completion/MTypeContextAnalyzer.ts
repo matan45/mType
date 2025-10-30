@@ -123,6 +123,21 @@ export class MTypeContextAnalyzer {
             contexts.push('after-interface-name');
         }
 
+        // Check if we're after 'implements' keyword (with or without partial type name)
+        if (linePrefix.match(/\bimplements\s+\w*$/)) {
+            contexts.push('after-implements');
+        }
+
+        // Check if we're after 'extends' keyword (with or without partial type name)
+        if (linePrefix.match(/\bextends\s+\w*$/)) {
+            contexts.push('after-extends');
+        }
+
+        // Check if we're after 'new' keyword (with or without partial class name)
+        if (linePrefix.match(/\bnew\s+\w*$/)) {
+            contexts.push('after-new');
+        }
+
         // Check if we're after an if statement
         if (this.isPreviousLineIf(fullLine)) {
             contexts.push('after-if');

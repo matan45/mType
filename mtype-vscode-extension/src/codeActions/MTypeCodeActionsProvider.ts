@@ -20,14 +20,11 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
     ): Promise<vscode.CodeAction[]> {
         const actions: vscode.CodeAction[] = [];
 
-        console.log('[mType CodeActions] provideCodeActions called at line', range.start.line);
-
         // Get the word at the cursor position
         const wordRange = document.getWordRangeAtPosition(range.start);
         if (!wordRange) {
             // Even if no word, still check for interface implementation
             const interfaceActions = this.createInterfaceImplementationActions(document, range);
-            console.log('[mType CodeActions] Found', interfaceActions.length, 'interface implementation actions');
             actions.push(...interfaceActions);
             return actions;
         }
@@ -39,21 +36,17 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
         if (this.isUndefinedIdentifier(word, line.text)) {
             // Offer import suggestions
             const importActions = await this.createImportActions(word, document);
-            console.log('[mType CodeActions] Found', importActions.length, 'import actions');
             actions.push(...importActions);
         }
 
         // Check if we're in a class that implements an interface
         const interfaceImplementationActions = this.createInterfaceImplementationActions(document, range);
-        console.log('[mType CodeActions] Found', interfaceImplementationActions.length, 'interface implementation actions');
         actions.push(...interfaceImplementationActions);
 
         // Check for missing override annotation
         const overrideActions = this.createOverrideAnnotationActions(document, range);
-        console.log('[mType CodeActions] Found', overrideActions.length, 'override actions');
         actions.push(...overrideActions);
 
-        console.log('[mType CodeActions] Total actions:', actions.length);
         return actions;
     }
 
@@ -156,47 +149,31 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
     ): vscode.CodeAction[] {
         const actions: vscode.CodeAction[] = [];
 
-        console.log('[mType] Checking for interface implementation...');
-
         // Parse the document to find if we're in a class that implements an interface
         const scopeAnalyzer = new MTypeScopeAnalyzer(document);
         scopeAnalyzer.analyzeDocument();
 
         // Get the current class name
         const currentClassName = scopeAnalyzer.getCurrentClassName(range.start);
-        console.log('[mType] Current class name:', currentClassName);
 
         if (!currentClassName) {
-            console.log('[mType] Not inside a class');
             return actions;
         }
 
         const classInfo = scopeAnalyzer.getClassInfo(currentClassName);
-        console.log('[mType] Class info:', classInfo ? {
-            name: classInfo.name,
-            implementedInterfaces: classInfo.implementedInterfaces,
-            methodCount: classInfo.methods.size
-        } : 'null');
 
         if (!classInfo || !classInfo.implementedInterfaces || classInfo.implementedInterfaces.length === 0) {
-            console.log('[mType] No implemented interfaces found');
             return actions;
         }
 
-        console.log('[mType] Class implements:', classInfo.implementedInterfaces);
-
         // For each implemented interface, check if all methods are implemented
         for (const interfaceName of classInfo.implementedInterfaces) {
-            console.log('[mType] Checking interface:', interfaceName);
-
             const missingMethods = this.findMissingInterfaceMethods(
                 document,
                 currentClassName,
                 interfaceName,
                 scopeAnalyzer
             );
-
-            console.log('[mType] Missing methods from', interfaceName, ':', missingMethods.length);
 
             if (missingMethods.length > 0) {
                 const action = new vscode.CodeAction(
@@ -215,7 +192,6 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
                 edit.insert(document.uri, insertPosition, methodsCode);
                 action.edit = edit;
 
-                console.log('[mType] Created action:', action.title);
                 actions.push(action);
             }
         }
@@ -237,10 +213,8 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
         // Get interface methods
         const interfaceInfo = scopeAnalyzer.getInterfaceInfo(interfaceName);
         if (!interfaceInfo) {
-            console.log('[mType] Interface not found:', interfaceName);
             return missingMethods;
         }
-        console.log('[mType] Interface found:', interfaceName, 'with', interfaceInfo.methods.size, 'methods');
 
         // Get class methods
         const classInfo = scopeAnalyzer.getClassInfo(className);
@@ -279,7 +253,9 @@ export class MTypeCodeActionsProvider implements vscode.CodeActionProvider {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
-            if (line.match(new RegExp(`class\\s+${className}\\s*[{<]`))) {
+            // Match class declaration with optional extends/implements clauses
+            // e.g., "class MyClass {", "class MyClass extends Parent {", "class MyClass implements Interface {"
+            if (line.match(new RegExp(`class\\s+${className}\\b[^{]*\\{`))) {
                 inClass = true;
                 braceCount = 1;
                 continue;
