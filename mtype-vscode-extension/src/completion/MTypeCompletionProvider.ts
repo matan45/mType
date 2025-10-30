@@ -30,6 +30,11 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         const lineText = document.lineAt(position).text.substring(0, position.character);
         const completionItems: vscode.CompletionItem[] = [];
 
+        // Don't provide completions inside import statements - let MTypeImportCompletionProvider handle it
+        if (lineText.match(/^\s*import\s+/)) {
+            return [];
+        }
+
         // Check for specific completion triggers first
         const triggerContext = MTypeContextAnalyzer.getCompletionTriggerContext(lineText);
 
