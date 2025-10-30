@@ -333,6 +333,24 @@ namespace vm::runtime
             context.callStack.push_back(frame);
             context.stats.functionCalls++;
 
+            // Notify debugger of super method entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errorsLoc);
+                } else {
+                    // Fallback: use method start location if current instruction has no location
+                    auto methodStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (methodStartLoc) {
+                        errors::SourceLocation errorsLoc(methodStartLoc->filename, methodStartLoc->line, methodStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errors::SourceLocation());
+                    }
+                }
+            }
+
             context.instructionPointer = funcMetadata->startOffset - 1;
         } else {
             throw errors::RuntimeException("Parent method '" + qualifiedName + "' has no bytecode.");

@@ -1,6 +1,8 @@
 #include "LambdaExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -161,8 +163,27 @@ namespace vm::runtime
             lambda->creatingClassName + "::<lambda>";
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
+        frame.originatingLambda = lambda;  // Store lambda reference for variable access
 
         context.callStack.push_back(frame);
+
+        // Notify debugger of lambda entry
+        if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+            auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+            if (sourceLoc) {
+                errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+            } else {
+                // Fallback: use lambda start location if current instruction has no location
+                auto lambdaStartLoc = context.program->getSourceLocation(lambdaStart);
+                if (lambdaStartLoc) {
+                    errors::SourceLocation errorsLoc(lambdaStartLoc->filename, lambdaStartLoc->line, lambdaStartLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                } else {
+                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errors::SourceLocation());
+                }
+            }
+        }
 
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
         for (size_t i = 0; i < args.size(); ++i) {
