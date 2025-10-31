@@ -281,7 +281,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of parent constructor entry
@@ -382,7 +382,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of super method entry
@@ -513,7 +513,7 @@ namespace vm::runtime
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
 
-        context.callStack.push_back(frame);
+        context.pushCallFrame(frame);
         context.stats.functionCalls++;
 
         // Notify debugger of constructor entry

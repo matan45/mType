@@ -228,7 +228,7 @@ namespace vm::runtime
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
 
-        context.callStack.push_back(frame);
+        context.pushCallFrame(frame);
 
         // Notify debugger of lambda entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {
@@ -320,7 +320,7 @@ namespace vm::runtime
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;  // Store the class that defines this method
 
-        context.callStack.push_back(frame);
+        context.pushCallFrame(frame);
         context.stats.functionCalls++;
 
         // Notify debugger of method entry

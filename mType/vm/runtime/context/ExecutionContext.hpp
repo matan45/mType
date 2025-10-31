@@ -100,6 +100,7 @@ namespace vm::runtime
         // Execution state
         size_t& instructionPointer;
         std::vector<CallFrame>& callStack;
+        size_t maxCallStackSize;  // Maximum allowed call stack depth
 
         // Environment integration
         std::shared_ptr<environment::Environment> environment;
@@ -120,6 +121,7 @@ namespace vm::runtime
             const bytecode::BytecodeProgram* prog,
             size_t& ip,
             std::vector<CallFrame>& cs,
+            size_t maxStackDepth,
             std::shared_ptr<environment::Environment> env,
             std::shared_ptr<StackManager> sm,
             ExecutionStats& st,
@@ -130,6 +132,7 @@ namespace vm::runtime
             : program(prog)
             , instructionPointer(ip)
             , callStack(cs)
+            , maxCallStackSize(maxStackDepth)
             , environment(std::move(env))
             , stackManager(std::move(sm))
             , stats(st)
@@ -138,5 +141,8 @@ namespace vm::runtime
             , currentSourceFile(srcFile)
             , currentSourceLine(srcLine)
         {}
+
+        // Call stack management with overflow protection
+        void pushCallFrame(const CallFrame& frame);
     };
 }

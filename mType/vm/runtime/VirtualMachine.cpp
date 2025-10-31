@@ -27,6 +27,7 @@
 #include "../../runtime/EventLoop.hpp"
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugHookHelper.hpp"
+#include "../../constants/ExecutionMode.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -36,9 +37,11 @@
 
 namespace vm::runtime
 {
-    VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
+    VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env,
+                                   size_t maxStackDepth)
         : program(nullptr)
           , stackManager(std::make_shared<StackManager>())
+          , maxCallStackSize(maxStackDepth == 0 ? constants::vm::DEFAULT_MAX_CALL_STACK_SIZE : maxStackDepth)
           , instructionPointer(0)
           , environment(std::move(env))
           , eventLoop(nullptr) // Lazy initialization - only created when needed
@@ -49,7 +52,7 @@ namespace vm::runtime
           , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
     {
-        callStack.reserve(64);
+        callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
         // Note: Executors will be initialized in execute() when program is available
         // because ExecutionContext requires a valid program pointer
@@ -189,7 +192,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = className;
 
-            callStack.push_back(frame);
+            pushCallFrame(frame);
             stats.functionCalls++;
 
             // Execute constructor
@@ -284,7 +287,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = definingClassName;
 
-            callStack.push_back(frame);
+            pushCallFrame(frame);
             stats.functionCalls++;
 
             // Execute method
@@ -362,7 +365,7 @@ namespace vm::runtime
             frame.thisInstance = nullptr; // Static methods have no 'this'
             frame.definingClassName = className;
 
-            callStack.push_back(frame);
+            pushCallFrame(frame);
             stats.functionCalls++;
 
             // Execute method
@@ -471,8 +474,8 @@ namespace vm::runtime
 
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
-        ExecutionContext context(program, instructionPointer, callStack, environment,
-                                 stackManager, stats, executionStart,
+        ExecutionContext context(program, instructionPointer, callStack, maxCallStackSize,
+                                 environment, stackManager, stats, executionStart,
                                  debuggingEnabled, currentSourceFile, currentSourceLine);
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
@@ -957,6 +960,44 @@ namespace vm::runtime
     void VirtualMachine::popN(size_t count)
     {
         stackManager->popN(count);
+    }
+
+    void VirtualMachine::pushCallFrame(const CallFrame& frame)
+    {
+        // Check for stack overflow
+        if (callStack.size() >= maxCallStackSize)
+        {
+            // Build a helpful error message with stack trace
+            std::ostringstream oss;
+            oss << "Stack overflow: Maximum call stack depth of "
+                << maxCallStackSize << " exceeded.\n";
+            oss << "This may indicate infinite recursion.\n";
+            oss << "Call stack trace (most recent call first):\n";
+
+            // Show last 10 frames to help identify recursion pattern
+            size_t startIdx = callStack.size() > 10 ? callStack.size() - 10 : 0;
+            for (size_t i = startIdx; i < callStack.size(); ++i)
+            {
+                oss << "  [" << i << "] " << callStack[i].functionName;
+                if (!callStack[i].definingClassName.empty())
+                {
+                    oss << " (in class " << callStack[i].definingClassName << ")";
+                }
+                oss << "\n";
+            }
+
+            // Add the frame that would overflow
+            oss << "  [" << callStack.size() << "] " << frame.functionName;
+            if (!frame.definingClassName.empty())
+            {
+                oss << " (in class " << frame.definingClassName << ")";
+            }
+            oss << " <- stack overflow here\n";
+
+            throw errors::RuntimeException(oss.str());
+        }
+
+        callStack.push_back(frame);
     }
 
 

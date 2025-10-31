@@ -54,7 +54,7 @@ namespace vm::runtime
             frame.functionName = functionName;
             frame.thisInstance = nullptr;
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of function entry
@@ -158,7 +158,7 @@ namespace vm::runtime
             frame.functionName = staticQualifiedName;  // Use $static suffix for proper async method detection
             frame.thisInstance = nullptr;  // No 'this' for static methods
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of static method entry

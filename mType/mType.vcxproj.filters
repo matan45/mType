@@ -2081,6 +2081,9 @@
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\ArithmeticExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
@@ -5222,6 +5225,9 @@
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\arrayOptimization.mt">
+      <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\optimizer\pass\combined_annotations_pass.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
     </None>
     <None Include="tests\testFiles\optimizer\pass\comparison_folding.mt">
