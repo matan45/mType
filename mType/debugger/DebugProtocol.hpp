@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <map>
 #include <vector>
@@ -61,6 +62,10 @@ namespace debugger {
             }
 
             void addParameter(const std::string& key, int value) {
+                parameters[key] = std::to_string(value);
+            }
+
+            void addParameter(const std::string& key, int64_t value) {
                 parameters[key] = std::to_string(value);
             }
 
@@ -148,17 +153,17 @@ namespace debugger {
         /**
          * Send variables response
          */
-        static void sendVariables(const std::vector<std::tuple<std::string, std::string, std::string, int>>& vars);
+        static void sendVariables(const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& vars);
 
         /**
          * Send expanded variable response
          */
-        static void sendExpandedVariable(const std::vector<std::tuple<std::string, std::string, std::string, int>>& children);
+        static void sendExpandedVariable(const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& children);
 
         /**
          * Send evaluate result response
          */
-        static void sendEvaluateResult(const std::string& result, const std::string& type, int refId = 0);
+        static void sendEvaluateResult(const std::string& result, const std::string& type, int64_t refId = 0);
 
     private:
         static std::string unescapeValue(const std::string& value);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>
@@ -23,11 +24,11 @@ namespace debugger {
         std::string value;      // String representation of the value
         std::string type;       // Type name (int, string, MyClass, etc.)
         bool isExpandable;      // True for objects/arrays
-        int referenceId;        // Non-zero for expandable objects
+        int64_t referenceId;    // Non-zero for expandable objects (int64_t to prevent overflow)
         std::vector<DebugVariable> children; // For expanded objects
 
         DebugVariable(const std::string& n, const std::string& v, const std::string& t,
-                     bool expandable = false, int refId = 0)
+                     bool expandable = false, int64_t refId = 0)
             : name(n), value(v), type(t), isExpandable(expandable), referenceId(refId) {}
     };
 
@@ -39,16 +40,17 @@ namespace debugger {
      */
     class VariableInspector {
     private:
-        int nextReferenceId;
+        // NOTE: Using int64_t to prevent overflow in long-running debug sessions
+        int64_t nextReferenceId;
 
         // Cache of object references for expansion
-        std::unordered_map<int, std::shared_ptr<runtimeTypes::klass::ObjectInstance>> objectReferences;
+        std::unordered_map<int64_t, std::shared_ptr<runtimeTypes::klass::ObjectInstance>> objectReferences;
 
         // Cache of array references for expansion (one map per array type)
-        std::unordered_map<int, std::shared_ptr<value::NativeArray>> nativeArrayReferences;
-        std::unordered_map<int, std::shared_ptr<value::FlatMultiArray>> flatMultiArrayReferences;
-        std::unordered_map<int, std::shared_ptr<value::SparseMultiArray>> sparseMultiArrayReferences;
-        std::unordered_map<int, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>> flatMultiObjectArrayReferences;
+        std::unordered_map<int64_t, std::shared_ptr<value::NativeArray>> nativeArrayReferences;
+        std::unordered_map<int64_t, std::shared_ptr<value::FlatMultiArray>> flatMultiArrayReferences;
+        std::unordered_map<int64_t, std::shared_ptr<value::SparseMultiArray>> sparseMultiArrayReferences;
+        std::unordered_map<int64_t, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>> flatMultiObjectArrayReferences;
 
     public:
         VariableInspector();
@@ -70,7 +72,7 @@ namespace debugger {
         /**
          * Get children of an expandable variable by reference ID
          */
-        std::vector<DebugVariable> getVariableChildren(int referenceId);
+        std::vector<DebugVariable> getVariableChildren(int64_t referenceId);
 
         /**
          * Format a value as a debug variable
@@ -104,15 +106,15 @@ namespace debugger {
         /**
          * Store an object reference and return reference ID
          */
-        int storeObjectReference(std::shared_ptr<runtimeTypes::klass::ObjectInstance> obj);
+        int64_t storeObjectReference(std::shared_ptr<runtimeTypes::klass::ObjectInstance> obj);
 
         /**
          * Store array references and return reference ID
          */
-        int storeNativeArrayReference(std::shared_ptr<value::NativeArray> arr);
-        int storeFlatMultiArrayReference(std::shared_ptr<value::FlatMultiArray> arr);
-        int storeSparseMultiArrayReference(std::shared_ptr<value::SparseMultiArray> arr);
-        int storeFlatMultiObjectArrayReference(std::shared_ptr<mType::value::arrays::FlatMultiObjectArray> arr);
+        int64_t storeNativeArrayReference(std::shared_ptr<value::NativeArray> arr);
+        int64_t storeFlatMultiArrayReference(std::shared_ptr<value::FlatMultiArray> arr);
+        int64_t storeSparseMultiArrayReference(std::shared_ptr<value::SparseMultiArray> arr);
+        int64_t storeFlatMultiObjectArrayReference(std::shared_ptr<mType::value::arrays::FlatMultiObjectArray> arr);
 
         /**
          * Format object instance for display

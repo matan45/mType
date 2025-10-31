@@ -135,7 +135,7 @@ namespace debugger {
     }
 
     void DebugProtocol::sendVariables(
-        const std::vector<std::tuple<std::string, std::string, std::string, int>>& vars) {
+        const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& vars) {
 
         Message msg("VARIABLES");
         for (size_t i = 0; i < vars.size(); i++) {
@@ -147,7 +147,7 @@ namespace debugger {
     }
 
     void DebugProtocol::sendExpandedVariable(
-        const std::vector<std::tuple<std::string, std::string, std::string, int>>& children) {
+        const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& children) {
 
         Message msg("EXPANDEDVAR");
         for (size_t i = 0; i < children.size(); i++) {
@@ -158,7 +158,7 @@ namespace debugger {
         send(msg);
     }
 
-    void DebugProtocol::sendEvaluateResult(const std::string& result, const std::string& type, int refId) {
+    void DebugProtocol::sendEvaluateResult(const std::string& result, const std::string& type, int64_t refId) {
         Message msg("RESULT");
         msg.addParameter("value", result);
         msg.addParameter("type", type);
@@ -406,7 +406,7 @@ namespace debugger {
         }
 
         // Convert to protocol format: (name, value, type, refId)
-        std::vector<std::tuple<std::string, std::string, std::string, int>> varList;
+        std::vector<std::tuple<std::string, std::string, std::string, int64_t>> varList;
         for (const auto& var : variables) {
             varList.emplace_back(var.name, var.value, var.type, var.referenceId);
         }
@@ -415,7 +415,7 @@ namespace debugger {
     }
 
     void DebugServer::handleExpandVariable(const DebugProtocol::Message& message) {
-        int refId = message.getIntParameter("ref", 0);
+        int64_t refId = message.getIntParameter("ref", 0);
         if (refId == 0) {
             DebugProtocol::sendError("Invalid reference ID");
             return;
@@ -445,7 +445,7 @@ namespace debugger {
         }
 
         // Convert to protocol format
-        std::vector<std::tuple<std::string, std::string, std::string, int>> childList;
+        std::vector<std::tuple<std::string, std::string, std::string, int64_t>> childList;
         for (const auto& child : children) {
             childList.emplace_back(child.name, child.value, child.type, child.referenceId);
         }

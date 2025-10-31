@@ -1,4 +1,5 @@
 #include "VariableInspector.hpp"
+#include "DebuggerConstants.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"
 #include <variant>
@@ -8,7 +9,7 @@
 namespace debugger {
 
     VariableInspector::VariableInspector()
-        : nextReferenceId(1) {
+        : nextReferenceId(constants::INITIAL_REFERENCE_ID) {
     }
 
     std::vector<DebugVariable> VariableInspector::getLocalVariables(
@@ -75,7 +76,7 @@ namespace debugger {
         return variables;
     }
 
-    std::vector<DebugVariable> VariableInspector::getVariableChildren(int referenceId) {
+    std::vector<DebugVariable> VariableInspector::getVariableChildren(int64_t referenceId) {
         // Check if it's an object reference
         auto objIt = objectReferences.find(referenceId);
         if (objIt != objectReferences.end()) {
@@ -159,7 +160,7 @@ namespace debugger {
         flatMultiArrayReferences.clear();
         sparseMultiArrayReferences.clear();
         flatMultiObjectArrayReferences.clear();
-        nextReferenceId = 1;
+        nextReferenceId = constants::INITIAL_REFERENCE_ID;
     }
 
     std::string VariableInspector::valueToString(const value::Value& val) {
@@ -325,35 +326,35 @@ namespace debugger {
         return false;
     }
 
-    int VariableInspector::storeObjectReference(
+    int64_t VariableInspector::storeObjectReference(
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> obj) {
 
-        int refId = nextReferenceId++;
+        int64_t refId = nextReferenceId++;
         objectReferences[refId] = obj;
         return refId;
     }
 
-    int VariableInspector::storeNativeArrayReference(std::shared_ptr<value::NativeArray> arr) {
-        int refId = nextReferenceId++;
+    int64_t VariableInspector::storeNativeArrayReference(std::shared_ptr<value::NativeArray> arr) {
+        int64_t refId = nextReferenceId++;
         nativeArrayReferences[refId] = arr;
         return refId;
     }
 
-    int VariableInspector::storeFlatMultiArrayReference(std::shared_ptr<value::FlatMultiArray> arr) {
-        int refId = nextReferenceId++;
+    int64_t VariableInspector::storeFlatMultiArrayReference(std::shared_ptr<value::FlatMultiArray> arr) {
+        int64_t refId = nextReferenceId++;
         flatMultiArrayReferences[refId] = arr;
         return refId;
     }
 
-    int VariableInspector::storeSparseMultiArrayReference(std::shared_ptr<value::SparseMultiArray> arr) {
-        int refId = nextReferenceId++;
+    int64_t VariableInspector::storeSparseMultiArrayReference(std::shared_ptr<value::SparseMultiArray> arr) {
+        int64_t refId = nextReferenceId++;
         sparseMultiArrayReferences[refId] = arr;
         return refId;
     }
 
-    int VariableInspector::storeFlatMultiObjectArrayReference(
+    int64_t VariableInspector::storeFlatMultiObjectArrayReference(
         std::shared_ptr<mType::value::arrays::FlatMultiObjectArray> arr) {
-        int refId = nextReferenceId++;
+        int64_t refId = nextReferenceId++;
         flatMultiObjectArrayReferences[refId] = arr;
         return refId;
     }
@@ -366,7 +367,7 @@ namespace debugger {
             return DebugVariable(name, "null", "object", false, 0);
         }
 
-        int refId = storeObjectReference(obj);
+        int64_t refId = storeObjectReference(obj);
         std::string valueStr = "{" + obj->getTypeName() + "}";
         std::string typeName = obj->getTypeName();
 
@@ -381,7 +382,7 @@ namespace debugger {
             return DebugVariable(name, "[null]", "array", false, 0);
         }
 
-        int refId = storeNativeArrayReference(arr);
+        int64_t refId = storeNativeArrayReference(arr);
         std::string valueStr = "[" + std::to_string(arr->size()) + " elements]";
 
         std::string elemType = arr->getElementTypeName();
@@ -398,7 +399,7 @@ namespace debugger {
             return DebugVariable(name, "[null]", "array[multi]", false, 0);
         }
 
-        int refId = storeFlatMultiArrayReference(arr);
+        int64_t refId = storeFlatMultiArrayReference(arr);
 
         auto dims = arr->getDimensions();
         std::string dimStr;
@@ -419,7 +420,7 @@ namespace debugger {
             return DebugVariable(name, "[null]", "array[sparse]", false, 0);
         }
 
-        int refId = storeSparseMultiArrayReference(arr);
+        int64_t refId = storeSparseMultiArrayReference(arr);
 
         auto dims = arr->getDimensions();
         std::string dimStr;
@@ -440,7 +441,7 @@ namespace debugger {
             return DebugVariable(name, "[null]", "array[objects]", false, 0);
         }
 
-        int refId = storeFlatMultiObjectArrayReference(arr);
+        int64_t refId = storeFlatMultiObjectArrayReference(arr);
 
         auto dims = arr->getDimensions();
         std::string dimStr;
@@ -482,8 +483,8 @@ namespace debugger {
         }
 
         size_t size = arr->size();
-        // Limit to first 100 elements to avoid overwhelming the debugger
-        size_t displayCount = std::min(size, static_cast<size_t>(100));
+        // Limit array display to avoid overwhelming the debugger
+        size_t displayCount = std::min(size, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
 
         for (size_t i = 0; i < displayCount; ++i) {
             try {
@@ -532,7 +533,7 @@ namespace debugger {
 
         // For multi-dimensional arrays, show first dimension elements
         size_t firstDimSize = dims[0];
-        size_t displayCount = std::min(firstDimSize, static_cast<size_t>(100));
+        size_t displayCount = std::min(firstDimSize, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
 
         for (size_t i = 0; i < displayCount; ++i) {
             try {
@@ -605,8 +606,8 @@ namespace debugger {
         if (stats.currentMode == value::SparseMultiArray::StorageMode::SPARSE &&
             stats.nonDefaultElements > 0) {
 
-            // Limit to first 100 non-default elements
-            size_t displayCount = std::min(stats.nonDefaultElements, static_cast<size_t>(100));
+            // Limit non-default elements display
+            size_t displayCount = std::min(stats.nonDefaultElements, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
             size_t count = 0;
 
             // Note: We can't access the internal sparse map directly without adding a public API
@@ -623,7 +624,7 @@ namespace debugger {
         } else if (stats.currentMode == value::SparseMultiArray::StorageMode::DENSE) {
             // For dense mode, show first dimension elements like other arrays
             size_t firstDimSize = dims[0];
-            size_t displayCount = std::min(firstDimSize, static_cast<size_t>(100));
+            size_t displayCount = std::min(firstDimSize, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
 
             for (size_t i = 0; i < displayCount; ++i) {
                 try {
@@ -674,7 +675,7 @@ namespace debugger {
 
         // For multi-dimensional object arrays, show first dimension elements
         size_t firstDimSize = dims[0];
-        size_t displayCount = std::min(firstDimSize, static_cast<size_t>(100));
+        size_t displayCount = std::min(firstDimSize, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
 
         for (size_t i = 0; i < displayCount; ++i) {
             try {

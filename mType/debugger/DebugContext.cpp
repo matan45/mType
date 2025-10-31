@@ -2,14 +2,37 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
+
 namespace debugger {
 
+    // Cache for current working directory (initialized once)
+    static std::string cachedCwd;
+    static std::once_flag cwdInitFlag;
+
     // Helper function to normalize file paths for comparison
+    // PERFORMANCE: Optimized to minimize filesystem I/O operations
     static std::string normalizePath(const std::string& path) {
+        // Initialize CWD cache once (avoids repeated filesystem calls)
+        std::call_once(cwdInitFlag, []() {
+            try {
+                cachedCwd = std::filesystem::current_path().string();
+            } catch (...) {
+                cachedCwd = ".";
+            }
+        });
+
         try {
-            // Convert to canonical path (resolves .., ., and makes absolute)
             std::filesystem::path p(path);
-            std::string normalized = std::filesystem::weakly_canonical(p).string();
+
+            // Make absolute if relative (using cached CWD, no filesystem I/O)
+            if (p.is_relative()) {
+                p = std::filesystem::path(cachedCwd) / p;
+            }
+
+            // Use lexically_normal() instead of weakly_canonical()
+            // This avoids filesystem access for path normalization
+            std::string normalized = p.lexically_normal().string();
 
             // Convert to lowercase for case-insensitive comparison on Windows
             std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
@@ -79,23 +102,37 @@ namespace debugger {
                                       const std::string& condition,
                                       const std::string& logMessage) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
+
+        // PERFORMANCE: Normalize path once at insertion time instead of on every lookup
+        std::string normalizedFilename = normalizePath(filename);
+
         BreakpointInfo info;
         info.condition = condition;
         info.logMessage = logMessage;
         info.hitCount = 0;
-        breakpoints[{filename, line}] = info;
+
+        // Store with normalized path for O(1) lookup
+        breakpoints[{normalizedFilename, line}] = info;
     }
 
     void DebugContext::removeBreakpoint(const std::string& filename, int line) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
-        breakpoints.erase({filename, line});
+
+        // Normalize path for consistent lookup
+        std::string normalizedFilename = normalizePath(filename);
+        breakpoints.erase({normalizedFilename, line});
     }
 
     void DebugContext::clearBreakpoints(const std::string& filename) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
+
+        // Normalize path once for comparison (stored paths are already normalized)
+        std::string normalizedFilename = normalizePath(filename);
+
         auto it = breakpoints.begin();
         while (it != breakpoints.end()) {
-            if (it->first.filename == filename) {
+            // Compare against already-normalized stored path
+            if (it->first.filename == normalizedFilename) {
                 it = breakpoints.erase(it);
             } else {
                 ++it;
@@ -114,28 +151,24 @@ namespace debugger {
 
     bool DebugContext::hasBreakpoint(const std::string& filename, int line) const {
         std::lock_guard<std::mutex> lock(breakpointMutex);
+
+        // PERFORMANCE: Normalize once and use O(1) hash lookup instead of O(n) iteration
+        // This eliminates repeated normalizePath() calls on every breakpoint
         std::string normalizedFilename = normalizePath(filename);
 
-        // Check if any breakpoint matches this location
-        for (const auto& [key, info] : breakpoints) {
-            if (normalizePath(key.filename) == normalizedFilename && key.line == line) {
-                return true;
-            }
-        }
-        return false;
+        // Direct O(1) hash lookup - stored keys already have normalized paths
+        return breakpoints.find({normalizedFilename, line}) != breakpoints.end();
     }
 
     BreakpointInfo* DebugContext::getBreakpointInfo(const std::string& filename, int line) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
+
+        // PERFORMANCE: Normalize once and use O(1) hash lookup instead of O(n) iteration
         std::string normalizedFilename = normalizePath(filename);
 
-        // Find breakpoint with matching normalized path
-        for (auto& [key, info] : breakpoints) {
-            if (normalizePath(key.filename) == normalizedFilename && key.line == line) {
-                return &info;
-            }
-        }
-        return nullptr;
+        // Direct O(1) hash lookup - stored keys already have normalized paths
+        auto it = breakpoints.find({normalizedFilename, line});
+        return (it != breakpoints.end()) ? &it->second : nullptr;
     }
 
     std::vector<BreakpointKey> DebugContext::getBreakpoints() const {

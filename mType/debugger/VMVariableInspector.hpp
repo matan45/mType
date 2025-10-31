@@ -1,6 +1,7 @@
 #pragma once
 #include "VariableInspector.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -49,7 +50,7 @@ namespace debugger
          * @param refId Reference ID of the parent variable
          * @return Vector of child debug variables
          */
-        std::vector<DebugVariable> getVariableChildren(std::shared_ptr<vm::runtime::VirtualMachine> vm, int refId);
+        std::vector<DebugVariable> getVariableChildren(std::shared_ptr<vm::runtime::VirtualMachine> vm, int64_t refId);
 
         /**
          * Clear cached variable references
@@ -68,7 +69,9 @@ namespace debugger
         std::string getTypeName(const value::Value& val);
 
         // Reference ID management for expandable variables
-        int nextRefId;
-        std::unordered_map<int, value::Value> refIdToValue;
+        // NOTE: Using int64_t to prevent overflow in long-running debug sessions
+        // (int32 max ~2.1 billion could be reached; int64 max ~9 quintillion is safe)
+        int64_t nextRefId;
+        std::unordered_map<int64_t, value::Value> refIdToValue;
     };
 }
