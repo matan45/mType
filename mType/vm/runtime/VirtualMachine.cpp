@@ -22,7 +22,6 @@
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
-#include "../../value/LambdaValue.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../runtime/EventLoop.hpp"

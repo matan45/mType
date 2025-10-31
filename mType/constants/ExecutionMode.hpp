@@ -4,28 +4,15 @@ namespace constants
 {
     /**
      * Execution mode for the interpreter
-     * Determines whether to use AST evaluation or bytecode compilation
+     * Currently only bytecode VM is supported
      */
     enum class ExecutionMode
     {
         /**
-         * AST-walking interpreter (original evaluator)
-         * Compatible with all language features
-         */
-        AST_INTERPRETER,
-
-        /**
          * Bytecode compiler + VM execution
-         * Higher performance for supported features
+         * Default and only execution mode
          */
-        BYTECODE_VM,
-
-        /**
-         * Dual validation mode
-         * Runs both AST and bytecode and compares results
-         * Used for testing and validation
-         */
-        DUAL_VALIDATION
+        BYTECODE_VM
     };
 
     /**

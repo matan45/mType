@@ -34,8 +34,7 @@ namespace tests::testFramework
         TestCase(const std::string& testName, const std::string& testFilePath, TestType testType = TestType::NORMAL);
 
         void execute();
-        void setExecutionMode(constants::ExecutionMode mode) { executionMode = mode; }
-        
+
         // Getters
         const std::string& getName() const { return name; }
         const std::string& getFilePath() const { return filePath; }

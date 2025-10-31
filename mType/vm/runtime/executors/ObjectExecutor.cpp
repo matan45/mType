@@ -6,7 +6,6 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../../../value/LambdaValue.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>

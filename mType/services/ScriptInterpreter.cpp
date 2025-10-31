@@ -14,12 +14,9 @@
 #include "BytecodeExecutor.hpp"
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
-#include "ASTExecutionStrategy.hpp"
 #include "BytecodeExecutionStrategy.hpp"
-#include "DualValidationStrategy.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
-#include "../evaluator/Evaluator.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../errors/ReturnException.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
@@ -44,7 +41,7 @@
 namespace services
 {
     ScriptInterpreter::ScriptInterpreter()
-        : executionMode(constants::ExecutionMode::AST_INTERPRETER)
+        : executionMode(constants::ExecutionMode::BYTECODE_VM)
     {
         initializeServices(constants::OptimizationLevel::Debug);
     }
@@ -59,7 +56,6 @@ namespace services
     {
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
-        evaluator = std::make_unique<evaluator::Evaluator>(environment);
         optimizationService = std::make_unique<OptimizationService>(optLevel);
         nativeRegistry = std::make_unique<NativeFunctionRegistry>(environment);
         importResolver = std::make_unique<ImportResolver>(environment);
@@ -67,39 +63,12 @@ namespace services
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
         // ScriptAPI initialized with VM support (program will be set when bytecode is loaded)
-        scriptAPI = std::make_unique<ScriptAPI>(environment, evaluator.get(), vm.get(), nullptr);
+        scriptAPI = std::make_unique<ScriptAPI>(environment, vm.get(), nullptr);
         // BytecodeService needs ScriptAPI reference to update program during execution
         bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm, scriptAPI.get());
 
-        // Create appropriate execution strategy based on execution mode
-        switch (executionMode)
-        {
-        case constants::ExecutionMode::AST_INTERPRETER:
-            executionStrategy = std::make_unique<ASTExecutionStrategy>(evaluator.get());
-            break;
-        case constants::ExecutionMode::BYTECODE_VM:
-            executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
-            break;
-        case constants::ExecutionMode::DUAL_VALIDATION:
-            executionStrategy = std::make_unique<DualValidationStrategy>(evaluator.get(), environment, importResolver.get(), optimizationService.get());
-            break;
-        default:
-            throw std::runtime_error("Unknown execution mode");
-        }
-
-        // Set up method call handler for native functions
-        auto nativeRegistry = environment->getNativeRegistry();
-        if (nativeRegistry)
-        {
-            nativeRegistry->setMethodCallHandler(
-                [this](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                       const std::string& methodName,
-                       const std::vector<value::Value>& args) -> value::Value
-                {
-                    return evaluator->callMethodOnInstance(instance, methodName, args);
-                }
-            );
-        }
+        // Always create bytecode execution strategy
+        executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
     }
 
     ScriptInterpreter::~ScriptInterpreter()
@@ -328,24 +297,9 @@ namespace services
         return environment;
     }
 
-    evaluator::Evaluator* ScriptInterpreter::getEvaluator() const
-    {
-        return evaluator.get();
-    }
-
     void ScriptInterpreter::enableDebugging()
     {
-        // Enable debugging for evaluator (AST mode)
-        if (evaluator)
-        {
-            auto context = evaluator->getContext();
-            if (context)
-            {
-                context->setDebuggingEnabled(true);
-            }
-        }
-
-        // Enable debugging for VM (bytecode mode)
+        // Enable debugging for VM
         if (vm)
         {
             vm->setDebuggingEnabled(true);
@@ -354,17 +308,7 @@ namespace services
 
     void ScriptInterpreter::disableDebugging()
     {
-        // Disable debugging for evaluator (AST mode)
-        if (evaluator)
-        {
-            auto context = evaluator->getContext();
-            if (context)
-            {
-                context->setDebuggingEnabled(false);
-            }
-        }
-
-        // Disable debugging for VM (bytecode mode)
+        // Disable debugging for VM
         if (vm)
         {
             vm->setDebuggingEnabled(false);
@@ -398,12 +342,11 @@ namespace services
             // Set ImportManager on environment
             environment->setImportManager(importManager.get());
 
-            // For bytecode mode, compile the AST to register classes
+            // Compile the AST to bytecode (this registers all classes)
             // Classes are registered during compilation by ClassRegistrar
             // We don't need to execute the bytecode - just compile and cache it
-            if (executionMode == constants::ExecutionMode::BYTECODE_VM && compiler)
+            if (compiler)
             {
-                // Compile the AST to bytecode (this registers all classes)
                 cachedBytecodeProgram = std::make_unique<vm::bytecode::BytecodeProgram>(compiler->compile(ast.get()));
 
                 // Set program reference on VM for C++ API methods (createObject, invokeMethod, etc.)
@@ -421,19 +364,6 @@ namespace services
 
                 // Note: Classes are already registered during compilation by ClassRegistrar
                 // We do NOT execute the bytecode, so any top-level code in the script won't run
-            }
-            else
-            {
-                // For AST mode, we need to evaluate the AST to register classes
-                // Class registration happens during evaluation via ClassDeclarationHandler
-                if (executionStrategy)
-                {
-                    executionStrategy->execute(ast.get());
-                }
-                else if (evaluator)
-                {
-                    evaluator->evaluate(ast.get());
-                }
             }
 
             // Note: Classes are now registered in the environment's class registry

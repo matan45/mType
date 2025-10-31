@@ -10,11 +10,6 @@
 #include "../vm/bytecode/BytecodeProgram.hpp"
 
 // Forward declarations
-namespace evaluator
-{
-    class Evaluator;
-}
-
 namespace vm::compiler
 {
     class BytecodeCompiler;
@@ -43,7 +38,6 @@ namespace services
     {
     private:
         std::shared_ptr<environment::Environment> environment;
-        std::unique_ptr<evaluator::Evaluator> evaluator;
         std::unique_ptr<vm::compiler::BytecodeCompiler> compiler;
         std::shared_ptr<vm::runtime::VirtualMachine> vm;  // Changed to shared_ptr for enable_shared_from_this support
         std::unique_ptr<OptimizationService> optimizationService;
@@ -130,9 +124,8 @@ namespace services
         std::string getObjectClassName(const value::Value& object);
 
 
-        // Access to environment and evaluator for advanced operations
+        // Access to environment and VM for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
-        evaluator::Evaluator* getEvaluator() const;
         std::shared_ptr<vm::runtime::VirtualMachine> getVM() const { return vm; }
 
         // Debug support

@@ -1,13 +1,7 @@
 ﻿#include "TestCase.hpp"
-#include "../../parser/Parser.hpp"
-#include "../../lexer/Lexer.hpp"
-#include "../../services/ImportManager.hpp"
-#include "../../evaluator/Evaluator.hpp"
-#include "../../environment/EnvironmentBuilder.hpp"
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
-#include "../../evaluator/utils/GenericTypeManager.hpp"
 #include "../../services/ScriptInterpreter.hpp"
 #include <fstream>
 #include <sstream>
@@ -16,15 +10,11 @@
 
 namespace tests::testFramework
 {
-    using namespace parser;
-    using namespace lexer;
     using namespace services;
-    using namespace evaluator;
-    using namespace environment;
 
     TestCase::TestCase(const std::string& testName, const std::string& testFilePath, TestType testType)
         : name(testName), filePath(testFilePath), type(testType), status(TestStatus::NOT_RUN),
-          executionTime(0), executionMode(constants::ExecutionMode::AST_INTERPRETER)
+          executionTime(0), executionMode(constants::ExecutionMode::BYTECODE_VM)
     {
     }
 
@@ -32,11 +22,8 @@ namespace tests::testFramework
     {
         auto startTime = std::chrono::high_resolution_clock::now();
 
-        // Clear caches to prevent contamination between tests
-        evaluator::utils::GenericTypeManager::clearGenericClassCache();
-
-        // Clear interface validation cache as well
-        services::ScriptInterpreter interpreter;
+        // Clear interface validation cache to prevent contamination between tests
+        ScriptInterpreter interpreter;
         auto env = interpreter.getEnvironment();
         if (env) {
             auto interfaceRegistry = env->getInterfaceRegistry();
@@ -64,59 +51,9 @@ namespace tests::testFramework
 
             try
             {
-                if (executionMode == constants::ExecutionMode::BYTECODE_VM ||
-                    executionMode == constants::ExecutionMode::DUAL_VALIDATION)
-                {
-                    // Use ScriptInterpreter for bytecode/dual mode
-                    ScriptInterpreter interpreter(executionMode);
-                    interpreter.runScript(filePath);
-                }
-                else
-                {
-                    // Original AST execution code
-                    // Initialize lexer and parser - let lexer read the file
-                    Lexer lexer(filePath);
-                    auto importManager = std::make_unique<ImportManager>();
-                    ImportManager* importManagerPtr = importManager.get();
-
-                    // Set base directory to the directory of the test file
-                    std::filesystem::path testFilePath(filePath);
-                    importManagerPtr->setBaseDirectory(testFilePath.parent_path().string());
-
-                    Parser parser(lexer, std::move(importManager));
-
-                    // Parse the file
-                    auto ast = parser.parseProgram();
-
-                    if (!ast)
-                    {
-                        throw std::runtime_error("Failed to generate AST");
-                    }
-
-                    // Evaluate the AST
-                    auto env = EnvironmentBuilder::createDefault();
-
-                    // Set ImportManager on environment for clean architecture
-                    env->setImportManager(importManagerPtr);
-
-                    Evaluator evaluator(env);
-
-                    // Set up method call handler for native functions (needed for toString())
-                    auto nativeRegistry = env->getNativeRegistry();
-                    if (nativeRegistry)
-                    {
-                        nativeRegistry->setMethodCallHandler(
-                            [&evaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                        const std::string& methodName,
-                                        const std::vector<value::Value>& args) -> value::Value
-                            {
-                                return evaluator.callMethodOnInstance(instance, methodName, args);
-                            }
-                        );
-                    }
-
-                    evaluator.evaluate(ast.get());
-                }
+                // Always use ScriptInterpreter with bytecode mode
+                ScriptInterpreter testInterpreter(executionMode);
+                testInterpreter.runScript(filePath);
 
                 // Restore stdout
                 std::cout.rdbuf(oldCout);

@@ -1,5 +1,6 @@
 #include "LambdaInterfaceInvocationNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../value/ValueTypeUtils.hpp"
 #include <sstream>
 
 namespace ast::nodes::expressions

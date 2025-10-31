@@ -38,7 +38,6 @@ using namespace tests::testFramework;
 using namespace parser;
 using namespace lexer;
 using namespace services;
-using namespace evaluator;
 using namespace environment;
 
 
@@ -129,7 +128,7 @@ void printAvailableTestSuites()
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
-                          constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+                          constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM)
 {
     auto suite = createTestSuite(suiteName);
     if (!suite)
@@ -156,23 +155,11 @@ void runSpecificTestSuite(const std::string& suiteName,
  * Demonstrate creating objects and calling methods on @Script classes
  */
 void demonstrateScriptObjectUsage(const std::string& scriptFile,
-                                  constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+                                  constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM)
 {
     std::cout << "\n" << std::string(80, '=') << "\n";
     std::cout << "Script Class Object Usage Demo\n";
-    std::cout << "Execution Mode: ";
-    switch (execMode)
-    {
-    case constants::ExecutionMode::AST_INTERPRETER:
-        std::cout << "AST Interpreter\n";
-        break;
-    case constants::ExecutionMode::BYTECODE_VM:
-        std::cout << "Bytecode VM\n";
-        break;
-    case constants::ExecutionMode::DUAL_VALIDATION:
-        std::cout << "Dual Validation\n";
-        break;
-    }
+    std::cout << "Execution Mode: Bytecode VM\n";
     std::cout << std::string(80, '=') << "\n\n";
 
     try
@@ -339,23 +326,10 @@ void printScriptAnnotatedClasses(std::shared_ptr<environment::Environment> envir
     std::cout << std::string(80, '=') << "\n";
 }
 
-void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER)
+void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM)
 {
     std::cout << "Running all test suites...\n";
-    std::cout << "Execution Mode: ";
-    switch (execMode)
-    {
-    case constants::ExecutionMode::AST_INTERPRETER:
-        std::cout << "AST Interpreter\n";
-        break;
-    case constants::ExecutionMode::BYTECODE_VM:
-        std::cout << "Bytecode VM\n";
-        break;
-    case constants::ExecutionMode::DUAL_VALIDATION:
-        std::cout << "Dual Validation\n";
-        break;
-    }
-    std::cout << "\n";
+    std::cout << "Execution Mode: Bytecode VM\n\n";
 
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
@@ -393,7 +367,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
  * Run script in debug mode with debugger protocol active
  */
 void runInDebugMode(const std::string& filename,
-                    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER,
+                    constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM,
                     constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug)
 {
     // Output debug banner to stderr so it doesn't interfere with debug protocol on stdout
@@ -488,20 +462,8 @@ void runInDebugMode(const std::string& filename,
 
 int main(int argc, char* argv[])
 {
-    // Parse execution mode first
-    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER;
-
-    for (int i = 1; i < argc; ++i)
-    {
-        if (std::string(argv[i]) == "--bytecode")
-        {
-            execMode = constants::ExecutionMode::BYTECODE_VM;
-        }
-        else if (std::string(argv[i]) == "--dual")
-        {
-            execMode = constants::ExecutionMode::DUAL_VALIDATION;
-        }
-    }
+    // Bytecode VM is the only execution mode
+    constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM;
 
     // Check for test suite execution
     if (argc >= 2 && std::string(argv[argc - 2]) == "--test" && argc >= 3)
@@ -534,10 +496,8 @@ int main(int argc, char* argv[])
     if (argc >= 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
-        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (AST interpreter mode)\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (bytecode VM mode)\n";
         std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
-        std::cout << "  " << argv[0] << " --bytecode <script.mt>     - Run with bytecode VM\n";
-        std::cout << "  " << argv[0] << " --dual <script.mt>         - Run with dual validation (AST + Bytecode)\n";
         std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug optimization level\n";
         std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
@@ -547,16 +507,9 @@ int main(int argc, char* argv[])
             " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
         std::cout << "  " << argv[0] <<
             " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
-        std::cout << "  " << argv[0] << " --test-script-objects <script.mt> --bytecode - Same demo using Bytecode VM\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
-        std::cout << "  " << argv[0] << " --bytecode --tests         - Run all test suites in bytecode mode\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
-        std::cout << "  " << argv[0] << " --bytecode --test <suite>  - Run test suite in bytecode mode\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
-        std::cout << "Execution Modes:\n";
-        std::cout << "  AST Interpreter (default) - Traditional AST walking interpreter\n";
-        std::cout << "  Bytecode VM (--bytecode)  - Stack-based bytecode virtual machine\n";
-        std::cout << "  Dual Validation (--dual)  - Run both and compare results\n\n";
         std::cout << "Optimization Levels:\n";
         std::cout << "  -debug   - Debug mode (no dead code optimization)\n";
         std::cout << "  -release - Release mode (includes dead code elimination and unused declaration removal)\n";
@@ -642,23 +595,9 @@ int main(int argc, char* argv[])
     {
         std::string scriptFile = argv[2];
 
-        // Check for execution mode flag
-        constants::ExecutionMode mode = constants::ExecutionMode::AST_INTERPRETER;
-        for (int i = 3; i < argc; ++i)
-        {
-            if (std::string(argv[i]) == "--bytecode")
-            {
-                mode = constants::ExecutionMode::BYTECODE_VM;
-            }
-            else if (std::string(argv[i]) == "--dual")
-            {
-                mode = constants::ExecutionMode::DUAL_VALIDATION;
-            }
-        }
-
         try
         {
-            demonstrateScriptObjectUsage(scriptFile, mode);
+            demonstrateScriptObjectUsage(scriptFile, constants::ExecutionMode::BYTECODE_VM);
             return 0;
         }
         catch (const std::exception& e)
@@ -673,22 +612,12 @@ int main(int argc, char* argv[])
     {
         std::string scriptFile = argv[2];
 
-        // Check for optional execution mode flags
-        constants::ExecutionMode mode = constants::ExecutionMode::BYTECODE_VM; // Use bytecode for analysis
-        for (int i = 3; i < argc; ++i)
-        {
-            if (std::string(argv[i]) == "--bytecode")
-            {
-                mode = constants::ExecutionMode::BYTECODE_VM;
-            }
-        }
-
         try
         {
             std::cout << "Analyzing script: " << scriptFile << "\n";
             std::cout << "(Parsing and registering classes for analysis)\n\n";
 
-            ScriptInterpreter interpreter(mode);
+            ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM);
 
             // Parse and register classes without executing the script
             interpreter.parseAndRegisterClasses(scriptFile);
@@ -719,14 +648,7 @@ int main(int argc, char* argv[])
         {
             debugMode = true;
         }
-        else if (arg == "--bytecode")
-        {
-            execMode = constants::ExecutionMode::BYTECODE_VM;
-        }
-        else if (arg == "--dual")
-        {
-            execMode = constants::ExecutionMode::DUAL_VALIDATION;
-        }
+        // --bytecode and --dual flags removed (bytecode is the only mode)
         else if (arg == "-debug")
         {
             optLevel = constants::OptimizationLevel::Debug;
@@ -760,19 +682,7 @@ int main(int argc, char* argv[])
         ScriptInterpreter interpreter(execMode, optLevel);
 
         // Print execution mode to both stdout and stderr (for debug console visibility)
-        std::string modeStr;
-        switch (execMode)
-        {
-        case constants::ExecutionMode::AST_INTERPRETER:
-            modeStr = "AST Interpreter";
-            break;
-        case constants::ExecutionMode::BYTECODE_VM:
-            modeStr = "Bytecode VM";
-            break;
-        case constants::ExecutionMode::DUAL_VALIDATION:
-            modeStr = "Dual Validation";
-            break;
-        }
+        std::string modeStr = "Bytecode VM";
 
         std::string optStr;
         switch (optLevel)

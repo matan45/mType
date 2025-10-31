@@ -1,6 +1,4 @@
 #include "ScriptAPI.hpp"
-#include "../evaluator/Evaluator.hpp"
-#include "../evaluator/base/EvaluationContext.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
@@ -22,10 +20,9 @@
 namespace services
 {
     ScriptAPI::ScriptAPI(std::shared_ptr<environment::Environment> env,
-                         evaluator::Evaluator* eval,
                          vm::runtime::VirtualMachine* virtualMachine,
                          const vm::bytecode::BytecodeProgram* bytecodeProgram)
-        : environment(env), evaluator(eval), vm(virtualMachine), program(bytecodeProgram)
+        : environment(env), vm(virtualMachine), program(bytecodeProgram)
     {
     }
 
@@ -38,14 +35,7 @@ namespace services
 
     value::Value ScriptAPI::callFunction(const std::string& functionName, const std::vector<value::Value>& args)
     {
-        // First try to find a regular mType function
-        auto funcDef = environment->findFunction(functionName);
-        if (funcDef)
-        {
-            return invokeFunction(funcDef, args);
-        }
-
-        // If not found, try to find a native function
+        // Try to find a native function first
         auto nativeRegistry = environment->getNativeRegistry();
         if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
         {
@@ -54,6 +44,12 @@ namespace services
             {
                 return nativeFunc(args);
             }
+        }
+
+        // Otherwise use VM to invoke the function
+        if (vm && program)
+        {
+            return vm->executeFunction(functionName, args);
         }
 
         throw errors::MethodNotFoundException(functionName, "", __FUNCTION__);
@@ -70,14 +66,13 @@ namespace services
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
 
-        // If VM and program are available, use bytecode execution
-        if (vm && program)
+        // Use VM for method invocation
+        if (vm)
         {
             return vm->invokeMethod(instance, methodName, args);
         }
 
-        // Otherwise fall back to AST evaluation
-        return evaluator->callMethodOnInstance(instance, methodName, args);
+        throw errors::MethodNotFoundException(methodName, instance->getClassDefinition()->getName());
     }
 
     value::Value ScriptAPI::callStaticMethod(const std::string& className,
@@ -90,25 +85,24 @@ namespace services
             throw errors::ClassNotFoundException(className);
         }
 
-        // If VM and program are available, use bytecode execution
-        if (vm && program)
+        // Use VM for static method invocation
+        if (vm)
         {
             return vm->invokeStaticMethod(className, methodName, args);
         }
 
-        // Otherwise fall back to AST evaluation
-        return invokeStaticMethod(classDef, methodName, args);
+        throw errors::MethodNotFoundException(methodName, className);
     }
 
     value::Value ScriptAPI::getStaticField(const std::string& className, const std::string& fieldName)
     {
-        // If VM and program are available, use VM field access
-        if (vm && program)
+        // Use VM for static field access
+        if (vm)
         {
             return vm->getStaticField(className, fieldName);
         }
 
-        // Otherwise fall back to direct field access
+        // Fall back to direct field access if VM not available
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -128,14 +122,14 @@ namespace services
                                    const std::string& fieldName,
                                    const value::Value& value)
     {
-        // If VM and program are available, use VM field access
-        if (vm && program)
+        // Use VM for static field access
+        if (vm)
         {
             vm->setStaticField(className, fieldName, value);
             return;
         }
 
-        // Otherwise fall back to direct field access
+        // Fall back to direct field access if VM not available
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -192,13 +186,13 @@ namespace services
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
 
-        // If VM and program are available, use VM field access
-        if (vm && program)
+        // Use VM for field access
+        if (vm)
         {
             return vm->getField(instance, fieldName);
         }
 
-        // Otherwise fall back to direct field access
+        // Fall back to direct field access if VM not available
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef)
         {
@@ -219,14 +213,14 @@ namespace services
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
 
-        // If VM and program are available, use VM field access
-        if (vm && program)
+        // Use VM for field access
+        if (vm)
         {
             vm->setField(instance, fieldName, value);
             return;
         }
 
-        // Otherwise fall back to direct field access
+        // Fall back to direct field access if VM not available
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef)
         {
@@ -244,74 +238,13 @@ namespace services
     value::Value ScriptAPI::createObject(const std::string& className,
                                          const std::vector<value::Value>& constructorArgs)
     {
-        // If VM and program are available, use bytecode execution
-        if (vm && program)
+        // Use VM for object creation
+        if (vm)
         {
             return vm->createObject(className, constructorArgs);
         }
 
-        // Otherwise fall back to AST evaluation
-        auto classDef = environment->findClass(className);
-        if (!classDef)
-        {
-            throw errors::ClassNotFoundException(className);
-        }
-
-        // Create the object instance
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
-
-        // Find and call appropriate constructor
-        auto constructor = classDef->findConstructor(constructorArgs.size());
-        if (constructor)
-        {
-            // Set up parameters in a new scope
-            environment->enterScope("constructor");
-
-            auto params = constructor->getParameters();
-            if (params.size() != constructorArgs.size())
-            {
-                environment->exitScope();
-                throw errors::ParameterMismatchException("constructor",
-                                                         static_cast<int>(params.size()),
-                                                         static_cast<int>(constructorArgs.size()));
-            }
-
-            // Bind parameters
-            for (size_t i = 0; i < params.size(); ++i)
-            {
-                auto paramVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                    params[i].first, params[i].second, false, false);
-                paramVar->setValue(constructorArgs[i]);
-                environment->declareVariable(params[i].first, paramVar);
-            }
-
-            // Execute super initializer first (if present)
-            if (constructor->hasSuperInitializer())
-            {
-                auto superInit = constructor->getSuperInitializer();
-                if (superInit)
-                {
-                    evaluator->evaluate(superInit);
-                }
-            }
-
-            // Execute constructor body if it exists
-            if (constructor->getBody())
-            {
-                // Set current instance context so constructor body can access fields
-                auto context = evaluator->getContext();
-                context->setCurrentInstance(instance);
-
-                evaluator->evaluate(constructor->getBody());
-
-                // Clear instance context
-                context->clearCurrentInstance();
-            }
-
-            environment->exitScope();
-        }
-
-        return std::static_pointer_cast<runtimeTypes::klass::ObjectInstance>(instance);
+        throw errors::ClassNotFoundException(className);
     }
 
     bool ScriptAPI::isObjectOfClass(const value::Value& object, const std::string& className)
@@ -336,153 +269,5 @@ namespace services
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
         auto classDef = instance->getClassDefinition();
         return classDef->getName();
-    }
-
-    // Helper method implementations
-    value::Value ScriptAPI::invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef,
-                                           const std::vector<value::Value>& args)
-    {
-        // Set up function scope
-        environment->enterScope(funcDef->getName(), environment::ScopeType::FUNCTION);
-
-        // Bind parameters
-        auto params = funcDef->getParameters();
-        if (params.size() != args.size())
-        {
-            environment->exitScope();
-            throw errors::ParameterMismatchException(funcDef->getName(),
-                                                     static_cast<int>(params.size()),
-                                                     static_cast<int>(args.size()));
-        }
-
-        for (size_t i = 0; i < params.size(); ++i)
-        {
-            auto paramVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                params[i].first, params[i].second, false, false);
-            paramVar->setValue(args[i]);
-            environment->declareVariable(params[i].first, paramVar);
-        }
-
-        // Execute function body
-        value::Value result = std::monostate{}; // void
-        if (funcDef->getBody())
-        {
-            result = evaluator->evaluate(funcDef->getBody().get());
-
-            // Check if there was a return value
-            if (evaluator->shouldReturn())
-            {
-                result = evaluator->getReturnValue();
-                evaluator->setReturned(false); // Reset return state
-            }
-        }
-
-        environment->exitScope();
-        return result;
-    }
-
-    value::Value ScriptAPI::invokeStaticMethod(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                               const std::string& methodName,
-                                               const std::vector<value::Value>& args)
-    {
-        auto method = classDef->getMethod(methodName);
-        if (!method || !method->isStatic())
-        {
-            throw errors::MethodNotFoundException(methodName, classDef->getName());
-        }
-
-        // Set up method scope
-        environment->enterScope(classDef->getName() + "::" + methodName, environment::ScopeType::FUNCTION);
-
-        try
-        {
-            setupStaticMethodScope(classDef, method, methodName, args);
-            value::Value result = executeStaticMethodBody(method);
-            environment->exitScope();
-            return result;
-        }
-        catch (...)
-        {
-            // Clean up on exception
-            environment->exitScope();
-            throw;
-        }
-    }
-
-    void ScriptAPI::setupStaticMethodScope(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                          std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
-                                          const std::string& methodName,
-                                          const std::vector<value::Value>& args)
-    {
-        // Bind parameters
-        auto params = method->getParameters();
-        if (params.size() != args.size())
-        {
-            throw errors::ParameterMismatchException(
-                classDef->getName() + "::" + methodName,
-                static_cast<int>(params.size()),
-                static_cast<int>(args.size()));
-        }
-
-        for (size_t i = 0; i < params.size(); ++i)
-        {
-            auto paramVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-                params[i].first, params[i].second, false, false);
-            paramVar->setValue(args[i]);
-            environment->declareVariable(params[i].first, paramVar);
-        }
-
-        // Store current class name for static field access
-        auto classNameVar = std::make_shared<runtimeTypes::global::VariableDefinition>(
-            "__current_class_name__", value::ValueType::STRING, classDef->getName(), false);
-        environment->declareVariable("__current_class_name__", classNameVar);
-    }
-
-    value::Value ScriptAPI::executeStaticMethodBody(std::shared_ptr<runtimeTypes::klass::MethodDefinition> method)
-    {
-        value::Value result = std::monostate{}; // void
-        if (!method->getBody())
-        {
-            return result;
-        }
-
-        auto apiEvaluator = std::make_unique<evaluator::Evaluator>(environment);
-
-        // Set up method call handler for this evaluator
-        auto nativeRegistry = environment->getNativeRegistry();
-        if (nativeRegistry)
-        {
-            nativeRegistry->setMethodCallHandler(
-                [&apiEvaluator](std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                const std::string& methodName,
-                                const std::vector<value::Value>& args) -> value::Value
-                {
-                    return apiEvaluator->callMethodOnInstance(instance, methodName, args);
-                }
-            );
-        }
-
-        try
-        {
-            result = apiEvaluator->evaluate(method->getBody());
-
-            // Check if there was a return value
-            if (apiEvaluator->shouldReturn())
-            {
-                result = apiEvaluator->getReturnValue();
-            }
-        }
-        catch (const errors::ReturnException& returnEx)
-        {
-            // Handle explicit return statements
-            result = returnEx.returnValue;
-        }
-        catch (const std::exception& evalException)
-        {
-            std::cerr << "Warning: Error compiling dependency : " << evalException.what() << std::endl;
-            throw;
-        }
-
-        return result;
     }
 }

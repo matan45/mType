@@ -2,7 +2,6 @@
 #include <variant>
 #include <string>
 #include <memory>
-#include <vector>
 #include "StringPool.hpp"
 
 namespace runtimeTypes::klass
@@ -20,7 +19,6 @@ namespace value
     class NativeArray;
     class FlatMultiArray;
     class SparseMultiArray;
-    class LambdaValue;
     class PromiseValue;
 }
 
@@ -53,16 +51,7 @@ namespace value
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,
                                std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>,
-                               std::shared_ptr<LambdaValue>,
                                std::shared_ptr<vm::runtime::BytecodeLambda>,
                                std::shared_ptr<PromiseValue>,
                                nullptr_t>;
-
-    // NOTE: getValueType() helper function has been moved to ValueTypeUtils
-    // for better separation of concerns (Single Responsibility Principle).
-    // Include "ValueTypeUtils.hpp" to use:
-    // - ValueTypeUtils::getValueType(value)
 }
-
-// Forward compatibility: Include utility for users who expect getValueType() here
-#include "ValueTypeUtils.hpp"
