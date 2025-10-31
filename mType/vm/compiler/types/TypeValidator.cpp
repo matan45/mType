@@ -1,6 +1,6 @@
 #include "TypeValidator.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include <functional>
 
 namespace vm::compiler::types
@@ -205,7 +205,7 @@ namespace vm::compiler::types
 
         // Reject primitive values when OBJECT with specific class is expected
         if (!varClassName.empty()) {
-            std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
+            std::string valueTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(valueType);
             throw errors::TypeException(
                 "Type mismatch: cannot assign primitive " + valueTypeStr + " to object type " + varClassName,
                 location
@@ -230,8 +230,8 @@ namespace vm::compiler::types
             return;
         }
 
-        std::string varTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(varType);
-        std::string valueTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(valueType);
+        std::string varTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(varType);
+        std::string valueTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(valueType);
         throw errors::TypeException(
             "Type mismatch: cannot assign " + valueTypeStr + " to " + varTypeStr,
             location
@@ -322,8 +322,8 @@ namespace vm::compiler::types
     void TypeValidator::throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
                                                   const ast::SourceLocation& location) const
     {
-        std::string leftTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(leftType);
-        std::string rightTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(rightType);
+        std::string leftTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(leftType);
+        std::string rightTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(rightType);
         std::string opStr;
 
         switch (op) {

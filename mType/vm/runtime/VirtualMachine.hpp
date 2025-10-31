@@ -58,6 +58,7 @@ namespace vm::runtime
         // Execution state
         std::shared_ptr<StackManager> stackManager;
         std::vector<CallFrame> callStack;
+        size_t maxCallStackSize;  // Maximum allowed call stack depth
         size_t instructionPointer;
 
         // Environment integration
@@ -99,7 +100,8 @@ namespace vm::runtime
         std::unique_ptr<utils::ExceptionHandler> exceptionHandler;
 
     public:
-        explicit VirtualMachine(std::shared_ptr<environment::Environment> env);
+        explicit VirtualMachine(std::shared_ptr<environment::Environment> env,
+                               size_t maxStackDepth = 0);  // 0 means use default from constants
         ~VirtualMachine(); // Must be declared in .cpp where executor types are complete
 
         // Execution
@@ -174,5 +176,8 @@ namespace vm::runtime
         value::Value pop();
         value::Value peek(size_t offset = 0) const;
         void popN(size_t count);
+
+        // Call stack management with overflow protection
+        void pushCallFrame(const CallFrame& frame);
     };
 }

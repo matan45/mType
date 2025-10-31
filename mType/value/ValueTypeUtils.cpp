@@ -2,7 +2,6 @@
 #include "NativeArray.hpp"
 #include "FlatMultiArray.hpp"
 #include "SparseMultiArray.hpp"
-#include "LambdaValue.hpp"
 #include "AsyncPromiseValue.hpp"
 #include "arrays/object/FlatMultiObjectArray.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -21,7 +20,7 @@ namespace value {
         if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(value)) {
             return ValueType::ARRAY;
         }
-        if (std::holds_alternative<std::shared_ptr<LambdaValue>>(value)) {
+        if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(value)) {
             return ValueType::LAMBDA;
         }
         if (std::holds_alternative<std::shared_ptr<PromiseValue>>(value)) {

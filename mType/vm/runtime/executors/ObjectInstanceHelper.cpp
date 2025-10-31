@@ -3,12 +3,66 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
-#include "../../../evaluator/utils/GenericTypeManager.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
 
 namespace vm::runtime
 {
+    // Helper function to parse type arguments with proper bracket depth tracking
+    static std::vector<std::string> parseTypeArguments(const std::string& typeArgsStr)
+    {
+        std::vector<std::string> typeArgs;
+        std::string current;
+        int depth = 0;
+
+        for (char c : typeArgsStr)
+        {
+            if (c == '<')
+            {
+                depth++;
+                current += c;
+            }
+            else if (c == '>')
+            {
+                depth--;
+                current += c;
+            }
+            else if (c == ',' && depth == 0)
+            {
+                // Split at comma only if we're at depth 0 (not inside nested generics)
+                if (!current.empty())
+                {
+                    // Trim whitespace
+                    size_t start = current.find_first_not_of(" \t");
+                    size_t end = current.find_last_not_of(" \t");
+                    if (start != std::string::npos && end != std::string::npos)
+                    {
+                        typeArgs.push_back(current.substr(start, end - start + 1));
+                    }
+                }
+                current.clear();
+            }
+            else
+            {
+                current += c;
+            }
+        }
+
+        // Add the last type argument
+        if (!current.empty())
+        {
+            // Trim whitespace
+            size_t start = current.find_first_not_of(" \t");
+            size_t end = current.find_last_not_of(" \t");
+            if (start != std::string::npos && end != std::string::npos)
+            {
+                typeArgs.push_back(current.substr(start, end - start + 1));
+            }
+        }
+
+        return typeArgs;
+    }
+
     ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx)
         : context(ctx)
     {
@@ -32,11 +86,9 @@ namespace vm::runtime
 
         std::string typeArgsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
-        // Use GenericTypeManager for robust parsing with proper depth tracking
-        // CRITICAL FIX: Previous implementation failed on nested generics like "Container<HashMap<String, List<Int>>>"
-        // It would incorrectly split on inner commas, producing ["HashMap<String", "List<Int>>"]
-        // GenericTypeManager correctly handles bracket depth to produce ["HashMap<String, List<Int>>"]
-        std::vector<std::string> typeArgs = evaluator::utils::GenericTypeManager::parseTypeArguments(typeArgsStr);
+        // Parse type arguments with proper bracket depth tracking
+        // Correctly handles nested generics like "Container<HashMap<String, List<Int>>>"
+        std::vector<std::string> typeArgs = parseTypeArguments(typeArgsStr);
 
         // Validate type arguments
         auto& typeRegistry = types::getGlobalTypeRegistry();
@@ -229,7 +281,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of parent constructor entry
@@ -330,7 +382,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of super method entry
@@ -461,7 +513,7 @@ namespace vm::runtime
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
 
-        context.callStack.push_back(frame);
+        context.pushCallFrame(frame);
         context.stats.functionCalls++;
 
         // Notify debugger of constructor entry

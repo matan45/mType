@@ -122,26 +122,6 @@ namespace mType::value::simd
          * @return Maximum element
          */
         static float maxFloat(const float* data, size_t size);
-
-        // ========== UTILITY OPERATIONS ==========
-
-        /**
-         * @brief SIMD-accelerated fill: data[i] = value for all i
-         */
-        static void fillInt(int* data, int value, size_t size);
-        static void fillFloat(float* data, float value, size_t size);
-
-        /**
-         * @brief SIMD-accelerated copy: dest[i] = src[i] for all i
-         */
-        static void copyInt(const int* src, int* dest, size_t size);
-        static void copyFloat(const float* src, float* dest, size_t size);
-
-        /**
-         * @brief SIMD-accelerated reverse: data[i] <-> data[size-1-i]
-         */
-        static void reverseInt(int* data, size_t size);
-        static void reverseFloat(float* data, size_t size);
     };
 
 } // namespace mType::value::simd

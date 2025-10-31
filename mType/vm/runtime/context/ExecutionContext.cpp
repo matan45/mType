@@ -1,0 +1,44 @@
+#include "ExecutionContext.hpp"
+#include "../../../errors/RuntimeException.hpp"
+#include <sstream>
+
+namespace vm::runtime
+{
+    void ExecutionContext::pushCallFrame(const CallFrame& frame)
+    {
+        // Check for stack overflow
+        if (callStack.size() >= maxCallStackSize)
+        {
+            // Build a helpful error message with stack trace
+            std::ostringstream oss;
+            oss << "Stack overflow: Maximum call stack depth of "
+                << maxCallStackSize << " exceeded.\n";
+            oss << "This may indicate infinite recursion.\n";
+            oss << "Call stack trace (most recent call first):\n";
+
+            // Show last 10 frames to help identify recursion pattern
+            size_t startIdx = callStack.size() > 10 ? callStack.size() - 10 : 0;
+            for (size_t i = startIdx; i < callStack.size(); ++i)
+            {
+                oss << "  [" << i << "] " << callStack[i].functionName;
+                if (!callStack[i].definingClassName.empty())
+                {
+                    oss << " (in class " << callStack[i].definingClassName << ")";
+                }
+                oss << "\n";
+            }
+
+            // Add the frame that would overflow
+            oss << "  [" << callStack.size() << "] " << frame.functionName;
+            if (!frame.definingClassName.empty())
+            {
+                oss << " (in class " << frame.definingClassName << ")";
+            }
+            oss << " <- stack overflow here\n";
+
+            throw errors::RuntimeException(oss.str());
+        }
+
+        callStack.push_back(frame);
+    }
+}

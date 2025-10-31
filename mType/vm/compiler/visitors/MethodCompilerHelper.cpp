@@ -1,7 +1,7 @@
 #include "MethodCompilerHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -161,7 +161,7 @@ namespace vm::compiler::visitors
         if (genericReturnType) {
             result.returnTypeStr = genericReturnType->toString();
         } else {
-            result.returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(node->getReturnType());
+            result.returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
         }
 
         return result;
@@ -349,7 +349,7 @@ namespace vm::compiler::visitors
         }
 
         // Constructor returns an object instance
-        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(value::ValueType::OBJECT);
+        std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(value::ValueType::OBJECT);
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,

@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -25,7 +26,7 @@ namespace vm::runtime
             );
         }
 
-        value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
+        value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
         // Use ArrayFactory for optimized array creation
         // ClassRegistry will be looked up by ArrayFactory if available
         auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
@@ -69,7 +70,7 @@ namespace vm::runtime
         // Both FlatMultiArray and SparseMultiArray support view-based sub-arrays!
         // Modifications to sub-arrays propagate to the parent array.
         // ArrayPool adaptively chooses between dense (FlatMultiArray) and sparse (SparseMultiArray) storage.
-        value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
+        value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
         bool isPrimitive = (elemType == value::ValueType::INT ||
                            elemType == value::ValueType::FLOAT ||
                            elemType == value::ValueType::BOOL ||
@@ -338,7 +339,7 @@ namespace vm::runtime
 
             if (dimensions.size() == totalDimensions) {
                 // Fully specified - create array of elements using ArrayFactory
-                value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
+                value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
                 return mType::value::arrays::ArrayFactory::create1DArray(
                     currentDimSize,
                     elemType,
@@ -397,7 +398,7 @@ namespace vm::runtime
 
         if (dimIndex == dimensions.size() - 1) {
             // Last dimension - create array of actual elements using ArrayFactory
-            value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
+            value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
             return mType::value::arrays::ArrayFactory::create1DArray(
                 currentDimSize,
                 elemType,
@@ -520,7 +521,7 @@ namespace vm::runtime
         const std::string& elementTypeName)
     {
         // Get default value for the element type
-        value::ValueType elemType = utils::TypeConverter::stringToValueType(elementTypeName);
+        value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
         value::Value defaultValue;
 
         switch (elemType) {

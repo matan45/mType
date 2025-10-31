@@ -208,11 +208,6 @@ namespace runtime {
         shouldStop = true;
     }
 
-    size_t EventLoop::getPendingTaskCount() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(queueMutex));
-        return readyQueue.size() + suspendedTasks.size() + delayedTasks.size();
-    }
-
     void EventLoop::post(std::function<void()> callback) {
         std::lock_guard<std::mutex> lock(queueMutex);
         pendingCallbacks.push_back(callback);
@@ -265,10 +260,6 @@ namespace runtime {
         }
 
         currentTask = nullptr;
-    }
-
-    void EventLoop::checkDelayedTasks() {
-        // This is now handled by moveReadyDelayedTasks()
     }
 
     void EventLoop::checkCompletedPromises() {

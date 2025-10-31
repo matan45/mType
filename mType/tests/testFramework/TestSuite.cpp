@@ -31,10 +31,8 @@ namespace tests::testFramework
 
     void TestSuite::setExecutionModeForAll(constants::ExecutionMode mode)
     {
-        for (auto& testCase : testCases)
-        {
-            testCase.setExecutionMode(mode);
-        }
+        // Execution mode is always BYTECODE_VM - this method is now a no-op
+        // Kept for backwards compatibility
     }
 
     void TestSuite::generateReport()

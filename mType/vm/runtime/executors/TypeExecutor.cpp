@@ -1,6 +1,7 @@
 #include "TypeExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -81,8 +82,8 @@ namespace vm::runtime
                 std::string className = classDef->getName();
 
                 // Extract base class name from generic instantiation (e.g., "Box<Int>" -> "Box")
-                std::string baseClassName = utils::TypeConverter::extractBaseTypeName(className);
-                std::string baseTargetName = utils::TypeConverter::extractBaseTypeName(targetTypeName);
+                std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
+                std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
 
                 // Check if object's class matches target type (exact or base generic match)
                 bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
@@ -102,7 +103,7 @@ namespace vm::runtime
                     const auto& interfaces = classDef->getImplementedInterfaces();
                     for (const auto& iface : interfaces) {
                         // Extract base interface name for comparison
-                        std::string baseIfaceName = utils::TypeConverter::extractBaseTypeName(iface);
+                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
 
                         if (iface == targetTypeName || baseIfaceName == baseTargetName) {
                             result = true;
@@ -339,7 +340,7 @@ namespace vm::runtime
 
         // Strip generic parameters for comparison
         auto stripGenerics = [](const std::string& name) -> std::string {
-            return utils::TypeConverter::extractBaseTypeName(name);
+            return ::types::TypeConversionUtils::extractBaseTypeName(name);
         };
 
         std::string interfaceBaseName = stripGenerics(interfaceName);

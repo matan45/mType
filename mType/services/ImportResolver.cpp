@@ -7,7 +7,6 @@
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include "../evaluator/Evaluator.hpp"
 #include <stdexcept>
 
 namespace services
@@ -142,12 +141,10 @@ namespace services
         {
             std::string className = classNode->getClassName();
 
-            // Pre-register class in environment using evaluator (for AST mode)
-            // Create a temporary evaluator for class registration
-            evaluator::Evaluator tempEvaluator(environment);
-            tempEvaluator.evaluate(classNode);
+            // Note: In bytecode mode, classes are registered during compilation by BytecodeCompiler's ClassRegistrar
+            // This pre-registration is no longer needed since we're bytecode-only
 
-            // For bytecode mode: Also register static methods as global functions
+            // Register static methods as global functions
             registerStaticMethodsAsGlobalFunctions(className, classNode);
 
             return; // No need to traverse children of ClassNode

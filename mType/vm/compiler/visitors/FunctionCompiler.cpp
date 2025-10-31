@@ -5,7 +5,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
@@ -52,7 +52,7 @@ namespace vm::compiler::visitors
             }
             else
             {
-                paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
+                paramTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType));
             }
         }
 
@@ -65,7 +65,7 @@ namespace vm::compiler::visitors
         }
         else
         {
-            returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(node->getReturnType());
+            returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
         }
 
         // Enter function frame for local variable tracking
@@ -237,7 +237,7 @@ namespace vm::compiler::visitors
                         if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT))
                         {
                             std::string actualTypeStr =
-                                vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
+                                ::types::TypeConversionUtils::getTypeDisplayName(actualType);
                             throw errors::TypeException(
                                 "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
                                 node->getLocation()

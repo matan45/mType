@@ -5,11 +5,6 @@
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 
-namespace evaluator
-{
-    class Evaluator;
-}
-
 namespace vm::runtime
 {
     class VirtualMachine;
@@ -30,30 +25,14 @@ namespace services
     {
     private:
         std::shared_ptr<environment::Environment> environment;
-        evaluator::Evaluator* evaluator;
 
-        // Bytecode VM support (optional - used when executing in bytecode mode)
+        // Bytecode VM support
         vm::runtime::VirtualMachine* vm;
         const vm::bytecode::BytecodeProgram* program;
 
-        // Helper methods for internal use
-        value::Value invokeFunction(std::shared_ptr<runtimeTypes::global::FunctionDefinition> funcDef,
-                                    const std::vector<value::Value>& args);
-        value::Value invokeStaticMethod(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                        const std::string& methodName,
-                                        const std::vector<value::Value>& args);
-
-        // Static method execution helpers
-        void setupStaticMethodScope(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                   std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
-                                   const std::string& methodName,
-                                   const std::vector<value::Value>& args);
-        value::Value executeStaticMethodBody(std::shared_ptr<runtimeTypes::klass::MethodDefinition> method);
-
     public:
         ScriptAPI(std::shared_ptr<environment::Environment> env,
-                 evaluator::Evaluator* eval,
-                 vm::runtime::VirtualMachine* virtualMachine = nullptr,
+                 vm::runtime::VirtualMachine* virtualMachine,
                  const vm::bytecode::BytecodeProgram* bytecodeProgram = nullptr);
         ~ScriptAPI();
 

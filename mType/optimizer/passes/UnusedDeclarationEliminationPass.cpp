@@ -53,7 +53,7 @@
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include <chrono>
-
+#include  <iostream>
 namespace optimizer::passes
 {
     using namespace ast;
@@ -245,6 +245,43 @@ namespace optimizer::passes
         {
             bool isPublic = funcNode->isPublic();
             analyzer.analyzeDeclaredFunction(funcNode->getName(), isPublic);
+
+            // Check for @Throw annotations and mark exception classes as used
+            for (const auto& annotation : funcNode->getAnnotations())
+            {
+                if (annotation && annotation->getName() == "Throw")
+                {
+                    // Get the exceptions parameter (e.g., "IOException" or "IOException,RuntimeException")
+                    std::string exceptionsParam = annotation->getParameter("exceptions");
+                    if (!exceptionsParam.empty())
+                    {
+                        // Parse comma-separated exception list
+                        size_t start = 0;
+                        size_t end = 0;
+                        while ((end = exceptionsParam.find(',', start)) != std::string::npos)
+                        {
+                            std::string exceptionName = exceptionsParam.substr(start, end - start);
+                            // Trim whitespace
+                            exceptionName.erase(0, exceptionName.find_first_not_of(" \t"));
+                            exceptionName.erase(exceptionName.find_last_not_of(" \t") + 1);
+                            if (!exceptionName.empty())
+                            {
+                                analyzer.analyzeUsedClass(exceptionName);
+                            }
+                            start = end + 1;
+                        }
+                        // Handle last (or only) exception name
+                        std::string exceptionName = exceptionsParam.substr(start);
+                        exceptionName.erase(0, exceptionName.find_first_not_of(" \t"));
+                        exceptionName.erase(exceptionName.find_last_not_of(" \t") + 1);
+                        if (!exceptionName.empty())
+                        {
+                            analyzer.analyzeUsedClass(exceptionName);
+                        }
+                    }
+                }
+            }
+
             // Don't analyze body here - we'll do it in second pass for used functions only
             return;
         }
@@ -254,6 +291,21 @@ namespace optimizer::passes
             bool isPublic = classNode->getVisibility() == VisibilityModifier::PUBLIC;
             std::string className = classNode->getClassName();
             analyzer.analyzeDeclaredClass(className, isPublic);
+
+            // Classes with @Script annotation are always preserved (accessed from C++ API)
+            if (classNode->hasAnnotation("Script"))
+            {
+                analyzer.analyzeUsedClass(className);
+
+                // Mark all methods in @Script classes as used (can be called from C++ API)
+                for (const auto& method : classNode->getMethods())
+                {
+                    if (auto* methodNode = dynamic_cast<MethodNode*>(method.get()))
+                    {
+                        analyzer.analyzeUsedMethod(className, methodNode->getName());
+                    }
+                }
+            }
 
             // Classes that extend other classes use those classes
             if (!classNode->getParentClassName().empty())
@@ -275,6 +327,42 @@ namespace optimizer::passes
                     bool isMethodPublic = (methodNode->getAccessModifier() == AccessModifier::PUBLIC);
                     bool isStatic = methodNode->getIsStatic();
                     analyzer.analyzeDeclaredMethod(className, methodNode->getName(), isMethodPublic, isStatic);
+
+                    // Check for @Throw annotations and mark exception classes as used
+                    for (const auto& annotation : methodNode->getAnnotations())
+                    {
+                        if (annotation && annotation->getName() == "Throw")
+                        {
+                            // Get the exceptions parameter (e.g., "IOException" or "IOException,RuntimeException")
+                            std::string exceptionsParam = annotation->getParameter("exceptions");
+                            if (!exceptionsParam.empty())
+                            {
+                                // Parse comma-separated exception list
+                                size_t start = 0;
+                                size_t end = 0;
+                                while ((end = exceptionsParam.find(',', start)) != std::string::npos)
+                                {
+                                    std::string exceptionName = exceptionsParam.substr(start, end - start);
+                                    // Trim whitespace
+                                    exceptionName.erase(0, exceptionName.find_first_not_of(" \t"));
+                                    exceptionName.erase(exceptionName.find_last_not_of(" \t") + 1);
+                                    if (!exceptionName.empty())
+                                    {
+                                        analyzer.analyzeUsedClass(exceptionName);
+                                    }
+                                    start = end + 1;
+                                }
+                                // Handle last (or only) exception name
+                                std::string exceptionName = exceptionsParam.substr(start);
+                                exceptionName.erase(0, exceptionName.find_first_not_of(" \t"));
+                                exceptionName.erase(exceptionName.find_last_not_of(" \t") + 1);
+                                if (!exceptionName.empty())
+                                {
+                                    analyzer.analyzeUsedClass(exceptionName);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -895,6 +983,12 @@ namespace optimizer::passes
                             newClass->setFinal(optClassNode->isFinal());
                             newClass->setAbstract(optClassNode->isAbstract());
 
+                            // Copy all annotations (e.g., @Script)
+                            for (const auto& annotation : optClassNode->getAnnotations())
+                            {
+                                newClass->addAnnotation(annotation);
+                            }
+
                             // Copy all fields
                             for (const auto& field : optClassNode->getFields())
                             {
@@ -1070,6 +1164,12 @@ namespace optimizer::passes
                         newClass->setVisibility(optClassNode->getVisibility());
                         newClass->setFinal(optClassNode->isFinal());
                         newClass->setAbstract(optClassNode->isAbstract());
+
+                        // Copy all annotations (e.g., @Script)
+                        for (const auto& annotation : optClassNode->getAnnotations())
+                        {
+                            newClass->addAnnotation(annotation);
+                        }
 
                         // Copy all fields
                         for (const auto& field : optClassNode->getFields())

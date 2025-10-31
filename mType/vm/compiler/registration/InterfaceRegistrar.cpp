@@ -8,7 +8,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../ast/GenericType.hpp"
 #include <stdexcept>
@@ -98,7 +98,7 @@ namespace vm::compiler::registration
                     signature.returnType = functionNode->getGenericReturnType();
                 } else {
                     signature.returnType = std::make_shared<ast::GenericType>(
-                        vm::runtime::utils::TypeConverter::valueTypeToString(functionNode->getReturnType())
+                        ::types::TypeConversionUtils::getTypeDisplayName(functionNode->getReturnType())
                     );
                 }
 
@@ -226,7 +226,7 @@ namespace vm::compiler::registration
                 if (method->getGenericReturnType()) {
                     methodReturnType = method->getGenericReturnType()->getBaseTypeName();
                 } else {
-                    methodReturnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
+                    methodReturnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
                 }
 
                 if (methodReturnType != resolvedReturnType) {
@@ -260,7 +260,7 @@ namespace vm::compiler::registration
                     if (i < methodGenericParams.size() && methodGenericParams[i].second) {
                         methodParamType = methodGenericParams[i].second->getBaseTypeName();
                     } else {
-                        methodParamType = vm::runtime::utils::TypeConverter::valueTypeToString(methodParams[i].second);
+                        methodParamType = ::types::TypeConversionUtils::getTypeDisplayName(methodParams[i].second);
                     }
 
                     std::string resolvedParamType = resolveGenericType(

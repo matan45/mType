@@ -3,7 +3,6 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../../../value/LambdaValue.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
@@ -55,7 +54,7 @@ namespace vm::runtime
             frame.functionName = functionName;
             frame.thisInstance = nullptr;
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of function entry
@@ -159,7 +158,7 @@ namespace vm::runtime
             frame.functionName = staticQualifiedName;  // Use $static suffix for proper async method detection
             frame.thisInstance = nullptr;  // No 'this' for static methods
 
-            context.callStack.push_back(frame);
+            context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
             // Notify debugger of static method entry
@@ -205,8 +204,7 @@ namespace vm::runtime
         std::vector<value::Value>& args,
         const std::vector<std::string>& parameterTypes
     ) {
-        // NOTE: This function is only for AST interpreter compatibility
-        // Bytecode VM uses BytecodeLambda which are handled directly by ObjectExecutor::handleCallMethod
+        // NOTE: Bytecode VM uses BytecodeLambda which are handled directly by ObjectExecutor::handleCallMethod
         // and don't need interface wrapping
 
         for (size_t i = 0; i < args.size() && i < parameterTypes.size(); ++i) {
@@ -218,23 +216,6 @@ namespace vm::runtime
             if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg)) {
                 // No conversion needed - bytecode lambdas are invoked directly
                 continue;
-            }
-
-            // LambdaValue (AST interpreter) - needs interface wrapping
-            if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(arg)) {
-                auto interfaceDef = context.environment->findInterface(paramType);
-
-                if (interfaceDef && interfaceDef->isFunctionalInterface()) {
-                    auto lambdaPtr = std::get<std::shared_ptr<value::LambdaValue>>(arg);
-                    auto* lambdaNode = lambdaPtr->getLambda();
-
-                    auto implClass = interfaceDef->createLambdaImplementation(lambdaNode);
-                    if (implClass) {
-                        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(implClass);
-                        instance->setField(constants::lambda::LAMBDA_FIELD_NAME, arg);
-                        arg = instance;
-                    }
-                }
             }
         }
     }

@@ -4,6 +4,7 @@
 #include "../../../ast/nodes/statements/ImportNode.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -84,17 +85,13 @@ namespace vm::compiler::registration
             }
             else
             {
-                paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
+                paramTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType));
             }
         }
 
         // Get return type
         value::ValueType returnType = functionNode->getReturnType();
-        std::string returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(returnType);
-        if (returnTypeStr.empty())
-        {
-            returnTypeStr = "void";
-        }
+        std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(returnType);
 
         // Create placeholder metadata (will be filled in during actual compilation)
         bytecode::BytecodeProgram::FunctionMetadata metadata;

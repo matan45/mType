@@ -2,7 +2,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -104,7 +104,7 @@ namespace vm::compiler::visitors
 
         // Infer argument type early for validation checks
         value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
-        std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+        std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
 
         // Handle generic type parameters (T, K, V, E, etc.)
         if (validateGenericParameter(methodName, resolvedExpectedType, argType, argTypeStr, paramIndex, location))
@@ -276,7 +276,7 @@ namespace vm::compiler::visitors
                     // Allow null
                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
                     {
-                        std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+                        std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
                         throw errors::TypeException(
                             "Constructor parameter " + std::to_string(i + 1) +
                             " expects " + expectedClass + " but got " + argTypeStr,
@@ -308,8 +308,8 @@ namespace vm::compiler::visitors
             // For primitive types
             else
             {
-                std::string expectedTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType);
-                std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+                std::string expectedTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+                std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
 
                 if (paramType.basicType != argType)
                 {

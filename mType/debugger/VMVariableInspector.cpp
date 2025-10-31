@@ -7,7 +7,6 @@
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
-#include "../value/LambdaValue.hpp"
 #include "../value/StringPool.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include <iostream>
@@ -777,10 +776,6 @@ namespace debugger
             {
                 return "<lambda>";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(val))
-            {
-                return "<lambda>";
-            }
             else if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val))
             {
                 return "<multi-array>";
@@ -866,10 +861,6 @@ namespace debugger
                 return "Object";
             }
             else if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(val))
-            {
-                return "Lambda";
-            }
-            else if (std::holds_alternative<std::shared_ptr<value::LambdaValue>>(val))
             {
                 return "Lambda";
             }

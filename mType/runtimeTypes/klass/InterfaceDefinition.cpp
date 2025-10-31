@@ -3,7 +3,6 @@
 #include "MethodDefinition.hpp"
 #include "../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
-#include "../../value/LambdaValue.hpp"
 
 namespace runtimeTypes::klass
 {

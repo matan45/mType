@@ -8,9 +8,7 @@ namespace tests::testSuite
 
     void AwaitTestSuite::setupTests()
     {
-        // Async/await works in both BYTECODE_VM and AST_INTERPRETER modes
-        // Default to BYTECODE_VM, but can be overridden with --bytecode flag
-        setExecutionModeForAll(ExecutionMode::BYTECODE_VM);
+        // Async/await functionality tests (using bytecode VM mode)
         // Basic async/await functionality tests
         addOutputVerificationTest("Basic Async Function",
                         passPath + "basicAsyncFunction.mt");
