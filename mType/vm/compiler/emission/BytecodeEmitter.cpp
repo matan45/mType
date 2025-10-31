@@ -30,9 +30,49 @@ namespace vm::compiler::emission
         }
     }
 
-    size_t BytecodeEmitter::emitJump(bytecode::OpCode jumpOp)
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, ast::ASTNode* node)
     {
+        size_t offset = program.getCurrentOffset();
+        program.emit(opcode, operand1, operand2);
+
+        if (node) {
+            const auto& loc = node->getLocation();
+            program.addSourceLocation(offset, loc.getLine(), loc.getColumn(), loc.getFilename());
+        }
+    }
+
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, uint32_t operand3, ast::ASTNode* node)
+    {
+        size_t offset = program.getCurrentOffset();
+        program.emit(opcode, std::vector<uint32_t>{operand1, operand2, operand3});
+
+        if (node) {
+            const auto& loc = node->getLocation();
+            program.addSourceLocation(offset, loc.getLine(), loc.getColumn(), loc.getFilename());
+        }
+    }
+
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, const std::vector<uint32_t>& operands, ast::ASTNode* node)
+    {
+        size_t offset = program.getCurrentOffset();
+        program.emit(opcode, operands);
+
+        if (node) {
+            const auto& loc = node->getLocation();
+            program.addSourceLocation(offset, loc.getLine(), loc.getColumn(), loc.getFilename());
+        }
+    }
+
+    size_t BytecodeEmitter::emitJump(bytecode::OpCode jumpOp, ast::ASTNode* node)
+    {
+        size_t offset = program.getCurrentOffset();
         program.emit(jumpOp, 0xFFFFFFFF);  // Placeholder offset
+
+        if (node) {
+            const auto& loc = node->getLocation();
+            program.addSourceLocation(offset, loc.getLine(), loc.getColumn(), loc.getFilename());
+        }
+
         return program.getCurrentOffset() - 1;
     }
 
@@ -42,9 +82,15 @@ namespace vm::compiler::emission
         program.patchJump(offset, static_cast<uint32_t>(jumpTarget));
     }
 
-    void BytecodeEmitter::emitLoop(size_t loopStart)
+    void BytecodeEmitter::emitLoop(size_t loopStart, ast::ASTNode* node)
     {
+        size_t offset = program.getCurrentOffset();
         program.emit(bytecode::OpCode::JUMP_BACK, static_cast<uint32_t>(loopStart));
+
+        if (node) {
+            const auto& loc = node->getLocation();
+            program.addSourceLocation(offset, loc.getLine(), loc.getColumn(), loc.getFilename());
+        }
     }
 
     bytecode::OpCode BytecodeEmitter::getBinaryOpCode(token::TokenType op, bool typeSpecialized)

@@ -73,6 +73,11 @@ namespace vm::runtime
         ExecutionStats stats;
         std::chrono::steady_clock::time_point executionStart;
 
+        // Debugging state
+        bool debuggingEnabled;
+        std::string currentSourceFile;
+        int currentSourceLine;
+
         // Exception handling state
         size_t currentFinallyOffset;  // Offset of the currently executing finally block (SIZE_MAX if not in finally)
 
@@ -136,6 +141,14 @@ namespace vm::runtime
         // State inspection
         const ExecutionStats& getStats() const;
         std::vector<std::string> getStackTrace() const;
+
+        // Debugging support
+        void setDebuggingEnabled(bool enabled) { debuggingEnabled = enabled; }
+        bool isDebuggingEnabled() const { return debuggingEnabled; }
+        std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
+        const std::vector<CallFrame>& getCallStack() const { return callStack; }
+        std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
+        const bytecode::BytecodeProgram* getProgram() const { return program; }
 
         // Reset VM state
         void reset();

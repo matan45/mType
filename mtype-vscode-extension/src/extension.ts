@@ -6,6 +6,11 @@ import { MTypeReferenceProvider } from './references/MTypeReferenceProvider';
 import { MTypeImportResolver } from './imports/MTypeImportResolver';
 import { MTypeImportCompletionProvider, MTypeImportedSymbolProvider } from './imports/MTypeImportCompletionProvider';
 import { MTypeImportDiagnostics } from './imports/MTypeImportDiagnostics';
+import { MTypeDebugConfigurationProvider, MTypeDebugAdapterDescriptorFactory } from './debug/MTypeDebugAdapter';
+import { MTypeSignatureHelpProvider } from './signature/MTypeSignatureHelpProvider';
+import { MTypeCodeActionsProvider } from './codeActions/MTypeCodeActionsProvider';
+import { MTypeCodeLensProvider } from './codeLens/MTypeCodeLensProvider';
+import { MTypeSemanticTokensProvider, legend } from './semanticTokens/MTypeSemanticTokensProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage('mType extension activated!');
@@ -54,15 +59,53 @@ export function activate(context: vscode.ExtensionContext) {
     referenceProvider.setImportedSymbolProvider(importedSymbolProvider);
     const referenceDisposable = vscode.languages.registerReferenceProvider('mtype', referenceProvider);
 
+    // Register signature help provider (parameter hints)
+    const signatureHelpProvider = new MTypeSignatureHelpProvider();
+    signatureHelpProvider.setImportedSymbolProvider(importedSymbolProvider);
+    const signatureHelpDisposable = vscode.languages.registerSignatureHelpProvider(
+        'mtype',
+        signatureHelpProvider,
+        '(',   // Trigger on opening parenthesis
+        ','    // Trigger on comma (next parameter)
+    );
+
+    // Register code actions provider (quick fixes)
+    const codeActionsProvider = new MTypeCodeActionsProvider(importResolver);
+    const codeActionsDisposable = vscode.languages.registerCodeActionsProvider(
+        'mtype',
+        codeActionsProvider,
+        {
+            providedCodeActionKinds: [
+                vscode.CodeActionKind.QuickFix,
+                vscode.CodeActionKind.SourceOrganizeImports
+            ]
+        }
+    );
+
+    // Register code lens provider (reference counts)
+    const codeLensProvider = new MTypeCodeLensProvider(referenceProvider);
+    const codeLensDisposable = vscode.languages.registerCodeLensProvider(
+        'mtype',
+        codeLensProvider
+    );
+
+    // Register semantic tokens provider (advanced syntax highlighting)
+    const semanticTokensProvider = new MTypeSemanticTokensProvider();
+    const semanticTokensDisposable = vscode.languages.registerDocumentSemanticTokensProvider(
+        'mtype',
+        semanticTokensProvider,
+        legend
+    );
+
     // Set up document change listeners for import analysis
     const documentChangeDisposable = vscode.workspace.onDidChangeTextDocument(async (event) => {
         if (event.document.languageId === 'mtype') {
+            // Clear import cache for this file first
+            importResolver.clearCacheForFile(event.document.uri.fsPath);
             // Re-analyze imports when document changes
             await importedSymbolProvider.analyzeDocumentImports(event.document);
             // Update import diagnostics
             await importDiagnostics.updateDiagnostics(event.document);
-            // Clear import cache for this file
-            importResolver.clearCacheForFile(event.document.uri.fsPath);
         }
     });
 
@@ -79,13 +122,21 @@ export function activate(context: vscode.ExtensionContext) {
         if (document.languageId === 'mtype') {
             // Clear cache when document closes
             importedSymbolProvider.clearDocumentCache(document);
-            importDiagnostics.clearDiagnostics(document);
+            // Don't clear diagnostics - they should persist until the file is fixed or deleted
         }
     });
 	
 	// Register document formatter
     const formatter = new MTypeFormatter();
     const formatterDisposable = vscode.languages.registerDocumentFormattingEditProvider('mtype', formatter);
+
+    // Register debug configuration provider
+    const debugConfigProvider = new MTypeDebugConfigurationProvider();
+    const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
+
+    // Register debug adapter descriptor factory
+    const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
+    const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
 
     // Register additional commands
     const disposables = [
@@ -145,12 +196,30 @@ export function activate(context: vscode.ExtensionContext) {
         })
     ];
 
+    // Initial scan of all .mt files in workspace for diagnostics
+    vscode.workspace.findFiles('**/*.mt', '**/node_modules/**').then(async (files) => {
+        for (const fileUri of files) {
+            try {
+                const document = await vscode.workspace.openTextDocument(fileUri);
+                await importDiagnostics.updateDiagnostics(document);
+            } catch (error) {
+                // Skip files that can't be opened
+            }
+        }
+    });
+
     context.subscriptions.push(
         completionDisposable,
         importCompletionDisposable,
         formatterDisposable,
         definitionDisposable,
         referenceDisposable,
+        signatureHelpDisposable,
+        codeActionsDisposable,
+        codeLensDisposable,
+        semanticTokensDisposable,
+        debugConfigDisposable,
+        debugAdapterDisposable,
         documentChangeDisposable,
         documentOpenDisposable,
         documentCloseDisposable,

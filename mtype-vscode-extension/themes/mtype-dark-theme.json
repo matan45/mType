@@ -129,6 +129,17 @@
       }
     },
     {
+      "name": "mType @Override and @Script Annotations",
+      "scope": [
+        "storage.type.annotation.override.mtype",
+        "storage.type.annotation.script.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b",
+        "fontStyle": "bold"
+      }
+    },
+    {
       "name": "mType Annotations",
       "scope": [
         "entity.name.tag.mtype",
@@ -208,6 +219,34 @@
       ],
       "settings": {
         "foreground": "#abb2bf"
+      }
+    },
+    {
+      "name": "mType Braces and Parentheses",
+      "scope": [
+        "punctuation.brace.curly.mtype",
+        "punctuation.brace.round.mtype"
+      ],
+      "settings": {
+        "foreground": "#56b6c2"
+      }
+    },
+    {
+      "name": "mType Square Brackets",
+      "scope": [
+        "punctuation.brace.square.mtype"
+      ],
+      "settings": {
+        "foreground": "#abb2bf"
+      }
+    },
+    {
+      "name": "mType Angle Brackets",
+      "scope": [
+        "punctuation.brace.angle.mtype"
+      ],
+      "settings": {
+        "foreground": "#e5c07b"
       }
     },
     {

@@ -1,6 +1,8 @@
 #include "LambdaExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -11,15 +13,40 @@ namespace vm::runtime
 
     void LambdaExecutor::handleLambda(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get lambda function start address, parameter count, capture count, and parent local count
+        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
+        //                   captureSlot1, ..., captureSlotN,
+        //                   paramNameIdx1, ..., paramNameIdxN,
+        //                   capturedNameIdx1, ..., capturedNameIdxN,
+        //                   parentNameIdx1, parentSlot1, ...]
         size_t lambdaStart = instr.operands[0];
         size_t paramCount = instr.operands[1];
         size_t captureCount = instr.operands[2];
         size_t parentLocalCount = instr.operands.size() > 3 ? instr.operands[3] : 0;
+        size_t funcNameIdx = instr.operands[4];
 
         // Create bytecode lambda
         auto lambda = std::make_shared<BytecodeLambda>();
         lambda->instructionPointer = lambdaStart;
         lambda->parameterCount = paramCount;
+
+        // Store function name for metadata lookup
+        lambda->functionName = context.program->getConstantPool().getString(funcNameIdx);
+
+        // Extract parameter names for debugging
+        size_t paramNamesStart = 5 + captureCount;  // Now starts at 5 (was 4)
+        for (size_t i = 0; i < paramCount; ++i) {
+            size_t nameIdx = instr.operands[paramNamesStart + i];
+            std::string paramName = context.program->getConstantPool().getString(nameIdx);
+            lambda->parameterNames.push_back(paramName);
+        }
+
+        // Extract captured variable names for debugging
+        size_t capturedNamesStart = paramNamesStart + paramCount;
+        for (size_t i = 0; i < captureCount; ++i) {
+            size_t nameIdx = instr.operands[capturedNamesStart + i];
+            std::string capturedName = context.program->getConstantPool().getString(nameIdx);
+            lambda->capturedNames.push_back(capturedName);
+        }
 
         // Share the parent frame for late-bound variable access
         // This allows lambdas to access variables declared after lambda creation (forward references)
@@ -36,11 +63,14 @@ namespace vm::runtime
             lambda->parentFrame = context.callStack.back().sharedFrame;
 
             // Populate the name->slot mapping from the LAMBDA instruction operands
-            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount,
-            //                   captureSlot1, ..., nameIdx1, slot1, nameIdx2, slot2, ...]
+            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
+            //                   captureSlot1, ..., captureSlotN,
+            //                   paramNameIdx1, ..., paramNameIdxN,
+            //                   capturedNameIdx1, ..., capturedNameIdxN,
+            //                   parentNameIdx1, parentSlot1, ...]
             // Note: We ADD to the existing mapping, not replace it, so later lambdas
             // in the same scope can see earlier ones (for forward references)
-            size_t mappingStart = 4 + captureCount;  // Skip header and capture slots
+            size_t mappingStart = 5 + captureCount + paramCount + captureCount;  // Skip header, funcNameIdx, capture slots, param names, and captured names
             for (size_t i = 0; i < parentLocalCount; ++i) {
                 size_t nameIdx = instr.operands[mappingStart + i * 2];
                 size_t slot = instr.operands[mappingStart + i * 2 + 1];
@@ -76,9 +106,9 @@ namespace vm::runtime
 
         // Capture VALUES of variables from current stack frame (snapshot at creation time)
         // This ensures immutable capture semantics
-        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, captureSlot1, captureSlot2, ...]
+        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx, captureSlot1, captureSlot2, ...]
         for (size_t i = 0; i < captureCount; ++i) {
-            size_t varSlot = instr.operands[4 + i];  // Capture slots start at index 4
+            size_t varSlot = instr.operands[5 + i];  // Capture slots start at index 5 (after functionNameIdx)
 
             // Read the current value from the parent frame's stack
             value::Value capturedValue = std::monostate{};
@@ -133,8 +163,27 @@ namespace vm::runtime
             lambda->creatingClassName + "::<lambda>";
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
+        frame.originatingLambda = lambda;  // Store lambda reference for variable access
 
         context.callStack.push_back(frame);
+
+        // Notify debugger of lambda entry
+        if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+            auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+            if (sourceLoc) {
+                errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+            } else {
+                // Fallback: use lambda start location if current instruction has no location
+                auto lambdaStartLoc = context.program->getSourceLocation(lambdaStart);
+                if (lambdaStartLoc) {
+                    errors::SourceLocation errorsLoc(lambdaStartLoc->filename, lambdaStartLoc->line, lambdaStartLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                } else {
+                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errors::SourceLocation());
+                }
+            }
+        }
 
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
         for (size_t i = 0; i < args.size(); ++i) {

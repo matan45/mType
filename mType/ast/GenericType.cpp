@@ -8,16 +8,18 @@ namespace ast
 {
     value::ValueType GenericType::getConcreteType() const
     {
-        if (isGenericParameter()) {
+        if (isGenericParameter())
+        {
             throw errors::TypeException("Cannot get concrete type from generic parameter: " +
-                                       std::get<std::string>(baseType));
+                std::get<std::string>(baseType));
         }
         return std::get<value::ValueType>(baseType);
     }
 
     std::string GenericType::getGenericName() const
     {
-        if (!isGenericParameter()) {
+        if (!isGenericParameter())
+        {
             throw errors::TypeException("Cannot get generic name from concrete type");
         }
         return std::get<std::string>(baseType);
@@ -25,22 +27,24 @@ namespace ast
 
     std::string GenericType::getBaseTypeName() const
     {
-        if (isGenericParameter()) {
+        if (isGenericParameter())
+        {
             return std::get<std::string>(baseType);
         }
 
         // Convert ValueType to string
         value::ValueType type = std::get<value::ValueType>(baseType);
-        switch (type) {
-            case value::ValueType::INT: return "int";
-            case value::ValueType::FLOAT: return "float";
-            case value::ValueType::BOOL: return "bool";
-            case value::ValueType::STRING: return "string";
-            case value::ValueType::VOID: return "void";
-            case value::ValueType::OBJECT: return "object";
-            case value::ValueType::NULL_TYPE: return "null";
-            // Collection types removed - now implemented in mType
-            default: return "unknown";
+        switch (type)
+        {
+        case value::ValueType::INT: return "int";
+        case value::ValueType::FLOAT: return "float";
+        case value::ValueType::BOOL: return "bool";
+        case value::ValueType::STRING: return "string";
+        case value::ValueType::VOID: return "void";
+        case value::ValueType::OBJECT: return "object";
+        case value::ValueType::NULL_TYPE: return "null";
+        // Collection types removed - now implemented in mType
+        default: return "unknown";
         }
     }
 
@@ -49,9 +53,11 @@ namespace ast
         std::ostringstream oss;
         oss << getBaseTypeName();
 
-        if (isParameterized()) {
+        if (isParameterized())
+        {
             oss << "<";
-            for (size_t i = 0; i < typeArguments.size(); ++i) {
+            for (size_t i = 0; i < typeArguments.size(); ++i)
+            {
                 if (i > 0) oss << ", ";
                 oss << typeArguments[i]->toString();
             }
@@ -64,18 +70,22 @@ namespace ast
     bool GenericType::equals(const GenericType& other) const
     {
         // Check if base types match
-        if (baseType != other.baseType) {
+        if (baseType != other.baseType)
+        {
             return false;
         }
 
         // Check if type argument counts match
-        if (typeArguments.size() != other.typeArguments.size()) {
+        if (typeArguments.size() != other.typeArguments.size())
+        {
             return false;
         }
 
         // Check if all type arguments match
-        for (size_t i = 0; i < typeArguments.size(); ++i) {
-            if (!typeArguments[i]->equals(*other.typeArguments[i])) {
+        for (size_t i = 0; i < typeArguments.size(); ++i)
+        {
+            if (!typeArguments[i]->equals(*other.typeArguments[i]))
+            {
                 return false;
             }
         }
@@ -88,9 +98,9 @@ namespace ast
     {
         // Start with enhanced substitution context
         circularDependency::CircularDependencyConfig config;
-        config.maxGenericDepth = 50;  // Configurable depth limit
-        config.enableEarlyDetection = true;  // Enable pattern detection
-        config.enablePerformanceMetrics = true;  // Track performance
+        config.maxGenericDepth = 50; // Configurable depth limit
+        config.enableEarlyDetection = true; // Enable pattern detection
+        config.enablePerformanceMetrics = true; // Track performance
 
         SubstitutionContext context(config);
         context.currentLocation = "generic type substitution";
@@ -104,15 +114,18 @@ namespace ast
         SubstitutionContext& context) const
     {
         // If this is a generic parameter, check for substitution
-        if (isGenericParameter()) {
+        if (isGenericParameter())
+        {
             std::string paramName = getGenericName();
 
             auto it = substitutions.find(paramName);
-            if (it != substitutions.end()) {
+            if (it != substitutions.end())
+            {
                 // Enter substitution step with cycle detection
                 context.enterSubstitution(paramName);
 
-                try {
+                try
+                {
                     // Recursively substitute the replacement type
                     auto result = it->second->substituteInternal(substitutions, context);
 
@@ -121,7 +134,8 @@ namespace ast
 
                     return result;
                 }
-                catch (...) {
+                catch (...)
+                {
                     // Ensure we clean up context even on exception
                     context.exitSubstitution(paramName);
                     throw;
@@ -136,7 +150,8 @@ namespace ast
         std::vector<std::shared_ptr<GenericType>> substitutedArgs;
         substitutedArgs.reserve(typeArguments.size()); // Optimize memory allocation
 
-        for (const auto& arg : typeArguments) {
+        for (const auto& arg : typeArguments)
+        {
             substitutedArgs.push_back(arg->substituteInternal(substitutions, context));
         }
 

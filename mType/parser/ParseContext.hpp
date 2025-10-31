@@ -117,14 +117,16 @@ namespace parser
             return typeRegistry.isInterfaceDeclared(interfaceName);
         }
 
-        void registerClass(const std::string& className, bool isFinal = false)
+        void registerClass(const std::string& className, bool isFinal = false,
+                          const errors::SourceLocation& location = errors::SourceLocation())
         {
-            typeRegistry.registerClass(className, isFinal);
+            typeRegistry.registerClass(className, isFinal, location);
         }
 
-        void registerInterface(const std::string& interfaceName, bool isFinal = false)
+        void registerInterface(const std::string& interfaceName, bool isFinal = false,
+                              const errors::SourceLocation& location = errors::SourceLocation())
         {
-            typeRegistry.registerInterface(interfaceName, isFinal);
+            typeRegistry.registerInterface(interfaceName, isFinal, location);
         }
 
         [[nodiscard]] bool isClassFinal(const std::string& className) const
@@ -158,9 +160,20 @@ namespace parser
             return typeRegistry.isFunctionDeclared(functionName);
         }
 
-        void registerFunctionName(const std::string& functionName)
+        void registerFunctionName(const std::string& functionName,
+                                 const errors::SourceLocation& location = errors::SourceLocation())
         {
-            typeRegistry.registerFunctionName(functionName);
+            typeRegistry.registerFunctionName(functionName, location);
+        }
+
+        [[nodiscard]] errors::SourceLocation getTypeDeclarationLocation(const std::string& typeName) const
+        {
+            return typeRegistry.getTypeDeclarationLocation(typeName);
+        }
+
+        [[nodiscard]] errors::SourceLocation getFunctionDeclarationLocation(const std::string& functionName) const
+        {
+            return typeRegistry.getFunctionDeclarationLocation(functionName);
         }
 
         void clearDeclaredFunctions()

@@ -123,6 +123,21 @@ export class MTypeContextAnalyzer {
             contexts.push('after-interface-name');
         }
 
+        // Check if we're after 'implements' keyword (with or without partial type name)
+        if (linePrefix.match(/\bimplements\s+\w*$/)) {
+            contexts.push('after-implements');
+        }
+
+        // Check if we're after 'extends' keyword (with or without partial type name)
+        if (linePrefix.match(/\bextends\s+\w*$/)) {
+            contexts.push('after-extends');
+        }
+
+        // Check if we're after 'new' keyword (with or without partial class name)
+        if (linePrefix.match(/\bnew\s+\w*$/)) {
+            contexts.push('after-new');
+        }
+
         // Check if we're after an if statement
         if (this.isPreviousLineIf(fullLine)) {
             contexts.push('after-if');
@@ -228,13 +243,13 @@ export class MTypeContextAnalyzer {
 
     // Get appropriate completion trigger context
     static getCompletionTriggerContext(linePrefix: string): string | null {
-        // Static member access
-        if (linePrefix.match(/\w+::\s*$/)) {
+        // Static member access (with or without partial member name)
+        if (linePrefix.match(/\w+::\w*$/)) {
             return 'static-member';
         }
 
-        // Instance member access (including this.)
-        if (linePrefix.match(/\w+\.\s*$/) || linePrefix.match(/this\.\s*$/)) {
+        // Instance member access (including this., with or without partial member name)
+        if (linePrefix.match(/\w+\.\w*$/) || linePrefix.match(/this\.\w*$/)) {
             return 'instance-member';
         }
 

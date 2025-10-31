@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "mtype",
+            "request": "launch",
+            "name": "Debug Current File",
+            "program": "${file}",
+            "interpreterPath": "${workspaceFolder}/bin/mType/Debug/x64/mType.exe",
+            "args": ["--bytecode"],
+            "stopOnEntry": true,
+            "cwd": "${fileDirname}"
+        }
+    ]
+}

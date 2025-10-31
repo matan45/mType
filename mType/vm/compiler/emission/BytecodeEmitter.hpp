@@ -21,11 +21,14 @@ namespace vm::compiler::emission
         // Bytecode emission with source location tracking
         void emitWithLocation(bytecode::OpCode opcode, ast::ASTNode* node);
         void emitWithLocation(bytecode::OpCode opcode, uint32_t operand, ast::ASTNode* node);
+        void emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, ast::ASTNode* node);
+        void emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, uint32_t operand3, ast::ASTNode* node);
+        void emitWithLocation(bytecode::OpCode opcode, const std::vector<uint32_t>& operands, ast::ASTNode* node);
 
         // Jump management
-        size_t emitJump(bytecode::OpCode jumpOp);
+        size_t emitJump(bytecode::OpCode jumpOp, ast::ASTNode* node = nullptr);
         void patchJump(size_t offset);
-        void emitLoop(size_t loopStart);
+        void emitLoop(size_t loopStart, ast::ASTNode* node = nullptr);
 
         // OpCode conversion helpers
         bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);

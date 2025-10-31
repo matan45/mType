@@ -341,6 +341,15 @@ namespace services
                 accessMod
             );
 
+            // Set method modifiers from metadata
+            methodDef->setAbstract(methodMeta.isAbstract);
+            methodDef->setFinal(methodMeta.isFinal);
+
+            // Track abstract methods in the class definition
+            if (methodMeta.isAbstract) {
+                classDef->addAbstractMethod(methodMeta.name);
+            }
+
             if (isStatic)
             {
                 classDef->addStaticMethod(methodMeta.name, methodDef);

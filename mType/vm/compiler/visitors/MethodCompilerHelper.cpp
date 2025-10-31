@@ -13,7 +13,7 @@ namespace vm::compiler::visitors
     void MethodCompilerHelper::compileDefaultConstructor(ast::ClassNode* node)
     {
         // Emit JUMP to skip over default constructor during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t constructorStart = ctx.program.getCurrentOffset();
 
         // Default constructor has only 'this' as parameter
@@ -47,9 +47,9 @@ namespace vm::compiler::visitors
                     // Call parent's default constructor: super()
                     std::string currentClassName = node->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
-                    ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0)); // 0 arguments
+                                     static_cast<uint32_t>(0), node); // 0 arguments
                 }
             }
         }
@@ -58,10 +58,22 @@ namespace vm::compiler::visitors
         initializeInstanceFields(node);
 
         // Return 'this'
-        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
-        ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         size_t localCount = ctx.functionFrameManager.getLocalCount();
+
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
+
         ctx.variableTracker.endScope();
         ctx.functionFrameManager.exitFunctionFrame();
 
@@ -82,6 +94,7 @@ namespace vm::compiler::visitors
         metadata.returnType = "object";
         metadata.isStatic = false;
         metadata.isNative = false;
+        metadata.localVariableNames = localVarNames;
 
         ctx.program.registerFunction(metadata.name, metadata);
 
@@ -106,7 +119,7 @@ namespace vm::compiler::visitors
                 if (!fieldNode->getIsStatic() && fieldNode->getInitialValue())
                 {
                     // Load 'this' FIRST (which is in local slot 0)
-                    ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, fieldNode);
 
                     // Compile the initializer expression (pushes value)
                     fieldNode->getInitialValue()->accept(ctx.visitor);
@@ -114,7 +127,7 @@ namespace vm::compiler::visitors
                     // Store in field
                     std::string fieldName = fieldNode->getName();
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
-                    ctx.program.emit(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex));
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), fieldNode);
                 }
             }
         }
@@ -154,7 +167,7 @@ namespace vm::compiler::visitors
         return result;
     }
 
-    size_t MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
+    MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
     {
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(params.returnTypeStr,
@@ -206,25 +219,36 @@ namespace vm::compiler::visitors
 
         if (isVoidMethod || isAsyncVoidMethod)
         {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
             if (node->getIsAsync())
             {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
 
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
+
         ctx.variableTracker.endScope();
         ctx.functionFrameManager.exitFunctionFrame();
 
-        return localCount;
+        return MethodBodyInfo{ localCount, localVarNames };
     }
 
     void MethodCompilerHelper::finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
-                                                          size_t methodStart, size_t skipJump, size_t localCount, bool isStatic)
+                                                          size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic)
     {
         // Patch skip jump to current position (after method)
         ctx.emitter.patchJump(skipJump);
@@ -248,7 +272,7 @@ namespace vm::compiler::visitors
         metadata.name = qualifiedMethodName;
         metadata.startOffset = methodStart;
         metadata.instructionCount = ctx.program.getCurrentOffset() - methodStart;
-        metadata.localCount = localCount;
+        metadata.localCount = bodyInfo.localCount;
         metadata.parameterCount = params.paramNames.size();
         metadata.parameterNames = params.paramNames;
         metadata.parameterTypes = params.paramTypes;
@@ -256,6 +280,7 @@ namespace vm::compiler::visitors
         metadata.isStatic = isStatic;
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();
+        metadata.localVariableNames = bodyInfo.localVarNames;
 
         ctx.program.registerFunction(qualifiedMethodName, metadata);
     }
@@ -282,21 +307,21 @@ namespace vm::compiler::visitors
         }
 
         // Emit JUMP to skip over method body during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t methodStart = ctx.program.getCurrentOffset();
 
         // Collect method parameters and return type
         MethodParameters params = collectMethodParameters(node, isStatic);
 
         // Compile method body with frame management
-        size_t localCount = compileMethodBodyWithFrame(node, params, isStatic);
+        MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic);
 
         // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;
         ctx.inStaticMethod = wasInStaticMethod;
 
         // Finalize method compilation (patch jump, register metadata)
-        finalizeMethodCompilation(node, params, methodStart, skipJump, localCount, isStatic);
+        finalizeMethodCompilation(node, params, methodStart, skipJump, bodyInfo, isStatic);
 
         return std::monostate{};
     }
@@ -310,7 +335,7 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = true;
 
         // Emit JUMP to skip over constructor body during main execution
-        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
 
         // Constructor starts here
         size_t constructorStart = ctx.program.getCurrentOffset();
@@ -366,9 +391,9 @@ namespace vm::compiler::visitors
                     // Emit SUPER_CONSTRUCTOR call with 0 arguments
                     std::string currentClassName = ctx.currentClassNode->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
-                    ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0)); // 0 arguments
+                                     static_cast<uint32_t>(0), node); // 0 arguments
                 }
             }
         }
@@ -390,11 +415,22 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = wasInInstanceMethod;
 
         // Constructors implicitly return 'this'
-        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, 0);
-        ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
+
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            if (local.slot < localCount)
+            {
+                localVarNames[local.slot] = local.name;
+            }
+        }
 
         ctx.variableTracker.endScope(); // End constructor body scope
         ctx.functionFrameManager.exitFunctionFrame();
@@ -417,6 +453,7 @@ namespace vm::compiler::visitors
         metadata.parameterNames = paramNames;
         metadata.returnType = returnTypeStr;
         metadata.isStatic = false;
+        metadata.localVariableNames = localVarNames;
         metadata.isNative = false;
 
         ctx.program.registerFunction(constructorName, metadata);

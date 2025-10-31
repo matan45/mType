@@ -1,0 +1,7 @@
+Parent final method
+10
+Regular method
+Parent final method
+14
+Overridden regular method
+Child calls: Parent final method

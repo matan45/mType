@@ -12,14 +12,21 @@ namespace vm::compiler::visitors
     {
         // Emit TRY_BEGIN instruction
         size_t tryBeginOffset = ctx.program.getCurrentOffset();
-        ctx.program.emit(bytecode::OpCode::TRY_BEGIN);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::TRY_BEGIN, node);
 
         // Enter exception context (tell it if there's a finally block)
         bool hasFinally = (node->getFinallyBlock() != nullptr);
         ctx.exceptionManager.enterTry(tryBeginOffset, hasFinally);
 
+        // Enter scope for try block (variables shouldn't leak to catch/finally)
+        ctx.variableTracker.beginScope();
+
         // Compile try block
         node->getTryBlock()->accept(ctx.visitor);
+
+        // Exit try block scope
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Mark end of try block
         size_t tryEndOffset = ctx.program.getCurrentOffset();
@@ -30,7 +37,7 @@ namespace vm::compiler::visitors
         ctx.exceptionManager.registerExitJump(endJump);
 
         // Emit TRY_END instruction
-        ctx.program.emit(bytecode::OpCode::TRY_END);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::TRY_END, node);
 
         // Compile catch blocks
         compileCatchBlocks(node->getCatchBlocks());
@@ -59,7 +66,7 @@ namespace vm::compiler::visitors
             // Emit CATCH instruction with exception type
             std::string exceptionType = catchBlock->getExceptionType();
             uint32_t typeIndex = static_cast<uint32_t>(ctx.program.getConstantPool().addString(exceptionType));
-            ctx.program.emit(bytecode::OpCode::CATCH, typeIndex);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::CATCH, typeIndex, catchBlock.get());
 
             // Enter scope for catch variable
             ctx.variableTracker.beginScope();
@@ -75,7 +82,7 @@ namespace vm::compiler::visitors
 
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t catchVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(catchVarSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(catchVarSlot), catchBlock.get());
 
             // Compile catch body
             catchBlock->getBody()->accept(ctx.visitor);
@@ -124,8 +131,8 @@ namespace vm::compiler::visitors
         std::vector<size_t> newExitJumps;
         for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(falseIndex));  // false - not returning
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(falseIndex), finallyBlock);  // false - not returning
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -137,8 +144,8 @@ namespace vm::compiler::visitors
         std::vector<size_t> newReturnJumps;
         for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.program.emit(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(trueIndex));  // true - returning
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(trueIndex), finallyBlock);  // true - returning
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -159,19 +166,26 @@ namespace vm::compiler::visitors
         }
 
         // Emit FINALLY instruction
-        ctx.program.emit(bytecode::OpCode::FINALLY);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::FINALLY, finallyBlock);
 
         // Mark that we're now in the finally block
         ctx.exceptionManager.enterFinally();
 
+        // Enter scope for finally block (variables shouldn't leak from try/catch)
+        ctx.variableTracker.beginScope();
+
         // Compile finally body
         finallyBlock->accept(ctx.visitor);
+
+        // Exit finally block scope
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Mark that we've exited the finally block
         ctx.exceptionManager.exitFinally();
 
         // After finally, check flag to determine what to do
-        ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot));
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
 
         // If flag is 0 (false), jump over return logic to continue execution
         size_t skipReturnLogic = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
@@ -181,7 +195,7 @@ namespace vm::compiler::visitors
         if (returnValueSlot != SIZE_MAX) {
             // Load the return value back from the special slot
             // Note: For async functions, the value is already wrapped in a Promise
-            ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(returnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(returnValueSlot), finallyBlock);
 
             // Check if we're inside another try block with a finally (nested try-finally)
             bool hasOuterFinally = ctx.exceptionManager.hasOuterFinally();
@@ -195,13 +209,13 @@ namespace vm::compiler::visitors
                     ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
                 }
 
-                ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+                ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot), finallyBlock);
 
                 size_t jumpToOuterFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                 ctx.exceptionManager.registerReturnJumpWithOuter(jumpToOuterFinally);
             } else {
                 // No outer finally - emit RETURN_VALUE to actually return
-                ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, finallyBlock);
             }
         }
 

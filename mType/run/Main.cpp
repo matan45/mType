@@ -19,13 +19,18 @@
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../debugger/DebugContext.hpp"
+#include "../debugger/DebugHookHelper.hpp"
+#include "../debugger/DebugProtocol.hpp"
 
 #include <vector>
 #include <memory>
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <thread>
 
 
 using namespace tests::testSuite;
@@ -384,6 +389,102 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::A
     std::cout << std::string(80, '=') << std::endl;
 }
 
+/**
+ * Run script in debug mode with debugger protocol active
+ */
+void runInDebugMode(const std::string& filename,
+                    constants::ExecutionMode execMode = constants::ExecutionMode::AST_INTERPRETER,
+                    constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug)
+{
+    // Output debug banner to stderr so it doesn't interfere with debug protocol on stdout
+    std::cerr << "\n" << std::string(80, '=') << "\n";
+    std::cerr << "mType Debugger Mode\n";
+    std::cerr << std::string(80, '=') << "\n";
+    std::cerr << "Debug protocol: stdin/stdout\n";
+    std::cerr << "Script file: " << filename << "\n";
+    std::cerr << std::string(80, '=') << "\n\n";
+
+    try
+    {
+        // Initialize debug context
+        debugger::DebugContext::initialize();
+        auto& debugCtx = debugger::DebugContext::getInstance();
+
+        // Create interpreter and enable debugging
+        ScriptInterpreter interpreter(execMode, optLevel);
+        interpreter.enableDebugging();
+
+        // Start debug server in a separate thread
+        debugger::DebugServer debugServer;
+
+        // Set the environment for variable inspection
+        debugServer.setEnvironment(interpreter.getEnvironment());
+
+        std::thread serverThread([&debugServer]()
+        {
+            debugServer.run();
+        });
+
+        // Notify debugger that script is starting
+        debugger::DebugHookHelper::notifyScriptStart(filename);
+
+        // Push main script frame before pausing so VSCode has a frame to show
+        errors::SourceLocation mainFrameLoc(filename, 1, 1);
+        debugger::DebugHookHelper::enterFunctionHook("<main>", mainFrameLoc);
+
+        // Pause at entry to allow debugger to set breakpoints
+        debugCtx.pause();
+        std::cerr << "Paused at entry. Waiting for debugger commands...\n";
+
+        // Send STOPPED event with reason "entry" to notify VSCode
+        errors::SourceLocation entryLocation(filename, 1, 1);
+        debugger::DebugProtocol::sendStoppedEvent("entry", entryLocation);
+
+        // Wait for debugger to set breakpoints and send CONTINUE
+        debugCtx.waitForResume();
+
+        // In bytecode mode, update DebugServer to use VM for variable inspection
+        auto vm = interpreter.getVM();
+        if (vm)
+        {
+            debugServer.setVM(vm);
+        }
+
+        // Run the script (will pause at breakpoints)
+        interpreter.runScript(filename);
+
+        // Pop main script frame after completion
+        debugger::DebugHookHelper::exitFunctionHook("<main>");
+
+        // Notify debugger that script completed
+        debugger::DebugHookHelper::notifyScriptComplete(filename);
+
+        // Stop debug server
+        debugServer.stop();
+        if (serverThread.joinable())
+        {
+            serverThread.join();
+        }
+
+        // Shutdown debug context
+        debugger::DebugContext::shutdown();
+
+        std::cerr << "\n" << std::string(80, '=') << "\n";
+        std::cerr << "Debug session ended\n";
+        std::cerr << std::string(80, '=') << "\n";
+    }
+    catch (const std::exception& e)
+    {
+        // Pop main script frame on exception
+        if (debugger::DebugHookHelper::isDebuggingEnabled())
+        {
+            debugger::DebugHookHelper::exitFunctionHook("<main>");
+        }
+        std::cerr << "Debug session error: " << e.what() << std::endl;
+        debugger::DebugContext::shutdown();
+    }
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -434,9 +535,10 @@ int main(int argc, char* argv[])
     {
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (AST interpreter mode)\n";
+        std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
         std::cout << "  " << argv[0] << " --bytecode <script.mt>     - Run with bytecode VM\n";
         std::cout << "  " << argv[0] << " --dual <script.mt>         - Run with dual validation (AST + Bytecode)\n";
-        std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug mode (no optimization)\n";
+        std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug optimization level\n";
         std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
@@ -604,15 +706,20 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Parse optimization level and filename
+    // Parse optimization level, debug mode, and filename
     constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug;
     std::string filename;
+    bool debugMode = false;
 
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
 
-        if (arg == "--bytecode")
+        if (arg == "--debug")
+        {
+            debugMode = true;
+        }
+        else if (arg == "--bytecode")
         {
             execMode = constants::ExecutionMode::BYTECODE_VM;
         }
@@ -641,35 +748,45 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Run in debug mode if --debug flag present
+    if (debugMode)
+    {
+        runInDebugMode(filename, execMode, optLevel);
+        return 0;
+    }
+
     try
     {
         ScriptInterpreter interpreter(execMode, optLevel);
 
-        // Print execution mode
-        std::cout << "Execution Mode: ";
+        // Print execution mode to both stdout and stderr (for debug console visibility)
+        std::string modeStr;
         switch (execMode)
         {
         case constants::ExecutionMode::AST_INTERPRETER:
-            std::cout << "AST Interpreter";
+            modeStr = "AST Interpreter";
             break;
         case constants::ExecutionMode::BYTECODE_VM:
-            std::cout << "Bytecode VM";
+            modeStr = "Bytecode VM";
             break;
         case constants::ExecutionMode::DUAL_VALIDATION:
-            std::cout << "Dual Validation";
+            modeStr = "Dual Validation";
             break;
         }
-        std::cout << " (Optimization: ";
+
+        std::string optStr;
         switch (optLevel)
         {
         case constants::OptimizationLevel::Debug:
-            std::cout << "Debug";
+            optStr = "Debug";
             break;
         case constants::OptimizationLevel::Release:
-            std::cout << "Release";
+            optStr = "Release";
             break;
         }
-        std::cout << ")\n\n";
+
+        std::cout << "Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n\n";
+        std::cerr << "[DEBUG C++ MAIN] Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n";
 
         interpreter.runScript(filename);
     }

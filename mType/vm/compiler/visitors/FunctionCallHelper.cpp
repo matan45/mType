@@ -225,14 +225,9 @@ namespace vm::compiler::visitors
         // will append it when looking up the bytecode
         size_t nameIndex = ctx.program.getConstantPool().addString(actualFunctionName);
         // Static method call - use CALL_STATIC with source location
-        ctx.program.emit(bytecode::OpCode::CALL_STATIC,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                      static_cast<uint32_t>(nameIndex),
-                     static_cast<uint32_t>(arguments.size()));
-        // Add source location for the call instruction
-        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                     node->getLocation().getLine(),
-                                     node->getLocation().getColumn(),
-                                     node->getLocation().getFilename());
+                     static_cast<uint32_t>(arguments.size()), node);
     }
 
     void FunctionCallHelper::emitMethodCallInClassContext(ast::FunctionCallNode* node, const std::string& functionName,
@@ -303,13 +298,9 @@ namespace vm::compiler::visitors
                 }
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                ctx.program.emit(bytecode::OpCode::CALL_STATIC,
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                              static_cast<uint32_t>(nameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
+                             static_cast<uint32_t>(arguments.size()), node);
             } else {
                 // Instance method call - push 'this' onto stack BEFORE arguments
 
@@ -320,7 +311,7 @@ namespace vm::compiler::visitors
                         arguments.size(), node->getLocation());
                 }
 
-                ctx.program.emit(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0));
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0), node);
 
                 // Now compile arguments
                 for (const auto& arg : arguments) {
@@ -329,13 +320,9 @@ namespace vm::compiler::visitors
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
                 // Call method on 'this' with source location
-                ctx.program.emit(bytecode::OpCode::CALL_METHOD,
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                              static_cast<uint32_t>(nameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-                ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                             node->getLocation().getLine(),
-                                             node->getLocation().getColumn(),
-                                             node->getLocation().getFilename());
+                             static_cast<uint32_t>(arguments.size()), node);
             }
         } else {
             // Regular function call
@@ -358,14 +345,9 @@ namespace vm::compiler::visitors
 
         size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
         // Regular function call - use CALL with source location
-        ctx.program.emit(bytecode::OpCode::CALL,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
                      static_cast<uint32_t>(nameIndex),
-                     static_cast<uint32_t>(arguments.size()));
-        // Add source location for the call instruction
-        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                     node->getLocation().getLine(),
-                                     node->getLocation().getColumn(),
-                                     node->getLocation().getFilename());
+                     static_cast<uint32_t>(arguments.size()), node);
     }
 
     value::Value FunctionCallHelper::compileFunctionCall(ast::FunctionCallNode* node)

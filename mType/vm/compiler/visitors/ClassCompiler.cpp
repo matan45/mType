@@ -83,7 +83,7 @@ namespace vm::compiler::visitors
             std::string qualifiedName = className + "::" + node->getName();
             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
 
-            ctx.program.emit(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
         }
 
         return std::monostate{};
@@ -153,15 +153,9 @@ namespace vm::compiler::visitors
         size_t classNameIndex = ctx.program.getConstantPool().addString(fullClassName);
 
         // Emit NEW_OBJECT instruction with full class name and argument count
-        ctx.program.emit(bytecode::OpCode::NEW_OBJECT,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
                          static_cast<uint32_t>(classNameIndex),
-                         static_cast<uint32_t>(arguments.size()));
-
-        // Add source location for the new instruction
-        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                      node->getLocation().getLine(),
-                                      node->getLocation().getColumn(),
-                                      node->getLocation().getFilename());
+                         static_cast<uint32_t>(arguments.size()), node);
     }
 
     value::Value ClassCompiler::compileNew(ast::NewNode* node)
@@ -351,9 +345,9 @@ namespace vm::compiler::visitors
 
             // Emit CALL_STATIC instruction with fully qualified name
             size_t methodNameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-            ctx.program.emit(bytecode::OpCode::CALL_STATIC,
+            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                              static_cast<uint32_t>(methodNameIndex),
-                             static_cast<uint32_t>(arguments.size()));
+                             static_cast<uint32_t>(arguments.size()), node);
         }
         else
         {
@@ -460,14 +454,9 @@ namespace vm::compiler::visitors
 
             // Emit CALL_METHOD instruction with source location
             size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
-            ctx.program.emit(bytecode::OpCode::CALL_METHOD,
+            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                              static_cast<uint32_t>(methodNameIndex),
-                             static_cast<uint32_t>(arguments.size()));
-            // Add source location for the call instruction
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                          node->getLocation().getLine(),
-                                          node->getLocation().getColumn(),
-                                          node->getLocation().getFilename());
+                             static_cast<uint32_t>(arguments.size()), node);
         }
 
         return std::monostate{};
@@ -485,9 +474,9 @@ namespace vm::compiler::visitors
         // Emit SUPER_CONSTRUCTOR instruction with current class name
         std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
-        ctx.program.emit(bytecode::OpCode::SUPER_CONSTRUCTOR,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                          static_cast<uint32_t>(classNameIndex),
-                         static_cast<uint32_t>(arguments.size()));
+                         static_cast<uint32_t>(arguments.size()), node);
 
         return std::monostate{};
     }
@@ -537,12 +526,12 @@ namespace vm::compiler::visitors
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
 
-        ctx.program.emit(bytecode::OpCode::SUPER_INVOKE,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_INVOKE,
                          std::vector<uint32_t>{
                              static_cast<uint32_t>(classNameIndex),
                              static_cast<uint32_t>(methodNameIndex),
                              static_cast<uint32_t>(arguments.size())
-                         });
+                         }, node);
 
         return std::monostate{};
     }
@@ -586,11 +575,11 @@ namespace vm::compiler::visitors
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
 
-        ctx.program.emit(bytecode::OpCode::SUPER_GET_FIELD,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_GET_FIELD,
                          std::vector<uint32_t>{
                              static_cast<uint32_t>(classNameIndex),
                              static_cast<uint32_t>(memberNameIndex)
-                         });
+                         }, node);
 
         return std::monostate{};
     }
@@ -636,11 +625,11 @@ namespace vm::compiler::visitors
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         size_t memberNameIndex = ctx.program.getConstantPool().addString(memberName);
 
-        ctx.program.emit(bytecode::OpCode::SUPER_SET_FIELD,
+        ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_SET_FIELD,
                          std::vector<uint32_t>{
                              static_cast<uint32_t>(classNameIndex),
                              static_cast<uint32_t>(memberNameIndex)
-                         });
+                         }, node);
 
         return std::monostate{};
     }

@@ -26,12 +26,15 @@
 #include "../../value/PromiseValue.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../runtime/EventLoop.hpp"
+#include "../../debugger/DebugContext.hpp"
+#include "../../debugger/DebugHookHelper.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
 #include <iostream>
+
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -42,6 +45,9 @@ namespace vm::runtime
           , eventLoop(nullptr) // Lazy initialization - only created when needed
           , currentTaskId(0)
           , suspendedByAwait(false)
+          , debuggingEnabled(false)
+          , currentSourceFile("")
+          , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
     {
         callStack.reserve(64);
@@ -82,9 +88,13 @@ namespace vm::runtime
         // Note: Executors are now initialized in interpretLoop() to ensure
         // they always have valid references, even when called from C++ API methods
 
+        // Note: The main script frame is now pushed in Main.cpp before pausing at entry,
+        // so VS Code has a frame to display immediately. It's also popped there after completion.
+
         try
         {
-            return interpretLoop();
+            value::Value result = interpretLoop();
+            return result;
         }
         catch (...)
         {
@@ -124,7 +134,8 @@ namespace vm::runtime
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot create object in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot create object in bytecode mode without compiled bytecode");
         }
 
         // Find class definition
@@ -142,7 +153,7 @@ namespace vm::runtime
         if (!constructor)
         {
             throw errors::RuntimeException("Constructor not found for class '" + className +
-                                         "' with " + std::to_string(args.size()) + " parameters");
+                "' with " + std::to_string(args.size()) + " parameters");
         }
 
         // Look for constructor bytecode
@@ -152,7 +163,7 @@ namespace vm::runtime
         if (!ctorMetadata)
         {
             throw errors::RuntimeException("Constructor '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -202,12 +213,13 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                             const std::string& methodName,
-                                             const std::vector<value::Value>& args)
+                                              const std::string& methodName,
+                                              const std::vector<value::Value>& args)
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
         }
 
         if (!instance)
@@ -223,7 +235,7 @@ namespace vm::runtime
         if (!method)
         {
             throw errors::RuntimeException("Instance method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
         // Find which class defines this method
@@ -246,7 +258,7 @@ namespace vm::runtime
         if (!funcMetadata)
         {
             throw errors::RuntimeException("Method '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -301,7 +313,8 @@ namespace vm::runtime
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
         }
 
         auto classDef = environment->findClass(className);
@@ -315,7 +328,7 @@ namespace vm::runtime
         if (!method)
         {
             throw errors::RuntimeException("Static method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + className);
+                " with " + std::to_string(argCount) + " arguments in class " + className);
         }
 
         // Look for method bytecode
@@ -324,7 +337,7 @@ namespace vm::runtime
         if (!funcMetadata)
         {
             throw errors::RuntimeException("Static method '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -347,7 +360,7 @@ namespace vm::runtime
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
             frame.functionName = qualifiedName;
-            frame.thisInstance = nullptr;  // Static methods have no 'this'
+            frame.thisInstance = nullptr; // Static methods have no 'this'
             frame.definingClassName = className;
 
             callStack.push_back(frame);
@@ -373,7 +386,7 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                         const std::string& fieldName)
+                                          const std::string& fieldName)
     {
         if (!instance)
         {
@@ -390,8 +403,8 @@ namespace vm::runtime
     }
 
     void VirtualMachine::setField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                 const std::string& fieldName,
-                                 const value::Value& value)
+                                  const std::string& fieldName,
+                                  const value::Value& value)
     {
         if (!instance)
         {
@@ -430,8 +443,8 @@ namespace vm::runtime
     }
 
     void VirtualMachine::setStaticField(const std::string& className,
-                                       const std::string& fieldName,
-                                       const value::Value& value)
+                                        const std::string& fieldName,
+                                        const value::Value& value)
     {
         auto classDef = environment->findClass(className);
         if (!classDef)
@@ -460,7 +473,8 @@ namespace vm::runtime
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, environment,
-                                 stackManager, stats, executionStart);
+                                 stackManager, stats, executionStart,
+                                 debuggingEnabled, currentSourceFile, currentSourceLine);
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
         logicalExecutor = std::make_unique<LogicalExecutor>(context);
@@ -483,6 +497,30 @@ namespace vm::runtime
         while (instructionPointer < program->getInstructionCount())
         {
             const auto& instr = program->getInstruction(instructionPointer);
+
+            // Debug hook: Check for breakpoints and stepping before executing instruction
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                // Get source location for current instruction from program
+                auto sourceLoc = program->getSourceLocation(instructionPointer);
+
+                if (sourceLoc && sourceLoc->line > 0)
+                {
+                    currentSourceFile = sourceLoc->filename;
+                    currentSourceLine = static_cast<int>(sourceLoc->line);
+
+                    // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
+                    errors::SourceLocation location(sourceLoc->filename,
+                                                    static_cast<int>(sourceLoc->line),
+                                                    static_cast<int>(sourceLoc->column));
+
+                    // Check for breakpoints/stepping
+                    if (debugger::DebugHookHelper::shouldPause(location))
+                    {
+                        debugger::DebugHookHelper::waitForResume();
+                    }
+                }
+            }
 
             try
             {
@@ -846,6 +884,55 @@ namespace vm::runtime
                 throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
                 break;
             }
+
+        // Debug opcodes
+        case OpCode::BREAKPOINT:
+            // Breakpoint hit - pause execution
+            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+            {
+                auto sourceLoc = program->getSourceLocation(instructionPointer);
+                if (sourceLoc)
+                {
+                    // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
+                    errors::SourceLocation location(sourceLoc->filename,
+                                                    static_cast<int>(sourceLoc->line),
+                                                    static_cast<int>(sourceLoc->column));
+
+                    // Always pause at explicit breakpoint
+                    if (debugger::DebugHookHelper::shouldPause(location))
+                    {
+                        debugger::DebugHookHelper::waitForResume();
+                    }
+                }
+            }
+            break;
+
+        case OpCode::LINE:
+            // Update current source line
+            if (!instr.operands.empty())
+            {
+                currentSourceLine = static_cast<int>(instr.operands[0]);
+            }
+            break;
+
+        case OpCode::SOURCE_FILE:
+            // Update current source file from constant pool
+            if (!instr.operands.empty())
+            {
+                size_t stringIndex = instr.operands[0];
+                const auto& constPool = program->getConstantPool();
+                if (stringIndex < constPool.strings.size())
+                {
+                    currentSourceFile = constPool.getString(stringIndex);
+                }
+            }
+            break;
+
+        case OpCode::PROFILE_ENTER:
+        case OpCode::PROFILE_EXIT:
+            // Profiling opcodes - currently no-op
+            // Can be implemented for performance profiling
+            break;
 
         default:
             throw errors::RuntimeException("Unimplemented opcode: " +

@@ -98,6 +98,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Final Generic Class",
                         passPath + "finalGenericClass.mt");
 
+        // === FINAL METHOD TESTS ===
+        // These tests verify final method functionality
+
+        addOutputVerificationTest("Final Method Basic",
+                        passPath + "finalMethodBasic.mt");
+        addOutputVerificationTest("Final Method Inheritance",
+                        passPath + "finalMethodInheritance.mt");
+        addOutputVerificationTest("Final Method With Non-Final",
+                        passPath + "finalMethodWithNonFinal.mt");
+        addOutputVerificationTest("Final Method Access Modifiers",
+                        passPath + "finalMethodAccessModifiers.mt");
+
         // === ABSTRACT CLASS TESTS ===
         // These tests verify abstract class and method functionality
 
@@ -187,9 +199,7 @@ namespace tests::testSuite
         addTestFromFile("Final Constructor Error",
                         errorPath + "finalConstructor.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Final Method Error",
-                        errorPath + "finalMethod.mt",
-                        TestType::ERROR_EXPECTED);
+        // NOTE: finalMethod.mt removed - final methods are now supported
         addTestFromFile("Static Parameters Error",
                         errorPath + "staticParameters.mt",
                         TestType::ERROR_EXPECTED);
@@ -316,6 +326,15 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Final Method Override Error",
                         errorPath + "finalMethodOverrideError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Final Abstract Conflict Error",
+                        errorPath + "finalAbstractConflict.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Final Method Override Protected Error",
+                        errorPath + "finalMethodOverrideProtected.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Final Method Override In Grandchild Error",
+                        errorPath + "finalMethodOverrideInGrandchild.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Protected Interface Method Error",
                         errorPath + "protectedInterfaceMethod.mt",

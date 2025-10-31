@@ -3,10 +3,12 @@
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/AsyncValidator.hpp"
 #include "../utilities/VisibilityParser.hpp"
+#include "../utilities/AnnotationParser.hpp"
 #include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../errors/DuplicateDeclarationException.hpp"
 
 namespace parser::statement
 {
@@ -25,8 +27,14 @@ namespace parser::statement
     {
         const Token& current = currentToken();
 
+        // Handle annotations (e.g., @Throw)
+        if (current.type == TokenType::AT)
+        {
+            // Annotations are handled in parseFunction()
+            return parseFunction();
+        }
         // Handle visibility modifiers (public/private)
-        if (current.type == TokenType::PUBLIC || current.type == TokenType::PRIVATE)
+        else if (current.type == TokenType::PUBLIC || current.type == TokenType::PRIVATE)
         {
             // Visibility modifiers are handled in parseFunction()
             return parseFunction();
@@ -50,6 +58,9 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> FunctionParser::parseFunction()
     {
+        // Step 1: Parse annotations before function declaration (e.g., @Throw(IOException))
+        auto annotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+
         // Validate: functions cannot be declared inside other functions
         if (context.isInsideFunctionBody())
         {
@@ -104,14 +115,18 @@ namespace parser::statement
         {
             if (context.isFunctionDeclared(funcName))
             {
-                throw ParseException(
-                    "Duplicate function declaration: '" + funcName + "' has already been declared",
+                // Get the location of the first declaration for better error message
+                SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
+                throw DuplicateDeclarationException(
+                    "function",
+                    funcName,
+                    firstLocation,
                     funcLocation
                 );
             }
 
-            // Register the function name
-            context.registerFunctionName(funcName);
+            // Register the function name with location
+            context.registerFunctionName(funcName, funcLocation);
         }
 
         // Use generic-aware parameter parsing to preserve class/interface names
@@ -146,8 +161,15 @@ namespace parser::statement
         // Use new generic-aware constructor with function generic parameters and async flag
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
                                                        genericParameters, std::move(body),
-                                                       functionGenericParameters, isAsync);
+                                                       functionGenericParameters, isAsync, funcLocation);
         funcNode->setVisibility(visibility);
+
+        // Step 2: Add parsed annotations to the function node
+        for (auto& annotation : annotations)
+        {
+            funcNode->addAnnotation(annotation);
+        }
+
         return funcNode;
     }
 
@@ -169,14 +191,18 @@ namespace parser::statement
         // NEW: Check for duplicate global function name
         if (context.isFunctionDeclared(funcName))
         {
-            throw ParseException(
-                "Duplicate function declaration: '" + funcName + "' has already been declared",
+            // Get the location of the first declaration for better error message
+            SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
+            throw DuplicateDeclarationException(
+                "function",
+                funcName,
+                firstLocation,
                 funcLocation
             );
         }
 
-        // Register the function name
-        context.registerFunctionName(funcName);
+        // Register the function name with location
+        context.registerFunctionName(funcName, funcLocation);
 
         auto parameters = parseParameterList();
 
@@ -187,13 +213,16 @@ namespace parser::statement
 
         // Native functions don't have a body - explicitly use unique_ptr nullptr
         return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters),
-                                              std::unique_ptr<ASTNode>(nullptr));
+                                              std::unique_ptr<ASTNode>(nullptr), false, funcLocation);
     }
 
     bool FunctionParser::isFunctionToken(TokenType type) const noexcept
     {
         switch (type)
         {
+        case TokenType::AT:        // Annotations like @Throw
+        case TokenType::PUBLIC:    // Visibility modifiers
+        case TokenType::PRIVATE:
         case TokenType::FUNCTION:
         case TokenType::NATIVE:
             return true;

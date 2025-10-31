@@ -41,6 +41,9 @@ namespace runtimeTypes::klass
         Value getFieldValue(const std::string& fieldName) const;
         std::shared_ptr<ClassDefinition> getClassDefinition() const;
         void setField(const std::string& fieldName, const Value& value);
+
+        // Get all field values (for debugging/inspection)
+        const std::unordered_map<std::string, Value>& getAllFieldValues() const { return fieldValues; }
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;

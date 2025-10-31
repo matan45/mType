@@ -30,11 +30,7 @@ namespace vm::compiler::visitors
             size_t typeNameIndex = ctx.program.getConstantPool().addString(typeInfo.toString());
 
             // Emit NEW_ARRAY with element type and source location
-            ctx.program.emit(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex));
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex), node);
         }
         else {
             // Multi-dimensional array: new Type[size1][size2]...
@@ -51,16 +47,12 @@ namespace vm::compiler::visitors
             size_t typeNameIndex = ctx.program.getConstantPool().addString(typeInfo.toString());
 
             // Emit NEW_ARRAY_MULTI with element type, total dimensions, and specified dimensions
-            ctx.program.emit(bytecode::OpCode::NEW_ARRAY_MULTI,
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY_MULTI,
                            std::vector<uint32_t>{
                                static_cast<uint32_t>(typeNameIndex),
                                static_cast<uint32_t>(dimensionCount),
                                static_cast<uint32_t>(specifiedDimensions)
-                           });
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+                           }, node);
         }
 
         return std::monostate{};
@@ -129,12 +121,12 @@ namespace vm::compiler::visitors
         }
 
         // Push array size onto stack
-        ctx.program.emit(bytecode::OpCode::PUSH_INT,
-                       static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(elementCount))));
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                       static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(elementCount))), node);
 
         // Create array with generic "Object" type (type will be inferred from elements)
         size_t typeNameIndex = ctx.program.getConstantPool().addString("Object");
-        ctx.program.emit(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex));
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex), node);
 
         // Array is now on stack. For each element:
         // 1. Duplicate array reference
@@ -142,21 +134,17 @@ namespace vm::compiler::visitors
         // 3. Push element value
         // 4. Call ARRAY_SET
         for (size_t i = 0; i < elementCount; ++i) {
-            ctx.program.emit(bytecode::OpCode::DUP);  // Duplicate array reference
+            ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);  // Duplicate array reference
 
             // Push index
-            ctx.program.emit(bytecode::OpCode::PUSH_INT,
-                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(i))));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(i))), node);
 
             // Compile and push element value
             elements[i]->accept(ctx.visitor);
 
             // Set array element with source location
-            ctx.program.emit(bytecode::OpCode::ARRAY_SET);
-            ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                         node->getLocation().getLine(),
-                                         node->getLocation().getColumn(),
-                                         node->getLocation().getFilename());
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET, node);
         }
 
         // Array reference is still on stack
@@ -173,11 +161,7 @@ namespace vm::compiler::visitors
         node->getIndex()->accept(ctx.visitor);  // Will need visitor delegation
 
         // Emit ARRAY_GET to retrieve element with source location
-        ctx.program.emit(bytecode::OpCode::ARRAY_GET);
-        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                     node->getLocation().getLine(),
-                                     node->getLocation().getColumn(),
-                                     node->getLocation().getFilename());
+        ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
 
         return std::monostate{};
     }
@@ -194,11 +178,7 @@ namespace vm::compiler::visitors
         node->getValue()->accept(ctx.visitor);  // Will need visitor delegation
 
         // Emit ARRAY_SET to store element with source location
-        ctx.program.emit(bytecode::OpCode::ARRAY_SET);
-        ctx.program.addSourceLocation(ctx.program.getCurrentOffset() - 1,
-                                     node->getLocation().getLine(),
-                                     node->getLocation().getColumn(),
-                                     node->getLocation().getFilename());
+        ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET, node);
 
         return std::monostate{};
     }

@@ -2,47 +2,50 @@
 // Expected: Pass - multiple classes marked with @Script
 
 @Script
+
 class PlayerController {
     private int health;
 
-	constructor(){}
-	
+constructor() {}
+
     constructor(int initialHealth) {
         health = initialHealth;
     }
-	
-	public function update(float dt): void
-	{}
 
-    public function getHealth(): int {
+    public function update(float dt) : void
+ {}
+
+    public function getHealth() : int {
         return health;
     }
 
-    public function takeDamage(int damage): void {
+    public function takeDamage(int damage) : void {
         health = health - damage;
     }
 }
 
 @Script
+
 class GameWorld {
     private int level;
 
-	constructor(){}
+constructor() {}
 
     constructor(int startLevel) {
         level = startLevel;
     }
 
-	public function update(float dt): void {}
-	
-    public function getLevel(): int {
+public function update(float dt) : void {}
+
+    public function getLevel() : int {
         return level;
     }
 }
 
 // Regular class without @Script
+
 class InternalHelper {
-    public function help(): void {
+    public function help() : void {
         print("Helper");
     }
 }

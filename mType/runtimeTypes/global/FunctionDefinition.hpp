@@ -5,6 +5,7 @@
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../Definition.hpp"
 
 namespace runtimeTypes::global
@@ -21,6 +22,7 @@ namespace runtimeTypes::global
         std::shared_ptr<ASTNode> body;
         std::vector<ast::GenericTypeParameter> genericTypeParameters;  // Generic type parameters like <T, U>
         bool isAsync;  // NEW: Flag to indicate async function
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;  // NEW: Annotations for this function
 
     public:
         explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), returnClassName(""), body(nullptr), isAsync(false) {}
@@ -66,5 +68,25 @@ namespace runtimeTypes::global
         // NEW: Async support
         bool getIsAsync() const { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
+
+        // NEW: Annotation methods
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const { return annotations; }
+        void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation) { annotations.push_back(annotation); }
+        bool hasAnnotation(const std::string& annotationName) const {
+            for (const auto& annotation : annotations) {
+                if (annotation->getName() == annotationName) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const {
+            for (const auto& annotation : annotations) {
+                if (annotation->getName() == annotationName) {
+                    return annotation;
+                }
+            }
+            return nullptr;
+        }
     };
 }

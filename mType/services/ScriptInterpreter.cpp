@@ -333,6 +333,44 @@ namespace services
         return evaluator.get();
     }
 
+    void ScriptInterpreter::enableDebugging()
+    {
+        // Enable debugging for evaluator (AST mode)
+        if (evaluator)
+        {
+            auto context = evaluator->getContext();
+            if (context)
+            {
+                context->setDebuggingEnabled(true);
+            }
+        }
+
+        // Enable debugging for VM (bytecode mode)
+        if (vm)
+        {
+            vm->setDebuggingEnabled(true);
+        }
+    }
+
+    void ScriptInterpreter::disableDebugging()
+    {
+        // Disable debugging for evaluator (AST mode)
+        if (evaluator)
+        {
+            auto context = evaluator->getContext();
+            if (context)
+            {
+                context->setDebuggingEnabled(false);
+            }
+        }
+
+        // Disable debugging for VM (bytecode mode)
+        if (vm)
+        {
+            vm->setDebuggingEnabled(false);
+        }
+    }
+
     void ScriptInterpreter::setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program)
     {
         if (scriptAPI)

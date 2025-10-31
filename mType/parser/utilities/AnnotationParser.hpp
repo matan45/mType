@@ -51,5 +51,18 @@ namespace parser::utilities
          * @return true if token is AT (@)
          */
         static bool isAnnotation(TokenType type);
+
+    private:
+        /**
+         * @brief Parse annotation parameters enclosed in parentheses
+         *
+         * Expects current token to be '(', followed by comma-separated identifiers,
+         * and ending with ')'. Returns a parameters map with the parsed exception list.
+         *
+         * @param tokenStream The token stream to parse from
+         * @return Map containing "exceptions" key with comma-separated exception class names
+         * @throws ParseException if syntax is invalid
+         */
+        static std::unordered_map<std::string, std::string> parseAnnotationParameters(TokenStream& tokenStream);
     };
 }

@@ -58,6 +58,9 @@ namespace vm::runtime
         std::string creatingClassName;  // Class context where lambda was created (for access checks)
         std::shared_ptr<SharedStackFrame> parentFrame;  // Shared parent frame for late-bound variable access (forward refs)
         std::unordered_map<std::string, size_t> parentVarNames;  // Map of parent variable names to their slots
+        std::vector<std::string> parameterNames;  // Names of lambda parameters (for debugging)
+        std::vector<std::string> capturedNames;  // Names of captured variables (for debugging)
+        std::string functionName;  // Unique lambda function name (for metadata lookup)
     };
 
     /**
@@ -108,6 +111,11 @@ namespace vm::runtime
         ExecutionStats& stats;
         std::chrono::steady_clock::time_point& executionStart;
 
+        // Debugging state
+        bool& debuggingEnabled;
+        std::string& currentSourceFile;
+        int& currentSourceLine;
+
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,
             size_t& ip,
@@ -115,7 +123,10 @@ namespace vm::runtime
             std::shared_ptr<environment::Environment> env,
             std::shared_ptr<StackManager> sm,
             ExecutionStats& st,
-            std::chrono::steady_clock::time_point& exStart)
+            std::chrono::steady_clock::time_point& exStart,
+            bool& debugEnabled,
+            std::string& srcFile,
+            int& srcLine)
             : program(prog)
             , instructionPointer(ip)
             , callStack(cs)
@@ -123,6 +134,9 @@ namespace vm::runtime
             , stackManager(std::move(sm))
             , stats(st)
             , executionStart(exStart)
+            , debuggingEnabled(debugEnabled)
+            , currentSourceFile(srcFile)
+            , currentSourceLine(srcLine)
         {}
     };
 }

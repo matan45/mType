@@ -39,6 +39,7 @@
 #include "utils/ScopeGuard.hpp"
 #include "ExpressionEvaluator.hpp"
 #include "ObjectEvaluator.hpp"
+#include "../debugger/DebugHookHelper.hpp"
 
 namespace evaluator
 {
@@ -74,6 +75,17 @@ namespace evaluator
         if (!node)
         {
             return std::monostate{};
+        }
+
+        // Debug hook: Check if debugger should pause at this location
+        // This check is inlined and optimized away when debugging is disabled
+        if (context->isDebuggingEnabled()) [[unlikely]]
+        {
+            // Pre-execution hook checks for breakpoints and stepping
+            if (debugger::DebugHookHelper::preExecuteHook(node))
+            {
+                // Debugger paused and resumed, continue execution
+            }
         }
 
         // Try to handle with this evaluator first

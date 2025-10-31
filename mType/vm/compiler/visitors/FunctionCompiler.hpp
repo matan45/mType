@@ -40,6 +40,7 @@ namespace vm::compiler::visitors
                              const std::vector<variables::VariableTracker::LocalVariable>& capturedVars);
         void emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
                                    const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
-                                   size_t currentFrameStart, const std::vector<variables::VariableTracker::LocalVariable>& currentLocals);
+                                   size_t currentFrameStart, const std::vector<variables::VariableTracker::LocalVariable>& currentLocals,
+                                   const std::string& lambdaFuncName);
     };
 }

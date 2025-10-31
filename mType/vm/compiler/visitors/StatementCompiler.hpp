@@ -32,6 +32,6 @@ namespace vm::compiler::visitors
                                      const std::string& existingClassName);
         void validateReassignmentType(ast::AssignmentNode* node, const std::string& existingClassName);
         void emitVariableDeclaration(ast::AssignmentNode* node);
-        void emitVariableReassignment(ast::AssignmentNode* node);
+        void emitVariableReassignment(ast::AssignmentNode* node, bool isReassignment);
     };
 }

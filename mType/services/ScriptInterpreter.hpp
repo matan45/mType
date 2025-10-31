@@ -133,6 +133,11 @@ namespace services
         // Access to environment and evaluator for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
         evaluator::Evaluator* getEvaluator() const;
+        std::shared_ptr<vm::runtime::VirtualMachine> getVM() const { return vm; }
+
+        // Debug support
+        void enableDebugging();
+        void disableDebugging();
 
         // Internal API for updating bytecode program reference (used by BytecodeService)
         void setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program);

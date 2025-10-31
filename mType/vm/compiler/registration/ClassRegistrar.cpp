@@ -172,6 +172,9 @@ namespace vm::compiler::registration
                     classDef->addAbstractMethod(methodNode->getName());
                 }
 
+                // Set final flag
+                methodDef->setFinal(methodNode->isFinal());
+
                 // Copy annotations from AST to runtime definition
                 for (const auto& annotation : methodNode->getAnnotations()) {
                     methodDef->addAnnotation(annotation);
@@ -493,7 +496,7 @@ namespace vm::compiler::registration
             methodMeta.name = method->getName();
             methodMeta.returnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
             methodMeta.isStatic = method->getIsStatic();
-            methodMeta.isFinal = false;  // Methods don't currently support final modifier
+            methodMeta.isFinal = method->isFinal();  // Support final method modifier
 
             // Get access modifiers
             auto accessMod = method->getAccessModifier();
@@ -585,13 +588,14 @@ namespace vm::compiler::registration
 
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
-        const auto& parentMethods = parentClass->getInstanceMethods();
 
         for (const auto& [methodName, childMethod] : childMethods) {
-            auto parentIt = parentMethods.find(methodName);
-            if (parentIt != parentMethods.end()) {
-                // Method exists in parent - validate override
-                auto parentMethod = parentIt->second;
+            // Search for method in parent hierarchy (not just immediate parent)
+            // This handles cases where method is defined in grandparent
+            auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
+
+            if (parentMethod) {
+                // Method exists in parent hierarchy - validate override
 
                 // Find the specific method node to get its location
                 ast::SourceLocation methodLocation = classLocation;
@@ -605,6 +609,30 @@ namespace vm::compiler::registration
                             }
                         }
                     }
+                }
+
+                // Check if parent method is final (cannot be overridden)
+                if (parentMethod->isFinal()) {
+                    // Find which class in the hierarchy actually defines this final method
+                    std::string definingClassName = parentClass->getName();
+                    auto currentClass = parentClass;
+                    while (currentClass) {
+                        auto localMethod = currentClass->findInstanceMethod(methodName, childMethod->getParameters().size());
+                        if (localMethod) {
+                            definingClassName = currentClass->getName();
+                            break;
+                        }
+                        currentClass = currentClass->getParentClass();
+                    }
+
+                    throw errors::InheritanceException(
+                        "Cannot override final method '" + methodName +
+                        "' from class '" + definingClassName + "' in class '" + childClass->getName() + "'",
+                        childClass->getName(),
+                        definingClassName,
+                        methodName,
+                        methodLocation
+                    );
                 }
 
                 // Validate access modifier - child cannot narrow parent's access

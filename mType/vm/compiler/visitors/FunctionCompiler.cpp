@@ -9,12 +9,13 @@
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include  <iostream>
 
 namespace vm::compiler::visitors
 {
     FunctionCompiler::FunctionCompiler(CompilerContext& context)
         : ctx(context)
-        , callHelper(std::make_unique<FunctionCallHelper>(context))
+          , callHelper(std::make_unique<FunctionCallHelper>(context))
     {
     }
 
@@ -24,7 +25,8 @@ namespace vm::compiler::visitors
 
         // Check if this function is already registered as a native function
         const auto* existingFunc = ctx.program.getFunction(funcName);
-        if (existingFunc && existingFunc->isNative) {
+        if (existingFunc && existingFunc->isNative)
+        {
             // Skip compilation - native functions are implemented in C++ and already registered
             return std::monostate{};
         }
@@ -39,13 +41,17 @@ namespace vm::compiler::visitors
         auto paramTypesVec = node->getParameterTypes();
         std::vector<std::string> paramNames;
         std::vector<std::string> paramTypes;
-        for (const auto& param : paramTypesVec) {
+        for (const auto& param : paramTypesVec)
+        {
             paramNames.push_back(param.first);
             // ParameterType preserves class names for object types
             const auto& paramType = param.second;
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+            {
                 paramTypes.push_back(paramType.className.value());
-            } else {
+            }
+            else
+            {
                 paramTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(paramType.basicType));
             }
         }
@@ -53,19 +59,22 @@ namespace vm::compiler::visitors
         // Convert return type to string, preserving class names for object types
         std::string returnTypeStr;
         auto genericReturnType = node->getGenericReturnType();
-        if (genericReturnType) {
+        if (genericReturnType)
+        {
             returnTypeStr = genericReturnType->toString();
-        } else {
+        }
+        else
+        {
             returnTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(node->getReturnType());
         }
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
-            ctx.variableTracker.getNextLocalSlot(),
-            ctx.variableTracker.getCurrentScopeDepth(),
-            false,  // Not a lambda
-            node->getIsAsync());  // Mark if async function
-        ctx.variableTracker.beginScope();  // Function body scope
+                                                    ctx.variableTracker.getNextLocalSlot(),
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    false, // Not a lambda
+                                                    node->getIsAsync()); // Mark if async function
+        ctx.variableTracker.beginScope(); // Function body scope
 
         // For generic functions, push empty bindings (will be filled during call)
         // This ensures the function body can be compiled even with generic types
@@ -84,9 +93,10 @@ namespace vm::compiler::visitors
         }
 
         // Track parameters as locals
-        for (const auto& param : paramTypesVec) {
+        for (const auto& param : paramTypesVec)
+        {
             ctx.variableTracker.declareLocal(param.first, param.second.basicType,
-                param.second.className.value_or(""));
+                                             param.second.className.value_or(""));
         }
 
         // Update max local slot after parameters
@@ -94,8 +104,9 @@ namespace vm::compiler::visitors
 
         // Compile function body
         auto* body = node->getBodyPtr();
-        if (body) {
-            body->accept(ctx.visitor);  // Will need delegation
+        if (body)
+        {
+            body->accept(ctx.visitor); // Will need delegation
         }
 
         // Pop generic bindings if we pushed them
@@ -111,19 +122,39 @@ namespace vm::compiler::visitors
         bool isVoidFunction = (node->getReturnType() == value::ValueType::VOID);
         bool isAsyncVoidFunction = (node->getIsAsync() && returnTypeStr == "Promise<void>");
 
-        if (isVoidFunction || isAsyncVoidFunction) {
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+        if (isVoidFunction || isAsyncVoidFunction)
+        {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
             // Wrap in Promise if async function
-            if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (node->getIsAsync())
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
 
         // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
-        ctx.variableTracker.endScope();      // End function body scope
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        const auto& currentFrame = ctx.functionFrameManager.currentFrame();
+
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            // Convert absolute slot to relative slot within this function
+            if (local.slot >= currentFrame.localStartSlot)
+            {
+                size_t relativeSlot = local.slot - currentFrame.localStartSlot;
+                if (relativeSlot < localCount)
+                {
+                    localVarNames[relativeSlot] = local.name;
+                }
+            }
+        }
+
+        ctx.variableTracker.endScope(); // End function body scope
         ctx.functionFrameManager.exitFunctionFrame();
 
         size_t functionEnd = ctx.program.getCurrentOffset();
@@ -142,7 +173,8 @@ namespace vm::compiler::visitors
         metadata.parameterTypes = paramTypes;
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
-        metadata.isAsync = node->getIsAsync();  // NEW: Copy async flag from AST
+        metadata.isAsync = node->getIsAsync(); // NEW: Copy async flag from AST
+        metadata.localVariableNames = localVarNames; // NEW: Store variable names for debugging
 
         // Store generic type parameters if the function is generic
         if (node->isGeneric())
@@ -166,18 +198,21 @@ namespace vm::compiler::visitors
 
     void FunctionCompiler::validateReturnType(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
-        if (!ctx.functionFrameManager.isInFunction()) {
+        if (!ctx.functionFrameManager.isInFunction())
+        {
             return; // Not in a function context
         }
 
         std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
 
         // Skip validation for "auto" return type (type inference)
-        if (expectedReturnType == "auto") {
+        if (expectedReturnType == "auto")
+        {
             return;
         }
 
-        if (returnValue) {
+        if (returnValue)
+        {
             // Function has a return value
             value::ValueType actualType = ctx.typeInference.inferExpressionType(returnValue);
 
@@ -191,13 +226,18 @@ namespace vm::compiler::visitors
             else expectedType = value::ValueType::OBJECT; // Class/interface types
 
             // Check if types match (allow VOID for unknown types)
-            if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID) {
-                if (actualType != expectedType) {
+            if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID)
+            {
+                if (actualType != expectedType)
+                {
                     // Special case: null can be returned for object types
-                    if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue))) {
+                    if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue)))
+                    {
                         // Special case: int can be returned for float
-                        if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT)) {
-                            std::string actualTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
+                        if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT))
+                        {
+                            std::string actualTypeStr =
+                                vm::runtime::utils::TypeConverter::valueTypeToString(actualType);
                             throw errors::TypeException(
                                 "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
                                 node->getLocation()
@@ -206,16 +246,20 @@ namespace vm::compiler::visitors
                     }
                 }
                 // For OBJECT types, validate class compatibility
-                else if (expectedType == value::ValueType::OBJECT && actualType == value::ValueType::OBJECT) {
+                else if (expectedType == value::ValueType::OBJECT && actualType == value::ValueType::OBJECT)
+                {
                     std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
 
                     // Skip validation for generic array types (like Array<T>, T[], etc.)
-                    bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") == 0);
+                    bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") ==
+                        0);
                     bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
 
-                    if (!(isGenericArrayReturn && isConcreteArrayReturn)) {
+                    if (!(isGenericArrayReturn && isConcreteArrayReturn))
+                    {
                         // Use TypeValidator for detailed class compatibility checking
-                        if (!actualClassName.empty() && expectedReturnType != "object") {
+                        if (!actualClassName.empty() && expectedReturnType != "object")
+                        {
                             bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
                             ctx.typeValidator.validateAssignment(
                                 expectedType, expectedReturnType,
@@ -226,13 +270,16 @@ namespace vm::compiler::visitors
                     }
                 }
             }
-        } else {
+        }
+        else
+        {
             // Function returns nothing (return;)
             // For async functions, allow return; in Promise<void> functions
             bool isAsyncVoidReturn = ctx.functionFrameManager.currentFrame().isAsync &&
-                                     expectedReturnType == "Promise<void>";
+                expectedReturnType == "Promise<void>";
 
-            if (expectedReturnType != "void" && !isAsyncVoidReturn) {
+            if (expectedReturnType != "void" && !isAsyncVoidReturn)
+            {
                 throw errors::TypeException(
                     "Return type mismatch: expected " + expectedReturnType + " but got void",
                     node->getLocation()
@@ -247,7 +294,8 @@ namespace vm::compiler::visitors
         // IMPORTANT: Reuse the same slot for all returns in the same try-finally to ensure
         // the finally block loads the correct return value
         size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
-        if (returnValueSlot == SIZE_MAX) {
+        if (returnValueSlot == SIZE_MAX)
+        {
             // First return in this try block - allocate a new slot
             returnValueSlot = ctx.variableTracker.getNextLocalSlot();
             ctx.functionFrameManager.updateMaxLocalSlot(returnValueSlot + 1);
@@ -256,26 +304,31 @@ namespace vm::compiler::visitors
             ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
         }
 
-        if (returnValue) {
+        if (returnValue)
+        {
             // For async functions, wrap in Promise before storing
             // This ensures consistency - we always store a Promise for async functions
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value in the special slot
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
-        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
+        }
+        else
+        {
             // Push null for void return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // For async functions, wrap in Promise before storing for finally
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
         }
 
         // Jump to finally
@@ -288,30 +341,38 @@ namespace vm::compiler::visitors
         // We're in a finally block that has a return, but there's an outer finally that must execute
         // Get or create the outer context's return value slot
         size_t outerReturnValueSlot = ctx.exceptionManager.getReturnValueSlotForOuter();
-        if (outerReturnValueSlot == SIZE_MAX) {
+        if (outerReturnValueSlot == SIZE_MAX)
+        {
             outerReturnValueSlot = ctx.variableTracker.getNextLocalSlot();
             ctx.functionFrameManager.updateMaxLocalSlot(outerReturnValueSlot + 1);
             ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
         }
 
-        if (returnValue) {
+        if (returnValue)
+        {
             // Wrap in Promise if needed
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
             // Store return value in outer slot
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
-        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+                                         node);
+        }
+        else
+        {
             // Push null for void return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // For async functions, wrap in Promise
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
             // Store return value
-            ctx.program.emit(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot));
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+                                         node);
         }
 
         // Jump to outer finally
@@ -321,20 +382,30 @@ namespace vm::compiler::visitors
 
     void FunctionCompiler::emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
-        if (returnValue) {
+        // Use returnValue's location if available (fallback for when ReturnNode lacks proper location)
+        ast::ASTNode* locationNode = (returnValue && returnValue->getLocation().getLine() > 0) ? returnValue : node;
+
+        if (returnValue)
+        {
             // Wrap in Promise if needed and return immediately
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, locationNode);
             }
-            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, locationNode);
+        }
+        else
+        {
             // For async functions, treat return; as return null; wrapped in Promise
             // This allows Promise<void> functions to use return; like regular void functions
-            if (ctx.functionFrameManager.currentFrame().isAsync) {
-                ctx.program.emit(bytecode::OpCode::PUSH_NULL);
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (ctx.functionFrameManager.currentFrame().isAsync)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-            } else {
+            }
+            else
+            {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
             }
         }
@@ -348,28 +419,40 @@ namespace vm::compiler::visitors
         validateReturnType(node, returnValue);
 
         // Compile return value expression if present
-        if (returnValue) {
+        if (returnValue)
+        {
             returnValue->accept(ctx.visitor);
         }
 
         // Check if in function context
-        if (ctx.functionFrameManager.isInFunction()) {
+        if (ctx.functionFrameManager.isInFunction())
+        {
             // Check if we're in a try block with a finally, but NOT already inside the finally block
             // If we're IN the finally block, we should return directly (not jump to finally again)
-            if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
+            if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally())
+            {
                 emitReturnWithFinally(node, returnValue);
-            } else if (ctx.exceptionManager.isInFinally() && ctx.exceptionManager.hasOuterFinally()) {
+            }
+            else if (ctx.exceptionManager.isInFinally() && ctx.exceptionManager.hasOuterFinally())
+            {
                 // We're in a finally block, but there's an outer finally that must execute
                 // Store return value and jump to outer finally instead of returning immediately
                 emitReturnWithOuterFinally(node, returnValue);
-            } else {
+            }
+            else
+            {
                 emitReturnValueBytecode(node, returnValue);
             }
-        } else {
+        }
+        else
+        {
             // Not in a function context - fallback handling
-            if (returnValue) {
+            if (returnValue)
+            {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-            } else {
+            }
+            else
+            {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
             }
         }
@@ -384,14 +467,17 @@ namespace vm::compiler::visitors
 
         // Determine if we're compiling a lambda inside another lambda
         bool isNestedLambda = ctx.functionFrameManager.isInFunction() &&
-                              ctx.functionFrameManager.currentFrame().isLambda;
+            ctx.functionFrameManager.currentFrame().isLambda;
 
         // Capture strategy: capture all variables from the current function frame
-        size_t currentFrameStart = ctx.functionFrameManager.isInFunction() ?
-            ctx.functionFrameManager.currentFrame().localStartSlot : 0;
+        size_t currentFrameStart = ctx.functionFrameManager.isInFunction()
+                                       ? ctx.functionFrameManager.currentFrame().localStartSlot
+                                       : 0;
 
-        for (const auto& local : currentLocals) {
-            if (local.slot >= currentFrameStart) {
+        for (const auto& local : currentLocals)
+        {
+            if (local.slot >= currentFrameStart)
+            {
                 capturedVars.push_back(local);
             }
         }
@@ -400,25 +486,27 @@ namespace vm::compiler::visitors
     }
 
     void FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
-                                           const std::vector<variables::VariableTracker::LocalVariable>& capturedVars)
+                                            const std::vector<variables::VariableTracker::LocalVariable>& capturedVars)
     {
         const auto& params = node->getParameters();
 
         // Enter function frame for lambda
         ctx.functionFrameManager.enterFunctionFrame("auto",
-            0,  // Lambda parameters start from slot 0
-            ctx.variableTracker.getCurrentScopeDepth(),
-            true,  // Mark this frame as a lambda
-            node->getIsAsync());  // Mark if async lambda
+                                                    0, // Lambda parameters start from slot 0
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    true, // Mark this frame as a lambda
+                                                    node->getIsAsync()); // Mark if async lambda
         ctx.variableTracker.beginScope();
 
         // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
-        for (const auto& param : params) {
+        for (const auto& param : params)
+        {
             ctx.variableTracker.declareLocal(param.name, value::ValueType::VOID, "");
         }
 
         // Add captured variables as locals (they occupy slots after parameters)
-        for (const auto& capture : capturedVars) {
+        for (const auto& capture : capturedVars)
+        {
             ctx.variableTracker.declareLocal(capture.name, capture.type, capture.className);
         }
 
@@ -427,33 +515,61 @@ namespace vm::compiler::visitors
     }
 
     void FunctionCompiler::emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
-                                                 const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
+                                                 const std::vector<variables::VariableTracker::LocalVariable>&
+                                                 capturedVars,
                                                  size_t currentFrameStart,
-                                                 const std::vector<variables::VariableTracker::LocalVariable>& currentLocals)
+                                                 const std::vector<variables::VariableTracker::LocalVariable>&
+                                                 currentLocals,
+                                                 const std::string& lambdaFuncName)
     {
         const auto& params = node->getParameters();
 
         // Now emit instruction to create lambda value with captured environment
+        // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
+        //                   captureSlot1, ..., captureSlotN,
+        //                   paramNameIdx1, ..., paramNameIdxN,
+        //                   capturedNameIdx1, ..., capturedNameIdxN,
+        //                   parentNameIdx1, parentSlot1, ...]
         std::vector<uint32_t> operands;
         operands.push_back(static_cast<uint32_t>(lambdaStart));
         operands.push_back(static_cast<uint32_t>(params.size()));
         operands.push_back(static_cast<uint32_t>(capturedVars.size()));
-        operands.push_back(static_cast<uint32_t>(currentLocals.size()));  // Number of parent locals
+        operands.push_back(static_cast<uint32_t>(currentLocals.size())); // Number of parent locals
+
+        // Add lambda function name for metadata lookup
+        size_t funcNameIdx = ctx.program.getConstantPool().addString(lambdaFuncName);
+        operands.push_back(static_cast<uint32_t>(funcNameIdx));
 
         // Add captured variable slot numbers
-        for (const auto& capture : capturedVars) {
+        for (const auto& capture : capturedVars)
+        {
             size_t relativeSlot = capture.slot - currentFrameStart;
             operands.push_back(static_cast<uint32_t>(relativeSlot));
         }
 
+        // Add parameter names for debugging
+        for (const auto& param : params)
+        {
+            size_t nameIndex = ctx.program.getConstantPool().addString(param.name);
+            operands.push_back(static_cast<uint32_t>(nameIndex));
+        }
+
+        // Add captured variable names for debugging (in the same order as capture slots)
+        for (const auto& capture : capturedVars)
+        {
+            size_t nameIndex = ctx.program.getConstantPool().addString(capture.name);
+            operands.push_back(static_cast<uint32_t>(nameIndex));
+        }
+
         // Add parent local variable name->slot mapping for late-bound access
-        for (const auto& local : currentLocals) {
+        for (const auto& local : currentLocals)
+        {
             size_t nameIndex = ctx.program.getConstantPool().addString(local.name);
             operands.push_back(static_cast<uint32_t>(nameIndex));
             operands.push_back(static_cast<uint32_t>(local.slot));
         }
 
-        ctx.program.emit(bytecode::OpCode::LAMBDA, operands);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LAMBDA, operands, node);
     }
 
     value::Value FunctionCompiler::compileLambda(ast::LambdaNode* node)
@@ -463,7 +579,7 @@ namespace vm::compiler::visitors
         std::string lambdaFuncName = "__lambda_" + std::to_string(lambdaCounter++);
 
         // Store current position to jump over lambda body
-        ctx.program.emit(bytecode::OpCode::JUMP, 0); // Placeholder
+        ctx.emitter.emitWithLocation(bytecode::OpCode::JUMP, 0u, node); // Placeholder
         size_t skipJump = ctx.program.getCurrentOffset() - 1;
 
         // Lambda function starts here
@@ -475,8 +591,9 @@ namespace vm::compiler::visitors
         // Capture variables from outer scope for closure support
         const auto& currentLocals = ctx.variableTracker.getLocals();
         auto capturedVars = captureScopeVariables();
-        size_t currentFrameStart = ctx.functionFrameManager.isInFunction() ?
-            ctx.functionFrameManager.currentFrame().localStartSlot : 0;
+        size_t currentFrameStart = ctx.functionFrameManager.isInFunction()
+                                       ? ctx.functionFrameManager.currentFrame().localStartSlot
+                                       : 0;
 
         // Reset local slot counter for lambda's own scope
         ctx.variableTracker.resetLocalSlot();
@@ -486,30 +603,52 @@ namespace vm::compiler::visitors
 
         // Compile lambda body
         auto* body = node->getBody();
-        if (node->isExpressionLambda()) {
+        if (node->isExpressionLambda())
+        {
             // Expression lambda: () -> expr
             body->accept(ctx.visitor);
 
             // Wrap in Promise if async lambda
-            if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (node->getIsAsync())
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
         }
-        else {
+        else
+        {
             // Block lambda: () -> { ... }
             body->accept(ctx.visitor);
 
             // Implicit return null if no explicit return
-            ctx.program.emit(bytecode::OpCode::PUSH_NULL);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
 
             // Wrap in Promise if async lambda
-            if (node->getIsAsync()) {
-                ctx.program.emit(bytecode::OpCode::CREATE_PROMISE);
+            if (node->getIsAsync())
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
 
-            ctx.program.emit(bytecode::OpCode::RETURN_VALUE);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+        }
+
+        // Capture local variable names for debugging (before exiting frame)
+        const auto& locals = ctx.variableTracker.getLocals();
+        const auto& currentFrame = ctx.functionFrameManager.currentFrame();
+        size_t localCount = ctx.functionFrameManager.getLocalCount();
+        std::vector<std::string> localVarNames(localCount);
+        for (const auto& local : locals)
+        {
+            // Convert absolute slot to relative slot within this lambda
+            if (local.slot >= currentFrame.localStartSlot)
+            {
+                size_t relativeSlot = local.slot - currentFrame.localStartSlot;
+                if (relativeSlot < localCount)
+                {
+                    localVarNames[relativeSlot] = local.name;
+                }
+            }
         }
 
         ctx.variableTracker.endScope();
@@ -527,15 +666,16 @@ namespace vm::compiler::visitors
         metadata.name = lambdaFuncName;
         metadata.startOffset = lambdaStart;
         metadata.instructionCount = lambdaEnd - lambdaStart;
-        metadata.localCount = node->getParameters().size() + capturedVars.size();
+        metadata.localCount = localCount;
         metadata.parameterCount = node->getParameters().size();
-        metadata.returnType = "auto";  // Lambda return type is inferred
+        metadata.returnType = "auto"; // Lambda return type is inferred
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();
+        metadata.localVariableNames = localVarNames;
         ctx.program.registerFunction(lambdaFuncName, metadata);
 
         // Emit lambda instruction with captured environment
-        emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals);
+        emitLambdaInstruction(lambdaStart, node, capturedVars, currentFrameStart, currentLocals, lambdaFuncName);
 
         // Restore previous nextLocalSlot
         ctx.variableTracker.setLocalSlot(savedNextLocalSlot);

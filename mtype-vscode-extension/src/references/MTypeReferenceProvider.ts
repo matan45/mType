@@ -119,6 +119,11 @@ export class MTypeReferenceProvider implements vscode.ReferenceProvider {
             // Search each file for references to this symbol
             for (const fileUri of allMTypeFiles) {
                 try {
+                    // Skip the current document to avoid double-counting
+                    if (fileUri.toString() === document.uri.toString()) {
+                        continue;
+                    }
+
                     const fileDocument = await vscode.workspace.openTextDocument(fileUri);
                     const fileReferences = this.findSymbolReferencesInDocument(symbolName, fileDocument);
                     references.push(...fileReferences);
@@ -236,6 +241,12 @@ export class MTypeReferenceProvider implements vscode.ReferenceProvider {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
+            // Skip the declaration line if includeDeclaration is false
+            const isDeclarationLine = line.match(new RegExp(`^\\s*(?:interface|class)\\s+${className}\\b`));
+            if (isDeclarationLine && !includeDeclaration) {
+                continue;
+            }
+
             // Variable declarations with class type
             const varDeclRegex = new RegExp(`\\b${className}\\s+\\w+`, 'g');
             let match;
@@ -261,6 +272,32 @@ export class MTypeReferenceProvider implements vscode.ReferenceProvider {
             const staticRegex = new RegExp(`\\b${className}::`, 'g');
             while ((match = staticRegex.exec(line)) !== null) {
                 const charIndex = match.index;
+                references.push(new vscode.Location(
+                    document.uri,
+                    new vscode.Position(i, charIndex)
+                ));
+            }
+
+            // Implements clauses (class X implements ClassName)
+            const implementsRegex = new RegExp(`\\bimplements\\s+([^{]+)`, 'g');
+            while ((match = implementsRegex.exec(line)) !== null) {
+                const implementsList = match[1];
+                const interfaces = implementsList.split(',').map(i => i.trim());
+                for (const interfaceName of interfaces) {
+                    if (interfaceName === className) {
+                        const charIndex = line.indexOf(className, match.index);
+                        references.push(new vscode.Location(
+                            document.uri,
+                            new vscode.Position(i, charIndex)
+                        ));
+                    }
+                }
+            }
+
+            // Extends clauses (class X extends ClassName or interface X extends ClassName)
+            const extendsRegex = new RegExp(`\\bextends\\s+${className}\\b`, 'g');
+            while ((match = extendsRegex.exec(line)) !== null) {
+                const charIndex = line.indexOf(className, match.index);
                 references.push(new vscode.Location(
                     document.uri,
                     new vscode.Position(i, charIndex)

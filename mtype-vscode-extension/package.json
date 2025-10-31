@@ -4,6 +4,7 @@
   "description": "Syntax highlighting and code completion for mType programming language",
   "version": "1.0.0",
   "publisher": "mtype-team",
+  "icon": "images/logo-circle.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/mtype-lang/mtype"
@@ -17,7 +18,8 @@
     "vscode": "^1.60.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "keywords": [
     "mtype",
@@ -28,7 +30,9 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
-    "onLanguage:mtype-compiled"
+    "onLanguage:mtype-compiled",
+    "onDebugResolve:mtype",
+    "onDebugDynamicConfigurations:mtype"
   ],
   "contributes": {
     "languages": [
@@ -65,6 +69,94 @@
         "language": "mtype-compiled",
         "scopeName": "source.mtype.compiled",
         "path": "./syntaxes/mtype.tmGrammar.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "mtype"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "mtype",
+        "label": "mType Debug",
+        "languages": ["mtype"],
+        "exceptionBreakpointFilters": [
+          {
+            "filter": "all",
+            "label": "All Exceptions",
+            "description": "Break on all exceptions",
+            "default": false
+          },
+          {
+            "filter": "uncaught",
+            "label": "Uncaught Exceptions",
+            "description": "Break on uncaught exceptions only",
+            "default": true
+          }
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to the mType file to debug",
+                "default": "${file}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch",
+                "default": true
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol",
+                "default": false
+              },
+              "interpreterPath": {
+                "type": "string",
+                "description": "Path to mType interpreter executable",
+                "default": "${config:mTypeLanguageServer.interpreterPath}"
+              },
+              "args": {
+                "type": "array",
+                "description": "Command line arguments passed to the program",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the program",
+                "default": "${workspaceFolder}"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "mtype",
+            "request": "launch",
+            "name": "Debug mType File",
+            "program": "${file}",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "mType: Launch",
+            "description": "Launch and debug an mType program",
+            "body": {
+              "type": "mtype",
+              "request": "launch",
+              "name": "Debug mType",
+              "program": "^\"\\${file}\"",
+              "stopOnEntry": true
+            }
+          }
+        ]
       }
     ],
     "iconThemes": [
@@ -139,30 +231,35 @@
           "default": "",
           "description": "Path to mType interpreter executable"
         },
-        "mTypeFormatter.indentSize": {
+        "mTypeFormatter.tabSize": {
           "type": "number",
           "default": 4,
-          "description": "Number of spaces for indentation"
+          "description": "Number of spaces per indentation level"
         },
-        "mTypeFormatter.useSpaces": {
+        "mTypeFormatter.useTabs": {
           "type": "boolean",
-          "default": true,
-          "description": "Use spaces for indentation instead of tabs"
+          "default": false,
+          "description": "Use tabs for indentation instead of spaces"
         },
         "mTypeFormatter.formatOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Format mType files on save"
         },
-        "mTypeFormatter.insertSpaceAfterComma": {
-          "type": "boolean",
-          "default": true,
-          "description": "Insert space after commas"
-        },
         "mTypeFormatter.insertSpaceAroundOperators": {
           "type": "boolean",
-          "default": false,
-          "description": "Insert spaces around operators (=, +, -, etc.)"
+          "default": true,
+          "description": "Insert spaces around operators (=, +, -, *, /, etc.)"
+        },
+        "mTypeFormatter.insertBlankLines": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert blank lines between classes and methods for better readability"
+        },
+        "mTypeFormatter.organizeImports": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically organize and sort import statements"
         }
       }
     }
@@ -180,6 +277,8 @@
   "dependencies": {
     "vscode-languageclient": "^8.1.0",
     "vscode-languageserver": "^8.1.0",
-    "vscode-languageserver-textdocument": "^1.0.1"
+    "vscode-languageserver-textdocument": "^1.0.1",
+    "@vscode/debugadapter": "^1.65.0",
+    "@vscode/debugprotocol": "^1.65.0"
   }
 }

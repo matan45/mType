@@ -319,6 +319,14 @@ namespace vm::bytecode
         return functions;
     }
 
+    void BytecodeProgram::registerGlobalVariable(const GlobalVariableMetadata& metadata) {
+        globalVariables.push_back(metadata);
+    }
+
+    const std::vector<BytecodeProgram::GlobalVariableMetadata>& BytecodeProgram::getGlobalVariables() const {
+        return globalVariables;
+    }
+
     void BytecodeProgram::addSourceLocation(size_t instructionOffset, uint32_t line, uint32_t column, const std::string& filename) {
         sourceLocations[instructionOffset] = {line, column, filename};
     }

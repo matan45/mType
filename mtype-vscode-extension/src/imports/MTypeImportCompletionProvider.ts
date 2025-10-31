@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { MTypeImportResolver, ImportInfo } from './MTypeImportResolver';
 
 export class MTypeImportCompletionProvider implements vscode.CompletionItemProvider {
@@ -24,6 +26,10 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
         }
 
         switch (importContext.type) {
+            case 'import-keyword':
+                return this.getImportKeywordCompletion();
+            case 'from-keyword':
+                return this.getFromKeywordCompletion();
             case 'import-statement':
                 return this.getImportStatementCompletions(document, position);
             case 'import-path':
@@ -42,8 +48,18 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
             return { type: 'import-statement' };
         }
 
-        // Check for import path completion: import "partial
-        const importPathMatch = linePrefix.match(/^\s*import\s+["']([^"']*)$/);
+        // Check for "from" keyword after "import *": "import * " or "import * f" etc.
+        if (linePrefix.match(/^\s*import\s+\*\s+$/) || linePrefix.match(/^\s*import\s+\*\s+f(r(o(m)?)?)?$/)) {
+            return { type: 'from-keyword' };
+        }
+
+        // Check for path after "from": "import * from "
+        if (linePrefix.match(/^\s*import\s+\*\s+from\s+$/)) {
+            return { type: 'import-statement' };
+        }
+
+        // Check for import path completion: import * from "partial
+        const importPathMatch = linePrefix.match(/^\s*import\s+\*\s+from\s+["']([^"']*)$/);
         if (importPathMatch) {
             return {
                 type: 'import-path',
@@ -57,6 +73,30 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
         }
 
         return null;
+    }
+
+    /**
+     * Provide import keyword completion
+     */
+    private getImportKeywordCompletion(): vscode.CompletionItem[] {
+        const item = new vscode.CompletionItem('import', vscode.CompletionItemKind.Keyword);
+        item.detail = 'Import statement';
+        item.documentation = new vscode.MarkdownString('Import symbols from another file');
+        item.insertText = new vscode.SnippetString('import * from "${1:path}";');
+        item.sortText = '0import';
+        return [item];
+    }
+
+    /**
+     * Provide from keyword completion
+     */
+    private getFromKeywordCompletion(): vscode.CompletionItem[] {
+        const item = new vscode.CompletionItem('from', vscode.CompletionItemKind.Keyword);
+        item.detail = 'from keyword';
+        item.documentation = new vscode.MarkdownString('Specify the file path to import from');
+        item.insertText = new vscode.SnippetString('from "${1:path}";');
+        item.sortText = '0from';
+        return [item];
     }
 
     /**
@@ -118,11 +158,14 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
     ): Promise<vscode.CompletionItem[]> {
         const completions: vscode.CompletionItem[] = [];
 
-        console.log('Getting import path completions for partial path:', partialPath);
+        // Use smart directory-based completion
+        const smartCompletions = await this.getSmartPathCompletions(document.uri.fsPath, partialPath);
+        if (smartCompletions.length > 0) {
+            return smartCompletions;
+        }
 
-        // Get available import files and filter by partial path
+        // Fallback to old behavior if smart completion doesn't work
         const availableImports = await this.importResolver.getAvailableImports(document.uri.fsPath);
-        console.log('Available imports:', availableImports);
 
         const filteredImports = availableImports.filter(importPath => {
             const lowercaseImportPath = importPath.toLowerCase();
@@ -136,8 +179,6 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                    fileNameLower.includes(lowercasePartialPath) ||
                    lowercaseImportPath.startsWith(lowercasePartialPath);
         });
-
-        console.log('Filtered imports:', filteredImports);
 
         for (const importPath of filteredImports) {
             const item = new vscode.CompletionItem(
@@ -176,19 +217,125 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                     );
                 }
             } catch (error) {
-                console.log('Error getting import info for path completion:', error);
+                // Silently ignore errors for individual imports
             }
 
             completions.push(item);
         }
 
-        console.log('Final path completions:', completions.length);
+        return completions;
+    }
+
+    /**
+     * Smart directory-based path completion (like C++ includes)
+     */
+    private async getSmartPathCompletions(
+        currentFilePath: string,
+        partialPath: string
+    ): Promise<vscode.CompletionItem[]> {
+        const completions: vscode.CompletionItem[] = [];
+
+        try {
+            // Determine the directory to search based on partial path
+            const currentFileDir = path.dirname(currentFilePath);
+
+            // Parse the partial path to get directory and file prefix
+            const lastSlashIndex = partialPath.lastIndexOf('/');
+            let searchDir: string;
+            let filePrefix: string;
+
+            if (lastSlashIndex === -1) {
+                // No slash yet, not a path-based search
+                return [];
+            }
+
+            const dirPart = partialPath.substring(0, lastSlashIndex + 1); // includes trailing slash
+            filePrefix = partialPath.substring(lastSlashIndex + 1);
+
+            // Resolve the directory to search
+            if (dirPart.startsWith('./')) {
+                searchDir = path.join(currentFileDir, dirPart.substring(2));
+            } else if (dirPart.startsWith('../')) {
+                searchDir = path.resolve(currentFileDir, dirPart);
+            } else if (dirPart === '/') {
+                // Absolute path (rare in imports)
+                searchDir = '/';
+            } else {
+                // Relative path without ./ prefix
+                searchDir = path.join(currentFileDir, dirPart);
+            }
+
+            // Check if directory exists
+            if (!fs.existsSync(searchDir)) {
+                return [];
+            }
+
+            // Read directory contents
+            const entries = fs.readdirSync(searchDir, { withFileTypes: true });
+
+            for (const entry of entries) {
+                // Filter by prefix
+                if (filePrefix && !entry.name.toLowerCase().startsWith(filePrefix.toLowerCase())) {
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    // Add directory with trailing slash
+                    const item = new vscode.CompletionItem(
+                        entry.name + '/',
+                        vscode.CompletionItemKind.Folder
+                    );
+                    item.detail = 'Directory';
+                    item.insertText = entry.name + '/';
+                    item.command = {
+                        command: 'editor.action.triggerSuggest',
+                        title: 'Re-trigger completions'
+                    };
+                    item.sortText = '0' + entry.name; // Directories first
+                    completions.push(item);
+
+                } else if (entry.isFile() && entry.name.endsWith('.mt')) {
+                    // Add .mt file without extension
+                    const fileNameWithoutExt = entry.name.replace(/\.mt$/, '');
+                    const item = new vscode.CompletionItem(
+                        fileNameWithoutExt,
+                        vscode.CompletionItemKind.File
+                    );
+                    item.detail = entry.name;
+                    item.insertText = fileNameWithoutExt;
+                    item.sortText = '1' + entry.name; // Files after directories
+
+                    // Try to get exported symbols preview
+                    const fullPath = path.join(searchDir, entry.name);
+                    const relativePath = partialPath.substring(0, lastSlashIndex + 1) + fileNameWithoutExt;
+                    try {
+                        const importInfo = await this.importResolver.getImportInfo(relativePath, currentFilePath);
+                        if (importInfo && importInfo.exportedSymbols.length > 0) {
+                            const symbolNames = importInfo.exportedSymbols.map(s => s.name).slice(0, 3);
+                            const preview = symbolNames.join(', ');
+                            const more = importInfo.exportedSymbols.length > 3 ? '...' : '';
+                            item.documentation = new vscode.MarkdownString(
+                                `**Exports:** ${preview}${more}`
+                            );
+                        }
+                    } catch (error) {
+                        // Ignore preview errors
+                    }
+
+                    completions.push(item);
+                }
+            }
+
+        } catch (error) {
+            // Silently ignore errors
+        }
+
         return completions;
     }
 }
 
 interface ImportContext {
-    type: 'import-statement' | 'import-path' | 'import-keyword';
+    type: 'import-statement' | 'import-path' | 'import-keyword' | 'from-keyword';
     partialPath?: string;
 }
 
@@ -219,7 +366,6 @@ export class MTypeImportedSymbolProvider {
 
                 // Skip if we've already processed this import path
                 if (processedPaths.has(importPath)) {
-                    console.log(`Skipping duplicate import: ${importPath}`);
                     continue;
                 }
 
@@ -249,11 +395,7 @@ export class MTypeImportedSymbolProvider {
         const imports = this.getImportedSymbols(document);
         const addedSymbols = new Set<string>(); // Track added symbols to avoid duplicates
 
-        console.log('Getting imported symbol completions for:', document.uri.toString());
-        console.log('Found imports:', imports.length);
-
         for (const importInfo of imports) {
-            console.log('Processing import:', importInfo.importPath, 'with symbols:', importInfo.exportedSymbols.length);
             for (const symbol of importInfo.exportedSymbols) {
                 // Skip if we've already added this symbol
                 if (addedSymbols.has(symbol.name)) {

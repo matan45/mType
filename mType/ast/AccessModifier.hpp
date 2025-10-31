@@ -15,9 +15,9 @@ namespace ast
      */
     enum class AccessModifier : uint8_t
     {
-        PRIVATE = 0,    // Default for class members
-        PUBLIC = 1,     // Default for interface members
-        PROTECTED = 2   // For inheritance-based access
+        PRIVATE = 0, // Default for class members
+        PUBLIC = 1, // Default for interface members
+        PROTECTED = 2 // For inheritance-based access
     };
 
     /**
