@@ -10,7 +10,6 @@
 #include "../errors/ClassNotFoundException.hpp"
 #include "../errors/FieldNotFoundException.hpp"
 #include "../errors/FinalModificationException.hpp"
-#include "../errors/ParameterMismatchException.hpp"
 #include "../errors/TypeConversionException.hpp"
 #include "../errors/ReturnException.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"

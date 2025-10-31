@@ -1,6 +1,5 @@
 ﻿#include "ScriptInterpreter.hpp"
 #include "../errors/ParseException.hpp"
-#include "../exception/SuspendException.hpp"
 #include <iostream>
 #include <filesystem>
 #include <memory>

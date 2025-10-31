@@ -209,39 +209,10 @@ namespace runtime {
         void stop();
 
         /**
-         * @brief Check if event loop is currently running
-         */
-        bool isRunning() const { return running; }
-
-        /**
-         * @brief Get current task (or nullptr if none executing)
-         */
-        std::shared_ptr<Task> getCurrentTask() const { return currentTask; }
-
-        /**
-         * @brief Get number of pending tasks
-         */
-        size_t getPendingTaskCount() const;
-
-        /**
          * @brief Post a callback to run on next event loop iteration
          * Thread-safe - can be called from background threads
          */
         void post(std::function<void()> callback);
-
-        /**
-         * @brief Set the aging interval for priority aging
-         * @param intervalMs Milliseconds per priority point (default: 100)
-         *
-         * Lower values = faster aging (tasks gain priority quicker)
-         * Higher values = slower aging (tasks gain priority slower)
-         */
-        void setAgingInterval(int intervalMs) { agingInterval = intervalMs; }
-
-        /**
-         * @brief Get current aging interval
-         */
-        int getAgingInterval() const { return agingInterval; }
 
         /**
          * @brief Get a task by ID
@@ -252,7 +223,6 @@ namespace runtime {
 
     private:
         void executeTask(std::shared_ptr<Task> task);
-        void checkDelayedTasks();
         void checkCompletedPromises();
         void moveReadyDelayedTasks();
         std::shared_ptr<Task> selectNextTask();

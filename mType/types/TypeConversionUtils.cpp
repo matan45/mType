@@ -279,6 +279,24 @@ namespace types {
         return true;
     }
 
+    value::ValueType TypeConversionUtils::stringToValueType(const std::string& typeName) {
+        if (typeName == "int") return value::ValueType::INT;
+        if (typeName == "float") return value::ValueType::FLOAT;
+        if (typeName == "bool") return value::ValueType::BOOL;
+        if (typeName == "string") return value::ValueType::STRING;
+        if (typeName == "void") return value::ValueType::VOID;
+        // For any object/class type
+        return value::ValueType::OBJECT;
+    }
+
+    std::string TypeConversionUtils::extractBaseTypeName(const std::string& typeName) {
+        size_t genericStart = typeName.find('<');
+        if (genericStart != std::string::npos) {
+            return typeName.substr(0, genericStart);
+        }
+        return typeName;
+    }
+
     double TypeConversionUtils::calculateStringSimilarity(const std::string& str1, const std::string& str2) {
         // Optimized Levenshtein distance using single row (O(min(n,m)) space instead of O(n*m))
         const size_t len1 = str1.length();

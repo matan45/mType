@@ -9,7 +9,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
@@ -470,7 +470,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::FieldMetadata fieldMeta;
             fieldMeta.name = field->getName();
-            fieldMeta.type = vm::runtime::utils::TypeConverter::valueTypeToString(field->getType());
+            fieldMeta.type = ::types::TypeConversionUtils::getTypeDisplayName(field->getType());
             fieldMeta.isStatic = field->getIsStatic();
             fieldMeta.isFinal = field->getIsFinal();
 
@@ -494,7 +494,7 @@ namespace vm::compiler::registration
 
             bytecode::BytecodeProgram::MethodMetadata methodMeta;
             methodMeta.name = method->getName();
-            methodMeta.returnType = vm::runtime::utils::TypeConverter::valueTypeToString(method->getReturnType());
+            methodMeta.returnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
             methodMeta.isStatic = method->getIsStatic();
             methodMeta.isFinal = method->isFinal();  // Support final method modifier
 
@@ -512,7 +512,7 @@ namespace vm::compiler::registration
                 if (genericType) {
                     vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
                 }
-                methodMeta.parameterTypes.push_back(vm::runtime::utils::TypeConverter::valueTypeToString(vType));
+                methodMeta.parameterTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(vType));
                 methodMeta.parameterNames.push_back(paramName);
             }
 
@@ -701,9 +701,9 @@ namespace vm::compiler::registration
                     throw errors::InheritanceException(
                         "Method override return type mismatch in class '" + childClass->getName() +
                         "': method '" + methodName + "' has return type '" +
-                        vm::runtime::utils::TypeConverter::valueTypeToString(childMethod->getReturnType()) +
+                        ::types::TypeConversionUtils::getTypeDisplayName(childMethod->getReturnType()) +
                         "' but parent method has return type '" +
-                        vm::runtime::utils::TypeConverter::valueTypeToString(parentMethod->getReturnType()) + "'",
+                        ::types::TypeConversionUtils::getTypeDisplayName(parentMethod->getReturnType()) + "'",
                         childClass->getName(),
                         parentClass->getName(),
                         methodName,

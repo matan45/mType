@@ -98,16 +98,6 @@ namespace vm::runtime::optimization
          * Call this after compilation, before execution
          */
         void optimize();
-
-        /**
-         * Get loop information (for debugging/profiling)
-         */
-        const std::vector<LoopInfo>& getLoops() const { return loops; }
-
-        /**
-         * Check if optimizations were applied to any loops
-         */
-        bool hasOptimizations() const;
     };
 
 } // namespace vm::runtime::optimization

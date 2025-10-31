@@ -254,14 +254,4 @@ namespace vm::runtime::optimization
         // or for JIT compilation hints
     }
 
-    bool LoopOptimizer::hasOptimizations() const
-    {
-        for (const auto& loop : loops) {
-            if (loop.isCountedLoop || !loop.invariantInstructions.empty()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
 } // namespace vm::runtime::optimization

@@ -3,7 +3,7 @@
 #include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include <memory>
 
 namespace vm::compiler::registration

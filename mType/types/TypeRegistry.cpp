@@ -1,5 +1,4 @@
 #include "TypeRegistry.hpp"
-#include "StringUtils.hpp"
 #include <regex>
 #include <sstream>
 #include <algorithm>
@@ -64,8 +63,11 @@ namespace types {
                 currentArg += c;
             } else if (c == ',' && depth == 0) {
                 // Top-level comma - this separates type arguments
-                std::string trimmed = StringUtils::trimWhitespace(currentArg);
-                if (!trimmed.empty()) {
+                // Inline trim: remove leading/trailing whitespace
+                size_t start = currentArg.find_first_not_of(" \t\n\r");
+                if (start != std::string::npos) {
+                    size_t end = currentArg.find_last_not_of(" \t\n\r");
+                    std::string trimmed = currentArg.substr(start, end - start + 1);
                     typeArgs.push_back(trimmed);
                 }
                 currentArg.clear();
@@ -74,9 +76,11 @@ namespace types {
             }
         }
 
-        // Add the last argument
-        std::string trimmed = StringUtils::trimWhitespace(currentArg);
-        if (!trimmed.empty()) {
+        // Add the last argument (inline trim)
+        size_t start = currentArg.find_first_not_of(" \t\n\r");
+        if (start != std::string::npos) {
+            size_t end = currentArg.find_last_not_of(" \t\n\r");
+            std::string trimmed = currentArg.substr(start, end - start + 1);
             typeArgs.push_back(trimmed);
         }
 

@@ -49,9 +49,6 @@
     <Filter Include="errors">
       <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
     </Filter>
-    <Filter Include="exception">
-      <UniqueIdentifier>{74919B5E-E0FB-4FD5-293A-017B95E32D2A}</UniqueIdentifier>
-    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -349,9 +346,6 @@
     <Filter Include="vm\optimization\patterns">
       <UniqueIdentifier>{1E3F35AF-0A64-842F-33AF-69BF1F33834D}</UniqueIdentifier>
     </Filter>
-    <Filter Include="vm\optimization\validation">
-      <UniqueIdentifier>{58076CB5-4417-1886-ADD0-7CA499FF061F}</UniqueIdentifier>
-    </Filter>
     <Filter Include="vm\runtime">
       <UniqueIdentifier>{3B87016C-273F-43B9-9046-1C157C1DDEA9}</UniqueIdentifier>
     </Filter>
@@ -457,9 +451,6 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClInclude>
-    <ClInclude Include="ast\nodes\expressions\GenericTypeRefNode.hpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
@@ -639,9 +630,6 @@
     <ClInclude Include="environment\registry\ExportRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
-    <ClInclude Include="environment\registry\ExportSymbolCollector.hpp">
-      <Filter>environment\registry</Filter>
-    </ClInclude>
     <ClInclude Include="environment\registry\FunctionRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
@@ -681,22 +669,13 @@
     <ClInclude Include="errors\AccessViolationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
-    <ClInclude Include="errors\AmbiguousReferenceException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
     <ClInclude Include="errors\ArgumentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ArrayCreationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
-    <ClInclude Include="errors\BreakException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
     <ClInclude Include="errors\ClassNotFoundException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
-    <ClInclude Include="errors\ContinueException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\DuplicateDeclarationException.hpp">
@@ -714,13 +693,7 @@
     <ClInclude Include="errors\FinalModificationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
-    <ClInclude Include="errors\ImportException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
     <ClInclude Include="errors\InheritanceException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
-    <ClInclude Include="errors\MathException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\MethodNotFoundException.hpp">
@@ -730,9 +703,6 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ObjectException.hpp">
-      <Filter>errors</Filter>
-    </ClInclude>
-    <ClInclude Include="errors\ParameterMismatchException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\ParseException.hpp">
@@ -764,9 +734,6 @@
     </ClInclude>
     <ClInclude Include="errors\UserException.hpp">
       <Filter>errors</Filter>
-    </ClInclude>
-    <ClInclude Include="exception\SuspendException.hpp">
-      <Filter>exception</Filter>
     </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
@@ -1080,9 +1047,6 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
-    <ClInclude Include="types\StringUtils.hpp">
-      <Filter>types</Filter>
-    </ClInclude>
     <ClInclude Include="types\TypeConversionUtils.hpp">
       <Filter>types</Filter>
     </ClInclude>
@@ -1320,9 +1284,6 @@
     <ClInclude Include="vm\optimization\patterns\TypeSpecializationPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
-    <ClInclude Include="vm\optimization\validation\OptimizationValidator.hpp">
-      <Filter>vm\optimization\validation</Filter>
-    </ClInclude>
     <ClInclude Include="vm\runtime\VirtualMachine.hpp">
       <Filter>vm\runtime</Filter>
     </ClInclude>
@@ -1353,9 +1314,6 @@
     <ClInclude Include="vm\runtime\executors\LogicalExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
-    <ClInclude Include="vm\runtime\executors\MethodInvocationHelper.hpp">
-      <Filter>vm\runtime\executors</Filter>
-    </ClInclude>
     <ClInclude Include="vm\runtime\executors\ObjectExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
@@ -1384,9 +1342,6 @@
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\utils\ExceptionHandler.hpp">
-      <Filter>vm\runtime\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="vm\runtime\utils\TypeConverter.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
@@ -1470,9 +1425,6 @@
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
-      <Filter>ast\nodes\expressions</Filter>
-    </ClCompile>
-    <ClCompile Include="ast\nodes\expressions\GenericTypeRefNode.cpp">
       <Filter>ast\nodes\expressions</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
@@ -1617,9 +1569,6 @@
       <Filter>environment\registry</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\ExportRegistry.cpp">
-      <Filter>environment\registry</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\ExportSymbolCollector.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\FunctionRegistry.cpp">
@@ -1949,9 +1898,6 @@
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
     </ClCompile>
-    <ClCompile Include="types\StringUtils.cpp">
-      <Filter>types</Filter>
-    </ClCompile>
     <ClCompile Include="types\TypeConversionUtils.cpp">
       <Filter>types</Filter>
     </ClCompile>
@@ -2132,9 +2078,6 @@
     <ClCompile Include="vm\optimization\patterns\TypeSpecializationPattern.cpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
-    <ClCompile Include="vm\optimization\validation\OptimizationValidator.cpp">
-      <Filter>vm\optimization\validation</Filter>
-    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
@@ -2184,9 +2127,6 @@
       <Filter>vm\runtime\stack</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\utils\ExceptionHandler.cpp">
-      <Filter>vm\runtime\utils</Filter>
-    </ClCompile>
-    <ClCompile Include="vm\runtime\utils\TypeConverter.cpp">
       <Filter>vm\runtime\utils</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\validation\AccessValidator.cpp">

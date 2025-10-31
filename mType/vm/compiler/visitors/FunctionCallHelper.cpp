@@ -4,7 +4,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
-#include "../../runtime/utils/TypeConverter.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 
 namespace vm::compiler::visitors
@@ -102,7 +102,7 @@ namespace vm::compiler::visitors
             }
 
             // Convert argType to string for comparison
-            std::string argTypeStr = vm::runtime::utils::TypeConverter::valueTypeToString(argType);
+            std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
 
             // For object types, need to check class names
             if (expectedType != "int" && expectedType != "float" &&

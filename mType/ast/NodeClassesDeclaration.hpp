@@ -9,7 +9,6 @@ namespace ast
             class BinaryExpNode;
             class TernaryExpNode;
             class UnaryExpNode;
-            class NumberNode;
             class StringNode;
             class BoolNode;
             class NullNode;
@@ -18,8 +17,6 @@ namespace ast
             class FloatNode;
             class ArrayLiteralNode;
             class ArrayCreationNode;
-            class ArrayTypeNode;
-            class MapLiteralNode;
             class IndexAccessNode;
             class LambdaNode;
             class CastExpression;
@@ -117,8 +114,6 @@ namespace ast
     using IntegerNode = nodes::expressions::IntegerNode;
     using ArrayLiteralNode = nodes::expressions::ArrayLiteralNode;
     using ArrayCreationNode = nodes::expressions::ArrayCreationNode;
-    using ArrayTypeNode = nodes::expressions::ArrayTypeNode;
-    using MapLiteralNode = nodes::expressions::MapLiteralNode;
     using IndexAccessNode = nodes::expressions::IndexAccessNode;
     using LambdaNode = nodes::expressions::LambdaNode;
     using ForEachNode = nodes::statements::ForEachNode;
