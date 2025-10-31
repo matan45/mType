@@ -34,6 +34,7 @@
 #include <functional>
 #include <unordered_set>
 #include <iostream>
+
 namespace vm::runtime
 {
     VirtualMachine::VirtualMachine(std::shared_ptr<environment::Environment> env)
@@ -133,7 +134,8 @@ namespace vm::runtime
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot create object in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot create object in bytecode mode without compiled bytecode");
         }
 
         // Find class definition
@@ -151,7 +153,7 @@ namespace vm::runtime
         if (!constructor)
         {
             throw errors::RuntimeException("Constructor not found for class '" + className +
-                                         "' with " + std::to_string(args.size()) + " parameters");
+                "' with " + std::to_string(args.size()) + " parameters");
         }
 
         // Look for constructor bytecode
@@ -161,7 +163,7 @@ namespace vm::runtime
         if (!ctorMetadata)
         {
             throw errors::RuntimeException("Constructor '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -211,12 +213,13 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                             const std::string& methodName,
-                                             const std::vector<value::Value>& args)
+                                              const std::string& methodName,
+                                              const std::vector<value::Value>& args)
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
         }
 
         if (!instance)
@@ -232,7 +235,7 @@ namespace vm::runtime
         if (!method)
         {
             throw errors::RuntimeException("Instance method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
         // Find which class defines this method
@@ -255,7 +258,7 @@ namespace vm::runtime
         if (!funcMetadata)
         {
             throw errors::RuntimeException("Method '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -310,7 +313,8 @@ namespace vm::runtime
     {
         if (!program)
         {
-            throw errors::RuntimeException("No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
+            throw errors::RuntimeException(
+                "No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
         }
 
         auto classDef = environment->findClass(className);
@@ -324,7 +328,7 @@ namespace vm::runtime
         if (!method)
         {
             throw errors::RuntimeException("Static method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + className);
+                " with " + std::to_string(argCount) + " arguments in class " + className);
         }
 
         // Look for method bytecode
@@ -333,7 +337,7 @@ namespace vm::runtime
         if (!funcMetadata)
         {
             throw errors::RuntimeException("Static method '" + qualifiedName +
-                                         "' has no bytecode. Bytecode compilation is required for VM execution.");
+                "' has no bytecode. Bytecode compilation is required for VM execution.");
         }
 
         // Save current state
@@ -356,7 +360,7 @@ namespace vm::runtime
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
             frame.functionName = qualifiedName;
-            frame.thisInstance = nullptr;  // Static methods have no 'this'
+            frame.thisInstance = nullptr; // Static methods have no 'this'
             frame.definingClassName = className;
 
             callStack.push_back(frame);
@@ -382,7 +386,7 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                         const std::string& fieldName)
+                                          const std::string& fieldName)
     {
         if (!instance)
         {
@@ -399,8 +403,8 @@ namespace vm::runtime
     }
 
     void VirtualMachine::setField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
-                                 const std::string& fieldName,
-                                 const value::Value& value)
+                                  const std::string& fieldName,
+                                  const value::Value& value)
     {
         if (!instance)
         {
@@ -439,8 +443,8 @@ namespace vm::runtime
     }
 
     void VirtualMachine::setStaticField(const std::string& className,
-                                       const std::string& fieldName,
-                                       const value::Value& value)
+                                        const std::string& fieldName,
+                                        const value::Value& value)
     {
         auto classDef = environment->findClass(className);
         if (!classDef)
@@ -507,8 +511,8 @@ namespace vm::runtime
 
                     // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
                     errors::SourceLocation location(sourceLoc->filename,
-                                                   static_cast<int>(sourceLoc->line),
-                                                   static_cast<int>(sourceLoc->column));
+                                                    static_cast<int>(sourceLoc->line),
+                                                    static_cast<int>(sourceLoc->column));
 
                     // Check for breakpoints/stepping
                     if (debugger::DebugHookHelper::shouldPause(location))
@@ -891,8 +895,8 @@ namespace vm::runtime
                 {
                     // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
                     errors::SourceLocation location(sourceLoc->filename,
-                                                   static_cast<int>(sourceLoc->line),
-                                                   static_cast<int>(sourceLoc->column));
+                                                    static_cast<int>(sourceLoc->line),
+                                                    static_cast<int>(sourceLoc->column));
 
                     // Always pause at explicit breakpoint
                     if (debugger::DebugHookHelper::shouldPause(location))

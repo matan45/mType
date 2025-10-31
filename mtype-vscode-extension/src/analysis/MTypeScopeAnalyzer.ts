@@ -15,6 +15,7 @@ export enum ScopeType {
 export enum Visibility {
     Public = 'public',
     Private = 'private',
+    Protected = 'protected',
     Static = 'static'
 }
 
@@ -62,6 +63,7 @@ export class MTypeScopeAnalyzer {
     private scopes: Map<string, ScopeInfo> = new Map();
     private rootScope: ScopeInfo;
     private classes: Map<string, ClassInfo> = new Map();
+    private interfaces: Map<string, InterfaceInfo> = new Map();
 
     constructor(document: vscode.TextDocument) {
         this.document = document;
@@ -73,6 +75,7 @@ export class MTypeScopeAnalyzer {
         const text = this.document.getText();
         const lines = text.split('\n');
 
+        this.parseInterfaces(lines);
         this.parseClasses(lines);
         this.parseGlobalFunctions(lines);
         this.parseGlobalVariables(lines);
@@ -95,6 +98,70 @@ export class MTypeScopeAnalyzer {
         return scope;
     }
 
+    private parseInterfaces(lines: string[]): void {
+        let currentInterface: InterfaceInfo | null = null;
+        let braceCount = 0;
+        let interfaceStartLine = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const openBraces = (line.match(/\{/g) || []).length;
+            const closeBraces = (line.match(/\}/g) || []).length;
+
+            // Check for interface declaration
+            const interfaceMatch = line.match(/^\s*interface\s+(\w+)(?:<[^>]+>)?\s*\{/);
+            if (interfaceMatch && !currentInterface) {
+                const interfaceName = interfaceMatch[1];
+                interfaceStartLine = i;
+                braceCount = 1;
+
+                currentInterface = {
+                    name: interfaceName,
+                    scope: this.createScope(ScopeType.Class, interfaceName, i, -1, this.rootScope),
+                    methods: new Map()
+                };
+
+                this.interfaces.set(interfaceName, currentInterface);
+            } else if (currentInterface) {
+                braceCount += openBraces - closeBraces;
+
+                if (braceCount <= 0) {
+                    // End of interface
+                    currentInterface.scope.endLine = i;
+                    this.parseInterfaceBody(currentInterface, lines, interfaceStartLine + 1, i - 1);
+                    currentInterface = null;
+                }
+            }
+        }
+    }
+
+    private parseInterfaceBody(interfaceInfo: InterfaceInfo, lines: string[], startLine: number, endLine: number): void {
+        for (let i = startLine; i <= endLine; i++) {
+            const line = lines[i];
+
+            // Parse method declarations in interface (no body, just signatures)
+            const methodMatch = line.match(/^\s*function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*;/);
+            if (methodMatch) {
+                const methodName = methodMatch[1];
+                const parametersStr = methodMatch[2];
+                const returnType = methodMatch[3];
+
+                const parameters = this.parseParameters(parametersStr);
+
+                const methodInfo: MethodInfo = {
+                    name: methodName,
+                    returnType,
+                    parameters,
+                    visibility: Visibility.Public, // Interface methods are always public
+                    isStatic: false,
+                    declarationLocation: new vscode.Position(i, 0)
+                };
+
+                interfaceInfo.methods.set(methodName, methodInfo);
+            }
+        }
+    }
+
     private parseClasses(lines: string[]): void {
         let currentClass: ClassInfo | null = null;
         let braceCount = 0;
@@ -106,9 +173,20 @@ export class MTypeScopeAnalyzer {
             const closeBraces = (line.match(/\}/g) || []).length;
 
             // Check for class declaration (support generic classes like HashMap<K,V>)
-            const classMatch = line.match(/^\s*class\s+(\w+)(?:<[^>]+>)?\s*\{/);
+            // Also capture extends and implements clauses
+            const classMatch = line.match(/^\s*(?:abstract\s+)?class\s+(\w+)(?:<[^>]+>)?(?:\s+extends\s+(\w+))?(?:\s+implements\s+([^{]+))?\s*\{/);
             if (classMatch && !currentClass) {
                 const className = classMatch[1];
+                const parentClass = classMatch[2] || undefined;
+                const implementsClause = classMatch[3] || '';
+
+                // Parse implemented interfaces (comma-separated list)
+                const implementedInterfaces: string[] = [];
+                if (implementsClause) {
+                    const interfaces = implementsClause.split(',').map(i => i.trim()).filter(i => i.length > 0);
+                    implementedInterfaces.push(...interfaces);
+                }
+
                 classStartLine = i;
                 braceCount = 1;
 
@@ -118,7 +196,9 @@ export class MTypeScopeAnalyzer {
                     methods: new Map(),
                     fields: new Map(),
                     staticMethods: new Map(),
-                    staticFields: new Map()
+                    staticFields: new Map(),
+                    implementedInterfaces,
+                    parentClass
                 };
 
                 currentClass.scope.className = className;
@@ -152,19 +232,19 @@ export class MTypeScopeAnalyzer {
             }
 
             // Parse method declarations
-            // Updated regex to handle generic return types like Array<int>, Map<string, int>, etc.
-            const methodMatch = line.match(/^\s*(private\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
+            // Updated regex to handle generic return types and all visibility modifiers (public, private, protected)
+            const methodMatch = line.match(/^\s*(?:(public|private|protected)\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
             const constructorMatch = line.match(/^\s*constructor\s*\(([^)]*)\)\s*\{/);
 
             if ((methodMatch || constructorMatch) && !currentMethod) {
                 let methodName: string;
                 let returnType: string;
                 let parametersStr: string;
-                let isPrivate = false;
+                let visibilityModifier: string | undefined = undefined;
                 let isStatic = false;
 
                 if (methodMatch) {
-                    isPrivate = !!methodMatch[1];
+                    visibilityModifier = methodMatch[1]; // public, private, protected, or undefined
                     isStatic = !!methodMatch[2];
                     methodName = methodMatch[3];
                     parametersStr = methodMatch[4];
@@ -176,7 +256,16 @@ export class MTypeScopeAnalyzer {
                 }
 
                 const parameters = this.parseParameters(parametersStr);
-                const visibility = isPrivate ? Visibility.Private : (isStatic ? Visibility.Static : Visibility.Public);
+                // Determine visibility based on modifier
+                let visibility: Visibility;
+                if (visibilityModifier === 'private') {
+                    visibility = Visibility.Private;
+                } else if (visibilityModifier === 'protected') {
+                    visibility = Visibility.Protected;
+                } else {
+                    // public or no modifier = public
+                    visibility = Visibility.Public;
+                }
 
                 currentMethod = {
                     name: methodName,
@@ -240,18 +329,27 @@ export class MTypeScopeAnalyzer {
     }
 
     private parseClassFields(line: string, lineIndex: number, classInfo: ClassInfo): void {
-        // Parse field declarations: [private] [static] [final] type fieldName [= value];
+        // Parse field declarations: [public|private|protected] [static] [final] type fieldName [= value];
         // More strict pattern: must be at start of line, end with semicolon, and have proper field name
-        // Updated regex to handle generic types like Array<int>, Map<string, int>, etc.
-        const fieldMatch = line.match(/^\s*(private\s+)?(static\s+)?(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
+        // Updated regex to handle generic types and all visibility modifiers
+        const fieldMatch = line.match(/^\s*(?:(public|private|protected)\s+)?(static\s+)?(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
         if (fieldMatch) {
-            const isPrivate = !!fieldMatch[1];
+            const visibilityModifier = fieldMatch[1]; // public, private, protected, or undefined
             const isStatic = !!fieldMatch[2];
             const isFinal = !!fieldMatch[3];
             const fieldType = fieldMatch[4];
             const fieldName = fieldMatch[5];
 
-            const visibility = isPrivate ? Visibility.Private : (isStatic ? Visibility.Static : Visibility.Public);
+            // Determine visibility based on modifier
+            let visibility: Visibility;
+            if (visibilityModifier === 'private') {
+                visibility = Visibility.Private;
+            } else if (visibilityModifier === 'protected') {
+                visibility = Visibility.Protected;
+            } else {
+                // public or no modifier = public
+                visibility = Visibility.Public;
+            }
 
             const fieldInfo: VariableInfo = {
                 name: fieldName,
@@ -508,7 +606,9 @@ export class MTypeScopeAnalyzer {
 
     getAccessibleMembers(className: string, position: vscode.Position, isStatic: boolean = false): (VariableInfo | MethodInfo)[] {
         const classInfo = this.classes.get(className);
-        if (!classInfo) return [];
+        if (!classInfo) {
+            return [];
+        }
 
         const currentScope = this.getScopeAtPosition(position);
         const isInsideClass = this.isPositionInClass(position, className);
@@ -546,12 +646,54 @@ export class MTypeScopeAnalyzer {
         return this.classes.get(className);
     }
 
+    getInterfaceInfo(interfaceName: string): InterfaceInfo | undefined {
+        return this.interfaces.get(interfaceName);
+    }
+
     getAllClasses(): Map<string, ClassInfo> {
         return this.classes;
     }
 
+    getAllInterfaces(): Map<string, InterfaceInfo> {
+        return this.interfaces;
+    }
+
     getAllScopes(): Map<string, ScopeInfo> {
         return this.scopes;
+    }
+
+    /**
+     * Get the class name at the current position (if inside a class)
+     */
+    getCurrentClassName(position: vscode.Position): string | null {
+        const scope = this.getScopeAtPosition(position);
+        if (!scope) {
+            return null;
+        }
+
+        // Check if we're directly in a class scope
+        if (scope.type === ScopeType.Class && scope.name) {
+            return scope.name;
+        }
+
+        // Check if we're in a method scope that has a className
+        if (scope.className) {
+            return scope.className;
+        }
+
+        // Traverse up to find a class scope
+        let currentScope: ScopeInfo | null | undefined = scope;
+        while (currentScope) {
+            if (currentScope.type === ScopeType.Class && currentScope.name) {
+                return currentScope.name;
+            }
+            if (currentScope.className) {
+                return currentScope.className;
+            }
+            currentScope = currentScope.parentScope;
+        }
+
+        return null;
     }
 }
 
@@ -562,4 +704,12 @@ interface ClassInfo {
     fields: Map<string, VariableInfo>;
     staticMethods: Map<string, MethodInfo>;
     staticFields: Map<string, VariableInfo>;
+    implementedInterfaces: string[];
+    parentClass?: string;
+}
+
+interface InterfaceInfo {
+    name: string;
+    scope: ScopeInfo;
+    methods: Map<string, MethodInfo>;
 }

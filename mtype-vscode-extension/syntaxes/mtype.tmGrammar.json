@@ -48,7 +48,7 @@
         },
         {
           "name": "keyword.other.mtype",
-          "match": "\\b(class|interface|extends|implements|import|new|this|null|static|final|function|constructor|return|isClassOf|private|public|protected|await|async|from|abstract)\\b"
+          "match": "\\b(class|interface|extends|implements|import|new|this|super|null|static|final|function|constructor|return|isClassOf|private|public|protected|await|async|from|abstract)\\b"
         },
         {
           "name": "keyword.native.mtype",
@@ -417,6 +417,22 @@
         {
           "name": "punctuation.separator.namespace.mtype",
           "match": "::"
+        },
+        {
+          "name": "punctuation.brace.curly.mtype",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.brace.round.mtype",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.brace.square.mtype",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.brace.angle.mtype",
+          "match": "[<>]"
         }
       ]
     }

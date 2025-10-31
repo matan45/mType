@@ -11,7 +11,8 @@
 #include <atomic>
 #include "../errors/SourceLocation.hpp"
 
-namespace debugger {
+namespace debugger
+{
     // Use SourceLocation from errors namespace
     using errors::SourceLocation;
 
@@ -22,33 +23,37 @@ namespace debugger {
     /**
      * Represents the current debugging mode
      */
-    enum class DebugMode {
-        DISABLED,     // Normal execution (no debugging)
-        STEP_INTO,    // Step into function calls
-        STEP_OVER,    // Step over function calls (stop at same depth)
-        STEP_OUT,     // Step out of current function
-        CONTINUE,     // Continue until next breakpoint
-        PAUSED        // Currently paused at breakpoint
+    enum class DebugMode
+    {
+        DISABLED, // Normal execution (no debugging)
+        STEP_INTO, // Step into function calls
+        STEP_OVER, // Step over function calls (stop at same depth)
+        STEP_OUT, // Step out of current function
+        CONTINUE, // Continue until next breakpoint
+        PAUSED // Currently paused at breakpoint
     };
 
     /**
      * Represents the current execution state
      */
-    enum class ExecutionState {
-        RUNNING,      // Actively executing
-        PAUSED,       // Paused at breakpoint or step
-        STOPPED,      // Program terminated
-        NOT_STARTED   // Not yet started
+    enum class ExecutionState
+    {
+        RUNNING, // Actively executing
+        PAUSED, // Paused at breakpoint or step
+        STOPPED, // Program terminated
+        NOT_STARTED // Not yet started
     };
 
     /**
      * Represents a breakpoint location
      */
-    struct BreakpointKey {
+    struct BreakpointKey
+    {
         std::string filename;
         int line;
 
-        bool operator==(const BreakpointKey& other) const {
+        bool operator==(const BreakpointKey& other) const
+        {
             return filename == other.filename && line == other.line;
         }
     };
@@ -56,8 +61,10 @@ namespace debugger {
     /**
      * Custom hash function for BreakpointKey
      */
-    struct BreakpointKeyHash {
-        std::size_t operator()(const BreakpointKey& key) const {
+    struct BreakpointKeyHash
+    {
+        std::size_t operator()(const BreakpointKey& key) const
+        {
             return std::hash<std::string>()(key.filename) ^ (std::hash<int>()(key.line) << 1);
         }
     };
@@ -65,16 +72,19 @@ namespace debugger {
     /**
      * Represents breakpoint information (condition, log message, etc.)
      */
-    struct BreakpointInfo {
-        std::string condition;      // Optional condition expression
-        std::string logMessage;     // Optional log message (for log points)
-        int hitCount = 0;           // Number of times this breakpoint was hit
+    struct BreakpointInfo
+    {
+        std::string condition; // Optional condition expression
+        std::string logMessage; // Optional log message (for log points)
+        int hitCount = 0; // Number of times this breakpoint was hit
 
-        bool isLogPoint() const {
+        bool isLogPoint() const
+        {
             return !logMessage.empty();
         }
 
-        bool hasCondition() const {
+        bool hasCondition() const
+        {
             return !condition.empty();
         }
     };
@@ -82,21 +92,26 @@ namespace debugger {
     /**
      * Represents a call frame in the call stack
      */
-    class CallFrame {
+    class CallFrame
+    {
     public:
         std::string functionName;
         SourceLocation location;
         int depth;
 
         CallFrame(const std::string& name, const SourceLocation& loc, int d)
-            : functionName(name), location(loc), depth(d) {}
+            : functionName(name), location(loc), depth(d)
+        {
+        }
     };
 
     /**
      * Represents a debug event
      */
-    struct DebugEvent {
-        enum class Type {
+    struct DebugEvent
+    {
+        enum class Type
+        {
             BREAKPOINT_HIT,
             STEP_COMPLETE,
             EXCEPTION_THROWN,
@@ -109,7 +124,9 @@ namespace debugger {
         std::string message;
 
         DebugEvent(Type t, const SourceLocation& loc, const std::string& msg = "")
-            : type(t), location(loc), message(msg) {}
+            : type(t), location(loc), message(msg)
+        {
+        }
     };
 
     /**
@@ -119,7 +136,8 @@ namespace debugger {
      * and coordinates all debugging operations including breakpoints,
      * stepping, and execution control.
      */
-    class DebugContext {
+    class DebugContext
+    {
     private:
         static std::unique_ptr<DebugContext> instance;
         static std::mutex instanceMutex;
@@ -178,8 +196,8 @@ namespace debugger {
 
         // Breakpoint management
         void addBreakpoint(const std::string& filename, int line,
-                          const std::string& condition = "",
-                          const std::string& logMessage = "");
+                           const std::string& condition = "",
+                           const std::string& logMessage = "");
         void removeBreakpoint(const std::string& filename, int line);
         void clearBreakpoints(const std::string& filename);
         void clearAllBreakpoints();
@@ -228,5 +246,4 @@ namespace debugger {
     private:
         bool shouldStopForStepping(const SourceLocation& location);
     };
-
 } // namespace debugger

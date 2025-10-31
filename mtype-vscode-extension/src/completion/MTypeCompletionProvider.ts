@@ -30,13 +30,17 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         const lineText = document.lineAt(position).text.substring(0, position.character);
         const completionItems: vscode.CompletionItem[] = [];
 
+        // Don't provide completions inside import statements - let MTypeImportCompletionProvider handle it
+        if (lineText.match(/^\s*import\s+/)) {
+            return [];
+        }
+
         // Check for specific completion triggers first
         const triggerContext = MTypeContextAnalyzer.getCompletionTriggerContext(lineText);
 
-
         // Handle static member access (ClassName::)
         if (triggerContext === 'static-member') {
-            const staticMatch = lineText.match(/(\w+)::\s*$/);
+            const staticMatch = lineText.match(/(\w+)::\w*$/);
             if (staticMatch) {
                 const className = staticMatch[1];
                 // Ensure imports are analyzed for static access
@@ -50,8 +54,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         }
         // Handle instance member access (object. or this.)
         else if (triggerContext === 'instance-member') {
-            // Check for "this." specifically
-            const thisMatch = lineText.match(/this\.\s*$/);
+            // Check for "this." specifically (with or without partial member name)
+            const thisMatch = lineText.match(/this\.\w*$/);
             if (thisMatch) {
                 // Get current class context for "this."
                 const thisCompletions = await this.getThisCompletions(document, position);
@@ -59,8 +63,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 return new vscode.CompletionList(thisCompletions, false);
             }
 
-            // Regular object member access
-            const dotMatch = lineText.match(/(\w+)\.\s*$/);
+            // Regular object member access (with or without partial member name)
+            const dotMatch = lineText.match(/(\w+)\.\w*$/);
             if (dotMatch) {
                 const objectName = dotMatch[1];
 
@@ -113,6 +117,27 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             // Add class and variable completions for non-trigger contexts
             const symbolCompletions = this.getSymbolCompletions(contexts, lineText);
             completionItems.push(...symbolCompletions);
+
+            // Add all classes and interfaces as general completions (for direct references like Constants::PI)
+            if (this.scopeAnalyzer) {
+                const classes = this.scopeAnalyzer.getAllClasses();
+                for (const [className, classInfo] of classes) {
+                    const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                    item.detail = `class ${className}`;
+                    item.documentation = new vscode.MarkdownString(`**Class** ${className}`);
+                    item.sortText = '3' + className; // Lower priority than keywords and variables
+                    completionItems.push(item);
+                }
+
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    item.documentation = new vscode.MarkdownString(`**Interface** ${interfaceName}`);
+                    item.sortText = '3' + interfaceName; // Lower priority than keywords and variables
+                    completionItems.push(item);
+                }
+            }
         }
 
         return completionItems;
@@ -244,21 +269,124 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
     }
 
     private getTypeCompletions(): vscode.CompletionItem[] {
+        const completionItems: vscode.CompletionItem[] = [];
+
+        // Add built-in type keywords
         const typeKeywords = MTypeKeywords.getTypeKeywords();
-        return MTypeKeywords.toCompletionItems(typeKeywords);
+        completionItems.push(...MTypeKeywords.toCompletionItems(typeKeywords));
+
+        // Add user-defined classes
+        if (this.scopeAnalyzer) {
+            const classes = this.scopeAnalyzer.getAllClasses();
+            for (const [className, classInfo] of classes) {
+                const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                item.detail = `class ${className}`;
+                item.documentation = `User-defined class`;
+                item.sortText = '1' + className; // After built-in types
+                completionItems.push(item);
+            }
+
+            // Add user-defined interfaces
+            const interfaces = this.scopeAnalyzer.getAllInterfaces();
+            for (const [interfaceName, interfaceInfo] of interfaces) {
+                const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                item.detail = `interface ${interfaceName}`;
+                item.documentation = `User-defined interface`;
+                item.sortText = '1' + interfaceName; // After built-in types
+                completionItems.push(item);
+            }
+        }
+
+        return completionItems;
     }
 
     private getSymbolCompletions(contexts: string[], lineText: string): vscode.CompletionItem[] {
         const completionItems: vscode.CompletionItem[] = [];
 
+        // After 'implements' - only show interfaces
+        if (contexts.includes('after-implements')) {
+            if (this.scopeAnalyzer) {
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    const methodCount = interfaceInfo.methods.size;
+                    item.documentation = new vscode.MarkdownString(
+                        `**Interface**\n\n${methodCount} method${methodCount !== 1 ? 's' : ''}`
+                    );
+                    item.sortText = '0' + interfaceName; // High priority
+                    completionItems.push(item);
+                }
+            }
+            return completionItems;
+        }
+
+        // After 'extends' - show classes for classes, interfaces for interfaces
+        if (contexts.includes('after-extends')) {
+            if (this.scopeAnalyzer) {
+                // Check if we're in a class or interface context
+                const isInInterface = lineText.match(/interface\s+\w+\s+extends/);
+
+                if (isInInterface) {
+                    // Show interfaces only
+                    const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                    for (const [interfaceName, interfaceInfo] of interfaces) {
+                        const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                        item.detail = `interface ${interfaceName}`;
+                        item.sortText = '0' + interfaceName;
+                        completionItems.push(item);
+                    }
+                } else {
+                    // Show classes only
+                    const classes = this.scopeAnalyzer.getAllClasses();
+                    for (const [className, classInfo] of classes) {
+                        const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                        item.detail = `class ${className}`;
+                        item.sortText = '0' + className;
+                        completionItems.push(item);
+                    }
+                }
+            }
+            return completionItems;
+        }
+
+        // After 'new' - only show classes (not interfaces)
+        if (contexts.includes('after-new')) {
+            if (this.scopeAnalyzer) {
+                const classes = this.scopeAnalyzer.getAllClasses();
+                for (const [className, classInfo] of classes) {
+                    const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                    item.detail = `class ${className}`;
+                    item.insertText = new vscode.SnippetString(`${className}($1)`);
+                    item.documentation = new vscode.MarkdownString(`**Class** ${className}\n\nCreate new instance`);
+                    item.sortText = '0' + className; // High priority
+                    completionItems.push(item);
+                }
+            }
+            return completionItems;
+        }
+
         // Add class names in appropriate contexts
         if (contexts.includes('type-context') || contexts.includes('expression') || contexts.includes('global-function')) {
+            // Add classes
             for (const [className, classInfo] of this.analyzer.classes.entries()) {
                 const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
                 item.detail = `class ${className}`;
                 item.documentation = `User-defined class`;
                 item.sortText = '2' + className; // Lower priority than keywords
                 completionItems.push(item);
+            }
+
+            // Add interfaces
+            if (this.scopeAnalyzer) {
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    item.documentation = `User-defined interface`;
+                    item.sortText = '2' + interfaceName; // Lower priority than keywords
+                    completionItems.push(item);
+                }
             }
         }
 
@@ -462,7 +590,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         } catch (error) {
-            console.error('Error getting imported class members:', error);
+            // Silently ignore errors
         }
 
         return completionItems;
@@ -586,7 +714,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         } catch (error) {
-            console.error('Error getting imported static members:', error);
+            // Silently ignore errors
         }
 
         return completionItems;
@@ -710,7 +838,11 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                typeName.startsWith('Map<') ||
                typeName.startsWith('Set<') ||
                typeName.startsWith('Stack<') ||
-               typeName.startsWith('Queue<');
+               typeName.startsWith('Queue<') ||
+               typeName.startsWith('List<') ||
+               typeName.startsWith('LinkedList<') ||
+               typeName.startsWith('HashMap<') ||
+               typeName.startsWith('HashSet<');
     }
 
     /**
@@ -765,6 +897,44 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 this.createMethodCompletion('enqueue', `void enqueue(${elementType} item)`, 'Adds an element to the rear of the queue', [`${elementType} item`]),
                 this.createMethodCompletion('dequeue', `${elementType} dequeue()`, 'Removes and returns the front element of the queue', []),
                 this.createMethodCompletion('front', `${elementType} front()`, 'Returns the front element without removing it', [])
+            );
+        } else if (typeName.startsWith('List<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the list', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the first occurrence of the element from the list', [`${elementType} item`]),
+                this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
+                this.createMethodCompletion('set', `void set(int index, ${elementType} value)`, 'Sets the element at the specified index', ['int index', `${elementType} value`]),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the list contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the list is empty', [])
+            );
+        } else if (typeName.startsWith('LinkedList<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `void add(${elementType} item)`, 'Adds an element to the end of the linked list', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the first occurrence of the element from the linked list', [`${elementType} item`]),
+                this.createMethodCompletion('get', `${elementType} get(int index)`, 'Gets the element at the specified index', ['int index']),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the linked list contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the linked list is empty', [])
+            );
+        } else if (typeName.startsWith('HashMap<')) {
+            const [keyType, valueType] = this.extractMapTypes(typeName);
+            completionItems.push(
+                this.createMethodCompletion('put', `void put(${keyType} key, ${valueType} value)`, 'Associates the specified value with the specified key', [`${keyType} key`, `${valueType} value`]),
+                this.createMethodCompletion('get', `${valueType} get(${keyType} key)`, 'Gets the value associated with the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('remove', `void remove(${keyType} key)`, 'Removes the key-value pair for the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('containsKey', `bool containsKey(${keyType} key)`, 'Returns true if the map contains the specified key', [`${keyType} key`]),
+                this.createMethodCompletion('keySet', `keySet()`, 'Returns a set of all keys in the map', []),
+                this.createMethodCompletion('values', `values()`, 'Returns a collection of all values in the map', []),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the map is empty', [])
+            );
+        } else if (typeName.startsWith('HashSet<')) {
+            const elementType = this.extractGenericType(typeName);
+            completionItems.push(
+                this.createMethodCompletion('add', `bool add(${elementType} item)`, 'Adds the specified element to the set, returns true if added', [`${elementType} item`]),
+                this.createMethodCompletion('remove', `bool remove(${elementType} item)`, 'Removes the specified element from the set, returns true if removed', [`${elementType} item`]),
+                this.createMethodCompletion('contains', `bool contains(${elementType} item)`, 'Returns true if the set contains the specified element', [`${elementType} item`]),
+                this.createMethodCompletion('isEmpty', `bool isEmpty()`, 'Returns true if the set is empty', [])
             );
         }
 

@@ -231,30 +231,35 @@
           "default": "",
           "description": "Path to mType interpreter executable"
         },
-        "mTypeFormatter.indentSize": {
+        "mTypeFormatter.tabSize": {
           "type": "number",
           "default": 4,
-          "description": "Number of spaces for indentation"
+          "description": "Number of spaces per indentation level"
         },
-        "mTypeFormatter.useSpaces": {
+        "mTypeFormatter.useTabs": {
           "type": "boolean",
-          "default": true,
-          "description": "Use spaces for indentation instead of tabs"
+          "default": false,
+          "description": "Use tabs for indentation instead of spaces"
         },
         "mTypeFormatter.formatOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Format mType files on save"
         },
-        "mTypeFormatter.insertSpaceAfterComma": {
-          "type": "boolean",
-          "default": true,
-          "description": "Insert space after commas"
-        },
         "mTypeFormatter.insertSpaceAroundOperators": {
           "type": "boolean",
-          "default": false,
-          "description": "Insert spaces around operators (=, +, -, etc.)"
+          "default": true,
+          "description": "Insert spaces around operators (=, +, -, *, /, etc.)"
+        },
+        "mTypeFormatter.insertBlankLines": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert blank lines between classes and methods for better readability"
+        },
+        "mTypeFormatter.organizeImports": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically organize and sort import statements"
         }
       }
     }
