@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include "../circularDependency/CircularDependencyDetector.hpp"
+#include "../errors/SourceLocation.hpp"
 
 namespace parser
 {
@@ -32,6 +33,10 @@ namespace parser
         // Track declared global function names to prevent duplicates
         std::unordered_set<std::string> declaredFunctionNames;
 
+        // Track declaration locations for better error messages
+        std::unordered_map<std::string, errors::SourceLocation> typeDeclarationLocations;
+        std::unordered_map<std::string, errors::SourceLocation> functionDeclarationLocations;
+
         // Circular dependency detection for inheritance validation
         std::unique_ptr<circularDependency::CircularDependencyDetector> dependencyDetector;
 
@@ -47,8 +52,10 @@ namespace parser
         // Separate class/interface tracking for validation
         [[nodiscard]] bool isClassDeclared(const std::string& className) const noexcept;
         [[nodiscard]] bool isInterfaceDeclared(const std::string& interfaceName) const noexcept;
-        void registerClass(const std::string& className, bool isFinal = false) noexcept;
-        void registerInterface(const std::string& interfaceName, bool isFinal = false) noexcept;
+        void registerClass(const std::string& className, bool isFinal = false,
+                          const errors::SourceLocation& location = errors::SourceLocation()) noexcept;
+        void registerInterface(const std::string& interfaceName, bool isFinal = false,
+                              const errors::SourceLocation& location = errors::SourceLocation()) noexcept;
 
         // Final modifier tracking
         [[nodiscard]] bool isClassFinal(const std::string& className) const noexcept;
@@ -63,8 +70,13 @@ namespace parser
 
         // Global function name tracking for duplicate detection
         [[nodiscard]] bool isFunctionDeclared(const std::string& functionName) const noexcept;
-        void registerFunctionName(const std::string& functionName) noexcept;
+        void registerFunctionName(const std::string& functionName,
+                                 const errors::SourceLocation& location = errors::SourceLocation()) noexcept;
         void clearDeclaredFunctions() noexcept;
+
+        // Declaration location retrieval for error reporting
+        [[nodiscard]] errors::SourceLocation getTypeDeclarationLocation(const std::string& typeName) const noexcept;
+        [[nodiscard]] errors::SourceLocation getFunctionDeclarationLocation(const std::string& functionName) const noexcept;
 
     private:
         // Helper methods for inheritance validation

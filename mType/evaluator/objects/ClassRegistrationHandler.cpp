@@ -235,6 +235,9 @@ namespace evaluator
                 // NEW: Copy abstract flag from AST to runtime definition
                 methodDef->setAbstract(methodNode->isAbstract());
 
+                // NEW: Copy final flag from AST to runtime definition
+                methodDef->setFinal(methodNode->isFinal());
+
                 // Track abstract methods in the class definition
                 if (methodNode->isAbstract()) {
                     classDef->addAbstractMethod(methodNode->getName());

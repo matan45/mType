@@ -46,6 +46,14 @@ namespace parser
         ast::AccessModifier accessModifier =
             utilities::AccessModifierParser::parseAccessModifier(tokenStream, ast::AccessModifier::PRIVATE);
 
+        // Check for final modifier
+        bool isFinal = false;
+        if (tokenStream.current().type == TokenType::FINAL)
+        {
+            isFinal = true;
+            tokenStream.advance();
+        }
+
         // Check for abstract modifier
         bool isAbstract = false;
         if (tokenStream.current().type == TokenType::ABSTRACT)
@@ -63,6 +71,15 @@ namespace parser
             tokenStream.advance();
         }
 
+        // Validate that abstract and final are mutually exclusive
+        if (isAbstract && isFinal)
+        {
+            throw ParseException(
+                "Method cannot be both abstract and final. "
+                "Abstract methods must be overridden, while final methods cannot be overridden.",
+                tokenStream.current().location);
+        }
+
         // Validate that abstract and static are mutually exclusive
         if (isAbstract && isStatic)
         {
@@ -71,7 +88,7 @@ namespace parser
                 tokenStream.current().location);
         }
 
-        return parseMethodWithModifiers(accessModifier, isStatic, false, isAbstract, methodStartLocation);
+        return parseMethodWithModifiers(accessModifier, isStatic, false, isAbstract, isFinal, methodStartLocation);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseStaticMethod()
@@ -79,11 +96,11 @@ namespace parser
         // Capture the method declaration start location
         SourceLocation methodStartLocation = tokenStream.current().location;
 
-        return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true, false, false, methodStartLocation);
+        return parseMethodWithModifiers(ast::AccessModifier::PRIVATE, true, false, false, false, methodStartLocation);
     }
 
     std::unique_ptr<ASTNode> MethodParser::parseMethodWithModifiers(ast::AccessModifier accessModifier, bool isStatic,
-                                                                    bool isAsync, bool isAbstract,
+                                                                    bool isAsync, bool isAbstract, bool isFinal,
                                                                     const SourceLocation& methodStartLocation)
     {
         // Handle function keyword (required for methods)
@@ -158,6 +175,7 @@ namespace parser
                                                        std::move(body), isStatic, methodGenericParameters,
                                                        accessModifier, isAsync, methodStartLocation);
         methodNode->setAbstract(isAbstract);
+        methodNode->setFinal(isFinal);
         return methodNode;
     }
 

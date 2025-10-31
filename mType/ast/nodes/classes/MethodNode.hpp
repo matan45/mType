@@ -25,6 +25,7 @@ namespace ast::nodes::classes
         bool isStatic;
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
+        bool finalMethod;  // NEW: Flag to indicate final method (cannot be overridden)
         AccessModifier accessModifier;
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this method
 
@@ -86,6 +87,10 @@ namespace ast::nodes::classes
         // NEW: Abstract-related methods
         [[nodiscard]] bool isAbstract() const noexcept { return abstractMethod; }
         void setAbstract(bool isAbstract) { abstractMethod = isAbstract; }
+
+        // NEW: Final-related methods
+        [[nodiscard]] bool isFinal() const noexcept { return finalMethod; }
+        void setFinal(bool isFinalMethod) { finalMethod = isFinalMethod; }
 
         // NEW: Generic-related methods
         [[nodiscard]] const std::vector<GenericTypeParameter>& getGenericTypeParameters() const noexcept;
