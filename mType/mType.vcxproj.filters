@@ -723,6 +723,9 @@
     <ClInclude Include="errors\ContinueException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\DuplicateDeclarationException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\EnvironmentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
@@ -3299,9 +3302,6 @@
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\finalConstructor.mt">
-      <Filter>tests\testFiles\class\error</Filter>
-    </None>
-    <None Include="tests\testFiles\class\error\finalMethod.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\finalMethodOverrideError.mt">

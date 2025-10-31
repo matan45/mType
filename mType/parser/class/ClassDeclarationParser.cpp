@@ -68,7 +68,8 @@ namespace parser
         }
 
         std::string className = tokenStream.current().stringValue.getString();
-        validateClassName(className, tokenStream.current().location);
+        SourceLocation classNameLocation = tokenStream.current().location; // Capture location before advancing
+        validateClassName(className, classNameLocation);
         tokenStream.advance();
 
         // Parse generic type parameters if present
@@ -148,7 +149,7 @@ namespace parser
         tokenStream.expect(TokenType::LBRACE);
 
         auto classNode = std::make_unique<ClassNode>(className, genericParameters, parentClassName,
-                                                     implementedInterfaces);
+                                                     implementedInterfaces, classNameLocation);
         classNode->setFinal(isFinal);
         classNode->setAbstract(isAbstract);
         classNode->setVisibility(visibility);

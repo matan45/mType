@@ -12,6 +12,7 @@
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../errors/ParseException.hpp"
+#include "../errors/DuplicateDeclarationException.hpp"
 #include <unordered_set>
 namespace parser
 {
@@ -123,16 +124,22 @@ namespace parser
 
         // Check for duplicate class/interface name
         const std::string& className = classNodePtr->getClassName();
+        const SourceLocation& classLocation = classNodePtr->getLocation();
+
         if (context.isTypeDeclared(className))
         {
-            throw ParseException(
-                "Duplicate type declaration: '" + className + "' has already been declared as a class or interface",
-                classNodePtr->getLocation()
+            // Get the location of the first declaration for better error message
+            SourceLocation firstLocation = context.getTypeDeclarationLocation(className);
+            throw DuplicateDeclarationException(
+                "class",
+                className,
+                firstLocation,
+                classLocation
             );
         }
 
-        // Register the class name with final modifier
-        context.registerClass(className, classNodePtr->isFinal());
+        // Register the class name with final modifier and location
+        context.registerClass(className, classNodePtr->isFinal(), classLocation);
 
         return classNodePtr;
     }

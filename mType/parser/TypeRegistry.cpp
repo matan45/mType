@@ -107,6 +107,7 @@ namespace parser
         finalInterfaces.clear();
         classParents.clear();
         interfaceParents.clear();
+        typeDeclarationLocations.clear();
 
         // Reset dependency detector for fresh validation
         if (dependencyDetector)
@@ -125,20 +126,24 @@ namespace parser
         return declaredInterfaces.count(interfaceName) > 0;
     }
 
-    void TypeRegistry::registerClass(const std::string& className, bool isFinal) noexcept
+    void TypeRegistry::registerClass(const std::string& className, bool isFinal,
+                                     const errors::SourceLocation& location) noexcept
     {
         declaredClasses.insert(className);
         declaredTypeNames.insert(className);
+        typeDeclarationLocations[className] = location;
         if (isFinal)
         {
             finalClasses.insert(className);
         }
     }
 
-    void TypeRegistry::registerInterface(const std::string& interfaceName, bool isFinal) noexcept
+    void TypeRegistry::registerInterface(const std::string& interfaceName, bool isFinal,
+                                         const errors::SourceLocation& location) noexcept
     {
         declaredInterfaces.insert(interfaceName);
         declaredTypeNames.insert(interfaceName);
+        typeDeclarationLocations[interfaceName] = location;
         if (isFinal)
         {
             finalInterfaces.insert(interfaceName);
@@ -260,13 +265,36 @@ namespace parser
         return declaredFunctionNames.count(functionName) > 0;
     }
 
-    void TypeRegistry::registerFunctionName(const std::string& functionName) noexcept
+    void TypeRegistry::registerFunctionName(const std::string& functionName,
+                                           const errors::SourceLocation& location) noexcept
     {
         declaredFunctionNames.insert(functionName);
+        functionDeclarationLocations[functionName] = location;
     }
 
     void TypeRegistry::clearDeclaredFunctions() noexcept
     {
         declaredFunctionNames.clear();
+        functionDeclarationLocations.clear();
+    }
+
+    errors::SourceLocation TypeRegistry::getTypeDeclarationLocation(const std::string& typeName) const noexcept
+    {
+        auto it = typeDeclarationLocations.find(typeName);
+        if (it != typeDeclarationLocations.end())
+        {
+            return it->second;
+        }
+        return errors::SourceLocation(); // Return default location if not found
+    }
+
+    errors::SourceLocation TypeRegistry::getFunctionDeclarationLocation(const std::string& functionName) const noexcept
+    {
+        auto it = functionDeclarationLocations.find(functionName);
+        if (it != functionDeclarationLocations.end())
+        {
+            return it->second;
+        }
+        return errors::SourceLocation(); // Return default location if not found
     }
 }

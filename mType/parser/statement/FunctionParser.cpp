@@ -8,6 +8,7 @@
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../errors/DuplicateDeclarationException.hpp"
 
 namespace parser::statement
 {
@@ -114,14 +115,18 @@ namespace parser::statement
         {
             if (context.isFunctionDeclared(funcName))
             {
-                throw ParseException(
-                    "Duplicate function declaration: '" + funcName + "' has already been declared",
+                // Get the location of the first declaration for better error message
+                SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
+                throw DuplicateDeclarationException(
+                    "function",
+                    funcName,
+                    firstLocation,
                     funcLocation
                 );
             }
 
-            // Register the function name
-            context.registerFunctionName(funcName);
+            // Register the function name with location
+            context.registerFunctionName(funcName, funcLocation);
         }
 
         // Use generic-aware parameter parsing to preserve class/interface names
@@ -186,14 +191,18 @@ namespace parser::statement
         // NEW: Check for duplicate global function name
         if (context.isFunctionDeclared(funcName))
         {
-            throw ParseException(
-                "Duplicate function declaration: '" + funcName + "' has already been declared",
+            // Get the location of the first declaration for better error message
+            SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
+            throw DuplicateDeclarationException(
+                "function",
+                funcName,
+                firstLocation,
                 funcLocation
             );
         }
 
-        // Register the function name
-        context.registerFunctionName(funcName);
+        // Register the function name with location
+        context.registerFunctionName(funcName, funcLocation);
 
         auto parameters = parseParameterList();
 

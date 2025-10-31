@@ -11,6 +11,7 @@
 #include "../token/TokenType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
 #include "../errors/ParseException.hpp"
+#include "../errors/DuplicateDeclarationException.hpp"
 
 namespace parser
 {
@@ -69,14 +70,18 @@ namespace parser
         // Check for duplicate class/interface name
         if (context.isTypeDeclared(interfaceName))
         {
-            throw ParseException(
-                "Duplicate type declaration: '" + interfaceName + "' has already been declared as a class or interface",
+            // Get the location of the first declaration for better error message
+            SourceLocation firstLocation = context.getTypeDeclarationLocation(interfaceName);
+            throw DuplicateDeclarationException(
+                "interface",
+                interfaceName,
+                firstLocation,
                 location
             );
         }
 
-        // Register the interface name with final modifier
-        context.registerInterface(interfaceName, isFinal);
+        // Register the interface name with final modifier and location
+        context.registerInterface(interfaceName, isFinal, location);
 
         // Step 4: Parse and validate extends clause
         parseAndValidateExtendsClause(interfaceNode.get(), interfaceName);
