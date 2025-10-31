@@ -3295,6 +3295,9 @@
     <None Include="tests\testFiles\class\error\extendsFinalGenericClass.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\finalAbstractConflict.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\finalConstructor.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -3302,6 +3305,12 @@
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\finalMethodOverrideError.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalMethodOverrideInGrandchild.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\finalMethodOverrideProtected.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\finalParameters.mt">
@@ -3575,6 +3584,30 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\finalGenericClass.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodAccessModifiers.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodAccessModifiers.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodBasic.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodBasic.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodInheritance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodInheritance.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodWithNonFinal.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\finalMethodWithNonFinal.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\functionScopingPass.expected">

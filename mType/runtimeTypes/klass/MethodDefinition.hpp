@@ -54,6 +54,7 @@ namespace runtimeTypes::klass
 
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
+        bool finalMethod;  // NEW: Flag to indicate final method (cannot be overridden)
 
         // NEW: Annotations for this method
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
@@ -80,7 +81,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
-              typeSubstitutionMap(), isAsync(false), abstractMethod(false)
+              typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
         {
         }
 
@@ -91,7 +92,7 @@ namespace runtimeTypes::klass
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
-              genericParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false)
+              genericParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
         {
         }
 
@@ -108,7 +109,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
-              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false), abstractMethod(false)
+              genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false), abstractMethod(false), finalMethod(false)
         {
             validateParameterCounts(params.size(), genParams.size());
             validateGenericInvariants();
@@ -127,7 +128,7 @@ namespace runtimeTypes::klass
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
               genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
-              isAsync(false), abstractMethod(false)
+              isAsync(false), abstractMethod(false), finalMethod(false)
         {
             validateParameterCounts(params.size(), genParams.size());
             validateGenericInvariants();
@@ -235,6 +236,10 @@ namespace runtimeTypes::klass
         // NEW: Abstract support
         bool isAbstract() const { return abstractMethod; }
         void setAbstract(bool isAbstract) { abstractMethod = isAbstract; }
+
+        // NEW: Final support
+        bool isFinal() const { return finalMethod; }
+        void setFinal(bool isFinalMethod) { finalMethod = isFinalMethod; }
 
         // NEW: Annotation methods
         const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const { return annotations; }

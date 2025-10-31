@@ -81,6 +81,17 @@ namespace validation {
             return; // No override to validate
         }
 
+        // Check if parent method is final (cannot be overridden)
+        if (parentMethod->isFinal()) {
+            throw InheritanceException(
+                "Cannot override final method '" + parentMethod->getName() +
+                "' from parent class '" + parentClassName + "' in class '" + childClassName + "'",
+                childClassName,
+                parentClassName,
+                parentMethod->getName(),
+                location);
+        }
+
         // Check if signatures match
         if (!methodSignaturesMatch(childMethod, parentMethod)) {
             std::string childSig = getMethodSignature(childMethod);
@@ -143,17 +154,31 @@ namespace validation {
 
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
-        const auto& parentMethods = parentClass->getInstanceMethods();
 
         for (const auto& [methodName, childMethod] : childMethods) {
-            auto parentIt = parentMethods.find(methodName);
-            if (parentIt != parentMethods.end()) {
-                // Method exists in parent - validate override
+            // Search for method in parent hierarchy (not just immediate parent)
+            // This handles cases where method is defined in grandparent
+            auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
+
+            if (parentMethod) {
+                // Find which class in the hierarchy actually defines this method
+                std::string definingClassName = parentClass->getName();
+                auto currentClass = parentClass;
+                while (currentClass) {
+                    auto localMethod = currentClass->findInstanceMethod(methodName, childMethod->getParameters().size());
+                    if (localMethod) {
+                        definingClassName = currentClass->getName();
+                        break;
+                    }
+                    currentClass = currentClass->getParentClass();
+                }
+
+                // Method exists in parent hierarchy - validate override
                 validateMethodOverride(
                     childClass->getName(),
-                    parentClass->getName(),
+                    definingClassName,
                     childMethod,
-                    parentIt->second,
+                    parentMethod,
                     location);
             }
         }
