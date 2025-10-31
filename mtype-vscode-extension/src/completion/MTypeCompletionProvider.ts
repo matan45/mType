@@ -38,10 +38,9 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         // Check for specific completion triggers first
         const triggerContext = MTypeContextAnalyzer.getCompletionTriggerContext(lineText);
 
-
         // Handle static member access (ClassName::)
         if (triggerContext === 'static-member') {
-            const staticMatch = lineText.match(/(\w+)::\s*$/);
+            const staticMatch = lineText.match(/(\w+)::\w*$/);
             if (staticMatch) {
                 const className = staticMatch[1];
                 // Ensure imports are analyzed for static access
@@ -55,8 +54,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
         }
         // Handle instance member access (object. or this.)
         else if (triggerContext === 'instance-member') {
-            // Check for "this." specifically
-            const thisMatch = lineText.match(/this\.\s*$/);
+            // Check for "this." specifically (with or without partial member name)
+            const thisMatch = lineText.match(/this\.\w*$/);
             if (thisMatch) {
                 // Get current class context for "this."
                 const thisCompletions = await this.getThisCompletions(document, position);
@@ -64,8 +63,8 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 return new vscode.CompletionList(thisCompletions, false);
             }
 
-            // Regular object member access
-            const dotMatch = lineText.match(/(\w+)\.\s*$/);
+            // Regular object member access (with or without partial member name)
+            const dotMatch = lineText.match(/(\w+)\.\w*$/);
             if (dotMatch) {
                 const objectName = dotMatch[1];
 
@@ -118,6 +117,27 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
             // Add class and variable completions for non-trigger contexts
             const symbolCompletions = this.getSymbolCompletions(contexts, lineText);
             completionItems.push(...symbolCompletions);
+
+            // Add all classes and interfaces as general completions (for direct references like Constants::PI)
+            if (this.scopeAnalyzer) {
+                const classes = this.scopeAnalyzer.getAllClasses();
+                for (const [className, classInfo] of classes) {
+                    const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                    item.detail = `class ${className}`;
+                    item.documentation = new vscode.MarkdownString(`**Class** ${className}`);
+                    item.sortText = '3' + className; // Lower priority than keywords and variables
+                    completionItems.push(item);
+                }
+
+                const interfaces = this.scopeAnalyzer.getAllInterfaces();
+                for (const [interfaceName, interfaceInfo] of interfaces) {
+                    const item = new vscode.CompletionItem(interfaceName, vscode.CompletionItemKind.Interface);
+                    item.detail = `interface ${interfaceName}`;
+                    item.documentation = new vscode.MarkdownString(`**Interface** ${interfaceName}`);
+                    item.sortText = '3' + interfaceName; // Lower priority than keywords and variables
+                    completionItems.push(item);
+                }
+            }
         }
 
         return completionItems;
@@ -570,7 +590,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         } catch (error) {
-            console.error('Error getting imported class members:', error);
+            // Silently ignore errors
         }
 
         return completionItems;
@@ -694,7 +714,7 @@ export class MTypeCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         } catch (error) {
-            console.error('Error getting imported static members:', error);
+            // Silently ignore errors
         }
 
         return completionItems;

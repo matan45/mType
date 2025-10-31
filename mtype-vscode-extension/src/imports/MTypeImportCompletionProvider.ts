@@ -158,8 +158,6 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
     ): Promise<vscode.CompletionItem[]> {
         const completions: vscode.CompletionItem[] = [];
 
-        console.log('Getting import path completions for partial path:', partialPath);
-
         // Use smart directory-based completion
         const smartCompletions = await this.getSmartPathCompletions(document.uri.fsPath, partialPath);
         if (smartCompletions.length > 0) {
@@ -168,7 +166,6 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
 
         // Fallback to old behavior if smart completion doesn't work
         const availableImports = await this.importResolver.getAvailableImports(document.uri.fsPath);
-        console.log('Available imports:', availableImports);
 
         const filteredImports = availableImports.filter(importPath => {
             const lowercaseImportPath = importPath.toLowerCase();
@@ -182,8 +179,6 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                    fileNameLower.includes(lowercasePartialPath) ||
                    lowercaseImportPath.startsWith(lowercasePartialPath);
         });
-
-        console.log('Filtered imports:', filteredImports);
 
         for (const importPath of filteredImports) {
             const item = new vscode.CompletionItem(
@@ -222,13 +217,12 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                     );
                 }
             } catch (error) {
-                console.log('Error getting import info for path completion:', error);
+                // Silently ignore errors for individual imports
             }
 
             completions.push(item);
         }
 
-        console.log('Final path completions:', completions.length);
         return completions;
     }
 
@@ -271,11 +265,8 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                 searchDir = path.join(currentFileDir, dirPart);
             }
 
-            console.log('[Smart Path] Searching directory:', searchDir, 'with prefix:', filePrefix);
-
             // Check if directory exists
             if (!fs.existsSync(searchDir)) {
-                console.log('[Smart Path] Directory does not exist:', searchDir);
                 return [];
             }
 
@@ -335,10 +326,8 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
                 }
             }
 
-            console.log('[Smart Path] Found', completions.length, 'completions');
-
         } catch (error) {
-            console.error('[Smart Path] Error:', error);
+            // Silently ignore errors
         }
 
         return completions;
@@ -377,7 +366,6 @@ export class MTypeImportedSymbolProvider {
 
                 // Skip if we've already processed this import path
                 if (processedPaths.has(importPath)) {
-                    console.log(`Skipping duplicate import: ${importPath}`);
                     continue;
                 }
 
@@ -407,11 +395,7 @@ export class MTypeImportedSymbolProvider {
         const imports = this.getImportedSymbols(document);
         const addedSymbols = new Set<string>(); // Track added symbols to avoid duplicates
 
-        console.log('Getting imported symbol completions for:', document.uri.toString());
-        console.log('Found imports:', imports.length);
-
         for (const importInfo of imports) {
-            console.log('Processing import:', importInfo.importPath, 'with symbols:', importInfo.exportedSymbols.length);
             for (const symbol of importInfo.exportedSymbols) {
                 // Skip if we've already added this symbol
                 if (addedSymbols.has(symbol.name)) {

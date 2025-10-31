@@ -15,6 +15,7 @@ export enum ScopeType {
 export enum Visibility {
     Public = 'public',
     Private = 'private',
+    Protected = 'protected',
     Static = 'static'
 }
 
@@ -231,19 +232,19 @@ export class MTypeScopeAnalyzer {
             }
 
             // Parse method declarations
-            // Updated regex to handle generic return types like Array<int>, Map<string, int>, etc.
-            const methodMatch = line.match(/^\s*(private\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
+            // Updated regex to handle generic return types and all visibility modifiers (public, private, protected)
+            const methodMatch = line.match(/^\s*(?:(public|private|protected)\s+)?(static\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s*\{/);
             const constructorMatch = line.match(/^\s*constructor\s*\(([^)]*)\)\s*\{/);
 
             if ((methodMatch || constructorMatch) && !currentMethod) {
                 let methodName: string;
                 let returnType: string;
                 let parametersStr: string;
-                let isPrivate = false;
+                let visibilityModifier: string | undefined = undefined;
                 let isStatic = false;
 
                 if (methodMatch) {
-                    isPrivate = !!methodMatch[1];
+                    visibilityModifier = methodMatch[1]; // public, private, protected, or undefined
                     isStatic = !!methodMatch[2];
                     methodName = methodMatch[3];
                     parametersStr = methodMatch[4];
@@ -255,7 +256,16 @@ export class MTypeScopeAnalyzer {
                 }
 
                 const parameters = this.parseParameters(parametersStr);
-                const visibility = isPrivate ? Visibility.Private : (isStatic ? Visibility.Static : Visibility.Public);
+                // Determine visibility based on modifier
+                let visibility: Visibility;
+                if (visibilityModifier === 'private') {
+                    visibility = Visibility.Private;
+                } else if (visibilityModifier === 'protected') {
+                    visibility = Visibility.Protected;
+                } else {
+                    // public or no modifier = public
+                    visibility = Visibility.Public;
+                }
 
                 currentMethod = {
                     name: methodName,
@@ -319,18 +329,27 @@ export class MTypeScopeAnalyzer {
     }
 
     private parseClassFields(line: string, lineIndex: number, classInfo: ClassInfo): void {
-        // Parse field declarations: [private] [static] [final] type fieldName [= value];
+        // Parse field declarations: [public|private|protected] [static] [final] type fieldName [= value];
         // More strict pattern: must be at start of line, end with semicolon, and have proper field name
-        // Updated regex to handle generic types like Array<int>, Map<string, int>, etc.
-        const fieldMatch = line.match(/^\s*(private\s+)?(static\s+)?(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
+        // Updated regex to handle generic types and all visibility modifiers
+        const fieldMatch = line.match(/^\s*(?:(public|private|protected)\s+)?(static\s+)?(final\s+)?([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=.*)?;\s*$/);
         if (fieldMatch) {
-            const isPrivate = !!fieldMatch[1];
+            const visibilityModifier = fieldMatch[1]; // public, private, protected, or undefined
             const isStatic = !!fieldMatch[2];
             const isFinal = !!fieldMatch[3];
             const fieldType = fieldMatch[4];
             const fieldName = fieldMatch[5];
 
-            const visibility = isPrivate ? Visibility.Private : (isStatic ? Visibility.Static : Visibility.Public);
+            // Determine visibility based on modifier
+            let visibility: Visibility;
+            if (visibilityModifier === 'private') {
+                visibility = Visibility.Private;
+            } else if (visibilityModifier === 'protected') {
+                visibility = Visibility.Protected;
+            } else {
+                // public or no modifier = public
+                visibility = Visibility.Public;
+            }
 
             const fieldInfo: VariableInfo = {
                 name: fieldName,
@@ -587,7 +606,9 @@ export class MTypeScopeAnalyzer {
 
     getAccessibleMembers(className: string, position: vscode.Position, isStatic: boolean = false): (VariableInfo | MethodInfo)[] {
         const classInfo = this.classes.get(className);
-        if (!classInfo) return [];
+        if (!classInfo) {
+            return [];
+        }
 
         const currentScope = this.getScopeAtPosition(position);
         const isInsideClass = this.isPositionInClass(position, className);

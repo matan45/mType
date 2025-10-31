@@ -243,13 +243,13 @@ export class MTypeContextAnalyzer {
 
     // Get appropriate completion trigger context
     static getCompletionTriggerContext(linePrefix: string): string | null {
-        // Static member access
-        if (linePrefix.match(/\w+::\s*$/)) {
+        // Static member access (with or without partial member name)
+        if (linePrefix.match(/\w+::\w*$/)) {
             return 'static-member';
         }
 
-        // Instance member access (including this.)
-        if (linePrefix.match(/\w+\.\s*$/) || linePrefix.match(/this\.\s*$/)) {
+        // Instance member access (including this., with or without partial member name)
+        if (linePrefix.match(/\w+\.\w*$/) || linePrefix.match(/this\.\w*$/)) {
             return 'instance-member';
         }
 
