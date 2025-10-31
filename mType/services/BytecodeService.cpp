@@ -14,6 +14,8 @@
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../ast/GenericType.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../ast/nodes/statements/ProgramNode.hpp"
+#include "../ast/nodes/classes/ClassNode.hpp"
 #include <fstream>
 #include <filesystem>
 #include <iostream>

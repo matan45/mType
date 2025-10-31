@@ -45,7 +45,7 @@
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include <chrono>
-
+#include  <iostream>
 namespace optimizer::passes
 {
     using namespace ast;
@@ -358,6 +358,16 @@ namespace optimizer::passes
                 node->getIsAsync(),
                 node->getLocation()
             );
+
+            // Preserve method modifiers
+            transformedMethod->setAbstract(node->isAbstract());
+            transformedMethod->setFinal(node->isFinal());
+
+            // Copy all annotations (e.g., @Override, @Throws)
+            for (const auto& annotation : node->getAnnotations())
+            {
+                transformedMethod->addAnnotation(annotation);
+            }
 
             return transformedMethod;
         }
@@ -835,6 +845,12 @@ namespace optimizer::passes
             newClass->setFinal(node->isFinal());
             newClass->setAbstract(node->isAbstract());
             newClass->setVisibility(node->getVisibility());
+
+            // Copy all annotations (e.g., @Script, @Override, @Throws)
+            for (const auto& annotation : node->getAnnotations())
+            {
+                newClass->addAnnotation(annotation);
+            }
 
             return newClass;
         }
