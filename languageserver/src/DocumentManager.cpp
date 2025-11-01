@@ -6,7 +6,6 @@
 #include "analysis/ImportResolver.hpp"
 #include <sstream>
 #include <algorithm>
-#include <iostream>
 #include <regex>
 
 using namespace lexer;
@@ -59,10 +58,8 @@ const Document* DocumentManager::getDocument(const std::string& uri) const {
 }
 
 void DocumentManager::parseDocument(const std::string& uri) {
-    std::cerr << "[DocumentManager::parseDocument] Parsing document: " << uri << std::endl;
     auto doc = getDocument(uri);
     if (!doc) {
-        std::cerr << "[DocumentManager::parseDocument] Document not found!" << std::endl;
         return;
     }
 
@@ -79,7 +76,6 @@ void DocumentManager::parseDocument(const std::string& uri) {
 
         if (!doc->ast.empty()) {
             // Keep a backup of the previous valid state
-            std::cerr << "[DocumentManager::parseDocument] Backing up previous AST with " << doc->ast.size() << " nodes" << std::endl;
             // We can't move, so we'll just keep the old one if parsing fails
         }
 
@@ -106,14 +102,9 @@ void DocumentManager::parseDocument(const std::string& uri) {
             if (program) {
                 newAst.push_back(std::move(program));
                 parseSucceeded = true;
-                std::cerr << "[DocumentManager::parseDocument] AST parsed successfully" << std::endl;
-            } else {
-                std::cerr << "[DocumentManager::parseDocument] Parser returned null program" << std::endl;
             }
         } catch (const std::exception& e) {
             doc->parseErrors.push_back(e.what());
-            std::cerr << "[DocumentManager::parseDocument] Parse error: " << e.what() << std::endl;
-            std::cerr << "[DocumentManager::parseDocument] Keeping previous AST and environment for autocomplete" << std::endl;
         }
 
         // Only update AST and environment if parsing succeeded
@@ -122,104 +113,37 @@ void DocumentManager::parseDocument(const std::string& uri) {
 
             // Create environment for semantic analysis
             doc->environment = EnvironmentBuilder::createDefault();
-            std::cerr << "[DocumentManager::parseDocument] Environment created" << std::endl;
-        } else if (doc->environment) {
-            std::cerr << "[DocumentManager::parseDocument] Reusing previous environment with registered symbols" << std::endl;
-
-            // Log what's in the registries from previous parse
-            auto classRegistry = doc->environment->getClassRegistry();
-            auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-            if (classRegistry) {
-                auto classNames = classRegistry->getAllItemNames();
-                std::cerr << "[DocumentManager::parseDocument] Reused class registry has " << classNames.size() << " classes" << std::endl;
-                for (const auto& className : classNames) {
-                    std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
-                }
-            }
-            if (interfaceRegistry) {
-                auto interfaces = interfaceRegistry->getAllInterfaces();
-                std::cerr << "[DocumentManager::parseDocument] Reused interface registry has " << interfaces.size() << " interfaces" << std::endl;
-                for (const auto& [interfaceName, interfaceDef] : interfaces) {
-                    std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
-                }
-            }
-        } else {
+        } else if (!doc->environment) {
             // First parse and it failed - create empty environment
             doc->environment = EnvironmentBuilder::createDefault();
-            std::cerr << "[DocumentManager::parseDocument] First parse failed - creating empty environment" << std::endl;
         }
 
         // Build symbol tables from AST using symbol registration (only if we have new AST)
         try {
             if (parseSucceeded && !doc->ast.empty()) {
-                std::cerr << "[DocumentManager::parseDocument] Starting symbol registration for " << doc->ast.size() << " AST nodes" << std::endl;
-
                 // Create symbol registration visitor
                 auto visitor = std::make_unique<SymbolRegistrationVisitor>(doc->environment);
 
                 // Traverse AST to register all symbols
                 for (const auto& node : doc->ast) {
                     if (node) {
-                        std::cerr << "[DocumentManager::parseDocument] Processing AST node" << std::endl;
                         visitor->processProgram(node.get(), uri);
                     }
                 }
 
                 // Store symbol locations for go-to-definition
                 doc->symbolLocations = visitor->getSymbolLocations();
-                std::cerr << "[DocumentManager::parseDocument] Symbol registration complete. Registered " << doc->symbolLocations.size() << " symbols" << std::endl;
-
-                // Log what's in the registries
-                auto classRegistry = doc->environment->getClassRegistry();
-                auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-                if (classRegistry) {
-                    auto classNames = classRegistry->getAllItemNames();
-                    std::cerr << "[DocumentManager::parseDocument] Class registry has " << classNames.size() << " classes" << std::endl;
-                    for (const auto& className : classNames) {
-                        std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
-                    }
-                }
-                if (interfaceRegistry) {
-                    auto interfaces = interfaceRegistry->getAllInterfaces();
-                    std::cerr << "[DocumentManager::parseDocument] Interface registry has " << interfaces.size() << " interfaces" << std::endl;
-                    for (const auto& [interfaceName, interfaceDef] : interfaces) {
-                        std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
-                    }
-                }
-            } else {
-                std::cerr << "[DocumentManager::parseDocument] Parse failed or AST empty, skipping new symbol registration (keeping previous symbols if any)" << std::endl;
             }
         } catch (const std::exception& e) {
             doc->semanticErrors.push_back(std::string("Symbol registration error: ") + e.what());
-            std::cerr << "[DocumentManager::parseDocument] Symbol registration error: " << e.what() << std::endl;
         }
 
         // Resolve and parse imported files to get their symbols
         if (doc->environment && importResolver_) {
             try {
-                std::cerr << "[DocumentManager::parseDocument] Resolving imports..." << std::endl;
                 importResolver_->resolveImports(doc, this);
-                std::cerr << "[DocumentManager::parseDocument] Import resolution complete" << std::endl;
-
-                // Log symbols after import resolution
-                auto classRegistry = doc->environment->getClassRegistry();
-                auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-                if (classRegistry) {
-                    auto classNames = classRegistry->getAllItemNames();
-                    std::cerr << "[DocumentManager::parseDocument] After imports - Class registry has " << classNames.size() << " classes" << std::endl;
-                    for (const auto& className : classNames) {
-                        std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
-                    }
-                }
-                if (interfaceRegistry) {
-                    auto interfaces = interfaceRegistry->getAllInterfaces();
-                    std::cerr << "[DocumentManager::parseDocument] After imports - Interface registry has " << interfaces.size() << " interfaces" << std::endl;
-                    for (const auto& [interfaceName, interfaceDef] : interfaces) {
-                        std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
-                    }
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "[DocumentManager::parseDocument] Import resolution error: " << e.what() << std::endl;
+            } catch (const std::exception&) {
+                // Silently ignore import resolution errors
             }
         }
 
@@ -314,12 +238,8 @@ std::vector<std::string> DocumentManager::getIdentifiersInScope(const std::strin
 std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
     const std::string& uri, int line, int character) const {
 
-    std::cerr << "[DocumentManager::findDefinition] Called for uri: " << uri
-              << " at line: " << line << ", character: " << character << std::endl;
-
     auto doc = getDocument(uri);
     if (!doc || !doc->isParsed || !doc->environment) {
-        std::cerr << "[DocumentManager::findDefinition] Document not parsed or environment missing" << std::endl;
         return std::nullopt;
     }
 
@@ -331,16 +251,11 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         currentLineNum++;
     }
 
-    std::cerr << "[DocumentManager::findDefinition] Current line: " << currentLine << std::endl;
-
     // Get the symbol name at the position
     std::string symbolName = extractWordAtPosition(doc->content, line, character);
     if (symbolName.empty()) {
-        std::cerr << "[DocumentManager::findDefinition] No symbol found at position" << std::endl;
         return std::nullopt;
     }
-
-    std::cerr << "[DocumentManager::findDefinition] Symbol name: " << symbolName << std::endl;
 
     // Check if this is a method call (e.g., "variable.methodName(...)")
     // Look backwards from the character position to see if there's a dot
@@ -360,8 +275,6 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         }
 
         if (dotPos != -1) {
-            std::cerr << "[DocumentManager::findDefinition] Detected method call (found dot at position " << dotPos << ")" << std::endl;
-
             // This is a method call: extract the variable name before the dot
             int varStart = dotPos - 1;
             while (varStart >= 0 && (std::isalnum(currentLine[varStart]) || currentLine[varStart] == '_')) {
@@ -370,7 +283,6 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
             varStart++;
 
             std::string varName = currentLine.substr(varStart, dotPos - varStart);
-            std::cerr << "[DocumentManager::findDefinition] Variable name: " << varName << std::endl;
 
             // Infer the type of this variable by scanning the document
             std::string varType = inferVariableType(doc->content, varName);
@@ -378,32 +290,24 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
             if (!varType.empty()) {
                 // Look for ClassName.methodName in symbol locations
                 std::string methodKey = varType + "." + symbolName;
-                std::cerr << "[DocumentManager::findDefinition] Looking for method key: " << methodKey << std::endl;
 
                 auto it = doc->symbolLocations.find(methodKey);
                 if (it != doc->symbolLocations.end()) {
                     const auto& symbolLoc = it->second;
-                    std::cerr << "[DocumentManager::findDefinition] Found method definition at "
-                              << symbolLoc.uri << ":" << symbolLoc.line << ":" << symbolLoc.column << std::endl;
                     SymbolLocation result;
                     result.uri = symbolLoc.uri;
                     result.line = symbolLoc.line;
                     result.column = symbolLoc.column;
                     return result;
-                } else {
-                    std::cerr << "[DocumentManager::findDefinition] Method key not found in symbol locations" << std::endl;
                 }
             }
         }
     }
 
     // Fall back to looking up the symbol directly (for classes, interfaces, functions)
-    std::cerr << "[DocumentManager::findDefinition] Falling back to direct symbol lookup" << std::endl;
     auto it = doc->symbolLocations.find(symbolName);
     if (it != doc->symbolLocations.end()) {
         const auto& symbolLoc = it->second;
-        std::cerr << "[DocumentManager::findDefinition] Found symbol at "
-                  << symbolLoc.uri << ":" << symbolLoc.line << ":" << symbolLoc.column << std::endl;
         SymbolLocation result;
         result.uri = symbolLoc.uri;
         result.line = symbolLoc.line;
@@ -411,7 +315,6 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         return result;
     }
 
-    std::cerr << "[DocumentManager::findDefinition] Symbol not found: " << symbolName << std::endl;
     return std::nullopt;
 }
 
@@ -552,8 +455,6 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
 }
 
 std::string DocumentManager::inferVariableType(const std::string& content, const std::string& varName) const {
-    std::cerr << "[DocumentManager::inferVariableType] Inferring type for variable: " << varName << std::endl;
-
     // Pattern 1: ClassName<GenericType> varName = new ClassName<GenericType>(...)
     // Pattern 2: ClassName<GenericType> varName = ...
     // Note: <GenericType> is optional, handles both generic and non-generic types
@@ -570,23 +471,17 @@ std::string DocumentManager::inferVariableType(const std::string& content, const
         // Try pattern 1: with "new" keyword
         if (std::regex_search(line, match, declPattern1)) {
             // Prefer the type from "new" if it matches the declaration type
-            std::string declType = match[1].str();
             std::string newType = match[2].str();
-            std::cerr << "[DocumentManager::inferVariableType] Found declaration: "
-                      << declType << " " << varName << " = new " << newType << std::endl;
             return newType; // Return the type from "new" as it's the actual instantiated type
         }
 
         // Try pattern 2: simple declaration
         if (std::regex_search(line, match, declPattern2)) {
             std::string declType = match[1].str();
-            std::cerr << "[DocumentManager::inferVariableType] Found declaration: "
-                      << declType << " " << varName << std::endl;
             return declType;
         }
     }
 
-    std::cerr << "[DocumentManager::inferVariableType] Could not infer type for: " << varName << std::endl;
     return ""; // Type not found
 }
 

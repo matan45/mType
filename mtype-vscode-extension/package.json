@@ -29,6 +29,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:mtype",
     "onLanguage:mtype-compiled",
     "onDebugResolve:mtype",

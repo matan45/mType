@@ -8,7 +8,6 @@
 #include <regex>
 #include <sstream>
 #include <filesystem>
-#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -19,15 +18,11 @@ ImportResolver::ImportResolver() {
 
 void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) {
     if (!doc || !doc->environment) {
-        std::cerr << "[ImportResolver] Invalid document or environment" << std::endl;
         return;
     }
 
-    std::cerr << "[ImportResolver] Resolving imports for: " << doc->uri << std::endl;
-
     // Extract import paths from document
     auto importPaths = extractImportPaths(doc->content);
-    std::cerr << "[ImportResolver] Found " << importPaths.size() << " imports" << std::endl;
 
     // Track visited files to prevent circular dependencies
     std::unordered_set<std::string> visited;
@@ -36,23 +31,16 @@ void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) 
     // Parse each imported file
     for (const auto& relativePath : importPaths) {
         std::string absolutePath = resolveImportPath(doc->uri, relativePath);
-        std::cerr << "[ImportResolver] Resolving import: '" << relativePath
-                  << "' -> '" << absolutePath << "'" << std::endl;
 
         if (fs::exists(absolutePath)) {
             parseImportedFile(absolutePath, doc->environment, doc->symbolLocations, visited);
-        } else {
-            std::cerr << "[ImportResolver] Import file not found: " << absolutePath << std::endl;
         }
     }
-
-    std::cerr << "[ImportResolver] Import resolution complete" << std::endl;
 }
 
 void ImportResolver::clearCache() {
     importCache_.clear();
     symbolLocationCache_.clear();
-    std::cerr << "[ImportResolver] Cache cleared" << std::endl;
 }
 
 std::vector<std::string> ImportResolver::extractImportPaths(const std::string& content) {
@@ -102,18 +90,13 @@ void ImportResolver::parseImportedFile(
     std::unordered_map<std::string, SymbolLocationInfo>& targetSymbolLocations,
     std::unordered_set<std::string>& visited
 ) {
-    std::cerr << "[ImportResolver::parseImportedFile] Parsing: " << importPath << std::endl;
-
     // Check if already visited (circular dependency)
     if (visited.find(importPath) != visited.end()) {
-        std::cerr << "[ImportResolver::parseImportedFile] Already visited (circular dependency): "
-                  << importPath << std::endl;
         return;
     }
 
     // Check cache
     if (importCache_.find(importPath) != importCache_.end()) {
-        std::cerr << "[ImportResolver::parseImportedFile] Using cached symbols for: " << importPath << std::endl;
         auto cachedEnv = importCache_[importPath];
 
         // Copy symbols from cached environment to target environment
@@ -123,7 +106,6 @@ void ImportResolver::parseImportedFile(
                 if (classDef) {
                     try {
                         targetEnv->registerClass(className, classDef);
-                        std::cerr << "[ImportResolver::parseImportedFile]   Registered class: " << className << std::endl;
                     } catch (...) {
                         // Ignore if already registered
                     }
@@ -136,7 +118,6 @@ void ImportResolver::parseImportedFile(
             for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
                 try {
                     targetEnv->registerInterface(interfaceName, interfaceDef);
-                    std::cerr << "[ImportResolver::parseImportedFile]   Registered interface: " << interfaceName << std::endl;
                 } catch (...) {
                     // Ignore if already registered
                 }
@@ -149,7 +130,6 @@ void ImportResolver::parseImportedFile(
                 if (funcDef) {
                     try {
                         targetEnv->registerFunction(funcName, funcDef);
-                        std::cerr << "[ImportResolver::parseImportedFile]   Registered function: " << funcName << std::endl;
                     } catch (...) {
                         // Ignore if already registered
                     }
@@ -162,7 +142,6 @@ void ImportResolver::parseImportedFile(
             const auto& cachedLocations = symbolLocationCache_[importPath];
             for (const auto& [symbolName, location] : cachedLocations) {
                 targetSymbolLocations[symbolName] = location;
-                std::cerr << "[ImportResolver::parseImportedFile]   Copied symbol location: " << symbolName << std::endl;
             }
         }
 
@@ -176,7 +155,6 @@ void ImportResolver::parseImportedFile(
         // Read file content
         std::ifstream file(importPath);
         if (!file.is_open()) {
-            std::cerr << "[ImportResolver::parseImportedFile] Failed to open: " << importPath << std::endl;
             return;
         }
 
@@ -184,8 +162,6 @@ void ImportResolver::parseImportedFile(
         buffer << file.rdbuf();
         std::string content = buffer.str();
         file.close();
-
-        std::cerr << "[ImportResolver::parseImportedFile] Read " << content.length() << " bytes" << std::endl;
 
         // Create in-memory file reader
         auto fileReader = std::make_unique<MemoryFileReader>();
@@ -201,11 +177,8 @@ void ImportResolver::parseImportedFile(
         // Parse the file
         auto program = parser.parseProgram();
         if (!program) {
-            std::cerr << "[ImportResolver::parseImportedFile] Failed to parse: " << importPath << std::endl;
             return;
         }
-
-        std::cerr << "[ImportResolver::parseImportedFile] Successfully parsed: " << importPath << std::endl;
 
         // Create temporary environment for this import
         auto importEnv = environment::EnvironmentBuilder::createDefault();
@@ -214,12 +187,8 @@ void ImportResolver::parseImportedFile(
         auto visitor = std::make_unique<SymbolRegistrationVisitor>(importEnv);
         visitor->processProgram(program.get(), importPath);
 
-        std::cerr << "[ImportResolver::parseImportedFile] Registered symbols from: " << importPath << std::endl;
-
         // Get symbol locations from the visitor
         const auto& importSymbolLocations = visitor->getSymbolLocations();
-        std::cerr << "[ImportResolver::parseImportedFile] Found " << importSymbolLocations.size()
-                  << " symbol locations" << std::endl;
 
         // Cache the environment and symbol locations
         importCache_[importPath] = importEnv;
@@ -228,8 +197,6 @@ void ImportResolver::parseImportedFile(
         // Copy symbol locations to target
         for (const auto& [symbolName, location] : importSymbolLocations) {
             targetSymbolLocations[symbolName] = location;
-            std::cerr << "[ImportResolver::parseImportedFile]   Copied symbol location: " << symbolName
-                      << " at " << location.uri << ":" << location.line << ":" << location.column << std::endl;
         }
 
         // Copy symbols to target environment
@@ -239,10 +206,8 @@ void ImportResolver::parseImportedFile(
                 if (classDef) {
                     try {
                         targetEnv->registerClass(className, classDef);
-                        std::cerr << "[ImportResolver::parseImportedFile]   Registered class: " << className << std::endl;
-                    } catch (const std::exception& e) {
-                        std::cerr << "[ImportResolver::parseImportedFile]   Failed to register class "
-                                  << className << ": " << e.what() << std::endl;
+                    } catch (const std::exception&) {
+                        // Ignore if already registered
                     }
                 }
             }
@@ -253,10 +218,8 @@ void ImportResolver::parseImportedFile(
             for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
                 try {
                     targetEnv->registerInterface(interfaceName, interfaceDef);
-                    std::cerr << "[ImportResolver::parseImportedFile]   Registered interface: " << interfaceName << std::endl;
-                } catch (const std::exception& e) {
-                    std::cerr << "[ImportResolver::parseImportedFile]   Failed to register interface "
-                              << interfaceName << ": " << e.what() << std::endl;
+                } catch (const std::exception&) {
+                    // Ignore if already registered
                 }
             }
         }
@@ -267,10 +230,8 @@ void ImportResolver::parseImportedFile(
                 if (funcDef) {
                     try {
                         targetEnv->registerFunction(funcName, funcDef);
-                        std::cerr << "[ImportResolver::parseImportedFile]   Registered function: " << funcName << std::endl;
-                    } catch (const std::exception& e) {
-                        std::cerr << "[ImportResolver::parseImportedFile]   Failed to register function "
-                                  << funcName << ": " << e.what() << std::endl;
+                    } catch (const std::exception&) {
+                        // Ignore if already registered
                     }
                 }
             }
@@ -285,8 +246,8 @@ void ImportResolver::parseImportedFile(
             }
         }
 
-    } catch (const std::exception& e) {
-        std::cerr << "[ImportResolver::parseImportedFile] Exception: " << e.what() << std::endl;
+    } catch (const std::exception&) {
+        // Silently ignore parse errors
     }
 }
 

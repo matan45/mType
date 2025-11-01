@@ -1,7 +1,6 @@
 #include "CompletionHandler.hpp"
 #include <sstream>
 #include <algorithm>
-#include <iostream>
 
 namespace mtype::lsp {
 
@@ -13,15 +12,11 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     const std::string& uri,
     const Position& position
 ) {
-    std::cerr << "[CompletionHandler] handleCompletion called for uri: " << uri
-              << " at position (line: " << position.line << ", char: " << position.character << ")" << std::endl;
-
     std::vector<CompletionItem> items;
 
     // Check for path completions first (inside import strings)
     auto pathItems = pathCompletionHandler_->getPathCompletions(uri, position);
     if (!pathItems.empty()) {
-        std::cerr << "[CompletionHandler] Returning " << pathItems.size() << " path completions" << std::endl;
         // If we're in a path context, only return path completions
         return pathItems;
     }
@@ -29,41 +24,27 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     // Get document
     auto doc = documentManager_->getDocument(uri);
     if (!doc) {
-        std::cerr << "[CompletionHandler] Document not found" << std::endl;
         return items;
     }
 
     // Get the current line to determine context
     std::string currentLine = getLineAtPosition(doc->content, position);
     std::string textBeforeCursor = currentLine.substr(0, std::min(position.character, static_cast<int>(currentLine.length())));
-    std::cerr << "[CompletionHandler] Current line: '" << currentLine << "'" << std::endl;
-    std::cerr << "[CompletionHandler] Text before cursor: '" << textBeforeCursor << "'" << std::endl;
 
     // Check context-specific completions
     // If we're after "implements", only show interfaces
     if (textBeforeCursor.find("implements") != std::string::npos) {
-        std::cerr << "[CompletionHandler] Detected 'implements' context - returning only interfaces" << std::endl;
         auto interfaces = getInterfaceCompletions(uri);
-        std::cerr << "[CompletionHandler] Found " << interfaces.size() << " interfaces" << std::endl;
-        for (const auto& iface : interfaces) {
-            std::cerr << "[CompletionHandler]   - " << iface.label << " (kind: " << iface.kind << ")" << std::endl;
-        }
         return interfaces;
     }
 
     // If we're after "extends", only show classes
     if (textBeforeCursor.find("extends") != std::string::npos) {
-        std::cerr << "[CompletionHandler] Detected 'extends' context - returning only classes" << std::endl;
         auto classes = getClassCompletions(uri);
-        std::cerr << "[CompletionHandler] Found " << classes.size() << " classes" << std::endl;
-        for (const auto& cls : classes) {
-            std::cerr << "[CompletionHandler]   - " << cls.label << " (kind: " << cls.kind << ")" << std::endl;
-        }
         return classes;
     }
 
     // Otherwise, provide all completions
-    std::cerr << "[CompletionHandler] General context - providing all completions" << std::endl;
 
     // Add keyword completions
     auto keywords = getKeywordCompletions();
@@ -92,11 +73,6 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     // Add interfaces from environment
     auto interfaces = getInterfaceCompletions(uri);
     items.insert(items.end(), interfaces.begin(), interfaces.end());
-
-    std::cerr << "[CompletionHandler] Returning " << items.size() << " total completions (keywords: "
-              << keywords.size() << ", types: " << types.size() << ", builtins: " << builtins.size()
-              << ", collections: " << collections.size() << ", variables: " << variables.size()
-              << ", classes: " << classes.size() << ", interfaces: " << interfaces.size() << ")" << std::endl;
 
     return items;
 }
@@ -243,28 +219,23 @@ std::vector<CompletionItem> CompletionHandler::getVariableCompletions(const std:
 }
 
 std::vector<CompletionItem> CompletionHandler::getClassCompletions(const std::string& uri) const {
-    std::cerr << "[CompletionHandler::getClassCompletions] Called for uri: " << uri << std::endl;
     std::vector<CompletionItem> items;
 
     auto doc = documentManager_->getDocument(uri);
     if (!doc || !doc->environment) {
-        std::cerr << "[CompletionHandler::getClassCompletions] No document or environment" << std::endl;
         return items;
     }
 
     // Get classes from the environment's class registry
     auto classRegistry = doc->environment->getClassRegistry();
     if (!classRegistry) {
-        std::cerr << "[CompletionHandler::getClassCompletions] No class registry" << std::endl;
         return items;
     }
 
     // Get ALL registered classes (not just from symbol locations)
     auto classNames = classRegistry->getAllItemNames();
-    std::cerr << "[CompletionHandler::getClassCompletions] Found " << classNames.size() << " classes in registry" << std::endl;
 
     for (const auto& className : classNames) {
-        std::cerr << "[CompletionHandler::getClassCompletions]   - Adding class: " << className << std::endl;
         CompletionItem item;
         item.label = className;
         item.kind = static_cast<int>(CompletionItemKind::Class);
@@ -277,28 +248,23 @@ std::vector<CompletionItem> CompletionHandler::getClassCompletions(const std::st
 }
 
 std::vector<CompletionItem> CompletionHandler::getInterfaceCompletions(const std::string& uri) const {
-    std::cerr << "[CompletionHandler::getInterfaceCompletions] Called for uri: " << uri << std::endl;
     std::vector<CompletionItem> items;
 
     auto doc = documentManager_->getDocument(uri);
     if (!doc || !doc->environment) {
-        std::cerr << "[CompletionHandler::getInterfaceCompletions] No document or environment" << std::endl;
         return items;
     }
 
     // Get interfaces from the environment's interface registry
     auto interfaceRegistry = doc->environment->getInterfaceRegistry();
     if (!interfaceRegistry) {
-        std::cerr << "[CompletionHandler::getInterfaceCompletions] No interface registry" << std::endl;
         return items;
     }
 
     // Get ALL registered interfaces
     auto allInterfaces = interfaceRegistry->getAllInterfaces();
-    std::cerr << "[CompletionHandler::getInterfaceCompletions] Found " << allInterfaces.size() << " interfaces in registry" << std::endl;
 
     for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
-        std::cerr << "[CompletionHandler::getInterfaceCompletions]   - Adding interface: " << interfaceName << " (kind: " << static_cast<int>(CompletionItemKind::Interface) << ")" << std::endl;
         CompletionItem item;
         item.label = interfaceName;
         item.kind = static_cast<int>(CompletionItemKind::Interface);

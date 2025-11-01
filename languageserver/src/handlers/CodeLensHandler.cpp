@@ -1,7 +1,6 @@
 #include "CodeLensHandler.hpp"
 #include <regex>
 #include <sstream>
-#include <iostream>
 
 namespace mtype::lsp {
 
@@ -69,9 +68,6 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
         lens.range.end.line = location.line;
         lens.range.end.character = 0;
 
-        std::cerr << "[CodeLensHandler] Creating code lens for symbol: '" << symbolName << "'" << std::endl;
-        std::cerr << "[CodeLensHandler] Reference count: " << refCount << std::endl;
-
         // Create command to show references using custom mtype.showReferences command
         Command cmd;
         if (refCount == 1) {
@@ -83,8 +79,6 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
 
         // Find actual reference locations
         std::vector<Location> refLocations = findUsages(symbolName, doc);
-        std::cerr << "[CodeLensHandler] Found " << refLocations.size() << " reference locations" << std::endl;
-
         // Decode URI for VS Code command
         std::string decodedUri = urlDecode(uri);
 
@@ -105,7 +99,6 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
         args.push_back(locationsArray);
 
         cmd.arguments = args;
-        std::cerr << "[CodeLensHandler] Command: " << cmd.command << ", Args: " << args.dump() << std::endl;
 
         lens.command = cmd;
         lenses.push_back(lens);

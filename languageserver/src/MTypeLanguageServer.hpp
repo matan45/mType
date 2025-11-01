@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <iostream>
 #include "DocumentManager.hpp"
 #include "handlers/CompletionHandler.hpp"
 #include "handlers/DiagnosticsHandler.hpp"

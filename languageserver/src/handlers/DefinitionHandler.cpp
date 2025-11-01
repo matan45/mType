@@ -1,5 +1,4 @@
 #include "DefinitionHandler.hpp"
-#include <iostream>
 #include <algorithm>
 
 namespace mtype::lsp {
@@ -28,23 +27,15 @@ static std::string pathToUri(const std::string& path) {
         result = "file://" + result;
     }
 
-    std::cerr << "[DefinitionHandler::pathToUri] Converted: " << path << " -> " << result << std::endl;
     return result;
 }
 
 std::optional<Location> DefinitionHandler::handleDefinition(const std::string& uri, const Position& position) {
-    std::cerr << "[DefinitionHandler] handleDefinition called for uri: " << uri
-              << " at line: " << position.line << ", character: " << position.character << std::endl;
-
     auto symbolLoc = documentManager_->findDefinition(uri, position.line, position.character);
 
     if (!symbolLoc) {
-        std::cerr << "[DefinitionHandler] No definition found" << std::endl;
         return std::nullopt;
     }
-
-    std::cerr << "[DefinitionHandler] Definition found at " << symbolLoc->uri
-              << ":" << symbolLoc->line << ":" << symbolLoc->column << std::endl;
 
     Location location;
     // Convert absolute path to file:/// URI
