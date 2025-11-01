@@ -42,5 +42,8 @@ namespace vm::compiler::visitors
                                    const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
                                    size_t currentFrameStart, const std::vector<variables::VariableTracker::LocalVariable>& currentLocals,
                                    const std::string& lambdaFuncName);
+
+        // Type validation helper
+        bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
     };
 }

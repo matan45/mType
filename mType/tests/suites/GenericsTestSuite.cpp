@@ -44,6 +44,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Static Generic Collection Returns",
                         passPath + "staticGenericCollectionReturns.mt");
 
+        // Instance generic method tests
+        addOutputVerificationTest("Instance Generic Basic",
+                        passPath + "instanceGenericBasic.mt");
+        addOutputVerificationTest("Instance Generic Multiple Parameters",
+                        passPath + "instanceGenericMultipleParams.mt");
+        addOutputVerificationTest("Instance Generic Mixed Class Method",
+                        passPath + "instanceGenericMixedClassMethod.mt");
+        addOutputVerificationTest("Instance Generic Overloading",
+                        passPath + "instanceGenericOverloading.mt");
+        addOutputVerificationTest("Instance Generic Inheritance",
+                        passPath + "instanceGenericInheritance.mt");
+        addOutputVerificationTest("Instance Generic Null",
+                        passPath + "instanceGenericNull.mt");
+        addOutputVerificationTest("Instance Generic Complex Types",
+                        passPath + "instanceGenericComplexTypes.mt");
+
         // Global generic function tests
         addOutputVerificationTest("Global Generic Functions",
                         passPath + "globalGenericFunctions.mt");
@@ -139,6 +155,20 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Static Non-Generic with Type Args",
                     errorPath + "staticNonGenericWithTypeArgs.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Instance generic method error tests
+        addTestFromFile("Instance Generic Shadowing",
+                    errorPath + "instanceGenericShadowing.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Instance Generic Wrong Type Arg Count",
+                    errorPath + "instanceGenericWrongTypeArgCount.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Instance Generic Missing Type Args",
+                    errorPath + "instanceGenericMissingTypeArgs.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Instance Generic Undeclared Type Parameter",
+                    errorPath + "instanceGenericUndeclaredTypeParam.mt",
                     TestType::ERROR_EXPECTED);
 
         // Primitive type validation error tests

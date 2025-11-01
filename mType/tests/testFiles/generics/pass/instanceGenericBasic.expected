@@ -1,0 +1,5 @@
+Container 42 processing: hello
+Result 1: hello
+Container 42 processing: 100
+Result 2: 100
+Basic instance generic test passed

@@ -417,6 +417,52 @@ namespace vm::compiler::visitors
                 ctx.pushGenericTypeBindings(genericBindings);
             }
 
+            // Setup method-level generic type bindings if method has type arguments
+            bool hasMethodGenericBindings = false;
+            std::unordered_map<std::string, std::string> methodGenericBindings;
+            if (node->hasGenericTypeArguments())
+            {
+                // Extract base class name (without generic parameters) for method lookup
+                std::string baseClassName = objectClassName;
+                size_t anglePos = objectClassName.find('<');
+                if (anglePos != std::string::npos)
+                {
+                    baseClassName = objectClassName.substr(0, anglePos);
+                }
+
+                // Build qualified method name for metadata lookup
+                std::string qualifiedMethodName = baseClassName + "::" + methodName;
+                const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
+
+                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                {
+                    const auto& methodGenericParams = methodMetadata->genericTypeParameters;
+                    const auto& methodTypeArgs = node->getGenericTypeArguments();
+
+                    // Validate type argument count matches parameter count
+                    if (methodTypeArgs.size() != methodGenericParams.size())
+                    {
+                        throw errors::TypeException(
+                            "Method '" + methodName + "' expects " +
+                            std::to_string(methodGenericParams.size()) +
+                            " type arguments, but got " +
+                            std::to_string(methodTypeArgs.size()),
+                            node->getLocation()
+                        );
+                    }
+
+                    // Create bindings: T -> String, U -> Int, etc.
+                    for (size_t i = 0; i < methodGenericParams.size(); ++i)
+                    {
+                        methodGenericBindings[methodGenericParams[i]] = methodTypeArgs[i];
+                    }
+
+                    // Push method-level bindings onto stack (will shadow class-level if names conflict)
+                    ctx.pushGenericTypeBindings(methodGenericBindings);
+                    hasMethodGenericBindings = true;
+                }
+            }
+
             // Validate instance method exists at compile time
             if (!objectClassName.empty() && ctx.compileTimeValidator)
             {
@@ -437,7 +483,11 @@ namespace vm::compiler::visitors
                 paramValidator->validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
             }
 
-            // Pop generic type bindings after validation
+            // Pop generic type bindings after validation (method-level first, then class-level)
+            if (hasMethodGenericBindings)
+            {
+                ctx.popGenericTypeBindings();
+            }
             if (!genericBindings.empty())
             {
                 ctx.popGenericTypeBindings();

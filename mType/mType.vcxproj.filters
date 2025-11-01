@@ -3904,6 +3904,18 @@
     <None Include="tests\testFiles\generics\error\incompleteTypeArguments.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\instanceGenericMissingTypeArgs.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\instanceGenericShadowing.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\instanceGenericUndeclaredTypeParam.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\instanceGenericWrongTypeArgCount.mt">
+      <Filter>tests\testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\interfaceExtendsClass.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -4121,6 +4133,48 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericBasic.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericBasic.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericComplexTypes.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericComplexTypes.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericInheritance.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericInheritance.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericMixedClassMethod.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericMixedClassMethod.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericMultipleParams.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericMultipleParams.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericNull.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericNull.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericOverloading.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\instanceGenericOverloading.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\mixedStaticGenericMethods.expected">

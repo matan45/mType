@@ -1,0 +1,10 @@
+Processing array of size: 3
+Element: first
+Element: second
+Element: third
+First element: first
+Processing array of size: 2
+Element: 10
+Element: 20
+First int: 10
+Complex types test passed

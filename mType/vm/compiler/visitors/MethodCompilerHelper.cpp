@@ -133,9 +133,70 @@ namespace vm::compiler::visitors
         }
     }
 
+    bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
+                                                const std::vector<std::string>& validGenericParams)
+    {
+        // Check if it's a primitive type
+        if (typeName == "int" || typeName == "float" || typeName == "string" ||
+            typeName == "bool" || typeName == "void")
+        {
+            return true;
+        }
+
+        // Check if it's a declared generic type parameter
+        for (const auto& genericParam : validGenericParams)
+        {
+            if (typeName == genericParam)
+            {
+                return true;
+            }
+        }
+
+        // Extract base type name (handle generics like "List<T>")
+        std::string baseTypeName = typeName;
+        size_t anglePos = typeName.find('<');
+        if (anglePos != std::string::npos)
+        {
+            baseTypeName = typeName.substr(0, anglePos);
+        }
+
+        // Check if it's an existing class or interface
+        if (ctx.environment->findClass(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+        if (ctx.environment->findInterface(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     MethodCompilerHelper::MethodParameters MethodCompilerHelper::collectMethodParameters(ast::MethodNode* node, bool isStatic)
     {
         MethodParameters result;
+
+        // Build list of valid generic type parameter names
+        std::vector<std::string> validGenericParams;
+
+        // Add class-level generic parameters
+        if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
+        {
+            for (const auto& param : ctx.currentClassNode->getGenericParameters())
+            {
+                validGenericParams.push_back(param.name);
+            }
+        }
+
+        // Add method-level generic parameters
+        if (node->isGeneric())
+        {
+            for (const auto& param : node->getGenericTypeParameters())
+            {
+                validGenericParams.push_back(param.name);
+            }
+        }
 
         // Get parameters with type information
         auto genericParams = node->getGenericParameters();
@@ -154,6 +215,16 @@ namespace vm::compiler::visitors
             // Use toString() to get the full type name (e.g., "int", "string", "MyClass", "List<int>")
             std::string paramTypeStr = param.second->toString();
             result.paramTypes.push_back(paramTypeStr);
+
+            // Validate parameter type exists
+            if (!isValidTypeName(paramTypeStr, validGenericParams))
+            {
+                throw errors::TypeException(
+                    "Undefined type '" + paramTypeStr + "' in parameter '" + param.first + "'. " +
+                    "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                    node->getLocation()
+                );
+            }
         }
 
         // Convert return type to string, preserving class names for object types
@@ -162,6 +233,16 @@ namespace vm::compiler::visitors
             result.returnTypeStr = genericReturnType->toString();
         } else {
             result.returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
+        }
+
+        // Validate return type exists
+        if (!isValidTypeName(result.returnTypeStr, validGenericParams))
+        {
+            throw errors::TypeException(
+                "Undefined type '" + result.returnTypeStr + "' in return type. " +
+                "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                node->getLocation()
+            );
         }
 
         return result;
@@ -282,6 +363,16 @@ namespace vm::compiler::visitors
         metadata.isAsync = node->getIsAsync();
         metadata.localVariableNames = bodyInfo.localVarNames;
 
+        // Store generic type parameters for generic methods
+        if (node->isGeneric())
+        {
+            const auto& genericParams = node->getGenericTypeParameters();
+            for (const auto& param : genericParams)
+            {
+                metadata.genericTypeParameters.push_back(param.name);
+            }
+        }
+
         ctx.program.registerFunction(qualifiedMethodName, metadata);
     }
 
@@ -299,6 +390,28 @@ namespace vm::compiler::visitors
         if (node->isGeneric())
         {
             const auto& genericParams = node->getGenericTypeParameters();
+
+            // Validate: method-level generic parameters should not shadow class-level ones
+            if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
+            {
+                const auto& classGenericParams = ctx.currentClassNode->getGenericParameters();
+                for (const auto& methodParam : genericParams)
+                {
+                    for (const auto& classParam : classGenericParams)
+                    {
+                        if (methodParam.name == classParam.name)
+                        {
+                            throw errors::TypeException(
+                                "Method generic type parameter '" + methodParam.name +
+                                "' shadows class-level type parameter with the same name. " +
+                                "Use a different name to avoid confusion.",
+                                methodParam.location
+                            );
+                        }
+                    }
+                }
+            }
+
             for (const auto& param : genericParams)
             {
                 size_t paramNameIndex = ctx.program.getConstantPool().addString(param.name);

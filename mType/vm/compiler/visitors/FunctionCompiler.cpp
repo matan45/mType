@@ -37,6 +37,16 @@ namespace vm::compiler::visitors
         // Function starts here
         size_t functionStart = ctx.program.getCurrentOffset();
 
+        // Build list of valid generic type parameter names for validation
+        std::vector<std::string> validGenericParams;
+        if (node->isGeneric())
+        {
+            for (const auto& param : node->getGenericTypeParameters())
+            {
+                validGenericParams.push_back(param.name);
+            }
+        }
+
         // Get parameters with type information preserved
         auto paramTypesVec = node->getParameterTypes();
         std::vector<std::string> paramNames;
@@ -46,13 +56,25 @@ namespace vm::compiler::visitors
             paramNames.push_back(param.first);
             // ParameterType preserves class names for object types
             const auto& paramType = param.second;
+            std::string paramTypeStr;
             if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
             {
-                paramTypes.push_back(paramType.className.value());
+                paramTypeStr = paramType.className.value();
             }
             else
             {
-                paramTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType));
+                paramTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+            }
+            paramTypes.push_back(paramTypeStr);
+
+            // Validate parameter type exists
+            if (!isValidTypeName(paramTypeStr, validGenericParams))
+            {
+                throw errors::TypeException(
+                    "Undefined type '" + paramTypeStr + "' in parameter '" + param.first + "'. " +
+                    "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                    node->getLocation()
+                );
             }
         }
 
@@ -66,6 +88,16 @@ namespace vm::compiler::visitors
         else
         {
             returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
+        }
+
+        // Validate return type exists
+        if (!isValidTypeName(returnTypeStr, validGenericParams))
+        {
+            throw errors::TypeException(
+                "Undefined type '" + returnTypeStr + "' in return type. " +
+                "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                node->getLocation()
+            );
         }
 
         // Enter function frame for local variable tracking
@@ -681,5 +713,45 @@ namespace vm::compiler::visitors
         ctx.variableTracker.setLocalSlot(savedNextLocalSlot);
 
         return std::monostate{};
+    }
+
+    bool FunctionCompiler::isValidTypeName(const std::string& typeName,
+                                           const std::vector<std::string>& validGenericParams)
+    {
+        // Check if it's a primitive type
+        if (typeName == "int" || typeName == "float" || typeName == "string" ||
+            typeName == "bool" || typeName == "void")
+        {
+            return true;
+        }
+
+        // Check if it's a declared generic type parameter
+        for (const auto& genericParam : validGenericParams)
+        {
+            if (typeName == genericParam)
+            {
+                return true;
+            }
+        }
+
+        // Extract base type name (handle generics like "List<T>")
+        std::string baseTypeName = typeName;
+        size_t anglePos = typeName.find('<');
+        if (anglePos != std::string::npos)
+        {
+            baseTypeName = typeName.substr(0, anglePos);
+        }
+
+        // Check if it's an existing class or interface
+        if (ctx.environment->findClass(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+        if (ctx.environment->findInterface(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+
+        return false;
     }
 }

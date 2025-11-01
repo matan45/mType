@@ -1,0 +1,5 @@
+Single: hello
+Single: 42
+Pair: count, 10
+Pair: 1, one
+Generic method overloading test passed

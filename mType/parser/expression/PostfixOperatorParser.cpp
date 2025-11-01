@@ -145,6 +145,20 @@ namespace parser::expression
         SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 
+        // Parse generic type arguments if present (e.g., obj.method<String, Int>)
+        std::vector<std::string> genericTypeArguments;
+        if (tokenStream.check(TokenType::LESS))
+        {
+            tokenStream.advance(); // consume '<'
+            if (!expressionParser)
+            {
+                throw ParseException("ExpressionParser not initialized in PostfixOperatorParser",
+                                     tokenStream.current().location);
+            }
+            genericTypeArguments = expressionParser->parseGenericTypeArguments();
+            expectToken(TokenType::GREATER);
+        }
+
         // Check if it's a method call
         if (tokenStream.check(TokenType::LPAREN))
         {
@@ -165,7 +179,7 @@ namespace parser::expression
 
             expectToken(TokenType::RPAREN);
             return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments),
-                                                    false, std::vector<std::string>(), location);
+                                                    false, genericTypeArguments, location);
         }
 
         return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
