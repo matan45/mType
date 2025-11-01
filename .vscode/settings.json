@@ -1,0 +1,4 @@
+{
+  "mType.languageServer.enable": true,
+  "mType.languageServer.path": "mType\\languageserver\\bin\\Debug-windows-x86_64\\mtype-language-server.exe"
+}

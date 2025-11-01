@@ -6,7 +6,8 @@ vsc-extension-quickstart.md
 **/tsconfig.json
 **/.eslintrc.json
 **/*.map
-**/node_modules/**
 test-files/**
 .git/**
 mtype-language-support-1.0.0.vsix
+src/**
+tsconfig.json
