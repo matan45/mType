@@ -2,6 +2,7 @@
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
 #include "utils/MemoryFileReader.hpp"
+#include "analysis/SymbolRegistrationVisitor.hpp"
 #include <sstream>
 #include <algorithm>
 
@@ -89,17 +90,24 @@ void DocumentManager::parseDocument(const std::string& uri) {
         // Create environment for semantic analysis
         doc->environment = EnvironmentBuilder::createDefault();
 
-        // Build symbol tables from AST
-        // Note: Full AST traversal and symbol registration would happen here
-        // For now, we just have the environment ready for basic queries
+        // Build symbol tables from AST using symbol registration
         try {
-            // TODO: Implement AST visitor to register classes, functions, variables
-            // This would involve traversing the AST and calling:
-            // - environment->registerClass() for class definitions
-            // - environment->registerFunction() for function definitions
-            // - environment->declareVariable() for variable declarations
+            if (!doc->ast.empty()) {
+                // Create symbol registration visitor
+                auto visitor = std::make_unique<SymbolRegistrationVisitor>(doc->environment);
+
+                // Traverse AST to register all symbols
+                for (const auto& node : doc->ast) {
+                    if (node) {
+                        visitor->processProgram(node.get(), uri);
+                    }
+                }
+
+                // Store symbol locations for go-to-definition
+                doc->symbolLocations = visitor->getSymbolLocations();
+            }
         } catch (const std::exception& e) {
-            doc->semanticErrors.push_back(e.what());
+            doc->semanticErrors.push_back(std::string("Symbol registration error: ") + e.what());
         }
 
         // Tokenize for token-based features (keep for completion)
@@ -204,17 +212,18 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         return std::nullopt;
     }
 
-    // Try to find the symbol in the environment
-    // This is a simplified implementation - a full implementation would need to:
-    // 1. Determine the symbol type (variable, function, class, etc.)
-    // 2. Search the appropriate scope
-    // 3. Handle imported symbols
+    // Look up the symbol in our symbol locations map
+    auto it = doc->symbolLocations.find(symbolName);
+    if (it != doc->symbolLocations.end()) {
+        const auto& symbolLoc = it->second;
+        SymbolLocation result;
+        result.uri = symbolLoc.uri;
+        result.line = symbolLoc.line;
+        result.column = symbolLoc.column;
+        return result;
+    }
 
-    // For now, we'll search through the AST to find class/function definitions
-    // A more robust implementation would use a symbol table with location information
-
-    // TODO: Implement proper symbol table with source locations
-    // For now, return nullopt as placeholder
+    // Symbol not found in registered symbols
     return std::nullopt;
 }
 
@@ -234,12 +243,61 @@ std::optional<std::string> DocumentManager::getTypeInfo(
 
     // Try to get type information from environment
     try {
+        // Check for variables
         auto varDef = doc->environment->findVariable(symbolName);
         if (varDef) {
-            // TODO: Extract actual type information from VariableDefinition
-            // For now, just return that it's a variable
-            return "variable: " + symbolName;
+            std::string typeInfo = symbolName + ": ";
+
+            // Get the value type
+            auto valueType = varDef->getType();
+            switch (valueType) {
+                case value::ValueType::INT:
+                    typeInfo += "int";
+                    break;
+                case value::ValueType::FLOAT:
+                    typeInfo += "float";
+                    break;
+                case value::ValueType::BOOL:
+                    typeInfo += "bool";
+                    break;
+                case value::ValueType::STRING:
+                    typeInfo += "string";
+                    break;
+                case value::ValueType::OBJECT: {
+                    const auto& className = varDef->getClassName();
+                    if (!className.empty()) {
+                        typeInfo += className;
+                    } else {
+                        typeInfo += "object";
+                    }
+                    break;
+                }
+                case value::ValueType::VOID:
+                    typeInfo += "void";
+                    break;
+                default:
+                    typeInfo += "unknown";
+                    break;
+            }
+
+            return typeInfo;
         }
+
+        // Check for functions
+        if (doc->environment->getFunctionRegistry()) {
+            auto funcDef = doc->environment->getFunctionRegistry()->findFunction(symbolName);
+            if (funcDef) {
+                return "function " + symbolName + "()";
+            }
+        }
+
+        // Check for classes
+        if (doc->environment->getClassRegistry()) {
+            if (doc->environment->getClassRegistry()->hasClass(symbolName)) {
+                return "class " + symbolName;
+            }
+        }
+
     } catch (...) {
         // Ignore errors
     }
@@ -255,12 +313,52 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
         return symbols;
     }
 
-    // TODO: Traverse AST to extract symbol information
-    // For now, return empty vector as placeholder
-    // A full implementation would:
-    // 1. Traverse the AST
-    // 2. Extract class, function, variable definitions
-    // 3. Record their locations and kinds
+    // Extract symbols from the symbol locations map populated during parsing
+    for (const auto& [symbolName, location] : doc->symbolLocations) {
+        SymbolInfo info;
+        info.name = symbolName;
+        info.line = location.line;
+        info.column = location.column;
+
+        // Determine symbol kind by checking the environment
+        try {
+            // Check if it's a class
+            if (doc->environment && doc->environment->getClassRegistry()) {
+                if (doc->environment->getClassRegistry()->hasClass(symbolName)) {
+                    info.kind = "class";
+                    symbols.push_back(info);
+                    continue;
+                }
+            }
+
+            // Check if it's a function
+            if (doc->environment && doc->environment->getFunctionRegistry()) {
+                auto funcDef = doc->environment->getFunctionRegistry()->findFunction(symbolName);
+                if (funcDef) {
+                    info.kind = "function";
+                    symbols.push_back(info);
+                    continue;
+                }
+            }
+
+            // Check if it's a variable
+            if (doc->environment) {
+                auto varDef = doc->environment->findVariable(symbolName);
+                if (varDef) {
+                    info.kind = "variable";
+                    symbols.push_back(info);
+                    continue;
+                }
+            }
+
+            // Default to "symbol" if we can't determine the kind
+            info.kind = "symbol";
+            symbols.push_back(info);
+
+        } catch (...) {
+            // Ignore errors, skip this symbol
+        }
+    }
 
     return symbols;
 }

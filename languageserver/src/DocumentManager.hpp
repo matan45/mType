@@ -15,6 +15,16 @@
 
 namespace mtype::lsp {
 
+// Forward declaration
+class SymbolRegistrationVisitor;
+
+// Symbol location tracking for go-to-definition
+struct SymbolLocationInfo {
+    std::string uri;
+    int line;
+    int column;
+};
+
 struct Document {
     std::string uri;
     std::string content;
@@ -31,6 +41,9 @@ struct Document {
     std::vector<std::string> parseErrors;
     std::vector<std::string> semanticErrors;
     std::vector<token::Token> tokens;
+
+    // Symbol location tracking for go-to-definition
+    std::unordered_map<std::string, SymbolLocationInfo> symbolLocations;
 };
 
 class DocumentManager {
