@@ -14,7 +14,7 @@ namespace ast::nodes::classes
 
     public:
         explicit NewNode(const std::string& clsName, std::vector<std::unique_ptr<ASTNode>> args,
-                const SourceLocation& loc = SourceLocation());
+                         const SourceLocation& loc = SourceLocation());
 
         const std::string& getClassName() const;
         const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
