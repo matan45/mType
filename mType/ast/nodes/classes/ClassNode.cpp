@@ -13,7 +13,8 @@ namespace ast::nodes::classes
                          const std::vector<GenericTypeParameter>& generics,
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
-        : ASTNode(loc), className(name), genericParameters(generics),implementedInterfaces(interfaces), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
+        : ASTNode(loc), className(name), genericParameters(generics), implementedInterfaces(interfaces),
+          finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -23,7 +24,8 @@ namespace ast::nodes::classes
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics),
-          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
+          parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), abstractClass(false),
+          visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -108,14 +110,18 @@ namespace ast::nodes::classes
     }
 
     bool ClassNode::isGeneric() const
-    { return !genericParameters.empty(); }
+    {
+        return !genericParameters.empty();
+    }
 
     std::string ClassNode::getFullClassName() const
     {
         std::string fullName = className;
-        if (!genericParameters.empty()) {
+        if (!genericParameters.empty())
+        {
             fullName += "<";
-            for (size_t i = 0; i < genericParameters.size(); ++i) {
+            for (size_t i = 0; i < genericParameters.size(); ++i)
+            {
                 if (i > 0) fullName += ", ";
                 fullName += genericParameters[i].toString();
             }
@@ -220,22 +226,28 @@ namespace ast::nodes::classes
         );
 
         // Clone fields
-        for (const auto& field : fields) {
-            if (field) {
+        for (const auto& field : fields)
+        {
+            if (field)
+            {
                 clonedClass->addField(field->clone());
             }
         }
 
         // Clone constructors
-        for (const auto& constructor : constructors) {
-            if (constructor) {
+        for (const auto& constructor : constructors)
+        {
+            if (constructor)
+            {
                 clonedClass->addConstructor(constructor->clone());
             }
         }
 
         // Clone methods
-        for (const auto& method : methods) {
-            if (method) {
+        for (const auto& method : methods)
+        {
+            if (method)
+            {
                 clonedClass->addMethod(method->clone());
             }
         }
@@ -246,8 +258,10 @@ namespace ast::nodes::classes
         clonedClass->setVisibility(visibility);
 
         // Clone annotations
-        for (const auto& annotation : annotations) {
-            if (annotation) {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation)
+            {
                 // Safely reconstruct annotation using make_shared to avoid unsafe cast
                 auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
                     annotation->getName(),

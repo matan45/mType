@@ -46,20 +46,26 @@ mtype/
 │   │   └── registry/            # Class and function registries
 │   ├── errors/                  # Error definitions
 │   │   └── [Various exception types]
-│   ├── evaluator/               # Runtime evaluation
-│   │   ├── Evaluator.cpp/.hpp
-│   │   ├── EvaluatorCoordinator.cpp/.hpp
-│   │   ├── ExpressionEvaluator.cpp/.hpp
-│   │   ├── ObjectEvaluator.cpp/.hpp
-│   │   ├── StatementEvaluator.cpp/.hpp
-│   │   ├── base/                # Evaluation context
-│   │   ├── managers/            # Control flow and instance management
-│   │   ├── statements/          # Statement handlers (refactored)
-│   │   │   └── DeclarationHandler.cpp/.hpp  # Variable declarations and assignments
-│   │   ├── utils/               # Evaluation utilities
-│   │   │   └── GenericTypeManager.cpp/.hpp  # Generic type operations and validation
-│   │   └── validation/          # Type validation utilities
-│   │       └── TypeValidator.cpp/.hpp
+│   ├── optimizer/               # AST optimization passes
+│   │   ├── OptimizationService.cpp/.hpp
+│   │   └── passes/              # Individual optimization passes
+│   │       ├── ConstantFoldingPass.cpp/.hpp
+│   │       ├── DeadCodeEliminationPass.cpp/.hpp
+│   │       └── UnusedDeclarationEliminationPass.cpp/.hpp
+│   ├── vm/                      # Virtual Machine components
+│   │   ├── bytecode/            # Bytecode definitions and serialization
+│   │   │   ├── BytecodeProgram.cpp/.hpp
+│   │   │   ├── Instruction.hpp
+│   │   │   └── OpCode.hpp
+│   │   ├── compiler/            # Bytecode compiler
+│   │   │   ├── BytecodeCompiler.cpp/.hpp
+│   │   │   └── registration/    # Class/method registration
+│   │   └── runtime/             # VM execution engine
+│   │       ├── VirtualMachine.cpp/.hpp
+│   │       ├── context/         # Execution context
+│   │       ├── executors/       # Instruction executors
+│   │       ├── stack/           # Stack management
+│   │       └── utils/           # VM utilities
 │   ├── exception/               # Control flow exceptions
 │   │   ├── BreakException.hpp
 │   │   ├── ContinueException.hpp
@@ -150,6 +156,113 @@ mtype/
         └── mType.exe
 ```
 
+## Architecture Update (v0.2.0)
+
+**Migration from Tree-Walking Interpreter to Bytecode VM**
+
+mType has undergone a significant architectural transformation, moving from a tree-walking interpreter to a **bytecode compilation + VM execution** model. This change provides:
+- **Better Performance**: Stack-based VM execution is faster than recursive tree-walking
+- **Optimizations**: AST optimizations before bytecode generation (constant folding, dead code elimination)
+- **Portability**: Compiled bytecode can be distributed and executed independently
+- **Future Capabilities**: Foundation for JIT compilation and advanced optimizations
+
+### Compilation Pipeline
+
+```
+Source Code (.mt)
+    ↓
+Lexer (Tokenization)
+    ↓
+Parser (AST Construction)
+    ↓
+AST Optimizer (Optional - based on optimization level)
+    ├─ Constant Folding Pass
+    ├─ Dead Code Elimination Pass
+    └─ Unused Declaration Elimination Pass
+    ↓
+Bytecode Compiler
+    ↓
+Bytecode Program (.mtc)
+    ↓
+Virtual Machine (Stack-based execution)
+    ↓
+Result
+```
+
+### Execution Modes
+
+1. **Direct Execution**: `mType script.mt`
+   - Compiles AST to bytecode in memory
+   - Executes immediately via VM
+   - No intermediate `.mtc` file created
+
+2. **Compile to Bytecode**: `mType --compile [-release] script.mt`
+   - Generates `script.mtc` bytecode file
+   - `-release` flag enables full optimizations
+   - Bytecode includes class metadata, constant pool, debug information
+
+3. **Execute Bytecode**: `mType script.mtc`
+   - Loads and deserializes bytecode
+   - Registers class metadata
+   - Executes via VM
+
+### Key Components
+
+#### Bytecode Compiler (`vm/compiler/BytecodeCompiler`)
+- Translates AST to stack-based bytecode instructions
+- Generates constant pools for strings, numbers, etc.
+- Emits class metadata for runtime registration
+- Preserves source locations for debugging
+
+#### Virtual Machine (`vm/runtime/VirtualMachine`)
+- Stack-based execution engine
+- Specialized instruction executors (SOLID principle)
+- Call stack management with overflow detection
+- Debugger integration support
+- Async/await support via event loop
+
+#### Optimization Service (`optimizer/OptimizationService`)
+- Configurable optimization levels (Debug, Release)
+- AST-level optimizations before bytecode generation
+- Preserves annotations through optimization passes
+- Dead code elimination respects `@Script` and `@Throw` annotations
+
+### Removed Components (v0.2.0)
+
+The following components were removed during the bytecode migration:
+
+- **Tree-Walking Interpreter** (`evaluator/` directory)
+  - `Evaluator.cpp/.hpp`
+  - `EvaluatorCoordinator.cpp/.hpp`
+  - `ExpressionEvaluator.cpp/.hpp`
+  - `ObjectEvaluator.cpp/.hpp`
+  - `StatementEvaluator.cpp/.hpp`
+  - All evaluation utilities and helpers
+
+- **Dual Execution Mode Support**
+  - `ASTExecutionStrategy.cpp/.hpp`
+  - `DualValidationStrategy.cpp/.hpp`
+  - Execution mode selection logic
+
+- **Direct AST Evaluation**
+  - AST is now only used for compilation, not interpretation
+  - No runtime AST traversal
+
+### VM Configuration
+
+The Virtual Machine supports configurable parameters:
+
+```cpp
+// Default configuration (constants::vm namespace)
+constexpr size_t DEFAULT_CALL_STACK_CAPACITY = 64;    // Initial reservation
+constexpr size_t DEFAULT_MAX_CALL_STACK_SIZE = 1000;  // Maximum depth
+
+// Custom configuration via constructor
+VirtualMachine vm(environment, maxStackDepth);
+```
+
+**Stack Overflow Protection**: The VM includes overflow detection with helpful error messages showing the call stack trace to identify infinite recursion patterns.
+
 ## Implementation Mode and Design Principles
 
 ### SOLID Principles Implementation
@@ -157,8 +270,10 @@ mtype/
 #### Single Responsibility Principle (SRP)
 - **Lexer**: Solely responsible for tokenizing input
 - **Parser**: Only handles syntax analysis and AST construction
-- **SemanticAnalyzer**: Focused exclusively on type checking and semantic validation
-- **Evaluator**: Dedicated to runtime execution and interpretation
+- **BytecodeCompiler**: Focused exclusively on translating AST to bytecode
+- **VirtualMachine**: Dedicated to bytecode execution
+- **Instruction Executors**: Each executor handles one category of instructions
+- **OptimizationService**: Manages AST optimization passes
 - **ErrorReporter**: Handles all error reporting and formatting
 - **Environment**: Manages variable scoping and symbol tables
 - **TypeRegistry**: Maintains type definitions and relationships
@@ -168,7 +283,8 @@ mtype/
 - **Visitor Pattern**: Used for AST traversal, allowing new operations without modifying existing nodes
 - **Strategy Pattern**: Different optimization strategies can be plugged in without changing core logic
 - **Plugin Architecture**: New language features can be added without modifying core components
-- **Evaluator Extensions**: New evaluation strategies can be implemented without changing base evaluator
+- **Instruction Executors**: New instruction types can be added by implementing new executors
+- **Optimization Passes**: New optimization passes can be added without modifying existing ones
 
 #### Liskov Substitution Principle (LSP)
 - **AST Nodes**: All derived node types can be used interchangeably through base class pointers
