@@ -94,6 +94,41 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
             }
         })
     );
+
+    // Command to show references (converts JSON from LSP to VS Code types)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.showReferences', async (uriString: string, position: any, locations: any[]) => {
+            try {
+                console.log('[mtype.showReferences] Called with:', { uriString, position, locations });
+
+                // Convert URI string to vscode.Uri
+                const uri = vscode.Uri.parse(uriString);
+                console.log('[mtype.showReferences] Parsed URI:', uri.toString());
+
+                // Convert position object to vscode.Position
+                const pos = new vscode.Position(position.line, position.character);
+                console.log('[mtype.showReferences] Created Position:', pos);
+
+                // Convert location objects to vscode.Location[]
+                const locs: vscode.Location[] = locations.map((loc: any) => {
+                    const locUri = vscode.Uri.parse(loc.uri);
+                    const range = new vscode.Range(
+                        new vscode.Position(loc.range.start.line, loc.range.start.character),
+                        new vscode.Position(loc.range.end.line, loc.range.end.character)
+                    );
+                    return new vscode.Location(locUri, range);
+                });
+                console.log('[mtype.showReferences] Created', locs.length, 'locations');
+
+                // Call VS Code's built-in showReferences command with proper types
+                await vscode.commands.executeCommand('editor.action.showReferences', uri, pos, locs);
+                console.log('[mtype.showReferences] Successfully showed references');
+            } catch (error) {
+                console.error('[mtype.showReferences] Error:', error);
+                vscode.window.showErrorMessage('Failed to show references: ' + error);
+            }
+        })
+    );
 }
 
 export function activate(context: vscode.ExtensionContext) {

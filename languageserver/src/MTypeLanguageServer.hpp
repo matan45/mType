@@ -7,6 +7,9 @@
 #include "handlers/DiagnosticsHandler.hpp"
 #include "handlers/HoverHandler.hpp"
 #include "handlers/DefinitionHandler.hpp"
+#include "handlers/CodeActionHandler.hpp"
+#include "handlers/CodeLensHandler.hpp"
+#include "handlers/FormattingHandler.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
 
@@ -33,6 +36,9 @@ private:
     void handleCompletion(const json& id, const json& params);
     void handleHover(const json& id, const json& params);
     void handleDefinition(const json& id, const json& params);
+    void handleCodeAction(const json& id, const json& params);
+    void handleCodeLens(const json& id, const json& params);
+    void handleFormatting(const json& id, const json& params);
 
     // Utility methods
     void sendResponse(const json& id, const json& result);
@@ -45,6 +51,9 @@ private:
     std::unique_ptr<DiagnosticsHandler> diagnosticsHandler_;
     std::unique_ptr<HoverHandler> hoverHandler_;
     std::unique_ptr<DefinitionHandler> definitionHandler_;
+    std::unique_ptr<CodeActionHandler> codeActionHandler_;
+    std::unique_ptr<CodeLensHandler> codeLensHandler_;
+    std::unique_ptr<FormattingHandler> formattingHandler_;
 
     bool shouldExit_ = false;
 };

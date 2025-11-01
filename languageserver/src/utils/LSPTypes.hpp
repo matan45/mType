@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <map>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -109,7 +110,8 @@ enum class CompletionItemKind {
     Snippet = 15,
     Color = 16,
     File = 17,
-    Reference = 18
+    Reference = 18,
+    Folder = 19
 };
 
 enum class DiagnosticSeverity {
@@ -145,6 +147,83 @@ struct Hover {
             {"contents", contents}
         };
         if (range) j["range"] = *range;
+        return j;
+    }
+};
+
+struct TextEdit {
+    Range range;
+    std::string newText;
+
+    json toJson() const {
+        return json{
+            {"range", range},
+            {"newText", newText}
+        };
+    }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextEdit, range, newText)
+};
+
+struct WorkspaceEdit {
+    std::map<std::string, std::vector<TextEdit>> changes; // uri -> edits
+
+    json toJson() const {
+        json changesJson = json::object();
+        for (const auto& [uri, edits] : changes) {
+            json editsArray = json::array();
+            for (const auto& edit : edits) {
+                editsArray.push_back(edit.toJson());
+            }
+            changesJson[uri] = editsArray;
+        }
+        return json{
+            {"changes", changesJson}
+        };
+    }
+};
+
+struct CodeAction {
+    std::string title;
+    std::optional<std::string> kind; // "quickfix", "refactor", etc.
+    std::optional<WorkspaceEdit> edit;
+
+    json toJson() const {
+        json j = {
+            {"title", title}
+        };
+        if (kind) j["kind"] = *kind;
+        if (edit) j["edit"] = edit->toJson();
+        return j;
+    }
+};
+
+struct Command {
+    std::string title;
+    std::string command;
+    std::optional<json> arguments;
+
+    json toJson() const {
+        json j = {
+            {"title", title},
+            {"command", command}
+        };
+        if (arguments) j["arguments"] = *arguments;
+        return j;
+    }
+};
+
+struct CodeLens {
+    Range range;
+    std::optional<Command> command;
+    std::optional<json> data;
+
+    json toJson() const {
+        json j = {
+            {"range", range}
+        };
+        if (command) j["command"] = command->toJson();
+        if (data) j["data"] = *data;
         return j;
     }
 };

@@ -5,6 +5,7 @@
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 using namespace lexer;
 using namespace token;
@@ -53,15 +54,29 @@ const Document* DocumentManager::getDocument(const std::string& uri) const {
 }
 
 void DocumentManager::parseDocument(const std::string& uri) {
+    std::cerr << "[DocumentManager::parseDocument] Parsing document: " << uri << std::endl;
     auto doc = getDocument(uri);
-    if (!doc) return;
+    if (!doc) {
+        std::cerr << "[DocumentManager::parseDocument] Document not found!" << std::endl;
+        return;
+    }
 
     try {
-        // Clear previous state
+        // Clear errors but preserve AST and environment if parse fails
         doc->parseErrors.clear();
         doc->semanticErrors.clear();
         doc->tokens.clear();
-        doc->ast.clear();
+
+        // Save previous AST and environment in case parse fails
+        std::vector<std::unique_ptr<ast::ASTNode>> previousAst;
+        std::shared_ptr<environment::Environment> previousEnvironment;
+        std::unordered_map<std::string, SymbolLocationInfo> previousSymbolLocations;
+
+        if (!doc->ast.empty()) {
+            // Keep a backup of the previous valid state
+            std::cerr << "[DocumentManager::parseDocument] Backing up previous AST with " << doc->ast.size() << " nodes" << std::endl;
+            // We can't move, so we'll just keep the old one if parsing fails
+        }
 
         // Create an in-memory file reader for LSP
         auto fileReader = std::make_unique<MemoryFileReader>();
@@ -77,37 +92,101 @@ void DocumentManager::parseDocument(const std::string& uri) {
         // Create parser with the lexer
         doc->parser = std::make_unique<Parser>(*doc->lexer, std::move(docImportManager));
 
-        // Parse the document to get AST
+        // Try to parse the document to get new AST
+        std::vector<std::unique_ptr<ast::ASTNode>> newAst;
+        bool parseSucceeded = false;
+
         try {
             auto program = doc->parser->parseProgram();
             if (program) {
-                doc->ast.push_back(std::move(program));
+                newAst.push_back(std::move(program));
+                parseSucceeded = true;
+                std::cerr << "[DocumentManager::parseDocument] AST parsed successfully" << std::endl;
+            } else {
+                std::cerr << "[DocumentManager::parseDocument] Parser returned null program" << std::endl;
             }
         } catch (const std::exception& e) {
             doc->parseErrors.push_back(e.what());
+            std::cerr << "[DocumentManager::parseDocument] Parse error: " << e.what() << std::endl;
+            std::cerr << "[DocumentManager::parseDocument] Keeping previous AST and environment for autocomplete" << std::endl;
         }
 
-        // Create environment for semantic analysis
-        doc->environment = EnvironmentBuilder::createDefault();
+        // Only update AST and environment if parsing succeeded
+        if (parseSucceeded && !newAst.empty()) {
+            doc->ast = std::move(newAst);
 
-        // Build symbol tables from AST using symbol registration
+            // Create environment for semantic analysis
+            doc->environment = EnvironmentBuilder::createDefault();
+            std::cerr << "[DocumentManager::parseDocument] Environment created" << std::endl;
+        } else if (doc->environment) {
+            std::cerr << "[DocumentManager::parseDocument] Reusing previous environment with registered symbols" << std::endl;
+
+            // Log what's in the registries from previous parse
+            auto classRegistry = doc->environment->getClassRegistry();
+            auto interfaceRegistry = doc->environment->getInterfaceRegistry();
+            if (classRegistry) {
+                auto classNames = classRegistry->getAllItemNames();
+                std::cerr << "[DocumentManager::parseDocument] Reused class registry has " << classNames.size() << " classes" << std::endl;
+                for (const auto& className : classNames) {
+                    std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
+                }
+            }
+            if (interfaceRegistry) {
+                auto interfaces = interfaceRegistry->getAllInterfaces();
+                std::cerr << "[DocumentManager::parseDocument] Reused interface registry has " << interfaces.size() << " interfaces" << std::endl;
+                for (const auto& [interfaceName, interfaceDef] : interfaces) {
+                    std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
+                }
+            }
+        } else {
+            // First parse and it failed - create empty environment
+            doc->environment = EnvironmentBuilder::createDefault();
+            std::cerr << "[DocumentManager::parseDocument] First parse failed - creating empty environment" << std::endl;
+        }
+
+        // Build symbol tables from AST using symbol registration (only if we have new AST)
         try {
-            if (!doc->ast.empty()) {
+            if (parseSucceeded && !doc->ast.empty()) {
+                std::cerr << "[DocumentManager::parseDocument] Starting symbol registration for " << doc->ast.size() << " AST nodes" << std::endl;
+
                 // Create symbol registration visitor
                 auto visitor = std::make_unique<SymbolRegistrationVisitor>(doc->environment);
 
                 // Traverse AST to register all symbols
                 for (const auto& node : doc->ast) {
                     if (node) {
+                        std::cerr << "[DocumentManager::parseDocument] Processing AST node" << std::endl;
                         visitor->processProgram(node.get(), uri);
                     }
                 }
 
                 // Store symbol locations for go-to-definition
                 doc->symbolLocations = visitor->getSymbolLocations();
+                std::cerr << "[DocumentManager::parseDocument] Symbol registration complete. Registered " << doc->symbolLocations.size() << " symbols" << std::endl;
+
+                // Log what's in the registries
+                auto classRegistry = doc->environment->getClassRegistry();
+                auto interfaceRegistry = doc->environment->getInterfaceRegistry();
+                if (classRegistry) {
+                    auto classNames = classRegistry->getAllItemNames();
+                    std::cerr << "[DocumentManager::parseDocument] Class registry has " << classNames.size() << " classes" << std::endl;
+                    for (const auto& className : classNames) {
+                        std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
+                    }
+                }
+                if (interfaceRegistry) {
+                    auto interfaces = interfaceRegistry->getAllInterfaces();
+                    std::cerr << "[DocumentManager::parseDocument] Interface registry has " << interfaces.size() << " interfaces" << std::endl;
+                    for (const auto& [interfaceName, interfaceDef] : interfaces) {
+                        std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
+                    }
+                }
+            } else {
+                std::cerr << "[DocumentManager::parseDocument] Parse failed or AST empty, skipping new symbol registration (keeping previous symbols if any)" << std::endl;
             }
         } catch (const std::exception& e) {
             doc->semanticErrors.push_back(std::string("Symbol registration error: ") + e.what());
+            std::cerr << "[DocumentManager::parseDocument] Symbol registration error: " << e.what() << std::endl;
         }
 
         // Tokenize for token-based features (keep for completion)

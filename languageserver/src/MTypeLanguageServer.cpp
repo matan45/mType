@@ -9,6 +9,9 @@ MTypeLanguageServer::MTypeLanguageServer() {
     diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
     hoverHandler_ = std::make_unique<HoverHandler>(documentManager_.get());
     definitionHandler_ = std::make_unique<DefinitionHandler>(documentManager_.get());
+    codeActionHandler_ = std::make_unique<CodeActionHandler>(documentManager_.get());
+    codeLensHandler_ = std::make_unique<CodeLensHandler>(documentManager_.get());
+    formattingHandler_ = std::make_unique<FormattingHandler>();
 
     // Set up diagnostics publisher
     diagnosticsHandler_->setPublisher(
@@ -67,6 +70,12 @@ void MTypeLanguageServer::handleRequest(const json& id, const std::string& metho
         handleHover(id, params);
     } else if (method == "textDocument/definition") {
         handleDefinition(id, params);
+    } else if (method == "textDocument/codeAction") {
+        handleCodeAction(id, params);
+    } else if (method == "textDocument/codeLens") {
+        handleCodeLens(id, params);
+    } else if (method == "textDocument/formatting") {
+        handleFormatting(id, params);
     } else {
         sendError(id, -32601, "Method not found: " + method);
     }
@@ -91,12 +100,17 @@ void MTypeLanguageServer::handleInitialize(const json& id, const json& params) {
         {"textDocumentSync", 1},  // Full sync
         {"completionProvider", {
             {"resolveProvider", false},
-            {"triggerCharacters", json::array({".", ":"})}
+            {"triggerCharacters", json::array({".", ":", "\"", "/"})}
         }},
         {"hoverProvider", true},
-        {"definitionProvider", true},  // Now implemented
-        {"referencesProvider", false},  // TODO: Implement
-        {"documentFormattingProvider", false}  // TODO: Implement
+        {"definitionProvider", true},
+        {"codeActionProvider", true},  // Quick fixes and refactorings
+        {"codeLensProvider", {
+            {"resolveProvider", false}
+        }},
+        {"documentFormattingProvider", true},
+        {"documentRangeFormattingProvider", false},  // TODO: Implement
+        {"referencesProvider", false}  // TODO: Implement
     };
 
     json result = {
@@ -180,6 +194,91 @@ void MTypeLanguageServer::handleDefinition(const json& id, const json& params) {
     } else {
         sendResponse(id, nullptr);
     }
+}
+
+void MTypeLanguageServer::handleCodeAction(const json& id, const json& params) {
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] REQUEST RECEIVED!" << std::endl;
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] Params: " << params.dump() << std::endl;
+
+    std::string uri = params["textDocument"]["uri"];
+    Range range = params["range"];
+
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] URI: " << uri << std::endl;
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] Range: line " << range.start.line
+              << " char " << range.start.character << " to line " << range.end.line
+              << " char " << range.end.character << std::endl;
+
+    // Get diagnostics if provided
+    std::vector<Diagnostic> diagnostics;
+    if (params.contains("context") && params["context"].contains("diagnostics")) {
+        // Parse diagnostics from params if needed
+        std::cerr << "[MTypeLanguageServer::handleCodeAction] Has diagnostics in context" << std::endl;
+    }
+
+    auto actions = codeActionHandler_->handleCodeAction(uri, range, diagnostics);
+
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] Returning " << actions.size() << " actions" << std::endl;
+
+    json result = json::array();
+    for (const auto& action : actions) {
+        result.push_back(action.toJson());
+    }
+
+    std::cerr << "[MTypeLanguageServer::handleCodeAction] Response JSON: " << result.dump() << std::endl;
+    sendResponse(id, result);
+}
+
+void MTypeLanguageServer::handleCodeLens(const json& id, const json& params) {
+    std::string uri = params["textDocument"]["uri"];
+
+    auto lenses = codeLensHandler_->handleCodeLens(uri);
+
+    json result = json::array();
+    for (const auto& lens : lenses) {
+        result.push_back(lens.toJson());
+    }
+
+    sendResponse(id, result);
+}
+
+void MTypeLanguageServer::handleFormatting(const json& id, const json& params) {
+    std::string uri = params["textDocument"]["uri"];
+
+    // Get formatting options
+    FormattingOptions options;
+    if (params.contains("options")) {
+        auto opts = params["options"];
+        if (opts.contains("tabSize")) {
+            options.tabSize = opts["tabSize"];
+        }
+        if (opts.contains("insertSpaces")) {
+            options.insertSpaces = opts["insertSpaces"];
+        }
+        if (opts.contains("trimTrailingWhitespace")) {
+            options.trimTrailingWhitespace = opts["trimTrailingWhitespace"];
+        }
+        if (opts.contains("insertFinalNewline")) {
+            options.insertFinalNewline = opts["insertFinalNewline"];
+        }
+    }
+
+    // Get document content
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) {
+        sendResponse(id, json::array());
+        return;
+    }
+
+    // Format the document
+    auto edits = formattingHandler_->formatDocument(doc->content, options);
+
+    // Convert to JSON
+    json result = json::array();
+    for (const auto& edit : edits) {
+        result.push_back(edit.toJson());
+    }
+
+    sendResponse(id, result);
 }
 
 void MTypeLanguageServer::sendResponse(const json& id, const json& result) {

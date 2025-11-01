@@ -1,19 +1,18 @@
 // Test: @Script annotation for C++ binding
-// Expected: Pass - multiple classes marked with @Script
+// Expected: Pass - multiple class es marked with @Script
 
 @Script
-
 class PlayerController {
     private int health;
 
-constructor() {}
+    constructor() {}
 
     constructor(int initialHealth) {
         health = initialHealth;
     }
 
     public function update(float dt) : void
- {}
+    {}
 
     public function getHealth() : int {
         return health;
@@ -25,17 +24,16 @@ constructor() {}
 }
 
 @Script
-
 class GameWorld {
     private int level;
 
-constructor() {}
+    constructor() {}
 
     constructor(int startLevel) {
         level = startLevel;
     }
 
-public function update(float dt) : void {}
+    public function update(float dt) : void {}
 
     public function getLevel() : int {
         return level;

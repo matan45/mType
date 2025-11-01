@@ -85,8 +85,8 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
             const auto& location = classNode->getLocation();
             symbolLocations_[className] = SymbolLocationInfo{
                 currentUri_,
-                location.getLine(),
-                location.getColumn()
+                location.getLine() - 1,  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
             };
 
         } catch (const std::exception&) {
@@ -114,14 +114,29 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
                 interfaceDef->addExtendedInterface(parentInterface);
             }
 
+            // Register method signatures from the interface
+            for (const auto& method : interfaceNode->getMethods()) {
+                // Cast to FunctionNode to extract method signature details
+                auto* functionNode = dynamic_cast<ast::nodes::functions::FunctionNode*>(method.get());
+                if (functionNode) {
+                    runtimeTypes::klass::MethodSignature signature;
+                    signature.name = functionNode->getName();
+                    signature.returnType = functionNode->getGenericReturnType();
+                    signature.parameters = functionNode->getGenericParameters();
+                    signature.genericParameters = functionNode->getGenericTypeParameters();
+
+                    interfaceDef->addMethodSignature(signature);
+                }
+            }
+
             environment_->registerInterface(interfaceName, interfaceDef);
 
             // Track symbol location
             const auto& location = interfaceNode->getLocation();
             symbolLocations_[interfaceName] = SymbolLocationInfo{
                 currentUri_,
-                location.getLine(),
-                location.getColumn()
+                location.getLine() - 1,  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
             };
 
         } catch (const std::exception&) {
@@ -154,8 +169,8 @@ void SymbolRegistrationVisitor::processFunctionNode(ast::ASTNode* node) {
             const auto& location = functionNode->getLocation();
             symbolLocations_[functionName] = SymbolLocationInfo{
                 currentUri_,
-                location.getLine(),
-                location.getColumn()
+                location.getLine() - 1,  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
             };
 
         } catch (const std::exception&) {
