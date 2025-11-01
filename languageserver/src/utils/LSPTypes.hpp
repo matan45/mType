@@ -27,6 +27,14 @@ struct Location {
     std::string uri;
     Range range;
 
+    json toJson() const {
+        json j = {
+            {"uri", uri},
+            {"range", range}
+        };
+        return j;
+    }
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(Location, uri, range)
 };
 

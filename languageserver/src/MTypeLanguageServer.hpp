@@ -6,6 +6,7 @@
 #include "handlers/CompletionHandler.hpp"
 #include "handlers/DiagnosticsHandler.hpp"
 #include "handlers/HoverHandler.hpp"
+#include "handlers/DefinitionHandler.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
 
@@ -31,6 +32,7 @@ private:
     void handleDidCloseTextDocument(const json& params);
     void handleCompletion(const json& id, const json& params);
     void handleHover(const json& id, const json& params);
+    void handleDefinition(const json& id, const json& params);
 
     // Utility methods
     void sendResponse(const json& id, const json& result);
@@ -42,6 +44,7 @@ private:
     std::unique_ptr<CompletionHandler> completionHandler_;
     std::unique_ptr<DiagnosticsHandler> diagnosticsHandler_;
     std::unique_ptr<HoverHandler> hoverHandler_;
+    std::unique_ptr<DefinitionHandler> definitionHandler_;
 
     bool shouldExit_ = false;
 };

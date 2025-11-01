@@ -8,6 +8,10 @@
 // Include necessary headers
 #include "../../mType/token/Token.hpp"
 #include "../../mType/lexer/Lexer.hpp"
+#include "../../mType/parser/Parser.hpp"
+#include "../../mType/environment/Environment.hpp"
+#include "../../mType/services/ImportManager.hpp"
+#include "../../mType/ast/ASTNode.hpp"
 
 namespace mtype::lsp {
 
@@ -18,18 +22,21 @@ struct Document {
 
     // Parsed representation
     std::unique_ptr<lexer::Lexer> lexer;
-    // Note: Parser and Environment require ImportManager and full semantic analysis
-    // For basic LSP features (completion, hover), we only need tokens
-    // TODO: Add full semantic analysis when needed for advanced features
+    std::unique_ptr<parser::Parser> parser;
+    std::shared_ptr<environment::Environment> environment;
+    std::vector<std::unique_ptr<ast::ASTNode>> ast;
 
     // State
     bool isParsed = false;
     std::vector<std::string> parseErrors;
+    std::vector<std::string> semanticErrors;
     std::vector<token::Token> tokens;
 };
 
 class DocumentManager {
 public:
+    DocumentManager();
+
     void openDocument(const std::string& uri, const std::string& content, int version);
     void updateDocument(const std::string& uri, const std::string& content, int version);
     void closeDocument(const std::string& uri);
@@ -37,12 +44,34 @@ public:
     Document* getDocument(const std::string& uri);
     const Document* getDocument(const std::string& uri) const;
 
-    // Parse document
+    // Parse document with full semantic analysis
     void parseDocument(const std::string& uri);
 
     // Query methods
     std::string getWordAtPosition(const std::string& uri, int line, int character) const;
     std::vector<std::string> getIdentifiersInScope(const std::string& uri, int line) const;
+
+    // Semantic query methods
+    struct SymbolLocation {
+        std::string uri;
+        int line;
+        int column;
+    };
+
+    // Find the definition of a symbol at the given position
+    std::optional<SymbolLocation> findDefinition(const std::string& uri, int line, int character) const;
+
+    // Get type information for a symbol at the given position
+    std::optional<std::string> getTypeInfo(const std::string& uri, int line, int character) const;
+
+    // Get all symbols in a document
+    struct SymbolInfo {
+        std::string name;
+        std::string kind; // "class", "function", "variable", etc.
+        int line;
+        int column;
+    };
+    std::vector<SymbolInfo> getDocumentSymbols(const std::string& uri) const;
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Document>> documents_;

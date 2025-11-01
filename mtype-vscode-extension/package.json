@@ -188,6 +188,11 @@
         "command": "mtype.restartLanguageServer",
         "title": "Restart Language Server",
         "category": "mType"
+      },
+      {
+        "command": "mtype.formatDocument",
+        "title": "Format Document",
+        "category": "mType"
       }
     ],
     "keybindings": [

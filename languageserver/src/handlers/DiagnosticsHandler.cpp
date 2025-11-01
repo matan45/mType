@@ -30,13 +30,23 @@ std::vector<Diagnostic> DiagnosticsHandler::analyzeDiagnostics(const Document* d
         Diagnostic diag;
         diag.range = Range{{0, 0}, {0, 0}};  // Default range
         diag.severity = static_cast<int>(DiagnosticSeverity::Error);
-        diag.message = error;
-        diag.source = "mType";
+        diag.message = "Parse error: " + error;
+        diag.source = "mType Parser";
         diagnostics.push_back(diag);
     }
 
-    // TODO: Add more sophisticated error checking
-    // - Type errors
+    // Add semantic errors
+    for (const auto& error : doc->semanticErrors) {
+        Diagnostic diag;
+        diag.range = Range{{0, 0}, {0, 0}};  // Default range
+        diag.severity = static_cast<int>(DiagnosticSeverity::Error);
+        diag.message = "Semantic error: " + error;
+        diag.source = "mType Analyzer";
+        diagnostics.push_back(diag);
+    }
+
+    // TODO: Add more sophisticated error checking with proper source locations
+    // - Type errors with specific line/column
     // - Undefined variables
     // - Unused variables (warning)
     // - etc.

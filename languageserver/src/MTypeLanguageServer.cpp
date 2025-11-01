@@ -8,6 +8,7 @@ MTypeLanguageServer::MTypeLanguageServer() {
     completionHandler_ = std::make_unique<CompletionHandler>(documentManager_.get());
     diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
     hoverHandler_ = std::make_unique<HoverHandler>(documentManager_.get());
+    definitionHandler_ = std::make_unique<DefinitionHandler>(documentManager_.get());
 
     // Set up diagnostics publisher
     diagnosticsHandler_->setPublisher(
@@ -64,6 +65,8 @@ void MTypeLanguageServer::handleRequest(const json& id, const std::string& metho
         handleCompletion(id, params);
     } else if (method == "textDocument/hover") {
         handleHover(id, params);
+    } else if (method == "textDocument/definition") {
+        handleDefinition(id, params);
     } else {
         sendError(id, -32601, "Method not found: " + method);
     }
@@ -91,7 +94,7 @@ void MTypeLanguageServer::handleInitialize(const json& id, const json& params) {
             {"triggerCharacters", json::array({".", ":"})}
         }},
         {"hoverProvider", true},
-        {"definitionProvider", false},  // TODO: Implement
+        {"definitionProvider", true},  // Now implemented
         {"referencesProvider", false},  // TODO: Implement
         {"documentFormattingProvider", false}  // TODO: Implement
     };
@@ -161,6 +164,19 @@ void MTypeLanguageServer::handleHover(const json& id, const json& params) {
 
     if (hover) {
         sendResponse(id, hover->toJson());
+    } else {
+        sendResponse(id, nullptr);
+    }
+}
+
+void MTypeLanguageServer::handleDefinition(const json& id, const json& params) {
+    std::string uri = params["textDocument"]["uri"];
+    Position position = params["position"];
+
+    auto location = definitionHandler_->handleDefinition(uri, position);
+
+    if (location) {
+        sendResponse(id, location->toJson());
     } else {
         sendResponse(id, nullptr);
     }

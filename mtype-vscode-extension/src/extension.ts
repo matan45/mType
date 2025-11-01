@@ -13,7 +13,93 @@ import { MTypeCodeLensProvider } from './codeLens/MTypeCodeLensProvider';
 import { MTypeSemanticTokensProvider, legend } from './semanticTokens/MTypeSemanticTokensProvider';
 import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
 
+function registerCommonCommands(context: vscode.ExtensionContext): void {
+    // Command to run mType file
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.run', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('mTypeLanguageServer');
+            const interpreterPath = config.get<string>('interpreterPath');
+
+            if (!interpreterPath) {
+                const result = await vscode.window.showErrorMessage(
+                    'mType interpreter path not configured. Would you like to set it now?',
+                    'Set Path'
+                );
+                if (result === 'Set Path') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'mTypeLanguageServer.interpreterPath');
+                }
+                return;
+            }
+
+            const filePath = editor.document.uri.fsPath;
+            const terminal = vscode.window.createTerminal('mType');
+            terminal.sendText(`"${interpreterPath}" "${filePath}"`);
+            terminal.show();
+        })
+    );
+
+    // Command to find all references
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.findReferences', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            try {
+                // Trigger find references
+                await vscode.commands.executeCommand('editor.action.referenceSearch.trigger');
+            } catch (error) {
+                vscode.window.showErrorMessage('Failed to find references: ' + error);
+            }
+        })
+    );
+
+    // Command to format document
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.formatDocument', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            try {
+                // Trigger format document
+                await vscode.commands.executeCommand('editor.action.formatDocument');
+            } catch (error) {
+                vscode.window.showErrorMessage('Failed to format document: ' + error);
+            }
+        })
+    );
+}
+
 export function activate(context: vscode.ExtensionContext) {
+    // Register commands that should always be available regardless of LSP mode
+    registerCommonCommands(context);
+
     // Check if LSP is enabled
     const config = vscode.workspace.getConfiguration('mType');
     const useLSP = config.get<boolean>('languageServer.enable', false);
@@ -143,13 +229,14 @@ export function activate(context: vscode.ExtensionContext) {
     const formatter = new MTypeFormatter();
     const formatterDisposable = vscode.languages.registerDocumentFormattingEditProvider('mtype', formatter);
 
+    // TODO: Debug adapter temporarily disabled to focus on LSP testing
     // Register debug configuration provider
-    const debugConfigProvider = new MTypeDebugConfigurationProvider();
-    const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
+    // const debugConfigProvider = new MTypeDebugConfigurationProvider();
+    // const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
 
     // Register debug adapter descriptor factory
-    const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
-    const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
+    // const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
+    // const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
 
     // Register additional commands
     const disposables = [
@@ -231,8 +318,8 @@ export function activate(context: vscode.ExtensionContext) {
         codeActionsDisposable,
         codeLensDisposable,
         semanticTokensDisposable,
-        debugConfigDisposable,
-        debugAdapterDisposable,
+        // debugConfigDisposable,  // Temporarily disabled
+        // debugAdapterDisposable,  // Temporarily disabled
         documentChangeDisposable,
         documentOpenDisposable,
         documentCloseDisposable,

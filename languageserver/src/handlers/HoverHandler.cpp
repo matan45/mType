@@ -14,6 +14,16 @@ std::optional<Hover> HoverHandler::handleHover(const std::string& uri, const Pos
     std::string word = documentManager_->getWordAtPosition(uri, position.line, position.character);
     if (word.empty()) return std::nullopt;
 
+    // Check type information from environment first (if available)
+    if (doc->environment) {
+        auto typeInfo = documentManager_->getTypeInfo(uri, position.line, position.character);
+        if (typeInfo) {
+            Hover hover;
+            hover.contents = "```mtype\n" + *typeInfo + "\n```";
+            return hover;
+        }
+    }
+
     // Check if it's a keyword
     auto keywordHover = getKeywordHover(word);
     if (keywordHover) return keywordHover;
