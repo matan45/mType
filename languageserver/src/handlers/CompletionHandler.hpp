@@ -26,6 +26,7 @@ private:
     std::vector<CompletionItem> getCollectionCompletions() const;
     std::vector<CompletionItem> getClassCompletions(const std::string& uri) const;
     std::vector<CompletionItem> getInterfaceCompletions(const std::string& uri) const;
+    std::vector<CompletionItem> getMemberCompletions(const std::string& uri, const std::string& objectName, int line, bool isStaticAccess) const;
     std::string getLineAtPosition(const std::string& content, const Position& position) const;
 
     DocumentManager* documentManager_;

@@ -1,4 +1,5 @@
 #include "CompletionHandler.hpp"
+#include "../../../mType/ast/AccessModifier.hpp"
 #include <sstream>
 #include <algorithm>
 
@@ -30,6 +31,46 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     // Get the current line to determine context
     std::string currentLine = getLineAtPosition(doc->content, position);
     std::string textBeforeCursor = currentLine.substr(0, std::min(position.character, static_cast<int>(currentLine.length())));
+
+    // Check if we're after :: (static member access) or . (instance member access)
+    // Trim whitespace from the end
+    std::string trimmed = textBeforeCursor;
+    while (!trimmed.empty() && std::isspace(trimmed.back())) {
+        trimmed.pop_back();
+    }
+
+    // Check for :: (static member access like ClassName::staticMethod)
+    bool isStaticAccess = false;
+    size_t operatorPos = std::string::npos;
+
+    if (trimmed.length() >= 2 && trimmed.substr(trimmed.length() - 2) == "::") {
+        isStaticAccess = true;
+        operatorPos = trimmed.length() - 2;
+    }
+    // Check for . (instance member access like object.method)
+    else if (!trimmed.empty() && trimmed.back() == '.') {
+        isStaticAccess = false;
+        operatorPos = trimmed.length() - 1;
+    }
+
+    if (operatorPos != std::string::npos) {
+        // We're in member access context - find the identifier before :: or .
+        size_t identifierStart = operatorPos;
+
+        // Go backwards to find the start of the identifier
+        while (identifierStart > 0 &&
+               (std::isalnum(trimmed[identifierStart - 1]) || trimmed[identifierStart - 1] == '_')) {
+            identifierStart--;
+        }
+
+        std::string identifier = trimmed.substr(identifierStart, operatorPos - identifierStart);
+
+        if (!identifier.empty()) {
+            // Get member completions for this identifier
+            auto memberItems = getMemberCompletions(uri, identifier, position.line, isStaticAccess);
+            return memberItems;
+        }
+    }
 
     // Check context-specific completions
     // If we're after "implements", only show interfaces
@@ -270,6 +311,163 @@ std::vector<CompletionItem> CompletionHandler::getInterfaceCompletions(const std
         item.kind = static_cast<int>(CompletionItemKind::Interface);
         item.detail = "interface";
         item.insertText = interfaceName;
+        items.push_back(item);
+    }
+
+    return items;
+}
+
+std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
+    const std::string& uri,
+    const std::string& objectName,
+    int line,
+    bool isStaticAccess
+) const {
+    std::vector<CompletionItem> items;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc || !doc->environment) {
+        return items;
+    }
+
+    auto classRegistry = doc->environment->getClassRegistry();
+    if (!classRegistry) {
+        return items;
+    }
+
+    // If using :: operator, ONLY allow static member access from class names
+    if (isStaticAccess) {
+        // objectName must be a class name for :: operator
+        if (classRegistry->hasClass(objectName)) {
+            auto classDef = classRegistry->findClass(objectName);
+            if (classDef) {
+                // Get static methods
+                const auto& staticMethods = classDef->getStaticMethods();
+                for (const auto& pair : staticMethods) {
+                    const std::string& methodName = pair.first;
+                    const auto& methodDef = pair.second;
+
+                    CompletionItem item;
+                    item.label = methodName;
+                    item.kind = static_cast<int>(CompletionItemKind::Method);
+
+                    // Include access modifier and static keyword
+                    std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " static method";
+                    item.detail = detail;
+                    item.insertText = methodName;
+                    items.push_back(item);
+                }
+
+                // Get static fields
+                const auto& staticFields = classDef->getStaticFields();
+                for (const auto& pair : staticFields) {
+                    const std::string& fieldName = pair.first;
+                    const auto& fieldDef = pair.second;
+
+                    CompletionItem item;
+                    item.label = fieldName;
+                    item.kind = static_cast<int>(CompletionItemKind::Field);
+
+                    // Include access modifier and static keyword
+                    std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " static field";
+                    item.detail = detail;
+                    item.insertText = fieldName;
+                    items.push_back(item);
+                }
+            }
+        }
+        return items;
+    }
+
+    // If using . operator, provide instance member access
+    // Use type inference to show only relevant members for the specific object type
+    std::string varType = documentManager_->getVariableType(uri, objectName, line);
+
+    if (varType.empty()) {
+        // Fallback: if type inference fails, show all instance members
+        auto allClasses = classRegistry->getAllItemNames();
+        for (const auto& className : allClasses) {
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef) continue;
+
+            // Add instance methods from all classes
+            const auto& instanceMethods = classDef->getInstanceMethods();
+            for (const auto& pair : instanceMethods) {
+                const std::string& methodName = pair.first;
+                const auto& methodDef = pair.second;
+
+                CompletionItem item;
+                item.label = methodName;
+                item.kind = static_cast<int>(CompletionItemKind::Method);
+
+                // Include access modifier
+                std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " method from " + className;
+                item.detail = detail;
+                item.insertText = methodName;
+                items.push_back(item);
+            }
+
+            // Add instance fields from all classes
+            const auto& instanceFields = classDef->getInstanceFields();
+            for (const auto& pair : instanceFields) {
+                const std::string& fieldName = pair.first;
+                const auto& fieldDef = pair.second;
+
+                CompletionItem item;
+                item.label = fieldName;
+                item.kind = static_cast<int>(CompletionItemKind::Field);
+
+                // Include access modifier
+                std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " field from " + className;
+                item.detail = detail;
+                item.insertText = fieldName;
+                items.push_back(item);
+            }
+        }
+        return items;
+    }
+
+    // Type inference succeeded! Show only members from the specific type
+    if (!classRegistry->hasClass(varType)) {
+        return items; // Type not found in registry
+    }
+
+    auto classDef = classRegistry->findClass(varType);
+    if (!classDef) {
+        return items;
+    }
+
+    // Add instance methods from the specific class
+    const auto& instanceMethods = classDef->getInstanceMethods();
+    for (const auto& pair : instanceMethods) {
+        const std::string& methodName = pair.first;
+        const auto& methodDef = pair.second;
+
+        CompletionItem item;
+        item.label = methodName;
+        item.kind = static_cast<int>(CompletionItemKind::Method);
+
+        // Include access modifier
+        std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " " + varType + " method";
+        item.detail = detail;
+        item.insertText = methodName;
+        items.push_back(item);
+    }
+
+    // Add instance fields from the specific class
+    const auto& instanceFields = classDef->getInstanceFields();
+    for (const auto& pair : instanceFields) {
+        const std::string& fieldName = pair.first;
+        const auto& fieldDef = pair.second;
+
+        CompletionItem item;
+        item.label = fieldName;
+        item.kind = static_cast<int>(CompletionItemKind::Field);
+
+        // Include access modifier
+        std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " " + varType + " field";
+        item.detail = detail;
+        item.insertText = fieldName;
         items.push_back(item);
     }
 

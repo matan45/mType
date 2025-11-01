@@ -95,6 +95,7 @@ project "mtype-language-server"
 
         -- AST components
         "../mType/ast/ASTNode.cpp",
+        "../mType/ast/AccessModifier.cpp",
         "../mType/ast/GenericType.cpp",
         "../mType/ast/GenericTypeParameter.cpp",
         "../mType/ast/GenericTypeSubstitutionContext.cpp",

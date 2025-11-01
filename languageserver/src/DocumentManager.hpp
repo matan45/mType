@@ -66,6 +66,7 @@ public:
     // Query methods
     std::string getWordAtPosition(const std::string& uri, int line, int character) const;
     std::vector<std::string> getIdentifiersInScope(const std::string& uri, int line) const;
+    std::string getVariableType(const std::string& uri, const std::string& varName, int line) const;
 
     // Semantic query methods
     struct SymbolLocation {

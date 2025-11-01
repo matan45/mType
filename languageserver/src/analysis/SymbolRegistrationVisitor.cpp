@@ -3,11 +3,15 @@
 #include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 #include "../../../mType/ast/nodes/classes/ClassNode.hpp"
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
+#include "../../../mType/ast/nodes/classes/FieldNode.hpp"
 #include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
 #include "../../../mType/ast/nodes/functions/FunctionNode.hpp"
 #include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../mType/runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../../mType/runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../mType/runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../mType/runtimeTypes/global/FunctionDefinition.hpp"
+#include "../../../mType/value/ValueType.hpp"
 
 namespace mtype::lsp {
 
@@ -80,23 +84,41 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                 classDef->addImplementedInterface(interfaceName);
             }
 
-            environment_->registerClass(className, classDef);
-
-            // Track symbol location for the class
-            const auto& location = classNode->getLocation();
-            symbolLocations_[className] = SymbolLocationInfo{
-                currentUri_,
-                location.getLine() - 1,  // Convert 1-based to 0-based for LSP
-                location.getColumn() - 1,  // Convert 1-based to 0-based for LSP
-                ""  // Empty className for top-level symbols
-            };
-
-            // Register methods and their locations
+            // Register methods in the ClassDefinition
             for (const auto& method : classNode->getMethods()) {
                 auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
                 if (methodNode) {
                     const auto& methodName = methodNode->getName();
                     const auto& methodLoc = methodNode->getLocation();
+
+                    // Create a MethodDefinition for LSP purposes
+                    // For LSP, we only need basic type information, not full generic details
+                    // Convert generic parameters to legacy format
+                    std::vector<std::pair<std::string, value::ValueType>> legacyParams;
+                    for (const auto& [paramName, genericType] : methodNode->getGenericParameters()) {
+                        // Extract concrete ValueType from GenericType
+                        value::ValueType vt = value::ValueType::VOID;
+                        if (genericType && !genericType->isGenericParameter()) {
+                            vt = genericType->getConcreteType();
+                        }
+                        legacyParams.emplace_back(paramName, vt);
+                    }
+
+                    auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
+                        methodName,
+                        methodNode->getReturnType(),
+                        legacyParams,
+                        methodNode->getBody(),
+                        methodNode->getIsStatic(),
+                        methodNode->getAccessModifier()
+                    );
+
+                    // Add to class definition
+                    if (methodNode->getIsStatic()) {
+                        classDef->addStaticMethod(methodName, methodDef);
+                    } else {
+                        classDef->addInstanceMethod(methodName, methodDef);
+                    }
 
                     // Store method location with class context
                     // Key format: "ClassName.methodName"
@@ -109,6 +131,42 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     };
                 }
             }
+
+            // Register fields in the ClassDefinition
+            for (const auto& field : classNode->getFields()) {
+                auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get());
+                if (fieldNode) {
+                    const auto& fieldName = fieldNode->getName();
+
+                    // Create a FieldDefinition for LSP purposes
+                    auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
+                        fieldName,
+                        fieldNode->getType(),
+                        value::Value{},  // Empty value for LSP (std::variant with monostate)
+                        fieldNode->getIsStatic(),
+                        fieldNode->getIsFinal(),
+                        fieldNode->getAccessModifier()  // Use actual access modifier from field
+                    );
+
+                    // Add to class definition
+                    if (fieldNode->getIsStatic()) {
+                        classDef->addStaticField(fieldName, fieldDef);
+                    } else {
+                        classDef->addInstanceField(fieldName, fieldDef);
+                    }
+                }
+            }
+
+            environment_->registerClass(className, classDef);
+
+            // Track symbol location for the class
+            const auto& location = classNode->getLocation();
+            symbolLocations_[className] = SymbolLocationInfo{
+                currentUri_,
+                location.getLine() - 1,  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1,  // Convert 1-based to 0-based for LSP
+                ""  // Empty className for top-level symbols
+            };
 
         } catch (const std::exception&) {
             // Silently ignore registration errors in LSP mode

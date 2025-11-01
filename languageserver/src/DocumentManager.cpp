@@ -208,26 +208,42 @@ std::string DocumentManager::extractWordAtPosition(const std::string& content, i
 
 std::vector<std::string> DocumentManager::getIdentifiersInScope(const std::string& uri, int line) const {
     auto doc = getDocument(uri);
-    if (!doc || !doc->isParsed) {
+    if (!doc) {
         return {};
     }
 
     std::vector<std::string> identifiers;
 
-    // If we have an environment, use it for more accurate scope information
-    if (doc->environment && doc->environment->getVariableManager()) {
-        // Get variables from environment
+    // Extract variable declarations using regex patterns
+    // Pattern matches: TypeName variableName = ...
+    std::regex varDeclPattern("([A-Z][a-zA-Z0-9_]*(?:<[^>]+>)?)\\s+([a-z][a-zA-Z0-9_]*)\\s*=");
+
+    std::istringstream stream(doc->content);
+    std::string currentLine;
+    int currentLineNum = 0;
+
+    while (std::getline(stream, currentLine) && currentLineNum <= line) {
+        std::smatch match;
+        std::string::const_iterator searchStart(currentLine.cbegin());
+
+        while (std::regex_search(searchStart, currentLine.cend(), match, varDeclPattern)) {
+            std::string varName = match[2].str();
+            // Avoid duplicates
+            if (std::find(identifiers.begin(), identifiers.end(), varName) == identifiers.end()) {
+                identifiers.push_back(varName);
+            }
+            searchStart = match.suffix().first;
+        }
+
+        currentLineNum++;
+    }
+
+    // If we have an environment, also add variables from variable manager
+    if (doc->isParsed && doc->environment && doc->environment->getVariableManager()) {
         auto vars = doc->environment->getVariableManager()->getAllVariableNames();
-        identifiers.insert(identifiers.end(), vars.begin(), vars.end());
-    } else {
-        // Fallback: Extract identifiers from tokens
-        for (const auto& token : doc->tokens) {
-            if (token.type == TokenType::IDENTIFIER) {
-                // Avoid duplicates
-                std::string tokenStr = token.stringValue.getString();
-                if (std::find(identifiers.begin(), identifiers.end(), tokenStr) == identifiers.end()) {
-                    identifiers.push_back(tokenStr);
-                }
+        for (const auto& var : vars) {
+            if (std::find(identifiers.begin(), identifiers.end(), var) == identifiers.end()) {
+                identifiers.push_back(var);
             }
         }
     }
@@ -483,6 +499,16 @@ std::string DocumentManager::inferVariableType(const std::string& content, const
     }
 
     return ""; // Type not found
+}
+
+std::string DocumentManager::getVariableType(const std::string& uri, const std::string& varName, int line) const {
+    auto doc = getDocument(uri);
+    if (!doc) {
+        return "";
+    }
+
+    // Use the existing inferVariableType method
+    return inferVariableType(doc->content, varName);
 }
 
 } // namespace mtype::lsp
