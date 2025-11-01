@@ -15,14 +15,16 @@
 
 namespace mtype::lsp {
 
-// Forward declaration
+// Forward declarations
 class SymbolRegistrationVisitor;
+class ImportResolver;
 
 // Symbol location tracking for go-to-definition
 struct SymbolLocationInfo {
     std::string uri;
     int line;
     int column;
+    std::string className; // For methods: which class they belong to (empty for top-level symbols)
 };
 
 struct Document {
@@ -49,6 +51,7 @@ struct Document {
 class DocumentManager {
 public:
     DocumentManager();
+    ~DocumentManager(); // Explicitly declared to handle unique_ptr with forward-declared type
 
     void openDocument(const std::string& uri, const std::string& content, int version);
     void updateDocument(const std::string& uri, const std::string& content, int version);
@@ -88,8 +91,10 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Document>> documents_;
+    std::unique_ptr<ImportResolver> importResolver_;
 
     std::string extractWordAtPosition(const std::string& content, int line, int character) const;
+    std::string inferVariableType(const std::string& content, const std::string& varName) const;
 };
 
 } // namespace mtype::lsp

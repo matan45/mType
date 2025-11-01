@@ -1,7 +1,7 @@
 // Test: @Throw annotation combined with @Override
 // Expected: Should compile and validate successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/exceptions/RuntimeException.mt"
+import * from "../../lib/exceptions/RuntimeException.mt";
 
 class IOException extends Exception {
     constructor(string message): super(message) {

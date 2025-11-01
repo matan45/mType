@@ -2,6 +2,7 @@
 #include "../DocumentManager.hpp"
 #include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 #include "../../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
 #include "../../../mType/ast/nodes/functions/FunctionNode.hpp"
 #include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
@@ -81,13 +82,33 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
 
             environment_->registerClass(className, classDef);
 
-            // Track symbol location
+            // Track symbol location for the class
             const auto& location = classNode->getLocation();
             symbolLocations_[className] = SymbolLocationInfo{
                 currentUri_,
                 location.getLine() - 1,  // Convert 1-based to 0-based for LSP
-                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1,  // Convert 1-based to 0-based for LSP
+                ""  // Empty className for top-level symbols
             };
+
+            // Register methods and their locations
+            for (const auto& method : classNode->getMethods()) {
+                auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get());
+                if (methodNode) {
+                    const auto& methodName = methodNode->getName();
+                    const auto& methodLoc = methodNode->getLocation();
+
+                    // Store method location with class context
+                    // Key format: "ClassName.methodName"
+                    std::string methodKey = className + "." + methodName;
+                    symbolLocations_[methodKey] = SymbolLocationInfo{
+                        currentUri_,
+                        methodLoc.getLine() - 1,  // Convert to 0-based
+                        methodLoc.getColumn() - 1,
+                        className  // Track which class this method belongs to
+                    };
+                }
+            }
 
         } catch (const std::exception&) {
             // Silently ignore registration errors in LSP mode
@@ -136,7 +157,8 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
             symbolLocations_[interfaceName] = SymbolLocationInfo{
                 currentUri_,
                 location.getLine() - 1,  // Convert 1-based to 0-based for LSP
-                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1,  // Convert 1-based to 0-based for LSP
+                ""  // Empty className for top-level symbols
             };
 
         } catch (const std::exception&) {
@@ -170,7 +192,8 @@ void SymbolRegistrationVisitor::processFunctionNode(ast::ASTNode* node) {
             symbolLocations_[functionName] = SymbolLocationInfo{
                 currentUri_,
                 location.getLine() - 1,  // Convert 1-based to 0-based for LSP
-                location.getColumn() - 1  // Convert 1-based to 0-based for LSP
+                location.getColumn() - 1,  // Convert 1-based to 0-based for LSP
+                ""  // Empty className for top-level symbols
             };
 
         } catch (const std::exception&) {

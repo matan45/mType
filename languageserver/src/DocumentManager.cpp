@@ -3,9 +3,11 @@
 #include "../../mType/environment/EnvironmentBuilder.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
+#include "analysis/ImportResolver.hpp"
 #include <sstream>
 #include <algorithm>
 #include <iostream>
+#include <regex>
 
 using namespace lexer;
 using namespace token;
@@ -17,7 +19,10 @@ namespace mtype::lsp {
 
 DocumentManager::DocumentManager() {
     // ImportManager is now per-document for LSP
+    importResolver_ = std::make_unique<ImportResolver>();
 }
+
+DocumentManager::~DocumentManager() = default;
 
 void DocumentManager::openDocument(const std::string& uri, const std::string& content, int version) {
     auto doc = std::make_unique<Document>();
@@ -189,6 +194,35 @@ void DocumentManager::parseDocument(const std::string& uri) {
             std::cerr << "[DocumentManager::parseDocument] Symbol registration error: " << e.what() << std::endl;
         }
 
+        // Resolve and parse imported files to get their symbols
+        if (doc->environment && importResolver_) {
+            try {
+                std::cerr << "[DocumentManager::parseDocument] Resolving imports..." << std::endl;
+                importResolver_->resolveImports(doc, this);
+                std::cerr << "[DocumentManager::parseDocument] Import resolution complete" << std::endl;
+
+                // Log symbols after import resolution
+                auto classRegistry = doc->environment->getClassRegistry();
+                auto interfaceRegistry = doc->environment->getInterfaceRegistry();
+                if (classRegistry) {
+                    auto classNames = classRegistry->getAllItemNames();
+                    std::cerr << "[DocumentManager::parseDocument] After imports - Class registry has " << classNames.size() << " classes" << std::endl;
+                    for (const auto& className : classNames) {
+                        std::cerr << "[DocumentManager::parseDocument]   - Class: " << className << std::endl;
+                    }
+                }
+                if (interfaceRegistry) {
+                    auto interfaces = interfaceRegistry->getAllInterfaces();
+                    std::cerr << "[DocumentManager::parseDocument] After imports - Interface registry has " << interfaces.size() << " interfaces" << std::endl;
+                    for (const auto& [interfaceName, interfaceDef] : interfaces) {
+                        std::cerr << "[DocumentManager::parseDocument]   - Interface: " << interfaceName << std::endl;
+                    }
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[DocumentManager::parseDocument] Import resolution error: " << e.what() << std::endl;
+            }
+        }
+
         // Tokenize for token-based features (keep for completion)
         // Re-create lexer for tokenization
         auto tokenFileReader = std::make_unique<MemoryFileReader>();
@@ -280,21 +314,96 @@ std::vector<std::string> DocumentManager::getIdentifiersInScope(const std::strin
 std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
     const std::string& uri, int line, int character) const {
 
+    std::cerr << "[DocumentManager::findDefinition] Called for uri: " << uri
+              << " at line: " << line << ", character: " << character << std::endl;
+
     auto doc = getDocument(uri);
     if (!doc || !doc->isParsed || !doc->environment) {
+        std::cerr << "[DocumentManager::findDefinition] Document not parsed or environment missing" << std::endl;
         return std::nullopt;
     }
+
+    // Get the current line to check for method calls
+    std::istringstream stream(doc->content);
+    std::string currentLine;
+    int currentLineNum = 0;
+    while (std::getline(stream, currentLine) && currentLineNum < line) {
+        currentLineNum++;
+    }
+
+    std::cerr << "[DocumentManager::findDefinition] Current line: " << currentLine << std::endl;
 
     // Get the symbol name at the position
     std::string symbolName = extractWordAtPosition(doc->content, line, character);
     if (symbolName.empty()) {
+        std::cerr << "[DocumentManager::findDefinition] No symbol found at position" << std::endl;
         return std::nullopt;
     }
 
-    // Look up the symbol in our symbol locations map
+    std::cerr << "[DocumentManager::findDefinition] Symbol name: " << symbolName << std::endl;
+
+    // Check if this is a method call (e.g., "variable.methodName(...)")
+    // Look backwards from the character position to see if there's a dot
+    if (character > 0 && currentLineNum == line) {
+        int dotPos = -1;
+
+        // First, look backwards through the current identifier and any whitespace to find a dot
+        for (int i = character - 1; i >= 0; i--) {
+            if (currentLine[i] == '.') {
+                dotPos = i;
+                break;
+            } else if (!std::isalnum(currentLine[i]) && currentLine[i] != '_' && !std::isspace(currentLine[i])) {
+                // Found a character that's not part of an identifier, whitespace, or a dot
+                // This means we're not in a method call
+                break;
+            }
+        }
+
+        if (dotPos != -1) {
+            std::cerr << "[DocumentManager::findDefinition] Detected method call (found dot at position " << dotPos << ")" << std::endl;
+
+            // This is a method call: extract the variable name before the dot
+            int varStart = dotPos - 1;
+            while (varStart >= 0 && (std::isalnum(currentLine[varStart]) || currentLine[varStart] == '_')) {
+                varStart--;
+            }
+            varStart++;
+
+            std::string varName = currentLine.substr(varStart, dotPos - varStart);
+            std::cerr << "[DocumentManager::findDefinition] Variable name: " << varName << std::endl;
+
+            // Infer the type of this variable by scanning the document
+            std::string varType = inferVariableType(doc->content, varName);
+
+            if (!varType.empty()) {
+                // Look for ClassName.methodName in symbol locations
+                std::string methodKey = varType + "." + symbolName;
+                std::cerr << "[DocumentManager::findDefinition] Looking for method key: " << methodKey << std::endl;
+
+                auto it = doc->symbolLocations.find(methodKey);
+                if (it != doc->symbolLocations.end()) {
+                    const auto& symbolLoc = it->second;
+                    std::cerr << "[DocumentManager::findDefinition] Found method definition at "
+                              << symbolLoc.uri << ":" << symbolLoc.line << ":" << symbolLoc.column << std::endl;
+                    SymbolLocation result;
+                    result.uri = symbolLoc.uri;
+                    result.line = symbolLoc.line;
+                    result.column = symbolLoc.column;
+                    return result;
+                } else {
+                    std::cerr << "[DocumentManager::findDefinition] Method key not found in symbol locations" << std::endl;
+                }
+            }
+        }
+    }
+
+    // Fall back to looking up the symbol directly (for classes, interfaces, functions)
+    std::cerr << "[DocumentManager::findDefinition] Falling back to direct symbol lookup" << std::endl;
     auto it = doc->symbolLocations.find(symbolName);
     if (it != doc->symbolLocations.end()) {
         const auto& symbolLoc = it->second;
+        std::cerr << "[DocumentManager::findDefinition] Found symbol at "
+                  << symbolLoc.uri << ":" << symbolLoc.line << ":" << symbolLoc.column << std::endl;
         SymbolLocation result;
         result.uri = symbolLoc.uri;
         result.line = symbolLoc.line;
@@ -302,7 +411,7 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         return result;
     }
 
-    // Symbol not found in registered symbols
+    std::cerr << "[DocumentManager::findDefinition] Symbol not found: " << symbolName << std::endl;
     return std::nullopt;
 }
 
@@ -440,6 +549,45 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
     }
 
     return symbols;
+}
+
+std::string DocumentManager::inferVariableType(const std::string& content, const std::string& varName) const {
+    std::cerr << "[DocumentManager::inferVariableType] Inferring type for variable: " << varName << std::endl;
+
+    // Pattern 1: ClassName<GenericType> varName = new ClassName<GenericType>(...)
+    // Pattern 2: ClassName<GenericType> varName = ...
+    // Note: <GenericType> is optional, handles both generic and non-generic types
+    // Captures only the base class name without generic parameters
+    std::regex declPattern1("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=\\s*new\\s+([A-Z][a-zA-Z0-9_]*)");
+    std::regex declPattern2("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=");
+
+    std::istringstream stream(content);
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        std::smatch match;
+
+        // Try pattern 1: with "new" keyword
+        if (std::regex_search(line, match, declPattern1)) {
+            // Prefer the type from "new" if it matches the declaration type
+            std::string declType = match[1].str();
+            std::string newType = match[2].str();
+            std::cerr << "[DocumentManager::inferVariableType] Found declaration: "
+                      << declType << " " << varName << " = new " << newType << std::endl;
+            return newType; // Return the type from "new" as it's the actual instantiated type
+        }
+
+        // Try pattern 2: simple declaration
+        if (std::regex_search(line, match, declPattern2)) {
+            std::string declType = match[1].str();
+            std::cerr << "[DocumentManager::inferVariableType] Found declaration: "
+                      << declType << " " << varName << std::endl;
+            return declType;
+        }
+    }
+
+    std::cerr << "[DocumentManager::inferVariableType] Could not infer type for: " << varName << std::endl;
+    return ""; // Type not found
 }
 
 } // namespace mtype::lsp
