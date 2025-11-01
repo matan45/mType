@@ -183,6 +183,11 @@
         "command": "mtype.run",
         "title": "Run mType File",
         "category": "mType"
+      },
+      {
+        "command": "mtype.restartLanguageServer",
+        "title": "Restart Language Server",
+        "category": "mType"
       }
     ],
     "keybindings": [
@@ -219,12 +224,22 @@
     },
     "configuration": {
       "type": "object",
-      "title": "mType Language Server",
+      "title": "mType Configuration",
       "properties": {
+        "mType.languageServer.enable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable mType Language Server Protocol (LSP) mode for universal editor support. When disabled, uses built-in VS Code providers."
+        },
+        "mType.languageServer.path": {
+          "type": "string",
+          "default": "mtype-language-server",
+          "description": "Path to mType language server executable. Can be absolute or relative path, or just the executable name if it's in PATH."
+        },
         "mTypeLanguageServer.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Enable mType language server"
+          "description": "Enable mType language server (deprecated, use mType.languageServer.enable)"
         },
         "mTypeLanguageServer.interpreterPath": {
           "type": "string",

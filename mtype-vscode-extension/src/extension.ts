@@ -11,8 +11,21 @@ import { MTypeSignatureHelpProvider } from './signature/MTypeSignatureHelpProvid
 import { MTypeCodeActionsProvider } from './codeActions/MTypeCodeActionsProvider';
 import { MTypeCodeLensProvider } from './codeLens/MTypeCodeLensProvider';
 import { MTypeSemanticTokensProvider, legend } from './semanticTokens/MTypeSemanticTokensProvider';
+import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
 
 export function activate(context: vscode.ExtensionContext) {
+    // Check if LSP is enabled
+    const config = vscode.workspace.getConfiguration('mType');
+    const useLSP = config.get<boolean>('languageServer.enable', false);
+
+    if (useLSP) {
+        // Use Language Server Protocol
+        vscode.window.showInformationMessage('mType extension activated with LSP mode!');
+        activateLanguageServer(context);
+        return; // Skip built-in providers when using LSP
+    }
+
+    // Use built-in providers (original mode)
     vscode.window.showInformationMessage('mType extension activated!');
 
     // Get workspace root for import resolution
@@ -227,5 +240,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
-export function deactivate(): void {
+export function deactivate(): Thenable<void> | undefined {
+    // Deactivate language server if it's running
+    return deactivateLanguageServer();
 }

@@ -172,9 +172,34 @@ Hardware-accelerated array operations (3-8× faster for arrays ≥16 elements):
 - **SIMD-Optimized**: Field-oriented memory layout
 - **Sub-Array Views**: Zero-copy array slicing
 
-## 🛠️ VS Code Extension
+## 🛠️ Editor & IDE Support
+
+### Language Server Protocol (LSP)
+
+mType now includes a **Language Server** that works with ANY editor supporting LSP!
+
+**Supported Editors:**
+- ✅ VS Code (via mType extension)
+- ✅ Vim/Neovim (via coc.nvim or nvim-lspconfig)
+- ✅ Emacs (via lsp-mode)
+- ✅ Sublime Text (via LSP package)
+- ✅ IntelliJ IDEA, Eclipse, and any LSP-compatible editor
+
+**LSP Features:**
+- Auto-completion (keywords, types, variables, built-ins)
+- Hover information (type docs, signatures)
+- Real-time diagnostics (errors and warnings)
+- Future: Go-to-definition, find references, formatting
+
+**Setup:** See [`languageserver/README.md`](languageserver/README.md) for installation and editor configuration.
+
+### VS Code Extension
 
 Full-featured IDE support with the **mType Language Extension**:
+
+**Two Modes:**
+1. **Built-in Mode** (default): VS Code-specific providers
+2. **LSP Mode**: Universal language server (enable in settings)
 
 ### Code Intelligence
 - **IntelliSense**: Context-aware completions (100+ keywords, types, members)
@@ -500,12 +525,13 @@ function main(): void {
 - ✅ VS Code Extension (Full IDE support)
 - ✅ Debugging Support (Debug adapter protocol)
 - ✅ SIMD Acceleration (SSE2, AVX2, NEON)
+- ✅ Language Server Protocol (LSP) - Universal editor support (Vim, Emacs, Sublime, etc.)
 
 ### In Progress
 - 🚧 Standard Library Expansion
 - 🚧 Performance Benchmarking Suite
-- 🚧 Language Server Protocol (LSP)
 - 🚧 Documentation Portal
+- 🚧 LSP: Additional Features (go-to-definition, find references, formatting)
 
 ### Planned
 - 📋 JIT Compilation

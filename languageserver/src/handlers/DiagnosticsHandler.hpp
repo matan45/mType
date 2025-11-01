@@ -1,0 +1,26 @@
+#pragma once
+
+#include <vector>
+#include <functional>
+#include "../utils/LSPTypes.hpp"
+#include "../DocumentManager.hpp"
+
+namespace mtype::lsp {
+
+class DiagnosticsHandler {
+public:
+    using DiagnosticPublisher = std::function<void(const std::string& uri, const std::vector<Diagnostic>&)>;
+
+    explicit DiagnosticsHandler(DocumentManager* docMgr);
+
+    void setPublisher(DiagnosticPublisher publisher);
+    void publishDiagnostics(const std::string& uri);
+
+private:
+    std::vector<Diagnostic> analyzeDiagnostics(const Document* doc);
+
+    DocumentManager* documentManager_;
+    DiagnosticPublisher publisher_;
+};
+
+} // namespace mtype::lsp

@@ -1,0 +1,47 @@
+# Build directories
+bin/
+bin-int/
+build/
+obj/
+*.dir/
+
+# IDE/Editor
+.vs/
+.vscode/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.xcodeproj/
+*.xcworkspace/
+Makefile
+*.make
+
+# Compiled binaries
+mtype-language-server
+mtype-language-server.exe
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# Dependencies (if using local copies)
+vendor/
+!vendor/nlohmann/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Logs
+*.log
