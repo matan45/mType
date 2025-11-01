@@ -1,6 +1,11 @@
 #include "DocumentManager.hpp"
+#include "../../mType/token/TokenType.hpp"
+#include "utils/MemoryFileReader.hpp"
 #include <sstream>
 #include <algorithm>
+
+using namespace lexer;
+using namespace token;
 
 namespace mtype::lsp {
 
@@ -43,16 +48,24 @@ void DocumentManager::parseDocument(const std::string& uri) {
     if (!doc) return;
 
     try {
-        // Create lexer and tokenize
-        doc->lexer = std::make_unique<Lexer>(doc->content);
-        doc->tokens = doc->lexer->tokenize();
+        // Create an in-memory file reader for LSP
+        auto fileReader = std::make_unique<MemoryFileReader>();
+        fileReader->setContent(uri, doc->content);
 
-        // Create parser (but we'll skip full parsing for now in LSP mode)
-        // Full AST parsing can be heavy, so we do lightweight parsing
-        doc->parser = std::make_unique<Parser>(doc->tokens);
+        // Create lexer with our custom file reader
+        doc->lexer = std::make_unique<Lexer>(uri, std::move(fileReader));
 
-        // Initialize environment
-        doc->environment = std::make_shared<Environment>();
+        // Tokenize all input (get all tokens)
+        doc->tokens.clear();
+        Token token;
+        do {
+            token = doc->lexer->getNextToken();
+            doc->tokens.push_back(token);
+        } while (token.type != TokenType::END);
+
+        // Note: For basic LSP features, we only need tokens
+        // Full semantic analysis (Parser + Environment) will be added later
+        // when implementing advanced features like semantic diagnostics
 
         doc->isParsed = true;
         doc->parseErrors.clear();
@@ -114,8 +127,9 @@ std::vector<std::string> DocumentManager::getIdentifiersInScope(const std::strin
     for (const auto& token : doc->tokens) {
         if (token.type == TokenType::IDENTIFIER) {
             // Avoid duplicates
-            if (std::find(identifiers.begin(), identifiers.end(), token.value) == identifiers.end()) {
-                identifiers.push_back(token.value);
+            std::string tokenStr = token.stringValue.getString();
+            if (std::find(identifiers.begin(), identifiers.end(), tokenStr) == identifiers.end()) {
+                identifiers.push_back(tokenStr);
             }
         }
     }

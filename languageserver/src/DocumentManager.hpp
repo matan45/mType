@@ -4,9 +4,10 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
+
+// Include necessary headers
+#include "../../mType/token/Token.hpp"
 #include "../../mType/lexer/Lexer.hpp"
-#include "../../mType/parser/Parser.hpp"
-#include "../../mType/environment/Environment.hpp"
 
 namespace mtype::lsp {
 
@@ -16,14 +17,15 @@ struct Document {
     int version;
 
     // Parsed representation
-    std::unique_ptr<Lexer> lexer;
-    std::unique_ptr<Parser> parser;
-    std::shared_ptr<Environment> environment;
+    std::unique_ptr<lexer::Lexer> lexer;
+    // Note: Parser and Environment require ImportManager and full semantic analysis
+    // For basic LSP features (completion, hover), we only need tokens
+    // TODO: Add full semantic analysis when needed for advanced features
 
     // State
     bool isParsed = false;
     std::vector<std::string> parseErrors;
-    std::vector<Token> tokens;
+    std::vector<token::Token> tokens;
 };
 
 class DocumentManager {
