@@ -328,6 +328,24 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
+            // Validate: Generic type arguments must be object types, not primitives
+            if (node->hasGenericTypeArguments())
+            {
+                const auto& typeArgs = node->getGenericTypeArguments();
+                for (const auto& typeArg : typeArgs)
+                {
+                    if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
+                        typeArg == "bool" || typeArg == "void")
+                    {
+                        throw errors::TypeException(
+                            "Generic type argument '" + typeArg + "' is a primitive type. " +
+                            "Generics only support object types. Use wrapper classes like Int, Float, String, Bool instead.",
+                            node->getLocation()
+                        );
+                    }
+                }
+            }
+
             // Validate static method exists at compile time
             if (ctx.compileTimeValidator)
             {
@@ -420,20 +438,21 @@ namespace vm::compiler::visitors
             // Setup method-level generic type bindings if method has type arguments
             bool hasMethodGenericBindings = false;
             std::unordered_map<std::string, std::string> methodGenericBindings;
+
+            // Extract base class name (without generic parameters) for method lookup
+            std::string baseClassName = objectClassName;
+            size_t anglePos = objectClassName.find('<');
+            if (anglePos != std::string::npos)
+            {
+                baseClassName = objectClassName.substr(0, anglePos);
+            }
+
+            // Build qualified method name for metadata lookup
+            std::string qualifiedMethodName = baseClassName + "::" + methodName;
+            const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
+
             if (node->hasGenericTypeArguments())
             {
-                // Extract base class name (without generic parameters) for method lookup
-                std::string baseClassName = objectClassName;
-                size_t anglePos = objectClassName.find('<');
-                if (anglePos != std::string::npos)
-                {
-                    baseClassName = objectClassName.substr(0, anglePos);
-                }
-
-                // Build qualified method name for metadata lookup
-                std::string qualifiedMethodName = baseClassName + "::" + methodName;
-                const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
-
                 if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
                 {
                     const auto& methodGenericParams = methodMetadata->genericTypeParameters;
@@ -451,6 +470,20 @@ namespace vm::compiler::visitors
                         );
                     }
 
+                    // Validate: Generic type arguments must be object types, not primitives
+                    for (const auto& typeArg : methodTypeArgs)
+                    {
+                        if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
+                            typeArg == "bool" || typeArg == "void")
+                        {
+                            throw errors::TypeException(
+                                "Generic type argument '" + typeArg + "' is a primitive type. " +
+                                "Generics only support object types. Use wrapper classes like Int, Float, String, Bool instead.",
+                                node->getLocation()
+                            );
+                        }
+                    }
+
                     // Create bindings: T -> String, U -> Int, etc.
                     for (size_t i = 0; i < methodGenericParams.size(); ++i)
                     {
@@ -460,6 +493,20 @@ namespace vm::compiler::visitors
                     // Push method-level bindings onto stack (will shadow class-level if names conflict)
                     ctx.pushGenericTypeBindings(methodGenericBindings);
                     hasMethodGenericBindings = true;
+                }
+            }
+            else
+            {
+                // Validate: If method is generic, type arguments are required
+                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                {
+                    throw errors::TypeException(
+                        "Generic method '" + methodName + "' requires explicit type arguments. " +
+                        "Use '" + methodName + "<" +
+                        std::string(methodMetadata->genericTypeParameters.size() > 1 ? "T, U, ..." : "T") +
+                        ">(...)'",
+                        node->getLocation()
+                    );
                 }
             }
 

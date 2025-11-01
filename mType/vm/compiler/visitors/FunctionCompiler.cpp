@@ -718,14 +718,23 @@ namespace vm::compiler::visitors
     bool FunctionCompiler::isValidTypeName(const std::string& typeName,
                                            const std::vector<std::string>& validGenericParams)
     {
-        // Check if it's a primitive type
-        if (typeName == "int" || typeName == "float" || typeName == "string" ||
-            typeName == "bool" || typeName == "void")
+        // Extract base type name first (handle generics like "List<T>", "Array<K>")
+        std::string baseTypeName = typeName;
+        size_t anglePos = typeName.find('<');
+        if (anglePos != std::string::npos)
+        {
+            baseTypeName = typeName.substr(0, anglePos);
+        }
+
+        // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
+        if (baseTypeName == "int" || baseTypeName == "float" || baseTypeName == "string" ||
+            baseTypeName == "bool" || baseTypeName == "void" || baseTypeName == "Array" ||
+            baseTypeName == "object" || baseTypeName == "Promise")
         {
             return true;
         }
 
-        // Check if it's a declared generic type parameter
+        // Check if it's a declared generic type parameter (check full type name, not base)
         for (const auto& genericParam : validGenericParams)
         {
             if (typeName == genericParam)
@@ -734,15 +743,7 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Extract base type name (handle generics like "List<T>")
-        std::string baseTypeName = typeName;
-        size_t anglePos = typeName.find('<');
-        if (anglePos != std::string::npos)
-        {
-            baseTypeName = typeName.substr(0, anglePos);
-        }
-
-        // Check if it's an existing class or interface
+        // Check if base type is an existing class or interface
         if (ctx.environment->findClass(baseTypeName) != nullptr)
         {
             return true;

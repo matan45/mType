@@ -146,8 +146,9 @@ namespace parser::expression
         tokenStream.advance();
 
         // Parse generic type arguments if present (e.g., obj.method<String, Int>)
+        // Use lookahead to distinguish from comparison operators (e.g., obj.value < other)
         std::vector<std::string> genericTypeArguments;
-        if (tokenStream.check(TokenType::LESS))
+        if (tokenStream.check(TokenType::LESS) && isGenericFunctionCall())
         {
             tokenStream.advance(); // consume '<'
             if (!expressionParser)
