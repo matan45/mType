@@ -315,12 +315,12 @@ class Box<T> {
         return this.value;
     }
 
-    public function set(T val) {
+    public function set(T val): void {
         this.value = val;
     }
 }
 
-function main() {
+function main():void {
     Box<int> intBox = new Box<int>(42);
     Box<string> strBox = new Box<string>("Hello");
 
@@ -334,7 +334,7 @@ function main() {
 
 ```mtype
 interface Function<T, R> {
-    public function apply(T arg): R;
+    function apply(T arg): R;
 }
 
 function map<T, R>(T[] array, Function<T, R> mapper): R[] {
@@ -345,7 +345,7 @@ function map<T, R>(T[] array, Function<T, R> mapper): R[] {
     return result;
 }
 
-function main() {
+function main():int {
     int[] numbers = [1, 2, 3, 4, 5];
 
     // Lambda expression
@@ -364,12 +364,12 @@ function main() {
 ### Async/Await
 
 ```mtype
-async function fetchData(string url): Promise<string> {
+function async fetchData(string url): Promise<string> {
     // Simulate async operation
     return "Data from " + url;
 }
 
-async function processData(): Promise<void> {
+function async processData(): Promise<void> {
     string data1 = await fetchData("https://api.example.com/users");
     print("Received: " + data1);
 
@@ -377,7 +377,7 @@ async function processData(): Promise<void> {
     print("Received: " + data2);
 }
 
-function main() {
+function main(): void {
     processData();
     return 0;
 }
@@ -387,11 +387,11 @@ function main() {
 
 ```mtype
 interface Drawable {
-    public function draw(): string;
+    function draw(): string;
 }
 
 interface Resizable {
-    public function resize(float factor): void;
+    function resize(float factor): void;
 }
 
 class Circle implements Drawable, Resizable {
@@ -401,16 +401,18 @@ class Circle implements Drawable, Resizable {
         this.radius = r;
     }
 
+	@Override
     public function draw(): string {
         return "Drawing circle with radius " + parsePrimitive(this.radius);
     }
-
+	
+	@Override
     public function resize(float factor) {
         this.radius = this.radius * factor;
     }
 }
 
-function main() {
+function main(): void {
     Circle circle = new Circle(5.0);
     print(circle.draw());     // Drawing circle with radius 5.0
 
@@ -437,8 +439,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-    public constructor(string n) {
-        super(n);
+    public constructor(string n):super(n) {
     }
 
     @Override
@@ -447,7 +448,7 @@ class Dog extends Animal {
     }
 }
 
-function main() {
+function main(): void {
     Animal animal = new Dog("Buddy");
     print(animal.speak());  // Woof! I'm Buddy (polymorphism)
     return 0;
@@ -459,7 +460,7 @@ function main() {
 ```mtype
 import { List, HashMap } from "lib/collections";
 
-function main() {
+function main(): void {
     // List example
     List<int> numbers = new List<int>();
     numbers.add(10);

@@ -14,7 +14,8 @@ namespace ast::nodes::classes
                            bool async,
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), finalMethod(false), accessModifier(modifier)
+          parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async),
+          abstractMethod(false), finalMethod(false), accessModifier(modifier)
     {
     }
 
@@ -26,7 +27,8 @@ namespace ast::nodes::classes
                            AccessModifier modifier,
                            bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), finalMethod(false), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false),
+          finalMethod(false), body(std::move(methodBody)), accessModifier(modifier)
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
@@ -40,7 +42,8 @@ namespace ast::nodes::classes
                            AccessModifier modifier,
                            bool async,
                            const SourceLocation& loc)
-        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false), finalMethod(false), body(std::move(methodBody)), accessModifier(modifier)
+        : ASTNode(loc), name(methodName), isStatic(isStaticMethod), isAsync(async), abstractMethod(false),
+          finalMethod(false), body(std::move(methodBody)), accessModifier(modifier)
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
@@ -56,7 +59,8 @@ namespace ast::nodes::classes
         return returnType;
     }
 
-    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& MethodNode::getGenericParameters() const noexcept
+    const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>&
+    MethodNode::getGenericParameters() const noexcept
     {
         return parameters;
     }
@@ -128,7 +132,7 @@ namespace ast::nodes::classes
         const std::vector<std::pair<std::string, std::shared_ptr<GenericType>>>& params)
     {
         parameters = params;
-        paramCacheValid = false;  // Invalidate cache when parameters change
+        paramCacheValid = false; // Invalidate cache when parameters change
     }
 
     // Legacy setter for backward compatibility
@@ -141,7 +145,7 @@ namespace ast::nodes::classes
     void MethodNode::setParameters(const std::vector<std::pair<std::string, ValueType>>& params)
     {
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
-        paramCacheValid = false;  // Invalidate cache when parameters change
+        paramCacheValid = false; // Invalidate cache when parameters change
     }
 
     void MethodNode::setBody(std::shared_ptr<ASTNode> methodBody)
@@ -228,8 +232,10 @@ namespace ast::nodes::classes
         cloned->setFinal(finalMethod);
 
         // Clone annotations
-        for (const auto& annotation : annotations) {
-            if (annotation) {
+        for (const auto& annotation : annotations)
+        {
+            if (annotation)
+            {
                 // Safely reconstruct annotation using make_shared to avoid unsafe cast
                 auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
                     annotation->getName(),
