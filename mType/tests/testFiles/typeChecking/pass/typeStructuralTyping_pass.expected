@@ -1,0 +1,18 @@
+Test 1: Structural compatibility
+Point: (3, 4)
+Distance squared: 25
+Coordinate: [5, 12]
+Distance squared: 169
+
+Test 2: Interface structural typing
+Rectangle area: 50
+Rectangle perimeter: 30
+
+Test 3: Array of shapes
+Shape 0 area: 12
+Shape 1 area: 78.53975
+
+Test 4: Function with structural types
+Total area: 90.53975
+
+Structural typing tests completed

@@ -1,0 +1,41 @@
+// Test circular dependency in type checking - should pass
+class Node {
+    int value;
+    Node? next;
+
+    constructor(int v) {
+        value = v;
+        next = null;
+    }
+
+    void setNext(Node n) {
+        next = n;
+    }
+}
+
+class LinkedList {
+    Node? head;
+
+    constructor() {
+        head = null;
+    }
+
+    void add(int value) {
+        Node newNode = new Node(value);
+        if (head == null) {
+            head = newNode;
+        } else {
+            Node current = head;
+            while (current.next != null) {
+                current = current.next;
+            }
+            current.setNext(newNode);
+        }
+    }
+}
+
+LinkedList list = new LinkedList();
+list.add(1);
+list.add(2);
+list.add(3);
+print("Circular dependency test passed");

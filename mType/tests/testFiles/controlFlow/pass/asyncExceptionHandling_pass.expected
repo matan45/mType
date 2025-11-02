@@ -1,0 +1,25 @@
+=== Async Exception Handling Test ===
+
+Test 1: Basic try-catch
+Executing successful operation
+Success: success (code 200)
+
+Test 2: Catching async exception
+Executing failing operation
+Caught exception: Async operation failed
+
+Test 3: Finally block
+Executing successful operation
+Operation completed: success
+Finally block executed
+
+Test 4: Exception propagation
+Outer call awaiting inner
+Inner call throwing exception
+Caught propagated exception: Inner failure
+
+Test 5: Multiple catch blocks
+Caught RuntimeException: Runtime error in async
+Cleanup in finally
+
+All async exception handling tests complete

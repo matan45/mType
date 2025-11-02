@@ -1,0 +1,15 @@
+Test 1: Cast with types namespace
+Car starting: Honda with 4 doors
+Brand: Honda
+Doors: 4
+Test 2: Cast with vehicles namespace
+Model: Sedan
+Color: Blue
+Test 3: Cast with aliased imports
+Car starting: Ford with 2 doors
+Doors on aliased car: 2
+Test 4: Mixed namespace casting
+Brand via alias: Aston Martin
+Test 5: Arrays with namespace-qualified casts
+Car doors: 4
+SportsCar top speed: 260

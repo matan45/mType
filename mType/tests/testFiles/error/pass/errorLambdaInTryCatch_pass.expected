@@ -1,0 +1,10 @@
+Testing lambda execution in try-catch blocks
+Division result: 5
+Division error: Division by zero
+Processed: HELLO
+Error: Empty input
+Multiplication result: 50
+Inner catch: Values too large
+Nested try-catch completed
+Error [Test exception for lambda]: Additional context
+Lambda in try-catch test completed

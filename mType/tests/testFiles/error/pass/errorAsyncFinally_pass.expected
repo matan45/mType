@@ -1,0 +1,63 @@
+=== Test 1: Finally with success ===
+Try block executing
+Finally block executed (success)
+Result: success
+
+=== Test 2: Finally with exception ===
+About to throw
+Caught: Test error
+Finally block executed (with exception)
+Result: caught
+
+=== Test 3: Finally without catch ===
+Try without catch
+Finally without catch executed
+Result: completed
+
+=== Test 4: Nested finally ===
+Outer try
+Inner try
+Inner finally
+Outer finally
+Result: inner return
+
+=== Test 5: Finally with propagation ===
+Throwing exception
+Finally before propagation
+Caught propagated: Will propagate
+Result: handled
+
+=== Test 6: Multiple returns - first ===
+Choice: 1
+Finally in multiple returns
+Result: first
+
+=== Test 7: Multiple returns - error ===
+Choice: 2
+Caught in multiple returns: Error case
+Finally in multiple returns
+Result: error
+
+=== Test 8: Early return - true ===
+Early return test
+Returning early
+Finally after early return check
+Result: 100
+
+=== Test 9: Early return - false ===
+Early return test
+Normal flow
+Finally after early return check
+Result: 200
+
+=== Test 10: Complex nesting ===
+Outer try start
+Middle try start
+Inner try start
+Inner finally
+Middle catch: Deep exception
+Middle finally
+Outer finally
+Result: middle
+
+Finally block test completed

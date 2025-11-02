@@ -1,0 +1,45 @@
+Testing nested resource acquisition with exceptions
+Test 1: Successful nested acquisition and release
+Level 1: Acquiring Lock_A
+Level 2: Acquiring Lock_B
+Level 3: Acquiring Lock_C
+All resources acquired - performing work
+Level 3: Releasing Lock_C
+Level 2: Releasing Lock_B
+Level 1: Releasing Lock_A
+All resources released in reverse order
+---
+Test 2: Exception during nested acquisition
+Level 1: Acquiring Database
+Level 2: Acquiring Connection
+Level 3: Acquiring Transaction
+Simulating error during transaction
+Caught at level 3: Transaction validation failed
+Level 3: Releasing Transaction
+Level 2 cleanup continuing
+Level 2: Releasing Connection
+Level 1 cleanup continuing
+Level 1: Releasing Database
+Exception handled, all resources released
+---
+Test 3: Failure during middle acquisition
+Level 1: Acquiring Resource_1
+Acquisition failed at level 2: Failed to acquire Resource_2
+Level 1: Releasing Resource_1
+Partial acquisition cleaned up
+---
+Test 4: Deep nesting with exception
+Level 1: Acquiring L1
+Level 2: Acquiring L2
+Level 3: Acquiring L3
+Level 4: Acquiring L4
+Level 5: Acquiring L5
+Deepest level - throwing exception
+Exception at L5: Error at deepest level
+Level 5: Releasing L5
+Level 4: Releasing L4
+Level 3: Releasing L3
+Level 2: Releasing L2
+Level 1: Releasing L1
+Deep nesting unwound successfully
+Nested acquisition test completed

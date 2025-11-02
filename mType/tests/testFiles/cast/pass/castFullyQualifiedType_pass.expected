@@ -1,0 +1,16 @@
+Test 1: Downcast with fully qualified type
+SportsCar roaring: Ferrari (top speed: 220 mph)
+Top speed: 220 mph
+Doors: 2
+Test 2: Multiple level casting
+Vehicle starting: Lamborghini
+Test 3: Direct downcast from base to derived
+Brand: Porsche
+Top speed: 200 mph
+Test 4: Casting with array elements
+Vehicle 0:
+  Vehicle - Brand: Generic
+Vehicle 1:
+  Car - Doors: 4
+Vehicle 2:
+  SportsCar - Top speed: 230

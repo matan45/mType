@@ -1,0 +1,34 @@
+Test 1: Type inference in for loops
+numbers[0] = 0
+numbers[1] = 10
+numbers[2] = 20
+numbers[3] = 30
+numbers[4] = 40
+
+Test 2: Type inference with accumulation
+Sum of array: 100
+
+Test 3: Type inference in nested loops
+1 2 3
+2 3 4
+3 4 5
+Matrix sum: 27
+
+Test 4: Type inference with break and continue
+Found 8 at index: 4
+Found 15 at index: -1
+
+Test 5: Type inference with transformations
+Buffer contents: Part0Part1Part2Part3Part4
+
+Test 6: Type inference with loop scopes
+1 is odd
+2 is even
+3 is odd
+4 is even
+5 is odd
+
+Test 7: Complex loop expressions
+Sum of squares 1-10: 385
+
+Loop type inference tests completed

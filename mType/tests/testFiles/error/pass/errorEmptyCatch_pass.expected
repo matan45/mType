@@ -1,0 +1,24 @@
+Testing empty catch blocks
+Testing empty catch block
+Throwing exception
+Execution continues after empty catch
+---
+Testing empty catch with finally
+Throwing exception with finally
+Finally block executes
+After empty catch with finally
+---
+Testing multiple empty catch blocks
+Throwing custom exception
+After multiple empty catches
+---
+Testing empty catch in loop
+Iteration: 0
+Iteration: 1
+Iteration: 2
+Loop completed
+---
+Testing empty catch without variable
+Throwing exception without catch variable
+After catch without variable
+Test completed

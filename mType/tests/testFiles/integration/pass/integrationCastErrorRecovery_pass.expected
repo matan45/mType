@@ -1,0 +1,84 @@
+=== Test 1: Cast with fallback (Button) ===
+Button clicked: Submit
+Button action performed
+
+=== Test 1b: Cast with fallback (TextBox) ===
+Cast failed: Not a button
+Attempting fallback to TextBox
+Fallback successful: Hello
+Recovered with TextBox
+
+=== Test 1c: Cast with fallback (Base) ===
+Cast failed: Not a button
+Attempting fallback to TextBox
+Fallback failed, using base Component
+Activated: comp1
+Recovered with base type
+
+=== Test 2: Cast with retry (Button) ===
+Attempt 1 of 3
+Button clicked: Click Me
+Success on attempt 1
+
+=== Test 2b: Cast with retry (TextBox) ===
+Attempt 1 of 2
+Failed: Not a button, retrying
+Attempt 2 of 2
+Failed: Not a button, retrying
+Max attempts reached, recovering
+Activated: txt2
+Recovered after 2 attempts
+
+=== Test 3: Cast with state restore ===
+Original state: true
+Deactivated: txt3
+Error occurred: Invalid type
+Restoring original state
+Activated: txt3
+State restored after error
+
+=== Test 4: Multiple fallbacks (Button with error) ===
+Button clicked: Error Button
+Recovery exception: Simulated error after cast
+Handled recovery exception
+
+=== Test 4b: Multiple fallbacks (TextBox) ===
+Primary failed: Primary cast failed
+Secondary failed: Secondary cast failed
+Using tertiary recovery
+Activated: txt4
+Recovered with base Component
+
+=== Test 4c: Multiple fallbacks (Base) ===
+Primary failed: Primary cast failed
+Secondary failed: Secondary cast failed
+Using tertiary recovery
+Activated: comp2
+Recovered with base Component
+
+=== Test 5: Usage recovery (valid TextBox) ===
+TextBox value set: processed
+TextBox processed successfully
+
+=== Test 5b: Usage recovery (error TextBox) ===
+Usage error: Invalid value in TextBox
+Recovering by resetting component
+Deactivated: txt6
+Activated: txt6
+Recovered from usage error
+
+=== Test 5c: Usage recovery (Button fallback) ===
+Cast error: Not a TextBox
+Button clicked: Fallback Button
+Recovered with Button
+
+=== Test 6: Batch processing with recovery ===
+Button clicked: First
+Item 0: Success
+Item 1 not a Button
+Recovered: Using TextBox Second
+Button clicked: Third
+Item 2: Success
+Success: 2, Recovered: 1, Failed: 0
+
+All error recovery tests completed

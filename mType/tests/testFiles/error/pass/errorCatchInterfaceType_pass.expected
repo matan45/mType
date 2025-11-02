@@ -1,0 +1,6 @@
+Testing interface-implementing exceptions
+Logging exception: Loggable error
+Caught: Loggable error
+Logging exception: Detailed error
+Caught: Detailed error
+Test completed

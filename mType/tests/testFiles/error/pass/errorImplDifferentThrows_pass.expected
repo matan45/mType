@@ -1,0 +1,17 @@
+=== Test 1: Specific RuntimeException ===
+Processing with RuntimeException: test
+Success: Result: test
+Processing with RuntimeException: runtime_error
+Caught runtime exception: Specific runtime error
+
+=== Test 2: Very Specific IllegalArgumentException ===
+Processing with IllegalArgumentException: valid_input
+Success: Valid: valid_input
+Processing with IllegalArgumentException: illegal
+Caught illegal argument exception: Illegal argument detected
+
+=== Test 3: No throws clause ===
+Safe processing: always_safe
+Safe result: Safe result: always_safe
+
+Implementation different throws test passed!

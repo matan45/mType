@@ -1,0 +1,24 @@
+Starting deep exception nesting performance test
+Testing deep nesting with 10 levels:
+Caught exception at bottom: Reached max depth
+Max depth reached: 10
+Testing deep nesting with 50 levels:
+Caught exception at bottom: Reached max depth
+Max depth reached: 50
+Testing deep nesting with 100 levels:
+Caught exception at bottom: Reached max depth
+Max depth reached: 100
+---
+Testing deep finally nesting:
+Finally at depth: 90
+Finally at depth: 80
+Finally at depth: 70
+Finally at depth: 60
+Finally at depth: 50
+Finally at depth: 40
+Finally at depth: 30
+Finally at depth: 20
+Finally at depth: 10
+Finally at depth: 0
+Caught after finally unwinding: 100
+Deep nesting test completed successfully!

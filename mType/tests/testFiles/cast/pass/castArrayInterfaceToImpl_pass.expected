@@ -1,0 +1,7 @@
+Testing interface array casting
+Array length: 2
+Drawing circle with radius: 5
+Drawing circle with radius: 10
+Successfully downcast back to Circle[]
+First circle radius: 5
+Interface array casting test completed

@@ -1,0 +1,47 @@
+=== Test 1: Success - no fallback ===
+Fetching user 1
+Result: Alice
+
+=== Test 2: Failure - use fallback ===
+Fetching user 999
+Operation failed, using fallback: User 999 not found
+Result: Guest
+
+=== Test 3: Integer fallback ===
+Fetching age for user 1
+Age: 25
+Fetching age for user 999
+Operation failed, using fallback: Age for user 999 not found
+Age: 0
+
+=== Test 4: Chained fallback operations ===
+Trying primary source
+Operation failed, using fallback: Primary source unavailable
+Trying secondary source
+Final result: Data from secondary
+
+=== Test 5: Computed fallback ===
+Calculation 1: 25
+Operation failed, using fallback: Negative values not allowed
+Calculation 2: -1
+
+=== Test 6: Multi-level fallback ===
+Attempting to load from file
+Operation failed, using fallback: File not found
+Attempting to load from environment
+Operation failed, using fallback: Environment variable not set
+Loading default config
+Config value: default-value
+
+=== Test 7: Null-safe access ===
+Operation failed, using fallback: Age not set
+User age (with fallback): 18
+
+=== Test 8: Multiple fallback strategies ===
+Data not found: Record missing
+Result 1: NOT_FOUND
+Generic error: System error
+Result 2: ERROR
+Result 3: SUCCESS
+
+Fallback value test completed!

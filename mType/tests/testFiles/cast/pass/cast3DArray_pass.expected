@@ -1,0 +1,7 @@
+Testing 3D array casting
+3D array dimensions: 2x2x2
+Value at [0][0][0]: 1
+Value at [1][1][1]: 8
+Name at [0][1][0]: Item3
+Name at [1][0][1]: Item6
+3D array casting completed

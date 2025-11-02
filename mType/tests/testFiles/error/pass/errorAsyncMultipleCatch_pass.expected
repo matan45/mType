@@ -1,0 +1,42 @@
+=== Test 1: Multiple catch - Validation ===
+Executing operation with type: 1
+Caught ValidationException: Validation failed
+Result: validation_error
+
+=== Test 2: Multiple catch - Network ===
+Executing operation with type: 2
+Caught NetworkException: Network error
+Result: network_error
+
+=== Test 3: Multiple catch - Database ===
+Executing operation with type: 3
+Caught DatabaseException: Database error
+Result: database_error
+
+=== Test 4: Multiple catch - Success ===
+Executing operation with type: 0
+Result: success
+
+=== Test 5: Catch order ===
+Testing catch order
+Caught RuntimeException (specific): Runtime issue
+Result: runtime_caught
+
+=== Test 6: Nested multiple catch ===
+Outer try
+Inner try
+Inner catch (validation): Inner validation
+Outer catch (database): Converted to database error
+Result: outer_database
+
+=== Test 7: Inheritance - Specific ===
+Testing inheritance
+Caught SpecificError: Specific error
+Result: specific
+
+=== Test 8: Inheritance - Base ===
+Testing inheritance
+Caught BaseError: Base error
+Result: base
+
+Multiple catch test completed

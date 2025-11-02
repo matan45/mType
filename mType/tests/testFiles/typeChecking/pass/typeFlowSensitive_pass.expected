@@ -1,0 +1,30 @@
+Test 1: Flow-sensitive conditionals
+Container is empty
+Container has value: 42
+
+Test 2: Flow-sensitive in loops
+Container 0: Value0
+Container 1: Value1
+Container 2: Value2
+
+Test 3: Flow through branches
+Status 0: Success
+Status 1: Warning
+Status 2: Error
+
+Test 4: Flow through reassignments
+Initial value: 10
+After increment: 20
+Value is now >= 20: 20
+
+Test 5: Flow through nested validation
+Valid: 50
+Invalid: -5
+Invalid: 150
+
+Test 6: Flow-sensitive with division
+Result is non-zero: 5
+Cannot divide by zero, returning 0
+Result is zero
+
+Flow-sensitive typing tests completed

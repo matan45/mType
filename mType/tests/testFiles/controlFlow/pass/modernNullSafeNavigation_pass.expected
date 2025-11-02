@@ -1,0 +1,33 @@
+Test 1: Simple null-safe property access
+Unknown
+Alice
+Test 2: Nested null-safe navigation
+NYC
+No city
+No person
+Test 3: Deep null-safe navigation chain
+LA
+No address
+No CEO
+No company
+Test 4: Null-safe method invocation
+Oak Ave, LA
+No address
+No person
+Test 5: Null-safe navigation with function returns
+ReturnedCEO
+No company returned
+Test 6: Null-safe navigation in loops
+Iteration 0: City1
+Iteration 1: No person
+Iteration 2: No address
+Test 7: Null-safe navigation with assignments
+Portland
+Test 8: Multiple null-safe navigations
+LeftCity and N/A
+Test 9: Null-safe navigation with conditional execution
+Has address: CondCity
+No address available
+Test 10: Null-safe navigation with defaults
+DefaultCity
+Test passed

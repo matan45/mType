@@ -1,0 +1,14 @@
+=== Test 1: Basic unhandled exception ===
+Calling function that throws
+Starting async operation
+Caught unhandled exception: Unhandled async error
+Result: handled
+
+=== Test 2: Multi-level propagation ===
+Level 1: Catching
+Level 2: Propagating
+Level 3: Throwing exception
+Caught at level 1: Deep exception
+Result: propagated
+
+Unhandled exception test completed

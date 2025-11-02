@@ -1,0 +1,76 @@
+=== Test 1: Cleanup after failed cast ===
+Resource opened: file1
+Reading file: /path/to/file
+Resource closed: file1
+Cleanup completed
+File processed
+
+Resource opened: db1
+Exception: Not a file resource
+Resource closed: db1
+Cleanup completed
+Failed to process
+
+=== Test 2: Multiple resource cleanup ===
+Resource opened: file2
+Resource opened: db2
+Reading file: /data/log.txt
+Querying database: server:3306
+Cleaning up all resources
+Resource closed: file2
+Resource closed: db2
+Both resources processed
+
+Resource opened: db3
+Resource opened: file3
+Error during processing: r1 is not a file
+Cleaning up all resources
+Resource closed: db3
+Resource closed: file3
+Processing failed
+
+=== Test 3: Nested cleanup ===
+Resource opened: temp
+Resource opened: db4
+Querying database: remote:5000
+Resource closed: temp
+Inner cleanup done
+Resource closed: db4
+Outer cleanup done
+Database operation complete
+
+Resource opened: temp
+Resource opened: file4
+Resource closed: temp
+Inner cleanup done
+Caught exception: Invalid resource type
+Resource closed: file4
+Outer cleanup done
+Operation failed
+
+=== Test 4: Array cleanup with partial failure ===
+Resource opened: file5
+Resource opened: db5
+Resource opened: base
+Reading file: /home/user/doc.txt
+Resource closed: file5
+Querying database: local:8080
+Resource closed: db5
+Failed at index 2: Unknown resource type
+Resource closed: base
+All resources cleaned up
+Processed: 2, Failed: 1
+
+=== Test 5: Chained cleanup exceptions ===
+Resource opened: file6
+Reading file: /etc/passwd
+Inner exception: Simulated read error
+Resource closed: file6
+Outer catch: Re-throwing after cleanup attempt
+
+Resource opened: db6
+Inner exception: Not a file resource
+Resource closed: db6
+Outer catch: Re-throwing after cleanup attempt
+
+All cleanup after failed cast tests completed

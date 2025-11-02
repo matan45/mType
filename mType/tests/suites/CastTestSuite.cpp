@@ -161,5 +161,183 @@ namespace tests::testSuite
         addTestFromFile("Generic Type Mismatch Cast",
                         errorPath + "genericTypeMismatchCast.mt",
                         TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // NEW EDGE CASE TESTS (70 tests)
+        // ====================================
+
+        // === PRIMITIVE EDGE CASES (8 tests) ===
+        addOutputVerificationTest("Cast Primitive Overflow",
+                        passPath + "castPrimitiveOverflow_pass.mt");
+        addOutputVerificationTest("Cast Primitive Underflow",
+                        passPath + "castPrimitiveUnderflow_pass.mt");
+        addOutputVerificationTest("Cast NaN to Int",
+                        passPath + "castNaNToInt_pass.mt");
+        addOutputVerificationTest("Cast Infinity to Int",
+                        passPath + "castInfinityToInt_pass.mt");
+        addOutputVerificationTest("Cast Negative Zero",
+                        passPath + "castNegativeZero_pass.mt");
+        addTestFromFile("Cast String to Int Invalid",
+                        errorPath + "castStringToIntInvalid_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast String to Float Invalid",
+                        errorPath + "castStringToFloatInvalid_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Empty String to Numeric",
+                        errorPath + "castEmptyStringToNumeric_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === NULLABLE TYPE CASTING (7 tests) ===
+        addTestFromFile("Cast Nullable Int to Non-Null",
+                        errorPath + "castNullableIntToNonNull_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Nullable Object to Primitive",
+                        errorPath + "castNullableObjectToPrimitive_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Nullable Generic",
+                        passPath + "castNullableGeneric_pass.mt");
+        addOutputVerificationTest("Cast Chained Null Propagation",
+                        passPath + "castChainedNullPropagation_pass.mt");
+        addOutputVerificationTest("Cast Null in Complex Expression",
+                        passPath + "castNullInComplexExpr_pass.mt");
+        addOutputVerificationTest("Cast Null in Ternary",
+                        passPath + "castNullInTernary_pass.mt");
+        addOutputVerificationTest("Cast Null Coalescing",
+                        passPath + "castNullCoalescing_pass.mt");
+
+        // === ARRAY EDGE CASES (9 tests) ===
+        addTestFromFile("Cast Array Covariance",
+                        errorPath + "castArrayCovariance_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Array Parent to Child",
+                        errorPath + "castArrayParentToChild_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Array Interface to Implementation",
+                        passPath + "castArrayInterfaceToImpl_pass.mt");
+        addOutputVerificationTest("Cast 2D Array Element Type",
+                        passPath + "cast2DArrayElementType_pass.mt");
+        addOutputVerificationTest("Cast 3D Array",
+                        passPath + "cast3DArray_pass.mt");
+        addOutputVerificationTest("Cast Jagged Array",
+                        passPath + "castJaggedArray_pass.mt");
+        addOutputVerificationTest("Cast Array With Null Elements",
+                        passPath + "castArrayWithNullElements_pass.mt");
+        addOutputVerificationTest("Cast Sparse Array",
+                        passPath + "castSparseArray_pass.mt");
+        addTestFromFile("Cast Generic Array Types",
+                        errorPath + "castGenericArrayTypes_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === GENERIC TYPE CASTING (11 tests) ===
+        addOutputVerificationTest("Cast Bounded Generics Upper",
+                        passPath + "castBoundedGenericsUpper_pass.mt");
+        addTestFromFile("Cast Bounded Generics Lower",
+                        errorPath + "castBoundedGenericsLower_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Bounded Multiple",
+                        passPath + "castBoundedMultiple_pass.mt");
+        addOutputVerificationTest("Cast Covariant Generic",
+                        passPath + "castCovariantGeneric_pass.mt");
+        addOutputVerificationTest("Cast Contravariant Generic",
+                        passPath + "castContravariantGeneric_pass.mt");
+        addTestFromFile("Cast Invariant Generic",
+                        errorPath + "castInvariantGeneric_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Nested Generic Double",
+                        passPath + "castNestedGenericDouble_pass.mt");
+        addOutputVerificationTest("Cast Nested Generic Triple",
+                        passPath + "castNestedGenericTriple_pass.mt");
+        addOutputVerificationTest("Cast Wildcard Unbounded",
+                        passPath + "castWildcardUnbounded_pass.mt");
+        addOutputVerificationTest("Cast Raw Type to Generic",
+                        passPath + "castRawTypeToGeneric_pass.mt");
+        addOutputVerificationTest("Cast Generic Method Inference",
+                        passPath + "castGenericMethodInference_pass.mt");
+
+        // === INTERFACE CASTING (8 tests) ===
+        addOutputVerificationTest("Cast Diamond Problem",
+                        passPath + "castDiamondProblem_pass.mt");
+        addOutputVerificationTest("Cast Multiple Interface Same Method",
+                        passPath + "castMultipleInterfaceSameMethod_pass.mt");
+        addOutputVerificationTest("Cast Interface Default Method",
+                        passPath + "castInterfaceDefaultMethod_pass.mt");
+        addOutputVerificationTest("Cast Marker Interface",
+                        passPath + "castMarkerInterface_pass.mt");
+        addOutputVerificationTest("Cast Empty Interface",
+                        passPath + "castEmptyInterface_pass.mt");
+        addOutputVerificationTest("Cast Functional Interface",
+                        passPath + "castFunctionalInterface_pass.mt");
+        addOutputVerificationTest("Cast Method Reference",
+                        passPath + "castMethodReference_pass.mt");
+        addTestFromFile("Cast Interface Cross Partial",
+                        errorPath + "castInterfaceCrossPartial_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === CLASS HIERARCHY CASTING (10 tests) ===
+        addOutputVerificationTest("Cast Abstract Class",
+                        passPath + "castAbstractClass_pass.mt");
+        addOutputVerificationTest("Cast Abstract to Concrete",
+                        passPath + "castAbstractToConcrete_pass.mt");
+        addOutputVerificationTest("Cast Abstract Generic",
+                        passPath + "castAbstractGeneric_pass.mt");
+        addOutputVerificationTest("Cast Final Class",
+                        passPath + "castFinalClass_pass.mt");
+        addOutputVerificationTest("Cast Runtime Type Check",
+                        passPath + "castRuntimeTypeCheck_pass.mt");
+        addTestFromFile("Cast Sibling Runtime",
+                        errorPath + "castSiblingRuntime_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Deep Hierarchy Upcast",
+                        passPath + "castDeepHierarchyUpcast_pass.mt");
+        addOutputVerificationTest("Cast Deep Hierarchy Downcast",
+                        passPath + "castDeepHierarchyDowncast_pass.mt");
+        addOutputVerificationTest("Cast Constructor Chaining",
+                        passPath + "castConstructorChaining_pass.mt");
+        addOutputVerificationTest("Cast Covariant Return",
+                        passPath + "castCovariantReturn_pass.mt");
+
+        // === COMPLEX EXPRESSION CASTING (7 tests) ===
+        addOutputVerificationTest("Cast in If Condition",
+                        passPath + "castInIfCondition_pass.mt");
+        addOutputVerificationTest("Cast in While Condition",
+                        passPath + "castInWhileCondition_pass.mt");
+        addOutputVerificationTest("Cast in For Loop",
+                        passPath + "castInForLoop_pass.mt");
+        addOutputVerificationTest("Cast in Switch Expression",
+                        passPath + "castInSwitchExpr_pass.mt");
+        addOutputVerificationTest("Cast in Binary Operator",
+                        passPath + "castInBinaryOperator_pass.mt");
+        addOutputVerificationTest("Cast with InstanceOf",
+                        passPath + "castWithInstanceOf_pass.mt");
+        addOutputVerificationTest("Cast in Lambda Body",
+                        passPath + "castInLambdaBody_pass.mt");
+
+        // === NAMESPACE & IMPORT CASTING (4 tests) ===
+        addOutputVerificationTest("Cast Fully Qualified Type",
+                        passPath + "castFullyQualifiedType_pass.mt");
+        addOutputVerificationTest("Cast Namespace Collision",
+                        passPath + "castNamespaceCollision_pass.mt");
+        addOutputVerificationTest("Cast Imported Type",
+                        passPath + "castImportedType_pass.mt");
+        addOutputVerificationTest("Cast Cross Module",
+                        passPath + "castCrossModule_pass.mt");
+
+        // === MEMORY & PERFORMANCE (3 tests) ===
+        addOutputVerificationTest("Cast Large Object Graph",
+                        passPath + "castLargeObjectGraph_pass.mt");
+        addOutputVerificationTest("Cast Circular References",
+                        passPath + "castCircularReferences_pass.mt");
+        addOutputVerificationTest("Cast Many Objects",
+                        passPath + "castManyObjects_pass.mt");
+
+        // === ERROR HANDLING (3 tests) ===
+        addTestFromFile("Cast Error Message",
+                        errorPath + "castErrorMessage_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Runtime Validation",
+                        errorPath + "castRuntimeValidation_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast in Try Catch",
+                        passPath + "castInTryCatch_pass.mt");
     }
 }

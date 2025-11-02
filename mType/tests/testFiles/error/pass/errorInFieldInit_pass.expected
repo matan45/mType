@@ -1,0 +1,5 @@
+Testing exception in field initializer
+Computing field initial value
+Caught in field init: Error during field initialization
+Field value: 100
+Test completed

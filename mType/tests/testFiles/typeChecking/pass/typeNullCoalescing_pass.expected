@@ -1,0 +1,8 @@
+Testing null coalescing type checking
+Host 1: localhost
+Port 1: 8080
+Host 2: example.com
+Port 2: 3000
+Final host: default.com
+Final port: 3000
+Null coalescing type checking test completed

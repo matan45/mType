@@ -1,0 +1,7 @@
+Testing lambda capturing exception object
+Exception caught in outer scope: Captured exception message
+Lambda accessing captured exception: Captured exception message
+Exception message length: 27
+Lambda accessing captured exception: New exception
+Exception message length: 13
+Lambda exception capturing test completed

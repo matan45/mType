@@ -1,0 +1,6 @@
+Testing generic vs non-generic method overloads
+String display: Hello
+Generic display: 42
+Int format: 100
+Generic format: World
+Generic overload test completed

@@ -1,0 +1,60 @@
+=== Complex Hierarchy Test ===
+
+--- Test 1: Hierarchy Levels ---
+Entity ID: E1
+
+Entity ID: D1
+Description: Document 1 v1
+
+Entity ID: P1
+Description: Process Doc v2
+Attempting to process...
+Processing: Process Doc v2
+Process result: true
+
+Entity ID: S1
+Description: Secure Doc v3
+Attempting to process...
+Processing: Secure Doc v3
+Encrypting document: S1
+Process result: true
+History entries: 2
+Access level: 5
+Encrypted: true
+
+--- Test 2: Version History ---
+Processing: Versioned Doc v1
+Processed: true
+History:
+  Created
+  Updated to v2
+  Processed at version 1
+
+--- Test 3: Secure Document ---
+Processing: Classified v1
+Encrypting document: SEC1
+Secure processed: true
+Secure processing failed: Insufficient access level
+Low access processed: false
+
+--- Test 4: Cross-Level Casting ---
+Testing cross-level casting for: S1
+  Cast to DocumentEntity successful
+  Title: Secure Doc
+  Cast to ProcessableDocument successful
+  Cast to VersionedDocument successful
+  History size: 2
+  Cast to SecureDocument successful
+  Decrypting document: S1
+  Interface cast successful: S1
+
+--- Test 5: Error Handling ---
+Processing failed: Document data is empty
+Empty doc processed: false
+Error message: Document data is empty
+
+--- Test 6: History Overflow ---
+Added 2 entries successfully
+Caught expected error: History is full
+
+=== All tests completed ===

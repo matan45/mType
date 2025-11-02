@@ -1,0 +1,28 @@
+Testing throw in catch with finally throwing different exception
+Try: throwing FirstException
+Catch: caught FirstException, throwing SecondException
+Finally: throwing ThirdException
+Outer catch ThirdException: Error from finally
+---
+Throwing initial exception
+Catch block throwing SecondException
+Finally overriding with ThirdException
+Final catch: Finally wins
+---
+L3: throwing FirstException
+L2 catch: throwing SecondException
+L2 finally: throwing ThirdException
+L1 catch ThirdException: Level 2 finally
+L1 catch: throwing FirstException
+L1 finally: throwing SecondException
+Top level: Level 1 finally
+---
+Try block - no exception
+Finally - throwing exception
+Caught from finally: From finally alone
+---
+Throwing exception
+Catch throwing different exception
+Finally - no throw
+Caught from catch: From catch
+Test completed

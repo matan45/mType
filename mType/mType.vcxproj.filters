@@ -148,6 +148,9 @@
     <Filter Include="tests\testFiles\cast\pass">
       <UniqueIdentifier>{3A998A5A-A65B-BEE4-EF0B-4D715B0D97C2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\cast\pass\modules">
+      <UniqueIdentifier>{22582739-8EC6-7CB8-D7AF-37B8435D7254}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\class">
       <UniqueIdentifier>{1F45B5E4-8BB1-70DF-54A5-083DC0D09247}</UniqueIdentifier>
     </Filter>
@@ -174,6 +177,9 @@
     </Filter>
     <Filter Include="tests\testFiles\error\pass">
       <UniqueIdentifier>{19B6CA9A-05C6-766B-6E7F-DB895AAE6504}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\error\pass\modules">
+      <UniqueIdentifier>{01E429CE-ED1F-2D38-5632-452F428DD552}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\generics">
       <UniqueIdentifier>{99C7027E-85EC-51FE-AE37-378E9ABB501C}</UniqueIdentifier>
@@ -3259,6 +3265,48 @@
     <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.mt">
       <Filter>tests\testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\error\castArrayCovariance_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castArrayParentToChild_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castBoundedGenericsLower_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castEmptyStringToNumeric_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castErrorMessage_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castGenericArrayTypes_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castInterfaceCrossPartial_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castInvariantGeneric_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castNullableIntToNonNull_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castNullableObjectToPrimitive_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castRuntimeValidation_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castSiblingRuntime_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castStringToFloatInvalid_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castStringToIntInvalid_error.mt">
+      <Filter>tests\testFiles\cast\error</Filter>
+    </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
       <Filter>tests\testFiles\cast\error</Filter>
     </None>
@@ -3295,10 +3343,160 @@
     <None Include="tests\testFiles\cast\pass\boolToStringCast.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\cast2DArrayElementType_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\cast2DArrayElementType_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\cast3DArray_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\cast3DArray_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractClass_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractClass_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractGeneric_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractGeneric_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractToConcrete_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castAbstractToConcrete_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\castAndAccessMembers.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castAndAccessMembers.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castArrayInterfaceToImpl_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castArrayInterfaceToImpl_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castArrayWithNullElements_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castArrayWithNullElements_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castBoundedGenericsUpper_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castBoundedGenericsUpper_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castBoundedMultiple_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castBoundedMultiple_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castChainedNullPropagation_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castChainedNullPropagation_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCircularReferences_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCircularReferences_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castConstructorChaining_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castConstructorChaining_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castContravariantGeneric_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castContravariantGeneric_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCovariantGeneric_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCovariantGeneric_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCovariantReturn_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCovariantReturn_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCrossModule_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castCrossModule_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDeepHierarchyDowncast_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDeepHierarchyDowncast_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDeepHierarchyUpcast_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDeepHierarchyUpcast_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDiamondProblem_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castDiamondProblem_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castEmptyInterface_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castEmptyInterface_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFinalClass_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFinalClass_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFullyQualifiedType_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFullyQualifiedType_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFunctionalInterface_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castFunctionalInterface_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castGenericMethodInference_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castGenericMethodInference_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castImportedType_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castImportedType_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castInAssignment.expected">
@@ -3307,10 +3505,64 @@
     <None Include="tests\testFiles\cast\pass\castInAssignment.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\castInBinaryOperator_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInBinaryOperator_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInForLoop_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInForLoop_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInIfCondition_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInIfCondition_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInLambdaBody_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInLambdaBody_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\castInMethodCall.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castInMethodCall.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInSwitchExpr_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInSwitchExpr_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInTryCatch_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInTryCatch_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInWhileCondition_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInWhileCondition_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInfinityToInt_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInfinityToInt_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInterfaceDefaultMethod_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castInterfaceDefaultMethod_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castInterfaceMethodCall.expected">
@@ -3319,10 +3571,130 @@
     <None Include="tests\testFiles\cast\pass\castInterfaceMethodCall.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\castJaggedArray_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castJaggedArray_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castLargeObjectGraph_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castLargeObjectGraph_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castManyObjects_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castManyObjects_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMarkerInterface_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMarkerInterface_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMethodReference_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMethodReference_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMultipleInterfaceSameMethod_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMultipleInterfaceSameMethod_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNaNToInt_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNaNToInt_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNamespaceCollision_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNamespaceCollision_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNegativeZero_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNegativeZero_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNestedGenericDouble_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNestedGenericDouble_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNestedGenericTriple_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNestedGenericTriple_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullCoalescing_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullCoalescing_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullInComplexExpr_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullInComplexExpr_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullInTernary_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullInTernary_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullableGeneric_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullableGeneric_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castPrimitiveOverflow_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castPrimitiveOverflow_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castPrimitiveUnderflow_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castPrimitiveUnderflow_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castRawTypeToGeneric_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castRawTypeToGeneric_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\castReturnValue.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castReturnValue.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castRuntimeTypeCheck_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castRuntimeTypeCheck_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castSparseArray_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castSparseArray_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castToInterface.expected">
@@ -3337,10 +3709,22 @@
     <None Include="tests\testFiles\cast\pass\castToSibling.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\castWildcardUnbounded_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWildcardUnbounded_pass.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\castWithConstructor.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castWithConstructor.mt">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithInstanceOf_pass.expected">
+      <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castWithInstanceOf_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castWithNamespace.expected">
@@ -3540,6 +3924,15 @@
     </None>
     <None Include="tests\testFiles\cast\pass\mapGenericCast.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\modules\AlternateTypes.mt">
+      <Filter>tests\testFiles\cast\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\modules\BaseTypes.mt">
+      <Filter>tests\testFiles\cast\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\modules\ExtendedTypes.mt">
+      <Filter>tests\testFiles\cast\pass\modules</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\multiLevelCast.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
@@ -4453,6 +4846,18 @@
     <None Include="tests\testFiles\class\pass\typeUpcastExplicit.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\error\errorBreakOutsideLoop_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\errorContinueOutsideLoop_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\errorInvalidSwitchType_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\errorReturnOutsideFunction_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\error\finalForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
@@ -4462,11 +4867,62 @@
     <None Include="tests\testFiles\controlFlow\error\finalVariableReassignment.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\error\loopInfiniteDetection_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\recursionDeepStack_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\returnInConstructor_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\error\staticForLoopVariable.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\staticFunctionParameters.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\switchDuplicateCases_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\error\switchFloatValues_error.mt">
+      <Filter>tests\testFiles\controlFlow\error</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncBasicAwait_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncBasicAwait_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncExceptionHandling_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncExceptionHandling_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncInLoop_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncInLoop_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncNestedAwait_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncNestedAwait_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncParallel_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncParallel_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncPromiseChain_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\asyncPromiseChain_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\breakStatement.expected">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
@@ -4492,10 +4948,160 @@
     <None Include="tests\testFiles\controlFlow\pass\compoundAssignmentOperators.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalDanglingElse_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalDanglingElse_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalDeepElseIf_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalDeepElseIf_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalEmptyBlocks_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalEmptyBlocks_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalInSwitch_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalInSwitch_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalNestedComplex_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalNestedComplex_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalNoElse_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalNoElse_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalRedundantChecks_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalRedundantChecks_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalShortCircuitDiv_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\conditionalShortCircuitDiv_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\continueStatement.expected">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\continueStatement.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeEmptyFunction_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeEmptyFunction_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeMaxNestingDepth_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeMaxNestingDepth_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeMixedIndentation_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeMixedIndentation_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeSingleStatementBlocks_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeSingleStatementBlocks_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeStackDepthLimit_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\edgeStackDepthLimit_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionBreakInTry_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionBreakInTry_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionCatchNoVar_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionCatchNoVar_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionContinueInCatch_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionContinueInCatch_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionInLoop_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionInLoop_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionNestedFinally_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionNestedFinally_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionNestedTryCatch_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionNestedTryCatch_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionPropagation_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionPropagation_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionResourceCleanup_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionResourceCleanup_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionRethrow_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionRethrow_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionReturnInFinally_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionReturnInFinally_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionTryCatchMultiple_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionTryCatchMultiple_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionTryFinally_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\exceptionTryFinally_pass.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\finalInFunctions.expected">
@@ -4522,10 +5128,94 @@
     <None Include="tests\testFiles\controlFlow\pass\finallyOverridesReturn.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopCounterOverflow_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopCounterOverflow_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopForEach_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopForEach_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopLabeledBreak_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopLabeledBreak_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopLabeledContinue_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopLabeledContinue_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopMultipleExitConditions_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopMultipleExitConditions_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopNestedComplex_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopNestedComplex_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopReverseIteration_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopReverseIteration_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopSideEffectCondition_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopSideEffectCondition_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopZeroIterations_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\loopZeroIterations_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\mixedParameterTypes.expected">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\mixedParameterTypes.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernEarlyReturn_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernEarlyReturn_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernGuardClauses_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernGuardClauses_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernNullCoalescing_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernNullCoalescing_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernNullSafeNavigation_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernNullSafeNavigation_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernTernaryChains_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\modernTernaryChains_pass.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\moduloNegativeOperands.expected">
@@ -4564,10 +5254,70 @@
     <None Include="tests\testFiles\controlFlow\pass\nestedLoopsWithBreakContinue.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionIndirectThrough_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionIndirectThrough_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionLambdaSelf_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionLambdaSelf_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionMemoization_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionMemoization_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionMultipleBaseCases_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionMultipleBaseCases_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.expected">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionTailOptimization_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionTailOptimization_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnChainedCalls_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnChainedCalls_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnComplexExpression_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnComplexExpression_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnConditional_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnConditional_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnInNestedBlocks_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnInNestedBlocks_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnMultiplePaths_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\returnMultiplePaths_pass.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\spacedOperators.expected">
@@ -4600,10 +5350,46 @@
     <None Include="tests\testFiles\controlFlow\pass\switchExtremeCases.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchFallThrough_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchFallThrough_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchInLoop_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchInLoop_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchManyCases_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchManyCases_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\switchNestedInLoops.expected">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchNoDefault_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchNoDefault_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchOnlyDefault_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchOnlyDefault_pass.mt">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchStringValues_pass.expected">
+      <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchStringValues_pass.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\switchWithBreak.expected">
@@ -4703,6 +5489,21 @@
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\enhancedUndefinedFunctionLocation.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorCatchBlockOrdering_error.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorEmptyTry_error.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorThrowMismatch_error.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorThrowNull_error.mt">
+      <Filter>tests\testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorThrowPrimitive_error.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
@@ -4824,6 +5625,432 @@
     </None>
     <None Include="tests\testFiles\error\pass\basicErrorReportingValid.mt">
       <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAggregation_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAggregation_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncAwaitException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncAwaitException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncFinally_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncFinally_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncMultipleCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncMultipleCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncNestedExceptions_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncNestedExceptions_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncParallelExceptions_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncParallelExceptions_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncRethrow_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncRethrow_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncTryCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncTryCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncUnhandled_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAsyncUnhandled_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorBoundedGenericException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorBoundedGenericException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorBreakInTryFinally_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorBreakInTryFinally_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchAbstractException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchAbstractException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchGenericType_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchGenericType_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchInheritanceChain_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchInheritanceChain_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchInterfaceType_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchInterfaceType_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchUnrelatedTypes_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCatchUnrelatedTypes_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCircuitBreaker_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCircuitBreaker_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorContinueInCatchFinally_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorContinueInCatchFinally_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCovariantExceptionTypes_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCovariantExceptionTypes_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCrossModuleException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCrossModuleException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorDeepNesting_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorDeepNesting_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorDefaultMethodException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorDefaultMethodException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorEmptyCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorEmptyCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorExceptionInCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorExceptionInCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFallbackValue_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFallbackValue_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorGenericException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorGenericException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorGenericMethodException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorGenericMethodException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorHigherOrderException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorHigherOrderException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImplDifferentThrows_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImplDifferentThrows_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInArrayInit_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInArrayInit_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInDefaultParam_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInDefaultParam_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInFieldInit_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInFieldInit_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopCondition_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopCondition_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopIncrement_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopIncrement_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopInit_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInForLoopInit_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInStaticInit_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInStaticInit_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInSwitchExpr_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInSwitchExpr_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInTernaryOperator_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInTernaryOperator_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInWhileCondition_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInWhileCondition_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInterfaceMethodThrows_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInterfaceMethodThrows_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaCapturingException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaCapturingException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaChainException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaChainException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaInTryCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaInTryCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaThrowingException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLambdaThrowingException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLargeExceptionData_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorLargeExceptionData_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorManyExceptions_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorManyExceptions_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorModuleInitException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorModuleInitException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleFinallyNoCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleFinallyNoCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleGenericBounds_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleGenericBounds_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleInterfaceConflict_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultipleInterfaceConflict_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorPartialFailure_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorPartialFailure_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorRecursiveCatch_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorRecursiveCatch_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceCleanupMultipleFail_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceCleanupMultipleFail_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceFinallyCleanup_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceFinallyCleanup_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceLeakDetection_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceLeakDetection_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceNestedAcquisition_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceNestedAcquisition_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceRAII_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceRAII_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceTransactionRollback_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorResourceTransactionRollback_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorRetryMechanism_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorRetryMechanism_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReturnInCatchFinally_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReturnInCatchFinally_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceAccuracy_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceAccuracy_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceAsync_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceAsync_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceCustomMessage_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceCustomMessage_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceNested_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceNested_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceWithLambda_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceWithLambda_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowGenericException_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowGenericException_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowInCatchDifferent_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowInCatchDifferent_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowInheritance_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowInheritance_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowMultipleTypes_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowMultipleTypes_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowPolymorphic_pass.expected">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorThrowPolymorphic_pass.mt">
+      <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\modules\CustomException.mt">
+      <Filter>tests\testFiles\error\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\modules\ThrowingModule.mt">
+      <Filter>tests\testFiles\error\pass\modules</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\validClassUsage.expected">
       <Filter>tests\testFiles\error\pass</Filter>
@@ -6437,6 +7664,126 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllAsyncCastException_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllAsyncCastException_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllComplexHierarchy_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllComplexHierarchy_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllGenericControlError_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllGenericControlError_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllPolymorphicException_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllPolymorphicException_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllRealWorldScenario_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationAllRealWorldScenario_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastAsyncCast_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastAsyncCast_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastErrorRecovery_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastErrorRecovery_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastExceptionHandling_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastExceptionHandling_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastExceptionPropagation_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastExceptionPropagation_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastFailedCleanup_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastFailedCleanup_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInConditionals_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInConditionals_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInLoops_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInLoops_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInSwitch_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastInSwitch_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastRecursive_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastRecursive_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastTryCatchFinally_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationCastTryCatchFinally_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlAsyncTypes_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlAsyncTypes_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlLoopTypeInference_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlLoopTypeInference_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlRecursionTypes_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlRecursionTypes_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlSwitchPolymorphism_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlSwitchPolymorphism_pass.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlTypeNarrowing_pass.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\integrationControlTypeNarrowing_pass.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
@@ -8128,10 +9475,76 @@
     <None Include="tests\testFiles\typeChecking\error\stringToNumericError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\typeArrayCovariance_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeArrayElementAssignment_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeArrayLengthBoundary_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeBoundsLowerViolation_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeBoundsMultipleViolation_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeBoundsUpperViolation_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\typeConversionFailureBoundaryTests.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\typeErrorMessageDetailed_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeGenericArrayCreation_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\typeInferenceAmbiguity.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInheritanceAbstractMethod_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInheritanceFinalOverride_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInheritanceMethodOverrideInvariant_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInheritanceProtectedAccess_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInterfaceContravariantParam_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInterfaceMethodSignature_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeInterfaceMultipleConflict_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeLambdaException_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeLambdaReturnTypeMismatch_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeMixedVoidMisuse_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeNullablePrimitive_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeOperatorBitwise_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeOperatorComparison_error.mt">
+      <Filter>tests\testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\typeOverloadAmbiguous_error.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\chainedObjectAssignments.expected">
@@ -8276,6 +9689,354 @@
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\stringConcatenationWithNulls.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayMultidimensional_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayMultidimensional_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayOfGenerics_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayOfGenerics_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayRectangularVsJagged_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeArrayRectangularVsJagged_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeBoundsPropagation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeBoundsPropagation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeBoundsRecursive_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeBoundsRecursive_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeDependentType_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeDependentType_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeFlowSensitive_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeFlowSensitive_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericClassInstantiation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericClassInstantiation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericErasure_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericErasure_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodInference_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodInference_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodOverload_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodOverload_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMultipleBounds_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericMultipleBounds_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericNestedInstantiation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericNestedInstantiation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericSelfReferencing_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericSelfReferencing_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericWildcardLower_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericWildcardLower_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericWildcardUpper_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeGenericWildcardUpper_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceCollectionLiteral_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceCollectionLiteral_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceConditional_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceConditional_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceGenericMethod_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceGenericMethod_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLambdaReturn_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLambdaReturn_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLocalVariable_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLocalVariable_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceDowncast_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceDowncast_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceMethodOverrideCovariant_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceMethodOverrideCovariant_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceUpcast_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceUpcast_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceVirtualDispatch_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInheritanceVirtualDispatch_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceCovariantReturn_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceCovariantReturn_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceDiamondProblem_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceDiamondProblem_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceGenericMethod_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceGenericMethod_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceImplementation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceImplementation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceSegregation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeInterfaceSegregation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeIntersectionType_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeIntersectionType_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaClosure_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaClosure_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaFunctionalInterface_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaFunctionalInterface_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaHigherOrder_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaHigherOrder_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaMethodReference_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaMethodReference_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaParameterInference_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeLambdaParameterInference_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedCircularDependency_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedCircularDependency_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedNativeMethod_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedNativeMethod_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedReflection_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedReflection_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedSerialization_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeMixedSerialization_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullAssertion_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullAssertion_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullCoalescing_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullCoalescing_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullConditional_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullConditional_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullPropagation_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullPropagation_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullableGeneric_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeNullableGeneric_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorArithmeticPromotion_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorArithmeticPromotion_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorAssignmentCompound_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorAssignmentCompound_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorLogicalShortCircuit_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOperatorLogicalShortCircuit_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadConstructor_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadConstructor_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadExtension_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadExtension_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadGeneric_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadGeneric_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadStaticHiding_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadStaticHiding_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadVarargs_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeOverloadVarargs_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeStructuralTyping_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeStructuralTyping_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeTypeGuard_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeTypeGuard_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeUnionType_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeUnionType_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeVarianceContravariant_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeVarianceContravariant_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeVarianceCovariant_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\typeVarianceCovariant_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
   </ItemGroup>

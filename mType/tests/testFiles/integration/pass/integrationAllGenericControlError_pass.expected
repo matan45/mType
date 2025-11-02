@@ -1,0 +1,25 @@
+=== Generic Control Error Test ===
+
+--- Test 1: Generic Container ---
+Container size: 5
+Caught expected error: Container is full
+
+--- Test 2: Find Max ---
+Max value: 99
+
+--- Test 3: Sorting ---
+Sorted values:
+  8
+  17
+  33
+  42
+  99
+
+--- Test 4: Operations ---
+Sum: 199
+Product: 9193056
+
+--- Test 5: Float Operations ---
+Max float: 3.14
+
+=== All tests completed ===

@@ -1,0 +1,21 @@
+Test 1: Casting in for loop
+Car brand: Toyota
+Truck cargo: 1000
+Car brand: Honda
+Test 2: Casting in while loop
+Found Toyota at index 0
+Test 3: Nested loops with casting
+Fleet[0][0] Car: BMW
+Fleet[0][1] Truck cargo: 2000
+Fleet[1][0] Car: Audi
+Fleet[1][1] Truck cargo: 3000
+Test 4: Casting in loop condition
+Character at index 0
+Character at index 1
+Character at index 2
+Character at index 3
+Test 5: Casting with break and continue
+Processing car: Toyota
+Processing large truck: 1000
+Found target brand: Honda
+All loop casting tests completed

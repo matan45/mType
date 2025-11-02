@@ -1,0 +1,8 @@
+Testing varargs method overload resolution
+Log: Simple message
+Log [1]: Info message
+Log [3] CRITICAL: Error message
+Log [2]: Warning message
+Single: 42
+Array: 3 elements
+Varargs overload test completed

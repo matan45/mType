@@ -1,0 +1,8 @@
+Testing generic method overload resolution
+Single type: 42
+Two types: 42, Hello
+Transformed box: 99
+Transformed item: 77
+Generic handler: 10
+Box handler: Test
+Generic method overload test completed

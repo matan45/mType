@@ -1,0 +1,29 @@
+Test 1: Basic async with casting
+Database connected: true
+Fetched: Database: users_db
+Test 2: Async loop with casting
+DB Result: Database: products_db
+API Token: token_20
+API Result: API: https://api.example.com
+DB Result: Database: orders_db
+Test 3: Nested async with casting
+Nested result 1: Database: analytics_db
+Nested result 2: API: https://data.api.com
+Test 4: Async conditional with multiple casts
+Using primary database
+Database: main_db
+Final status: 1
+Test 5: Async promise chain with casting
+Processing: DatabaseSource
+Chain 1: Database: cache_db
+Processing: APISource
+Chain 2: API: https://external.api.com
+Chain final: Database: cache_db | API: https://external.api.com
+Test 6: Async with cast validation
+Safe casting source ID: 999
+Cast to DatabaseSource successful
+Safe result 1: Database: test_db
+Safe casting source ID: 1000
+Cast to APISource successful
+Safe result 2: API: https://test.api.com
+All async casting tests completed

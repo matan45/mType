@@ -251,6 +251,58 @@ namespace tests::testSuite
                         passPath + "allGenericInheritanceArrays.mt");
         addOutputVerificationTest("All Complete Integration",
                         passPath + "allCompleteIntegration.mt");
+
+        // ====================================
+        // NEW EDGE CASE INTEGRATION TESTS (20 tests)
+        // ====================================
+
+        // === CASTING + ERROR HANDLING INTEGRATION (5 tests) ===
+        addOutputVerificationTest("Integration Cast Exception Handling",
+                        passPath + "integrationCastExceptionHandling_pass.mt");
+        addOutputVerificationTest("Integration Safe Cast Pattern",
+                        passPath + "integrationSafeCastPattern_pass.mt");
+        addOutputVerificationTest("Integration Cast Cleanup Failed",
+                        passPath + "integrationCastCleanupFailed_pass.mt");
+        addOutputVerificationTest("Integration Cast Retry",
+                        passPath + "integrationCastRetry_pass.mt");
+        addOutputVerificationTest("Integration Cast Finally",
+                        passPath + "integrationCastFinally_pass.mt");
+
+        // === CONTROL FLOW + TYPE CHECKING INTEGRATION (5 tests) ===
+        addOutputVerificationTest("Integration Type Narrowing Control",
+                        passPath + "integrationTypeNarrowingControl_pass.mt");
+        addOutputVerificationTest("Integration Loop Type Inference",
+                        passPath + "integrationLoopTypeInference_pass.mt");
+        addOutputVerificationTest("Integration Switch Type Guard",
+                        passPath + "integrationSwitchTypeGuard_pass.mt");
+        addOutputVerificationTest("Integration Polymorphic Dispatch",
+                        passPath + "integrationPolymorphicDispatch_pass.mt");
+        addOutputVerificationTest("Integration Lambda Type Flow",
+                        passPath + "integrationLambdaTypeFlow_pass.mt");
+
+        // === CASTING + CONTROL FLOW INTEGRATION (5 tests) ===
+        addOutputVerificationTest("Integration Cast In Loop",
+                        passPath + "integrationCastInLoop_pass.mt");
+        addOutputVerificationTest("Integration Cast In Conditional",
+                        passPath + "integrationCastInConditional_pass.mt");
+        addOutputVerificationTest("Integration Cast In Switch",
+                        passPath + "integrationCastInSwitch_pass.mt");
+        addOutputVerificationTest("Integration Cast In Recursion",
+                        passPath + "integrationCastInRecursion_pass.mt");
+        addOutputVerificationTest("Integration Cast In Async",
+                        passPath + "integrationCastInAsync_pass.mt");
+
+        // === ALL FEATURES INTEGRATION (5 tests) ===
+        addOutputVerificationTest("Integration All Polymorphic Exception",
+                        passPath + "integrationAllPolymorphicException_pass.mt");
+        addOutputVerificationTest("Integration All Generic Control",
+                        passPath + "integrationAllGenericControl_pass.mt");
+        addOutputVerificationTest("Integration All Async Casting",
+                        passPath + "integrationAllAsyncCasting_pass.mt");
+        addOutputVerificationTest("Integration All Type Safe Error",
+                        passPath + "integrationAllTypeSafeError_pass.mt");
+        addOutputVerificationTest("Integration All Feature Showcase",
+                        passPath + "integrationAllFeatureShowcase_pass.mt");
     }
 }
 

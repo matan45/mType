@@ -1,0 +1,11 @@
+Testing exception in switch case expression
+Computing case 0 expression
+Case 0 matched
+Computing case 1 expression
+Case 1 matched
+Computing case 2 expression
+Caught in switch case: Error in case 2
+Exception case matched
+Computing case 3 expression
+Case 3 matched
+Test completed

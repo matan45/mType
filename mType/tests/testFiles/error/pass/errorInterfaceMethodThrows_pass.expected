@@ -1,0 +1,15 @@
+=== Test 1: Valid data ===
+Validating: valid
+Validation result: true
+Processing: data
+Process result: Processed: data
+
+=== Test 2: Invalid data ===
+Validating: invalid
+Caught validation exception: Invalid data detected
+
+=== Test 3: Process error ===
+Processing: error
+Caught processing exception: Processing error occurred
+
+Interface method throws test passed!

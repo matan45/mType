@@ -1,0 +1,5 @@
+Testing multiple catch blocks
+Caught CustomException: Custom error
+Caught AnotherException: Another error
+Caught Exception: Generic error
+Test completed

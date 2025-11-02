@@ -1,0 +1,17 @@
+=== Test 1: Base processor ===
+Processing base data: test data
+Result: Processed: test data
+
+=== Test 2: Validating processor ===
+Validating data: invalid
+Caught ValidationException: Validation failed
+
+=== Test 3: Parsing processor ===
+Parsing data: parse-error
+Caught ParseException: Parse error occurred
+
+=== Test 4: Polymorphic catch ===
+Validating data: invalid
+Caught base DataException polymorphically: Validation failed
+
+Throw inheritance test passed!

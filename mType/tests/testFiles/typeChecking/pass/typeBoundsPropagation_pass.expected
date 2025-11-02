@@ -1,0 +1,14 @@
+Testing type constraint propagation through nested generics
+Entity container ID: 1
+Entity from wrapper: Entity{id=1, name=First Entity}
+Entity repository count: 2
+Found entity by ID 1: Entity{id=1, name=First Entity}
+Found entity by name: Entity{id=2, name=Second Entity}
+Document repository count: 2
+Found document by ID 10: Document{id=10, name=Document A, content=Content A}
+Found document by name: Document{id=11, name=Document B, content=Content B}
+Processing [ID=1, Name=First Entity]
+Processing [ID=2, Name=Second Entity]
+Processing [ID=10, Name=Document A]
+Processing [ID=11, Name=Document B]
+Type constraint propagation test completed successfully

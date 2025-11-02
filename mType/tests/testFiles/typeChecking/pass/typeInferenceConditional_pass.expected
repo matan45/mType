@@ -1,0 +1,14 @@
+Testing conditional expression type inference
+selectInt(true, 10, 20): 10
+selectInt(false, 10, 20): 20
+selectString(true, yes, no): yes
+selectString(false, yes, no): no
+classify(-5): negative
+classify(0): zero
+classify(7): positive
+describe(15, 5): x is large and greater than y
+describe(8, 5): x is greater than y
+describe(5, 5): x equals y
+describe(3, 5): x is less than y
+Selected container: Container(100)
+Conditional expression type inference test completed

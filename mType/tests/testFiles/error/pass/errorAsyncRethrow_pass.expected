@@ -1,0 +1,51 @@
+=== Test 1: Basic rethrow ===
+About to throw
+Caught and rethrowing: Original exception
+Caught rethrown: Original exception
+Result: handled
+
+=== Test 2: Rethrow with logging ===
+Creating logged exception
+Logging exception: Error to log
+Logged status: true
+Received logged exception: Error to log
+Was logged: true
+Result: logged and handled
+
+=== Test 3: Transform and rethrow ===
+Throwing runtime exception
+Transforming: Runtime error
+Caught transformed: Wrapped: Runtime error
+Result: transformation handled
+
+=== Test 4: Conditional rethrow (true) ===
+Testing conditional rethrow
+Caught: Conditional error
+Rethrowing
+Result: caught rethrow: Conditional error
+
+=== Test 5: Conditional rethrow (false) ===
+Testing conditional rethrow
+Caught: Conditional error
+Not rethrowing
+Result: result: handled locally
+
+=== Test 6: Nested rethrow ===
+Outer try
+Inner try
+Inner catch: Inner exception
+Rethrowing from inner
+Outer catch: Inner exception
+Result: outer handled
+
+=== Test 7: Multiple rethrows through chain ===
+Level 4: Calling level 3
+Level 3: Calling level 2
+Level 2: Calling level 1
+Level 1: Throwing
+Level 2: Caught and rethrowing
+Level 3: Caught and rethrowing
+Level 4: Final catch - Level 1 error
+Result: chain complete
+
+Rethrow test completed

@@ -1,0 +1,36 @@
+Test 1: Basic async type checking
+Async computation: 42
+Result: 42
+
+Test 2: Async operations in loops
+Sum of async results: 45
+
+Test 3: Conditional async execution
+Negative value: -5
+Zero value
+Positive value: 10
+
+Test 4: Async with generic types
+Awaited int: 99
+Awaited string: Hello Async
+
+Test 5: Async chain operations
+After step1: 15
+After step2: 30
+After step3: 25
+Final chain result: 25
+
+Test 6: Async error handling
+Success: 5
+Error: Division by zero
+
+Test 7: Async parallel operations
+Task 0 result: 10
+Task 1 result: 20
+Task 2 result: 30
+Task 3 result: 40
+
+Test 8: Type-safe async callbacks
+Processed: 42
+
+Async type safety tests completed

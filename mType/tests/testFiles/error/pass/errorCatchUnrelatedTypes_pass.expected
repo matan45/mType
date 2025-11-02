@@ -1,0 +1,6 @@
+Testing unrelated catch blocks
+Caught CustomException: Custom error
+Caught AnotherCustomException: Another custom error
+Caught IllegalArgumentException: Invalid argument
+Caught NullPointerException: Null pointer
+Test completed

@@ -1,0 +1,11 @@
+Testing lambda chain with exception handling
+After doubler: 20
+After incrementer: 21
+Chain completed successfully
+Chain failed at doubler: Doubler: negative input
+After doubler: 120
+Chain failed at incrementer: Incrementer: value too large
+After doubler: 10
+After incrementer: 11
+Chain failed at validator: Validator: odd number detected
+Lambda chain exception test completed

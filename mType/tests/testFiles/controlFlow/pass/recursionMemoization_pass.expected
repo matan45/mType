@@ -1,0 +1,13 @@
+Testing recursion with memoization:
+fibMemo(10) = 55
+fibMemo(15) = 610
+fibMemo(19) = 4181
+tribMemo(8) = 44
+tribMemo(10) = 149
+tribMemo(12) = 504
+countWays(5) = 8
+countWays(8) = 34
+countWays(10) = 89
+fibMemo(10) again = 55
+tribMemo(10) again = 149
+Memoization tests completed successfully

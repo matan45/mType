@@ -1,0 +1,9 @@
+Testing lambda return type inference
+Lambda triple(10): 30
+Lambda concat(Hello): Hello World
+Lambda identity(true): true
+Doubler(21): 42
+Greeter(mType): Hello, mType
+Negator(false): true
+Nested lambda increment(5): 6
+Lambda return type inference test completed

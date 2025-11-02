@@ -66,6 +66,213 @@ namespace tests::testSuite
         addOutputVerificationTest("Nullable Chain Safe",
                         passPath + "nullableChainSafe.mt");
 
+        // ====================================
+        // NEW EDGE CASE TESTS (70 tests)
+        // ====================================
+
+        // === GENERIC TESTS (10 tests) ===
+        addOutputVerificationTest("Type Generic Method Inference",
+                        passPath + "typeGenericMethodInference_pass.mt");
+        addOutputVerificationTest("Type Wildcard Upper Bound",
+                        passPath + "typeWildcardUpperBound_pass.mt");
+        addOutputVerificationTest("Type Wildcard Lower Bound",
+                        passPath + "typeWildcardLowerBound_pass.mt");
+        addOutputVerificationTest("Type Multiple Bounds",
+                        passPath + "typeMultipleBounds_pass.mt");
+        addOutputVerificationTest("Type Generic Inheritance",
+                        passPath + "typeGenericInheritance_pass.mt");
+        addOutputVerificationTest("Type Recursive Bound",
+                        passPath + "typeRecursiveBound_pass.mt");
+        addOutputVerificationTest("Type Nested Generic",
+                        passPath + "typeNestedGeneric_pass.mt");
+        addOutputVerificationTest("Type Generic Array",
+                        passPath + "typeGenericArray_pass.mt");
+        addTestFromFile("Type Generic Erasure Conflict",
+                        errorPath + "typeGenericErasureConflict_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Generic Bridge Method",
+                        passPath + "typeGenericBridgeMethod_pass.mt");
+
+        // === INTERFACE TESTS (8 tests) ===
+        addOutputVerificationTest("Type Interface Implementation",
+                        passPath + "typeInterfaceImplementation_pass.mt");
+        addOutputVerificationTest("Type Multiple Interfaces",
+                        passPath + "typeMultipleInterfaces_pass.mt");
+        addOutputVerificationTest("Type Interface Covariant Return",
+                        passPath + "typeInterfaceCovariantReturn_pass.mt");
+        addOutputVerificationTest("Type Interface Default Method",
+                        passPath + "typeInterfaceDefaultMethod_pass.mt");
+        addTestFromFile("Type Interface Missing Method",
+                        errorPath + "typeInterfaceMissingMethod_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Type Interface Contravariant Param",
+                        errorPath + "typeInterfaceContravariantParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Diamond Problem",
+                        passPath + "typeDiamondProblem_pass.mt");
+        addOutputVerificationTest("Type Interface Generic",
+                        passPath + "typeInterfaceGeneric_pass.mt");
+
+        // === INHERITANCE TESTS (8 tests) ===
+        addOutputVerificationTest("Type Upcast",
+                        passPath + "typeUpcast_pass.mt");
+        addOutputVerificationTest("Type Downcast With Check",
+                        passPath + "typeDowncastWithCheck_pass.mt");
+        addTestFromFile("Type Downcast Without Check",
+                        errorPath + "typeDowncastWithoutCheck_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Method Override Covariant",
+                        passPath + "typeMethodOverrideCovariant_pass.mt");
+        addTestFromFile("Type Method Override Contravariant",
+                        errorPath + "typeMethodOverrideContravariant_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Abstract Method",
+                        passPath + "typeAbstractMethod_pass.mt");
+        addTestFromFile("Type Final Method Override",
+                        errorPath + "typeFinalMethodOverride_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Protected Access",
+                        passPath + "typeProtectedAccess_pass.mt");
+
+        // === ARRAY TESTS (6 tests) ===
+        addOutputVerificationTest("Type Array Covariance Safe",
+                        passPath + "typeArrayCovarianceSafe_pass.mt");
+        addTestFromFile("Type Array Store Exception",
+                        errorPath + "typeArrayStoreException_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Multidimensional Array",
+                        passPath + "typeMultidimensionalArray_pass.mt");
+        addOutputVerificationTest("Type Array Element Assignment",
+                        passPath + "typeArrayElementAssignment_pass.mt");
+        addTestFromFile("Type Array Dimension Mismatch",
+                        errorPath + "typeArrayDimensionMismatch_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Jagged Array",
+                        passPath + "typeJaggedArray_pass.mt");
+
+        // === LAMBDA TESTS (7 tests) ===
+        addOutputVerificationTest("Type Lambda Parameter Inference",
+                        passPath + "typeLambdaParameterInference_pass.mt");
+        addOutputVerificationTest("Type Lambda Return Inference",
+                        passPath + "typeLambdaReturnInference_pass.mt");
+        addOutputVerificationTest("Type Lambda Capture",
+                        passPath + "typeLambdaCapture_pass.mt");
+        addTestFromFile("Type Lambda Capture Mutable",
+                        errorPath + "typeLambdaCaptureMutable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Method Reference",
+                        passPath + "typeMethodReference_pass.mt");
+        addOutputVerificationTest("Type Lambda Generic",
+                        passPath + "typeLambdaGeneric_pass.mt");
+        addOutputVerificationTest("Type Lambda Closure",
+                        passPath + "typeLambdaClosure_pass.mt");
+
+        // === NULL SAFETY TESTS (6 tests) ===
+        addOutputVerificationTest("Type Nullable Generic",
+                        passPath + "typeNullableGeneric_pass.mt");
+        addOutputVerificationTest("Type Null Conditional",
+                        passPath + "typeNullConditional_pass.mt");
+        addOutputVerificationTest("Type Null Coalescing",
+                        passPath + "typeNullCoalescing_pass.mt");
+        addTestFromFile("Type Null Dereference",
+                        errorPath + "typeNullDereference_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Nullable Flow Analysis",
+                        passPath + "typeNullableFlowAnalysis_pass.mt");
+        addOutputVerificationTest("Type Null Safe Cast",
+                        passPath + "typeNullSafeCast_pass.mt");
+
+        // === OPERATOR TESTS (5 tests) ===
+        addOutputVerificationTest("Type Arithmetic Promotion",
+                        passPath + "typeArithmeticPromotion_pass.mt");
+        addTestFromFile("Type Comparison String Int",
+                        errorPath + "typeComparisonStringInt_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Compound Assignment",
+                        passPath + "typeCompoundAssignment_pass.mt");
+        addOutputVerificationTest("Type Ternary Type Inference",
+                        passPath + "typeTernaryTypeInference_pass.mt");
+        addOutputVerificationTest("Type Operator Overload",
+                        passPath + "typeOperatorOverload_pass.mt");
+
+        // === ADVANCED FEATURES (8 tests) ===
+        addOutputVerificationTest("Type Type Guard",
+                        passPath + "typeTypeGuard_pass.mt");
+        addOutputVerificationTest("Type Structural Subtyping",
+                        passPath + "typeStructuralSubtyping_pass.mt");
+        addOutputVerificationTest("Type Nominal Typing",
+                        passPath + "typeNominalTyping_pass.mt");
+        addOutputVerificationTest("Type Variance Annotation",
+                        passPath + "typeVarianceAnnotation_pass.mt");
+        addOutputVerificationTest("Type Flow Sensitive",
+                        passPath + "typeFlowSensitive_pass.mt");
+        addOutputVerificationTest("Type Union Type",
+                        passPath + "typeUnionType_pass.mt");
+        addOutputVerificationTest("Type Intersection Type",
+                        passPath + "typeIntersectionType_pass.mt");
+        addTestFromFile("Type Cyclic Inheritance",
+                        errorPath + "typeCyclicInheritance_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === OVERLOADING TESTS (6 tests) ===
+        addOutputVerificationTest("Type Method Overload",
+                        passPath + "typeMethodOverload_pass.mt");
+        addOutputVerificationTest("Type Constructor Overload",
+                        passPath + "typeConstructorOverload_pass.mt");
+        addTestFromFile("Type Overload Ambiguous",
+                        errorPath + "typeOverloadAmbiguous_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Generic Overload",
+                        passPath + "typeGenericOverload_pass.mt");
+        addOutputVerificationTest("Type Varargs Overload",
+                        passPath + "typeVarargsOverload_pass.mt");
+        addOutputVerificationTest("Type Overload Resolution",
+                        passPath + "typeOverloadResolution_pass.mt");
+
+        // === BOUNDS TESTS (5 tests) ===
+        addOutputVerificationTest("Type Upper Bound",
+                        passPath + "typeUpperBound_pass.mt");
+        addOutputVerificationTest("Type Lower Bound",
+                        passPath + "typeLowerBound_pass.mt");
+        addOutputVerificationTest("Type Multiple Constraints",
+                        passPath + "typeMultipleConstraints_pass.mt");
+        addOutputVerificationTest("Type Recursive Bound Complex",
+                        passPath + "typeRecursiveBoundComplex_pass.mt");
+        addTestFromFile("Type Bound Violation",
+                        errorPath + "typeBoundViolation_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === INFERENCE TESTS (5 tests) ===
+        addOutputVerificationTest("Type Local Variable Inference",
+                        passPath + "typeLocalVariableInference_pass.mt");
+        addOutputVerificationTest("Type Generic Method Call Inference",
+                        passPath + "typeGenericMethodCallInference_pass.mt");
+        addOutputVerificationTest("Type Lambda Expression Inference",
+                        passPath + "typeLambdaExpressionInference_pass.mt");
+        addOutputVerificationTest("Type Conditional Expression Inference",
+                        passPath + "typeConditionalExprInference_pass.mt");
+        addOutputVerificationTest("Type Array Initializer Inference",
+                        passPath + "typeArrayInitializerInference_pass.mt");
+
+        // === MIXED-MODE TESTS (5 tests) ===
+        addTestFromFile("Type Void Assignment",
+                        errorPath + "typeVoidAssignment_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Type Circular Dependency",
+                        errorPath + "typeCircularDependency_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Type Primitive Wrapper",
+                        passPath + "typePrimitiveWrapper_pass.mt");
+        addOutputVerificationTest("Type Reflection",
+                        passPath + "typeReflection_pass.mt");
+        addOutputVerificationTest("Type Dynamic Dispatch",
+                        passPath + "typeDynamicDispatch_pass.mt");
+
+        // === ERROR MESSAGES (1 test) ===
+        addTestFromFile("Type Cascading Error",
+                        errorPath + "typeCascadingError_error.mt",
+                        TestType::ERROR_EXPECTED);
+
         // Error tests (expected to fail)
         addTestFromFile("Different Type Assignment Error",
                         errorPath + "differentTypeAssignmentError.mt",

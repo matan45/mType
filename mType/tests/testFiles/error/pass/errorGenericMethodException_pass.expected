@@ -1,0 +1,11 @@
+Testing generic method with Int:
+Caught Int method exception: Validation failed
+Invalid value: -5
+Testing generic method with String:
+Caught String method exception: Validation failed
+Invalid value: []
+Testing generic method success:
+Validated value: 10
+Testing instance generic method:
+Converted value: 10
+Generic method exception test passed!

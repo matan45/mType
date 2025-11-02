@@ -1,0 +1,7 @@
+Testing exception thrown from lambda
+Validation passed for 42: true
+Caught exception: Negative value not allowed
+Caught exception: Value exceeds maximum
+Transformed: HELLO
+Transform error: Empty string not allowed
+Lambda exception throwing test completed

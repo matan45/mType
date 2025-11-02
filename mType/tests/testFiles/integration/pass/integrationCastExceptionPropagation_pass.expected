@@ -1,0 +1,66 @@
+=== Test 1: Single cast propagation (valid) ===
+Validating document: Valid Document
+Processing document: Valid Document
+Document processed
+
+=== Test 1b: Single cast propagation (invalid) ===
+Validating document: invalid
+Validation failed: Invalid document title
+
+=== Test 2: Multi-level cast propagation (valid) ===
+First level: Document cast successful
+Second level: Report cast successful
+Validating report: Annual Report (financial)
+Generating report: Annual Report
+Report generated
+
+=== Test 2b: Multi-level cast propagation (invalid) ===
+First level: Document cast successful
+Second level: Report cast successful
+Validating report: Error Report (error)
+Caught at top level: Invalid report type
+
+=== Test 3: Nested function propagation (valid) ===
+Validating document: Working Doc
+Processing document: Working Doc
+Entity pipeline complete
+
+=== Test 3b: Nested function propagation (invalid) ===
+Validating document: invalid
+Pipeline failed: Invalid document title
+
+=== Test 4: Cast chain with re-throw (valid) ===
+Middle: Cast to document
+Inner: Validating report
+Validating report: Status Report (status)
+Chain completed
+
+=== Test 4b: Cast chain with re-throw (invalid) ===
+Middle: Cast to document
+Inner: Validating report
+Validating report: Failure Report (error)
+Middle: Caught validation error
+Outer caught: Invalid report type
+
+=== Test 4c: Cast chain with wrong type ===
+Processing error: Not a report
+
+=== Test 5: Mixed exception types (valid) ===
+Validating report: Report A (audit)
+First report validated
+Validating report: Report B (summary)
+Second report validated
+Both validated
+
+=== Test 5b: Mixed exception types (invalid) ===
+Validating report: Report C (error)
+Caught validation exception: Invalid report type
+Wrapper caught: Validation failed in complex chain
+
+=== Test 6: Array processing (partial failure) ===
+Validating document: Doc A
+Processing document: Doc A
+Validating document: invalid
+Failed at item 1: Invalid document title
+
+All exception propagation tests completed

@@ -1,0 +1,24 @@
+Testing exceptions in loops
+Testing continue in loop with exceptions
+Processing: 0
+After try-catch: 0
+Processing: 1
+After try-catch: 1
+Caught: Skip iteration 2
+Processing: 3
+After try-catch: 3
+Processing: 4
+After try-catch: 4
+Testing break in loop with exceptions
+Count: 1
+Count: 2
+Count: 3
+Caught: Breaking at 4
+Final count: 4
+Testing exception with finally in loop
+Iteration: 0
+Finally for iteration: 0
+Finally for iteration: 1
+Iteration: 2
+Finally for iteration: 2
+Test completed

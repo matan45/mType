@@ -1,0 +1,7 @@
+Testing generic method type argument inference
+Pair<Int, String>: (42, answer)
+first<String>(Hello, World): Hello
+swapped pair: (answer, 42)
+max<Int>(100, 200, false): 200
+Pair<String, Bool>: (test, true)
+Generic method inference test completed

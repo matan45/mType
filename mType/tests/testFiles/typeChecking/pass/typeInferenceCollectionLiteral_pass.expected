@@ -1,0 +1,15 @@
+Testing collection literal type inference
+IntArray size: 5
+IntArray[0]: 1
+IntArray[2]: 3
+IntArray[4]: 5
+Sum of IntArray: 15
+StringArray size: 3
+StringArray[0]: hello
+StringArray[1]: world
+StringArray[2]: mType
+Concatenated StringArray: hello world mType
+Sum of inline IntArray: 60
+Empty array size: 0
+Sum of empty array: 0
+Collection literal type inference test completed

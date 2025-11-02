@@ -1,0 +1,11 @@
+Testing jagged array casting
+Jagged array rows: 3
+Row 0 length: 2
+Row 1 length: 3
+Row 2 length: 1
+Shape at [0][0] type: Rectangle
+Shape at [2][0] type: Rectangle
+Rectangle [0][0] dimensions: 10x20
+Rectangle [1][2] width: 50
+Rectangle [2][0] dimensions: 100x200
+Jagged array casting completed

@@ -1,0 +1,12 @@
+=== Nested Async Await Test ===
+Starting nested async operations
+Level 4: Finalizing task
+Level 3: Enhancing task
+Level 2: Processing task
+Level 1: Creating task
+Level 2: Got task with accumulator 10
+Level 3: Got task with accumulator 30
+Level 4: Got task with accumulator 60
+Final accumulator value: 100
+Expected: 10 + 20 + 30 + 40 = 100
+Nested async operations complete

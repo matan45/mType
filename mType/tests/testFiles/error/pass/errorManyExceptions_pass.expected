@@ -1,0 +1,17 @@
+Starting many exceptions performance test
+Test 1: 1000 sequential exceptions
+Sequential exceptions caught: 1000
+---
+Test 2: 50x20 nested loop exceptions (1000 total)
+Nested loop exceptions caught: 1000
+---
+Test 3: 1000 exceptions with multiple catch types
+Type A caught: 334
+Type B caught: 333
+Type C caught: 333
+---
+Test 4: 500 exceptions with finally blocks
+Caught with finally: 500
+Finally blocks executed: 500
+---
+Many exceptions test completed successfully!

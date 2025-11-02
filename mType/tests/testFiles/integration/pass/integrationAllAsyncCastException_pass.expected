@@ -1,0 +1,53 @@
+=== Async Cast Exception Test ===
+
+--- Test 1: Different Task Types ---
+Processing task: Base1
+  Result: Task 1 completed
+Processing task: Data1
+  Type: DataTask, Data: sample data
+  Result: DataTask 2 processed: sample data
+Processing task: Compute1
+  Type: ComputeTask
+  Computed value: 50
+  Result: ComputeTask 3 result: 50
+Processing task: Data2
+  Type: DataTask, Data: error data
+  Error caught: DataTask 4 failed: invalid data
+  Handled: DataTask 4 failed: invalid data
+Successfully processed: 3 tasks
+
+--- Test 2: Retry Mechanism ---
+Attempt 1 for task 5
+Attempt 1 failed: ComputeTask 5 failed: computation error
+Attempt 2 for task 5
+Attempt 2 failed: ComputeTask 5 failed: computation error
+Attempt 3 for task 5
+Attempt 3 failed: ComputeTask 5 failed: computation error
+All attempts exhausted
+Handled: ComputeTask 5 failed: computation error
+Retry result: false
+
+--- Test 3: Task Chaining ---
+Chaining tasks...
+Processing task: Chain1
+  Type: DataTask, Data: chain data
+  Result: DataTask 6 processed: chain data
+Processing task: Chain2
+  Type: ComputeTask
+  Computed value: 16
+  Error caught: ComputeTask 7 failed: computation error
+  Handled: ComputeTask 7 failed: computation error
+Chain result: DataTask 6 processed: chain data -> Handled: ComputeTask 7 failed: computation error
+
+--- Test 4: Polymorphic Operations ---
+Polymorphic result: ComputeTask 8 result: 60
+Downcast successful, computed: 60
+
+--- Test 5: Exception Propagation ---
+Processing task: Error1
+  Type: DataTask, Data: bad data
+  Error caught: DataTask 9 failed: invalid data
+  Handled: DataTask 9 failed: invalid data
+Final result: Handled: DataTask 9 failed: invalid data
+
+=== All tests completed ===

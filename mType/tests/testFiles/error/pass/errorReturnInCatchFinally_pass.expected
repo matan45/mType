@@ -1,0 +1,32 @@
+Testing return in catch with finally
+Try block - throwing exception
+Catch block - returning value
+Finally block executed after catch return
+Result 1: 100
+---
+Try block - returning 10
+Finally after try return
+Result 2: 10
+---
+Inner try - throwing
+Inner catch - returning from here
+Inner finally
+Outer finally
+Result 3: 42
+---
+Throwing custom exception
+Custom catch - returning 200
+Finally after custom catch
+Result 4: 200
+---
+Throwing for finally test
+Catch returning 500
+Finally - no return here
+Result 5: 500
+---
+Processing data
+Error caught: Index out of bounds: 10
+Returning error code
+Cleanup in finally
+Result 6: -1
+Test completed

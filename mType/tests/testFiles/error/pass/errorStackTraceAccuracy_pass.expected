@@ -1,0 +1,40 @@
+=== Test 1: Simple call stack ===
+Level 1: Calling middleFunction
+Level 2: Calling throwError
+Level 3: About to throw exception
+Caught exception: Error at deepest level
+Stack trace present: true
+Exception handled successfully
+
+=== Test 2: Method call stack ===
+Calculating: 10 / 0
+Division by zero detected
+Caught exception: Cannot divide by zero
+Stack trace from method: true
+Method exception handled
+
+=== Test 3: Constructor stack trace ===
+Creating resource:
+Caught exception: Resource name cannot be empty
+Stack trace from constructor: true
+Constructor exception handled
+
+=== Test 4: Re-throw stack trace ===
+Middle function catching and re-throwing
+Inner function throwing
+Middle caught: Inner exception
+Re-throwing exception
+Outer caught: Inner exception
+Stack trace preserved through re-throw: true
+Re-throw handled
+
+=== Test 5: Multiple exception types ===
+Validating input: -5
+Caught validation error: Value cannot be negative
+Stack trace for negative value: true
+Validating input: 150
+Caught validation error: Value cannot exceed 100
+Stack trace for exceeding value: true
+Multiple exception types tested
+
+Stack trace accuracy test completed

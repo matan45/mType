@@ -1,0 +1,6 @@
+Identity result: 42
+Extracted: 100
+Cast extracted: 100
+From new container: 200
+Chained result: 300
+Generic method inference cast successful

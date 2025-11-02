@@ -1,0 +1,7 @@
+Testing generic method type inference
+identity<Int>(42): 42
+identity<String>(Hello): Hello
+select<Int>(10, 20, true): 10
+select<Int>(10, 20, false): 20
+wrap<Int>(99).getValue(): 99
+Generic method inference test completed

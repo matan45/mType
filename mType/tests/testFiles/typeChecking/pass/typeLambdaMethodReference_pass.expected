@@ -1,0 +1,6 @@
+=== Lambda Method Reference Type Checking Test ===
+Double 5: 10
+Triple 5: 15
+Quadruple 5: 20
+Triple then double 2: 12
+Method reference type checking passed

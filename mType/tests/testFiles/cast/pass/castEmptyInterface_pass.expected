@@ -1,0 +1,7 @@
+Cast to empty interface successful
+42
+Cast through empty interface hierarchy successful
+hello
+Multiple empty interface cast successful
+3.14
+Empty interface casting test passed

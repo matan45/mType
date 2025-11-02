@@ -1,0 +1,6 @@
+Positive infinity: inf
+Positive infinity as int: 2147483647
+Negative infinity: -inf
+Negative infinity as int: -2147483648
+PosInf > 1000000: true
+NegInf < -1000000: true

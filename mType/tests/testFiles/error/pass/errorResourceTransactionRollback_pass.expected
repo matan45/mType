@@ -1,0 +1,39 @@
+Testing transaction rollback on exceptions
+Test 1: Successful transaction
+BEGIN TRANSACTION TX001
+EXEC: INSERT INTO users VALUES (1, 'Alice')
+EXEC: UPDATE accounts SET balance = 1000 WHERE user_id = 1
+COMMIT TRANSACTION TX001 (2 operations)
+Transaction completed successfully
+---
+Test 2: Failed transaction with rollback
+BEGIN TRANSACTION TX002
+EXEC: INSERT INTO users VALUES (2, 'Bob')
+EXEC: UPDATE accounts SET balance = 500 WHERE user_id = 2
+Transaction failed: Constraint violation: insufficient funds
+ROLLBACK TRANSACTION TX002 (2 operations undone)
+Transaction rolled back successfully
+---
+Test 3: Nested transactions with partial rollback
+BEGIN TRANSACTION OUTER
+EXEC: CREATE SAVEPOINT outer_start
+BEGIN TRANSACTION INNER
+EXEC: INSERT INTO logs VALUES ('operation1')
+EXEC: INSERT INTO logs VALUES ('operation2')
+Inner transaction error: Inner transaction validation failed
+ROLLBACK TRANSACTION INNER (2 operations undone)
+EXEC: CONTINUE after inner rollback
+COMMIT TRANSACTION OUTER (2 operations)
+Outer transaction committed successfully
+---
+Test 4: Multiple transactions with individual rollbacks
+BEGIN TRANSACTION TX_A
+EXEC: Operation A1
+COMMIT TRANSACTION TX_A (1 operations)
+TX_A committed
+BEGIN TRANSACTION TX_B
+EXEC: Operation B1
+TX_B error: TX_B failed
+ROLLBACK TRANSACTION TX_B (1 operations undone)
+TX_B rolled back
+Transaction test completed

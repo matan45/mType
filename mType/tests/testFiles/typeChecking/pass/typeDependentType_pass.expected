@@ -1,0 +1,40 @@
+Test 1: Size-dependent container behavior
+Small array capacity: 3
+Added: 0
+Added: 10
+Added: 20
+Cannot add 30 - array full
+Cannot add 40 - array full
+Final size: 3
+
+Test 2: Dimension-dependent matrix
+Matrix 2x3:
+1 2 3
+4 5 6
+
+Matrix 3x2:
+10 0
+0 20
+30 0
+
+Test 3: Range-dependent validation
+Validator range: [0, 100]
+Validate 50: true
+Validate 150: false
+
+Validator range: [-10, 10]
+Validate 0: true
+Validate -5: true
+Validate 20: false
+
+Test 4: Configuration-dependent buffer
+Buffer full, cannot write
+Buffer full, overwriting from start
+
+Test 5: Length-dependent string padding
+Target length: 10
+Result: 'Hello     '
+Target length: 15
+Result: 'World          '
+
+Dependent type tests completed

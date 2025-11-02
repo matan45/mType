@@ -1,0 +1,20 @@
+Test 1: Switch with casting in cases
+Dog: Rex (Labrador) - Woof!
+Cat: Whiskers (indoor: true) - Meow!
+Bird: Tweety (wingspan: 0.5) - Tweet!
+Dog: Max (Beagle) - Woof!
+Test 2: Switch on cast result
+Processing dog type
+Buddy is fetching
+Test 3: Nested switch with casting
+Outdoor cat: Fluffy
+Test 4: Switch with cast method calls
+Spot is fetching
+Shadow is climbing
+Eagle is flying
+Test 5: Switch controlling cast flow
+Expected cat: Mittens (correct)
+Test 6: Multiple switches with same object
+Name length is 7
+Breed length is 6
+All switch casting tests completed

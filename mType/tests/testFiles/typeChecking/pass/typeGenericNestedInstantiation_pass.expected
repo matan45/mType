@@ -1,0 +1,9 @@
+Testing nested generic instantiation
+Simple box: 42
+Nested box inner: 42
+Wrapped box label: StringBox
+Wrapped box content: Hello
+Triple nested value: 10
+Boxed wrapper label: Number
+Boxed wrapper value: 99
+Nested generic instantiation test completed

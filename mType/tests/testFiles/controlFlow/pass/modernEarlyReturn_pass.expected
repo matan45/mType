@@ -1,0 +1,63 @@
+Test 1: Early return for categorization
+negative
+zero
+single-digit
+double-digit
+large
+Test 2: Early return with validation
+-1
+1
+1
+120
+720
+Test 3: Early return in object processing
+invalid
+out-of-stock
+low-stock
+premium
+available
+Test 4: Early return to avoid deep nesting
+Error: Username required
+Error: Password required
+Error: Invalid username
+Error: Invalid password
+Login successful
+Test 5: Early return with grade evaluation
+Invalid: Score below 0
+Invalid: Score above 100
+A
+B
+C
+D
+F
+Test 6: Early return in search operations
+2
+-1
+-1
+Test 7: Early return in business logic
+Cannot cancel: Order not found
+Cannot cancel: Order already shipped
+Cancellation allowed: Unpaid order
+Cancellation requires refund
+Test 8: Early return with state machine
+0
+1
+2
+0
+0
+2
+-1
+Test 9: Early return in prime check
+false
+true
+false
+true
+false
+true
+Test 10: Early return in recursion
+0
+1
+5
+13
+55
+Test passed

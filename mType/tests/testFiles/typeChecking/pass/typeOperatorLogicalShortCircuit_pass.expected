@@ -1,0 +1,10 @@
+false && true: false
+true && true: true
+true && false: false
+true || false: true
+false || true: true
+false || false: false
+(a < b) && (b > 0): true
+(a > b) || (b > 0): true
+Nested: true
+Complex: true

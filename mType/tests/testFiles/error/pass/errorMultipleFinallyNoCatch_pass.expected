@@ -1,0 +1,33 @@
+Testing multiple finally blocks without catch
+Outer try
+Middle try
+Inner try
+No exceptions thrown
+Inner finally
+Middle finally
+Outer finally
+---
+L1 try
+L2 try
+L3 try
+L3 finally
+L2 finally
+L1 finally
+Caught at top: Deep exception
+---
+Outer try with return
+Middle try
+Inner try returning
+Inner finally
+Middle finally
+Outer finally
+Returned: 42
+---
+Try 1
+Try 2
+Finally 2
+Between try blocks
+Try 3
+Finally 3
+Finally 1
+Test completed

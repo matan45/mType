@@ -1,0 +1,14 @@
+Testing self-referencing generic types
+num1 value: 42
+num2 value: 17
+num3 value: 99
+num1 vs num2: 1
+num2 vs num3: -1
+max(num1, num2): 42
+max(num2, num3): 99
+Cloned num1: 42
+Modified clone: 999
+Original num1: 42
+Max text: Hello
+Cloned text: Hello
+Self-referencing generic test completed

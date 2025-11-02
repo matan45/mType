@@ -1,0 +1,4 @@
+NaN value: nan
+NaN as int: 0
+NaN != NaN: true
+NaN string representation: nan

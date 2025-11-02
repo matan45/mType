@@ -1,0 +1,9 @@
+Testing module initialization exceptions
+Caught exception during module import: Module initialization failed
+First import attempt:
+First attempt caught: Module initialization failed
+Second import attempt:
+Second attempt caught: Module initialization failed
+Inner catch: Module initialization failed
+Outer catch: Re-caught exception
+All module initialization exception tests completed
