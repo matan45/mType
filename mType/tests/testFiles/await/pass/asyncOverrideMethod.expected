@@ -1,0 +1,10 @@
+=== Async Override Method Test ===
+Testing animal: Buddy
+Dog makeSound called for: Buddy
+Sound: Woof!
+Testing animal: Whiskers
+Cat makeSound called for: Whiskers
+Sound: Meow!
+Testing animal: Unknown
+Animal makeSound called for: Unknown
+Sound: Generic sound

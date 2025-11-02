@@ -1,0 +1,6 @@
+=== Recursive Closure Test ===
+Factorial(5) = 120
+Factorial(6) = 720
+Fib(7) = 13
+Fib(10) = 55
+Recursive closure complete

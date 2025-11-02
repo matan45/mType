@@ -1,0 +1,13 @@
+=== Async Await in For Loop Test ===
+Getting value for: 1
+Got value: 1
+Getting value for: 2
+Got value: 4
+Getting value for: 3
+Got value: 9
+Getting value for: 4
+Got value: 16
+Getting value for: 5
+Got value: 25
+Total sum: 55
+Final result: 55

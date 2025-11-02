@@ -1,0 +1,5 @@
+=== Nested Generic Interface Test ===
+add5(10) = 15
+add5(20) = 25
+add100(50) = 150
+Nested generic complete

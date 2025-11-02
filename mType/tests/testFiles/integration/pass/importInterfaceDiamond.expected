@@ -1,0 +1,4 @@
+As A: Method A
+As B: Method A + Method B
+As C: Method A + Method C
+Diamond inheritance test passed

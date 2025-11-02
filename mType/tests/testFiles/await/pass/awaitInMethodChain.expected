@@ -1,0 +1,7 @@
+=== Await in Method Chain Test ===
+Testing method chain
+Creating object
+Value: 10
+Creating object
+Final value: 11
+Result: 11

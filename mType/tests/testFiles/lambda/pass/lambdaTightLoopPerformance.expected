@@ -1,0 +1,14 @@
+=== Tight Loop Performance Test ===
+Sum of doubled 0-999: 999000
+Sum of complex 0-999: 504500
+Sum of pipeline 0-999: 1504500
+Sum with capture 0-999: 1498500
+Counter results:
+counters[0] = 200
+counters[1] = 200
+counters[2] = 200
+counters[3] = 200
+counters[4] = 200
+Nested loop sum: 3768500
+Sum of squares 1-100: 338350
+Tight loop performance complete

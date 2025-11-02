@@ -1,0 +1,11 @@
+=== Null Parameter Test ===
+Length of 'hello': 5
+Length of null: 0
+Length of '': 0
+Extract from box: 42
+Extract from null: -1
+Sum of array: 15
+Sum of null: 0
+True result: Not null
+False result: null
+Null parameter complete

@@ -1,0 +1,9 @@
+=== Async Private Method Test ===
+Public calculate called with: 10
+Computing with secret: 42
+Calculation result: 52
+Result 1: 52
+Public calculate called with: 20
+Computing with secret: 42
+Calculation result: 62
+Result 2: 62

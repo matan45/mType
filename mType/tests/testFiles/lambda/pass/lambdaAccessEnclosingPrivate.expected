@@ -1,0 +1,8 @@
+=== Access Enclosing Private Test ===
+Lambda(10): 160
+Lambda(20): 170
+After changing outer private:
+Lambda2(10): 260
+Complex(5): 150
+Complex(3): 90
+Access enclosing private complete

@@ -1,0 +1,12 @@
+Testing array deep copy vs shallow copy
+Original array:
+  original[0] = 10
+  original[1] = 20
+  original[2] = 30
+After modifying through shallow copy:
+  original[0] = 100
+  shallowCopy[0] = 100
+After modifying through deep copy:
+  original[1] = 20
+  deepCopy[1] = 200
+Deep copy vs shallow copy test completed

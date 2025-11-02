@@ -1,0 +1,26 @@
+=== Async Nested Loops Test ===
+Outer loop: 1
+  Inner loop: 1
+  Skipping inner: 1,1
+  Inner loop: 2
+  Added 2, total: 2
+  Inner loop: 3
+  Added 3, total: 5
+Outer loop: 2
+  Inner loop: 1
+  Added 2, total: 7
+  Inner loop: 2
+  Skipping inner: 2,2
+  Inner loop: 3
+  Added 6, total: 13
+Outer loop: 3
+  Inner loop: 1
+  Added 3, total: 16
+  Inner loop: 2
+  Added 6, total: 22
+  Inner loop: 3
+  Skipping inner: 3,3
+Outer loop: 4
+Breaking outer loop at: 4
+Final total: 22
+Result: 22

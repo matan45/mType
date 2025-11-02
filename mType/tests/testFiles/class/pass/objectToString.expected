@@ -1,0 +1,16 @@
+Test 1: Product toString
+Product{name='Laptop', price=999.99, quantity=5}
+
+Test 2: Multiple products
+Product{name='Mouse', price=29.99, quantity=20}
+Product{name='Keyboard', price=79.99, quantity=15}
+
+Test 3: Order with products
+Order #12345 {
+  Product{name='Laptop', price=999.99, quantity=5}
+  Product{name='Mouse', price=29.99, quantity=20}
+  Product{name='Keyboard', price=79.99, quantity=15}
+}
+
+Test 4: Direct print uses toString
+Direct print: Product{name='Monitor', price=299.99, quantity=8}

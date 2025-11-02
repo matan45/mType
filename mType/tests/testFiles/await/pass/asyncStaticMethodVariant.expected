@@ -1,0 +1,8 @@
+=== Async Static Method Variant Test ===
+Static add: 5 + 10
+Sum: 15
+Static multiply: 5 * 10
+Product: 50
+Static add: 15 + 50
+Combined: 65
+Total computations: 3

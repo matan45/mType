@@ -1,0 +1,19 @@
+Testing Processor<Int>:
+10
+20
+30
+10
+Testing Processor<String>:
+original
+modified
+mod1
+Testing Calculator:
+10
+15
+30
+5.0
+6.0
+Testing Processor<Bool>:
+true
+false
+true

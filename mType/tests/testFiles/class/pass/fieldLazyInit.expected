@@ -1,0 +1,19 @@
+Test 1: Create container
+LazyContainer created (resource not initialized)
+Initialized: false
+
+Test 2: First access
+Lazy initialization triggered
+ExpensiveResource created: LazyResource
+Resource name: LazyResource
+Initialized: true
+
+Test 3: Second access
+Resource name: LazyResource
+Same instance: true
+
+Test 4: New container
+LazyContainer created (resource not initialized)
+Lazy initialization triggered
+ExpensiveResource created: LazyResource
+Different instance: true

@@ -1,0 +1,16 @@
+Testing Shape:
+Shape.draw(string): red
+Shape.draw(string, int): blue, thickness: 2
+
+Testing Circle:
+Shape.draw(string): green
+Shape.draw(string, int): yellow, thickness: 3
+Circle.draw(int): radius = 5
+Circle.draw(string, int, bool): purple, r=10, filled=true
+
+Testing AdvancedCircle:
+Shape.draw(string): orange
+Shape.draw(string, int): pink, thickness: 2
+AdvancedCircle.draw(int): enhanced radius = 7
+AdvancedCircle.draw(int, int): r=8, border=3
+Circle.draw(string, int, bool): cyan, r=12, filled=false

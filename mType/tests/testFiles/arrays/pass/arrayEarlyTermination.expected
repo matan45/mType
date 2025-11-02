@@ -1,0 +1,24 @@
+Testing early termination in loops
+Testing break at 5:
+  Processing 1
+  Processing 2
+  Processing 3
+  Processing 4
+  Breaking at 5
+Testing continue (skip evens):
+  Odd number: 1
+  Odd number: 3
+  Odd number: 5
+  Odd number: 7
+  Odd number: 9
+Testing break in nested loop:
+  matrix[0][0] = 0
+  matrix[0][1] = 1
+  matrix[0][2] = 2
+  matrix[1][0] = 3
+  matrix[1][1] = 4
+  Found 5, breaking inner loop
+  matrix[2][0] = 6
+  matrix[2][1] = 7
+  matrix[2][2] = 8
+Early termination test completed

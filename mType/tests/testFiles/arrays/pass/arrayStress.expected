@@ -1,0 +1,8 @@
+Testing large array stress
+Initializing array of 10000 elements
+Sum of 10000 elements: 495000
+Max value: 99
+Count of 42: 100
+Array reversed, first element: 99
+Array reversed, last element: 0
+Stress test completed

@@ -1,0 +1,7 @@
+=== Exception in Finally Block Test ===
+Calling function with finally exception
+Entering function
+In try block
+In finally block - throwing exception
+Caught finally exception: Finally exception
+Final result: 999

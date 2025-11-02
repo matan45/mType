@@ -1,0 +1,29 @@
+Test 1 - Full constructor:
+Constructor 1: Full specification
+Rectangle: 20x30, red, filled
+
+Test 2 - Size and color:
+Constructor 1: Full specification
+Constructor 2: Size and color
+Rectangle: 15x25, blue, not filled
+
+Test 3 - Size only:
+Constructor 1: Full specification
+Constructor 2: Size and color
+Constructor 3: Size only
+Rectangle: 12x18, white, not filled
+
+Test 4 - Square:
+Constructor 1: Full specification
+Constructor 2: Size and color
+Constructor 3: Size only
+Constructor 4: Square
+Rectangle: 10x10, white, not filled
+
+Test 5 - Default:
+Constructor 1: Full specification
+Constructor 2: Size and color
+Constructor 3: Size only
+Constructor 4: Square
+Constructor 5: Default
+Rectangle: 10x10, white, not filled

@@ -1,0 +1,22 @@
+Test 1: Create through outer class
+Level1 constructor
+Level2 constructor, outer value1=1
+Level3 constructor
+  Level2.value2=2
+  Level1.value1=1
+Level3.displayAll():
+  value3=3
+  value2=2
+  value1=1
+
+Test 2: Direct creation of Level2
+Level2 constructor, outer value1=1
+
+Test 3: Direct creation of Level3
+Level3 constructor
+  Level2.value2=2
+  Level1.value1=1
+Level3.displayAll():
+  value3=3
+  value2=2
+  value1=1

@@ -1,0 +1,9 @@
+Testing circular references
+Circular linked list in array:
+  Node value: 1
+  Node value: 2
+  Node value: 3
+  Node value: 1
+  Node value: 2
+  Node value: 3
+Circular reference test completed

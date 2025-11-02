@@ -1,0 +1,21 @@
+Test 1: Base instance
+b instanceof Base: true
+b instanceof Derived: false
+b instanceof Object: true
+
+Test 2: Derived instance
+d instanceof Base: true
+d instanceof Derived: true
+d instanceof Object: true
+
+Test 3: Polymorphic reference
+polyRef instanceof Base: true
+polyRef instanceof Derived: true
+
+Test 4: Unrelated type
+u instanceof Base: false
+u instanceof Derived: false
+u instanceof Unrelated: true
+
+Test 5: Null check
+null instanceof Base: false

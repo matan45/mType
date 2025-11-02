@@ -1,0 +1,12 @@
+=== Promise Reassignment Test ===
+Creating first promise
+Making value: 10
+First value: 10
+Reassigning promise variable
+Making value: 20
+Second value: 20
+Reassigning again
+Making value: 30
+Third value: 30
+Sum: 60
+Result: 60

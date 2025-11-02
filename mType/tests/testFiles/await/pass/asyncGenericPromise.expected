@@ -1,0 +1,7 @@
+=== Async Generic Promise Test ===
+Creating Int container: 42
+Stored int: 42
+Creating string container: Hello
+Stored string: Hello
+Transforming container
+Transformed value: Transformed

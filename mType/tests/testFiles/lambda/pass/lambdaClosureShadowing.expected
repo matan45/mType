@@ -1,0 +1,6 @@
+=== Closure Shadowing Test ===
+Result: 25
+Outer unchanged: 10
+Nested shadow: 501
+Original value: 100
+Shadowing complete

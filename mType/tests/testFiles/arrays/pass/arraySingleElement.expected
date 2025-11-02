@@ -1,0 +1,10 @@
+Testing single-element arrays
+Single int array: [42]
+Single string array: [hello]
+Single bool array: [true]
+Loop iteration 1: singleInt[0] = 42
+Before modification: 42
+After modification: 100
+Single Box array value: 99
+Single element in 2D array: 7
+Single-element arrays test completed

@@ -1,0 +1,9 @@
+=== Async Large Promise Chain Test ===
+Building chain of length: 50
+Progress: 10 steps, value: 55
+Progress: 20 steps, value: 210
+Progress: 30 steps, value: 465
+Progress: 40 steps, value: 820
+Progress: 50 steps, value: 1275
+Chain complete, final value: 1275
+Final result: 1275

@@ -1,0 +1,10 @@
+=== Promise Chaining Test ===
+Starting chain
+Creating link 1
+Got link: 1
+Creating link 2 from link 1
+Got link: 2
+Creating link 3 from link 2
+Got link: 3
+Chain sum: 6
+Chain complete: 6

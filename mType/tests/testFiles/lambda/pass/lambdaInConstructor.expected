@@ -1,0 +1,8 @@
+=== Lambda In Constructor Test ===
+h1.execute(10): 110
+h1.execute(20): 120
+After setBase(200):
+h1.execute(10): 210
+mh.add(10): 15
+mh.multiply(10): 50
+Lambda in constructor complete

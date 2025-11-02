@@ -1,0 +1,11 @@
+Test 1: Base nested class
+BaseNested.display(): baseValue=10
+
+Test 2: Derived nested class
+Creating DerivedNested:
+DerivedNested.display():
+  baseValue=10
+  derivedValue=20
+
+Calling super:
+BaseNested.display(): baseValue=10

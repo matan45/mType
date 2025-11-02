@@ -1,0 +1,19 @@
+Testing literals with side effects
+Counter before: 0
+Counter after: 5
+Array elements:
+  withSideEffects[0] = 1
+  withSideEffects[1] = 2
+  withSideEffects[2] = 3
+  withSideEffects[3] = 4
+  withSideEffects[4] = 5
+After nested initialization:
+Counter value: 2
+Nested array:
+  nested[0][0] = 101
+  nested[0][1] = 102
+  nested[1][0] = 103
+  nested[1][1] = 103
+  nested[2][0] = 1
+  nested[2][1] = 2
+Side effects test completed

@@ -1,0 +1,7 @@
+=== Await as Argument Test ===
+Testing await as arguments
+Getting arg 1
+Getting arg 2
+Getting arg 3
+Result: 60
+Final: 60

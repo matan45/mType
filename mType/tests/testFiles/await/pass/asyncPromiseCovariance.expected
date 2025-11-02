@@ -1,0 +1,4 @@
+=== Async Promise Covariance Test ===
+Creating circle
+Processing shape: MyCircle
+Description: Circle: MyCircle (radius: 10)

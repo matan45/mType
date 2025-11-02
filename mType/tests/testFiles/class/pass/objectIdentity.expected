@@ -1,0 +1,29 @@
+Test 1: Same reference
+Created Value(42)
+v1 == v2 (identity): true
+v1.equals(v2): true
+
+Test 2: Equal values, different objects
+Created Value(42)
+Created Value(42)
+v3 == v4 (identity): false
+v3.equals(v4): true
+
+Test 3: Different values
+Created Value(10)
+Created Value(20)
+v5 == v6 (identity): false
+v5.equals(v6): false
+
+Test 4: Null comparison
+null == null: true
+
+Test 5: Array of objects
+Created Value(100)
+Created Value(200)
+arr1 == arr2 (same array): true
+arr1[0] == arr2[0] (same element): true
+Created Value(100)
+Created Value(200)
+arr1 == arr3 (different arrays): false
+arr1[0].equals(arr3[0]) (equal values): true

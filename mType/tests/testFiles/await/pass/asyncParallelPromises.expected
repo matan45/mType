@@ -1,0 +1,11 @@
+=== Parallel Promises Test ===
+Starting parallel creation
+Creating promise 1
+Creating promise 2
+Creating promise 3
+All promises created
+Promise 1 resolved: 100
+Promise 2 resolved: 200
+Promise 3 resolved: 300
+Total: 600
+Final result: 600

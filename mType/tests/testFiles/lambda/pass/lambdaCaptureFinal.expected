@@ -1,0 +1,9 @@
+=== Capture Final Test ===
+add10(5) = 15
+add50(5) = 55
+complex(10) = 220
+complex(25) = 250
+lambda1(100) = 1100
+lambda2(100) = 900
+lambda3(5) = 5000
+Capture final complete

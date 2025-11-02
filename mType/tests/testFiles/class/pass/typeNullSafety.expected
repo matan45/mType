@@ -1,0 +1,22 @@
+Test 1: Null initialization
+Has value: false
+No value to process
+
+Test 2: Set non-null value
+Value set to: DataHolder@<address>
+Has value: true
+Processing value: DataHolder@<address>
+
+Test 3: Set back to null
+Value set to null
+Has value: false
+No value to process
+
+Test 4: Type checking with null
+null instanceof Object: false
+non-null instanceof Object: true
+
+Test 5: Null comparison
+Value set to null
+Value set to null
+Both null, same value: true

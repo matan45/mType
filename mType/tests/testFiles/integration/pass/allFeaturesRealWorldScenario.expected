@@ -1,0 +1,12 @@
+[DATA-INFO] Saving data with ID: 1
+[DATA-INFO] Saving data with ID: 2
+[DATA-INFO] Loading data with ID: 1
+Loaded user: alice
+[INFO] Authentication attempt: alice
+[INFO] Fetching user data: 0
+User data: alice@example.com
+[DATA-INFO] Querying data
+Active users count: 2
+[DATA-INFO] Querying data
+Users with long emails: 2
+Real-world scenario test passed

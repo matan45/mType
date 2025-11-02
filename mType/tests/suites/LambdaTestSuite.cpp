@@ -116,5 +116,149 @@ namespace tests::testSuite
         addTestFromFile("Lambda Super In Static Context Error",
                         errorPath + "lambdaSuperStaticContext.mt",
                         TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Generics & Type Inference Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Generic Type Inference",
+                        passPath + "lambdaGenericTypeInference.mt");
+        addOutputVerificationTest("Lambda Nested Generic Interface",
+                        passPath + "lambdaNestedGenericInterface.mt");
+        addOutputVerificationTest("Lambda Generic Method Inference",
+                        passPath + "lambdaGenericMethodInference.mt");
+        addOutputVerificationTest("Lambda Bounded Generics",
+                        passPath + "lambdaBoundedGenerics.mt");
+        addOutputVerificationTest("Lambda Generic Variance",
+                        passPath + "lambdaGenericVariance.mt");
+        addOutputVerificationTest("Lambda Generic Array Transform",
+                        passPath + "lambdaGenericArrayTransform.mt");
+        addOutputVerificationTest("Lambda Multiple Type Parameters",
+                        passPath + "lambdaMultipleTypeParams.mt");
+        addOutputVerificationTest("Lambda Generic Constraints",
+                        passPath + "lambdaGenericConstraints.mt");
+
+        // Generics error tests
+        addTestFromFile("Lambda Raw Generic Type Error",
+                        errorPath + "lambdaRawGenericType.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Generic Mismatch Error",
+                        errorPath + "lambdaGenericMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Advanced Closures Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Closure Shadowing",
+                        passPath + "lambdaClosureShadowing.mt");
+        addOutputVerificationTest("Lambda Double Closure",
+                        passPath + "lambdaDoubleClosure.mt");
+        addOutputVerificationTest("Lambda Recursive Closure",
+                        passPath + "lambdaRecursiveClosure.mt");
+        addOutputVerificationTest("Lambda Mutable Capture",
+                        passPath + "lambdaMutableCapture.mt");
+        addOutputVerificationTest("Lambda Nested Class Capture",
+                        passPath + "lambdaNestedClassCapture.mt");
+        addOutputVerificationTest("Lambda Capture Final",
+                        passPath + "lambdaCaptureFinal.mt");
+        addOutputVerificationTest("Lambda Closure Modification",
+                        passPath + "lambdaClosureModification.mt");
+        addOutputVerificationTest("Lambda Capture In Loop",
+                        passPath + "lambdaCaptureInLoop.mt");
+
+        // ====================================
+        // Return Types Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Implicit Void Return",
+                        passPath + "lambdaImplicitVoidReturn.mt");
+        addOutputVerificationTest("Lambda Multiple Return Paths",
+                        passPath + "lambdaMultipleReturnPaths.mt");
+        addOutputVerificationTest("Lambda Null Return",
+                        passPath + "lambdaNullReturn.mt");
+        addOutputVerificationTest("Lambda Subtype Return",
+                        passPath + "lambdaSubtypeReturn.mt");
+        addOutputVerificationTest("Lambda Array Return",
+                        passPath + "lambdaArrayReturn.mt");
+
+        // Return types error tests
+        addTestFromFile("Lambda Missing Return Error",
+                        errorPath + "lambdaMissingReturn.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Unreachable Code Error",
+                        errorPath + "lambdaUnreachableCode.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Conflicting Returns Error",
+                        errorPath + "lambdaConflictingReturns.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Exception Handling Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Exception Compatibility",
+                        passPath + "lambdaExceptionCompatibility.mt");
+        addOutputVerificationTest("Lambda Finally With Return",
+                        passPath + "lambdaFinallyWithReturn.mt");
+        addOutputVerificationTest("Lambda Nested Try Catch",
+                        passPath + "lambdaNestedTryCatch.mt");
+        addOutputVerificationTest("Lambda Exception In Parameter",
+                        passPath + "lambdaExceptionInParameter.mt");
+        addOutputVerificationTest("Lambda Resource Cleanup",
+                        passPath + "lambdaResourceCleanup.mt");
+
+        // Exception handling error test
+        addTestFromFile("Lambda Uncaught Exception Error",
+                        errorPath + "lambdaUncaughtException.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Scope & Visibility Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Private Member Access",
+                        passPath + "lambdaPrivateMemberAccess.mt");
+        addOutputVerificationTest("Lambda Protected Access",
+                        passPath + "lambdaProtectedAccess.mt");
+        addOutputVerificationTest("Lambda Anonymous Block Lambda",
+                        passPath + "lambdaAnonymousBlockLambda.mt");
+        addOutputVerificationTest("Lambda In Constructor",
+                        passPath + "lambdaInConstructor.mt");
+        addOutputVerificationTest("Lambda In Static Initializer",
+                        passPath + "lambdaInStaticInitializer.mt");
+        addOutputVerificationTest("Lambda Access Enclosing Private",
+                        passPath + "lambdaAccessEnclosingPrivate.mt");
+
+        // ====================================
+        // Composition Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Function Composition",
+                        passPath + "lambdaFunctionComposition.mt");
+        addOutputVerificationTest("Lambda Currying",
+                        passPath + "lambdaCurrying.mt");
+        addOutputVerificationTest("Lambda Pipeline",
+                        passPath + "lambdaPipeline.mt");
+        addOutputVerificationTest("Lambda Callback Chain",
+                        passPath + "lambdaCallbackChain.mt");
+        addOutputVerificationTest("Lambda Conditional Chain",
+                        passPath + "lambdaConditionalChain.mt");
+
+        // ====================================
+        // Special Values Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Null Parameter",
+                        passPath + "lambdaNullParameter.mt");
+        addOutputVerificationTest("Lambda Null Lambda Variable",
+                        passPath + "lambdaNullLambdaVariable.mt");
+        addOutputVerificationTest("Lambda Zero Length Array",
+                        passPath + "lambdaZeroLengthArray.mt");
+        addOutputVerificationTest("Lambda Division By Zero",
+                        passPath + "lambdaDivisionByZero.mt");
+        addOutputVerificationTest("Lambda String Edge Cases",
+                        passPath + "lambdaStringEdgeCases.mt");
+
+        // ====================================
+        // Performance Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Deep Nesting",
+                        passPath + "lambdaDeepNesting.mt");
+        addOutputVerificationTest("Lambda Tight Loop Performance",
+                        passPath + "lambdaTightLoopPerformance.mt");
     }
 }

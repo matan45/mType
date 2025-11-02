@@ -1,0 +1,14 @@
+=== Finally With Return Test ===
+Finally block executed for 5
+Result(5): 10
+Exception: Negative
+Finally block executed for -3
+Result(-3): -1
+Cleanup for 4
+Square(4): 16
+Cleanup for 7
+Square(7): 49
+Inner finally
+Outer finally
+Nested(5): 15
+Finally with return complete

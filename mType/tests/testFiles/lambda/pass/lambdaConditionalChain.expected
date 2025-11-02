@@ -1,0 +1,9 @@
+=== Conditional Chain Test ===
+Result 1: 20
+Result 2: 40
+Result 3: 3
+Result 4: 40
+Validation result: Valid
+Validation 2 result: Invalid
+Error: Must be positive
+Conditional chain complete

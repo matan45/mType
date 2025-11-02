@@ -1,0 +1,23 @@
+Test 1: Build with all options
+Builder: Set make to Tesla
+Builder: Set model to Model S
+Builder: Set year to 2024
+Builder: Set color to Red
+Builder: Added sunroof
+Builder: Added navigation
+Builder: Building car
+Result: 2024 Tesla Model S (Red) [Sunroof] [Navigation]
+
+Test 2: Build with minimal options
+Builder: Set make to Toyota
+Builder: Set model to Camry
+Builder: Building car
+Result: 2024 Toyota Camry (White)
+
+Test 3: Build step by step
+Builder: Set make to Honda
+Builder: Set model to Civic
+Builder: Set color to Blue
+Builder: Added navigation
+Builder: Building car
+Result: 2024 Honda Civic (Blue) [Navigation]

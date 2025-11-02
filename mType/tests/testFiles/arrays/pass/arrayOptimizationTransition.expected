@@ -1,0 +1,20 @@
+Testing storage optimization transitions
+Dense array (all elements set):
+First 5 elements:
+  dense[0] = 0
+  dense[1] = 1
+  dense[2] = 2
+  dense[3] = 3
+  dense[4] = 4
+Sparse array (few elements set):
+  sparse[0] = 1
+  sparse[10] = 2
+  sparse[50] = 3
+  sparse[99] = 4
+After densification, first 5 elements:
+  sparse[0] = 1
+  sparse[1] = 2
+  sparse[2] = 3
+  sparse[3] = 4
+  sparse[4] = 5
+Optimization transition test completed

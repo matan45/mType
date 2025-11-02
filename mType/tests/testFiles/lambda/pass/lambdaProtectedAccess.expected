@@ -1,0 +1,7 @@
+=== Protected Access Test ===
+Protected + 5: 15
+Protected + 10: 20
+Multiply by 2: 20
+Multiply by 3: 60
+Final protected: 60
+Protected access complete

@@ -1,0 +1,28 @@
+DataStore<Int> with lambdas:
+forEach:
+1
+2
+3
+4
+5
+map (x * 2):
+2
+4
+6
+8
+10
+reduce (sum):
+15
+WrapperStore<String>:
+Unwrapped:
+hello
+world
+test
+Direct wrapper access:
+world
+WrapperStore<Int>:
+After modification:
+15
+25
+35
+45

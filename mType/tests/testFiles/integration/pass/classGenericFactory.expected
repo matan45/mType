@@ -1,0 +1,33 @@
+Creating Int factory:
+Item 1:
+0
+100
+Item 2:
+1
+200
+Factory counter:
+2
+Creating batch:
+Batch item:
+2
+999
+Batch item:
+3
+999
+Batch item:
+4
+999
+Factory counter after batch:
+5
+Creating String factory:
+String items:
+0
+alpha
+1
+beta
+Creating Float factory:
+Float batch:
+0
+3.14
+1
+3.14

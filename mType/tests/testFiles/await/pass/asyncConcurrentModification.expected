@@ -1,0 +1,14 @@
+=== Concurrent Modification Test ===
+Creating shared state
+Initial counter: 0
+Modifier 1 starting
+Modifier 1 incremented by 100
+After mod1: 100
+Modifier 2 starting
+Modifier 2 incremented by 200
+After mod2: 300
+Modifier 3 starting
+Modifier 3 incremented by 300
+After mod3: 600
+Final counter: 600
+Result: 600

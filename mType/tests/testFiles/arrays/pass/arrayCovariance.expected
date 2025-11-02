@@ -1,0 +1,9 @@
+Testing array covariance
+Dog array:
+  Buddy says Woof!
+  Max says Woof!
+Animal array (with dogs and cat):
+  Buddy says Woof!
+  Max says Woof!
+  Whiskers says Meow!
+Array covariance test completed

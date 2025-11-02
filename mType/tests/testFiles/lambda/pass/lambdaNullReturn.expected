@@ -1,0 +1,8 @@
+=== Null Return Test ===
+Result for 5: Value: 5
+Result for -1: null
+Box for 10: 10
+Box for 0: null
+Length of 'hello': 5
+Length of null: 0
+Null return complete

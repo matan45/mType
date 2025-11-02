@@ -132,6 +132,146 @@ namespace tests::testSuite
         addOutputVerificationTest("Return Types - Promise<T>",
                         passPath + "returnTypesPromise.mt");
 
+        // === TYPE INFERENCE TESTS ===
+        // Tests for generic type inference
+
+        addOutputVerificationTest("Infer Diamond",
+                        passPath + "inferDiamond.mt");
+        addOutputVerificationTest("Infer Method Call",
+                        passPath + "inferMethodCall.mt");
+        addOutputVerificationTest("Infer Return Type",
+                        passPath + "inferReturnType.mt");
+        addOutputVerificationTest("Infer Lambda",
+                        passPath + "inferLambda.mt");
+        addOutputVerificationTest("Infer Contextual",
+                        passPath + "inferContextual.mt");
+        addOutputVerificationTest("Infer With Constraints",
+                        passPath + "inferWithConstraints.mt");
+        addOutputVerificationTest("Infer Nested Generics",
+                        passPath + "inferNestedGenerics.mt");
+        addOutputVerificationTest("Infer Array Type",
+                        passPath + "inferArrayType.mt");
+        addOutputVerificationTest("Infer Multiple Params",
+                        passPath + "inferMultipleParams.mt");
+        addOutputVerificationTest("Infer Recursive",
+                        passPath + "inferRecursive.mt");
+
+        // === VARIANCE TESTS ===
+        // Tests for covariance and contravariance
+
+        addOutputVerificationTest("Variance Covariant",
+                        passPath + "varianceCovariant.mt");
+        addOutputVerificationTest("Variance Contravariant",
+                        passPath + "varianceContravariant.mt");
+        addOutputVerificationTest("Variance Use Site",
+                        passPath + "varianceUseSite.mt");
+        addOutputVerificationTest("Variance Declaration Site",
+                        passPath + "varianceDeclarationSite.mt");
+        addOutputVerificationTest("Variance Wildcard Upper",
+                        passPath + "varianceWildcardUpper.mt");
+        addOutputVerificationTest("Variance Wildcard Lower",
+                        passPath + "varianceWildcardLower.mt");
+        addOutputVerificationTest("Variance Wildcard Unbounded",
+                        passPath + "varianceWildcardUnbounded.mt");
+        addOutputVerificationTest("Variance Method Params",
+                        passPath + "varianceMethodParams.mt");
+        addOutputVerificationTest("Variance Return Types",
+                        passPath + "varianceReturnTypes.mt");
+        addOutputVerificationTest("Variance Safe Casting",
+                        passPath + "varianceSafeCasting.mt");
+
+        // === TYPE ERASURE TESTS ===
+        // Tests for type erasure and runtime behavior
+
+        addOutputVerificationTest("Erasure Runtime Check",
+                        passPath + "erasureRuntimeCheck.mt");
+        addOutputVerificationTest("Erasure Instance Of",
+                        passPath + "erasureInstanceOf.mt");
+        addOutputVerificationTest("Erasure Type Token",
+                        passPath + "erasureTypeToken.mt");
+        addOutputVerificationTest("Erasure Reified",
+                        passPath + "erasureReified.mt");
+        addOutputVerificationTest("Erasure Bridge Method",
+                        passPath + "erasureBridgeMethod.mt");
+        addOutputVerificationTest("Erasure Arrays",
+                        passPath + "erasureArrays.mt");
+        addOutputVerificationTest("Erasure Reflection",
+                        passPath + "erasureReflection.mt");
+        addOutputVerificationTest("Erasure Unchecked",
+                        passPath + "erasureUnchecked.mt");
+
+        // === GENERIC LAMBDAS TESTS ===
+        // Tests for lambdas with generic types
+
+        addOutputVerificationTest("Lambda Functional Generic",
+                        passPath + "lambdaFunctionalGeneric.mt");
+        addOutputVerificationTest("Lambda Capture Generic",
+                        passPath + "lambdaCaptureGeneric.mt");
+        addOutputVerificationTest("Lambda Method Reference",
+                        passPath + "lambdaMethodReference.mt");
+        addOutputVerificationTest("Lambda Composition",
+                        passPath + "lambdaComposition.mt");
+        addOutputVerificationTest("Lambda Bounded Types",
+                        passPath + "lambdaBoundedTypes.mt");
+        addOutputVerificationTest("Lambda Inference",
+                        passPath + "lambdaInference.mt");
+        addOutputVerificationTest("Lambda Callback",
+                        passPath + "lambdaCallback.mt");
+        addOutputVerificationTest("Lambda Higher Order",
+                        passPath + "lambdaHigherOrder.mt");
+
+        // === ADVANCED CONSTRAINTS TESTS ===
+        // Tests for complex constraint scenarios
+
+        addOutputVerificationTest("Constraint Intersection",
+                        passPath + "constraintIntersection.mt");
+        addOutputVerificationTest("Constraint Multiple Interfaces",
+                        passPath + "constraintMultipleInterfaces.mt");
+        addOutputVerificationTest("Constraint Transitive",
+                        passPath + "constraintTransitive.mt");
+        addOutputVerificationTest("Constraint Self Ref Complex",
+                        passPath + "constraintSelfRefComplex.mt");
+        addOutputVerificationTest("Constraint Recursive Bounds",
+                        passPath + "constraintRecursiveBounds.mt");
+        addOutputVerificationTest("Constraint Propagation",
+                        passPath + "constraintPropagation.mt");
+        addOutputVerificationTest("Constraint Compound",
+                        passPath + "constraintCompound.mt");
+        addOutputVerificationTest("Constraint Wildcard",
+                        passPath + "constraintWildcard.mt");
+
+        // === GENERIC METHODS ADVANCED TESTS ===
+        // Tests for advanced generic method scenarios
+
+        addOutputVerificationTest("Method Ambiguity Resolution",
+                        passPath + "methodAmbiguityResolution.mt");
+        addOutputVerificationTest("Method Override Bounds",
+                        passPath + "methodOverrideBounds.mt");
+        addOutputVerificationTest("Method Covariant Generic",
+                        passPath + "methodCovariantGeneric.mt");
+        addOutputVerificationTest("Method Hiding",
+                        passPath + "methodHiding.mt");
+        addOutputVerificationTest("Method Static Shadowing",
+                        passPath + "methodStaticShadowing.mt");
+        addOutputVerificationTest("Method Raw Types",
+                        passPath + "methodRawTypes.mt");
+        addOutputVerificationTest("Method Reflection",
+                        passPath + "methodReflection.mt");
+        addOutputVerificationTest("Method Inlining",
+                        passPath + "methodInlining.mt");
+
+        // === INTEGRATION FEATURES TESTS ===
+        // Tests for integration with other language features
+
+        addOutputVerificationTest("Generic Exception",
+                        passPath + "genericException.mt");
+        addOutputVerificationTest("Generic Async",
+                        passPath + "genericAsync.mt");
+        addOutputVerificationTest("Generic Null Safety",
+                        passPath + "genericNullSafety.mt");
+        addOutputVerificationTest("Generic Serialization",
+                        passPath + "genericSerialization.mt");
+
         // Error handling tests
         addTestFromFile("Invalid Type Argument Count",
                     errorPath + "invalidTypeArgumentCount.mt",
@@ -345,6 +485,22 @@ namespace tests::testSuite
 
         addTestFromFile("Generic Inheritance Super Type Mismatch",
                     errorPath + "genericInheritanceSuperTypeMismatch.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // === TYPE INFERENCE ERROR TESTS ===
+        addTestFromFile("Infer Failure",
+                    errorPath + "inferFailure.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Infer Ambiguous",
+                    errorPath + "inferAmbiguous.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // === ADVANCED CONSTRAINTS ERROR TESTS ===
+        addTestFromFile("Constraint Violation Edge",
+                    errorPath + "constraintViolationEdge.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Constraint Circular",
+                    errorPath + "constraintCircular.mt",
                     TestType::ERROR_EXPECTED);
     }
 }

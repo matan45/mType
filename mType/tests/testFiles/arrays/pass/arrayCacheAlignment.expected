@@ -1,0 +1,21 @@
+Testing cache alignment effects
+Cache-aligned array (16 elements):
+  aligned[0] = 0
+  aligned[1] = 1
+  aligned[2] = 2
+  aligned[3] = 3
+  aligned[4] = 4
+  aligned[5] = 5
+  aligned[6] = 6
+  aligned[7] = 7
+  aligned[8] = 8
+  aligned[9] = 9
+  aligned[10] = 10
+  aligned[11] = 11
+  aligned[12] = 12
+  aligned[13] = 13
+  aligned[14] = 14
+  aligned[15] = 15
+Unaligned array (13 elements) sum:
+Sum: 156
+Cache alignment test completed

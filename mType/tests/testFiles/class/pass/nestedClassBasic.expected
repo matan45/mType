@@ -1,0 +1,13 @@
+Test 1: Create outer
+Outer constructor
+Outer value: 10
+
+Test 2: Create inner from outer
+Creating Inner from Outer
+Inner constructor
+Inner.display(): innerValue=20
+
+Test 3: Direct inner creation
+Inner constructor
+Inner.display(): innerValue=20
+Inner value: 20

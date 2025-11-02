@@ -1,0 +1,9 @@
+Testing memory leak prevention
+Created and disposed 100 arrays
+Final array allocated successfully:
+  Resource 0
+  Resource 1
+  Resource 2
+  Resource 3
+  Resource 4
+Memory leak test completed

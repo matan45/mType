@@ -1,0 +1,5 @@
+LOG: Validating: test
+LOG: Transforming: data
+LOG: Validating: input
+LOG: Transforming: input
+Result: input [processed]

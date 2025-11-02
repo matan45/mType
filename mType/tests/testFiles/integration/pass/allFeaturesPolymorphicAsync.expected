@@ -1,0 +1,4 @@
+String result: Hello!?
+Int result: 20
+Polymorphic result: [Test!]
+Polymorphic async test passed

@@ -110,6 +110,147 @@ namespace tests::testSuite
                         passPath + "switchNestedInLoops.mt");
         addOutputVerificationTest("Test Import Main",
                         passPath + "test_import_main.mt");
+
+        // ====================================
+        // Await + Lambda Integration Tests
+        // ====================================
+        addOutputVerificationTest("Await Lambda Basic",
+                        passPath + "awaitLambdaBasic.mt");
+        addOutputVerificationTest("Await Lambda Chain",
+                        passPath + "awaitLambdaChain.mt");
+        addOutputVerificationTest("Await Lambda Closure",
+                        passPath + "awaitLambdaClosure.mt");
+        addOutputVerificationTest("Await Lambda Generic",
+                        passPath + "awaitLambdaGeneric.mt");
+        addOutputVerificationTest("Await Lambda Exception Handling",
+                        passPath + "awaitLambdaExceptionHandling.mt");
+        addOutputVerificationTest("Await Lambda Parallel",
+                        passPath + "awaitLambdaParallel.mt");
+        addOutputVerificationTest("Await Lambda Nested",
+                        passPath + "awaitLambdaNested.mt");
+        addOutputVerificationTest("Await Lambda Composition",
+                        passPath + "awaitLambdaComposition.mt");
+
+        // ====================================
+        // Interface + Generics + Import Integration Tests
+        // ====================================
+        addOutputVerificationTest("Interface Generics Import Basic",
+                        passPath + "interfaceGenericsImportBasic.mt");
+        addOutputVerificationTest("Interface Generics Import Complex",
+                        passPath + "interfaceGenericsImportComplex.mt");
+        addOutputVerificationTest("Interface Generics Import Chain",
+                        passPath + "interfaceGenericsImportChain.mt");
+        addOutputVerificationTest("Interface Generics Import Diamond",
+                        passPath + "interfaceGenericsImportDiamond.mt");
+        addOutputVerificationTest("Interface Generics Import Wildcard",
+                        passPath + "interfaceGenericsImportWildcard.mt");
+        addOutputVerificationTest("Interface Generics Import Nested",
+                        passPath + "interfaceGenericsImportNested.mt");
+
+        // Interface + Generics + Import error test
+        addTestFromFile("Interface Generics Import Mismatch Error",
+                        passPath + "interfaceGenericsImportMismatch.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Lambda + Interface + Generics Integration Tests
+        // ====================================
+        addOutputVerificationTest("Lambda Interface Generics Basic",
+                        passPath + "lambdaInterfaceGenericsBasic.mt");
+        addOutputVerificationTest("Lambda Interface Generics Functional",
+                        passPath + "lambdaInterfaceGenericsFunctional.mt");
+        addOutputVerificationTest("Lambda Interface Generics Chain",
+                        passPath + "lambdaInterfaceGenericsChain.mt");
+        addOutputVerificationTest("Lambda Interface Generics Composition",
+                        passPath + "lambdaInterfaceGenericsComposition.mt");
+        addOutputVerificationTest("Lambda Interface Generics Type Inference",
+                        passPath + "lambdaInterfaceGenericsTypeInference.mt");
+        addOutputVerificationTest("Lambda Interface Generics Bounded",
+                        passPath + "lambdaInterfaceGenericsBounded.mt");
+
+        // ====================================
+        // Await + Interface Integration Tests
+        // ====================================
+        addOutputVerificationTest("Await Interface Basic",
+                        passPath + "awaitInterfaceBasic.mt");
+        addOutputVerificationTest("Await Interface Generic",
+                        passPath + "awaitInterfaceGeneric.mt");
+        addOutputVerificationTest("Await Interface Polymorphism",
+                        passPath + "awaitInterfacePolymorphism.mt");
+        addOutputVerificationTest("Await Interface Chain",
+                        passPath + "awaitInterfaceChain.mt");
+        addOutputVerificationTest("Await Interface Parallel",
+                        passPath + "awaitInterfaceParallel.mt");
+
+        // ====================================
+        // All Features Integration Tests
+        // ====================================
+        addOutputVerificationTest("All Features Basic",
+                        passPath + "allFeaturesBasic.mt");
+        addOutputVerificationTest("All Features Complex",
+                        passPath + "allFeaturesComplex.mt");
+        addOutputVerificationTest("All Features Event System",
+                        passPath + "allFeaturesEventSystem.mt");
+        addOutputVerificationTest("All Features Data Pipeline",
+                        passPath + "allFeaturesDataPipeline.mt");
+        addOutputVerificationTest("All Features State Machine",
+                        passPath + "allFeaturesStateMachine.mt");
+
+        // ====================================
+        // Arrays + Generics Integration Tests
+        // ====================================
+        addOutputVerificationTest("Array Generic Constraints",
+                        passPath + "arrayGenericConstraints.mt");
+        addOutputVerificationTest("Array Generic Complex",
+                        passPath + "arrayGenericComplex.mt");
+        addOutputVerificationTest("Array Generic Methods",
+                        passPath + "arrayGenericMethods.mt");
+        addOutputVerificationTest("Array Generic Collection",
+                        passPath + "arrayGenericCollection.mt");
+        addOutputVerificationTest("Array Generic SIMD",
+                        passPath + "arrayGenericSIMD.mt");
+        addOutputVerificationTest("Array Generic Multi Dimensional",
+                        passPath + "arrayGenericMultiDim.mt");
+
+        // ====================================
+        // Class + Generics Integration Tests
+        // ====================================
+        addOutputVerificationTest("Class Generic Inheritance Chain",
+                        passPath + "classGenericInheritanceChain.mt");
+        addOutputVerificationTest("Class Generic Multi Interface",
+                        passPath + "classGenericMultiInterface.mt");
+        addOutputVerificationTest("Class Generic Overloading",
+                        passPath + "classGenericOverloading.mt");
+        addOutputVerificationTest("Class Generic Builder",
+                        passPath + "classGenericBuilder.mt");
+        addOutputVerificationTest("Class Generic Factory",
+                        passPath + "classGenericFactory.mt");
+        addOutputVerificationTest("Class Generic Singleton",
+                        passPath + "classGenericSingleton.mt");
+
+        // ====================================
+        // Arrays + Class Integration Tests
+        // ====================================
+        addOutputVerificationTest("Array Class Polymorphic",
+                        passPath + "arrayClassPolymorphic.mt");
+        addOutputVerificationTest("Array Class Inheritance",
+                        passPath + "arrayClassInheritance.mt");
+        addOutputVerificationTest("Array Class Interfaces",
+                        passPath + "arrayClassInterfaces.mt");
+        addOutputVerificationTest("Array Class Return Values",
+                        passPath + "arrayClassReturnValues.mt");
+
+        // ====================================
+        // All Three Features Combined Tests
+        // ====================================
+        addOutputVerificationTest("All Generic Array Fields",
+                        passPath + "allGenericArrayFields.mt");
+        addOutputVerificationTest("All Generic Array Methods",
+                        passPath + "allGenericArrayMethods.mt");
+        addOutputVerificationTest("All Generic Inheritance Arrays",
+                        passPath + "allGenericInheritanceArrays.mt");
+        addOutputVerificationTest("All Complete Integration",
+                        passPath + "allCompleteIntegration.mt");
     }
 }
 

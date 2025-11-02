@@ -1,0 +1,6 @@
+Testing SIMD threshold
+SIMD array (16 elements):
+Sum of 16 elements: 240
+Sum of 15 elements: 210
+Sum of 17 elements: 272
+SIMD threshold test completed

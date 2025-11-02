@@ -1,0 +1,27 @@
+Testing default vs explicit values
+Default int values:
+  defaultInts[0] = 0
+  defaultInts[1] = 0
+  defaultInts[2] = 0
+Default float values:
+  defaultFloats[0] = 0
+  defaultFloats[1] = 0
+  defaultFloats[2] = 0
+Default bool values:
+  defaultBools[0] = false
+  defaultBools[1] = false
+  defaultBools[2] = false
+Default string values:
+  defaultStrings[0] = null
+  defaultStrings[1] = null
+  defaultStrings[2] = null
+Explicit zero values:
+  explicitZeros[0] = 0
+  explicitZeros[1] = 0
+  explicitZeros[2] = 0
+Mixed default and explicit:
+  mixedValues[0] = 0
+  mixedValues[1] = 10
+  mixedValues[2] = 0
+  mixedValues[3] = 30
+Default vs explicit values test completed

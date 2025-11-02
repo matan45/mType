@@ -1,0 +1,10 @@
+=== Currying Test ===
+add10(5): 15
+add10(20): 30
+add100(5): 105
+double(5): 10
+triple(5): 15
+repeatHi(3): HiHiHi
+repeatBye(2): ByeBye
+Manually curried add50(25): 75
+Currying complete

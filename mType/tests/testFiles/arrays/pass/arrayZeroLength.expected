@@ -1,0 +1,12 @@
+Testing zero-length arrays
+Created zero-length int array, length: 0
+Created zero-length string array, length: 0
+Created zero-length float array, length: 0
+Loop iterations over zero-length array: 0
+emptyInts.length == 0: true
+emptyInts.length > 0: false
+Created array of 3 zero-length arrays
+arrayOfEmpty[0].length = 0
+arrayOfEmpty[1].length = 0
+arrayOfEmpty[2].length = 0
+Zero-length arrays test completed

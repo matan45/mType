@@ -1,0 +1,6 @@
+=== Generic Variance Test ===
+Dog says: Woof
+Cat says: Meow
+Factory dog: Woof
+Factory cat: Meow
+Variance complete

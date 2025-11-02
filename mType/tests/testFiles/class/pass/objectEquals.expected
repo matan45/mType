@@ -1,0 +1,19 @@
+Test 1: Equal points
+p1: (5, 10)
+p2: (5, 10)
+p1.equals(p2): true
+p1 == p2: false
+
+Test 2: Different points
+p3: (3, 7)
+p1.equals(p3): false
+
+Test 3: Null comparison
+p1.equals(null): false
+
+Test 4: Same reference
+p1.equals(p4): true
+p1 == p4: true
+
+Test 5: Wrong type
+p1.equals(obj): false

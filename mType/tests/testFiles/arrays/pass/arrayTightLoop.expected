@@ -1,0 +1,7 @@
+Testing tight loop performance
+Initial array sum:
+Sum: 45
+After 1000 iterations:
+Final sum: 10045
+Expected sum: 10045
+Tight loop test completed

@@ -1,0 +1,9 @@
+Testing generic array variance
+Box<int> array:
+  intBoxes[0].value = 10
+  intBoxes[1].value = 20
+  intBoxes[2].value = 30
+Box<string> array:
+  stringBoxes[0].value = Hello
+  stringBoxes[1].value = World
+Generic array variance test completed

@@ -1,0 +1,13 @@
+Testing arrays as default parameters
+Sum of custom array: 100
+Sum of default array: 6
+Processing array of length: 4
+  Element 0: 10
+  Element 1: 20
+  Element 2: 30
+  Element 3: 40
+Processing array of length: 3
+  Element 0: 1
+  Element 1: 2
+  Element 2: 3
+Default parameter test completed

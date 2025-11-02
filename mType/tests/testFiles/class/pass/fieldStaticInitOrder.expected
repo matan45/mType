@@ -1,0 +1,10 @@
+Accessing StaticInit class:
+Static init 1: first = 10
+Static init 2: second = 20
+Static init 3: third = 30
+first=10, second=20, third=30, counter=3
+
+Accessing DerivedStaticInit:
+Static init 4: fourth = 40
+fourth=40
+first=10, second=20, third=30, counter=4

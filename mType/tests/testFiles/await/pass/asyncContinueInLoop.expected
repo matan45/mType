@@ -1,0 +1,27 @@
+=== Async Continue in Loop Test ===
+Iteration: 1
+Checking shouldSkip for: 1
+Added 1, total now: 1
+Iteration: 2
+Checking shouldSkip for: 2
+Skipping: 2
+Iteration: 3
+Checking shouldSkip for: 3
+Added 3, total now: 4
+Iteration: 4
+Checking shouldSkip for: 4
+Skipping: 4
+Iteration: 5
+Checking shouldSkip for: 5
+Added 5, total now: 9
+Iteration: 6
+Checking shouldSkip for: 6
+Skipping: 6
+Iteration: 7
+Checking shouldSkip for: 7
+Added 7, total now: 16
+Iteration: 8
+Checking shouldSkip for: 8
+Skipping: 8
+Final total (odd numbers only): 16
+Result: 16

@@ -1,0 +1,13 @@
+=== Null Lambda Variable Test ===
+Initial: 10
+After null assignment: null
+Lambda is null, creating new one
+Result: 15
+funcs[0](10) = 11
+funcs[1] is null
+funcs[2](10) = 20
+funcs[3] is null
+funcs[4](10) = 9
+Conditional is null
+Conditional result: 15
+Null lambda variable complete

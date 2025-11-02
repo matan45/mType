@@ -1,0 +1,4 @@
+=== Async Exception in Constructor Test ===
+Creating object with shouldFail: true
+Constructor failed: Constructor failed
+Final value: 999

@@ -1,0 +1,8 @@
+=== Await in Array Access Test ===
+Testing array access
+Creating array
+Element at index 2: 300
+Creating array
+Getting index
+Element at dynamic index: 200
+Result: 200

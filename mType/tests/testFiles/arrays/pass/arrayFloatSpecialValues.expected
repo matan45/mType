@@ -1,0 +1,17 @@
+Testing float special values in arrays
+Created float array with length: 6
+specialValues[0] = nan
+specialValues[1] = inf
+specialValues[2] = -inf
+specialValues[3] = 3.14159
+specialValues[4] = -2.71828
+specialValues[5] = 0
+Testing comparisons:
+Is specialValues[0] NaN? true
+Is specialValues[1] > 1000? true
+Is specialValues[2] < -1000? true
+Operations with special values:
+results[0] = nan
+results[1] = inf
+results[2] = -inf
+Float special values test completed
