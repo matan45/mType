@@ -2,8 +2,8 @@
 // Tests that the VM can handle high-volume casting operations efficiently
 
 interface IShape {
-    function getArea(): float;
-    function getType(): string;
+    public function getArea(): float;
+    public function getType(): string;
 }
 
 class Shape implements IShape {

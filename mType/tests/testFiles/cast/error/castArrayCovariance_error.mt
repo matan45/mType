@@ -5,7 +5,7 @@ class Object {}
 class String {}
 
 @Script
-void testArrayCovariance() {
+function testArrayCovariance(): void {
     Object[] objects = new Object[3];
     objects[0] = new Object();
     objects[1] = new Object();

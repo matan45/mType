@@ -1,10 +1,10 @@
 // Test captured variable type checking in lambda closures
 interface IntSupplier {
-    function get() : int;
+    public function get() : int;
 }
 
 interface StringSupplier {
-    function get() : string;
+    public function get() : string;
 }
 
 print("=== Lambda Closure Type Checking Test ===");
@@ -28,7 +28,7 @@ print("Computed from closure: " + supplier3.get());
 // Modify captured variable and verify type consistency
 int counter = 0;
 interface Incrementer {
-    function increment() : int;
+    public function increment() : int;
 }
 Incrementer inc = () -> {
     counter = counter + 1;

@@ -8,7 +8,7 @@ interface Drawable {
 class Circle extends Drawable {
     int radius;
 
-    void draw() {
+    public function draw(): void {
         print("Drawing circle with radius: " + radius);
     }
 }
@@ -16,13 +16,13 @@ class Circle extends Drawable {
 class Square extends Drawable {
     int side;
 
-    void draw() {
+    public function draw(): void {
         print("Drawing square with side: " + side);
     }
 }
 
 @Script
-void testInterfaceArrayCasting() {
+function testInterfaceArrayCasting(): void {
     print("Testing interface array casting");
 
     // Create array of Circle implementations

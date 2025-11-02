@@ -4,7 +4,7 @@ import * from "../../../lib/primitives/String.mt";
 // Test wildcard with lower bounds conceptually (super semantics)
 // Since mType may not have explicit 'super' keyword, we test contravariance
 interface Producer<T> {
-    function produce(): T;
+    public function produce(): T;
 }
 
 class IntProducer implements Producer<Int> {

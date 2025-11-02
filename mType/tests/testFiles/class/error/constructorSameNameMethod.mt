@@ -10,7 +10,7 @@ class MyClass {
     }
 
     // This should cause an error - method with same name as constructor
-    void constructor() {
+    function constructor(): void {
         print("This is a method, not a constructor");
     }
 }

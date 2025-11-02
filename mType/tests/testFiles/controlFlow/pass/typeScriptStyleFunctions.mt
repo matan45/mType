@@ -1,17 +1,17 @@
 ﻿        
-        function greet(string name): void {
+        public function greet(string name): void {
             print(42); 
         }
         
-        function add(int a, int b): int {
+        public function add(int a, int b): int {
             return a + b;
         }
         
-        function divide(float a, float b): float {
+        public function divide(float a, float b): float {
             return a / b;
         }
         
-        function isPositive(int x): bool {
+        public function isPositive(int x): bool {
             return x > 0;
         }
         

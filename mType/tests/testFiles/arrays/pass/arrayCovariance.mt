@@ -4,33 +4,33 @@ print("Testing array covariance");
 class Animal {
     string name;
 
-    Animal(string n) {
+    constructor(string n) {
         name = n;
     }
 
-    string getName() {
+    public function getName(): string {
         return name;
     }
 
-    string makeSound() {
+    public function makeSound(): string {
         return "Some sound";
     }
 }
 
 class Dog : Animal {
-    Dog(string n) : Animal(n) {
+    constructor(string n) : Animal(n) {
     }
 
-    string makeSound() {
+    public function makeSound(): string {
         return "Woof!";
     }
 }
 
 class Cat : Animal {
-    Cat(string n) : Animal(n) {
+    constructor(string n) : Animal(n) {
     }
 
-    string makeSound() {
+    public function makeSound(): string {
         return "Meow!";
     }
 }

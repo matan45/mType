@@ -1,18 +1,18 @@
 // Test diamond inheritance resolution with type checking
 interface A {
-    function getValue(): int;
+    public function getValue(): int;
 }
 
 interface B extends A {
-    function getValueB(): int;
+    public function getValueB(): int;
 }
 
 interface C extends A {
-    function getValueC(): int;
+    public function getValueC(): int;
 }
 
 interface D extends B, C {
-    function getValueD(): int;
+    public function getValueD(): int;
 }
 
 class DiamondImpl implements D {

@@ -1,7 +1,9 @@
 // Test interface implementation validation with proper type checking
+import * from "../../../lib/primitives/Int.mt";
+
 interface Validator<T> {
-    function validate(T value): bool;
-    function getMessage(): string;
+    public function validate(T value): bool;
+    public function getMessage(): string;
 }
 
 class StringValidator implements Validator<string> {
@@ -20,15 +22,15 @@ class StringValidator implements Validator<string> {
     }
 }
 
-class IntValidator implements Validator<int> {
+class IntValidator implements Validator<Int> {
     int minValue;
 
     constructor(int min) {
         this.minValue = min;
     }
 
-    public function validate(int value): bool {
-        return value >= this.minValue;
+    public function validate(Int value): bool {
+        return value.getValue() >= this.minValue;
     }
 
     public function getMessage(): string {
@@ -41,6 +43,6 @@ IntValidator intValidator = new IntValidator(0);
 
 print(strValidator.validate("test"));
 print(strValidator.getMessage());
-print(intValidator.validate(5));
+print(intValidator.validate(new Int(5)));
 print(intValidator.getMessage());
 print("Interface implementation validation successful");

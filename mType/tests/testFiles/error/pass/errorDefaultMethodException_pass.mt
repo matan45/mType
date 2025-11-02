@@ -7,7 +7,7 @@ import * from "../../lib/primitives/Int.mt";
 
 // Interface with default method that throws exception
 interface Logger {
-    function log(string message): void;
+    public function log(string message): void;
 
     // Default method with exception
     default function logError(string error) throws RuntimeException: void {

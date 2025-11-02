@@ -1,7 +1,7 @@
 // Test arrays captured in closures
 print("Testing arrays in closures");
 
-int[] createCounter() {
+function createCounter(): int[] {
     int[] counts = new int[3];
     counts[0] = 0;
     counts[1] = 0;
@@ -11,7 +11,7 @@ int[] createCounter() {
 
 int[] counter = createCounter();
 
-void increment(int[] arr, int index) {
+function increment(int[] arr, int index): void {
     arr[index] = arr[index] + 1;
 }
 

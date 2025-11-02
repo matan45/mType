@@ -1,18 +1,18 @@
 // Test higher-order function type validation (function returning function)
 interface UnaryIntOp {
-    function apply(int x) : int;
+    public function apply(int x) : int;
 }
 
 interface UnaryOpFactory {
-    function create(int factor) : UnaryIntOp;
+    public function create(int factor) : UnaryIntOp;
 }
 
 interface BinaryIntOp {
-    function apply(int a, int b) : int;
+    public function apply(int a, int b) : int;
 }
 
 interface Composer {
-    function compose(UnaryIntOp f, UnaryIntOp g) : UnaryIntOp;
+    public function compose(UnaryIntOp f, UnaryIntOp g) : UnaryIntOp;
 }
 
 print("=== Higher-Order Function Type Validation Test ===");
@@ -46,7 +46,7 @@ print("(5 * 2) + 10 = " + doubleThenAdd.apply(5));
 
 // Currying - function returning function
 interface Curried {
-    function curry(int x) : UnaryIntOp;
+    public function curry(int x) : UnaryIntOp;
 }
 
 Curried adder = a -> {

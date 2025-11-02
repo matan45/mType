@@ -4,23 +4,23 @@ print("Testing arrays in cleanup blocks");
 class ResourceManager {
     int[] resources;
 
-    ResourceManager() {
+    constructor() {
         resources = new int[0];
     }
 
-    void acquire(int count) {
+    public function acquire(int count): void {
         resources = new int[count];
         for (int i = 0; i < resources.length; i++) {
             resources[i] = i + 1;
         }
     }
 
-    void release() {
+    public function release(): void {
         print("Releasing " + resources.length + " resources");
         resources = new int[0];
     }
 
-    int[] getResources() {
+    public function getResources(): int[] {
         return resources;
     }
 }

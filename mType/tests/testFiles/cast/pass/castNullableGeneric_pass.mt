@@ -2,7 +2,7 @@
 class Container<T> {
     T value;
 
-    Container(T val) {
+    constructor(T val) {
         this.value = val;
     }
 

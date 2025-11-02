@@ -1,5 +1,6 @@
 // Test: Dependent types (types depending on values)
 // Expected: Pass - type behavior influenced by runtime values
+import * from "../../../lib/primitives/Int.mt";
 
 // Generic container with size-dependent behavior
 class BoundedArray<T> {
@@ -41,12 +42,12 @@ class BoundedArray<T> {
 
 // Type behavior depends on size value
 print("Test 1: Size-dependent container behavior");
-BoundedArray<int> small = new BoundedArray<int>(3);
+BoundedArray<Int> small = new BoundedArray<Int>(3);
 print("Small array capacity: " + small.getCapacity());
 
 int i = 0;
 while (i < 5) {
-    bool added = small.add(i * 10);
+    bool added = small.add(new Int(i * 10));
     if (added) {
         print("Added: " + (i * 10));
     } else {
@@ -156,12 +157,12 @@ class RangeValidator<T> {
 }
 
 print("\nTest 3: Range-dependent validation");
-RangeValidator<int> validator1 = new RangeValidator<int>(0, 100);
+RangeValidator<Int> validator1 = new RangeValidator<Int>(0, 100);
 print("Validator range: " + validator1.getRange());
 print("Validate 50: " + validator1.validate(50));
 print("Validate 150: " + validator1.validate(150));
 
-RangeValidator<int> validator2 = new RangeValidator<int>(-10, 10);
+RangeValidator<Int> validator2 = new RangeValidator<Int>(-10, 10);
 print("\nValidator range: " + validator2.getRange());
 print("Validate 0: " + validator2.validate(0));
 print("Validate -5: " + validator2.validate(-5));

@@ -3,7 +3,7 @@ import * from "../../../lib/primitives/String.mt";
 
 // Test wildcard with upper bounds (? extends Type)
 interface Animal {
-    function makeSound(): string;
+    public function makeSound(): string;
 }
 
 class Dog implements Animal {

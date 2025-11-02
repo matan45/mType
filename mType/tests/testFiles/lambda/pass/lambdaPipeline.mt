@@ -1,4 +1,7 @@
 // Stream-like lambda pipeline test
+import * from "../../../lib/primitives/Int.mt";
+import * from "../../../lib/primitives/Bool.mt";
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -66,19 +69,19 @@ class ArrayPipeline {
 print("=== Pipeline Test ===");
 
 // Simple value pipeline
-Pipeline<int> p1 = new Pipeline<int>(10);
-Pipeline<int> p2 = p1.map(x -> x * 2);
-Pipeline<int> p3 = p2.map(x -> x + 5);
+Pipeline<Int> p1 = new Pipeline<Int>(new Int(10));
+Pipeline<Int> p2 = p1.map(x -> new Int(x.getValue() * 2));
+Pipeline<Int> p3 = p2.map(x -> new Int(x.getValue() + 5));
 
-print("Pipeline result: " + p3.get());
+print("Pipeline result: " + p3.get().getValue());
 
 // Chained pipeline
-Pipeline<int> result = new Pipeline<int>(5)
-    .map(x -> x * 3)
-    .map(x -> x + 10)
-    .map(x -> x * 2);
+Pipeline<Int> result = new Pipeline<Int>(new Int(5))
+    .map(x -> new Int(x.getValue() * 3))
+    .map(x -> new Int(x.getValue() + 10))
+    .map(x -> new Int(x.getValue() * 2));
 
-print("Chained result: " + result.get());
+print("Chained result: " + result.get().getValue());
 
 // Array pipeline
 int[] numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

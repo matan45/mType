@@ -2,7 +2,7 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface ILoggable {
-    function log(): void;
+    public function log(): void;
 }
 
 class LoggableException extends Exception implements ILoggable {

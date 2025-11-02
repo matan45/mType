@@ -6,7 +6,7 @@ for (int i = 0; i < sorted.length; i++) {
     sorted[i] = i * 10;
 }
 
-int binarySearch(int[] arr, int target) {
+function binarySearch(int[] arr, int target): int {
     int left = 0;
     int right = arr.length - 1;
 

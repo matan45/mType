@@ -3,7 +3,7 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface Action {
-    function execute(): void;
+    public function execute(): void;
 }
 
 function main(): void {

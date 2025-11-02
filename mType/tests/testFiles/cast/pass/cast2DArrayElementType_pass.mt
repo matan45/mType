@@ -8,7 +8,7 @@ class Vehicle {
 class Car extends Vehicle {
     int doors;
 
-    Car() {
+    constructor() {
         type = "Car";
         doors = 4;
     }
@@ -17,14 +17,14 @@ class Car extends Vehicle {
 class Truck extends Vehicle {
     int capacity;
 
-    Truck() {
+    constructor() {
         type = "Truck";
         capacity = 1000;
     }
 }
 
 @Script
-void test2DArrayElementCasting() {
+function test2DArrayElementCasting(): void {
     print("Testing 2D array element type casting");
 
     // Create 2D array of specific type

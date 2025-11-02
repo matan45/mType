@@ -5,20 +5,20 @@ class Promise {
     int value;
     bool resolved;
 
-    Promise(int v) {
+    constructor(int v) {
         value = v;
         resolved = false;
     }
 
-    void resolve() {
+    public function resolve(): void {
         resolved = true;
     }
 
-    bool isResolved() {
+    public function isResolved(): bool {
         return resolved;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 }

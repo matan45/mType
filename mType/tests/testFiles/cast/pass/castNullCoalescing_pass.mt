@@ -3,7 +3,7 @@ class Product {
     string name;
     float price;
 
-    Product(string n, float p) {
+    constructor(string n, float p) {
         this.name = n;
         this.price = p;
     }
@@ -12,11 +12,11 @@ class Product {
 class DiscountedProduct extends Product {
     float discount;
 
-    DiscountedProduct(string n, float p, float d) : Product(n, p) {
+    constructor(string n, float p, float d) : Product(n, p) {
         this.discount = d;
     }
 
-    float getFinalPrice() {
+    public function getFinalPrice(): float {
         return this.price * (1.0 - this.discount);
     }
 }

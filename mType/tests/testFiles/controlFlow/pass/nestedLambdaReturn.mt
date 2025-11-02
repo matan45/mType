@@ -3,11 +3,11 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
-    function apply(T input): R;
+    public function apply(T input): R;
 }
 
 interface Supplier<T> {
-    function get(): T;
+    public function get(): T;
 }
 
 function processWithLambda(Int value, Function<Int, String> func): String {

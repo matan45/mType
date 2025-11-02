@@ -1,4 +1,6 @@
 // Multiple lambda callbacks in sequence test
+import * from "../../../lib/primitives/Int.mt";
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -62,44 +64,44 @@ chain.addCallback(msg -> print("Callback 3: " + msg + "?"));
 chain.execute("Hello");
 
 // Value transformation chain
-ValueTransformer<int> transformer = new ValueTransformer<int>();
+ValueTransformer<Int> transformer = new ValueTransformer<Int>();
 
-transformer.addTransformer(x -> x + 10);
-transformer.addTransformer(x -> x * 2);
-transformer.addTransformer(x -> x - 5);
+transformer.addTransformer(x -> new Int(x.getValue() + 10));
+transformer.addTransformer(x -> new Int(x.getValue() * 2));
+transformer.addTransformer(x -> new Int(x.getValue() - 5));
 
-int result1 = transformer.transform(5);  // ((5+10)*2)-5 = 25
-print("Transform 5: " + result1);
+Int result1 = transformer.transform(new Int(5));  // ((5+10)*2)-5 = 25
+print("Transform 5: " + result1.getValue());
 
-int result2 = transformer.transform(10);  // ((10+10)*2)-5 = 35
-print("Transform 10: " + result2);
+Int result2 = transformer.transform(new Int(10));  // ((10+10)*2)-5 = 35
+print("Transform 10: " + result2.getValue());
 
 // Conditional callback chain
-VoidFunction<int>[] conditionalCallbacks = new VoidFunction<int>[3];
+VoidFunction<Int>[] conditionalCallbacks = new VoidFunction<Int>[3];
 conditionalCallbacks[0] = x -> {
-    if (x > 0) {
-        print("Positive: " + x);
+    if (x.getValue() > 0) {
+        print("Positive: " + x.getValue());
     }
 };
 conditionalCallbacks[1] = x -> {
-    if (x % 2 == 0) {
-        print("Even: " + x);
+    if (x.getValue() % 2 == 0) {
+        print("Even: " + x.getValue());
     }
 };
 conditionalCallbacks[2] = x -> {
-    if (x > 10) {
-        print("Large: " + x);
+    if (x.getValue() > 10) {
+        print("Large: " + x.getValue());
     }
 };
 
 print("Testing 15:");
 for (int i = 0; i < 3; i = i + 1) {
-    conditionalCallbacks[i].execute(15);
+    conditionalCallbacks[i].execute(new Int(15));
 }
 
 print("Testing -4:");
 for (int i = 0; i < 3; i = i + 1) {
-    conditionalCallbacks[i].execute(-4);
+    conditionalCallbacks[i].execute(new Int(-4));
 }
 
 print("Callback chain complete");

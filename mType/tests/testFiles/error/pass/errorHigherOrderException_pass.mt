@@ -3,19 +3,19 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface IntFunction {
-    function apply(int value): int;
+    public function apply(int value): int;
 }
 
 interface IntFunctionFactory {
-    function create(int factor): IntFunction;
+    public function create(int factor): IntFunction;
 }
 
 interface Validator {
-    function validate(string input): bool;
+    public function validate(string input): bool;
 }
 
 interface ValidatorFactory {
-    function createValidator(int minLength): Validator;
+    public function createValidator(int minLength): Validator;
 }
 
 function main(): void {

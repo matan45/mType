@@ -2,15 +2,15 @@
 // Method references can be cast to compatible functional interfaces
 
 interface Transformer {
-    function transform(string input): string;
+    public function transform(string input): string;
 }
 
 interface Calculator {
-    function calculate(int a, int b): int;
+    public function calculate(int a, int b): int;
 }
 
 interface Processor {
-    function process(int value): int;
+    public function process(int value): int;
 }
 
 class StringUtils {

@@ -1,5 +1,5 @@
 Testing generic array variance
-Box<int> array:
+Box<Int> array:
   intBoxes[0].value = 10
   intBoxes[1].value = 20
   intBoxes[2].value = 30

@@ -3,11 +3,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface Calculator {
-    function calculate(int a, int b): int;
+    public function calculate(int a, int b): int;
 }
 
 interface Processor {
-    function process(string input): string;
+    public function process(string input): string;
 }
 
 function main(): void {

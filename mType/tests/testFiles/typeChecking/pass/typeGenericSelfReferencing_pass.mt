@@ -3,11 +3,11 @@ import * from "../../../lib/primitives/String.mt";
 
 // Test self-referencing generic types (like Comparable<T extends Comparable<T>>)
 interface Comparable<T> {
-    function compareTo(T other): int;
+    public function compareTo(T other): int;
 }
 
 interface Cloneable<T> {
-    function clone(): T;
+    public function clone(): T;
 }
 
 // Self-referencing implementation

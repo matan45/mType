@@ -1,5 +1,6 @@
 // Test: Type narrowing in control flow structures
 // Tests type narrowing through conditionals, null checks, and type guards
+import * from "../../../lib/primitives/Int.mt";
 
 class Container<T> {
     private T value;
@@ -25,16 +26,16 @@ class Container<T> {
 
 // Test 1: Type narrowing with null checks
 print("Test 1: Type narrowing with null checks");
-Container<int> container = new Container<int>();
+Container<Int> container = new Container<Int>();
 
 if (container.isEmpty()) {
     print("Container is empty");
-    container.setValue(42);
+    container.setValue(new Int(42));
 }
 
 if (!container.isEmpty()) {
-    int value = container.getValue();
-    print("Container value: " + value);
+    Int value = container.getValue();
+    print("Container value: " + value.getValue());
 }
 
 // Test 2: Type narrowing in conditionals with type inference

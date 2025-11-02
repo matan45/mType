@@ -1,5 +1,6 @@
 // Test: Type safety in async/await and control flow
 // Tests type checking with asynchronous operations and promises
+import * from "../../../lib/primitives/Int.mt";
 
 // Simulated async operations for testing
 class Promise<T> {
@@ -28,10 +29,10 @@ class Promise<T> {
 print("Test 1: Basic async type checking");
 
 class AsyncOperation {
-    public Promise<int> computeAsync(int x): Promise<int> {
-        Promise<int> promise = new Promise<int>();
+    public Promise<Int> computeAsync(int x): Promise<Int> {
+        Promise<Int> promise = new Promise<Int>();
         int result = x * 2;
-        promise.resolve(result);
+        promise.resolve(new Int(result));
         return promise;
     }
 
@@ -44,11 +45,11 @@ class AsyncOperation {
 }
 
 AsyncOperation asyncOp = new AsyncOperation();
-Promise<int> intPromise = asyncOp.computeAsync(21);
-int asyncResult = intPromise.getValue();
-print("Async computation: " + asyncResult);
+Promise<Int> intPromise = asyncOp.computeAsync(21);
+Int asyncResult = intPromise.getValue();
+print("Async computation: " + asyncResult.getValue());
 
-Promise<string> stringPromise = asyncOp.formatAsync(asyncResult);
+Promise<string> stringPromise = asyncOp.formatAsync(asyncResult.getValue());
 string formatted = stringPromise.getValue();
 print(formatted);
 
@@ -56,23 +57,23 @@ print(formatted);
 print("\nTest 2: Async operations in loops");
 
 class AsyncProcessor {
-    public Promise<int>[] processArray(int[] values, int size): Promise<int>[] {
-        Promise<int>[] promises = new Promise<int>[size];
+    public Promise<Int>[] processArray(int[] values, int size): Promise<Int>[] {
+        Promise<Int>[] promises = new Promise<Int>[size];
         int i = 0;
         while (i < size) {
-            Promise<int> p = new Promise<int>();
-            p.resolve(values[i] * 3);
+            Promise<Int> p = new Promise<Int>();
+            p.resolve(new Int(values[i] * 3));
             promises[i] = p;
             i = i + 1;
         }
         return promises;
     }
 
-    public int sumPromises(Promise<int>[] promises, int size): int {
+    public int sumPromises(Promise<Int>[] promises, int size): int {
         int total = 0;
         int i = 0;
         while (i < size) {
-            total = total + promises[i].getValue();
+            total = total + promises[i].getValue().getValue();
             i = i + 1;
         }
         return total;
@@ -87,7 +88,7 @@ while (i < 5) {
     i = i + 1;
 }
 
-Promise<int>[] promises = processor.processArray(values, 5);
+Promise<Int>[] promises = processor.processArray(values, 5);
 int sum = processor.sumPromises(promises, 5);
 print("Sum of async results: " + sum);
 
@@ -148,8 +149,8 @@ class AsyncContainer<T> {
     }
 }
 
-AsyncContainer<int> intContainer = new AsyncContainer<int>();
-Promise<int> intProm = new Promise<int>();
+AsyncContainer<Int> intContainer = new AsyncContainer<Int>();
+Promise<Int> intProm = new Promise<Int>();
 intProm.resolve(99);
 intContainer.setPromise(intProm);
 print("Awaited int: " + intContainer.await());
@@ -164,38 +165,38 @@ print("Awaited string: " + stringContainer.await());
 print("\nTest 5: Async chain operations");
 
 class AsyncChain {
-    public Promise<int> step1(int x): Promise<int> {
-        Promise<int> p = new Promise<int>();
-        p.resolve(x + 10);
+    public Promise<Int> step1(int x): Promise<Int> {
+        Promise<Int> p = new Promise<Int>();
+        p.resolve(new Int(x + 10));
         return p;
     }
 
-    public Promise<int> step2(int x): Promise<int> {
-        Promise<int> p = new Promise<int>();
-        p.resolve(x * 2);
+    public Promise<Int> step2(int x): Promise<Int> {
+        Promise<Int> p = new Promise<Int>();
+        p.resolve(new Int(x * 2));
         return p;
     }
 
-    public Promise<int> step3(int x): Promise<int> {
-        Promise<int> p = new Promise<int>();
-        p.resolve(x - 5);
+    public Promise<Int> step3(int x): Promise<Int> {
+        Promise<Int> p = new Promise<Int>();
+        p.resolve(new Int(x - 5));
         return p;
     }
 
     public int executeChain(int initial): int {
-        Promise<int> p1 = this.step1(initial);
-        int result1 = p1.getValue();
-        print("After step1: " + result1);
+        Promise<Int> p1 = this.step1(initial);
+        Int result1 = p1.getValue();
+        print("After step1: " + result1.getValue());
 
-        Promise<int> p2 = this.step2(result1);
-        int result2 = p2.getValue();
-        print("After step2: " + result2);
+        Promise<Int> p2 = this.step2(result1.getValue());
+        Int result2 = p2.getValue();
+        print("After step2: " + result2.getValue());
 
-        Promise<int> p3 = this.step3(result2);
-        int result3 = p3.getValue();
-        print("After step3: " + result3);
+        Promise<Int> p3 = this.step3(result2.getValue());
+        Int result3 = p3.getValue();
+        print("After step3: " + result3.getValue());
 
-        return result3;
+        return result3.getValue();
     }
 }
 
@@ -245,8 +246,8 @@ class AsyncResult<T> {
 }
 
 class SafeAsyncOp {
-    public AsyncResult<int> safeDivide(int a, int b): AsyncResult<int> {
-        AsyncResult<int> result = new AsyncResult<int>();
+    public AsyncResult<Int> safeDivide(int a, int b): AsyncResult<Int> {
+        AsyncResult<Int> result = new AsyncResult<Int>();
         if (b == 0) {
             result.fail("Division by zero");
         } else {
@@ -255,9 +256,9 @@ class SafeAsyncOp {
         return result;
     }
 
-    public void handleResult(AsyncResult<int> result) {
+    public void handleResult(AsyncResult<Int> result) {
         if (result.isSuccess()) {
-            print("Success: " + result.getValue());
+            print("Success: " + result.getValue().getValue());
         } else {
             if (result.isError()) {
                 print("Error: " + result.getError());
@@ -267,40 +268,40 @@ class SafeAsyncOp {
 }
 
 SafeAsyncOp safeOp = new SafeAsyncOp();
-AsyncResult<int> res1 = safeOp.safeDivide(20, 4);
+AsyncResult<Int> res1 = safeOp.safeDivide(20, 4);
 safeOp.handleResult(res1);
 
-AsyncResult<int> res2 = safeOp.safeDivide(10, 0);
+AsyncResult<Int> res2 = safeOp.safeDivide(10, 0);
 safeOp.handleResult(res2);
 
 // Test 7: Async parallel operations simulation
 print("\nTest 7: Async parallel operations");
 
 class ParallelAsync {
-    public Promise<int>[] createTasks(int count): Promise<int>[] {
-        Promise<int>[] tasks = new Promise<int>[count];
+    public Promise<Int>[] createTasks(int count): Promise<Int>[] {
+        Promise<Int>[] tasks = new Promise<Int>[count];
         int i = 0;
         while (i < count) {
-            Promise<int> p = new Promise<int>();
-            p.resolve((i + 1) * 10);
+            Promise<Int> p = new Promise<Int>();
+            p.resolve(new Int((i + 1) * 10));
             tasks[i] = p;
             i = i + 1;
         }
         return tasks;
     }
 
-    public void awaitAll(Promise<int>[] tasks, int count) {
+    public void awaitAll(Promise<Int>[] tasks, int count) {
         int i = 0;
         while (i < count) {
-            int result = tasks[i].getValue();
-            print("Task " + i + " result: " + result);
+            Int result = tasks[i].getValue();
+            print("Task " + i + " result: " + result.getValue());
             i = i + 1;
         }
     }
 }
 
 ParallelAsync parallel = new ParallelAsync();
-Promise<int>[] tasks = parallel.createTasks(4);
+Promise<Int>[] tasks = parallel.createTasks(4);
 parallel.awaitAll(tasks, 4);
 
 // Test 8: Type-safe async callbacks

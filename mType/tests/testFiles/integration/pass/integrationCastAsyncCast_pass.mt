@@ -1,5 +1,7 @@
 // Integration Test: Casting in async/await contexts
 // Tests casting behavior with promises and async functions
+import * from "../../../lib/primitives/Int.mt";
+import * from "../../../lib/primitives/Bool.mt";
 
 class DataSource {
     public int id;
@@ -33,8 +35,8 @@ class DatabaseSource extends DataSource {
         return "DatabaseSource";
     }
 
-    public function async connect(): Promise<bool> {
-        return true;
+    public function async connect(): Promise<Bool> {
+        return new Bool(true);
     }
 }
 
@@ -147,19 +149,19 @@ await testNestedAsync();
 // Test 4: Async conditional with multiple casts
 print("Test 4: Async conditional with multiple casts");
 
-function async testAsyncConditional(): Promise<int> {
+function async testAsyncConditional(): Promise<Int> {
     DataSource primary = new DatabaseSource(500, "main_db");
     DataSource backup = new APISource(501, "https://backup.api.com");
 
     if (primary isClassOf DatabaseSource) {
         DatabaseSource db = (DatabaseSource)primary;
-        bool connected = await db.connect();
+        Bool connected = await db.connect();
 
-        if (connected) {
+        if (connected.getValue()) {
             print("Using primary database");
             string data = await db.fetchData();
             print(data);
-            return 1;
+            return new Int(1);
         } else {
             print("Primary failed, trying backup");
             if (backup isClassOf APISource) {
@@ -168,16 +170,16 @@ function async testAsyncConditional(): Promise<int> {
                 print("Backup token: " + token);
                 string data = await api.fetchData();
                 print(data);
-                return 2;
+                return new Int(2);
             }
         }
     }
 
-    return 0;
+    return new Int(0);
 }
 
-int status = await testAsyncConditional();
-print("Final status: " + status);
+Int status = await testAsyncConditional();
+print("Final status: " + status.getValue());
 
 // Test 5: Async with casting in promise chain
 print("Test 5: Async promise chain with casting");

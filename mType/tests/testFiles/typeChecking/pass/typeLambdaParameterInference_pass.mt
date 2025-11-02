@@ -1,10 +1,10 @@
 // Test lambda parameter type inference
 interface Transformer {
-    function transform(int value) : int;
+    public function transform(int value) : int;
 }
 
 interface StringProcessor {
-    function process(string text) : string;
+    public function process(string text) : string;
 }
 
 print("=== Lambda Parameter Type Inference Test ===");
@@ -21,7 +21,7 @@ print("Processed: " + result2);
 
 // Multi-parameter inference
 interface BinaryOp {
-    function operate(int a, int b) : int;
+    public function operate(int a, int b) : int;
 }
 
 BinaryOp adder = (x, y) -> x + y;

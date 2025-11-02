@@ -2,7 +2,7 @@
 // This test demonstrates proper error handling for casting operations
 
 class Vehicle {
-    function describe() : String {
+    public function describe() : String {
         return "Generic vehicle";
     }
 }
@@ -14,11 +14,11 @@ class Car extends Vehicle {
         doors = d;
     }
 
-    function describe() : String {
+    public function describe() : String {
         return "Car with " + doors + " doors";
     }
 
-    function honk() : String {
+    public function honk() : String {
         return "Beep beep!";
     }
 }
@@ -30,14 +30,14 @@ class Motorcycle extends Vehicle {
         hasSidecar = sidecar;
     }
 
-    function describe() : String {
+    public function describe() : String {
         if (hasSidecar) {
             return "Motorcycle with sidecar";
         }
         return "Motorcycle";
     }
 
-    function rev() : String {
+    public function rev() : String {
         return "Vroom vroom!";
     }
 }

@@ -22,7 +22,7 @@ class AdvancedProcessor extends Processor {
 
 // Interface for lambda
 interface Transformer<T, R> {
-    function apply(T input): R;
+    public function apply(T input): R;
 }
 
 // Lambda with cast in body
@@ -36,7 +36,7 @@ print(result);
 
 // Lambda with multiple casts
 interface Comparator<T> {
-    function compare(T a, T b): int;
+    public function compare(T a, T b): int;
 }
 
 Comparator<Processor> comp = (Processor a, Processor b) -> {
@@ -64,7 +64,7 @@ if (comparison < 0) {
 
 // Expression lambda with cast
 interface Extractor<T> {
-    function extract(T input): int;
+    public function extract(T input): int;
 }
 
 Extractor<Processor> extractor = (Processor proc) -> ((AdvancedProcessor)proc).multiplier;
@@ -73,7 +73,7 @@ print("Multiplier: " + multiplier);
 
 // Lambda with cast and conditional
 interface Validator<T> {
-    function isValid(T input): bool;
+    public function isValid(T input): bool;
 }
 
 Validator<Processor> validator = (Processor proc) -> {

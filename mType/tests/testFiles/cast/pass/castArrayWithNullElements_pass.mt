@@ -8,14 +8,14 @@ class Entity {
 class Player extends Entity {
     string name;
 
-    Player(int playerId, string playerName) {
+    constructor(int playerId, string playerName) {
         id = playerId;
         name = playerName;
     }
 }
 
 @Script
-void testArrayWithNullElements() {
+function testArrayWithNullElements(): void {
     print("Testing array casting with null elements");
 
     // Create array with some null elements

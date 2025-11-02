@@ -4,7 +4,7 @@
 // Helper function that takes a lambda and allows it to call itself
 function recursiveLambdaHelper(int n, int acc): int {
     // Simulate factorial using nested function calls
-    function inner(int x, int a): int {
+    public function inner(int x, int a): int {
         if (x <= 1) {
             return a;
         }
@@ -25,7 +25,7 @@ function testRecursiveLambda(): void {
     print("Factorial(6) = " + result2); // 720
 
     // Test 2: Sum using recursive pattern
-    function sumRecursive(int n, int acc): int {
+    public function sumRecursive(int n, int acc): int {
         if (n <= 0) {
             return acc;
         }
@@ -39,8 +39,8 @@ function testRecursiveLambda(): void {
     print("Sum(20) = " + sum2); // 210
 
     // Test 3: Countdown with accumulation
-    function countDown(int n): int {
-        function helper(int x, int acc): int {
+    public function countDown(int n): int {
+        public function helper(int x, int acc): int {
             if (x <= 0) {
                 return acc;
             }
@@ -53,8 +53,8 @@ function testRecursiveLambda(): void {
     print("CountDown(7) = " + countDown(7));   // 28
 
     // Test 4: Power function with nested recursion
-    function powerFunc(int base, int exp): int {
-        function powerHelper(int b, int e, int acc): int {
+    public function powerFunc(int base, int exp): int {
+        public function powerHelper(int b, int e, int acc): int {
             if (e <= 0) {
                 return acc;
             }

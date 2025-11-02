@@ -7,7 +7,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Interface declares general Exception
 interface DataProcessor {
-    function process(string input) throws Exception: string;
+    public function process(string input) throws Exception: string;
 }
 
 // Implementation declares more specific RuntimeException

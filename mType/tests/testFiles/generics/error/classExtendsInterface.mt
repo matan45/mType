@@ -2,11 +2,11 @@
 // Should fail at parse time with clear error message
 
 interface Comparable {
-    function compareTo(other: Comparable): int;
+    function compareTo(Comparable other): int;
 }
 
 class MyClass extends Comparable {
-    function compareTo(other: Comparable): int {
+    function compareTo(Comparable other): int {
         return 0;
     }
 }

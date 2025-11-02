@@ -7,12 +7,12 @@ import * from "../../lib/primitives/String.mt";
 
 // First interface declares general Exception
 interface Validator {
-    function validate(string input) throws Exception: bool;
+    public function validate(string input) throws Exception: bool;
 }
 
 // Second interface declares RuntimeException
 interface Processor {
-    function validate(string input) throws RuntimeException: bool;
+    public function validate(string input) throws RuntimeException: bool;
 }
 
 // Implementation must handle both throws clauses
@@ -32,7 +32,7 @@ class DataHandler implements Validator, Processor {
 
 // Interface with more specific exception
 interface StrictValidator {
-    function validate(string input) throws IllegalArgumentException: bool;
+    public function validate(string input) throws IllegalArgumentException: bool;
 }
 
 // Implementation combining general and specific
@@ -51,15 +51,15 @@ class CombinedHandler implements Validator, StrictValidator {
 
 // Three interfaces with different exception hierarchies
 interface ServiceA {
-    function execute(string cmd) throws Exception: string;
+    public function execute(string cmd) throws Exception: string;
 }
 
 interface ServiceB {
-    function execute(string cmd) throws RuntimeException: string;
+    public function execute(string cmd) throws RuntimeException: string;
 }
 
 interface ServiceC {
-    function execute(string cmd) throws IllegalArgumentException: string;
+    public function execute(string cmd) throws IllegalArgumentException: string;
 }
 
 // Implementation must satisfy all three

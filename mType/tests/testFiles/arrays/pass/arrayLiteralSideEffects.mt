@@ -3,7 +3,7 @@ print("Testing literals with side effects");
 
 int counter = 0;
 
-int increment() {
+function increment(): int {
     counter = counter + 1;
     return counter;
 }
@@ -25,7 +25,7 @@ for (int i = 0; i < withSideEffects.length; i++) {
 }
 
 // Nested arrays with side effects
-int resetCounter() {
+function resetCounter(): int {
     int old = counter;
     counter = 0;
     return old;

@@ -4,15 +4,15 @@ print("Testing array deep copy vs shallow copy");
 class Container {
     int value;
 
-    Container(int v) {
+    constructor(int v) {
         value = v;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 
-    void setValue(int v) {
+    public function setValue(int v): void {
         value = v;
     }
 }

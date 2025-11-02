@@ -3,11 +3,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface IntProcessor {
-    function process(int value): int;
+    public function process(int value): int;
 }
 
 interface StringProcessor {
-    function process(string value): string;
+    public function process(string value): string;
 }
 
 function main(): void {

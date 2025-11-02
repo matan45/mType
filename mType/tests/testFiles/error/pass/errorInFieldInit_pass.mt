@@ -10,7 +10,7 @@ class FieldException extends Exception {
 class TestClass {
     Int field = computeInitialValue();
 
-    function computeInitialValue(): Int {
+    public function computeInitialValue(): Int {
         try {
             print("Computing field initial value");
             throw new FieldException("Error during field initialization");
@@ -20,7 +20,7 @@ class TestClass {
         }
     }
 
-    function getField(): Int {
+    public function getField(): Int {
         return this.field;
     }
 }

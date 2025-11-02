@@ -1,5 +1,6 @@
 // Test nullable generic type parameters
 // Validates that generic types can be instantiated with nullable type arguments
+import * from "../../../lib/primitives/Int.mt";
 
 class Box<T> {
     T value;
@@ -51,14 +52,14 @@ function main(): void {
     }
 
     // Generic with nullable object
-    Container<Box<int>> boxContainer = new Container<Box<int>>();
+    Container<Box<Int>> boxContainer = new Container<Box<Int>>();
     if (boxContainer.get() == null) {
         print("Container is empty");
     }
 
-    boxContainer.set(new Box<int>(42));
+    boxContainer.set(new Box<Int>(new Int(42)));
     if (boxContainer.get() != null) {
-        print("Container has box with value: " + boxContainer.get().getValue());
+        print("Container has box with value: " + boxContainer.get().getValue().getValue());
     }
 
     // Null assignment to generic

@@ -5,16 +5,16 @@ class Node {
     int value;
     Node next;
 
-    Node(int v) {
+    constructor(int v) {
         value = v;
         next = null;
     }
 
-    void setNext(Node n) {
+    public function setNext(Node n): void {
         next = n;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 }

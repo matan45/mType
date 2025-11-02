@@ -4,11 +4,11 @@ print("Testing memory leak prevention");
 class Resource {
     int id;
 
-    Resource(int i) {
+    constructor(int i) {
         id = i;
     }
 
-    int getId() {
+    public function getId(): int {
         return id;
     }
 }

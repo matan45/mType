@@ -6,19 +6,19 @@ class Animal {
 }
 
 class Dog extends Animal {
-    void bark() {
+    function bark(): void {
         print("Woof!");
     }
 }
 
 class Cat extends Animal {
-    void meow() {
+    function meow(): void {
         print("Meow!");
     }
 }
 
 @Script
-void testParentArrayToChildArray() {
+function testParentArrayToChildArray(): void {
     Animal[] animals = new Animal[3];
     animals[0] = new Dog();
     animals[1] = new Cat();

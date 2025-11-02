@@ -8,11 +8,11 @@ interface Drawable {
 class Circle : Drawable {
     int radius;
 
-    Circle(int r) {
+    constructor(int r) {
         radius = r;
     }
 
-    string draw() {
+    public function draw(): string {
         return "Circle with radius " + radius;
     }
 }
@@ -21,12 +21,12 @@ class Rectangle : Drawable {
     int width;
     int height;
 
-    Rectangle(int w, int h) {
+    constructor(int w, int h) {
         width = w;
         height = h;
     }
 
-    string draw() {
+    public function draw(): string {
         return "Rectangle " + width + "x" + height;
     }
 }

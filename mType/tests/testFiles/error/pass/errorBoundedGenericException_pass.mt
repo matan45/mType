@@ -6,7 +6,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Base error info interface
 interface ErrorInfo {
-    function getErrorCode(): string;
+    public function getErrorCode(): string;
 }
 
 // Specific error info implementation

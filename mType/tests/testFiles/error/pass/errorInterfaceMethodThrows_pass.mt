@@ -6,8 +6,8 @@ import * from "../../lib/primitives/String.mt";
 
 // Interface with method that declares throws clause
 interface DataValidator {
-    function validate(string data) throws Exception: bool;
-    function process(string data) throws RuntimeException: string;
+    public function validate(string data) throws Exception: bool;
+    public function process(string data) throws RuntimeException: string;
 }
 
 // Implementation that throws declared exceptions

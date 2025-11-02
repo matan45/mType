@@ -1,14 +1,14 @@
 // Test interface segregation principle - clients should not be forced to depend on interfaces they don't use
 interface Readable {
-    function read(): string;
+    public function read(): string;
 }
 
 interface Writable {
-    function write(string data): void;
+    public function write(string data): void;
 }
 
 interface Closable {
-    function close(): void;
+    public function close(): void;
 }
 
 // File implements all three interfaces

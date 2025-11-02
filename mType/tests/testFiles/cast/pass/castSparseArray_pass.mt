@@ -10,14 +10,14 @@ class TreeNode extends Node {
     TreeNode left;
     TreeNode right;
 
-    TreeNode(int val) {
+    constructor(int val) {
         value = val;
         label = "TreeNode";
     }
 }
 
 @Script
-void testSparseArrayCasting() {
+function testSparseArrayCasting(): void {
     print("Testing sparse array casting");
 
     // Create large sparse array

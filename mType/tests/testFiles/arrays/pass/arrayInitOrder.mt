@@ -3,7 +3,7 @@ print("Testing initialization ordering");
 
 int orderCounter = 0;
 
-int getNext() {
+function getNext(): int {
     orderCounter = orderCounter + 1;
     print("  getNext() called, returning " + orderCounter);
     return orderCounter;

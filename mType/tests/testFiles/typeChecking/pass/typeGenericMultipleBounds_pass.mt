@@ -3,11 +3,11 @@ import * from "../../../lib/primitives/String.mt";
 
 // Test multiple bounds on type parameters
 interface Comparable<T> {
-    function compareTo(T other): int;
+    public function compareTo(T other): int;
 }
 
 interface Serializable {
-    function serialize(): string;
+    public function serialize(): string;
 }
 
 class DataItem implements Comparable<DataItem>, Serializable {

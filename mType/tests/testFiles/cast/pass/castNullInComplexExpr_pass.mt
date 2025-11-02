@@ -2,7 +2,7 @@
 class Value {
     int data;
 
-    Value(int d) {
+    constructor(int d) {
         this.data = d;
     }
 }
@@ -11,7 +11,7 @@ class Base {}
 class Derived extends Base {
     int value;
 
-    Derived(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }

@@ -4,11 +4,11 @@ print("Testing null element assignment in object arrays");
 class Person {
     string name;
 
-    Person(string n) {
+    constructor(string n) {
         name = n;
     }
 
-    string toString() {
+    public function toString(): string {
         return "Person(" + name + ")";
     }
 }

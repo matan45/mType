@@ -25,11 +25,11 @@ class Circle extends Shape {
 }
 
 interface ShapeFactory {
-    function create(): Shape;
+    public function create(): Shape;
 }
 
 interface CircleFactory {
-    function create(): Circle;
+    public function create(): Circle;
 }
 
 // Covariant return: Circle is a subtype of Shape

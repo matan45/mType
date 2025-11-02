@@ -8,7 +8,7 @@ class Node {
         next = null;
     }
 
-    void setNext(Node n) {
+    public function setNext(Node n): void {
         next = n;
     }
 }
@@ -20,7 +20,7 @@ class LinkedList {
         head = null;
     }
 
-    void add(int value) {
+    public function add(int value): void {
         Node newNode = new Node(value);
         if (head == null) {
             head = newNode;

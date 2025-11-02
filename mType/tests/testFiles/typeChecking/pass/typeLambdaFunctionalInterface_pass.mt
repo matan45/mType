@@ -1,18 +1,18 @@
 // Test functional interface Single Abstract Method (SAM) type verification
 interface Runnable {
-    function run() : void;
+    public function run() : void;
 }
 
 interface Supplier {
-    function supply() : int;
+    public function supply() : int;
 }
 
 interface Consumer {
-    function consume(string message) : void;
+    public function consume(string message) : void;
 }
 
 interface BiFunction {
-    function apply(int a, int b) : int;
+    public function apply(int a, int b) : int;
 }
 
 print("=== Functional Interface SAM Verification Test ===");
@@ -42,7 +42,7 @@ print("4 * 7 = " + multiplier.apply(4, 7));
 
 // Verify each lambda conforms to its SAM type
 interface Predicate {
-    function test(int value) : bool;
+    public function test(int value) : bool;
 }
 
 Predicate isEven = n -> n % 2 == 0;

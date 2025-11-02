@@ -2,7 +2,7 @@
 // Tests that casting handles circular references without memory issues
 
 interface INode {
-    function getId(): int;
+    public function getId(): int;
 }
 
 class GraphNode implements INode {

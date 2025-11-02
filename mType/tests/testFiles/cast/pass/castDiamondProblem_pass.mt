@@ -3,15 +3,15 @@
 // Should handle casting through all paths in the diamond
 
 interface Top {
-    function getTopValue(): string;
+    public function getTopValue(): string;
 }
 
 interface LeftBranch extends Top {
-    function getLeftValue(): string;
+    public function getLeftValue(): string;
 }
 
 interface RightBranch extends Top {
-    function getRightValue(): string;
+    public function getRightValue(): string;
 }
 
 class DiamondImpl implements LeftBranch, RightBranch {

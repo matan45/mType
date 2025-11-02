@@ -9,7 +9,7 @@ numbers[3] = 40;
 numbers[4] = 50;
 numbers[5] = 60;
 
-bool contains(int[] arr, int value) {
+function contains(int[] arr, int value): bool {
     for (int i = 0; i < arr.length; i++) {
         if (arr[i] == value) {
             return true;

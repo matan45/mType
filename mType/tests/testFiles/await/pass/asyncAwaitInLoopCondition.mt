@@ -1,6 +1,7 @@
 // Test await in loop condition
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { Bool } from "../../lib/primitives/Bool.mt";
 
 print("=== Async Await in Loop Condition Test ===");
 
@@ -20,20 +21,22 @@ class Counter {
     }
 }
 
-function async hasMore(Counter c): Promise<bool> {
+function async hasMore(Counter c): Promise<Bool> {
     int current = c.getCount();
     print("Checking hasMore: " + current);
-    return current > 0;
+    return new Bool(current > 0);
 }
 
 function async processLoop(Counter c): Promise<Int> {
     int total = 0;
 
-    while (await hasMore(c)) {
+    Bool hasMoreResult = await hasMore(c);
+    while (hasMoreResult.getValue()) {
         int val = c.getCount();
         print("Processing: " + val);
         total = total + val;
         c.decrement();
+        hasMoreResult = await hasMore(c);
     }
 
     print("Loop finished, total: " + total);

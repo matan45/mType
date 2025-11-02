@@ -4,11 +4,11 @@ print("Testing array garbage collection");
 class Data {
     int value;
 
-    Data(int v) {
+    constructor(int v) {
         value = v;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 }

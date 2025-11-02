@@ -30,11 +30,11 @@ print("After modification: " + singleInt[0]);
 class Box {
     int value;
 
-    Box(int v) {
+    constructor(int v) {
         value = v;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 }

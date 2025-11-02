@@ -5,26 +5,26 @@ class DeferredResult {
     int[] data;
     bool ready;
 
-    DeferredResult() {
+    constructor() {
         data = new int[0];
         ready = false;
     }
 
-    void complete(int[] result) {
+    public function complete(int[] result): void {
         data = result;
         ready = true;
     }
 
-    bool isReady() {
+    public function isReady(): bool {
         return ready;
     }
 
-    int[] getData() {
+    public function getData(): int[] {
         return data;
     }
 }
 
-int[] processArray(int[] input) {
+function processArray(int[] input): int[] {
     int[] result = new int[input.length];
     for (int i = 0; i < input.length; i++) {
         result[i] = input[i] * 2;

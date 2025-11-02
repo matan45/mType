@@ -9,13 +9,13 @@ class Rectangle extends Shape {
     int width;
     int height;
 
-    Rectangle() {
+    constructor() {
         type = "Rectangle";
     }
 }
 
 @Script
-void testJaggedArrayCasting() {
+function testJaggedArrayCasting(): void {
     print("Testing jagged array casting");
 
     // Create jagged array with different row lengths

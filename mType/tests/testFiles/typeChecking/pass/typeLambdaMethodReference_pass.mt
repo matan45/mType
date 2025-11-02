@@ -1,10 +1,10 @@
 // Test method reference type compatibility with lambda interfaces
 class Calculator {
-    function double(int x) : int {
+    public function double(int x) : int {
         return x * 2;
     }
 
-    function triple(int x) : int {
+    public function triple(int x) : int {
         return x * 3;
     }
 
@@ -14,7 +14,7 @@ class Calculator {
 }
 
 interface UnaryOp {
-    function apply(int value) : int;
+    public function apply(int value) : int;
 }
 
 print("=== Lambda Method Reference Type Checking Test ===");
@@ -34,7 +34,7 @@ print("Quadruple 5: " + op3.apply(5));
 
 // Chain method calls with type checking
 interface ChainedOp {
-    function process(int x) : int;
+    public function process(int x) : int;
 }
 
 ChainedOp chained = x -> calc.double(calc.triple(x));

@@ -13,7 +13,7 @@ numbers[7] = 5;
 numbers[8] = 50;
 numbers[9] = 5;
 
-int lastIndexOf(int[] arr, int value) {
+function lastIndexOf(int[] arr, int value): int {
     for (int i = arr.length - 1; i >= 0; i = i - 1) {
         if (arr[i] == value) {
             return i;

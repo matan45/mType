@@ -4,11 +4,11 @@ print("Testing null checks in SIMD operations");
 class Item {
     int value;
 
-    Item(int v) {
+    constructor(int v) {
         value = v;
     }
 
-    int getValue() {
+    public function getValue(): int {
         return value;
     }
 }

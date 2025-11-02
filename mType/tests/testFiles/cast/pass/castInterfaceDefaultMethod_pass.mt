@@ -3,8 +3,8 @@
 // but we can test abstract classes with default implementations
 
 interface Greetable {
-    function greet(): string;
-    function farewell(): string;
+    public function greet(): string;
+    public function farewell(): string;
 }
 
 abstract class BaseGreetable implements Greetable {

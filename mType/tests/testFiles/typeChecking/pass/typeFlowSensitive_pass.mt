@@ -1,5 +1,6 @@
 // Test: Flow-sensitive typing with conditional branches
 // Expected: Pass - type information flows through control structures
+import * from "../../../lib/primitives/Int.mt";
 
 class Container<T> {
     private T value;
@@ -25,15 +26,15 @@ class Container<T> {
 
 // Test 1: Flow-sensitive type through conditionals
 print("Test 1: Flow-sensitive conditionals");
-Container<int> intContainer = new Container<int>();
+Container<Int> intContainer = new Container<Int>();
 
 if (intContainer.isEmpty()) {
     print("Container is empty");
-    intContainer.setValue(42);
+    intContainer.setValue(new Int(42));
 }
 
 if (!intContainer.isEmpty()) {
-    print("Container has value: " + intContainer.getValue());
+    print("Container has value: " + intContainer.getValue().getValue());
 }
 
 // Test 2: Flow through loops

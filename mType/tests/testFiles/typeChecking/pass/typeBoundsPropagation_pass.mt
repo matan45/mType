@@ -5,11 +5,11 @@ import * from "../../../lib/primitives/String.mt";
 // Constraints should propagate correctly through multiple levels
 
 interface Identifiable {
-    function getId(): int;
+    public function getId(): int;
 }
 
 interface Named {
-    function getName(): string;
+    public function getName(): string;
 }
 
 class Entity implements Identifiable, Named {

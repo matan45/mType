@@ -2,11 +2,11 @@ import * from "../../lib/primitives/Int.mt";
 
 // Test multiple bounds casting
 interface Flyable {
-    function fly(): void;
+    public function fly(): void;
 }
 
 interface Swimmable {
-    function swim(): void;
+    public function swim(): void;
 }
 
 class Animal {

@@ -6,7 +6,7 @@ for (int i = 0; i < numbers.length; i++) {
     numbers[i] = i * 5;
 }
 
-int indexOf(int[] arr, int target) {
+function indexOf(int[] arr, int target): int {
     for (int i = 0; i < arr.length; i++) {
         if (arr[i] == target) {
             return i;
@@ -29,7 +29,7 @@ names[2] = "Charlie";
 names[3] = "David";
 names[4] = "Eve";
 
-int indexOfString(string[] arr, string target) {
+function indexOfString(string[] arr, string target): int {
     for (int i = 0; i < arr.length; i++) {
         if (arr[i] == target) {
             return i;

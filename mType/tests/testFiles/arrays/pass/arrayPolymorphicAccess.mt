@@ -4,15 +4,15 @@ print("Testing polymorphic array access");
 class Shape {
     string name;
 
-    Shape(string n) {
+    constructor(string n) {
         name = n;
     }
 
-    string describe() {
+    public function describe(): string {
         return "Shape: " + name;
     }
 
-    int area() {
+    public function area(): int {
         return 0;
     }
 }
@@ -20,15 +20,15 @@ class Shape {
 class Square : Shape {
     int side;
 
-    Square(int s) : Shape("Square") {
+    constructor(int s) : Shape("Square") {
         side = s;
     }
 
-    int area() {
+    public function area(): int {
         return side * side;
     }
 
-    string describe() {
+    public function describe(): string {
         return "Square with side " + side + ", area " + area();
     }
 }
@@ -37,16 +37,16 @@ class Triangle : Shape {
     int base;
     int height;
 
-    Triangle(int b, int h) : Shape("Triangle") {
+    constructor(int b, int h) : Shape("Triangle") {
         base = b;
         height = h;
     }
 
-    int area() {
+    public function area(): int {
         return (base * height) / 2;
     }
 
-    string describe() {
+    public function describe(): string {
         return "Triangle with area " + area();
     }
 }

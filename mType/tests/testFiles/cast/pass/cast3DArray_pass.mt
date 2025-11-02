@@ -10,7 +10,7 @@ class Derived extends Base {
 }
 
 @Script
-void test3DArrayCasting() {
+function test3DArrayCasting(): void {
     print("Testing 3D array casting");
 
     // Create 3D array of derived type

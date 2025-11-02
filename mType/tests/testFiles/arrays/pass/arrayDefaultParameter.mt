@@ -1,7 +1,7 @@
 // Test arrays as default parameters (simulated with overloading pattern)
 print("Testing arrays as default parameters");
 
-int[] getDefaultArray() {
+function getDefaultArray(): int[] {
     int[] arr = new int[3];
     arr[0] = 1;
     arr[1] = 2;
@@ -9,7 +9,7 @@ int[] getDefaultArray() {
     return arr;
 }
 
-int sumArray(int[] arr) {
+function sumArray(int[] arr): int {
     int total = 0;
     for (int i = 0; i < arr.length; i++) {
         total = total + arr[i];
@@ -28,7 +28,7 @@ int defaultSum = sumArray(defaultArr);
 print("Sum of default array: " + defaultSum);
 
 // Function using default pattern
-void processArray(int[] arr) {
+function processArray(int[] arr): void {
     print("Processing array of length: " + arr.length);
     for (int i = 0; i < arr.length; i++) {
         print("  Element " + i + ": " + arr[i]);

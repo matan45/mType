@@ -2,19 +2,19 @@
 // Functional interface has single abstract method (SAM)
 
 interface Function {
-    function apply(int x): int;
+    public function apply(int x): int;
 }
 
 interface BiFunction {
-    function apply(int x, int y): int;
+    public function apply(int x, int y): int;
 }
 
 interface Predicate {
-    function test(int x): bool;
+    public function test(int x): bool;
 }
 
 interface Consumer {
-    function accept(string s): void;
+    public function accept(string s): void;
 }
 
 // Test lambda cast to functional interface

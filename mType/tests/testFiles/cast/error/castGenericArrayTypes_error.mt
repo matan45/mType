@@ -4,11 +4,11 @@
 class Container<T> {
     T value;
 
-    Container(T val) {
+    constructor(T val) {
         value = val;
     }
 
-    T getValue() {
+    function getValue(): T {
         return value;
     }
 }
@@ -16,13 +16,13 @@ class Container<T> {
 class Box<T> {
     T item;
 
-    Box(T i) {
+    constructor(T i) {
         item = i;
     }
 }
 
 @Script
-void testGenericArrayTypeMismatch() {
+function testGenericArrayTypeMismatch(): void {
     // Create array of Container<int>
     Container<int>[] intContainers = new Container<int>[3];
     intContainers[0] = new Container<int>(10);

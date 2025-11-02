@@ -21,7 +21,7 @@ arr4[0] = 10;
 arr4[1] = 20;
 
 // Manual content equality check
-bool arraysEqual(int[] a, int[] b) {
+function arraysEqual(int[] a, int[] b): bool {
     if (a.length != b.length) {
         return false;
     }
@@ -50,7 +50,7 @@ string[] strArr2 = new string[2];
 strArr2[0] = "hello";
 strArr2[1] = "world";
 
-bool stringArraysEqual(string[] a, string[] b) {
+function stringArraysEqual(string[] a, string[] b): bool {
     if (a.length != b.length) {
         return false;
     }

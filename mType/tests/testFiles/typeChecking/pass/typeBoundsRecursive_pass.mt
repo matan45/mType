@@ -5,7 +5,7 @@ import * from "../../../lib/primitives/String.mt";
 // This tests the F-bounded polymorphism pattern (Curiously Recurring Template Pattern)
 
 interface Comparable<T> {
-    function compareTo(T other): int;
+    public function compareTo(T other): int;
 }
 
 // Recursive bound: T extends ComparableEntity<T>

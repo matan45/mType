@@ -1,6 +1,6 @@
 // Test: Cast interface back to class
 interface Shape {
-    function area(): void;
+    public function area(): void;
 }
 
 class Rectangle implements Shape {

@@ -1,14 +1,15 @@
 // Test continue in async loop
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { Bool } from "../../lib/primitives/Bool.mt";
 
 print("=== Async Continue in Loop Test ===");
 
-function async shouldSkip(int i): Promise<bool> {
+function async shouldSkip(int i): Promise<Bool> {
     print("Checking shouldSkip for: " + i);
     // Skip even numbers
     int remainder = i % 2;
-    return remainder == 0;
+    return new Bool(remainder == 0);
 }
 
 function async processWithContinue(): Promise<Int> {
@@ -17,8 +18,8 @@ function async processWithContinue(): Promise<Int> {
     for (int i = 1; i <= 8; i = i + 1) {
         print("Iteration: " + i);
 
-        bool skip = await shouldSkip(i);
-        if (skip) {
+        Bool skip = await shouldSkip(i);
+        if (skip.getValue()) {
             print("Skipping: " + i);
             continue;
         }

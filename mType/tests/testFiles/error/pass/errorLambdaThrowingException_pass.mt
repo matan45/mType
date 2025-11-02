@@ -3,11 +3,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 interface Validator {
-    function validate(int value): bool;
+    public function validate(int value): bool;
 }
 
 interface Transformer {
-    function transform(string input): string;
+    public function transform(string input): string;
 }
 
 function main(): void {

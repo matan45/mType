@@ -5,7 +5,7 @@ class Constants {
     int[] PRIMES;
     string[] DAYS;
 
-    Constants() {
+    constructor() {
         PRIMES = new int[5];
         PRIMES[0] = 2;
         PRIMES[1] = 3;

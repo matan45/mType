@@ -2,7 +2,7 @@
 class Level1 {
     Level2? next;
 
-    Level1(Level2? n) {
+    constructor(Level2? n) {
         this.next = n;
     }
 }
@@ -10,7 +10,7 @@ class Level1 {
 class Level2 {
     Level3? next;
 
-    Level2(Level3? n) {
+    constructor(Level3? n) {
         this.next = n;
     }
 }
@@ -18,7 +18,7 @@ class Level2 {
 class Level3 {
     int value;
 
-    Level3(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }

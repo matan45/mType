@@ -17,7 +17,7 @@ for (int i = 0; i < unsorted.length; i++) {
 }
 
 // Bubble sort ascending
-void bubbleSortAscending(int[] arr) {
+function bubbleSortAscending(int[] arr): void {
     for (int i = 0; i < arr.length - 1; i++) {
         for (int j = 0; j < arr.length - i - 1; j++) {
             if (arr[j] > arr[j + 1]) {
@@ -44,7 +44,7 @@ descending[2] = 8;
 descending[3] = 1;
 descending[4] = 9;
 
-void bubbleSortDescending(int[] arr) {
+function bubbleSortDescending(int[] arr): void {
     for (int i = 0; i < arr.length - 1; i++) {
         for (int j = 0; j < arr.length - i - 1; j++) {
             if (arr[j] < arr[j + 1]) {

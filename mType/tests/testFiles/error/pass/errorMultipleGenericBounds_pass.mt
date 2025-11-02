@@ -6,15 +6,15 @@ import * from "../../lib/primitives/String.mt";
 
 // Multiple interfaces for constraints
 interface Serializable {
-    function serialize(): string;
+    public function serialize(): string;
 }
 
 interface Comparable<T> {
-    function compareTo(T other): int;
+    public function compareTo(T other): int;
 }
 
 interface Identifiable {
-    function getId(): int;
+    public function getId(): int;
 }
 
 // Class implementing multiple interfaces

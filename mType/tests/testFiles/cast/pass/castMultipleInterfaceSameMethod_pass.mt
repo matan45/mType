@@ -3,15 +3,15 @@
 // Should handle casting and method resolution correctly
 
 interface Printable {
-    function display(): string;
+    public function display(): string;
 }
 
 interface Viewable {
-    function display(): string;
+    public function display(): string;
 }
 
 interface Showable {
-    function display(): string;
+    public function display(): string;
 }
 
 class MultiDisplay implements Printable, Viewable, Showable {
