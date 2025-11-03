@@ -33,6 +33,8 @@ namespace value
         PromiseState state;
         Value value;
         std::string errorMessage; // For future error handling
+        Value exceptionValue; // Store the actual exception object when rejected
+        std::string exceptionTypeName; // Type name of the exception
 
     public:
         /**
@@ -41,6 +43,7 @@ namespace value
         PromiseValue()
             : state(PromiseState::PENDING)
             , value(std::monostate{})
+            , exceptionValue(std::monostate{})
         {
         }
 
@@ -50,6 +53,7 @@ namespace value
         explicit PromiseValue(const Value& val)
             : state(PromiseState::FULFILLED)
             , value(val)
+            , exceptionValue(std::monostate{})
         {
         }
 
@@ -135,6 +139,33 @@ namespace value
         }
 
         /**
+         * @brief Reject the promise with an exception object
+         * @param exceptionVal The exception value object
+         * @param typeName The type name of the exception
+         * @param error The error message
+         * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
+         */
+        void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error)
+        {
+            {
+                std::lock_guard<std::mutex> lock(promiseMutex);
+                if (state != PromiseState::PENDING)
+                {
+                    throw std::runtime_error(
+                        "Cannot reject promise: Promise is already " +
+                        std::string(state == PromiseState::FULFILLED ? "fulfilled" : "rejected")
+                    );
+                }
+                state = PromiseState::REJECTED;
+                exceptionValue = exceptionVal;
+                exceptionTypeName = typeName;
+                errorMessage = error;
+            }
+            // Notify all threads waiting on this promise (outside lock to avoid deadlock)
+            cv.notify_all();
+        }
+
+        /**
          * @brief Get the resolved value
          * @throws std::runtime_error if promise is not fulfilled
          */
@@ -155,6 +186,24 @@ namespace value
         {
             std::lock_guard<std::mutex> lock(promiseMutex);
             return errorMessage;
+        }
+
+        /**
+         * @brief Get the exception value if rejected with an exception
+         */
+        Value getExceptionValue() const
+        {
+            std::lock_guard<std::mutex> lock(promiseMutex);
+            return exceptionValue;
+        }
+
+        /**
+         * @brief Get the exception type name if rejected with an exception
+         */
+        std::string getExceptionTypeName() const
+        {
+            std::lock_guard<std::mutex> lock(promiseMutex);
+            return exceptionTypeName;
         }
 
         /**

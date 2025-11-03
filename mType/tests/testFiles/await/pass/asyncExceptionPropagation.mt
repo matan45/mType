@@ -52,9 +52,9 @@ function async catchingAsync(): Promise<Result> {
 }
 
 function async main(): Promise<Int> {
-    Result final = await catchingAsync();
-    print("Final value: " + final.getValue());
-    return new Int(final.getValue());
+    Result finalResult = await catchingAsync();
+    print("Final value: " + finalResult.getValue());
+    return new Int(finalResult.getValue());
 }
 
 main();

@@ -500,17 +500,19 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
+            // Always track source location for error reporting (not just when debugging)
+            auto sourceLoc = program->getSourceLocation(instructionPointer);
+            if (sourceLoc && sourceLoc->line > 0)
+            {
+                currentSourceFile = sourceLoc->filename;
+                currentSourceLine = static_cast<int>(sourceLoc->line);
+            }
+
             // Debug hook: Check for breakpoints and stepping before executing instruction
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
-                // Get source location for current instruction from program
-                auto sourceLoc = program->getSourceLocation(instructionPointer);
-
                 if (sourceLoc && sourceLoc->line > 0)
                 {
-                    currentSourceFile = sourceLoc->filename;
-                    currentSourceLine = static_cast<int>(sourceLoc->line);
-
                     // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
                     errors::SourceLocation location(sourceLoc->filename,
                                                     static_cast<int>(sourceLoc->line),
@@ -536,7 +538,69 @@ namespace vm::runtime
 
                 if (!result.handled)
                 {
-                    // No matching catch found anywhere - re-throw
+                    // No matching catch found - check if we're in an async function
+                    if (!callStack.empty())
+                    {
+                        const CallFrame& currentFrame = callStack.back();
+                        auto funcMetadata = program->getFunction(currentFrame.functionName);
+
+                        if (funcMetadata && funcMetadata->isAsync)
+                        {
+                            // We're in an async function - don't propagate exception
+                            // Instead, create a rejected promise and return it
+
+                            // Build error message from exception
+                            std::string errorMsg = e.getExceptionTypeName();
+                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue()))
+                            {
+                                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue());
+                                if (objInstance)
+                                {
+                                    // Try to get error message from common exception fields
+                                    try
+                                    {
+                                        value::Value msgValue = objInstance->getFieldValue("msg");
+                                        if (std::holds_alternative<std::string>(msgValue))
+                                        {
+                                            errorMsg += ": " + std::get<std::string>(msgValue);
+                                        }
+                                    }
+                                    catch (...)
+                                    {
+                                        // Field doesn't exist, try "message" field
+                                        try
+                                        {
+                                            value::Value messageValue = objInstance->getFieldValue("message");
+                                            if (std::holds_alternative<std::string>(messageValue))
+                                            {
+                                                errorMsg += ": " + std::get<std::string>(messageValue);
+                                            }
+                                        }
+                                        catch (...)
+                                        {
+                                            // Neither field exists, use just the type name
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Create a rejected promise with the full exception object
+                            auto rejectedPromise = std::make_shared<value::PromiseValue>();
+                            rejectedPromise->rejectWithException(e.getExceptionValue(), e.getExceptionTypeName(), errorMsg);
+
+                            // Clean up call frame and return the rejected promise
+                            controlFlowExecutor->handleReturn();
+                            stackManager->push(std::static_pointer_cast<value::PromiseValue>(rejectedPromise));
+
+                            // Move past the CALL instruction (handleReturn set IP to CALL position)
+                            // We must increment here because continue skips the normal IP increment
+                            instructionPointer++;
+                            stats.instructionsExecuted++;
+                            continue; // Continue execution with the rejected promise on stack
+                        }
+                    }
+
+                    // Not in an async function, or no call stack - re-throw
                     throw;
                 }
 
@@ -805,6 +869,17 @@ namespace vm::runtime
                     // Push the unwrapped value back onto the stack
                     stackManager->push(promise->getValue());
                     break;
+                }
+
+                // Check if promise was rejected (contains an exception)
+                if (promise->isRejected())
+                {
+                    // Re-throw the stored exception so it can be caught by try-catch blocks
+                    // Use UserException with the original exception value and type name
+                    throw errors::UserException(
+                        promise->getExceptionValue(),
+                        promise->getExceptionTypeName()
+                    );
                 }
 
                 // SLOW PATH: Promise not yet fulfilled - cooperative multitasking

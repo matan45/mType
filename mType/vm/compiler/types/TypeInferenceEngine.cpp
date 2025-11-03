@@ -9,6 +9,7 @@
 #include "../../../ast/nodes/expressions/UnaryExpNode.hpp"
 #include "../../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -234,6 +235,32 @@ namespace vm::compiler::types
             return inferBinaryOperationType(binOp);
         }
 
+        // Handle await expressions - unwrap Promise<T> to get T
+        if (auto* awaitExpr = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node)) {
+            // The await expression evaluates the inner expression and unwraps the Promise
+            // For Promise<Int>, await returns Int (OBJECT type)
+            // For Promise<int>, await returns int (INT type) - but this is non-standard
+            // Since async functions return Promise<T> where T is a wrapper class, await returns OBJECT
+
+            // Get the type of the expression being awaited
+            auto* innerExpr = awaitExpr->getExpressionPtr();
+            if (innerExpr) {
+                // If it's a function call returning Promise<T>, we need to unwrap to T
+                // For now, we'll infer the type of the inner expression
+                // In most cases, async functions return Promise<WrapperClass>, so the result is OBJECT
+                auto innerType = inferExpressionType(innerExpr);
+
+                // If the inner expression returns an OBJECT (Promise), the await unwraps it
+                // The unwrapped value is still an OBJECT (the wrapper class like Int, String, etc.)
+                if (innerType == value::ValueType::OBJECT) {
+                    return value::ValueType::OBJECT;
+                }
+
+                // For other types, return as-is (though this shouldn't normally happen)
+                return innerType;
+            }
+        }
+
         return value::ValueType::VOID;
     }
 
@@ -339,6 +366,46 @@ namespace vm::compiler::types
         // Function calls
         if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
             return inferFunctionCallClassName(funcCall);
+        }
+
+        // Await expressions - unwrap Promise<T> to get T's class name
+        if (auto* awaitExpr = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node)) {
+            auto* innerExpr = awaitExpr->getExpressionPtr();
+            if (innerExpr) {
+                // If the inner expression is a function call, get its return type
+                if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(awaitExpr->getExpressionPtr())) {
+                    std::string className = inferFunctionCallClassName(funcCall);
+
+                    // If the class name is Promise<T>, extract T
+                    if (className.find("Promise<") == 0) {
+                        size_t start = className.find('<');
+                        size_t end = className.rfind('>');
+                        if (start != std::string::npos && end != std::string::npos && end > start) {
+                            // Extract T from Promise<T>
+                            std::string unwrappedType = className.substr(start + 1, end - start - 1);
+                            return unwrappedType;
+                        }
+                    }
+
+                    return className;
+                }
+
+                // For other expressions, try to infer the class name
+                std::string innerClassName = inferExpressionClassName(innerExpr);
+
+                // If the inner class is Promise<T>, unwrap it
+                if (innerClassName.find("Promise<") == 0) {
+                    size_t start = innerClassName.find('<');
+                    size_t end = innerClassName.rfind('>');
+                    if (start != std::string::npos && end != std::string::npos && end > start) {
+                        // Extract T from Promise<T>
+                        std::string unwrappedType = innerClassName.substr(start + 1, end - start - 1);
+                        return unwrappedType;
+                    }
+                }
+
+                return innerClassName;
+            }
         }
 
         return "";

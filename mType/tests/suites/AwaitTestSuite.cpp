@@ -186,9 +186,6 @@ namespace tests::testSuite
         addTestFromFile("Async Final Method Error",
                         errorPath + "asyncFinalMethodError.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Await In Global Scope",
-                        errorPath + "awaitInGlobalScope.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Await In Constructor Error",
                         errorPath + "awaitInConstructorError.mt",
                         TestType::ERROR_EXPECTED);

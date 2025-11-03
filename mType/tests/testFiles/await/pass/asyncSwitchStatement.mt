@@ -1,28 +1,29 @@
 // Test async function with switch statement (if supported)
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { String } from "../../lib/primitives/String.mt";
 
 print("=== Async Switch Statement Test ===");
 
-function async getOperation(int opCode): Promise<string> {
+function async getOperation(int opCode): Promise<String> {
     print("Getting operation for code: " + opCode);
 
     // Using if-else chain as switch alternative
     if (opCode == 1) {
-        return "ADD";
+        return new String("ADD");
     } else if (opCode == 2) {
-        return "SUBTRACT";
+        return new String("SUBTRACT");
     } else if (opCode == 3) {
-        return "MULTIPLY";
+        return new String("MULTIPLY");
     } else if (opCode == 4) {
-        return "DIVIDE";
+        return new String("DIVIDE");
     } else {
-        return "UNKNOWN";
+        return new String("UNKNOWN");
     }
 }
 
 function async performOperation(int a, int b, int opCode): Promise<Int> {
-    string op = await getOperation(opCode);
+    string op = (await getOperation(opCode)).getValue();
     print("Operation: " + op);
 
     int result = 0;

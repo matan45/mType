@@ -9,34 +9,34 @@ class MathUtils {
 
     public static function async add(int a, int b): Promise<Int> {
         print("Static add: " + a + " + " + b);
-        MathUtils.computeCount = MathUtils.computeCount + 1;
+        computeCount++;
         int result = a + b;
         return new Int(result);
     }
 
     public static function async multiply(int a, int b): Promise<Int> {
         print("Static multiply: " + a + " * " + b);
-        MathUtils.computeCount = MathUtils.computeCount + 1;
+        computeCount++;
         int result = a * b;
         return new Int(result);
     }
 
     public static function getComputeCount(): int {
-        return MathUtils.computeCount;
+        return computeCount;
     }
 }
 
 function async main(): Promise<Int> {
-    Int sum = await MathUtils.add(5, 10);
-    print("Sum: " + sum);
+    Int sum = await MathUtils::add(5, 10);
+    print("Sum: " + sum.getValue());
 
-    Int product = await MathUtils.multiply(5, 10);
-    print("Product: " + product);
+    Int product = await MathUtils::multiply(5, 10);
+    print("Product: " + product.getValue());
 
-    Int combined = await MathUtils.add(sum.getValue(), product.getValue());
-    print("Combined: " + combined);
+    Int combined = await MathUtils::add(sum.getValue(), product.getValue());
+    print("Combined: " + combined.getValue());
 
-    print("Total computations: " + MathUtils.getComputeCount());
+    print("Total computations: " + MathUtils::getComputeCount());
 
     return combined;
 }

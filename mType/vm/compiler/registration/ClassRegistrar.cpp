@@ -187,13 +187,42 @@ namespace vm::compiler::registration
                 }
             }
         }
-        // Register fields (but don't initialize them - bytecode will do that)
+        // Register fields
         for (const auto& field : classNode->getFields()) {
             if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get())) {
+                // Initialize static fields with default values based on type
+                value::Value defaultValue;
+                if (fieldNode->getIsStatic())
+                {
+                    switch (fieldNode->getType())
+                    {
+                    case value::ValueType::INT:
+                        defaultValue = 0;
+                        break;
+                    case value::ValueType::FLOAT:
+                        defaultValue = 0.0f;
+                        break;
+                    case value::ValueType::STRING:
+                        defaultValue = std::string("");
+                        break;
+                    case value::ValueType::BOOL:
+                        defaultValue = false;
+                        break;
+                    default:
+                        defaultValue = std::monostate{}; // null for objects
+                        break;
+                    }
+                }
+                else
+                {
+                    // Instance fields don't need default values here (initialized in constructor)
+                    defaultValue = std::monostate{};
+                }
+
                 auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                     fieldNode->getName(),
                     fieldNode->getType(),
-                    std::monostate{},  // Empty value - bytecode will initialize
+                    defaultValue,
                     fieldNode->getIsStatic(),
                     fieldNode->getIsFinal(),
                     fieldNode->getAccessModifier()

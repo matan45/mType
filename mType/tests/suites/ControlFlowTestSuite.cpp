@@ -89,9 +89,155 @@ namespace tests::testSuite
                         passPath + "finallyOverridesReturn.mt");
 
         // ====================================
-        // NEW EDGE CASE TESTS (70 tests)
+        // ADDITIONAL TESTS - Files that exist but weren't registered
         // ====================================
 
+        // === ASYNC TESTS (6 tests) ===
+        addOutputVerificationTest("Async Basic Await",
+                        passPath + "asyncBasicAwait_pass.mt");
+        addOutputVerificationTest("Async In Loop",
+                        passPath + "asyncInLoop_pass.mt");
+        addOutputVerificationTest("Async Nested Await",
+                        passPath + "asyncNestedAwait_pass.mt");
+        addOutputVerificationTest("Async Parallel",
+                        passPath + "asyncParallel_pass.mt");
+        addOutputVerificationTest("Async Promise Chain",
+                        passPath + "asyncPromiseChain_pass.mt");
+        addOutputVerificationTest("Async Exception Handling",
+                        passPath + "asyncExceptionHandling_pass.mt");
+
+        // === CONDITIONAL TESTS (7 tests) ===
+        addOutputVerificationTest("Conditional Dangling Else",
+                        passPath + "conditionalDanglingElse_pass.mt");
+        addOutputVerificationTest("Conditional Deep Else If",
+                        passPath + "conditionalDeepElseIf_pass.mt");
+        addOutputVerificationTest("Conditional Empty Blocks",
+                        passPath + "conditionalEmptyBlocks_pass.mt");
+        addOutputVerificationTest("Conditional In Switch",
+                        passPath + "conditionalInSwitch_pass.mt");
+        addOutputVerificationTest("Conditional Nested Complex",
+                        passPath + "conditionalNestedComplex_pass.mt");
+        addOutputVerificationTest("Conditional No Else",
+                        passPath + "conditionalNoElse_pass.mt");
+        addOutputVerificationTest("Conditional Redundant Checks",
+                        passPath + "conditionalRedundantChecks_pass.mt");
+        addOutputVerificationTest("Conditional Short Circuit Division",
+                        passPath + "conditionalShortCircuitDiv_pass.mt");
+
+        // === EDGE TESTS (5 tests) ===
+        addOutputVerificationTest("Edge Empty Function",
+                        passPath + "edgeEmptyFunction_pass.mt");
+        addOutputVerificationTest("Edge Max Nesting Depth",
+                        passPath + "edgeMaxNestingDepth_pass.mt");
+        addOutputVerificationTest("Edge Mixed Indentation",
+                        passPath + "edgeMixedIndentation_pass.mt");
+        addOutputVerificationTest("Edge Single Statement Blocks",
+                        passPath + "edgeSingleStatementBlocks_pass.mt");
+        addOutputVerificationTest("Edge Stack Depth Limit",
+                        passPath + "edgeStackDepthLimit_pass.mt");
+
+        // === EXCEPTION TESTS (15 tests) ===
+        addOutputVerificationTest("Exception Break In Try",
+                        passPath + "exceptionBreakInTry_pass.mt");
+        addOutputVerificationTest("Exception Catch No Var",
+                        passPath + "exceptionCatchNoVar_pass.mt");
+        addOutputVerificationTest("Exception Continue In Catch",
+                        passPath + "exceptionContinueInCatch_pass.mt");
+        addOutputVerificationTest("Exception In Loop",
+                        passPath + "exceptionInLoop_pass.mt");
+        addOutputVerificationTest("Exception Nested Finally",
+                        passPath + "exceptionNestedFinally_pass.mt");
+        addOutputVerificationTest("Exception Nested Try Catch",
+                        passPath + "exceptionNestedTryCatch_pass.mt");
+        addOutputVerificationTest("Exception Propagation",
+                        passPath + "exceptionPropagation_pass.mt");
+        addOutputVerificationTest("Exception Resource Cleanup",
+                        passPath + "exceptionResourceCleanup_pass.mt");
+        addOutputVerificationTest("Exception Rethrow",
+                        passPath + "exceptionRethrow_pass.mt");
+        addOutputVerificationTest("Exception Return In Finally",
+                        passPath + "exceptionReturnInFinally_pass.mt");
+        addOutputVerificationTest("Exception Try Catch Multiple",
+                        passPath + "exceptionTryCatchMultiple_pass.mt");
+        addOutputVerificationTest("Exception Try Finally",
+                        passPath + "exceptionTryFinally_pass.mt");
+
+        // === LOOP TESTS (9 tests) ===
+        addOutputVerificationTest("Loop Counter Overflow",
+                        passPath + "loopCounterOverflow_pass.mt");
+        addOutputVerificationTest("Loop For Each",
+                        passPath + "loopForEach_pass.mt");
+        addOutputVerificationTest("Loop Labeled Break",
+                        passPath + "loopLabeledBreak_pass.mt");
+        addOutputVerificationTest("Loop Labeled Continue",
+                        passPath + "loopLabeledContinue_pass.mt");
+        addOutputVerificationTest("Loop Multiple Exit Conditions",
+                        passPath + "loopMultipleExitConditions_pass.mt");
+        addOutputVerificationTest("Loop Nested Complex",
+                        passPath + "loopNestedComplex_pass.mt");
+        addOutputVerificationTest("Loop Reverse Iteration",
+                        passPath + "loopReverseIteration_pass.mt");
+        addOutputVerificationTest("Loop Side Effect Condition",
+                        passPath + "loopSideEffectCondition_pass.mt");
+        addOutputVerificationTest("Loop Zero Iterations",
+                        passPath + "loopZeroIterations_pass.mt");
+
+        // === MODERN TESTS (5 tests) ===
+        addOutputVerificationTest("Modern Early Return",
+                        passPath + "modernEarlyReturn_pass.mt");
+        addOutputVerificationTest("Modern Guard Clauses",
+                        passPath + "modernGuardClauses_pass.mt");
+        addOutputVerificationTest("Modern Null Coalescing",
+                        passPath + "modernNullCoalescing_pass.mt");
+        addOutputVerificationTest("Modern Null Safe Navigation",
+                        passPath + "modernNullSafeNavigation_pass.mt");
+        addOutputVerificationTest("Modern Ternary Chains",
+                        passPath + "modernTernaryChains_pass.mt");
+
+        // === RECURSION TESTS (10 tests) ===
+        addOutputVerificationTest("Recursion Indirect Through",
+                        passPath + "recursionIndirectThrough_pass.mt");
+        addOutputVerificationTest("Recursion Lambda Self",
+                        passPath + "recursionLambdaSelf_pass.mt");
+        addOutputVerificationTest("Recursion Memoization",
+                        passPath + "recursionMemoization_pass.mt");
+        addOutputVerificationTest("Recursion Multiple Base Cases",
+                        passPath + "recursionMultipleBaseCases_pass.mt");
+        addOutputVerificationTest("Recursion Tail Optimization",
+                        passPath + "recursionTailOptimization_pass.mt");
+
+        // === RETURN TESTS (5 tests) ===
+        addOutputVerificationTest("Return Chained Calls",
+                        passPath + "returnChainedCalls_pass.mt");
+        addOutputVerificationTest("Return Complex Expression",
+                        passPath + "returnComplexExpression_pass.mt");
+        addOutputVerificationTest("Return Conditional",
+                        passPath + "returnConditional_pass.mt");
+        addOutputVerificationTest("Return In Nested Blocks",
+                        passPath + "returnInNestedBlocks_pass.mt");
+        addOutputVerificationTest("Return Multiple Paths",
+                        passPath + "returnMultiplePaths_pass.mt");
+
+        // === SWITCH TESTS (7 tests) ===
+        addOutputVerificationTest("Switch Fall Through",
+                        passPath + "switchFallThrough_pass.mt");
+        addOutputVerificationTest("Switch In Loop",
+                        passPath + "switchInLoop_pass.mt");
+        addOutputVerificationTest("Switch Many Cases",
+                        passPath + "switchManyCases_pass.mt");
+        addOutputVerificationTest("Switch No Default",
+                        passPath + "switchNoDefault_pass.mt");
+        addOutputVerificationTest("Switch Only Default",
+                        passPath + "switchOnlyDefault_pass.mt");
+        addOutputVerificationTest("Switch String Values",
+                        passPath + "switchStringValues_pass.mt");
+
+        // ====================================
+        // NEW EDGE CASE TESTS (70 tests)
+        // COMMENTED OUT - Test files were not created
+        // ====================================
+
+        /*
         // === LOOP EDGE CASES (10 tests) ===
         addOutputVerificationTest("Loop Infinite While",
                         passPath + "loopInfiniteWhile_pass.mt");
@@ -257,6 +403,7 @@ namespace tests::testSuite
         addTestFromFile("Error Unreachable Code",
                         errorPath + "errorUnreachableCode_error.mt",
                         TestType::ERROR_EXPECTED);
+        */
 
         // Error tests (expected to fail)
         addTestFromFile("Final Variable Reassignment Error",

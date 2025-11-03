@@ -158,165 +158,141 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
 
         // ====================================
-        // Advanced Generic Interface Tests
+        // ADDITIONAL TESTS - Files that exist but weren't registered
         // ====================================
-        addOutputVerificationTest("Nested Generic Interface",
-                        passPath + "interfaceNestedGeneric.mt");
-        addOutputVerificationTest("Generic Interface With Bounds",
-                        passPath + "interfaceGenericBounds.mt");
-        addOutputVerificationTest("Generic Interface Covariance",
-                        passPath + "interfaceGenericCovariance.mt");
-        addOutputVerificationTest("Generic Interface Multiple Parameters",
-                        passPath + "interfaceGenericMultipleParams.mt");
-        addOutputVerificationTest("Generic Interface Inheritance Chain",
-                        passPath + "interfaceGenericInheritanceChain.mt");
-        addOutputVerificationTest("Generic Interface With Wildcards",
-                        passPath + "interfaceGenericWildcards.mt");
-        addOutputVerificationTest("Generic Interface Raw Type",
-                        passPath + "interfaceGenericRawType.mt");
 
-        // ====================================
-        // Multiple Inheritance Tests
-        // ====================================
-        addOutputVerificationTest("Interface Multiple Inheritance",
-                        passPath + "interfaceMultipleInheritance.mt");
-        addOutputVerificationTest("Interface Diamond Inheritance",
-                        passPath + "interfaceDiamondInheritance.mt");
-        addOutputVerificationTest("Interface Deep Multiple Inheritance",
-                        passPath + "interfaceDeepMultipleInheritance.mt");
-        addOutputVerificationTest("Interface Conflicting Default Methods",
-                        passPath + "interfaceConflictingDefaults.mt");
-        addOutputVerificationTest("Interface Method Resolution",
-                        passPath + "interfaceMethodResolution.mt");
+        // === GENERIC INTERFACE TESTS (13 tests) ===
+        addOutputVerificationTest("Complex Generic Parameter Test",
+                        passPath + "complexGenericParameterTest.mt");
+        addOutputVerificationTest("Interface Bounded Wildcards",
+                        passPath + "interfaceBoundedWildcards.mt");
+        addOutputVerificationTest("Interface Deeply Nested Generics",
+                        passPath + "interfaceDeeplyNestedGenerics.mt");
+        addOutputVerificationTest("Interface Generic Array Type",
+                        passPath + "interfaceGenericArrayType.mt");
+        addOutputVerificationTest("Interface Generic Array Types",
+                        passPath + "interfaceGenericArrayTypes.mt");
+        addOutputVerificationTest("Interface Generic Collection Return",
+                        passPath + "interfaceGenericCollectionReturn.mt");
+        addOutputVerificationTest("Interface Generic Self Reference",
+                        passPath + "interfaceGenericSelfReference.mt");
+        addOutputVerificationTest("Interface Method Level Generics",
+                        passPath + "interfaceMethodLevelGenerics.mt");
+        addOutputVerificationTest("Interface Multiple Constraint Bounds",
+                        passPath + "interfaceMultipleConstraintBounds.mt");
+        addOutputVerificationTest("Interface Nested Generic Interfaces",
+                        passPath + "interfaceNestedGenericInterfaces.mt");
+        addOutputVerificationTest("Interface Partial Generic Substitution",
+                        passPath + "interfacePartialGenericSubstitution.mt");
+        addOutputVerificationTest("Interface Recursive Generic",
+                        passPath + "interfaceRecursiveGeneric.mt");
+        addOutputVerificationTest("Interface Type Erasure",
+                        passPath + "interfaceTypeErasure.mt");
 
-        // ====================================
-        // Static & Default Method Tests
-        // ====================================
-        addOutputVerificationTest("Interface Static Methods",
-                        passPath + "interfaceStaticMethods.mt");
-        addOutputVerificationTest("Interface Default Methods",
-                        passPath + "interfaceDefaultMethods.mt");
-        addOutputVerificationTest("Interface Default Override",
-                        passPath + "interfaceDefaultOverride.mt");
-        addOutputVerificationTest("Interface Static Call",
-                        passPath + "interfaceStaticCall.mt");
-        addOutputVerificationTest("Interface Mixed Methods",
-                        passPath + "interfaceMixedMethods.mt");
+        // === LAMBDA & FUNCTIONAL INTERFACE TESTS (6 tests) ===
+        addOutputVerificationTest("Interface Generic Functional Lambda",
+                        passPath + "interfaceGenericFunctionalLambda.mt");
+        addOutputVerificationTest("Interface Lambda Cast",
+                        passPath + "interfaceLambdaCast.mt");
+        addOutputVerificationTest("Interface Lambda Generic Inference",
+                        passPath + "interfaceLambdaGenericInference.mt");
+        addOutputVerificationTest("Interface Lambda Type Inference",
+                        passPath + "interfaceLambdaTypeInference.mt");
+        addOutputVerificationTest("Interface Method Reference Lambda",
+                        passPath + "interfaceMethodReferenceLambda.mt");
+        addOutputVerificationTest("Interface SAM Lambda",
+                        passPath + "interfaceSAMLambda.mt");
 
-        // ====================================
-        // Type Compatibility Tests
-        // ====================================
-        addOutputVerificationTest("Interface Type Casting",
-                        passPath + "interfaceTypeCasting.mt");
-        addOutputVerificationTest("Interface Instanceof Check",
-                        passPath + "interfaceInstanceof.mt");
-        addOutputVerificationTest("Interface Type Hierarchy",
-                        passPath + "interfaceTypeHierarchy.mt");
-        addOutputVerificationTest("Interface Polymorphism",
-                        passPath + "interfacePolymorphism.mt");
-        addOutputVerificationTest("Interface Array Type",
-                        passPath + "interfaceArrayType.mt");
+        // === ADVANCED IMPLEMENTATION TESTS (7 tests) ===
+        addOutputVerificationTest("Interface Abstract Partial Implementation",
+                        passPath + "interfaceAbstractPartialImplementation.mt");
+        addOutputVerificationTest("Interface Deep And Wide",
+                        passPath + "interfaceDeepAndWide.mt");
+        addOutputVerificationTest("Interface Implementation Overload",
+                        passPath + "interfaceImplementationOverload.mt");
+        addOutputVerificationTest("Interface Many Implementations",
+                        passPath + "interfaceManyImplementations.mt");
+        addOutputVerificationTest("Interface Multiple Overloads",
+                        passPath + "interfaceMultipleOverloads.mt");
+        addOutputVerificationTest("Interface Overloaded Methods",
+                        passPath + "interfaceOverloadedMethods.mt");
+        addOutputVerificationTest("Interface Overload Resolution",
+                        passPath + "interfaceOverloadResolution.mt");
 
-        // ====================================
-        // Lambda & Functional Interface Tests
-        // ====================================
-        addOutputVerificationTest("Functional Interface Lambda",
-                        passPath + "interfaceFunctionalLambda.mt");
-        addOutputVerificationTest("Generic Functional Interface",
-                        passPath + "interfaceGenericFunctional.mt");
-        addOutputVerificationTest("Functional Interface Method Reference",
-                        passPath + "interfaceMethodReference.mt");
-        addOutputVerificationTest("Functional Interface Composition",
-                        passPath + "interfaceFunctionalComposition.mt");
-        addOutputVerificationTest("Nested Lambda Interface",
-                        passPath + "interfaceNestedLambda.mt");
+        // === TYPE COMPATIBILITY & CASTING TESTS (9 tests) ===
+        addOutputVerificationTest("Interface Cast From Base",
+                        passPath + "interfaceCastFromBase.mt");
+        addOutputVerificationTest("Interface Collection Type",
+                        passPath + "interfaceCollectionType.mt");
+        addOutputVerificationTest("Interface Covariant Return Types",
+                        passPath + "interfaceCovariantReturnTypes.mt");
+        addOutputVerificationTest("Interface InstanceOf",
+                        passPath + "interfaceInstanceOf.mt");
+        addOutputVerificationTest("Interface Self Referential",
+                        passPath + "interfaceSelfReferential.mt");
+        addOutputVerificationTest("Interface Self Returning",
+                        passPath + "interfaceSelfReturning.mt");
+        addOutputVerificationTest("Interface Type Narrowing",
+                        passPath + "interfaceTypeNarrowing.mt");
+        addOutputVerificationTest("Interface Valid Crosscast",
+                        passPath + "interfaceValidCrosscast.mt");
+        addOutputVerificationTest("Interface Variance Covariant",
+                        passPath + "interfaceVarianceCovariant.mt");
 
-        // ====================================
-        // Advanced Implementation Tests
-        // ====================================
-        addOutputVerificationTest("Interface Partial Implementation",
-                        passPath + "interfacePartialImplementation.mt");
-        addOutputVerificationTest("Interface Abstract Class Bridge",
-                        passPath + "interfaceAbstractBridge.mt");
-        addOutputVerificationTest("Interface With Constructor",
-                        passPath + "interfaceWithConstructor.mt");
-        addOutputVerificationTest("Interface With Fields",
-                        passPath + "interfaceWithFields.mt");
-        addOutputVerificationTest("Interface Nested Types",
-                        passPath + "interfaceNestedTypes.mt");
+        // === NULL HANDLING TESTS (5 tests) ===
+        addOutputVerificationTest("Interface Null Assignment",
+                        passPath + "interfaceNullAssignment.mt");
+        addOutputVerificationTest("Interface Null Check",
+                        passPath + "interfaceNullCheck.mt");
+        addOutputVerificationTest("Interface Null Parameter",
+                        passPath + "interfaceNullParameter.mt");
+        addOutputVerificationTest("Interface Null Return",
+                        passPath + "interfaceNullReturn.mt");
+        addOutputVerificationTest("Interface Nullable Type",
+                        passPath + "interfaceNullableType.mt");
 
-        // ====================================
-        // Advanced Error Tests - Generics
-        // ====================================
-        addTestFromFile("Interface Generic Bound Violation Error",
-                        errorPath + "interfaceGenericBoundViolation.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Generic Arity Mismatch Error",
-                        errorPath + "interfaceGenericArityMismatch.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Generic Type Erasure Error",
-                        errorPath + "interfaceGenericTypeErasure.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Generic Wildcard Error",
-                        errorPath + "interfaceGenericWildcardError.mt",
-                        TestType::ERROR_EXPECTED);
+        // === DEPENDENCY TESTS (2 tests) ===
+        addOutputVerificationTest("Interface Mutual Dependency",
+                        passPath + "interfaceMutualDependency.mt");
+        addOutputVerificationTest("Interface Very Wide",
+                        passPath + "interfaceVeryWide.mt");
 
-        // ====================================
-        // Advanced Error Tests - Inheritance
-        // ====================================
-        addTestFromFile("Interface Self Inheritance Error",
-                        errorPath + "interfaceSelfInheritance.mt",
+        // === ADDITIONAL ERROR TESTS (10 tests) ===
+        addTestFromFile("Interface Cast To Class Error",
+                        errorPath + "interfaceCastToClass.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Duplicate Extends Error",
-                        errorPath + "interfaceDuplicateExtends.mt",
+        addTestFromFile("Interface Class And Interface Collision Error",
+                        errorPath + "interfaceClassAndInterfaceCollision.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Incompatible Inheritance Error",
-                        errorPath + "interfaceIncompatibleInheritance.mt",
+        addTestFromFile("Interface Conflicting Signatures Error",
+                        errorPath + "interfaceConflictingSignatures.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Circular Generic Error",
-                        errorPath + "interfaceCircularGeneric.mt",
+        addTestFromFile("Interface Generic Primitive Constraint Error",
+                        errorPath + "interfaceGenericPrimitiveConstraint.mt",
                         TestType::ERROR_EXPECTED);
-
-        // ====================================
-        // Advanced Error Tests - Implementation
-        // ====================================
-        addTestFromFile("Interface Method Signature Mismatch Error",
-                        errorPath + "interfaceMethodSignatureMismatch.mt",
+        addTestFromFile("Interface Invalid Cast Error",
+                        errorPath + "interfaceInvalidCast.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Visibility Mismatch Error",
-                        errorPath + "interfaceVisibilityMismatch.mt",
+        addTestFromFile("Interface Method Conflict Chain Error",
+                        errorPath + "interfaceMethodConflictChain.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Covariant Return Error",
-                        errorPath + "interfaceCovariantReturnError.mt",
+        addTestFromFile("Interface Multiple Inheritance Conflict Error",
+                        errorPath + "interfaceMultipleInheritanceConflict.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Multiple Implementation Error",
-                        errorPath + "interfaceMultipleImplementationError.mt",
+        addTestFromFile("Interface Non Public Implementation Error",
+                        errorPath + "interfaceNonPublicImplementation.mt",
                         TestType::ERROR_EXPECTED);
-
-        // ====================================
-        // Advanced Error Tests - Lambda
-        // ====================================
-        addTestFromFile("Interface Non Functional Lambda Error",
-                        errorPath + "interfaceNonFunctionalLambda.mt",
+        addTestFromFile("Interface Private Implementation Error",
+                        errorPath + "interfacePrivateImplementation.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Lambda Signature Error",
-                        errorPath + "interfaceLambdaSignature.mt",
+        addTestFromFile("Interface Protected Implementation Error",
+                        errorPath + "interfaceProtectedImplementation.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Multiple Abstract Methods Error",
-                        errorPath + "interfaceMultipleAbstractMethods.mt",
+        addTestFromFile("Interface Raw Generic Type Error",
+                        errorPath + "interfaceRawGenericType.mt",
                         TestType::ERROR_EXPECTED);
-
-        // ====================================
-        // Advanced Error Tests - Type Safety
-        // ====================================
-        addTestFromFile("Interface Type Cast Error",
-                        errorPath + "interfaceTypeCastError.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Null Assignment Error",
-                        errorPath + "interfaceNullAssignment.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Interface Array Covariance Error",
-                        errorPath + "interfaceArrayCovarianceError.mt",
+        addTestFromFile("Interface Variance Contravariant Error",
+                        errorPath + "interfaceVarianceContravariant.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

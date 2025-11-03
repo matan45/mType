@@ -26,8 +26,7 @@ class Base {
 class Derived extends Base {
     int derivedValue;
 
-    public constructor(int base, int derived) {
-        super(base);
+    public constructor(int base, int derived):super(base) {
         this.derivedValue = derived;
     }
 

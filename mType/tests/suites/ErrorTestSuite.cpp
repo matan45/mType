@@ -219,6 +219,177 @@ namespace tests::testSuite
         // === ADVANCED FLOW (8 tests) ===
         addOutputVerificationTest("Error Exception In Catch",
                         passPath + "errorExceptionInCatch_pass.mt");
+
+        // ====================================
+        // ADDITIONAL TESTS - Files that exist but weren't registered
+        // ====================================
+
+        // === ASYNC TESTS (11 tests) ===
+        addOutputVerificationTest("Error Async Await Exception",
+                        passPath + "errorAsyncAwaitException_pass.mt");
+        addOutputVerificationTest("Error Async Finally",
+                        passPath + "errorAsyncFinally_pass.mt");
+        addOutputVerificationTest("Error Async Multiple Catch",
+                        passPath + "errorAsyncMultipleCatch_pass.mt");
+        addOutputVerificationTest("Error Async Nested Exceptions",
+                        passPath + "errorAsyncNestedExceptions_pass.mt");
+        addOutputVerificationTest("Error Async Parallel Exceptions",
+                        passPath + "errorAsyncParallelExceptions_pass.mt");
+        addOutputVerificationTest("Error Async Rethrow",
+                        passPath + "errorAsyncRethrow_pass.mt");
+        addOutputVerificationTest("Error Async Try Catch",
+                        passPath + "errorAsyncTryCatch_pass.mt");
+        addOutputVerificationTest("Error Async Unhandled",
+                        passPath + "errorAsyncUnhandled_pass.mt");
+
+        // === CATCH TESTS (8 tests) ===
+        addOutputVerificationTest("Error Catch Abstract Exception",
+                        passPath + "errorCatchAbstractException_pass.mt");
+        addOutputVerificationTest("Error Catch Generic Type",
+                        passPath + "errorCatchGenericType_pass.mt");
+        addOutputVerificationTest("Error Catch Inheritance Chain",
+                        passPath + "errorCatchInheritanceChain_pass.mt");
+        addOutputVerificationTest("Error Catch Interface Type",
+                        passPath + "errorCatchInterfaceType_pass.mt");
+        addOutputVerificationTest("Error Catch Unrelated Types",
+                        passPath + "errorCatchUnrelatedTypes_pass.mt");
+        addOutputVerificationTest("Error Empty Catch",
+                        passPath + "errorEmptyCatch_pass.mt");
+        addOutputVerificationTest("Error Recursive Catch",
+                        passPath + "errorRecursiveCatch_pass.mt");
+
+        // === CONTROL FLOW TESTS (5 tests) ===
+        addOutputVerificationTest("Error Break In Try Finally",
+                        passPath + "errorBreakInTryFinally_pass.mt");
+        addOutputVerificationTest("Error Continue In Catch Finally",
+                        passPath + "errorContinueInCatchFinally_pass.mt");
+        addOutputVerificationTest("Error Return In Catch Finally",
+                        passPath + "errorReturnInCatchFinally_pass.mt");
+        addOutputVerificationTest("Error Multiple Finally No Catch",
+                        passPath + "errorMultipleFinallyNoCatch_pass.mt");
+
+        // === ERROR LOCATION TESTS (11 tests) ===
+        addOutputVerificationTest("Error In Array Init",
+                        passPath + "errorInArrayInit_pass.mt");
+        addOutputVerificationTest("Error In Default Param",
+                        passPath + "errorInDefaultParam_pass.mt");
+        addOutputVerificationTest("Error In Field Init",
+                        passPath + "errorInFieldInit_pass.mt");
+        addOutputVerificationTest("Error In For Loop Condition",
+                        passPath + "errorInForLoopCondition_pass.mt");
+        addOutputVerificationTest("Error In For Loop Increment",
+                        passPath + "errorInForLoopIncrement_pass.mt");
+        addOutputVerificationTest("Error In For Loop Init",
+                        passPath + "errorInForLoopInit_pass.mt");
+        addOutputVerificationTest("Error In Static Init",
+                        passPath + "errorInStaticInit_pass.mt");
+        addOutputVerificationTest("Error In Switch Expr",
+                        passPath + "errorInSwitchExpr_pass.mt");
+        addOutputVerificationTest("Error In Ternary Operator",
+                        passPath + "errorInTernaryOperator_pass.mt");
+        addOutputVerificationTest("Error In While Condition",
+                        passPath + "errorInWhileCondition_pass.mt");
+
+        // === GENERICS TESTS (4 tests) ===
+        addOutputVerificationTest("Error Bounded Generic Exception",
+                        passPath + "errorBoundedGenericException_pass.mt");
+        addOutputVerificationTest("Error Generic Exception",
+                        passPath + "errorGenericException_pass.mt");
+        addOutputVerificationTest("Error Generic Method Exception",
+                        passPath + "errorGenericMethodException_pass.mt");
+        addOutputVerificationTest("Error Multiple Generic Bounds",
+                        passPath + "errorMultipleGenericBounds_pass.mt");
+        addOutputVerificationTest("Error Throw Generic Exception",
+                        passPath + "errorThrowGenericException_pass.mt");
+
+        // === INTERFACE TESTS (4 tests) ===
+        addOutputVerificationTest("Error Covariant Exception Types",
+                        passPath + "errorCovariantExceptionTypes_pass.mt");
+        addOutputVerificationTest("Error Default Method Exception",
+                        passPath + "errorDefaultMethodException_pass.mt");
+        addOutputVerificationTest("Error Impl Different Throws",
+                        passPath + "errorImplDifferentThrows_pass.mt");
+        addOutputVerificationTest("Error Interface Method Throws",
+                        passPath + "errorInterfaceMethodThrows_pass.mt");
+        addOutputVerificationTest("Error Multiple Interface Conflict",
+                        passPath + "errorMultipleInterfaceConflict_pass.mt");
+
+        // === LAMBDA TESTS (5 tests) ===
+        addOutputVerificationTest("Error Lambda Capturing Exception",
+                        passPath + "errorLambdaCapturingException_pass.mt");
+        addOutputVerificationTest("Error Lambda Chain Exception",
+                        passPath + "errorLambdaChainException_pass.mt");
+        addOutputVerificationTest("Error Lambda In Try Catch",
+                        passPath + "errorLambdaInTryCatch_pass.mt");
+        addOutputVerificationTest("Error Lambda Throwing Exception",
+                        passPath + "errorLambdaThrowingException_pass.mt");
+        addOutputVerificationTest("Error Higher Order Exception",
+                        passPath + "errorHigherOrderException_pass.mt");
+
+        // === RESOURCE MANAGEMENT TESTS (7 tests) ===
+        addOutputVerificationTest("Error Resource Cleanup Multiple Fail",
+                        passPath + "errorResourceCleanupMultipleFail_pass.mt");
+        addOutputVerificationTest("Error Resource Finally Cleanup",
+                        passPath + "errorResourceFinallyCleanup_pass.mt");
+        addOutputVerificationTest("Error Resource Leak Detection",
+                        passPath + "errorResourceLeakDetection_pass.mt");
+        addOutputVerificationTest("Error Resource Nested Acquisition",
+                        passPath + "errorResourceNestedAcquisition_pass.mt");
+        addOutputVerificationTest("Error Resource RAII",
+                        passPath + "errorResourceRAII_pass.mt");
+        addOutputVerificationTest("Error Resource Transaction Rollback",
+                        passPath + "errorResourceTransactionRollback_pass.mt");
+
+        // === STACK TRACE TESTS (5 tests) ===
+        addOutputVerificationTest("Error Stack Trace Accuracy",
+                        passPath + "errorStackTraceAccuracy_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Async",
+                        passPath + "errorStackTraceAsync_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Custom Message",
+                        passPath + "errorStackTraceCustomMessage_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Nested",
+                        passPath + "errorStackTraceNested_pass.mt");
+        addOutputVerificationTest("Error Stack Trace With Lambda",
+                        passPath + "errorStackTraceWithLambda_pass.mt");
+
+        // === THROW TESTS (5 tests) ===
+        addOutputVerificationTest("Error Throw In Catch Different",
+                        passPath + "errorThrowInCatchDifferent_pass.mt");
+        addOutputVerificationTest("Error Throw Inheritance",
+                        passPath + "errorThrowInheritance_pass.mt");
+        addOutputVerificationTest("Error Throw Multiple Types",
+                        passPath + "errorThrowMultipleTypes_pass.mt");
+        addOutputVerificationTest("Error Throw Polymorphic",
+                        passPath + "errorThrowPolymorphic_pass.mt");
+
+        // === RECOVERY TESTS (4 tests) ===
+        addOutputVerificationTest("Error Circuit Breaker",
+                        passPath + "errorCircuitBreaker_pass.mt");
+        addOutputVerificationTest("Error Fallback Value",
+                        passPath + "errorFallbackValue_pass.mt");
+        addOutputVerificationTest("Error Retry Mechanism",
+                        passPath + "errorRetryMechanism_pass.mt");
+        addOutputVerificationTest("Error Partial Failure",
+                        passPath + "errorPartialFailure_pass.mt");
+
+        // === OTHER TESTS (5 tests) ===
+        addOutputVerificationTest("Error Aggregation",
+                        passPath + "errorAggregation_pass.mt");
+        addOutputVerificationTest("Error Cross Module Exception",
+                        passPath + "errorCrossModuleException_pass.mt");
+        addOutputVerificationTest("Error Deep Nesting",
+                        passPath + "errorDeepNesting_pass.mt");
+        addOutputVerificationTest("Error Large Exception Data",
+                        passPath + "errorLargeExceptionData_pass.mt");
+        addOutputVerificationTest("Error Many Exceptions",
+                        passPath + "errorManyExceptions_pass.mt");
+        addOutputVerificationTest("Error Module Init Exception",
+                        passPath + "errorModuleInitException_pass.mt");
+
+        // ====================================
+        // COMMENTED OUT - Test files were not created
+        // ====================================
+        /*
         addOutputVerificationTest("Error Multiple Finally",
                         passPath + "errorMultipleFinally_pass.mt");
         addOutputVerificationTest("Error Try Catch Finally Order",
@@ -233,8 +404,6 @@ namespace tests::testSuite
                         passPath + "errorNestedTryDeep_pass.mt");
         addOutputVerificationTest("Error Finally Execution Order",
                         passPath + "errorFinallyExecutionOrder_pass.mt");
-
-        // === TYPE MATCHING (7 tests) ===
         addOutputVerificationTest("Error Catch Block Order",
                         passPath + "errorCatchBlockOrder_pass.mt");
         addOutputVerificationTest("Error Catch Specific Before General",
@@ -251,8 +420,6 @@ namespace tests::testSuite
         addTestFromFile("Error Throw Null",
                         errorPath + "errorThrowNull_error.mt",
                         TestType::ERROR_EXPECTED);
-
-        // === SPECIAL CONSTRUCTS (10 tests) ===
         addOutputVerificationTest("Error In Constructor",
                         passPath + "errorInConstructor_pass.mt");
         addOutputVerificationTest("Error In Static Initializer",
@@ -273,14 +440,10 @@ namespace tests::testSuite
                         passPath + "errorInMethodReference_pass.mt");
         addOutputVerificationTest("Error In Anonymous Class",
                         passPath + "errorInAnonymousClass_pass.mt");
-
-        // === GENERICS (6 tests) ===
         addOutputVerificationTest("Error Generic Exception Catch",
                         passPath + "errorGenericExceptionCatch_pass.mt");
         addOutputVerificationTest("Error Bounded Exception Type",
                         passPath + "errorBoundedExceptionType_pass.mt");
-        addOutputVerificationTest("Error Generic Method Exception",
-                        passPath + "errorGenericMethodException_pass.mt");
         addOutputVerificationTest("Error Nested Generic Exception",
                         passPath + "errorNestedGenericException_pass.mt");
         addTestFromFile("Error Generic Array Exception",
@@ -288,8 +451,6 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addOutputVerificationTest("Error Wildcard Exception",
                         passPath + "errorWildcardException_pass.mt");
-
-        // === INTERFACES (5 tests) ===
         addOutputVerificationTest("Error Interface Throws Clause",
                         passPath + "errorInterfaceThrowsClause_pass.mt");
         addOutputVerificationTest("Error Override Exception Covariant",
@@ -301,8 +462,6 @@ namespace tests::testSuite
                         passPath + "errorMultipleInterfaceExceptions_pass.mt");
         addOutputVerificationTest("Error Diamond Interface Exception",
                         passPath + "errorDiamondInterfaceException_pass.mt");
-
-        // === LAMBDAS (5 tests) ===
         addOutputVerificationTest("Error Lambda Capture Exception",
                         passPath + "errorLambdaCaptureException_pass.mt");
         addOutputVerificationTest("Error Lambda Throws",
@@ -313,10 +472,6 @@ namespace tests::testSuite
                         passPath + "errorLambdaTryCatch_pass.mt");
         addOutputVerificationTest("Error Nested Lambda Exception",
                         passPath + "errorNestedLambdaException_pass.mt");
-
-        // === ASYNC (8 tests) ===
-        addOutputVerificationTest("Error Async Await Exception",
-                        passPath + "errorAsyncAwaitException_pass.mt");
         addOutputVerificationTest("Error Promise Rejection",
                         passPath + "errorPromiseRejection_pass.mt");
         addOutputVerificationTest("Error Promise Chain Exception",
@@ -331,8 +486,6 @@ namespace tests::testSuite
                         passPath + "errorAsyncCallbackException_pass.mt");
         addOutputVerificationTest("Error Event Loop Exception",
                         passPath + "errorEventLoopException_pass.mt");
-
-        // === RESOURCE MANAGEMENT (6 tests) ===
         addOutputVerificationTest("Error Try With Resources",
                         passPath + "errorTryWithResources_pass.mt");
         addOutputVerificationTest("Error Resource Cleanup Failure",
@@ -345,30 +498,18 @@ namespace tests::testSuite
                         passPath + "errorRAIIPattern_pass.mt");
         addOutputVerificationTest("Error Transaction Rollback",
                         passPath + "errorTransactionRollback_pass.mt");
-
-        // === STACK TRACES (5 tests) ===
-        addOutputVerificationTest("Error Stack Trace Accuracy",
-                        passPath + "errorStackTraceAccuracy_pass.mt");
         addOutputVerificationTest("Error Stack Trace Deep",
                         passPath + "errorStackTraceDeep_pass.mt");
         addOutputVerificationTest("Error Stack Trace Recursive",
                         passPath + "errorStackTraceRecursive_pass.mt");
-        addOutputVerificationTest("Error Stack Trace Async",
-                        passPath + "errorStackTraceAsync_pass.mt");
         addOutputVerificationTest("Error Stack Trace Lambda",
                         passPath + "errorStackTraceLambda_pass.mt");
-
-        // === PERFORMANCE (4 tests) ===
         addOutputVerificationTest("Error Exception Creation Cost",
                         passPath + "errorExceptionCreationCost_pass.mt");
         addOutputVerificationTest("Error Deep Nesting Performance",
                         passPath + "errorDeepNestingPerformance_pass.mt");
-        addOutputVerificationTest("Error Many Exceptions",
-                        passPath + "errorManyExceptions_pass.mt");
         addOutputVerificationTest("Error Large Exception Payload",
                         passPath + "errorLargeExceptionPayload_pass.mt");
-
-        // === ANNOTATIONS (4 tests) ===
         addOutputVerificationTest("Error Throw Annotation Single",
                         passPath + "errorThrowAnnotationSingle_pass.mt");
         addOutputVerificationTest("Error Throw Annotation Multiple",
@@ -378,24 +519,11 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addOutputVerificationTest("Error Throw Annotation Inherited",
                         passPath + "errorThrowAnnotationInherited_pass.mt");
-
-        // === RECOVERY (5 tests) ===
-        addOutputVerificationTest("Error Retry Mechanism",
-                        passPath + "errorRetryMechanism_pass.mt");
-        addOutputVerificationTest("Error Circuit Breaker",
-                        passPath + "errorCircuitBreaker_pass.mt");
-        addOutputVerificationTest("Error Fallback Value",
-                        passPath + "errorFallbackValue_pass.mt");
         addOutputVerificationTest("Error Exponential Backoff",
                         passPath + "errorExponentialBackoff_pass.mt");
         addOutputVerificationTest("Error Custom Recovery Strategy",
                         passPath + "errorCustomRecoveryStrategy_pass.mt");
-
-        // === INTEROP (2 tests) ===
-        addOutputVerificationTest("Error Cross Module Exception",
-                        passPath + "errorCrossModuleException_pass.mt");
-        addOutputVerificationTest("Error Module Initialization Exception",
-                        passPath + "errorModuleInitException_pass.mt");
+        */
 
         // Test that static and instance methods with same name are allowed (different namespaces)
         addOutputVerificationTest("Allow Static And Instance Method Same Name",

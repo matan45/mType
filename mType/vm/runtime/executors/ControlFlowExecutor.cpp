@@ -1,6 +1,8 @@
 #include "ControlFlowExecutor.hpp"
 #include "../../../value/PromiseValue.hpp"
+#include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include <iostream>
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
@@ -78,8 +80,9 @@ namespace vm::runtime
                 // Check if already wrapped in Promise (by CREATE_PROMISE opcode)
                 // This prevents double-wrapping when bytecode compiler emits CREATE_PROMISE
                 if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(returnVal)) {
-                    // Wrap return value in PromiseValue for async functions
-                    auto promise = std::make_shared<value::PromiseValue>(returnVal);
+                    // Wrap return value in AsyncPromiseValue for async functions
+                    // Use AsyncPromiseValue to support event loop and callbacks
+                    auto promise = std::make_shared<value::AsyncPromiseValue>(returnVal);
                     returnVal = promise;
                 }
             }

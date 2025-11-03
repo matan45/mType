@@ -1,6 +1,7 @@
 // Test promise with generic types
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { String } from "../../lib/primitives/String.mt";
 
 print("=== Async Generic Promise Test ===");
 
@@ -15,7 +16,7 @@ class Container<T> {
         return this.value;
     }
 
-    public function async transform<U>(U newValue): Promise<Container<U>> {
+    public function async <U> transform(U newValue): Promise<Container<U>> {
         print("Transforming container");
         Container<U> newContainer = new Container<U>(newValue);
         return newContainer;
@@ -29,25 +30,25 @@ function async createIntContainer(int value): Promise<Container<Int>> {
     return container;
 }
 
-function async createStringContainer(string value): Promise<Container<string>> {
+function async createStringContainer(string value): Promise<Container<Stirng>> {
     print("Creating string container: " + value);
-    Container<string> container = new Container<string>(value);
+    Container<Stirng> container = new Container<Stirng>(new String(value));
     return container;
 }
 
-function async main(): Promise<Container<string>> {
+function async main(): Promise<Container<String>> {
     Container<Int> intContainer = await createIntContainer(42);
     Int storedInt = intContainer.getValue();
-    print("Stored int: " + storedInt);
+    print("Stored int: " + storedInt.getValue());
 
-    Container<string> strContainer = await createStringContainer("Hello");
-    string storedStr = strContainer.getValue();
-    print("Stored string: " + storedStr);
+    Container<String> strContainer = await createStringContainer("Hello");
+    String storedStr = strContainer.getValue();
+    print("Stored string: " + storedStr.getValue());
 
     // Transform to another type
-    Container<string> transformed = await intContainer.transform<string>("Transformed");
-    string transformedVal = transformed.getValue();
-    print("Transformed value: " + transformedVal);
+    Container<String> transformed = await intContainer.transform<String>(new String("Transformed"));
+    String transformedVal = transformed.getValue();
+    print("Transformed value: " + transformedVal.getValue());
 
     return transformed;
 }

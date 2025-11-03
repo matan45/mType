@@ -1,12 +1,13 @@
 // Test async main function
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { String } from "../../lib/primitives/String.mt";
 
 print("=== Async Main Function Test ===");
 
-function async fetchUserData(int userId): Promise<string> {
+function async fetchUserData(int userId): Promise<String> {
     print("Fetching user data for ID: " + userId);
-    return "User-" + userId;
+    return new String("User-" + userId);
 }
 
 function async processUserData(string userData): Promise<Int> {

@@ -1,6 +1,7 @@
 // Test casting with promises
 
 import { Int } from "../../lib/primitives/Int.mt";
+import { String } from "../../lib/primitives/String.mt";
 
 print("=== Async Promise Cast Test ===");
 
@@ -15,16 +16,15 @@ class Base {
         return this.id;
     }
 
-    public function async process(): Promise<string> {
-        return "Base process";
+    public function async process(): Promise<String> {
+        return new String("Base process");
     }
 }
 
 class Derived extends Base {
     string name;
 
-    public constructor(int i, string n) {
-        super(i);
+    public constructor(int i, string n):super(i) {
         this.name = n;
     }
 
@@ -32,8 +32,8 @@ class Derived extends Base {
         return this.name;
     }
 
-    public function async process(): Promise<string> {
-        return "Derived process: " + this.name;
+    public function async process(): Promise<String> {
+        return new String("Derived process: " + this.name);
     }
 }
 
@@ -43,7 +43,7 @@ function async createDerived(): Promise<Derived> {
     return d;
 }
 
-function async testCasting(): Promise<string> {
+function async testCasting(): Promise<String> {
     // Get derived object
     Derived derived = await createDerived();
     print("Derived ID: " + derived.getId());
@@ -53,15 +53,15 @@ function async testCasting(): Promise<string> {
     Base base = derived;
     print("Base ID: " + base.getId());
 
-    string result = await base.process();
-    print("Result: " + result);
+    String result = await base.process();
+    print("Result: " + result.getValue());
 
     return result;
 }
 
-function async main(): Promise<string> {
+function async main(): Promise<String> {
     string result = await testCasting();
-    return result;
+    return new String(result);
 }
 
 main();

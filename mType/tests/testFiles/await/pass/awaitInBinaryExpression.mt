@@ -18,7 +18,7 @@ function async testBinaryExpression(): Promise<Int> {
     print("Evaluating binary expression");
 
     // Await in binary expression
-    int result = (await getLeft()) + (await getRight());
+    int result = (await getLeft()).getValue() + (await getRight()).getValue();
     print("Result: " + result);
 
     return new Int(result);
