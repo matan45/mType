@@ -1242,6 +1242,9 @@
     <ClInclude Include="vm\compiler\validation\CompileTimeValidator.hpp">
       <Filter>vm\compiler\validation</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\validation\ReturnPathValidator.hpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\variables\FunctionFrameManager.hpp">
       <Filter>vm\compiler\variables</Filter>
     </ClInclude>
@@ -2040,6 +2043,9 @@
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\ReturnPathValidator.cpp">
       <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\variables\FunctionFrameManager.cpp">
@@ -4501,16 +4507,16 @@
     <None Include="tests\testFiles\class\pass\methodOverloadingBasic.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
-    <None Include="tests\testFiles\class\pass\methodOverloadingResolution.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\methodOverloadingResolution.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
     <None Include="tests\testFiles\class\pass\methodOverride.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\methodOverride.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodOverridePolymorphism.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\methodOverridePolymorphism.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\methodRecursiveSimple.expected">

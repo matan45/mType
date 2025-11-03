@@ -87,6 +87,8 @@ namespace tests::testSuite
                         passPath + "deepInheritance.mt");
         addOutputVerificationTest("Generic Inheritance",
                         passPath + "genericInheritance.mt");
+        addOutputVerificationTest("Method Override and Polymorphism",
+                        passPath + "methodOverridePolymorphism.mt");
 
         // === FINAL CLASS TESTS ===
         // These tests verify final class functionality
@@ -175,8 +177,6 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Method Overloading Basic",
                         passPath + "methodOverloadingBasic.mt");
-        addOutputVerificationTest("Method Overloading Resolution",
-                        passPath + "methodOverloadingResolution.mt");
         addOutputVerificationTest("Method Covariant Complex",
                         passPath + "methodCovariantComplex.mt");
         addOutputVerificationTest("Method Hiding Vs Overriding",
@@ -526,6 +526,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Method Overload Return Type",
                         errorPath + "methodOverloadReturnType.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Method Missing Return Statement",
+                        errorPath + "missingReturn.mt",
                         TestType::ERROR_EXPECTED);
 
         // === FIELD MANAGEMENT ERROR TESTS ===

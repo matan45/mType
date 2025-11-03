@@ -2,7 +2,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
-
+#include "../validation/ReturnPathValidator.hpp"
 namespace vm::compiler::visitors
 {
     MethodCompilerHelper::MethodCompilerHelper(CompilerContext& context)
@@ -288,8 +288,23 @@ namespace vm::compiler::visitors
         // Update max local slot after parameters
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
-        // Compile method body
+        // Validate return paths for non-void methods
         auto* body = node->getBodyPtr();
+        if (body)
+        {
+            std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() + "::" : "";
+            std::string methodName = className + node->getName();
+
+            validation::ReturnPathValidator::validateMethodReturns(
+                body,
+                node->getReturnType(),
+                params.returnTypeStr,
+                methodName,
+                node->getLocation()
+            );
+        }
+
+        // Compile method body
         if (body)
         {
             body->accept(ctx.visitor);
@@ -480,6 +495,39 @@ namespace vm::compiler::visitors
 
         // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+
+        // BEFORE super() call: Assign constructor parameters to matching instance fields
+        // This ensures polymorphic methods called in parent constructors see correct field values
+        if (ctx.currentClassNode)
+        {
+            const auto& fields = ctx.currentClassNode->getFields();
+            for (size_t i = 0; i < params.size(); ++i)
+            {
+                const std::string& paramName = params[i].first;
+
+                // Check if there's an instance field with the same name
+                for (const auto& field : fields)
+                {
+                    // Cast to FieldNode to access field-specific methods
+                    auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get());
+                    if (fieldNode && !fieldNode->getIsStatic() && fieldNode->getName() == paramName)
+                    {
+                        // Load 'this' (slot 0) - object goes on stack first
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+
+                        // Load the parameter value (parameters start at slot 1, after 'this')
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                                                   static_cast<uint32_t>(i + 1), node);
+
+                        // Set the field (pops value, then object)
+                        size_t fieldNameIndex = ctx.program.getConstantPool().addString(paramName);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD,
+                                                   static_cast<uint32_t>(fieldNameIndex), node);
+                        break;
+                    }
+                }
+            }
+        }
 
         // Handle super constructor call
         if (ctx.currentClassNode && ctx.currentClassNode->hasParentClass())

@@ -17,26 +17,30 @@ class Rectangle {
     }
 
     // Constructor 2: Size and color only
-    public constructor(int width, int height, string color) : this(width, height, color, false) {
+    public constructor(int width, int height, string color) {
+	this(width, height, color, false);
         print("Constructor 2: Size and color");
     }
 
     // Constructor 3: Size only
-    public constructor(int width, int height) : this(width, height, "white", false) {
+    public constructor(int width, int height) {
+	this(width, height, "white");
         print("Constructor 3: Size only");
     }
 
     // Constructor 4: Square with size
-    public constructor(int size) : this(size, size, "white", false) {
+    public constructor(int size)  {
+	this(size, size);
         print("Constructor 4: Square");
     }
 
     // Constructor 5: Default
-    public constructor() : this(10, 10, "white", false) {
+    public constructor()  {
+	this(10);
         print("Constructor 5: Default");
     }
 
-    public void display() {
+    public function display(): void {
         string fillStatus = this.filled ? "filled" : "not filled";
         print("Rectangle: " + this.width + "x" + this.height + ", " + this.color + ", " + fillStatus);
     }

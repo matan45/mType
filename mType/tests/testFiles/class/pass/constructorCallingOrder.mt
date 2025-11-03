@@ -11,7 +11,7 @@ class Level1 {
         print("Level1 constructor end");
     }
 
-    public void initialize() {
+    public function initialize(): void {
         print("Level1 initialize");
     }
 }
@@ -27,7 +27,7 @@ class Level2 extends Level1 {
         print("Level2 constructor end");
     }
 
-    public void initialize() {
+    public function initialize(): void {
         print("Level2 initialize for " + this.name);
     }
 }
@@ -43,11 +43,11 @@ class Level3 extends Level2 {
         print("Level3 constructor end");
     }
 
-    public void initialize() {
+    public function initialize(): void {
         print("Level3 initialize with value " + this.value);
     }
 
-    public void display() {
+    public function display(): void {
         print("Level: " + this.level + ", Name: " + this.name + ", Value: " + this.value);
     }
 }
