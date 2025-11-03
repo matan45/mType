@@ -107,6 +107,16 @@ namespace vm::compiler::visitors
             for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
                 ctx.emitter.patchJump(returnJump);
             }
+            // For break/continue jumps without finally, register them directly with loop manager
+            // Only process these if we're actually in a loop context
+            if (ctx.loopManager.isInLoop()) {
+                for (size_t breakJump : ctx.exceptionManager.getBreakJumps()) {
+                    ctx.loopManager.registerBreak(breakJump);
+                }
+                for (size_t continueJump : ctx.exceptionManager.getContinueJumps()) {
+                    ctx.loopManager.registerContinue(continueJump);
+                }
+            }
             return;
         }
 
@@ -124,14 +134,16 @@ namespace vm::compiler::visitors
         ctx.exceptionManager.setHasReturnFlagSlot(hasReturnFlagSlot);
 
         // Add flag values to constant pool
-        size_t falseIndex = ctx.program.getConstantPool().addInteger(0);
-        size_t trueIndex = ctx.program.getConstantPool().addInteger(1);
+        size_t normalExitIndex = ctx.program.getConstantPool().addInteger(0);   // Normal exit
+        size_t returnIndex = ctx.program.getConstantPool().addInteger(1);       // Return
+        size_t breakIndex = ctx.program.getConstantPool().addInteger(2);        // Break
+        size_t continueIndex = ctx.program.getConstantPool().addInteger(3);     // Continue
 
-        // Create trampolines for exit jumps that set flag = 0
+        // Create trampolines for exit jumps that set flag = 0 (normal exit)
         std::vector<size_t> newExitJumps;
         for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(falseIndex), finallyBlock);  // false - not returning
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(normalExitIndex), finallyBlock);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
@@ -140,17 +152,43 @@ namespace vm::compiler::visitors
             newExitJumps.push_back(jumpToFinally);
         }
 
-        // Create trampolines for return jumps that set flag = 1
+        // Create trampolines for return jumps that set flag = 1 (return)
         std::vector<size_t> newReturnJumps;
         for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(trueIndex), finallyBlock);  // true - returning
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
             ctx.program.patchJump(returnJump, static_cast<uint32_t>(trampolineOffset));
             newReturnJumps.push_back(jumpToFinally);
+        }
+
+        // Create trampolines for break jumps that set flag = 2 (break)
+        std::vector<size_t> newBreakJumps;
+        for (size_t breakJump : ctx.exceptionManager.getBreakJumps()) {
+            size_t trampolineOffset = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+            // Patch original jump to trampoline
+            ctx.program.patchJump(breakJump, static_cast<uint32_t>(trampolineOffset));
+            newBreakJumps.push_back(jumpToFinally);
+        }
+
+        // Create trampolines for continue jumps that set flag = 3 (continue)
+        std::vector<size_t> newContinueJumps;
+        for (size_t continueJump : ctx.exceptionManager.getContinueJumps()) {
+            size_t trampolineOffset = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+            // Patch original jump to trampoline
+            ctx.program.patchJump(continueJump, static_cast<uint32_t>(trampolineOffset));
+            newContinueJumps.push_back(jumpToFinally);
         }
 
         // Finally block starts here
@@ -162,6 +200,12 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(jump);
         }
         for (size_t jump : newReturnJumps) {
+            ctx.emitter.patchJump(jump);
+        }
+        for (size_t jump : newBreakJumps) {
+            ctx.emitter.patchJump(jump);
+        }
+        for (size_t jump : newContinueJumps) {
             ctx.emitter.patchJump(jump);
         }
 
@@ -185,12 +229,31 @@ namespace vm::compiler::visitors
         ctx.exceptionManager.exitFinally();
 
         // After finally, check flag to determine what to do
+        // Flag values: 0=normal exit, 1=return, 2=break, 3=continue
+
+        // Check if flag == 1 (return)
         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
+        size_t jumpToReturnHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
-        // If flag is 0 (false), jump over return logic to continue execution
-        size_t skipReturnLogic = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+        // Check if flag == 2 (break)
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
+        size_t jumpToBreakHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
-        // Handle return path (flag was 1)
+        // Check if flag == 3 (continue)
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
+        size_t jumpToContinueHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
+
+        // Flag == 0 (normal exit) - fall through to continue execution
+        size_t jumpOverHandlers = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+
+        // Handle return path (flag == 1)
+        ctx.emitter.patchJump(jumpToReturnHandler);
         // Note: returnValueSlot was already loaded at the beginning of this function
         if (returnValueSlot != SIZE_MAX) {
             // Load the return value back from the special slot
@@ -219,8 +282,30 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Patch skip jump to land here (normal completion continues)
-        ctx.emitter.patchJump(skipReturnLogic);
+        // Handle break path (flag == 2)
+        ctx.emitter.patchJump(jumpToBreakHandler);
+        // Emit a NEW break jump and register with loop manager
+        // The loop will patch this to the loop end
+        if (ctx.loopManager.isInLoop()) {
+            size_t newBreakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.loopManager.registerBreak(newBreakJump);
+        }
+
+        // Handle continue path (flag == 3)
+        ctx.emitter.patchJump(jumpToContinueHandler);
+        // Emit a NEW continue jump and register with loop manager
+        // The loop will patch this to the loop continue target
+        if (ctx.loopManager.isInLoop()) {
+            size_t newContinueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.loopManager.registerContinue(newContinueJump);
+        }
+
+        // Patch jump-over to land here (normal completion continues)
+        ctx.emitter.patchJump(jumpOverHandlers);
+
+        // Emit TRY_END to mark the end of the entire try-catch-finally construct
+        // This helps the VM detect when it's safe to re-throw pending exceptions
+        ctx.emitter.emitWithLocation(bytecode::OpCode::TRY_END, finallyBlock);
 
         // Normal completion path continues here to execute code after try-catch-finally
     }

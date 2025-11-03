@@ -25,6 +25,8 @@ namespace vm::compiler::control
             size_t finallyOffset;                   // Offset where finally block starts (SIZE_MAX if none)
             std::vector<size_t> exitJumps;          // Jumps to end of try/catch/finally (after normal execution)
             std::vector<size_t> returnJumps;        // Jumps from return statements (need to return after finally)
+            std::vector<size_t> breakJumps;         // Jumps from break statements (need to break loop after finally)
+            std::vector<size_t> continueJumps;      // Jumps from continue statements (need to continue loop after finally)
             bool hasFinally;                        // True if this try block has a finally block
             bool inFinally;                         // True if currently compiling the finally block
             size_t returnValueSlot;                 // Local slot used to save return value before finally (SIZE_MAX if none)
@@ -54,6 +56,12 @@ namespace vm::compiler::control
         // Register return jump (from return statement - needs to return after finally)
         void registerReturnJump(size_t jumpOffset);
 
+        // Register break jump (from break statement - needs to break loop after finally)
+        void registerBreakJump(size_t jumpOffset);
+
+        // Register continue jump (from continue statement - needs to continue loop after finally)
+        void registerContinueJump(size_t jumpOffset);
+
         // Set try end offset for patching
         void setTryEndOffset(size_t offset);
 
@@ -64,6 +72,8 @@ namespace vm::compiler::control
         const std::vector<CatchHandler>& getCatchHandlers() const;
         const std::vector<size_t>& getExitJumps() const;
         const std::vector<size_t>& getReturnJumps() const;
+        const std::vector<size_t>& getBreakJumps() const;
+        const std::vector<size_t>& getContinueJumps() const;
 
         // Set/get return value slot for finally blocks
         void setReturnValueSlot(size_t slot);

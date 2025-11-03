@@ -91,7 +91,7 @@ User nullUser = null;
 ValidationResult result1 = validateUser(nullUser);
 print(result1.message);
 
-User emptyUser = new User(null, 25);
+User emptyUser = new User("", 25);
 ValidationResult result2 = validateUser(emptyUser);
 print(result2.message);
 
@@ -163,8 +163,8 @@ function formatName(string firstName, string lastName): string {
 }
 
 print("Test 5: Guard clauses with string validation");
-print(formatName(null, "Doe"));
-print(formatName("John", null));
+print(formatName("", "Doe"));
+print(formatName("John", ""));
 print(formatName("Jane", "Smith"));
 
 // Test 6: Guard clauses in loop processing

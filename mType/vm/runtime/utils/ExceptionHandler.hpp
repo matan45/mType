@@ -21,8 +21,9 @@ namespace vm::runtime::utils
          * Result of exception handling attempt
          */
         struct HandlingResult {
-            bool handled;               // Was exception handled by a catch block?
+            bool handled;               // Was exception handled by a catch/finally block?
             size_t newInstructionPointer; // Where to resume execution (if handled)
+            bool jumpedToFinally;       // True if jumped to FINALLY (needs re-throw after), false if jumped to CATCH
         };
 
         explicit ExceptionHandler(const bytecode::BytecodeProgram* program,

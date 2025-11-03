@@ -381,8 +381,18 @@ namespace vm::compiler::visitors
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
         } else if (ctx.loopManager.isInLoop()) {
-            size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-            ctx.loopManager.registerBreak(breakJump);
+            // Check if we're in a try block with a finally, but NOT already inside the finally block
+            // If we're IN the finally block, we should break directly (not jump to finally again)
+            if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
+                // We're in a try-finally - register break jump with exception manager
+                // The finally block will create a trampoline that executes finally then breaks the loop
+                size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                ctx.exceptionManager.registerBreakJump(breakJump);
+            } else {
+                // Normal break - register with loop manager
+                size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                ctx.loopManager.registerBreak(breakJump);
+            }
         } else {
             throw errors::ParseException("Break outside of loop or switch");
         }
@@ -395,8 +405,18 @@ namespace vm::compiler::visitors
             throw errors::ParseException("Continue outside of loop");
         }
 
-        size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-        ctx.loopManager.registerContinue(continueJump);
+        // Check if we're in a try block with a finally, but NOT already inside the finally block
+        // If we're IN the finally block, we should continue directly (not jump to finally again)
+        if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
+            // We're in a try-finally - register continue jump with exception manager
+            // The finally block will create a trampoline that executes finally then continues the loop
+            size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.exceptionManager.registerContinueJump(continueJump);
+        } else {
+            // Normal continue - register with loop manager
+            size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.loopManager.registerContinue(continueJump);
+        }
         return std::monostate{};
     }
 

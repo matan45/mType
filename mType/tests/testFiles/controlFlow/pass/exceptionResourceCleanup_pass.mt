@@ -2,27 +2,27 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class Resource {
-    private String name;
+    private string name;
     private bool isOpen;
 
-    constructor(String name) {
+    constructor(string name) {
         this.name = name;
         this.isOpen = false;
     }
 
-    open(): void {
+    public function open(): void {
         print("Opening resource: " + this.name);
         this.isOpen = true;
     }
 
-    close(): void {
+    public function close(): void {
         if (this.isOpen) {
             print("Closing resource: " + this.name);
             this.isOpen = false;
         }
     }
 
-    process(): void {
+    public function process(): void {
         if (!this.isOpen) {
             throw new Exception("Resource not open: " + this.name);
         }

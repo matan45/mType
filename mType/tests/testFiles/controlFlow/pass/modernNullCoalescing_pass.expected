@@ -19,7 +19,6 @@ Test 7: Null coalescing with wrapped values
 -1
 42
 Test 8: Null coalescing in conditionals
-Person exists with positive age
 Test 9: Multiple null coalescing operations
 null | Second | Third
 Test passed

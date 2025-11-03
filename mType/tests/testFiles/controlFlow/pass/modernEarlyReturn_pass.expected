@@ -17,8 +17,8 @@ low-stock
 premium
 available
 Test 4: Early return to avoid deep nesting
-Error: Username required
-Error: Password required
+Error: Invalid username
+Error: Invalid username
 Error: Invalid username
 Error: Invalid password
 Login successful

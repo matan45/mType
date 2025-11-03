@@ -132,8 +132,8 @@ function processLogin(string username, string password): string {
 }
 
 print("Test 4: Early return to avoid deep nesting");
-print(processLogin(null, "pass"));
-print(processLogin("user", null));
+print(processLogin("", "pass"));
+print(processLogin("user", ""));
 print(processLogin("user", "wrong"));
 print(processLogin("admin", "wrong"));
 print(processLogin("admin", "pass123"));

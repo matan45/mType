@@ -2,8 +2,7 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class CustomException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 

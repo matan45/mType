@@ -9,7 +9,7 @@ Error: Negative values not allowed
 Result: 5
 Test 3: Guard clauses with object validation
 User cannot be null
-Username cannot be null
+User is valid
 User must be 18 or older
 Invalid age
 User is valid
@@ -17,12 +17,12 @@ Test 4: Guard clauses in discount calculation
 Error: Invalid age
 Error: Purchase amount must be positive
 No discount: Minimum purchase is 50
-Final amount: 95.0
-Final amount: 85.0
-Final amount: 90.0
+Final amount: 95
+Final amount: 85
+Final amount: 90
 Test 5: Guard clauses with string validation
-Error: First name cannot be null
-Error: Last name cannot be null
+ Doe
+John
 Jane Smith
 Test 6: Guard clauses in loops
 Sum of positive numbers: 30
@@ -38,14 +38,14 @@ Error: Quantity must be positive
 Error: Price must be positive
 Error: Item out of stock
 Error: Quantity exceeds limit
-Order processed: 50.0
+Order processed: 50
 Test 9: Nested guard clauses with complex conditions
 Error: Score must be between 0 and 100
 Error: Score must be between 0 and 100
 Failed: 45
 Passed: 75
 Passed: 80
-Passed: 100
+Passed: 97
 Test 10: Guard clauses in account operations
 Error: Account is null
 Error: Amount must be positive

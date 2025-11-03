@@ -34,6 +34,11 @@ namespace runtime {
     class EventLoop;
 }
 
+// Forward declaration for exceptions
+namespace errors {
+    class UserException;
+}
+
 namespace vm::runtime
 {
     /**
@@ -81,6 +86,8 @@ namespace vm::runtime
 
         // Exception handling state
         size_t currentFinallyOffset;  // Offset of the currently executing finally block (SIZE_MAX if not in finally)
+        std::unique_ptr<errors::UserException> pendingException;  // Exception waiting to be re-thrown after finally block
+        size_t pendingFinallyOffset;  // Offset of the finally block that has a pending exception (SIZE_MAX if none)
 
         // Specialized executors
         std::unique_ptr<StackOperationsExecutor> stackOpsExecutor;

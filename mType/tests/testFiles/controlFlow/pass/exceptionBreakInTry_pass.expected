@@ -20,8 +20,8 @@ End of iteration: 0
 Normal iteration: 1
 Cleanup iteration: 1
 End of iteration: 1
-Cleanup iteration: 2
 Caught: Exception at 2
+Cleanup iteration: 2
 Normal iteration: 3
 Cleanup iteration: 3
 End of iteration: 3

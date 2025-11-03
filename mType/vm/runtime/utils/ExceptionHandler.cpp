@@ -1,4 +1,5 @@
 #include "ExceptionHandler.hpp"
+#include "../../bytecode/OpCode.hpp"
 
 namespace vm::runtime::utils
 {
@@ -179,6 +180,7 @@ namespace vm::runtime::utils
         HandlingResult result;
         result.handled = false;
         result.newInstructionPointer = currentIP;
+        result.jumpedToFinally = false;
 
         // User exception thrown - need to find matching catch handler
         size_t searchIP = currentIP + 1;
@@ -224,6 +226,7 @@ namespace vm::runtime::utils
                         // Jump to the CATCH instruction
                         result.handled = true;
                         result.newInstructionPointer = searchIP;
+                        result.jumpedToFinally = false;  // Jumped to CATCH, exception is caught
                         return result;
                     }
                 }
@@ -248,6 +251,7 @@ namespace vm::runtime::utils
                 // Hit a different finally block - execute it then re-throw
                 result.handled = true;
                 result.newInstructionPointer = searchIP;
+                result.jumpedToFinally = true;  // Jumped to FINALLY, need to re-throw after
                 return result;
             }
             else if (searchInstr.opcode == bytecode::OpCode::TRY_END)
@@ -263,8 +267,8 @@ namespace vm::runtime::utils
             searchIP++;
         }
 
-        // No handler found in current scope - check if we're in a function call
-        if (!callStack.empty())
+        // No handler found in current scope - unwind call stack to search callers
+        while (!callStack.empty())
         {
             // Pop the call frame
             CallFrame frame = callStack.back();
@@ -279,11 +283,10 @@ namespace vm::runtime::utils
             // Safety check: ensure searchIP is within bounds
             if (searchIP >= program->getInstructionCount())
             {
-                result.handled = false;
-                return result;
+                continue;  // Try next call frame
             }
 
-            // Search again from caller's context
+            // Search for handler in this caller's context
             while (searchIP < program->getInstructionCount())
             {
                 const auto& searchInstr = program->getInstruction(searchIP);
@@ -303,6 +306,7 @@ namespace vm::runtime::utils
                             stackManager->push(e.getExceptionValue());
                             result.handled = true;
                             result.newInstructionPointer = searchIP;
+                            result.jumpedToFinally = false;  // Jumped to CATCH, exception is caught
                             return result;
                         }
                     }
@@ -317,19 +321,24 @@ namespace vm::runtime::utils
 
                     result.handled = true;
                     result.newInstructionPointer = searchIP;
+                    result.jumpedToFinally = true;  // Jumped to FINALLY, need to re-throw after
                     return result;
                 }
                 else if (searchInstr.opcode == bytecode::OpCode::RETURN ||
                     searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
                 {
+                    // Hit end of this function - no handler found in this frame
+                    // Break inner loop to continue unwinding to next call frame
                     break;
                 }
 
                 searchIP++;
             }
+
+            // No handler found in this frame, continue to next frame (outer while loop)
         }
 
-        // No matching catch found anywhere
+        // Call stack is now empty - no handler found anywhere
         result.handled = false;
         return result;
     }

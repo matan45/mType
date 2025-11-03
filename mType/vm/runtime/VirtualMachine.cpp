@@ -51,6 +51,7 @@ namespace vm::runtime
           , currentSourceFile("")
           , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
+          , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
@@ -500,6 +501,18 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
+            // Check if we have a pending exception and we're hitting RETURN
+            // According to Java/C# semantics: a return in finally SUPPRESSES the pending exception
+            // The function returns normally and the exception is discarded
+            if (pendingException != nullptr &&
+                (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE))
+            {
+                // Clear the pending exception - the return overrides it
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                // Continue with normal return (do NOT re-throw)
+            }
+
             // Always track source location for error reporting (not just when debugging)
             auto sourceLoc = program->getSourceLocation(instructionPointer);
             if (sourceLoc && sourceLoc->line > 0)
@@ -606,6 +619,20 @@ namespace vm::runtime
 
                 // Jump to the catch/finally block
                 instructionPointer = result.newInstructionPointer;
+
+                // If we jumped to a finally block (not a catch), store the exception as pending
+                // It needs to be re-thrown after the finally block completes
+                if (result.jumpedToFinally)
+                {
+                    pendingException = std::make_unique<errors::UserException>(e);
+                    pendingFinallyOffset = result.newInstructionPointer;  // Store which finally has the pending exception
+                }
+                else
+                {
+                    // Jumped to a catch block - exception is caught, clear any pending exception
+                    pendingException.reset();
+                    pendingFinallyOffset = SIZE_MAX;
+                }
 
                 // Continue execution from the catch/finally block
                 // Don't increment IP here - the normal loop will handle it
@@ -810,11 +837,31 @@ namespace vm::runtime
 
         // Exception handling - delegated to ExceptionExecutor
         case OpCode::TRY_BEGIN:
+            // Entering a new try block - check if we have a pending exception to re-throw
+            if (pendingException != nullptr)
+            {
+                errors::UserException exToRethrow = *pendingException;
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                currentFinallyOffset = SIZE_MAX;
+                throw exToRethrow;
+            }
             // Entering a new try block - we're no longer in a finally (if we were)
             currentFinallyOffset = SIZE_MAX;
             exceptionExecutor->handleTryBegin(instr);
             break;
-        case OpCode::TRY_END: exceptionExecutor->handleTryEnd(instr);
+        case OpCode::TRY_END:
+            // TRY_END marks end of try body OR end of entire try-catch-finally construct
+            // If we have a pending exception, this means we've exited the finally block, so re-throw
+            if (pendingException != nullptr)
+            {
+                errors::UserException exToRethrow = *pendingException;
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                currentFinallyOffset = SIZE_MAX;
+                throw exToRethrow;
+            }
+            exceptionExecutor->handleTryEnd(instr);
             break;
         case OpCode::CATCH: exceptionExecutor->handleCatch(instr);
             break;

@@ -5,7 +5,7 @@ function testCatchNoVar(): void {
     try {
         print("Throwing exception");
         throw new Exception("Test message");
-    } catch (Exception) {
+    } catch (Exception e) {
         print("Caught exception without binding");
     }
 }
@@ -15,10 +15,10 @@ function testMultipleCatchNoVar(int testCase): void {
         if (testCase == 1) {
             throw new Exception("Case 1");
         } else {
-            String s = null;
-            print(s.length());
+            string s = "";
+            print(strLength(s));
         }
-    } catch (Exception) {
+    } catch (Exception e) {
         print("Caught generic exception");
     }
 }
