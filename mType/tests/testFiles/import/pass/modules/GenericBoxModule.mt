@@ -1,15 +1,15 @@
 class GenericBox<T> {
-    var value: T;
+    T value;
 
-    constructor(val: T) {
+    constructor(T val) {
         this.value = val;
     }
 
-    fun getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 
-    fun setValue(val: T): Void {
+    public function setValue(T val): void {
         this.value = val;
     }
 }

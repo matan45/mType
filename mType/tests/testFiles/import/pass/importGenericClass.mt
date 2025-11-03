@@ -1,9 +1,10 @@
 // Test: Import generic class and use with different types
-@Script
-import { GenericBox } from "./modules/GenericBoxModule.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import { GenericBox } from "modules/GenericBoxModule.mt";
 
-var intBox = GenericBox<Int>(42);
-var stringBox = GenericBox<String>("Hello");
+GenericBox<Int> intBox = new GenericBox<Int>(new Int(42));
+GenericBox<String> stringBox = new GenericBox<String>(new String("Hello"));
 
-print(intBox.getValue());
-print(stringBox.getValue());
+print(intBox.getValue().toString());
+print(stringBox.getValue().toString());

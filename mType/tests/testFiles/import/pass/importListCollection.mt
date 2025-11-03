@@ -1,10 +1,10 @@
 // Test: Import and use List from lib/collections
-@Script
-import { List } from "../../../../../../lib/collections/List.mt"
+import * from "../../lib/primitives/Int.mt";
+import { List } from "../../lib/collections/List.mt";
 
-var list = List<Int>();
-list.add(10);
-list.add(20);
-list.add(30);
+List<Int> list = new List<Int>();
+list.add(new Int(10));
+list.add(new Int(20));
+list.add(new Int(30));
 print(list.size());
-print(list.get(1));
+print(list.get(1).toString());

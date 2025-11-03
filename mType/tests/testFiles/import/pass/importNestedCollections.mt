@@ -1,13 +1,14 @@
 // Test: Using nested generic collections - List<HashMap<String,Int>>
-@Script
-import { List } from "../../../../../../lib/collections/List.mt"
-import { HashMap } from "../../../../../../lib/collections/HashMap.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import { List } from "../../lib/collections/List.mt";
+import { HashMap } from "../../lib/collections/HashMap.mt";
 
-var listOfMaps = List<HashMap<String, Int>>();
-var map1 = HashMap<String, Int>();
-map1.put("a", 1);
-var map2 = HashMap<String, Int>();
-map2.put("b", 2);
+List<HashMap<String, Int>> listOfMaps = new List<HashMap<String, Int>>();
+HashMap<String, Int> map1 = new HashMap<String, Int>();
+map1.put(new String("a"), new Int(1));
+HashMap<String, Int> map2 = new HashMap<String, Int>();
+map2.put(new String("b"), new Int(2));
 
 listOfMaps.add(map1);
 listOfMaps.add(map2);
