@@ -6,31 +6,31 @@ class A {
     }
 }
 
-class B : A {
+class B extends A {
     fn identify(): String {
         return "B";
     }
 }
 
-class C : B {
+class C extends B {
     fn identify(): String {
         return "C";
     }
 }
 
-class D : C {
+class D extends C {
     fn identify(): String {
         return "D";
     }
 }
 
-class E : D {
+class E extends D {
     fn identify(): String {
         return "E";
     }
 }
 
-class F : E {
+class F extends E {
     fn identify(): String {
         return "F";
     }

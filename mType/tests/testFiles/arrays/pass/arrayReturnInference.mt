@@ -1,7 +1,7 @@
 // Test array return type inference
 print("Testing array return type inference");
 
-int[] doubleValues(int[] input) {
+function doubleValues(int[] input): int[] {
     int[] result = new int[input.length];
     for (int i = 0; i < input.length; i++) {
         result[i] = input[i] * 2;
@@ -21,7 +21,7 @@ for (int i = 0; i < doubled.length; i++) {
     print("  " + doubled[i]);
 }
 
-string[] reverseArray(string[] input) {
+function reverseArray(string[] input): string[] {
     string[] result = new string[input.length];
     for (int i = 0; i < input.length; i++) {
         result[i] = input[input.length - 1 - i];

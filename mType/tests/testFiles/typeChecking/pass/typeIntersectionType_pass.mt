@@ -3,22 +3,22 @@
 
 // First interface
 interface Drawable {
-    void draw();
-    string getDescription();
+    function draw(): void;
+    function getDescription(): string;
 }
 
 // Second interface
 interface Resizable {
-    void resize(int width, int height);
-    int getWidth();
-    int getHeight();
+    function resize(int width, int height): void;
+    function getWidth(): int;
+    function getHeight(): int;
 }
 
 // Third interface
 interface Movable {
-    void move(int x, int y);
-    int getX();
-    int getY();
+    function move(int x, int y): void;
+    function getX(): int;
+    function getY(): int;
 }
 
 // Class implementing single interface

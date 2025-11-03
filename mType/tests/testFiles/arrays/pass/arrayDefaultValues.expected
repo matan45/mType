@@ -12,9 +12,9 @@ Default bool values:
   defaultBools[1] = false
   defaultBools[2] = false
 Default string values:
-  defaultStrings[0] = null
-  defaultStrings[1] = null
-  defaultStrings[2] = null
+  defaultStrings[0] =
+  defaultStrings[1] =
+  defaultStrings[2] =
 Explicit zero values:
   explicitZeros[0] = 0
   explicitZeros[1] = 0

@@ -9,7 +9,7 @@ interface ErrorHandler {
     handleError(error: String) : String;
 }
 
-class BaseTask : AsyncProcessor, ErrorHandler {
+class BaseTask implements AsyncProcessor, ErrorHandler {
     protected taskId: Int;
     protected taskName: String;
     protected shouldFail: Bool;

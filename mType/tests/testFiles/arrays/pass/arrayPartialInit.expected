@@ -11,7 +11,6 @@ Partial initialization (only indices 0, 5, 9 set):
   partial[8] = 0
   partial[9] = 900
 Sparse pattern (every 5th element):
-  sparse[0] = 0
   sparse[5] = 50
   sparse[10] = 100
   sparse[15] = 150

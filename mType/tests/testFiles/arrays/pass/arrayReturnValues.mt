@@ -1,7 +1,7 @@
 // Test returning arrays from functions
 print("Testing array return values");
 
-int[] createIntArray(int size, int value) {
+function createIntArray(int size, int value): int[] {
     int[] arr = new int[size];
     for (int i = 0; i < arr.length; i++) {
         arr[i] = value * (i + 1);
@@ -15,7 +15,7 @@ for (int i = 0; i < result.length; i++) {
     print("  result[" + i + "] = " + result[i]);
 }
 
-string[] createStringArray() {
+function createStringArray(): string[] {
     string[] arr = new string[3];
     arr[0] = "First";
     arr[1] = "Second";

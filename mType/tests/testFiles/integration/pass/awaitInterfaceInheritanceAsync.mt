@@ -13,7 +13,7 @@ interface AsyncStream : AsyncReadable, AsyncWritable {
     async flush() : Promise<Void>;
 }
 
-class MemoryStream : AsyncStream {
+class MemoryStream implements AsyncStream {
     private buffer: String;
 
     constructor() {

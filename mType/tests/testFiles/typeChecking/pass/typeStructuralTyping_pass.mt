@@ -11,11 +11,11 @@ class Point2D {
         this.y = y;
     }
 
-    public string toString() {
+    public function toString(): string {
         return "(" + this.x + ", " + this.y + ")";
     }
 
-    public int distanceSquared() {
+    public function distanceSquared(): int {
         return (this.x * this.x) + (this.y * this.y);
     }
 }
@@ -29,11 +29,11 @@ class Coordinate {
         this.y = y;
     }
 
-    public string toString() {
+    public function toString(): string {
         return "[" + this.x + ", " + this.y + "]";
     }
 
-    public int distanceSquared() {
+    public function distanceSquared(): int {
         return (this.x * this.x) + (this.y * this.y);
     }
 }
@@ -50,8 +50,8 @@ print("Distance squared: " + coord.distanceSquared());
 
 // Test 2: Interface-based structural typing
 interface Shape {
-    float area();
-    float perimeter();
+    function area(): float;
+    function perimeter(): float;
 }
 
 class Rectangle implements Shape {
@@ -63,11 +63,11 @@ class Rectangle implements Shape {
         this.height = h;
     }
 
-    public float area() {
+    public function area(): float {
         return this.width * this.height;
     }
 
-    public float perimeter() {
+    public function perimeter(): float {
         return 2.0 * (this.width + this.height);
     }
 }
@@ -79,11 +79,11 @@ class Circle implements Shape {
         this.radius = r;
     }
 
-    public float area() {
+    public function area(): float {
         return 3.14159 * this.radius * this.radius;
     }
 
-    public float perimeter() {
+    public function perimeter(): float {
         return 2.0 * 3.14159 * this.radius;
     }
 }

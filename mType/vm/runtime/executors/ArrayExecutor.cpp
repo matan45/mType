@@ -179,6 +179,98 @@ namespace vm::runtime
         if (array->getElementType() == value::ValueType::OBJECT) {
             std::string expectedTypeName = array->getElementTypeName();
 
+            // Check for array-to-array assignment (e.g., int[][] where string[] is assigned to int[] slot)
+            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valueToSet)) {
+                auto valueArray = std::get<std::shared_ptr<value::NativeArray>>(valueToSet);
+                std::string actualArrayElementType = valueArray->getElementTypeName();
+                value::ValueType actualElementValueType = valueArray->getElementType();
+
+                // Check if there's already an element at this index to compare types
+                // This validates that all sub-arrays have consistent element types
+                if (index < static_cast<int>(array->size())) {
+                    value::Value existingElement = array->get(static_cast<size_t>(index));
+
+                    // If there's an existing non-null array, compare element types
+                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(existingElement)) {
+                        auto existingArray = std::get<std::shared_ptr<value::NativeArray>>(existingElement);
+                        std::string existingElementType = existingArray->getElementTypeName();
+                        value::ValueType existingElementValueType = existingArray->getElementType();
+
+                        // For primitive types (int, float, string, bool), enforce strict type matching
+                        // For object types, allow polymorphism (subclass can be assigned to parent type)
+                        bool isPrimitiveType = (actualElementValueType == value::ValueType::INT ||
+                                              actualElementValueType == value::ValueType::FLOAT ||
+                                              actualElementValueType == value::ValueType::STRING ||
+                                              actualElementValueType == value::ValueType::BOOL);
+
+                        if (isPrimitiveType) {
+                            // Strict type check for primitives
+                            if (existingElementType != actualArrayElementType) {
+                                utils::ErrorLocationHelper::throwError<errors::TypeException>(
+                                    context,
+                                    "Array element type mismatch: cannot assign " + actualArrayElementType +
+                                    "[] to slot expecting " + existingElementType + "[]"
+                                );
+                            }
+                        } else if (actualElementValueType == value::ValueType::OBJECT &&
+                                   existingElementValueType == value::ValueType::OBJECT) {
+                            // For object types, check polymorphism (is actualType a subclass/implementation of existingType?)
+                            // If types are identical, allow it
+                            if (existingElementType != actualArrayElementType) {
+                                // Check if actualType is compatible with existingType via:
+                                // 1. Inheritance (actualClass extends existingType)
+                                // 2. Interface implementation (actualClass implements existingType)
+                                bool isCompatible = false;
+
+                                if (context.environment) {
+                                    auto classRegistry = context.environment->getClassRegistry();
+                                    auto actualClass = classRegistry->findClass(actualArrayElementType);
+
+                                    if (actualClass) {
+                                        // Check inheritance: does actualClass extend existingElementType?
+                                        auto currentClass = actualClass;
+                                        while (currentClass && currentClass->hasParentClass()) {
+                                            if (currentClass->getParentClassName() == existingElementType) {
+                                                isCompatible = true;
+                                                break;
+                                            }
+                                            currentClass = classRegistry->findClass(currentClass->getParentClassName());
+                                        }
+
+                                        // If not compatible via inheritance, check interface implementation
+                                        if (!isCompatible) {
+                                            // Check if existingElementType is an interface
+                                            auto interfaceRegistry = context.environment->getInterfaceRegistry();
+                                            auto interfaceDef = interfaceRegistry->findInterface(existingElementType);
+
+                                            if (interfaceDef) {
+                                                // existingElementType is an interface
+                                                // Check if actualClass implements this interface
+                                                const auto& implementedInterfaces = actualClass->getImplementedInterfaces();
+                                                for (const auto& implInterface : implementedInterfaces) {
+                                                    if (implInterface == existingElementType) {
+                                                        isCompatible = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (!isCompatible) {
+                                    utils::ErrorLocationHelper::throwError<errors::TypeException>(
+                                        context,
+                                        "Array element type mismatch: cannot assign " + actualArrayElementType +
+                                        "[] to slot expecting " + existingElementType + "[] (not compatible types)"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Only enforce strict type checking for generic types with type arguments (contains '<' and '>')
             // This prevents Box<String> being assigned to Box<Int>[] while allowing:
             // - Generic type parameters like T[] to accept any type

@@ -6,7 +6,7 @@ interface Converter {
     convertArray<T, R>(inputs: T[], transformer: (T) -> R) : R[];
 }
 
-class GenericConverter : Converter {
+class GenericConverter implements Converter {
     convert<T, R>(input: T, transformer: (T) -> R) : R {
         return transformer(input);
     }

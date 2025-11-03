@@ -25,7 +25,7 @@ class Item {
     }
 }
 
-class ItemRepository : AsyncRepository<Item> {
+class ItemRepository implements AsyncRepository<Item> {
     private items: Item[];
 
     constructor() {

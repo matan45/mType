@@ -18,7 +18,7 @@ class Base {
     }
 }
 
-class Derived : Base {
+class Derived extends Base {
     fn toString(): String {
         return "Derived";
     }

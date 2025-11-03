@@ -1,7 +1,7 @@
 // Test arrays in exception handling (simulated with conditionals)
 print("Testing arrays with error handling");
 
-int[] safeGet(int[] arr, int index) {
+function safeGet(int[] arr, int index): int[] {
     int[] result = new int[2];
     if (index < 0 || index >= arr.length) {
         result[0] = -1;

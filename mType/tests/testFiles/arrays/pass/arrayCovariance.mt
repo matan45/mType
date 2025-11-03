@@ -17,8 +17,8 @@ class Animal {
     }
 }
 
-class Dog : Animal {
-    constructor(string n) : Animal(n) {
+class Dog extends Animal {
+    constructor(string n) : super(n) {
     }
 
     public function makeSound(): string {
@@ -26,8 +26,8 @@ class Dog : Animal {
     }
 }
 
-class Cat : Animal {
-    constructor(string n) : Animal(n) {
+class Cat extends Animal {
+    constructor(string n) : super(n) {
     }
 
     public function makeSound(): string {

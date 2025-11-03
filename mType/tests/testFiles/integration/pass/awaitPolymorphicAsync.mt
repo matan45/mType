@@ -6,7 +6,7 @@ interface AsyncCalculator {
     async getName() : Promise<String>;
 }
 
-class Adder : AsyncCalculator {
+class Adder implements AsyncCalculator {
     async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a + b;
@@ -18,7 +18,7 @@ class Adder : AsyncCalculator {
     }
 }
 
-class Multiplier : AsyncCalculator {
+class Multiplier implements AsyncCalculator {
     async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a * b;
@@ -30,7 +30,7 @@ class Multiplier : AsyncCalculator {
     }
 }
 
-class Subtractor : AsyncCalculator {
+class Subtractor implements AsyncCalculator {
     async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a - b;

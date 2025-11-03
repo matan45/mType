@@ -17,10 +17,10 @@ class Shape {
     }
 }
 
-class Square : Shape {
+class Square extends Shape {
     int side;
 
-    constructor(int s) : Shape("Square") {
+    constructor(int s) : super("Square") {
         side = s;
     }
 
@@ -33,11 +33,11 @@ class Square : Shape {
     }
 }
 
-class Triangle : Shape {
+class Triangle extends Shape {
     int base;
     int height;
 
-    constructor(int b, int h) : Shape("Triangle") {
+    constructor(int b, int h) : super("Triangle") {
         base = b;
         height = h;
     }

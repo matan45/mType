@@ -4,7 +4,7 @@ abstract class Shape {
     abstract fn getArea(): Float;
 }
 
-class Circle : Shape {
+class Circle extends Shape {
     let radius: Float;
 
     fn init(r: Float) {
@@ -20,7 +20,7 @@ class Circle : Shape {
     }
 }
 
-class Rectangle : Shape {
+class Rectangle extends Shape {
     let width: Float;
     let height: Float;
 

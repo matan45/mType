@@ -6,7 +6,7 @@ interface Processor<T> {
     validate(input: T) : Bool;
 }
 
-class NumberProcessor : Processor<Int> {
+class NumberProcessor implements Processor<Int> {
     private transform: (Int) -> Int;
     private validator: (Int) -> Bool;
 
@@ -27,7 +27,7 @@ class NumberProcessor : Processor<Int> {
     }
 }
 
-class StringProcessor : Processor<String> {
+class StringProcessor implements Processor<String> {
     private transform: (String) -> String;
     private validator: (String) -> Bool;
 

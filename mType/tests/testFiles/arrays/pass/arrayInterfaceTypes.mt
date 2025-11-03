@@ -2,10 +2,10 @@
 print("Testing arrays of interface types");
 
 interface Drawable {
-    string draw();
+    function draw(): string;
 }
 
-class Circle : Drawable {
+class Circle implements Drawable {
     int radius;
 
     constructor(int r) {
@@ -17,7 +17,7 @@ class Circle : Drawable {
     }
 }
 
-class Rectangle : Drawable {
+class Rectangle implements Drawable {
     int width;
     int height;
 

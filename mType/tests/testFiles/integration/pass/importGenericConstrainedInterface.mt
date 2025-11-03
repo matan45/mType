@@ -3,7 +3,7 @@
 
 import "modules/ComparableInterface.mt";
 
-class Score : Comparable<Score> {
+class Score implements Comparable<Score> {
     private value: Int;
 
     constructor(v: Int) {

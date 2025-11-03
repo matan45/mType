@@ -5,7 +5,7 @@ import "modules/InterfaceA.mt";
 import "modules/InterfaceB.mt";
 import "modules/InterfaceC.mt";
 
-class DiamondImpl : InterfaceB, InterfaceC {
+class DiamondImpl implements InterfaceB, InterfaceC {
     methodA() : String {
         return "Method A";
     }

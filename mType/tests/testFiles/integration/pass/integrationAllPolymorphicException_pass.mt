@@ -9,7 +9,7 @@ interface Validatable {
     validate() : Bool;
 }
 
-class BaseEntity : Serializable {
+class BaseEntity implements Serializable {
     protected id: Int;
     protected name: String;
 
@@ -31,7 +31,7 @@ class BaseEntity : Serializable {
     }
 }
 
-class User extends BaseEntity : Validatable {
+class User extends BaseEntity implements Validatable {
     private email: String;
     private isActive: Bool;
 

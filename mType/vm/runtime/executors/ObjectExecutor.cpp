@@ -453,13 +453,20 @@ namespace vm::runtime
             isSameClass = true;
         }
 
+        // Get the current source location from execution context
+        errors::SourceLocation location(
+            context.currentSourceFile,
+            context.currentSourceLine,
+            1  // Column information not currently tracked
+        );
+
         return validation::AccessContext(
             currentClassName,
             targetClassName,
             isSameClass,
             isSubclassCheck,
             isSetter,
-            errors::SourceLocation()
+            location
         );
     }
 }

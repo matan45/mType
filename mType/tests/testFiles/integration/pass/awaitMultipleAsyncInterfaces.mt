@@ -13,7 +13,7 @@ interface AsyncLogger {
     async log(message: String) : Promise<Void>;
 }
 
-class DataProcessor : AsyncValidator, AsyncTransformer, AsyncLogger {
+class DataProcessor implements AsyncValidator, AsyncTransformer, AsyncLogger {
     private logs: String[];
 
     constructor() {

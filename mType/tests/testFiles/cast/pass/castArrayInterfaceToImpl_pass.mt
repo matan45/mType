@@ -2,7 +2,7 @@
 // This demonstrates array type compatibility with interfaces
 
 interface Drawable {
-    void draw();
+    function draw(): void;
 }
 
 class Circle extends Drawable {

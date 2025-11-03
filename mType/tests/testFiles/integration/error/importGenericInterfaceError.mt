@@ -3,7 +3,7 @@
 
 import "modules/StrictInterface.mt";
 
-class WrongProcessor : StrictProcessor<String> {
+class WrongProcessor implements StrictProcessor<String> {
     // ERROR: Wrong return type - returns Int instead of String
     process(input: String) : Int {
         return input.length();

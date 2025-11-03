@@ -10,7 +10,7 @@ class Animal {
 class Dog extends Animal {
     int age;
 
-    constructor(string n, int a) : Animal(n) {
+    constructor(string n, int a) : super(n) {
         this.age = a;
     }
 }
@@ -18,7 +18,7 @@ class Dog extends Animal {
 class Cat extends Animal {
     bool indoor;
 
-    constructor(string n, bool i) : Animal(n) {
+    constructor(string n, bool i) : super(n) {
         this.indoor = i;
     }
 }

@@ -8,13 +8,13 @@ abstract class Animal {
     }
 }
 
-class Dog : Animal {
+class Dog extends Animal {
     fn makeSound(): String {
         return "Woof";
     }
 }
 
-class Cat : Animal {
+class Cat extends Animal {
     fn makeSound(): String {
         return "Meow";
     }

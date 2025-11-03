@@ -249,13 +249,21 @@ namespace vm::runtime
             // PRIVATE: Only accessible from same class
             if (currentClassName != className) {
                 std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+
+                // Get current source location for error reporting
+                errors::SourceLocation location(
+                    context.currentSourceFile,
+                    context.currentSourceLine,
+                    1  // Column information not currently tracked
+                );
+
                 throw errors::AccessViolationException(
                     methodName,
                     "method",
                     ast::AccessModifier::PRIVATE,
                     className,
                     callingFrom,
-                    errors::SourceLocation()
+                    location
                 );
             }
         } else if (accessMod == ast::AccessModifier::PROTECTED) {
@@ -278,13 +286,21 @@ namespace vm::runtime
 
                 if (!isSubclass) {
                     std::string callingFrom = currentClassName.empty() ? "global scope" : currentClassName;
+
+                    // Get current source location for error reporting
+                    errors::SourceLocation location(
+                        context.currentSourceFile,
+                        context.currentSourceLine,
+                        1  // Column information not currently tracked
+                    );
+
                     throw errors::AccessViolationException(
                         methodName,
                         "method",
                         ast::AccessModifier::PROTECTED,
                         className,
                         callingFrom,
-                        errors::SourceLocation()
+                        location
                     );
                 }
             }

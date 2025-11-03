@@ -26,14 +26,14 @@ for (int i = 0; i < iterations; i++) {
 print("Created and disposed " + iterations + " arrays");
 
 // Final allocation should still work
-Resource[] final = new Resource[5];
-for (int i = 0; i < final.length; i++) {
-    final[i] = new Resource(i);
+Resource[] finalResource = new Resource[5];
+for (int i = 0; i < finalResource.length; i++) {
+    finalResource[i] = new Resource(i);
 }
 
 print("Final array allocated successfully:");
-for (int i = 0; i < final.length; i++) {
-    print("  Resource " + final[i].getId());
+for (int i = 0; i < finalResource.length; i++) {
+    print("  Resource " + finalResource[i].getId());
 }
 
 print("Memory leak test completed");

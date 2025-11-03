@@ -7,13 +7,13 @@ class Parent {
     }
 }
 
-class ChildA : Parent {
+class ChildA extends Parent {
     fn getName(): String {
         return "ChildA";
     }
 }
 
-class ChildB : Parent {
+class ChildB extends Parent {
     fn getName(): String {
         return "ChildB";
     }

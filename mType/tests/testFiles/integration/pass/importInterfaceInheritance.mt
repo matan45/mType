@@ -4,7 +4,7 @@
 import "modules/BaseInterface.mt";
 import "modules/DerivedInterface.mt";
 
-class Person : Nameable {
+class Person implements Nameable {
     private id: Int;
     private name: String;
 

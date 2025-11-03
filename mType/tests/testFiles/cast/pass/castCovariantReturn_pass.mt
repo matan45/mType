@@ -6,7 +6,7 @@ class Product {
     }
 }
 
-class Book : Product {
+class Book extends Product {
     fn getName(): String {
         return "Book";
     }
@@ -16,7 +16,7 @@ class Book : Product {
     }
 }
 
-class Electronics : Product {
+class Electronics extends Product {
     fn getName(): String {
         return "Electronics";
     }
@@ -32,14 +32,14 @@ class Factory {
     }
 }
 
-class BookFactory : Factory {
+class BookFactory extends Factory {
     fn createProduct(): Product {
         // Return more specific type, cast to base
         return new Book() as Product;
     }
 }
 
-class ElectronicsFactory : Factory {
+class ElectronicsFactory extends Factory {
     fn createProduct(): Product {
         return new Electronics() as Product;
     }

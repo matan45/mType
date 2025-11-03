@@ -56,7 +56,7 @@ class ProcessedRecord extends DataRecord {
     }
 }
 
-class DataValidator<T extends DataRecord> : Validator<T> {
+class DataValidator<T extends DataRecord> implements Validator<T> {
     private minContentLength: Int;
     private maxTimestamp: Int;
 
@@ -85,7 +85,7 @@ class DataValidator<T extends DataRecord> : Validator<T> {
     }
 }
 
-class RecordTransformer : Transformer<DataRecord, ProcessedRecord> {
+class RecordTransformer implements Transformer<DataRecord, ProcessedRecord> {
     private processingDelay: Int;
 
     constructor(delay: Int) {
@@ -108,7 +108,7 @@ class RecordTransformer : Transformer<DataRecord, ProcessedRecord> {
     }
 }
 
-class AsyncDataLoader : AsyncLoader<DataRecord[]> {
+class AsyncDataLoader implements AsyncLoader<DataRecord[]> {
     private recordCount: Int;
     private failureRate: Int;
 

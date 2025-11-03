@@ -6,7 +6,7 @@ interface AsyncService {
     async saveData(data: String) : Promise<Bool>;
 }
 
-class DataService : AsyncService {
+class DataService implements AsyncService {
     private storage: String[];
 
     constructor() {

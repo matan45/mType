@@ -2,33 +2,33 @@
 print("Testing array constants");
 
 class Constants {
-    int[] PRIMES;
-    string[] DAYS;
+    public int[] PRIMES;
+    public string[] DAYS;
 
-    constructor() {
-        PRIMES = new int[5];
-        PRIMES[0] = 2;
-        PRIMES[1] = 3;
-        PRIMES[2] = 5;
-        PRIMES[3] = 7;
-        PRIMES[4] = 11;
+    public constructor() {
+        this.PRIMES = new int[5];
+        this.PRIMES[0] = 2;
+        this.PRIMES[1] = 3;
+        this.PRIMES[2] = 5;
+        this.PRIMES[3] = 7;
+        this.PRIMES[4] = 11;
 
-        DAYS = new string[7];
-        DAYS[0] = "Monday";
-        DAYS[1] = "Tuesday";
-        DAYS[2] = "Wednesday";
-        DAYS[3] = "Thursday";
-        DAYS[4] = "Friday";
-        DAYS[5] = "Saturday";
-        DAYS[6] = "Sunday";
+        this.DAYS = new string[7];
+        this.DAYS[0] = "Monday";
+        this.DAYS[1] = "Tuesday";
+        this.DAYS[2] = "Wednesday";
+        this.DAYS[3] = "Thursday";
+        this.DAYS[4] = "Friday";
+        this.DAYS[5] = "Saturday";
+        this.DAYS[6] = "Sunday";
     }
 
-    int[] getPrimes() {
-        return PRIMES;
+    public function getPrimes(): int[] {
+        return this.PRIMES;
     }
 
-    string[] getDays() {
-        return DAYS;
+    public function getDays(): string[] {
+        return this.DAYS;
     }
 }
 

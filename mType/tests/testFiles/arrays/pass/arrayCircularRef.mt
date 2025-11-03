@@ -2,8 +2,8 @@
 print("Testing circular references");
 
 class Node {
-    int value;
-    Node next;
+    public int value;
+    public Node next;
 
     constructor(int v) {
         value = v;

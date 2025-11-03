@@ -6,7 +6,7 @@ print("Created int array with length: " + boundaries.length);
 
 // Assign boundary values
 boundaries[0] = 2147483647;   // MAX_VALUE (2^31 - 1)
-boundaries[1] = -2147483648;  // MIN_VALUE (-2^31)
+boundaries[1] = -2147483647 - 1;  // MIN_VALUE (-2^31)
 boundaries[2] = 0;
 boundaries[3] = -1;
 

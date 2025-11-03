@@ -1,7 +1,7 @@
 // Test importing arrays from modules (simulated with functions)
 print("Testing array imports");
 
-int[] getStandardValues() {
+function getStandardValues(): int[] {
     int[] values = new int[5];
     values[0] = 1;
     values[1] = 2;
@@ -11,7 +11,7 @@ int[] getStandardValues() {
     return values;
 }
 
-string[] getStandardNames() {
+function getStandardNames(): string[] {
     string[] names = new string[3];
     names[0] = "Alpha";
     names[1] = "Beta";

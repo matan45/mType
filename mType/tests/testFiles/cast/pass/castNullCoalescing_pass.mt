@@ -12,7 +12,7 @@ class Product {
 class DiscountedProduct extends Product {
     float discount;
 
-    constructor(string n, float p, float d) : Product(n, p) {
+    constructor(string n, float p, float d) : super(n, p) {
         this.discount = d;
     }
 

@@ -3,7 +3,7 @@
 
 import "modules/DataPipelineInterfaces.mt";
 
-class NumberSource : AsyncSource<Int> {
+class NumberSource implements AsyncSource<Int> {
     private numbers: Int[];
 
     constructor(nums: Int[]) {
@@ -17,7 +17,7 @@ class NumberSource : AsyncSource<Int> {
     }
 }
 
-class StringProcessor : AsyncProcessor<Int, String> {
+class StringProcessor implements AsyncProcessor<Int, String> {
     private transform: (Int) -> String;
 
     constructor(t: (Int) -> String) {
@@ -30,7 +30,7 @@ class StringProcessor : AsyncProcessor<Int, String> {
     }
 }
 
-class StringSink : AsyncSink<String> {
+class StringSink implements AsyncSink<String> {
     private storage: String[];
 
     constructor() {

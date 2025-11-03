@@ -21,7 +21,7 @@ class User {
     }
 }
 
-class UserRepository : Repository<User> {
+class UserRepository implements Repository<User> {
     private users: User[];
     private nextId: Int;
 

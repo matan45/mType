@@ -6,31 +6,31 @@ class Level0 {
     }
 }
 
-class Level1 : Level0 {
+class Level1 extends Level0 {
     fn getLevel(): Int {
         return 1;
     }
 }
 
-class Level2 : Level1 {
+class Level2 extends Level1 {
     fn getLevel(): Int {
         return 2;
     }
 }
 
-class Level3 : Level2 {
+class Level3 extends Level2 {
     fn getLevel(): Int {
         return 3;
     }
 }
 
-class Level4 : Level3 {
+class Level4 extends Level3 {
     fn getLevel(): Int {
         return 4;
     }
 }
 
-class Level5 : Level4 {
+class Level5 extends Level4 {
     fn getLevel(): Int {
         return 5;
     }

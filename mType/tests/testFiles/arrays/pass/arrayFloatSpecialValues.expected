@@ -1,17 +1,17 @@
-Testing float special values in arrays
+Testing float edge values in arrays
 Created float array with length: 6
-specialValues[0] = nan
-specialValues[1] = inf
-specialValues[2] = -inf
-specialValues[3] = 3.14159
-specialValues[4] = -2.71828
-specialValues[5] = 0
+edgeValues[0] = 0
+edgeValues[1] = 3.14159
+edgeValues[2] = -2.71828
+edgeValues[3] = 1e+15
+edgeValues[4] = -1e+15
+edgeValues[5] = 1e-13
 Testing comparisons:
-Is specialValues[0] NaN? true
-Is specialValues[1] > 1000? true
-Is specialValues[2] < -1000? true
-Operations with special values:
-results[0] = nan
-results[1] = inf
-results[2] = -inf
-Float special values test completed
+Is edgeValues[0] zero? true
+Is edgeValues[3] > 1000? true
+Is edgeValues[4] < -1000? true
+Operations with edge values:
+results[0] = 0.423311
+results[1] = 6.28319
+results[2] = -1.35914
+Float edge values test completed

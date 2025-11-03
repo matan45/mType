@@ -1,8 +1,8 @@
 // Test generic array variance
 print("Testing generic array variance");
 
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 class Box<T> {
     T value;

@@ -27,7 +27,7 @@ class User {
     }
 }
 
-class UserServiceImpl : AsyncUserService, AsyncLogger {
+class UserServiceImpl implements AsyncUserService, AsyncLogger {
     private users: String[];
 
     constructor() {
@@ -65,7 +65,7 @@ class UserServiceImpl : AsyncUserService, AsyncLogger {
     }
 }
 
-class DataServiceImpl<T> : AsyncDataService<T>, AsyncLogger {
+class DataServiceImpl<T> implements AsyncDataService<T>, AsyncLogger {
     private storage: T[];
     private ids: Int[];
 

@@ -6,7 +6,7 @@ class Vehicle {
     }
 }
 
-class Car : Vehicle {
+class Car extends Vehicle {
     fn start(): String {
         return "Car starting";
     }
@@ -16,7 +16,7 @@ class Car : Vehicle {
     }
 }
 
-class Motorcycle : Vehicle {
+class Motorcycle extends Vehicle {
     fn start(): String {
         return "Motorcycle starting";
     }
