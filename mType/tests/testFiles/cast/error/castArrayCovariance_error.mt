@@ -4,7 +4,7 @@
 class Object {}
 class String {}
 
-@Script
+
 function testArrayCovariance(): void {
     Object[] objects = new Object[3];
     objects[0] = new Object();
@@ -15,3 +15,4 @@ function testArrayCovariance(): void {
     // This would allow putting non-String objects into a String array
     String[] strings = (String[])objects;
 }
+testArrayCovariance();

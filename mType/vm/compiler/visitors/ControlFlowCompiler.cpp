@@ -18,8 +18,12 @@ namespace vm::compiler::visitors
         // Jump to else/end if condition is false
         size_t elseJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
-        // Compile then branch
+        // Compile then branch with its own scope
+        // This ensures variables declared in the if block don't leak out
+        ctx.variableTracker.beginScope();
         node->getThenStatement()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         if (node->getElseStatement()) {
             // Jump over else branch
@@ -28,8 +32,11 @@ namespace vm::compiler::visitors
             // Patch else jump
             ctx.emitter.patchJump(elseJump);
 
-            // Compile else branch
+            // Compile else branch with its own scope
+            ctx.variableTracker.beginScope();
             node->getElseStatement()->accept(ctx.visitor);  // Will need delegation
+            ctx.variableTracker.endScope();
+            ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
             // Patch end jump
             ctx.emitter.patchJump(endJump);
@@ -57,8 +64,11 @@ namespace vm::compiler::visitors
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
-        // Compile body
+        // Compile body with its own scope
+        ctx.variableTracker.beginScope();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Jump back to start
         ctx.emitter.emitLoop(loopStart);
@@ -89,8 +99,11 @@ namespace vm::compiler::visitors
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
-        // Compile body
+        // Compile body with its own scope
+        ctx.variableTracker.beginScope();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation

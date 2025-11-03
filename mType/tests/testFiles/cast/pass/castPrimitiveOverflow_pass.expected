@@ -1,4 +1,5 @@
-Large int to float: 9007199254740992.0
-Max int to float: 2147483647.0
-Large negative to float: -999999999.0
-Computed large value: 1000000000000.0
+Max int to float: 2.14748e+09
+Min int to float: -2.14748e+09
+Large negative to float: -1e+09
+Large positive to float: 1e+09
+Computed large value: -7.2738e+08

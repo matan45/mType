@@ -36,6 +36,36 @@ namespace vm::runtime
         }
     }
 
+    void ControlFlowExecutor::handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_FALSE_OR_POP requires operand");
+        }
+        // Peek at the value without popping
+        value::Value condition = context.stackManager->peek();
+        if (!isTruthy(condition)) {
+            // If false, jump (keeping the false value on stack as result)
+            context.instructionPointer = instr.operands[0] - 1;
+        } else {
+            // If true, pop it and continue to evaluate the right side
+            context.stackManager->pop();
+        }
+    }
+
+    void ControlFlowExecutor::handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_TRUE_OR_POP requires operand");
+        }
+        // Peek at the value without popping
+        value::Value condition = context.stackManager->peek();
+        if (isTruthy(condition)) {
+            // If true, jump (keeping the true value on stack as result)
+            context.instructionPointer = instr.operands[0] - 1;
+        } else {
+            // If false, pop it and continue to evaluate the right side
+            context.stackManager->pop();
+        }
+    }
+
     void ControlFlowExecutor::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
             throw errors::RuntimeException("JUMP_BACK requires operand");

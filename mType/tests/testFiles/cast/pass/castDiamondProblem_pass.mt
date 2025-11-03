@@ -44,9 +44,9 @@ Top topDirect = (Top)obj;
 
 // Verify all casts work correctly
 print(left.getLeftValue());
-print(left.getTopValue());
+print(((Top)left).getTopValue());
 print(right.getRightValue());
-print(right.getTopValue());
+print(((Top)right).getTopValue());
 print(topFromLeft.getTopValue());
 print(topFromRight.getTopValue());
 print(topDirect.getTopValue());

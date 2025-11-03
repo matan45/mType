@@ -735,6 +735,10 @@ namespace vm::runtime
             break;
         case OpCode::JUMP_IF_TRUE: controlFlowExecutor->handleJumpIfTrue(instr);
             break;
+        case OpCode::JUMP_IF_FALSE_OR_POP: controlFlowExecutor->handleJumpIfFalseOrPop(instr);
+            break;
+        case OpCode::JUMP_IF_TRUE_OR_POP: controlFlowExecutor->handleJumpIfTrueOrPop(instr);
+            break;
         case OpCode::JUMP_BACK: controlFlowExecutor->handleJumpBack(instr);
             break;
         case OpCode::RETURN: controlFlowExecutor->handleReturn();

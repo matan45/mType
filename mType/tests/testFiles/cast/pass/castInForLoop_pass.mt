@@ -2,7 +2,7 @@
 class Container {
     public int value;
 
-    public Container(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }
@@ -10,8 +10,7 @@ class Container {
 class SmartContainer extends Container {
     public int multiplier;
 
-    public SmartContainer(int v, int m) {
-        super(v);
+    constructor(int v, int m):super(v) {
         this.multiplier = m;
     }
 
@@ -29,12 +28,12 @@ for (int i = 0; i < ((SmartContainer)c).getScaled(); i = i + 1) {
 print("---");
 
 // Cast in for loop condition
-Container arr[] = new Container[3];
+Container[] arr = new Container[3];
 arr[0] = new SmartContainer(1, 2);
 arr[1] = new SmartContainer(2, 2);
 arr[2] = new SmartContainer(3, 2);
 
-for (int i = 0; i < ((SmartContainer)arr[1]).getScaled(); i = i + 1) {
+for (int i = 0; i < ((SmartContainer)arr[1]).getScaled()-1; i = i++) {
     print(((SmartContainer)arr[i]).getScaled());
 }
 

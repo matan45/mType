@@ -84,13 +84,10 @@ while (i < iterations) {
 
         // Cast to Shape
         Shape shape = (Shape)rect;
-
-        // Cast to IShape
-        IShape ishape = (IShape)shape;
-        totalArea = totalArea + ishape.getArea();
+        totalArea = totalArea + shape.getArea();
 
         // Cast back to Rectangle
-        Rectangle? rectAgain = (Rectangle?)ishape;
+        Rectangle rectAgain = (Rectangle)shape;
         if (rectAgain != null) {
             rectangleCount = rectangleCount + 1;
         }
@@ -101,13 +98,10 @@ while (i < iterations) {
 
             // Cast to Shape
             Shape shape = (Shape)circ;
-
-            // Cast to IShape
-            IShape ishape = (IShape)shape;
-            totalArea = totalArea + ishape.getArea();
+            totalArea = totalArea + shape.getArea();
 
             // Cast back to Circle
-            Circle? circAgain = (Circle?)ishape;
+            Circle circAgain = (Circle)shape;
             if (circAgain != null) {
                 circleCount = circleCount + 1;
             }
@@ -117,13 +111,10 @@ while (i < iterations) {
 
             // Cast to Shape
             Shape shape = (Shape)tri;
-
-            // Cast to IShape
-            IShape ishape = (IShape)shape;
-            totalArea = totalArea + ishape.getArea();
+            totalArea = totalArea + shape.getArea();
 
             // Cast back to Triangle
-            Triangle? triAgain = (Triangle?)ishape;
+            Triangle triAgain = (Triangle)shape;
             if (triAgain != null) {
                 triangleCount = triangleCount + 1;
             }

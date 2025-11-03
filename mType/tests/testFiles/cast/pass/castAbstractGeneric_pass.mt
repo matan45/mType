@@ -1,38 +1,41 @@
-@Script
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 // Test abstract class with generic parameters
 abstract class Container<T> {
-    abstract fn get(): T;
-    abstract fn set(value: T): void;
+    public abstract function get(): T;
+    public abstract function set(T value): void;
 }
 
-class Box<T> : Container<T> {
-    let value: T;
+class Box<T> extends Container<T> {
+    private T value;
 
-    fn init(v: T) {
+    constructor(T v){
         this.value = v;
     }
 
-    fn get(): T {
+    public function get(): T {
         return this.value;
     }
 
-    fn set(v: T): void {
+    public function set(T v): void {
         this.value = v;
     }
 }
 
-fn main() {
-    let intBox: Box<Int> = new Box<Int>(42);
-    let container: Container<Int> = intBox as Container<Int>;  // Upcast with generics
 
-    print(container.get());
-    container.set(100);
-    print(container.get());
+function main(): void {
+    Box<Int> intBox = new Box<Int>(new Int(42));
+    Container<Int> container = (Container<Int>)intBox;  // Upcast with generics
 
-    let backToBox: Box<Int> = container as Box<Int>;  // Downcast with generics
-    print(backToBox.get());
+    print(container.get().getValue());
+    container.set(new Int(100));
+    print(container.get().getValue());
 
-    let strBox: Box<String> = new Box<String>("Hello");
-    let strContainer: Container<String> = strBox as Container<String>;
-    print(strContainer.get());
+    Box<Int> backToBox = (Box<Int>)container;  // Downcast with generics
+    print(backToBox.get().getValue());
+
+    Box<String> strBox = new Box<String>(new String("Hello"));
+    Container<String> strContainer = strBox;
+    print(strContainer.get().getValue());
 }
+main();

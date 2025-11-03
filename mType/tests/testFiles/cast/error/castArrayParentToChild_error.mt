@@ -17,7 +17,7 @@ class Cat extends Animal {
     }
 }
 
-@Script
+
 function testParentArrayToChildArray(): void {
     Animal[] animals = new Animal[3];
     animals[0] = new Dog();
@@ -28,3 +28,4 @@ function testParentArrayToChildArray(): void {
     // The array contains both Dogs and Cats
     Dog[] dogs = (Dog[])animals;
 }
+testParentArrayToChildArray();

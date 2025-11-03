@@ -1,6 +1,6 @@
 // Test: Null cast in ternary operator
 class Animal {
-    string name;
+    public string name;
 
     constructor(string n) {
         this.name = n;
@@ -8,7 +8,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-    int age;
+    public int age;
 
     constructor(string n, int a) : super(n) {
         this.age = a;
@@ -16,7 +16,7 @@ class Dog extends Animal {
 }
 
 class Cat extends Animal {
-    bool indoor;
+    public bool indoor;
 
     constructor(string n, bool i) : super(n) {
         this.indoor = i;
@@ -24,11 +24,11 @@ class Cat extends Animal {
 }
 
 // Simple ternary with nullable cast
-Animal? a1 = new Dog("Rex", 5);
-Animal? a2 = null;
+Animal a1 = new Dog("Rex", 5);
+Animal a2 = null;
 
-Dog? dog1 = a1 != null ? (Dog?)(Animal)a1 : null;
-Dog? dog2 = a2 != null ? (Dog?)(Animal)a2 : null;
+Dog dog1 = a1 != null ? (Dog)(Animal)a1 : null;
+Dog dog2 = a2 != null ? (Dog)(Animal)a2 : null;
 
 print(dog1 != null);
 print(dog2 == null);
@@ -37,15 +37,15 @@ print(dog2 == null);
 bool hasAnimal = true;
 bool isDog = true;
 
-Animal? animal = hasAnimal ? (isDog ? (Animal?)new Dog("Buddy", 3) : (Animal?)new Cat("Whiskers", true)) : null;
+Animal animal = hasAnimal ? (isDog ? (Animal)new Dog("Buddy", 3) : (Animal)new Cat("Whiskers", true)) : null;
 print(animal != null);
 
-Dog? resultDog = (animal != null && isDog) ? (Dog?)(Animal)animal : null;
+Dog resultDog = (animal != null && isDog) ? (Dog)(Animal)animal : null;
 print(resultDog != null);
 print(resultDog != null ? resultDog.age : 0);
 
 // Ternary with multiple nullable casts
-Animal? nullAnimal = null;
+Animal nullAnimal = null;
 string result = nullAnimal != null ? ((Animal)nullAnimal).name : "No animal";
 print(result);
 

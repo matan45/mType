@@ -4,7 +4,7 @@ import * from "../../lib/primitives/Int.mt";
 class Item {
     int value;
 
-    public function Item(int val) {
+    constructor(int val) {
         value = val;
     }
 

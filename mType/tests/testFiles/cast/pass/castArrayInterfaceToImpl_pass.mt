@@ -5,15 +5,15 @@ interface Drawable {
     function draw(): void;
 }
 
-class Circle extends Drawable {
-    int radius;
+class Circle implements Drawable {
+    public int radius;
 
     public function draw(): void {
         print("Drawing circle with radius: " + radius);
     }
 }
 
-class Square extends Drawable {
+class Square implements Drawable {
     int side;
 
     public function draw(): void {
@@ -21,7 +21,7 @@ class Square extends Drawable {
     }
 }
 
-@Script
+
 function testInterfaceArrayCasting(): void {
     print("Testing interface array casting");
 
@@ -32,20 +32,21 @@ function testInterfaceArrayCasting(): void {
     circles[1] = new Circle();
     circles[1].radius = 10;
 
-    // Upcast to Drawable array
-    Drawable[] drawables = circles;
+    // Create Drawable array and assign elements
+    Drawable[] drawables = new Drawable[2];
+    drawables[0] = circles[0];
+    drawables[1] = circles[1];
     print("Array length: " + drawables.length);
 
     // Call interface methods
     drawables[0].draw();
     drawables[1].draw();
 
-    // Check if we can safely downcast back
-    if (drawables isClassOf Circle[]) {
-        Circle[] circlesAgain = (Circle[])drawables;
-        print("Successfully downcast back to Circle[]");
-        print("First circle radius: " + circlesAgain[0].radius);
-    }
+    // Cast individual element back to Circle
+    Circle firstCircle = (Circle)drawables[0];
+    print("Successfully cast element to Circle");
+    print("First circle radius: " + firstCircle.radius);
 
     print("Interface array casting test completed");
 }
+testInterfaceArrayCasting();

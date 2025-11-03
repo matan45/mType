@@ -8,6 +8,9 @@ interface Greetable {
 }
 
 abstract class BaseGreetable implements Greetable {
+    // Abstract method - must be implemented by subclasses
+    public abstract function greet(): string;
+
     // Provide default implementation for farewell
     public function farewell(): string {
         return "Goodbye!";
@@ -33,19 +36,17 @@ class SpanishGreeting extends BaseGreetable {
 
 // Test with default implementation
 EnglishGreeting eng = new EnglishGreeting();
-Greetable g1 = (Greetable)eng;
-print(g1.greet());
-print(g1.farewell());
+BaseGreetable base1 = eng;
+print(base1.greet());
+print(base1.farewell());
 
 // Test with overridden implementation
 SpanishGreeting spa = new SpanishGreeting();
-Greetable g2 = (Greetable)spa;
-print(g2.greet());
-print(g2.farewell());
+BaseGreetable base2 = spa;
+print(base2.greet());
+print(base2.farewell());
 
-// Cast to base abstract class
-BaseGreetable base1 = (BaseGreetable)eng;
-BaseGreetable base2 = (BaseGreetable)spa;
+// Test polymorphism through abstract class
 print(base1.farewell());
 print(base2.farewell());
 

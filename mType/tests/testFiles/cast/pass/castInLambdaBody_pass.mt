@@ -1,8 +1,11 @@
 // Test: Casting in lambda body
+import { Int } from "../../lib/primitives/Int.mt";
+import { Bool } from "../../lib/primitives/Bool.mt";
+
 class Processor {
     public int value;
 
-    public Processor(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }
@@ -10,8 +13,7 @@ class Processor {
 class AdvancedProcessor extends Processor {
     public int multiplier;
 
-    public AdvancedProcessor(int v, int m) {
-        super(v);
+    constructor(int v, int m):super(v) {
         this.multiplier = m;
     }
 
@@ -20,40 +22,44 @@ class AdvancedProcessor extends Processor {
     }
 }
 
-// Interface for lambda
+// Interface for lambda - using Int wrapper for generic compatibility
 interface Transformer<T, R> {
     public function apply(T input): R;
 }
 
 // Lambda with cast in body
 Processor p = new AdvancedProcessor(10, 3);
-Transformer<Processor, int> transformer = (Processor proc) -> {
-    return ((AdvancedProcessor)proc).process();
+Transformer<Processor, Int> transformer = proc -> {
+    int result = ((AdvancedProcessor)proc).process();
+    return new Int(result);
 };
 
-int result = transformer.apply(p);
-print(result);
+Int resultWrapper = transformer.apply(p);
+print(resultWrapper.getValue());
 
-// Lambda with multiple casts
+// Lambda with multiple casts - using Int wrapper for return type
 interface Comparator<T> {
-    public function compare(T a, T b): int;
+    public function compare(T a, T b): Int;
 }
 
-Comparator<Processor> comp = (Processor a, Processor b) -> {
+Comparator<Processor> comp = (a, b) -> {
     int aVal = ((AdvancedProcessor)a).process();
     int bVal = ((AdvancedProcessor)b).process();
+    int result;
     if (aVal > bVal) {
-        return 1;
+        result = 1;
     } else if (aVal < bVal) {
-        return -1;
+        result = -1;
     } else {
-        return 0;
+        result = 0;
     }
+    return new Int(result);
 };
 
 Processor p1 = new AdvancedProcessor(5, 2);
 Processor p2 = new AdvancedProcessor(7, 2);
-int comparison = comp.compare(p1, p2);
+Int comparisonWrapper = comp.compare(p1, p2);
+int comparison = comparisonWrapper.getValue();
 if (comparison < 0) {
     print("p1 < p2");
 } else if (comparison > 0) {
@@ -62,29 +68,35 @@ if (comparison < 0) {
     print("p1 == p2");
 }
 
-// Expression lambda with cast
+// Expression lambda with cast - using Int wrapper
 interface Extractor<T> {
-    public function extract(T input): int;
+    public function extract(T input): Int;
 }
 
-Extractor<Processor> extractor = (Processor proc) -> ((AdvancedProcessor)proc).multiplier;
-int multiplier = extractor.extract(p);
-print("Multiplier: " + multiplier);
+Extractor<Processor> extractor = proc -> {
+    int mult = ((AdvancedProcessor)proc).multiplier;
+    return new Int(mult);
+};
+Int multiplierWrapper = extractor.extract(p);
+print("Multiplier: " + multiplierWrapper.getValue());
 
-// Lambda with cast and conditional
+// Lambda with cast and conditional - using Bool wrapper
 interface Validator<T> {
-    public function isValid(T input): bool;
+    public function isValid(T input): Bool;
 }
 
-Validator<Processor> validator = (Processor proc) -> {
+Validator<Processor> validator = proc -> {
+    bool isValid;
     if (proc isClassOf AdvancedProcessor) {
-        return ((AdvancedProcessor)proc).multiplier > 0;
+        isValid = ((AdvancedProcessor)proc).multiplier > 0;
     } else {
-        return false;
+        isValid = false;
     }
+    return new Bool(isValid);
 };
 
-if (validator.isValid(p1)) {
+Bool isValidWrapper = validator.isValid(p1);
+if (isValidWrapper.getValue()) {
     print("Valid processor");
 }
 

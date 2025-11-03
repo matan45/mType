@@ -2,11 +2,11 @@
 // Demonstrates safe handling of null values during type casting
 
 class Entity {
-    int id;
+    public int id;
 }
 
 class Player extends Entity {
-    string name;
+    public string name;
 
     constructor(int playerId, string playerName) {
         id = playerId;
@@ -14,22 +14,20 @@ class Player extends Entity {
     }
 }
 
-@Script
+
 function testArrayWithNullElements(): void {
     print("Testing array casting with null elements");
 
-    // Create array with some null elements
-    Player[] players = new Player[5];
-    players[0] = new Player(1, "Alice");
-    players[1] = null;  // Null element
-    players[2] = new Player(3, "Bob");
-    players[3] = null;  // Null element
-    players[4] = new Player(5, "Charlie");
+    // Create Entity array and populate with Player instances (and nulls)
+    // Individual element assignment allows upcasting Player -> Entity
+    Entity[] entities = new Entity[5];
+    entities[0] = new Player(1, "Alice");
+    entities[1] = null;  // Null element
+    entities[2] = new Player(3, "Bob");
+    entities[3] = null;  // Null element
+    entities[4] = new Player(5, "Charlie");
 
-    print("Array length: " + players.length);
-
-    // Upcast to Entity array
-    Entity[] entities = players;
+    print("Array length: " + entities.length);
 
     // Iterate and check for null
     for (int i = 0; i < entities.length; i = i + 1) {
@@ -58,3 +56,5 @@ function testArrayWithNullElements(): void {
 
     print("Array with null elements casting completed");
 }
+
+testArrayWithNullElements();

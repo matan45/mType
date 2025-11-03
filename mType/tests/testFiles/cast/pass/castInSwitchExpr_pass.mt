@@ -2,7 +2,7 @@
 class Shape {
     public int sides;
 
-    public Shape(int s) {
+    constructor(int s) {
         this.sides = s;
     }
 }
@@ -10,8 +10,7 @@ class Shape {
 class Polygon extends Shape {
     public int internalAngles;
 
-    public Polygon(int s, int a) {
-        super(s);
+    constructor(int s, int a):super(s) {
         this.internalAngles = a;
     }
 

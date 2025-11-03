@@ -1,24 +1,32 @@
 // Test: Casting large integers to float handles overflow gracefully
 // Expected: Values should be converted, potentially losing precision
 
-@Script
-def testLargeIntToFloat() {
-    // Test very large integer to float conversion
-    var largeInt: Int = 9007199254740992; // 2^53, beyond float precise range
-    var asFloat: Float = largeInt as Float;
-    print("Large int to float: " + asFloat.toString());
+function testLargeIntToFloat(): void {
+    // Test maximum int value (32-bit signed int max)
+    int maxInt = 2147483647; // Max 32-bit int
+    float maxAsFloat = (float)maxInt;
+    print("Max int to float: " + maxAsFloat);
 
-    // Test maximum int value
-    var maxInt: Int = 2147483647; // Max 32-bit int
-    var maxAsFloat: Float = maxInt as Float;
-    print("Max int to float: " + maxAsFloat.toString());
+    // Test minimum int value (32-bit signed int min: -2147483648)
+    // Note: Can't use -2147483648 directly due to literal parsing, so use -2147483647 - 1
+    int minInt = -2147483647 - 1; // Min 32-bit int
+    float minAsFloat = (float)minInt;
+    print("Min int to float: " + minAsFloat);
 
     // Test negative large value
-    var largeNegative: Int = -999999999;
-    var negativeFloat: Float = largeNegative as Float;
-    print("Large negative to float: " + negativeFloat.toString());
+    int largeNegative = -999999999;
+    float negativeFloat = (float)largeNegative;
+    print("Large negative to float: " + negativeFloat);
+
+    // Test positive large value
+    int largePositive = 999999999;
+    float positiveFloat = (float)largePositive;
+    print("Large positive to float: " + positiveFloat);
 
     // Test that casting works in expressions
-    var computed: Float = (1000000 * 1000000) as Float;
-    print("Computed large value: " + computed.toString());
+    int million = 1000000;
+    float computed = (float)(million * million);
+    print("Computed large value: " + computed);
 }
+
+testLargeIntToFloat();

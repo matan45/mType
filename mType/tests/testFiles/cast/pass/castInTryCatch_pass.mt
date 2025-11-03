@@ -1,43 +1,48 @@
 // Test: Casting in try-catch block with error handling
 // This test demonstrates proper error handling for casting operations
 
+import * from "../../lib/exceptions/Exception.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
+
 class Vehicle {
-    public function describe() : String {
+    public function describe() : string {
         return "Generic vehicle";
     }
 }
 
 class Car extends Vehicle {
-    int doors;
+    public int doors;
 
-    constructor(int d) {
-        doors = d;
+    public constructor(int d) {
+        this.doors = d;
     }
 
-    public function describe() : String {
-        return "Car with " + doors + " doors";
+    public function describe() : string {
+        return "Car with " + (string)this.doors + " doors";
     }
 
-    public function honk() : String {
+    public function honk() : string {
         return "Beep beep!";
     }
 }
 
 class Motorcycle extends Vehicle {
-    bool hasSidecar;
+    public bool hasSidecar;
 
-    constructor(bool sidecar) {
-        hasSidecar = sidecar;
+    public constructor(bool sidecar) {
+        this.hasSidecar = sidecar;
     }
 
-    public function describe() : String {
-        if (hasSidecar) {
+    public function describe() : string {
+        if (this.hasSidecar) {
             return "Motorcycle with sidecar";
         }
         return "Motorcycle";
     }
 
-    public function rev() : String {
+    public function rev() : string {
         return "Vroom vroom!";
     }
 }
@@ -66,7 +71,7 @@ while (i < 2) {
         print("Successfully cast to Car: " + car.describe());
         print("  Car honks: " + car.honk());
         carCount = carCount + 1;
-    } catch (String error) {
+    } catch (Exception e) {
         print("Cast to Car failed for vehicle " + i);
         failedCasts = failedCasts + 1;
     }
@@ -83,8 +88,8 @@ while (i < 2) {
         print("Successfully cast to Motorcycle: " + bike.describe());
         print("  Bike revs: " + bike.rev());
         bikeCount = bikeCount + 1;
-    } catch (String error) {
-        print("Cast to Motorcycle failed for vehicle " + i);
+    } catch (Exception e) {
+        print("Cast to Motorcycle failed for vehicle " + (string)i);
         failedCasts = failedCasts + 1;
     }
     i = i + 1;
@@ -92,9 +97,9 @@ while (i < 2) {
 
 print("");
 print("Summary:");
-print("  Cars found: " + carCount);
-print("  Bikes found: " + bikeCount);
-print("  Failed casts: " + failedCasts);
+print("  Cars found: " + (string)carCount);
+print("  Bikes found: " + (string)bikeCount);
+print("  Failed casts: " + (string)failedCasts);
 
 // Test with null values
 print("");
@@ -103,9 +108,13 @@ Vehicle nullVehicle = null;
 
 try {
     Car nullCar = (Car)nullVehicle;
-    print("Null cast to Car succeeded: " + (nullCar == null));
-} catch (String error) {
-    print("Null cast to Car failed: " + error);
+    if (nullCar == null) {
+        print("Null cast to Car succeeded: true");
+    } else {
+        print("Null cast to Car succeeded: false");
+    }
+} catch (Exception e) {
+    print("Null cast to Car failed: exception caught");
 }
 
 // Test valid downcast
@@ -116,8 +125,8 @@ try {
     Car actualCar = (Car)vehicleRef;
     print("Valid downcast succeeded: " + actualCar.describe());
     print("  Honking: " + actualCar.honk());
-} catch (String error) {
-    print("Unexpected error: " + error);
+} catch (Exception e) {
+    print("Unexpected error: exception caught");
 }
 
 print("");

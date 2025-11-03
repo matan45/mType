@@ -1,57 +1,59 @@
-@Script
 // Test abstract to concrete class casting
+
 abstract class Shape {
-    abstract fn getArea(): Float;
+    public abstract function getArea(): float;
 }
 
 class Circle extends Shape {
-    let radius: Float;
+    private float radius;
 
-    fn init(r: Float) {
+    constructor(float r) {
         this.radius = r;
     }
 
-    fn getArea(): Float {
+    public function getArea(): float {
         return 3.14 * this.radius * this.radius;
     }
 
-    fn getRadius(): Float {
+    public function getRadius(): float {
         return this.radius;
     }
 }
 
 class Rectangle extends Shape {
-    let width: Float;
-    let height: Float;
+    private float width;
+    private float height;
 
-    fn init(w: Float, h: Float) {
+    constructor(float w, float h): super(1) {
         this.width = w;
         this.height = h;
     }
 
-    fn getArea(): Float {
+    public function getArea(): float {
         return this.width * this.height;
     }
 }
 
-fn processShape(shape: Shape): Float {
+function processShape(Shape shape): float {
     // Attempt to downcast to Circle
-    let circle: Circle = shape as Circle;
+    Circle circle = (Circle)shape;
     if (circle != null) {
         return circle.getRadius();
     }
     return 0.0;
 }
 
-fn main() {
-    let circle: Circle = new Circle(5.0);
-    let shape: Shape = circle as Shape;  // Upcast
+
+function main(): void {
+    Circle circle = new Circle(5.0);
+    Shape shape = circle;  // Upcast
 
     print(shape.getArea());  // Should work on abstract reference
 
-    let concrete: Circle = shape as Circle;  // Downcast back
+    Circle concrete = (Circle)shape;  // Downcast back
     print(concrete.getRadius());
 
-    let result: Float = processShape(shape);
+    float result = processShape(shape);
     print(result);
 }
+main();

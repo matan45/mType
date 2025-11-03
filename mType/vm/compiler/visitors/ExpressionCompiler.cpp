@@ -30,7 +30,26 @@ namespace vm::compiler::visitors
         bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
         ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
 
-        // Compile operands
+        // Handle short-circuit logical operators specially
+        if (op == token::TokenType::AND) {
+            // For &&: if left is false, skip right and return false
+            node->getLeft()->accept(ctx.visitor);
+            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE_OR_POP, node);
+            node->getRight()->accept(ctx.visitor);
+            ctx.emitter.patchJump(jumpOffset);
+            return std::monostate{};
+        }
+
+        if (op == token::TokenType::OR) {
+            // For ||: if left is true, skip right and return true
+            node->getLeft()->accept(ctx.visitor);
+            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE_OR_POP, node);
+            node->getRight()->accept(ctx.visitor);
+            ctx.emitter.patchJump(jumpOffset);
+            return std::monostate{};
+        }
+
+        // Compile operands for other operators
         node->getLeft()->accept(ctx.visitor);  // Will need delegation
         node->getRight()->accept(ctx.visitor);  // Will need delegation
 

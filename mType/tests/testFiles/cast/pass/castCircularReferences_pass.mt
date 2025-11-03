@@ -7,8 +7,8 @@ interface INode {
 
 class GraphNode implements INode {
     public int id;
-    public GraphNode? next;
-    public GraphNode? prev;
+    public GraphNode next;
+    public GraphNode prev;
 
     public constructor(int nodeId) {
         this.id = nodeId;
@@ -20,11 +20,11 @@ class GraphNode implements INode {
         return this.id;
     }
 
-    public function setNext(GraphNode? n): void {
+    public function setNext(GraphNode n): void {
         this.next = n;
     }
 
-    public function setPrev(GraphNode? p): void {
+    public function setPrev(GraphNode p): void {
         this.prev = p;
     }
 }
@@ -65,7 +65,7 @@ print("Circular structure created");
 // Cast through the circle multiple times
 print("Starting circular traversal with casting...");
 
-GraphNode? current = node1;
+GraphNode current = node1;
 int iterations = 0;
 int maxIterations = 20;  // Traverse multiple times through circle
 
@@ -74,15 +74,11 @@ while (iterations < maxIterations) {
         break;
     }
 
-    // Cast to INode interface
-    INode inode = (INode)current;
-    int nodeId = inode.getId();
-
-    // Cast to GraphNode
-    GraphNode gnode = (GraphNode)inode;
+    // Get node ID directly
+    int nodeId = current.getId();
 
     // Try cast to WeightedNode
-    WeightedNode? wnode = (WeightedNode?)gnode;
+    WeightedNode wnode = (WeightedNode)current;
     if (wnode != null) {
         int weight = wnode.getWeight();
         // Only print first 4 iterations to keep output clean
@@ -91,7 +87,7 @@ while (iterations < maxIterations) {
         }
     }
 
-    current = gnode.next;
+    current = current.next;
     iterations = iterations + 1;
 }
 

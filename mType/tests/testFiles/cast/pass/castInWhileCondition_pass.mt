@@ -2,7 +2,7 @@
 class Counter {
     public int count;
 
-    public Counter(int c) {
+    constructor(int c) {
         this.count = c;
     }
 
@@ -18,8 +18,7 @@ class Counter {
 class AdvancedCounter extends Counter {
     public int step;
 
-    public AdvancedCounter(int c, int s) {
-        super(c);
+    constructor(int c, int s):super(c) {
         this.step = s;
     }
 

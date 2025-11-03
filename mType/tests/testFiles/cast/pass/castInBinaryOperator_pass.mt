@@ -2,7 +2,7 @@
 class Number {
     public int value;
 
-    public Number(int v) {
+    constructor(int v) {
         this.value = v;
     }
 
@@ -14,8 +14,7 @@ class Number {
 class ScalableNumber extends Number {
     public int scale;
 
-    public ScalableNumber(int v, int s) {
-        super(v);
+    constructor(int v, int s):super(v) {
         this.scale = s;
     }
 
@@ -55,7 +54,7 @@ float ratio = (float)((ScalableNumber)n1).getScaled() / (float)((ScalableNumber)
 print(ratio);  // 20.0 / 15.0 = 1.333...
 
 // Cast in string concatenation
-String result = "Total: " + ((ScalableNumber)n1).getScaled() + " + " + ((ScalableNumber)n2).getScaled();
+string result = "Total: " + ((ScalableNumber)n1).getScaled() + " + " + ((ScalableNumber)n2).getScaled();
 print(result);
 
 // Expected output:

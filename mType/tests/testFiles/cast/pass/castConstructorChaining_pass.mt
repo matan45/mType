@@ -1,59 +1,61 @@
-@Script
+
 // Test casting in constructor parameter
 class Wrapper {
-    let value: String;
+    string value;
 
-    fn init(v: String) {
+    constructor(string v) {
         this.value = v;
     }
 
-    fn getValue(): String {
+    public function getValue(): string {
         return this.value;
     }
 }
 
 class Base {
-    fn toString(): String {
+    public function getDescription(): string {
         return "Base";
     }
 }
 
 class Derived extends Base {
-    fn toString(): String {
+    public function getDescription(): string {
         return "Derived";
     }
 }
 
 class Container {
-    let wrapped: Wrapper;
+    Wrapper wrapped;
 
-    fn init(obj: Base) {
+    constructor(Base obj) {
         // Cast and use in constructor
-        this.wrapped = new Wrapper(obj.toString());
+        this.wrapped = new Wrapper(obj.getDescription());
     }
 
-    fn getWrappedValue(): String {
+    public function getWrappedValue(): string {
         return this.wrapped.getValue();
     }
 }
 
-fn createContainer(d: Derived): Container {
+function createContainer(Derived d): Container {
     // Cast in parameter passing
-    return new Container(d as Base);
+    return new Container(d);
 }
 
-fn main() {
-    let derived: Derived = new Derived();
-    let container: Container = createContainer(derived);
+function main(): void {
+    Derived derived = new Derived();
+    Container container = createContainer(derived);
 
     print(container.getWrappedValue());
 
     // Direct casting in constructor call
-    let container2: Container = new Container(derived as Base);
+    Container container2 = new Container(derived);
     print(container2.getWrappedValue());
 
     // Multiple level casting
-    let base: Base = derived as Base;
-    let container3: Container = new Container(base);
+    Base base = derived;
+    Container container3 = new Container(base);
     print(container3.getWrappedValue());
 }
+
+main();

@@ -2,37 +2,35 @@
 // Demonstrates casting arrays with many uninitialized (null) elements
 
 class Node {
-    int value;
-    string label;
+    public int value;
+    public string label;
 }
 
 class TreeNode extends Node {
     TreeNode left;
     TreeNode right;
 
-    constructor(int val) {
+    constructor(int val): super() {
         value = val;
         label = "TreeNode";
     }
 }
 
-@Script
+
 function testSparseArrayCasting(): void {
     print("Testing sparse array casting");
 
-    // Create large sparse array
-    TreeNode[] sparse = new TreeNode[10];
+    // Create large sparse Node array and populate with TreeNode instances
+    // Individual element assignment allows upcasting TreeNode -> Node
+    Node[] nodes = new Node[10];
 
     // Only initialize a few elements
-    sparse[0] = new TreeNode(100);
-    sparse[3] = new TreeNode(103);
-    sparse[7] = new TreeNode(107);
-    sparse[9] = new TreeNode(109);
+    nodes[0] = new TreeNode(100);
+    nodes[3] = new TreeNode(103);
+    nodes[7] = new TreeNode(107);
+    nodes[9] = new TreeNode(109);
 
-    print("Sparse array length: " + sparse.length);
-
-    // Upcast to Node array
-    Node[] nodes = sparse;
+    print("Sparse array length: " + nodes.length);
 
     // Count non-null elements
     int nonNullCount = 0;
@@ -74,3 +72,5 @@ function testSparseArrayCasting(): void {
 
     print("Sparse array casting completed");
 }
+
+testSparseArrayCasting();

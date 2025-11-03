@@ -6,7 +6,7 @@ class Container<T> {
         this.value = val;
     }
 
-    T getValue() {
+    public function getValue(): T {
         return this.value;
     }
 }
@@ -14,13 +14,13 @@ class Container<T> {
 class Base {}
 class Derived extends Base {}
 
-Container<Base>? nullableContainer = new Container<Base>(new Derived());
-Container<Base> nonNullContainer = (Container<Base>)nullableContainer;
+Container<Base> nullableContainer = new Container<Base>(new Derived());
+Container<Base> nonNullContainer = nullableContainer;
 print(nonNullContainer != null);
 
 // Test with null value
-Container<Base>? nullContainer = null;
-Base? result = nullContainer == null ? null : (Base)nullContainer.getValue();
+Container<Base> nullContainer = null;
+Base result = nullContainer == null ? null : (Base)nullContainer.getValue();
 print(result == null);
 
 // Expected output:

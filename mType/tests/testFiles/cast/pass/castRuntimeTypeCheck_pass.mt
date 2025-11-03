@@ -1,55 +1,58 @@
-@Script
+
 // Test runtime type check with static cast
 class Vehicle {
-    fn start(): String {
+    public function start(): string {
         return "Vehicle starting";
     }
 }
 
 class Car extends Vehicle {
-    fn start(): String {
+    public function start(): string {
         return "Car starting";
     }
 
-    fn openTrunk(): String {
+    public function openTrunk(): string {
         return "Trunk opened";
     }
 }
 
 class Motorcycle extends Vehicle {
-    fn start(): String {
+    public function start(): string {
         return "Motorcycle starting";
     }
 
-    fn popWheelie(): String {
+    public function popWheelie(): string {
         return "Wheelie!";
     }
 }
 
-fn identifyVehicle(v: Vehicle): String {
-    let car: Car = v as Car;
-    if (car != null) {
+function identifyVehicle(Vehicle v): string {
+    // Use isClassOf to check type before casting
+    if (v isClassOf Car) {
+        Car car = (Car)v;
         return "It's a car";
     }
 
-    let moto: Motorcycle = v as Motorcycle;
-    if (moto != null) {
+    if (v isClassOf Motorcycle) {
+        Motorcycle moto = (Motorcycle)v;
         return "It's a motorcycle";
     }
 
     return "Unknown vehicle";
 }
 
-fn main() {
-    let car: Car = new Car();
-    let moto: Motorcycle = new Motorcycle();
+function main(): void {
+    Car car = new Car();
+    Motorcycle moto = new Motorcycle();
 
-    print(identifyVehicle(car as Vehicle));
-    print(identifyVehicle(moto as Vehicle));
+    print(identifyVehicle((Vehicle)car));
+    print(identifyVehicle((Vehicle)moto));
 
-    let v: Vehicle = car as Vehicle;
-    let c: Car = v as Car;
+    Vehicle v = (Vehicle)car;
+    Car c = (Car)v;
     if (c != null) {
         print(c.openTrunk());
     }
 }
+
+main();

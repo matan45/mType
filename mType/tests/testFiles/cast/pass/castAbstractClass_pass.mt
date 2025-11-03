@@ -1,32 +1,33 @@
-@Script
 // Test casting to/from abstract class
 abstract class Animal {
-    abstract fn makeSound(): String;
+    public abstract function makeSound(): string;
 
-    fn getType(): String {
+    public function getType(): string {
         return "Animal";
     }
 }
 
 class Dog extends Animal {
-    fn makeSound(): String {
+    public function makeSound(): string {
         return "Woof";
     }
 }
 
 class Cat extends Animal {
-    fn makeSound(): String {
+    public function makeSound(): string {
         return "Meow";
     }
 }
 
-fn main() {
-    let dog: Dog = new Dog();
-    let animal: Animal = dog as Animal;  // Upcast to abstract
+function main(): void {
+    Dog dog = new Dog();
+    Animal animal = dog;  // Upcast to abstract
     print(animal.makeSound());  // Should call Dog's implementation
     print(animal.getType());
 
-    let cat: Cat = new Cat();
-    let animal2: Animal = cat as Animal;
+    Cat cat = new Cat();
+    Animal animal2 = cat;
     print(animal2.makeSound());  // Should call Cat's implementation
 }
+
+main();

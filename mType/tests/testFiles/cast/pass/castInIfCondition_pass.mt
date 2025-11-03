@@ -2,7 +2,7 @@
 class Base {
     public int value;
 
-    public Base(int v) {
+    constructor(int v) {
         this.value = v;
     }
 }
@@ -10,8 +10,7 @@ class Base {
 class Derived extends Base {
     public int multiplier;
 
-    public Derived(int v, int m) {
-        super(v);
+    constructor(int v, int m):super(v) {
         this.multiplier = m;
     }
 

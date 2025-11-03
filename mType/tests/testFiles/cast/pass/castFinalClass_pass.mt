@@ -1,32 +1,33 @@
-@Script
 // Test casting involving final classes
 class Base {
-    fn getName(): String {
+    public function getName(): string {
         return "Base";
     }
 }
 
-final class FinalDerived : Base {
-    fn getName(): String {
+final class FinalDerived extends Base {
+    public function getName(): string {
         return "FinalDerived";
     }
 
-    fn getSpecial(): String {
+    public function getSpecial(): string {
         return "Special";
     }
 }
 
-fn processBase(obj: Base): String {
+function processBase(Base obj): string {
     return obj.getName();
 }
 
-fn main() {
-    let final: FinalDerived = new FinalDerived();
-    let base: Base = final as Base;  // Upcast from final class
+
+function main(): void {
+    FinalDerived finalDerived = new FinalDerived();
+    Base base = finalDerived;  // Upcast from final class
 
     print(base.getName());  // Should use virtual dispatch
-    print(processBase(final));  // Implicit upcast
+    print(processBase(finalDerived));  // Implicit upcast
 
-    let backToFinal: FinalDerived = base as FinalDerived;  // Downcast to final
+    FinalDerived backToFinal = (FinalDerived)base;  // Downcast to final
     print(backToFinal.getSpecial());
 }
+main();

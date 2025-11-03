@@ -1,67 +1,69 @@
-@Script
+
 // Test covariant return type casting
 class Product {
-    fn getName(): String {
+    public function getName(): string {
         return "Generic Product";
     }
 }
 
 class Book extends Product {
-    fn getName(): String {
+    public function getName(): string {
         return "Book";
     }
 
-    fn getPages(): Int {
+    public function getPages(): int {
         return 300;
     }
 }
 
 class Electronics extends Product {
-    fn getName(): String {
+    public function getName(): string {
         return "Electronics";
     }
 
-    fn getWarranty(): Int {
+    public function getWarranty(): int {
         return 2;
     }
 }
 
 class Factory {
-    fn createProduct(): Product {
+    public function createProduct(): Product {
         return new Product();
     }
 }
 
 class BookFactory extends Factory {
-    fn createProduct(): Product {
+    public function createProduct(): Product {
         // Return more specific type, cast to base
-        return new Book() as Product;
+        return new Book();
     }
 }
 
 class ElectronicsFactory extends Factory {
-    fn createProduct(): Product {
-        return new Electronics() as Product;
+    public function createProduct(): Product {
+        return new Electronics();
     }
 }
 
-fn main() {
-    let bookFactory: BookFactory = new BookFactory();
-    let product: Product = bookFactory.createProduct();
+function main(): void {
+    BookFactory bookFactory = new BookFactory();
+    Product product = bookFactory.createProduct();
     print(product.getName());  // Should be "Book" due to polymorphism
 
     // Downcast to get specific functionality
-    let book: Book = product as Book;
+    Book book = (Book)product;
     if (book != null) {
         print(book.getPages());
     }
 
-    let elecFactory: ElectronicsFactory = new ElectronicsFactory();
-    let elecProduct: Product = elecFactory.createProduct();
+    ElectronicsFactory elecFactory = new ElectronicsFactory();
+    Product elecProduct = elecFactory.createProduct();
     print(elecProduct.getName());
 
-    let electronics: Electronics = elecProduct as Electronics;
+    Electronics electronics = (Electronics)elecProduct;
     if (electronics != null) {
         print(electronics.getWarranty());
     }
 }
+
+main();

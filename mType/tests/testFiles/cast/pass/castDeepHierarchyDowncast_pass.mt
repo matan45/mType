@@ -1,69 +1,71 @@
-@Script
+
 // Test 5+ level deep hierarchy downcast
 class A {
-    fn identify(): String {
+    public function identify(): string {
         return "A";
     }
 }
 
 class B extends A {
-    fn identify(): String {
+    public function identify(): string {
         return "B";
     }
 }
 
 class C extends B {
-    fn identify(): String {
+    public function identify(): string {
         return "C";
     }
 }
 
 class D extends C {
-    fn identify(): String {
+    public function identify(): string {
         return "D";
     }
 }
 
 class E extends D {
-    fn identify(): String {
+    public function identify(): string {
         return "E";
     }
 }
 
 class F extends E {
-    fn identify(): String {
+    public function identify(): string {
         return "F";
     }
 
-    fn specialMethod(): String {
+    public function specialMethod(): string {
         return "Special F";
     }
 }
 
-fn main() {
-    let f: F = new F();
-    let a: A = f as A;  // Upcast to top
+function main(): void {
+    F f = new F();
+    A a = (A)f;  // Upcast to top
 
     print(a.identify());  // Should still use F's implementation
 
     // Downcast through hierarchy
-    let b: B = a as B;
+    B b = (B)a;
     print(b.identify());
 
-    let c: C = b as C;
+    C c = (C)b;
     print(c.identify());
 
-    let d: D = c as D;
+    D d = (D)c;
     print(d.identify());
 
-    let e: E = d as E;
+    E e = (E)d;
     print(e.identify());
 
-    let backToF: F = e as F;
+    F backToF = (F)e;
     print(backToF.identify());
     print(backToF.specialMethod());
 
     // Direct downcast from top to bottom
-    let directF: F = a as F;
+    F directF = (F)a;
     print(directF.specialMethod());
 }
+
+main();

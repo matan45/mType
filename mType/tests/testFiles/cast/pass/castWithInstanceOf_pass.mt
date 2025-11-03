@@ -2,7 +2,7 @@
 class Vehicle {
     public int wheels;
 
-    public Vehicle(int w) {
+    constructor(int w) {
         this.wheels = w;
     }
 }
@@ -10,12 +10,11 @@ class Vehicle {
 class Car extends Vehicle {
     public int doors;
 
-    public Car(int w, int d) {
-        super(w);
+    constructor(int w, int d):super(w) {
         this.doors = d;
     }
 
-    public function getInfo(): String {
+    public function getInfo(): string {
         return "Car with " + this.doors + " doors";
     }
 }
@@ -23,12 +22,11 @@ class Car extends Vehicle {
 class Motorcycle extends Vehicle {
     public bool hasSidecar;
 
-    public Motorcycle(int w, bool s) {
-        super(w);
+    constructor(int w, bool s):super(w) {
         this.hasSidecar = s;
     }
 
-    public function getInfo(): String {
+    public function getInfo(): string {
         return hasSidecar ? "Motorcycle with sidecar" : "Motorcycle";
     }
 }
@@ -58,7 +56,7 @@ if (v3 isClassOf Car && ((Car)v3).doors > 1) {
 }
 
 // Nested type checks with casts
-Vehicle vehicles[] = new Vehicle[3];
+Vehicle[] vehicles = new Vehicle[3];
 vehicles[0] = new Car(4, 4);
 vehicles[1] = new Motorcycle(2, false);
 vehicles[2] = new Car(4, 2);
