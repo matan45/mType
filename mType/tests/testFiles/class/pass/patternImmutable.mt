@@ -11,34 +11,34 @@ class ImmutablePoint {
         print("Created ImmutablePoint(" + x + ", " + y + ")");
     }
 
-    public int getX() {
+    public function getX(): int {
         return this.x;
     }
 
-    public int getY() {
+    public function getY(): int {
         return this.y;
     }
 
     // Returns new instance instead of modifying this
-    public ImmutablePoint add(int dx, int dy) {
+    public function add(int dx, int dy): ImmutablePoint {
         print("Creating new point: (" + this.x + "+" + dx + ", " + this.y + "+" + dy + ")");
         return new ImmutablePoint(this.x + dx, this.y + dy);
     }
 
-    public ImmutablePoint multiply(int factor) {
+    public function multiply(int factor): ImmutablePoint{
         print("Creating scaled point: (" + this.x + "*" + factor + ", " + this.y + "*" + factor + ")");
         return new ImmutablePoint(this.x * factor, this.y * factor);
     }
 
-    public bool equals(Object other) {
-        if (other == null || !(other instanceof ImmutablePoint)) {
+    public function equals(ImmutablePoint other): bool {
+        if (other == null) {
             return false;
         }
-        ImmutablePoint p = (ImmutablePoint)other;
+        ImmutablePoint p = other;
         return this.x == p.x && this.y == p.y;
     }
 
-    public string toString() {
+    public function toString(): string {
         return "(" + this.x + ", " + this.y + ")";
     }
 }
@@ -55,31 +55,31 @@ class ImmutablePerson {
         print("Created ImmutablePerson: " + name + ", age " + age);
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 
-    public int getAge() {
+    public function getAge(): int {
         return this.age;
     }
 
-    public ImmutablePoint getLocation() {
+    public function getLocation(): ImmutablePoint {
         return this.location;
     }
 
     // Returns new instance with different age
-    public ImmutablePerson withAge(int newAge) {
+    public function withAge(int newAge): ImmutablePerson  {
         print("Creating person with new age: " + newAge);
         return new ImmutablePerson(this.name, newAge, this.location);
     }
 
     // Returns new instance with different location
-    public ImmutablePerson withLocation(ImmutablePoint newLocation) {
+    public function withLocation(ImmutablePoint newLocation): ImmutablePerson  {
         print("Creating person with new location");
         return new ImmutablePerson(this.name, this.age, newLocation);
     }
 
-    public string toString() {
+    public function toString(): string {
         return this.name + " (age " + this.age + ") at " + this.location.toString();
     }
 }

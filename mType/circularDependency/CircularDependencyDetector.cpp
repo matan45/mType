@@ -20,7 +20,7 @@ namespace circularDependency
     void CircularDependencyDetector::initialize()
     {
         // Initialize tracking for all dependency types
-        for (int i = 0; i <= static_cast<int>(DependencyType::METHOD_OVERLOAD); ++i)
+        for (int i = 0; i <= static_cast<int>(DependencyType::STATIC_FIELD_INITIALIZATION); ++i)
         {
             DependencyType type = static_cast<DependencyType>(i);
             currentDepths_[type] = 0;
@@ -176,7 +176,7 @@ namespace circularDependency
 
     void CircularDependencyDetector::resetAll()
     {
-        for (int i = 0; i <= static_cast<int>(DependencyType::METHOD_OVERLOAD); ++i)
+        for (int i = 0; i <= static_cast<int>(DependencyType::STATIC_FIELD_INITIALIZATION); ++i)
         {
             resetDependencyType(static_cast<DependencyType>(i));
         }

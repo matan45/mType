@@ -532,8 +532,11 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
 
         // === FIELD MANAGEMENT ERROR TESTS ===
-        addTestFromFile("Field Circular Dependency",
+        addTestFromFile("Field Circular Dependency (Static)",
                         errorPath + "fieldCircularDependency.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Field Circular Dependency (Instance)",
+                        errorPath + "fieldCircularDependencyInstance.mt",
                         TestType::ERROR_EXPECTED);
 
         // === TYPE OPERATIONS ERROR TESTS ===

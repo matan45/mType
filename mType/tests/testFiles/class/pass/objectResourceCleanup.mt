@@ -1,6 +1,6 @@
 // Test: Resource cleanup patterns
 // Expected: Pass - demonstrates resource management patterns
-
+import * from "../../lib/exceptions/Exception.mt";
 class Resource {
     private string name;
     private bool isOpen;
@@ -10,7 +10,7 @@ class Resource {
         this.isOpen = false;
     }
 
-    public void open() {
+    public function open(): void {
         if (this.isOpen) {
             print("Resource " + this.name + " already open");
             return;
@@ -19,7 +19,7 @@ class Resource {
         this.isOpen = true;
     }
 
-    public void close() {
+    public function close(): void {
         if (!this.isOpen) {
             print("Resource " + this.name + " already closed");
             return;
@@ -28,11 +28,11 @@ class Resource {
         this.isOpen = false;
     }
 
-    public bool isResourceOpen() {
+    public function isResourceOpen(): bool {
         return this.isOpen;
     }
 
-    public void use() {
+    public function use(): void {
         if (!this.isOpen) {
             print("Error: Cannot use closed resource " + this.name);
             return;
@@ -42,7 +42,7 @@ class Resource {
 }
 
 class ResourceManager {
-    public void useResource(Resource r) {
+    public function useResource(Resource r): void {
         r.open();
         try {
             r.use();
@@ -52,17 +52,17 @@ class ResourceManager {
         }
     }
 
-    public void useResourceWithError(Resource r, bool throwError) {
+    public function useResourceWithError(Resource r, bool throwError): void {
         r.open();
         try {
             r.use();
             if (throwError) {
                 print("Throwing error during resource use");
-                throw "ResourceError";
+                throw new Exception("ResourceError");
             }
             r.use();
-        } catch (string e) {
-            print("Caught error: " + e);
+        } catch (Exception e) {
+            print("Caught error: " + e.getMessage());
         } finally {
             print("Finally block - cleanup");
             r.close();

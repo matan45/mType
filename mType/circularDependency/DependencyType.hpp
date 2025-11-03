@@ -8,6 +8,7 @@ namespace circularDependency
         IMPORT_CHAIN,
         INTERFACE_INHERITANCE,
         CLASS_INHERITANCE,
-        METHOD_OVERLOAD
+        METHOD_OVERLOAD,
+        STATIC_FIELD_INITIALIZATION
     };
 }

@@ -237,7 +237,8 @@ namespace vm::compiler::validation
             }
         }
 
-        // Try and all catches return
-        return !catchBlocks.empty();
+        // Try returns and all catches (if any) return
+        // This is true even if there are no catch blocks
+        return true;
     }
 }

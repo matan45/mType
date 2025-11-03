@@ -19,6 +19,7 @@
 #include "registration/InterfaceRegistrar.hpp"
 #include "registration/FunctionRegistrar.hpp"
 #include "validation/CompileTimeValidator.hpp"
+#include "validation/FieldInitializationValidator.hpp"
 #include "visitors/LiteralCompiler.hpp"
 #include "visitors/ArrayCompiler.hpp"
 #include "visitors/ExpressionCompiler.hpp"
@@ -27,6 +28,7 @@
 #include "visitors/FunctionCompiler.hpp"
 #include "visitors/ClassCompiler.hpp"
 #include "ImportHelper.hpp"
+#include "../../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -151,6 +153,8 @@ namespace vm::compiler
         registration::ClassRegistrar classRegistrar;
         registration::FunctionRegistrar functionRegistrar;
         std::unique_ptr<validation::CompileTimeValidator> compileTimeValidator;
+        std::unique_ptr<validation::FieldInitializationValidator> fieldInitValidator;
+        std::shared_ptr<circularDependency::CircularDependencyDetector> staticFieldInitDetector;
 
         // Shared context for visitor compilers
         visitors::CompilerContext context;

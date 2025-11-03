@@ -19,7 +19,7 @@ class Car {
         this.hasNavigation = hasNavigation;
     }
 
-    public string toString() {
+    public function toString(): string {
         string result = this.year + " " + this.make + " " + this.model +
                        " (" + this.color + ")";
         if (this.hasSunroof) {
@@ -50,43 +50,43 @@ class CarBuilder {
         this.hasNavigation = false;
     }
 
-    public CarBuilder setMake(string make) {
+    public function setMake(string make): CarBuilder {
         this.make = make;
         print("Builder: Set make to " + make);
         return this;
     }
 
-    public CarBuilder setModel(string model) {
+    public function setModel(string model):CarBuilder {
         this.model = model;
         print("Builder: Set model to " + model);
         return this;
     }
 
-    public CarBuilder setYear(int year) {
+    public function setYear(int year):CarBuilder {
         this.year = year;
         print("Builder: Set year to " + year);
         return this;
     }
 
-    public CarBuilder setColor(string color) {
+    public function setColor(string color):CarBuilder {
         this.color = color;
         print("Builder: Set color to " + color);
         return this;
     }
 
-    public CarBuilder withSunroof() {
+    public function withSunroof():CarBuilder {
         this.hasSunroof = true;
         print("Builder: Added sunroof");
         return this;
     }
 
-    public CarBuilder withNavigation() {
+    public function withNavigation():CarBuilder {
         this.hasNavigation = true;
         print("Builder: Added navigation");
         return this;
     }
 
-    public Car build() {
+    public function build() : Car {
         print("Builder: Building car");
         return new Car(this.make, this.model, this.year, this.color,
                       this.hasSunroof, this.hasNavigation);

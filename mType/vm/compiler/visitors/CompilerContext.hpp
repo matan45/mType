@@ -14,6 +14,7 @@
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/ASTVisitor.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../../../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 
 namespace vm::compiler
@@ -52,11 +53,13 @@ namespace vm::compiler::visitors
         types::TypeValidator& typeValidator;
         types::GenericTypeResolver& genericResolver;
         validation::CompileTimeValidator* compileTimeValidator = nullptr;
+        std::shared_ptr<circularDependency::CircularDependencyDetector> staticFieldInitDetector;
 
         // Class context (for member access)
         ast::ClassNode* currentClassNode = nullptr;
         bool inInstanceMethod = false;
         bool inStaticMethod = false;
+        bool inStaticFieldInitializer = false;  // Track if we're compiling a static field initializer
 
         // Generic type binding stack for functions and methods
         std::vector<std::unordered_map<std::string, std::string>> genericTypeBindingStack;

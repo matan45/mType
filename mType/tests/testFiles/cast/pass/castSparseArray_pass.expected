@@ -1,8 +1,10 @@
 Testing sparse array casting
 Sparse array length: 10
-Non-null elements: 10
+Non-null elements: 4
 TreeNode at [0] value: 100
 TreeNode at [3] value: 103
 TreeNode at [7] value: 107
 TreeNode at [9] value: 109
+Element at [1] is null
+Element at [5] is null
 Sparse array casting completed

@@ -3,6 +3,8 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../validation/ReturnPathValidator.hpp"
+#include "../../../circularDependency/TrueCyclicException.hpp"
+#include "../../../circularDependency/DepthLimitException.hpp"
 namespace vm::compiler::visitors
 {
     MethodCompilerHelper::MethodCompilerHelper(CompilerContext& context)

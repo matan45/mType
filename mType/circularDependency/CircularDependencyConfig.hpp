@@ -10,6 +10,7 @@ namespace circularDependency
         int maxInterfaceDepth = 20; // Interface inheritance depth
         int maxClassDepth = 30; // Class inheritance depth
         int maxMethodDepth = 15; // Method overload resolution depth
+        int maxStaticFieldInitDepth = 20; // Static field initialization depth
 
         bool enableEarlyDetection = true; // Detect patterns before limits
         bool reportDetailedChains = true; // Include full dependency chains
@@ -35,6 +36,7 @@ namespace circularDependency
             case DependencyType::INTERFACE_INHERITANCE: return maxInterfaceDepth;
             case DependencyType::CLASS_INHERITANCE: return maxClassDepth;
             case DependencyType::METHOD_OVERLOAD: return maxMethodDepth;
+            case DependencyType::STATIC_FIELD_INITIALIZATION: return maxStaticFieldInitDepth;
             default: return 50; // Default fallback
             }
         }

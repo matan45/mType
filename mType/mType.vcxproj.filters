@@ -1242,6 +1242,9 @@
     <ClInclude Include="vm\compiler\validation\CompileTimeValidator.hpp">
       <Filter>vm\compiler\validation</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\validation\FieldInitializationValidator.hpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\validation\ReturnPathValidator.hpp">
       <Filter>vm\compiler\validation</Filter>
     </ClInclude>
@@ -2043,6 +2046,9 @@
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\FieldInitializationValidator.cpp">
       <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\validation\ReturnPathValidator.cpp">
@@ -4036,6 +4042,9 @@
     <None Include="tests\testFiles\class\error\fieldCircularDependency.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\fieldCircularDependencyInstance.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\finalAbstractConflict.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
@@ -4082,6 +4091,9 @@
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\methodScopingFail.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\missingReturn.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
     <None Include="tests\testFiles\class\error\missingSuper.mt">

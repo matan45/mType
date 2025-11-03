@@ -12,6 +12,8 @@
 #include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../../../ast/nodes/classes/ThisConstructorCallNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../circularDependency/TrueCyclicException.hpp"
+#include "../../../circularDependency/DepthLimitException.hpp"
 #include <unordered_set>
 
 

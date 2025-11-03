@@ -22,6 +22,8 @@ namespace vm::compiler
         , classRegistrar(env, program, &interfaceRegistrar)
         , functionRegistrar(env, program)
         , compileTimeValidator(std::make_unique<validation::CompileTimeValidator>(env, program))
+        , fieldInitValidator(std::make_unique<validation::FieldInitializationValidator>(env))
+        , staticFieldInitDetector(std::make_shared<circularDependency::CircularDependencyDetector>())
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager, exceptionManager,
                   typeInference, typeValidator, genericResolver)
@@ -41,6 +43,9 @@ namespace vm::compiler
         // Set up compile-time validator in context and registrar
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());
+
+        // Set up static field initialization detector in context
+        context.staticFieldInitDetector = staticFieldInitDetector;
     }
 
     bytecode::BytecodeProgram BytecodeCompiler::compile(ast::ASTNode* root)
@@ -70,7 +75,10 @@ namespace vm::compiler
         // Fourth, establish parent-child relationships
         linkParentClasses(root);
 
-        // Fifth, validate @Throw annotations now that all classes are registered
+        // Fifth, validate field initialization dependencies (detect circular references)
+        fieldInitValidator->validateFieldInitializations(root);
+
+        // Sixth, validate @Throw annotations now that all classes are registered
         functionRegistrar.validateThrowAnnotations(root);
 
         // Visit the root node to generate bytecode
